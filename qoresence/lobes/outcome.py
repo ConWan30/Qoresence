@@ -29,6 +29,7 @@ from qoresence.core import (
     NCAA_FOOTBALL_27_PROFILE,
     CALL_OF_DUTY_PROFILE,
 )
+from qoresence.vision.ocr_providers import EasyOCRProvider
 
 log = logging.getLogger(__name__)
 
@@ -133,6 +134,7 @@ class OutcomeRuntime:
 
         # OCR
         self._ocr_regions = self._get_ocr_regions()
+        self._ocr_provider = EasyOCRProvider()
 
         # State
         self._running = False
@@ -164,6 +166,12 @@ class OutcomeRuntime:
 
         if self._frame_provider is None:
             log.warning("No frame provider set - outcome lobe will not detect events")
+
+        # Warm-up OCR model once (downloaded models are reused)
+        try:
+            self._ocr_provider.warmup()
+        except Exception as e:
+            log.warning(f"Outcome OCR warm-up failed: {e}")
 
         self._running = True
         self._start_time = time.time()
@@ -469,7 +477,7 @@ class OutcomeRuntime:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _ocr_region(self, frame: np.ndarray, region_name: str) -> Optional[str]:
-        """Extract text from a named OCR region."""
+        """Extract text from a named OCR region using EasyOCR."""
         if region_name not in self._ocr_regions:
             return None
 
@@ -485,19 +493,23 @@ class OutcomeRuntime:
         if roi.size == 0:
             return None
 
-        # Convert to grayscale
+        # Skip uniform / blank regions — no text to read
         gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-        # Threshold
-        _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+        if float(np.std(gray)) < 8.0:
+            return None
 
-        # Try Tesseract if available, otherwise simple template match
+        # Upscale small regions so EasyOCR has enough pixels to work with
+        if rw < 80 or rh < 30:
+            scale = max(2.0, 160.0 / max(rw, rh))
+            roi = cv2.resize(roi, (int(rw * scale), int(rh * scale)))
+
         try:
-            import pytesseract
-            text = pytesseract.image_to_string(thresh, config='--psm 7').strip()
+            result = self._ocr_provider.read_text(roi)
+            text = result.text.strip()
             return text if text else None
-        except ImportError:
-            # Fallback: simple template matching for known patterns
-            return self._simple_ocr(thresh, region_name)
+        except Exception as e:
+            log.debug(f"EasyOCR failed for region {region_name}: {e}")
+            return None
 
     def _simple_ocr(self, thresh: np.ndarray, region_name: str) -> Optional[str]:
         """Simple template-based OCR fallback."""

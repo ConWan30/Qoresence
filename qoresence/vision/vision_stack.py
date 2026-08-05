@@ -92,7 +92,7 @@ class VisionStack:
             "GAME: ncaa_football_27\n"
             "CONFIDENCE: 0.95\n\n"
             "Rules:\n"
-            "- Pick 'menu' for pause screens, settings, or lobbies.\n"
+            "- Pick 'menu' only for the main menu or settings screens, not for an in-game pause overlay.\n"
             "- Pick 'unknown' when the image is black, blurry, or unrecognizable.\n"
             "- Only return the two lines above."
         )

@@ -491,12 +491,12 @@ class GameAutoDetector:
 
         prompt = (
             "Identify the video game shown in this image. "
-            "Choose exactly one of these four labels: ncaa_football_27, call_of_duty, menu, unknown.\n\n"
+            "Choose exactly one of these labels: ncaa_football_27, call_of_duty, menu, unknown.\n\n"
             "Output format (no explanation):\n"
             "GAME: ncaa_football_27\n"
             "CONFIDENCE: 0.95\n\n"
             "Rules:\n"
-            "- Pick 'menu' for pause screens, settings, or lobbies.\n"
+            "- Pick 'menu' only for the main menu or settings screens, not for an in-game pause overlay.\n"
             "- Pick 'unknown' when the image is black, blurry, or unrecognizable.\n"
             "- Only return the two lines above."
         )
