@@ -330,7 +330,7 @@ class TestOutcomeConfigDefaults:
         assert config.game_profile == GameProfileId.NCAA_FOOTBALL_27
         assert config.detection_method == "ocr"
         assert config.confidence_threshold == 0.7
-        assert config.poll_interval_s == 0.5
+        assert config.poll_interval_s == 2.0
 
 
 class TestProfileRegistry:

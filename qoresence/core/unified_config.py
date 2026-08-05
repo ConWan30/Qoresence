@@ -184,7 +184,7 @@ class OutcomeConfig:
     game_profile: GameProfileId = GameProfileId.NCAA_FOOTBALL_27
     detection_method: str = "ocr"  # "ocr" | "memory" | "hybrid"
     confidence_threshold: float = 0.7
-    poll_interval_s: float = 0.5
+    poll_interval_s: float = 2.0
 
 
 @dataclass(frozen=True)

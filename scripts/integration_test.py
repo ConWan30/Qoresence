@@ -736,7 +736,7 @@ def main():
     parser.add_argument("--outcome", action="store_true", help="Enable outcome lobe")
     parser.add_argument("--game-profile", choices=["ncaa_football_27", "call_of_duty", "auto"], default="auto")
     parser.add_argument("--outcome-confidence", type=float, default=0.7)
-    parser.add_argument("--outcome-interval", type=float, default=0.5)
+    parser.add_argument("--outcome-interval", type=float, default=2.0)
 
     # Visual
     parser.add_argument("--visual", action="store_true", help="Enable visual lobe")

@@ -130,13 +130,14 @@ class EasyOCRProvider(BaseOCRProvider):
         return OCRResult(text=joined, confidence=avg_conf, provider=self.name, raw_details={"detections": len(parts)})
 
     def read_text_with_bboxes(
-        self, frame: np.ndarray
+        self, frame: np.ndarray, max_dim: int = 640
     ) -> list[tuple[list[tuple[float, float]], str, float]]:
         """Return per-word OCR results with bounding boxes."""
         self.warmup()
         if self._reader is None:
             return []
 
+        frame = _resize_for_ocr(frame, max_dim=max_dim)
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         try:
             # detail=1 returns (bbox, text, confidence) tuples
