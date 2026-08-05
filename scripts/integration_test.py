@@ -854,6 +854,11 @@ def main():
     print("INTEGRATION TEST RESULTS")
     print("="*60)
     print(f"Success:        {result['success']}")
+    if not result['success']:
+        error = result.get('error', 'Unknown failure')
+        print(f"Error:          {error}")
+        print("="*60)
+        return 1
     print(f"Session ID:     {result['session_id']}")
     print(f"Duration:       {result['duration_s']}s")
     print(f"Events Received: {result['stats']['events_received']}")
@@ -867,7 +872,7 @@ def main():
         print(f"  {lobe}: {status}")
     print("="*60)
 
-    return 0 if result['success'] else 1
+    return 0
 
 
 if __name__ == "__main__":
