@@ -86,7 +86,8 @@ class VisionStack:
         # Reusable VLM classification prompt
         self._game_prompt = (
             "Identify the video game shown in this image. "
-            "Choose exactly one of these four labels: ncaa_football_27, call_of_duty, menu, unknown.\n\n"
+            "Choose exactly one of these labels: ncaa_football_27 (also college_football_27 or ncaa), "
+            "call_of_duty (also cod), menu, unknown.\n\n"
             "Output format (no explanation):\n"
             "GAME: ncaa_football_27\n"
             "CONFIDENCE: 0.95\n\n"
@@ -248,14 +249,21 @@ class VisionStack:
 
         label = game_match.group(1).lower().strip()
 
-        if "|" in label or label not in {"ncaa_football_27", "call_of_duty", "menu", "unknown"}:
+        # Accept common aliases the VLM may use instead of the canonical profile id
+        aliases = {
+            "ncaa_football_27": GameProfileId.NCAA_FOOTBALL_27,
+            "ncaa": GameProfileId.NCAA_FOOTBALL_27,
+            "college_football_27": GameProfileId.NCAA_FOOTBALL_27,
+            "college_football": GameProfileId.NCAA_FOOTBALL_27,
+            "call_of_duty": GameProfileId.CALL_OF_DUTY,
+            "cod": GameProfileId.CALL_OF_DUTY,
+        }
+
+        if "|" in label or (label not in aliases and label not in {"menu", "unknown"}):
             return None, 0.0
 
         confidence = float(conf_match.group(1)) if conf_match else 0.7
 
-        mapping = {
-            "ncaa_football_27": GameProfileId.NCAA_FOOTBALL_27,
-            "call_of_duty": GameProfileId.CALL_OF_DUTY,
-        }
+        mapping = aliases
 
         return mapping.get(label), confidence

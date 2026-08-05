@@ -447,7 +447,17 @@ class GameAutoDetector:
         self._maybe_emit_and_switch(result)
 
     def _maybe_emit_and_switch(self, result: Optional[GameDetectionResult]) -> None:
-        if result and result.confidence >= self._confidence_threshold:
+        if result is None:
+            log.debug("_maybe_emit_and_switch: no result")
+            return
+
+        log.debug(
+            f"_maybe_emit_and_switch: profile={result.profile_id.value}, "
+            f"confidence={result.confidence:.3f}, threshold={self._confidence_threshold}, "
+            f"evidence={result.evidence_count}"
+        )
+
+        if result.confidence >= self._confidence_threshold:
             if result.profile_id == self._last_emitted_profile:
                 self._consecutive_detections += 1
             else:
@@ -697,6 +707,10 @@ class GameAutoDetector:
 
     def _emit_game_detected(self, result: GameDetectionResult) -> None:
         """Emit canonical game_detected event to the bus."""
+        log.info(
+            f"Emitting game_detected: profile={result.profile_id.value}, "
+            f"confidence={result.confidence:.3f}, evidence_count={result.evidence_count}"
+        )
         try:
             self.bus.emit_raw(
                 source_lobe=SourceLobe.FUSION,
