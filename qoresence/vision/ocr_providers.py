@@ -112,30 +112,32 @@ class EasyOCRProvider(BaseOCRProvider):
             self._reader = easyocr.Reader(list(self._languages), gpu=self._gpu, verbose=False)
 
     def read_text(self, frame: np.ndarray) -> OCRResult:
+        bboxes = self.read_text_with_bboxes(frame)
+        if not bboxes:
+            return OCRResult(text="", confidence=0.0, provider=self.name)
+
+        parts = [text for (_bbox, text, _conf) in bboxes if text]
+        total_conf = sum(conf for (_bbox, _text, conf) in bboxes if _text)
+        joined = ", ".join(parts)
+        avg_conf = total_conf / len(parts) if parts else 0.0
+        return OCRResult(text=joined, confidence=avg_conf, provider=self.name, raw_details={"detections": len(parts)})
+
+    def read_text_with_bboxes(
+        self, frame: np.ndarray
+    ) -> list[tuple[list[tuple[float, float]], str, float]]:
+        """Return per-word OCR results with bounding boxes."""
         self.warmup()
         if self._reader is None:
-            return OCRResult(text="", confidence=0.0, provider=self.name)
+            return []
 
-        # EasyOCR expects RGB
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         try:
+            # detail=1 returns (bbox, text, confidence) tuples
             results = self._reader.readtext(rgb, detail=1)
-            if not results:
-                return OCRResult(text="", confidence=0.0, provider=self.name)
-
-            parts = []
-            total_conf = 0.0
-            for (bbox, text, conf) in results:
-                if text:
-                    parts.append(text)
-                    total_conf += conf
-
-            joined = ", ".join(parts)
-            avg_conf = total_conf / len(parts) if parts else 0.0
-            return OCRResult(text=joined, confidence=avg_conf, provider=self.name, raw_details={"detections": len(parts)})
+            return results
         except Exception as e:
             log.warning(f"EasyOCR failed: {e}")
-            return OCRResult(text="", confidence=0.0, provider=self.name)
+            return []
 
 
 class TesseractOCRProvider(BaseOCRProvider):

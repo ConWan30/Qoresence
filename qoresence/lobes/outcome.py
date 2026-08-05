@@ -136,6 +136,10 @@ class OutcomeRuntime:
         self._ocr_regions = self._get_ocr_regions()
         self._ocr_provider = EasyOCRProvider()
 
+        # Per-frame OCR cache: avoid running EasyOCR once per region
+        self._last_frame_id: Optional[int] = None
+        self._last_ocr_bboxes: list = []
+
         # State
         self._running = False
         self._thread: Optional[threading.Thread] = None
@@ -309,6 +313,8 @@ class OutcomeRuntime:
 
     def _process_frame(self, frame: np.ndarray) -> None:
         """Run all detectors on frame."""
+        self._refresh_ocr_cache(frame)
+
         for event_name, detector in self._detectors.items():
             try:
                 result = detector(frame)
@@ -476,10 +482,35 @@ class OutcomeRuntime:
     # OCR HELPER
     # ──────────────────────────────────────────────────────────────────────────
 
+    def _refresh_ocr_cache(self, frame: np.ndarray) -> None:
+        """Run EasyOCR once per frame and cache per-word bounding boxes."""
+        frame_id = id(frame)
+        if frame_id == self._last_frame_id:
+            return
+
+        # Skip blank frames quickly
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        if float(np.std(gray)) < 8.0:
+            self._last_frame_id = frame_id
+            self._last_ocr_bboxes = []
+            return
+
+        try:
+            self._last_ocr_bboxes = self._ocr_provider.read_text_with_bboxes(frame)
+        except Exception as e:
+            log.debug(f"Full-frame OCR failed: {e}")
+            self._last_ocr_bboxes = []
+
+        self._last_frame_id = frame_id
+
     def _ocr_region(self, frame: np.ndarray, region_name: str) -> Optional[str]:
-        """Extract text from a named OCR region using EasyOCR."""
+        """Extract text from a named OCR region using the cached full-frame OCR."""
         if region_name not in self._ocr_regions:
             return None
+
+        if id(frame) != self._last_frame_id:
+            # Cache miss: refresh on demand
+            self._refresh_ocr_cache(frame)
 
         h, w = frame.shape[:2]
         x_frac, y_frac, w_frac, h_frac = self._ocr_regions[region_name]
@@ -489,27 +520,26 @@ class OutcomeRuntime:
         rw = int(w_frac * w)
         rh = int(h_frac * h)
 
-        roi = frame[y:y+rh, x:x+rw]
-        if roi.size == 0:
+        # Select words whose bounding box center falls inside this region
+        parts = []
+        for (bbox, text, conf) in self._last_ocr_bboxes:
+            if not text:
+                continue
+            # bbox is a list of four (x,y) corners in pixel coords
+            try:
+                cx = sum(p[0] for p in bbox) / 4.0
+                cy = sum(p[1] for p in bbox) / 4.0
+            except Exception:
+                continue
+            if x <= cx < x + rw and y <= cy < y + rh:
+                parts.append((cy, text))
+
+        if not parts:
             return None
 
-        # Skip uniform / blank regions — no text to read
-        gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-        if float(np.std(gray)) < 8.0:
-            return None
-
-        # Upscale small regions so EasyOCR has enough pixels to work with
-        if rw < 80 or rh < 30:
-            scale = max(2.0, 160.0 / max(rw, rh))
-            roi = cv2.resize(roi, (int(rw * scale), int(rh * scale)))
-
-        try:
-            result = self._ocr_provider.read_text(roi)
-            text = result.text.strip()
-            return text if text else None
-        except Exception as e:
-            log.debug(f"EasyOCR failed for region {region_name}: {e}")
-            return None
+        # Read top-to-bottom, left-to-right
+        parts.sort(key=lambda t: (t[0], t[1]))
+        return ", ".join(t[1] for t in parts)
 
     def _simple_ocr(self, thresh: np.ndarray, region_name: str) -> Optional[str]:
         """Simple template-based OCR fallback."""
