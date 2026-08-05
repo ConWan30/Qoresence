@@ -1,0 +1,112 @@
+# Qoresence Docker Compose — Phase 9 Local Development & Deployment
+#
+# Usage:
+#   docker-compose up --build          # Build and run
+#   docker-compose run qoresence --help # Run CLI commands
+#   docker-compose exec qoresence bash  # Interactive shell
+
+version: '3.8'
+
+services:
+  qoresence:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: qoresence:latest
+    container_name: qoresence
+    restart: unless-stopped
+    environment:
+      # Session identity (required)
+      - QORESENCE_SESSION_ID=${QORESENCE_SESSION_ID:-qoresence_$(date +%s)}
+      - QORESENCE_SESSION_HEAD_NS=${QORESENCE_SESSION_HEAD_NS:-}
+      - QORESENCE_DEVICE_ID_HEX=${QORESENCE_DEVICE_ID_HEX:-}
+
+      # Lobe enablement
+      - QORESENCE_STREAMER_ENABLED=${QORESENCE_STREAMER_ENABLED:-0}
+      - QORESENCE_STREAMER_DEVICE_INDEX=${QORESENCE_STREAMER_DEVICE_INDEX:-0}
+      - QORESENCE_STREAMER_DEVICE_NAME=${QORESENCE_STREAMER_DEVICE_NAME:-}
+      - QORESENCE_STREAMER_SOURCE_KIND=${QORESENCE_STREAMER_SOURCE_KIND:-uvc_card}
+      - QORESENCE_STREAMER_FPS=${QORESENCE_STREAMER_FPS:-15.0}
+      - QORESENCE_STREAMER_WS_ENABLED=${QORESENCE_STREAMER_WS_ENABLED:-1}
+      - QORESENCE_STREAMER_PRESENCE_TOUCH=${QORESENCE_STREAMER_PRESENCE_TOUCH:-/tmp/controller_presence.touch}
+      - QORESENCE_STREAMER_PRESENCE_TIMEOUT=${QORESENCE_STREAMER_PRESENCE_TIMEOUT:-5.0}
+
+      - QORESENCE_CONTROLLER_ENABLED=${QORESENCE_CONTROLLER_ENABLED:-0}
+      - QORESENCE_CONTROLLER_VID=${QORESENCE_CONTROLLER_VID:-}
+      - QORESENCE_CONTROLLER_PID=${QORESENCE_CONTROLLER_PID:-}
+      - QORESENCE_CONTROLLER_PATH=${QORESENCE_CONTROLLER_PATH:-}
+
+      - QORESENCE_SCREEN_ENABLED=${QORESENCE_SCREEN_ENABLED:-0}
+      - QORESENCE_SCREEN_METHOD=${QORESENCE_SCREEN_METHOD:-wgc}
+      - QORESENCE_SCREEN_MONITOR=${QORESENCE_SCREEN_MONITOR:-0}
+
+      - QORESENCE_OUTCOME_ENABLED=${QORESENCE_OUTCOME_ENABLED:-0}
+      - QORESENCE_OUTCOME_PROFILE=${QORESENCE_OUTCOME_PROFILE:-ncaa_football_27}
+      - QORESENCE_OUTCOME_CONFIDENCE=${QORESENCE_OUTCOME_CONFIDENCE:-0.7}
+
+      - QORESENCE_VISUAL_ENABLED=${QORESENCE_VISUAL_ENABLED:-0}
+      - QORESENCE_VISUAL_API_KEY=${QORESENCE_VISUAL_API_KEY:-}
+      - QORESENCE_VISUAL_SAMPLE_RATE=${QORESENCE_VISUAL_SAMPLE_RATE:-30}
+      - QORESENCE_VISUAL_CATEGORY=${QORESENCE_VISUAL_CATEGORY:-football}
+
+      # Output
+      - QORESENCE_JSONL_PATH=${QORESENCE_JSONL_PATH:-/app/logs/events.jsonl}
+      - QORESENCE_WS_HOST=${QORESENCE_WS_HOST:-0.0.0.0}
+      - QORESENCE_WS_PORT=${QORESENCE_WS_PORT:-8765}
+      - QORESENCE_WS_ENABLED=${QORESENCE_WS_ENABLED:-1}
+
+      # Logging
+      - QORESENCE_LOG_LEVEL=${QORESENCE_LOG_LEVEL:-INFO}
+
+    volumes:
+      # Persist logs and JSONL output
+      - ./logs:/app/logs
+      # For controller HID device access (Linux)
+      - /dev/hidraw0:/dev/hidraw0
+      # For screen capture (X11)
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    devices:
+      # USB HID device access for controller
+      - /dev/hidraw0:/dev/hidraw0
+    ports:
+      - "8765:8765"  # WebSocket for OBS overlay
+    # For GPU acceleration (optional)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # OBS Studio (optional - for local testing)
+  # obs:
+  #   image: obsproject/obs-studio:latest
+  #   container_name: qoresence-obs
+  #   environment:
+  #     - DISPLAY=${DISPLAY:-:0}
+  #   volumes:
+  #     - /tmp/.X11-unix:/tmp/.X11-unix
+  #     - ./tools/obs:/obs
+  #   depends_on:
+  #     - qoresence
+  #   deploy:
+  #     resources:
+    #       reservations:
+    #         devices:
+    #           - driver: nvidia
+    #             count: 1
+    #             capabilities: [gpu]
+
+  # Health check endpoint (optional)
+  # health:
+  #   image: qoresence:latest
+  #   command: python -c "from qoresence.cli import run_health_checks; import json; print(json.dumps(run_health_checks(None), indent=2))"
+  #   depends_on:
+  #     - qoresence
+
+# Networks
+networks:
+  default:
+    name: qoresence-network

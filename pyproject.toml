@@ -31,6 +31,10 @@ streamer = [
 controller = [
     "hidapi>=0.14",
 ]
+screen = [
+    "mss>=10.0",
+    "opencv-python>=4.8",
+]
 visual = [
     "requests>=2.31",
     "onnxruntime>=1.16",
@@ -41,10 +45,21 @@ dev = [
     "ruff>=0.3",
     "mypy>=1.5",
 ]
+all = [
+    "opencv-python>=4.8",
+    "websockets>=12.0",
+    "hidapi>=0.14",
+    "mss>=10.0",
+    "requests>=2.31",
+    "onnxruntime>=1.16",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["qoresence*"]
+
+[project.scripts]
+qoresence = "qoresence.cli:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"

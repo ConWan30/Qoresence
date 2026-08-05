@@ -257,6 +257,7 @@ class RetinaUnifiedConfig:
     jsonl_path: Optional[str] = None
     ws_host: str = "127.0.0.1"
     ws_port: int = 8765
+    enable_ws: bool = True
 
     # ─────────────────────────────────────────────────────────────────────────
     # VALIDATION
@@ -435,6 +436,7 @@ class RetinaUnifiedConfig:
             jsonl_path=_str("QORESENCE_JSONL_PATH") or None,
             ws_host=_str("QORESENCE_WS_HOST", "127.0.0.1"),
             ws_port=_int("QORESENCE_WS_PORT", 8765),
+            enable_ws=_bool("QORESENCE_WS_ENABLED", True),
         )
 
     # ─────────────────────────────────────────────────────────────────────────

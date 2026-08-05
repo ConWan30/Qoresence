@@ -131,6 +131,12 @@ class ScreenRuntime:
         # Motion threshold (configurable for testing)
         self._motion_threshold = 0.01
 
+        # Current frame (for cross-lobe integration)
+        self._current_frame: Optional[np.ndarray] = None
+
+        # Presence callback (for fusion engine)
+        self._presence_callback: Optional[callable] = None
+
         # OCR (optional)
         self._tesseract_available = False
         try:
@@ -194,6 +200,14 @@ class ScreenRuntime:
     def is_running(self) -> bool:
         return self._running
 
+    def set_presence_callback(self, callback: callable) -> None:
+        """Set callback for presence status updates (for fusion engine)."""
+        self._presence_callback = callback
+
+    def get_current_frame(self) -> Optional[np.ndarray]:
+        """Get the most recent captured frame (for cross-lobe integration)."""
+        return self._current_frame
+
     def set_controller_provider(self, provider: Callable[[], Optional[np.ndarray]]) -> None:
         """Set controller feature provider for coupling analysis."""
         self._controller_provider = provider
@@ -216,6 +230,8 @@ class ScreenRuntime:
             frame = self._capture_frame()
             if frame is not None:
                 self._frames_captured += 1
+                # Store current frame for cross-lobe integration
+                self._current_frame = frame
                 self._process_frame(frame)
 
             # Pace
@@ -474,6 +490,16 @@ class ScreenRuntime:
             clock_ns_override=now_ns,
             session_head_ns=self.session_head_ns,
         )
+
+        # Call presence callback for fusion engine
+        if self._presence_callback:
+            try:
+                self._presence_callback({
+                    "lobe": "screen",
+                    "coupling_score": coupling,
+                })
+            except Exception:
+                pass
 
     def _emit_ocr_hud(self, ocr_results: dict[str, str], now_ns: int) -> None:
         for region, text in ocr_results.items():

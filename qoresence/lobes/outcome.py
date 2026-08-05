@@ -144,6 +144,14 @@ class OutcomeRuntime:
         # Confidence threshold
         self._confidence_threshold = config.confidence_threshold
 
+        # Presence callback (for fusion engine)
+        self._presence_callback: Optional[callable] = None
+
+        # Track last state for cross-modal verification
+        self._last_event = None
+        self._home_score = 0
+        self._away_score = 0
+
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
     # ──────────────────────────────────────────────────────────────────────────
@@ -175,6 +183,18 @@ class OutcomeRuntime:
 
     def is_running(self) -> bool:
         return self._running
+
+    def set_presence_callback(self, callback: callable) -> None:
+        """Set callback for presence status updates (for fusion engine)."""
+        self._presence_callback = callback
+
+    def get_last_state(self) -> dict:
+        """Get last outcome state for cross-modal verification."""
+        return {
+            'last_event': self._last_event if hasattr(self, '_last_event') else None,
+            'home_score': self._home_score if hasattr(self, '_home_score') else 0,
+            'away_score': self._away_score if hasattr(self, '_away_score') else 0,
+        }
 
     def set_frame_provider(self, provider: Callable[[], Optional[np.ndarray]]) -> None:
         """Set frame provider callback (e.g., from streamer lobe)."""
@@ -509,6 +529,25 @@ class OutcomeRuntime:
             clock_ns_override=clock_ns(),
             session_head_ns=self.session_head_ns,
         )
+
+        # Update tracking for cross-modal verification
+        self._last_event = result.event_name
+        if 'home_score' in result.fields:
+            self._home_score = result.fields['home_score']
+        if 'away_score' in result.fields:
+            self._away_score = result.fields['away_score']
+
+        # Call presence callback for fusion engine
+        if self._presence_callback:
+            try:
+                self._presence_callback({
+                    "lobe": "outcome",
+                    "last_event": result.event_name,
+                    "home_score": self._home_score,
+                    "away_score": self._away_score,
+                })
+            except Exception:
+                pass
 
         # Update prev_fields for change detection
         self._prev_fields.update(result.fields)

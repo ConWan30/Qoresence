@@ -98,6 +98,12 @@ class StreamerRuntime:
         # Zone configs
         self._zones = DEFAULT_ZONES if config.zones_enabled else ()
 
+        # Current frame (for cross-lobe integration)
+        self._current_frame: Optional[np.ndarray] = None
+
+        # Presence callback (for fusion engine)
+        self._presence_callback: Optional[callable] = None
+
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
     # ──────────────────────────────────────────────────────────────────────────
@@ -133,6 +139,14 @@ class StreamerRuntime:
 
     def is_running(self) -> bool:
         return self._running
+
+    def get_current_frame(self) -> Optional[np.ndarray]:
+        """Get the most recent captured frame (for cross-lobe integration)."""
+        return self._current_frame
+
+    def set_presence_callback(self, callback: callable) -> None:
+        """Set callback for presence status updates (for fusion engine)."""
+        self._presence_callback = callback
 
     # ──────────────────────────────────────────────────────────────────────────
     # CAPTURE DEVICE
@@ -220,6 +234,9 @@ class StreamerRuntime:
                 continue
 
             self._frames_processed += 1
+
+            # Store current frame for cross-lobe integration
+            self._current_frame = frame
 
             # Downscale for metrics
             scale = self.config.process_scale
@@ -364,6 +381,18 @@ class StreamerRuntime:
             clock_ns_override=clock_ns(),
             session_head_ns=self.session_head_ns,
         )
+
+        # Call presence callback for fusion engine
+        if self._presence_callback:
+            try:
+                self._presence_callback({
+                    "lobe": "streamer",
+                    "presence_sync_ok": presence_sync,
+                    "activity": self._activity,
+                    "motion": motion,
+                })
+            except Exception:
+                pass
 
     def _emit_zone(self, zone_id: str, state: str, prev: str, delta: float, luma: float, now: float) -> None:
         """Emit zone state change event."""

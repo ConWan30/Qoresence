@@ -279,6 +279,9 @@ class VisualRuntime:
         self._last_context: Optional[VisualContext] = None
         self._last_verdict: Optional[CrossModalVerdict] = None
 
+        # Presence callback (for fusion engine)
+        self._presence_callback: Optional[callable] = None
+
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
     # ──────────────────────────────────────────────────────────────────────────
@@ -309,6 +312,18 @@ class VisualRuntime:
 
     def is_running(self) -> bool:
         return self._running
+
+    def set_presence_callback(self, callback: callable) -> None:
+        """Set callback for presence status updates (for fusion engine)."""
+        self._presence_callback = callback
+
+    def get_last_state(self) -> dict:
+        """Get last visual state for cross-modal verification."""
+        return {
+            'game_state': self._last_context.game_state if self._last_context else 'unknown',
+            'confidence': self._last_context.confidence if self._last_context else 0.0,
+            'last_verdict': self._last_verdict.verdict if self._last_verdict else 'inconclusive',
+        }
 
     def set_frame_provider(self, provider: Callable[[], Optional[np.ndarray]]) -> None:
         """Set frame provider (e.g., from streamer or screen lobe)."""
@@ -443,6 +458,17 @@ CONFIDENCE: 0.0-1.0"""
             clock_ns_override=clock_ns(),
             session_head_ns=self.session_head_ns,
         )
+
+        # Call presence callback for fusion engine
+        if self._presence_callback:
+            try:
+                self._presence_callback({
+                    "lobe": "visual",
+                    "game_state": context.game_state,
+                    "confidence": context.confidence,
+                })
+            except Exception:
+                pass
 
     def _emit_cross_modal_verdict(self, verdict: CrossModalVerdict) -> None:
         self.bus.emit_raw(

@@ -170,6 +170,15 @@ class ControllerRuntime:
         self._reports_read = 0
         self._start_time = 0.0
 
+        # Presence callback (for fusion engine)
+        self._presence_callback: Optional[callable] = None
+
+        # Track last trigger/stick values for cross-lobe coupling
+        self._last_trigger_value = 0.0
+        self._last_stick_motion = 0.0
+        self._causal_density = 0
+        self._last_event_ns = 0
+
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
     # ──────────────────────────────────────────────────────────────────────────
@@ -207,6 +216,26 @@ class ControllerRuntime:
 
     def is_running(self) -> bool:
         return self._running
+
+    def set_presence_callback(self, callback: callable) -> None:
+        """Set callback for presence status updates (for fusion engine)."""
+        self._presence_callback = callback
+
+    def get_stats(self) -> dict:
+        """Get controller statistics for cross-lobe coupling."""
+        return {
+            'last_trigger': self._last_trigger_value if hasattr(self, '_last_trigger_value') else 0.0,
+            'stick_motion': self._last_stick_motion if hasattr(self, '_last_stick_motion') else 0.0,
+            'causal_density': self._causal_density if hasattr(self, '_causal_density') else 0,
+            'last_event_ns': self._last_event_ns if hasattr(self, '_last_event_ns') else 0,
+        }
+
+    def get_last_state(self) -> dict:
+        """Get last controller state for cross-modal verification."""
+        return {
+            'causal_density': self._causal_density if hasattr(self, '_causal_density') else 0,
+            'last_trigger': self._last_trigger_value if hasattr(self, '_last_trigger_value') else 0.0,
+        }
 
     def get_buffer_snapshot(self) -> list[BufferEntry]:
         """Get copy of rolling buffer for cross-lobe correlation."""
@@ -561,6 +590,18 @@ class ControllerRuntime:
             clock_ns_override=now_ns,
             session_head_ns=self.session_head_ns,
         )
+
+        # Call presence callback for fusion engine
+        if self._presence_callback:
+            try:
+                self._presence_callback({
+                    "lobe": "controller",
+                    "causal_density": self._causal_density,
+                    "last_trigger": self._last_trigger_value,
+                    "last_event_ns": self._last_event_ns,
+                })
+            except Exception:
+                pass
 
     def _emit_session_start(self) -> None:
         self.bus.emit_raw(

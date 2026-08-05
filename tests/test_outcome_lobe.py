@@ -394,7 +394,7 @@ class TestOutcomeRuntimeIntegration:
             runtime.set_frame_provider(provider)
 
             runtime.start()
-            time.sleep(0.05)  # Let it run a couple iterations
+            time.sleep(0.1)  # Let it run a couple iterations
             runtime.stop()
 
             assert len(provider_called) >= 2

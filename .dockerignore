@@ -1,0 +1,60 @@
+# Qoresence .dockerignore
+
+# Version control
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.venv
+venv
+env
+
+# Testing
+tests/
+*.jsonl
+logs/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Development
+scripts/
+*.ps1
+*.bat
+*.sh
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (never include)
+.env
+.env.*
+*.key
+*.pem
+*.crt
+
+# Build artifacts
+dist/
+build/
+*.egg-info
+
+# Cache
+.cache/
+.mypy_cache/

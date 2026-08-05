@@ -168,7 +168,7 @@ class TestScreenRuntime:
             runtime.set_controller_provider(controller_provider)
 
             runtime.start()
-            time.sleep(0.6)  # Let coupling buffer fill (need 10+ samples at 30fps)
+            time.sleep(1.0)  # Let coupling buffer fill (need 10+ samples at 30fps)
             runtime.stop()
 
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
@@ -318,7 +318,7 @@ class TestScreenRuntimeIntegration:
             runtime.set_controller_provider(controller_provider)
 
             runtime.start()
-            time.sleep(0.5)
+            time.sleep(1.0)
             runtime.stop()
 
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
