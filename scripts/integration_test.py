@@ -269,7 +269,15 @@ class IntegrationTestApp:
             elif self.screen:
                 self.visual.set_frame_provider(self.screen.get_current_frame)
 
-            # Visual ← Outcome/Controller/Screen (cross-modal)
+        # Outcome ← Streamer/Screen (frames)
+        if self.outcome:
+            if self.streamer:
+                self.outcome.set_frame_provider(self.streamer.get_current_frame)
+            elif self.screen:
+                self.outcome.set_frame_provider(self.screen.get_current_frame)
+
+        # Visual ← Outcome/Controller/Screen (cross-modal)
+        if self.visual:
             def modality_provider():
                 modalities = {}
                 if self.outcome:
