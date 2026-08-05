@@ -20,6 +20,17 @@ from .payload import (
 )
 from .validator import TrioRetinaValidator, ValidationResult, create_validator
 from .wasm import WasmtimeRunner, WasmResult, create_runner
+from .metrics import (
+    TrioRetinaMetrics,
+    get_trio_metrics,
+    instrument_validator,
+    create_metrics_endpoint,
+    TrioRetinaMetricsMiddleware,
+    update_trio_metrics_from_stats,
+    reset_trio_metrics,
+    get_trio_registry,
+    reset_trio_registry,
+)
 
 __all__ = [
     "TrioRetinaConfig",
@@ -37,4 +48,14 @@ __all__ = [
     "ValidationResult",
     "create_validator",
     "create_runner",
+    # Metrics
+    "TrioRetinaMetrics",
+    "get_trio_metrics",
+    "instrument_validator",
+    "create_metrics_endpoint",
+    "TrioRetinaMetricsMiddleware",
+    "update_trio_metrics_from_stats",
+    "reset_trio_metrics",
+    "get_trio_registry",
+    "reset_trio_registry",
 ]

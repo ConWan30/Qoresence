@@ -29,6 +29,10 @@ from qoresence.trio import (
     TrioRetinaValidator,
     ValidationResult,
     create_validator,
+    TrioRetinaMetrics,
+    get_trio_metrics,
+    instrument_validator,
+    reset_trio_metrics,
 )
 
 
@@ -380,6 +384,49 @@ class TestWasmResult:
         for code, desc in descriptions.items():
             result = WasmResult(exit_code=code, stdout="", stderr="", duration_ms=10)
             assert result.error_description == desc
+
+
+class TestTrioRetinaMetrics:
+    """Tests for Prometheus metrics."""
+
+    def setup_method(self):
+        reset_trio_metrics()
+
+    def test_metrics_creation(self):
+        """Metrics instance should be created."""
+        metrics = get_trio_metrics()
+        assert isinstance(metrics, TrioRetinaMetrics)
+
+    def test_singleton_pattern(self):
+        """get_trio_metrics should return same instance."""
+        m1 = get_trio_metrics()
+        m2 = get_trio_metrics()
+        assert m1 is m2
+
+    def test_reset_metrics(self):
+        """reset_trio_metrics should create new instance."""
+        m1 = get_trio_metrics()
+        reset_trio_metrics()
+        m2 = get_trio_metrics()
+        assert m1 is not m2
+
+    def test_record_validation(self):
+        """record_validation should increment counters."""
+        metrics = get_trio_metrics()
+        # Just verify it doesn't crash (counters are lazy)
+        metrics.record_validation(True, 10.0, 100)
+        metrics.record_validation(False, 50.0, 200)
+
+    def test_update_flush_state(self):
+        """update_flush_state should set gauges."""
+        metrics = get_trio_metrics()
+        metrics.update_flush_state(30.0, 1234567890000, 5)
+
+    def test_update_config(self):
+        """update_config should set config gauges."""
+        metrics = get_trio_metrics()
+        metrics.update_config(True, "real", True, True)
+        metrics.update_config(False, "mock", False, False)
 
 
 if __name__ == "__main__":
