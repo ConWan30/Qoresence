@@ -501,9 +501,19 @@ def create_test_config(args) -> RetinaUnifiedConfig:
         poll_interval_s=args.outcome_interval,
     )
 
+    api_key = args.visual_api_key
+    if not api_key and args.visual_api_key_file:
+        key_path = Path(args.visual_api_key_file)
+        if key_path.exists():
+            raw = key_path.read_text().strip()
+            api_key = raw.split(":", 1)[1].strip() if ":" in raw else raw
+        else:
+            log.warning(f"Visual API key file not found: {key_path}")
+
     visual_config = VisualConfig(
         enabled=args.visual,
-        api_key=args.visual_api_key,
+        api_key=api_key,
+        model_name=args.visual_model_name,
         frame_sample_rate=args.visual_sample_rate,
         game_category="football" if game_profile == "ncaa_football_27" else "shooter",
     )
@@ -622,6 +632,8 @@ def main():
     # Visual
     parser.add_argument("--visual", action="store_true", help="Enable visual lobe")
     parser.add_argument("--visual-api-key", help="VLM API key")
+    parser.add_argument("--visual-api-key-file", help="File containing VLM API key (format: label:key)")
+    parser.add_argument("--visual-model-name", default="nvidia/nemotron-nano-12b-v2-vl", help="VLM model name")
     parser.add_argument("--visual-sample-rate", type=int, default=30)
 
     # Trio-retina (w3bstream validation)

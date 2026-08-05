@@ -120,6 +120,8 @@ class TestIntegrationTestScript:
         args.outcome_interval = 0.5
         args.visual = False
         args.visual_api_key = None
+        args.visual_api_key_file = None
+        args.visual_model_name = "nvidia/nemotron-nano-12b-v2-vl"
         args.visual_sample_rate = 30
         args.jsonl_path = "/tmp/test.jsonl"
         args.enable_ws = True

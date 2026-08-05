@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -126,29 +127,39 @@ class VLMClient:
 
     def _parse_response(self, content: str, latency_ms: float) -> VisualContext:
         """Parse VLM response into VisualContext."""
-        # Try to extract structured info
-        game_state = "unknown"
-        confidence = 0.5
         details = {"raw_response": content}
 
-        content_lower = content.lower()
+        # Prefer explicit GAME_STATE / CONFIDENCE in the response
+        state_match = re.search(r"GAME_STATE:\s*(\w+)", content, re.IGNORECASE)
+        conf_match = re.search(r"CONFIDENCE:\s*([0-9]*\.?[0-9]+)", content, re.IGNORECASE)
 
-        # Game state detection
-        if any(kw in content_lower for kw in ["football", "ncaa", "college football", "touchdown", "quarterback", "down", "yard"]):
-            game_state = "football"
-            confidence = 0.9
-        elif any(kw in content_lower for kw in ["call of duty", "warzone", "multiplayer", "kill", "death", "streak", "operator", "loadout"]):
-            game_state = "shooter"
-            confidence = 0.9
-        elif any(kw in content_lower for kw in ["menu", "main menu", "settings", "lobby"]):
-            game_state = "menu"
-            confidence = 0.7
-
-        # Extract confidence hints
-        if "confident" in content_lower or "certain" in content_lower:
-            confidence = max(confidence, 0.8)
-        elif "unsure" in content_lower or "unclear" in content_lower:
-            confidence = min(confidence, 0.4)
+        if state_match:
+            game_state = state_match.group(1).lower()
+            if game_state not in {"football", "shooter", "menu", "unknown"}:
+                game_state = "unknown"
+            confidence = float(conf_match.group(1)) if conf_match else 0.7
+        else:
+            # No structured answer: detect negation first, then topic keywords
+            content_lower = content.lower()
+            negation = any(phrase in content_lower for phrase in [
+                "does not show", "is not", "no ", "not a", "not show", "not visible",
+                "unable to", "can't", "cannot", "refuse", "not able", "i'm not able"
+            ])
+            if negation:
+                game_state = "unknown"
+                confidence = 0.3
+            elif any(kw in content_lower for kw in ["football", "ncaa", "college football", "touchdown", "quarterback", "field goal", "yard line"]):
+                game_state = "football"
+                confidence = 0.8
+            elif any(kw in content_lower for kw in ["call of duty", "warzone", "multiplayer", "shooter", "fps", "kill feed", "operator", "loadout"]):
+                game_state = "shooter"
+                confidence = 0.8
+            elif any(kw in content_lower for kw in ["menu", "main menu", "settings", "lobby", "pause screen"]):
+                game_state = "menu"
+                confidence = 0.6
+            else:
+                game_state = "unknown"
+                confidence = 0.5
 
         return VisualContext(
             game_state=game_state,
@@ -406,20 +417,30 @@ class VisualRuntime:
         """Build classification prompt based on game category."""
         category = self.config.game_category
         if category == "football":
-            return """Identify if this image shows NCAA College Football gameplay.
-Look for: scoreboard, down/distance, yard lines, quarterback, football field, players in pads.
-Answer with: GAME_STATE: football|menu|unknown
-CONFIDENCE: 0.0-1.0"""
+            return """Look at this image. If it shows NCAA College Football gameplay (scoreboard, yard lines, players, football field), answer football. If it shows a menu/lobby, answer menu. Otherwise answer unknown.
+
+Respond ONLY with:
+GAME_STATE: football|menu|unknown
+CONFIDENCE: 0.0-1.0
+
+Do not add any explanation."""
         elif category == "shooter":
-            return """Identify if this image shows Call of Duty (Warzone/Multiplayer) gameplay.
-Look for: kill feed, health bar, ammo counter, mini-map, operator view, weapon, crosshair.
-Answer with: GAME_STATE: shooter|menu|unknown
-CONFIDENCE: 0.0-1.0"""
+            return """Look at this image. If it shows Call of Duty (Warzone/Multiplayer) gameplay (weapon, mini-map, kill feed, operator), answer shooter. If it shows a menu/lobby, answer menu. Otherwise answer unknown.
+
+Respond ONLY with:
+GAME_STATE: shooter|menu|unknown
+CONFIDENCE: 0.0-1.0
+
+Do not add any explanation."""
         else:
             return """Identify the game type in this image.
 Options: football (NCAA/sports), shooter (FPS/Call of Duty), menu, unknown.
-Answer with: GAME_STATE: football|shooter|menu|unknown
-CONFIDENCE: 0.0-1.0"""
+
+Respond ONLY with:
+GAME_STATE: football|shooter|menu|unknown
+CONFIDENCE: 0.0-1.0
+
+Do not add any explanation."""
 
     def _build_cross_modal_prompt(self) -> str:
         return """Verify visual consistency with other sensor data."""
