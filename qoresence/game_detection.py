@@ -464,13 +464,18 @@ class GameAutoDetector:
                 self._consecutive_detections = 1
                 self._last_emitted_profile = result.profile_id
 
-            if self._consecutive_detections >= self._stability_count:
+            # Emit once when we first reach stability, then again only after
+            # confidence drops and recovers (or the profile changes).
+            if self._consecutive_detections == self._stability_count:
                 self._emit_game_detected(result)
                 if self._profile_switch_callback:
                     try:
                         self._profile_switch_callback(result.profile_id)
                     except Exception as e:
                         log.warning(f"Profile switch callback failed: {e}")
+        else:
+            # Confidence lost; require a fresh stable streak before re-emitting
+            self._consecutive_detections = 0
 
     # ──────────────────────────────────────────────────────────────────────────
     # EVIDENCE COLLECTION
