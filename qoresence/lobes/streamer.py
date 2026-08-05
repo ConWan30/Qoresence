@@ -28,6 +28,82 @@ from qoresence.core import (
 log = logging.getLogger(__name__)
 
 
+def _get_dshow_device_name(index: int) -> Optional[str]:
+    """Return DirectShow display name for a device index, if available."""
+    try:
+        from pygrabber.dshow_graph import FilterGraph
+        names = FilterGraph().get_input_devices()
+        if 0 <= index < len(names):
+            return names[index]
+    except Exception as e:
+        log.debug(f"Could not enumerate DShow device name: {e}")
+    return None
+
+
+def _is_allowed_capture_name(name: Optional[str]) -> bool:
+    """
+    Allow only external capture cards and virtual OBS output.
+    Personal webcams / laptop cameras are rejected.
+    """
+    if not name:
+        # Unknown source: only allow if we can later verify it is not a person
+        return False
+    n = name.lower()
+    # Known disallowed words (laptop/personal cameras)
+    if any(bad in n for bad in ["720p hd camera", "hd camera", "webcam", "integrated", "laptop", "facetime", "built-in"]):
+        return any(good in n for good in ["usb3.0 video", "obs virtual"])
+    # Known allowed sources
+    if any(good in n for good in ["usb3.0 video", "obs virtual", "capture", "hdmi", "elgato", "avermedia", "usb video"]):
+        return True
+    # Any other "camera" is treated as a personal camera
+    if "camera" in n:
+        return False
+    return True
+
+
+def _frame_contains_person(frame: np.ndarray, area_threshold: float = 0.25) -> bool:
+    """
+    Lightweight person check on the first frame.
+    Used as a safety net to avoid streaming a personal camera by mistake.
+    """
+    try:
+        import mediapipe as mp
+        from mediapipe.tasks.python.vision.object_detector import ObjectDetector, ObjectDetectorOptions
+        from mediapipe.tasks.python.core.base_options import BaseOptions
+        from mediapipe.tasks.python.vision.core.vision_task_running_mode import VisionTaskRunningMode
+
+        # Re-use the same EfficientDet-Lite0 model that motion_tracker downloads
+        from qoresence.vision.motion_tracker import MotionTracker
+        model_path = MotionTracker._ensure_mediapipe_model()
+
+        options = ObjectDetectorOptions(
+            base_options=BaseOptions(model_asset_path=model_path),
+            running_mode=VisionTaskRunningMode.IMAGE,
+            max_results=5,
+            score_threshold=0.3,
+        )
+        detector = ObjectDetector.create_from_options(options)
+
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+        results = detector.detect(mp_image)
+
+        h, w = frame.shape[:2]
+        frame_area = h * w
+        for det in results.detections:
+            category = det.categories[0].category_name.lower()
+            if category == "person":
+                bbox = det.bounding_box
+                box_area = bbox.width * bbox.height
+                if box_area / frame_area > area_threshold:
+                    return True
+        return False
+    except Exception as e:
+        log.debug(f"Person guard check failed: {e}")
+        # If we cannot verify, fail-safe: assume person present
+        return True
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # ZONE DEFINITIONS
 # ──────────────────────────────────────────────────────────────────────────────
@@ -192,6 +268,28 @@ class StreamerRuntime:
                 log.error("First frame read failed")
                 self._cap.release()
                 return False
+
+            # Privacy / device-name guard for local capture devices
+            if not is_network:
+                device_name = _get_dshow_device_name(self.config.device_index)
+                if not _is_allowed_capture_name(device_name):
+                    log.error(
+                        f"PRIVACY GUARD: device index {self.config.device_index} "
+                        f"is '{device_name}'. This looks like a personal camera. Capture refused."
+                    )
+                    self._cap.release()
+                    self._cap = None
+                    return False
+
+                # Secondary person-area guard to catch mis-configured sources
+                if self.config.eye_check_required and _frame_contains_person(frame):
+                    log.error(
+                        f"PRIVACY GUARD: first frame from {device_name} contains a person. "
+                        "This is not a game feed. Capture refused."
+                    )
+                    self._cap.release()
+                    self._cap = None
+                    return False
 
             # Eye-check: save first frame for operator verification
             if self.config.eye_check_required:

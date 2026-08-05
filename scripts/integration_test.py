@@ -85,21 +85,42 @@ def detect_dualshock_edge() -> Optional[dict]:
     return None
 
 
+def _get_dshow_device_name(index: int) -> Optional[str]:
+    """Return DirectShow display name for a device index, if available."""
+    try:
+        from pygrabber.dshow_graph import FilterGraph
+        names = FilterGraph().get_input_devices()
+        if 0 <= index < len(names):
+            return names[index]
+    except Exception:
+        pass
+    return None
+
+
 def detect_capture_devices() -> list[dict]:
-    """Detect available video capture devices."""
+    """Detect available video capture devices and filter out personal cameras."""
     devices = []
     try:
+        from pygrabber.dshow_graph import FilterGraph
         import cv2
-        # Test first 5 indices
-        for i in range(5):
+
+        names = FilterGraph().get_input_devices()
+        for i, name in enumerate(names):
+            # Skip laptop/personal webcams. Allowed sources:
+            # - USB3.0 Video (capture card)
+            # - OBS Virtual Camera
+            if not _is_allowed_capture_source(name):
+                log.debug(f"Skipping disallowed capture source: {name}")
+                continue
+
             cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
             if cap.isOpened():
-                # Try to read a frame
                 ok, frame = cap.read()
                 if ok and frame is not None:
                     h, w = frame.shape[:2]
                     devices.append({
                         'index': i,
+                        'name': name,
                         'width': w,
                         'height': h,
                         'backend': 'dshow',
@@ -108,6 +129,24 @@ def detect_capture_devices() -> list[dict]:
     except Exception as e:
         log.warning(f"Capture device detection failed: {e}")
     return devices
+
+
+def _is_allowed_capture_source(name: str) -> bool:
+    """Allow capture cards and OBS virtual camera; reject personal webcams."""
+    n = name.lower()
+    # Explicitly blocked
+    if any(bad in n for bad in ["720p hd camera", "hd camera", "webcam", "integrated", "laptop", "facetime", "camera"]):
+        # Allow if it is the capture card or OBS
+        if "usb3.0 video" in n or "obs virtual" in n:
+            return True
+        return False
+    # Explicitly allowed
+    if any(good in n for good in ["usb3.0 video", "obs virtual", "capture", "hdmi", "elgato", "avermedia"]):
+        return True
+    # Default-deny unknown cameras
+    if "camera" in n:
+        return False
+    return True
 
 
 def detect_monitors() -> list[dict]:
@@ -474,13 +513,23 @@ def create_test_config(args) -> RetinaUnifiedConfig:
     session_head_ns = args.session_head_ns or time.time_ns()
     device_id = args.device_id or ""
 
-    # Detect hardware if not specified
+    # Detect hardware if not specified, and validate manually provided indices
     streamer_device = args.streamer_device
-    if streamer_device is None and args.auto_detect:
+    if streamer_device is not None:
+        name = _get_dshow_device_name(streamer_device)
+        if not _is_allowed_capture_source(name):
+            raise SystemExit(
+                f"PRIVACY GUARD: streamer device index {streamer_device} is '{name}'. "
+                "Only USB3.0 Video / OBS Virtual Camera are allowed. "
+                "Run with --auto-detect or an allowed index."
+            )
+    elif args.auto_detect:
         devices = detect_capture_devices()
         if devices:
             streamer_device = devices[0]['index']
-            log.info(f"Auto-detected capture device: index {streamer_device}")
+            log.info(f"Auto-detected capture device: index {streamer_device} ({devices[0]['name']})")
+        else:
+            raise SystemExit("PRIVACY GUARD: no allowed capture devices found. Check your capture card / OBS Virtual Camera.")
 
     controller_vid = args.controller_vid
     controller_pid = args.controller_pid
@@ -622,7 +671,7 @@ def print_hardware_info() -> None:
     devices = detect_capture_devices()
     if devices:
         for d in devices:
-            print(f"  - Index {d['index']}: {d['width']}x{d['height']} ({d['backend']})")
+            print(f"  - Index {d['index']} ({d['name']}): {d['width']}x{d['height']} ({d['backend']})")
     else:
         print("  None detected")
 
