@@ -152,6 +152,50 @@ class PresenceFusionEngine:
         """Set callback for when new report is generated."""
         self._report_callback = callback
 
+    def start(self) -> None:
+        """Start fusion engine (subscription is already active)."""
+        pass
+
+    def is_running(self) -> bool:
+        """Fusion engine is running as long as it is subscribed to the bus."""
+        return True
+
+    # Lobe presence callbacks (called directly by lobe runtimes)
+    def update_streamer_status(self, status: dict[str, Any]) -> None:
+        with self._lock:
+            state = self._lobe_state[SourceLobe.STREAMER]
+            state["presence_sync_ok"] = status.get("presence_sync_ok", False)
+            state["activity_level"] = status.get("activity", "idle")
+            state["motion"] = status.get("motion", 0.0)
+            self._presence_sync_ok = status.get("presence_sync_ok", False)
+
+    def update_controller_status(self, status: dict[str, Any]) -> None:
+        with self._lock:
+            state = self._lobe_state[SourceLobe.CONTROLLER]
+            state["causal_density"] = status.get("causal_density", 0)
+            state["last_trigger"] = status.get("last_trigger", 0.0)
+
+    def update_screen_status(self, status: dict[str, Any]) -> None:
+        with self._lock:
+            state = self._lobe_state[SourceLobe.SCREEN]
+            state["coupling_score"] = status.get("coupling_score", 0.0)
+
+    def update_outcome_status(self, status: dict[str, Any]) -> None:
+        with self._lock:
+            state = self._lobe_state[SourceLobe.OUTCOME]
+            state["last_event"] = status.get("last_event")
+            state["home_score"] = status.get("home_score", 0)
+            state["away_score"] = status.get("away_score", 0)
+            state["outcome_coherence"] = min(1.0, len(state.get("outcome_events", [])) * 0.1 + 0.1)
+
+    def update_visual_status(self, status: dict[str, Any]) -> None:
+        with self._lock:
+            state = self._lobe_state[SourceLobe.VISUAL]
+            state["game_state"] = status.get("game_state")
+            state["confidence"] = status.get("confidence", 0.0)
+            state["cross_modal_verdict"] = status.get("game_state")
+            state["cross_modal_confidence"] = status.get("confidence", 0.0)
+
     def stop(self) -> None:
         """Stop fusion engine."""
         self._unsubscribe()
@@ -277,15 +321,15 @@ class PresenceFusionEngine:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _check_anomalies(self, now_ns: int) -> None:
-        """Detect cross-lobe anomalies."""
-        anomalies = []
+        """Detect cross-lobe anomalies, dropping any that are no longer active."""
+        active: list[Anomaly] = []
 
         # 1. Temporal desync - lobes not emitting recently
         for lobe, weight in self.weights.items():
             if weight > 0 and lobe in self._lobe_last_event_ns:
                 age_ns = now_ns - self._lobe_last_event_ns[lobe]
                 if age_ns > 5_000_000_000:  # 5 seconds
-                    anomalies.append(Anomaly(
+                    active.append(Anomaly(
                         type="temporal_desync",
                         severity="medium" if age_ns < 30_000_000_000 else "high",
                         description=f"Lobe {lobe.value} silent for {age_ns / 1e9:.1f}s",
@@ -303,7 +347,7 @@ class PresenceFusionEngine:
                 last_ctrl = self._lobe_last_event_ns[SourceLobe.CONTROLLER]
                 age_ns = now_ns - last_ctrl
                 if age_ns > 10_000_000_000:  # 10 seconds
-                    anomalies.append(Anomaly(
+                    active.append(Anomaly(
                         type="contradiction",
                         severity="high",
                         description="Streamer reports presence_sync but controller inactive >10s",
@@ -314,7 +358,7 @@ class PresenceFusionEngine:
 
         # 3. Missing enabled lobes
         if self.config.streamer.enabled and SourceLobe.STREAMER not in self._lobe_last_event_ns:
-            anomalies.append(Anomaly(
+            active.append(Anomaly(
                 type="missing_lobe",
                 severity="high",
                 description="Streamer lobe enabled but no events received",
@@ -323,7 +367,7 @@ class PresenceFusionEngine:
             ))
 
         if self.config.controller.enabled and SourceLobe.CONTROLLER not in self._lobe_last_event_ns:
-            anomalies.append(Anomaly(
+            active.append(Anomaly(
                 type="missing_lobe",
                 severity="high",
                 description="Controller lobe enabled but no events received",
@@ -340,7 +384,7 @@ class PresenceFusionEngine:
             outcome_state = self._lobe_state[SourceLobe.OUTCOME]
             last_ctrl = self._lobe_last_event_ns[SourceLobe.CONTROLLER]
             if outcome_state.get("outcome_events") and (now_ns - last_ctrl) > 5_000_000_000:
-                anomalies.append(Anomaly(
+                active.append(Anomaly(
                     type="spatial_mismatch",
                     severity="medium",
                     description="Outcome events detected but no recent controller input",
@@ -348,19 +392,22 @@ class PresenceFusionEngine:
                     timestamp_ns=now_ns,
                 ))
 
-        # Add new anomalies (avoid duplicates)
-        for anomaly in anomalies:
-            if not self._anomaly_exists(anomaly):
-                self._anomalies.append(anomaly)
-                log.warning(f"Anomaly detected: {anomaly.type} - {anomaly.description}")
+        # Replace persistent list with currently active anomalies
+        old_anomalies = self._anomalies
+        self._anomalies = active
 
-        # Trim old anomalies
+        # Trim if too many
         if len(self._anomalies) > self._max_anomalies:
             self._anomalies = self._anomalies[-self._max_anomalies:]
 
-    def _anomaly_exists(self, new_anomaly: Anomaly) -> bool:
-        """Check if similar anomaly already exists recently."""
-        for existing in self._anomalies:
+        # Log only newly active anomalies
+        for anomaly in self._anomalies:
+            if not self._anomaly_exists(anomaly, old_anomalies):
+                log.warning(f"Anomaly detected: {anomaly.type} - {anomaly.description}")
+
+    def _anomaly_exists(self, new_anomaly: Anomaly, anomalies: Optional[list[Anomaly]] = None) -> bool:
+        """Check if a similar anomaly is already in the provided list (default: current list)."""
+        for existing in (anomalies if anomalies is not None else self._anomalies):
             if (existing.type == new_anomaly.type and
                 existing.lobes_involved == new_anomaly.lobes_involved and
                 new_anomaly.timestamp_ns - existing.timestamp_ns < 10_000_000_000):

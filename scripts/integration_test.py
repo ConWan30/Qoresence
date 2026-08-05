@@ -187,7 +187,7 @@ class IntegrationTestApp:
                 bus=self.bus,
                 session_head_ns=self.identity.session_head_ns,
             )
-            log.info("  ✓ Streamer lobe initialized")
+            log.info("  OK Streamer lobe initialized")
 
         # Controller
         if self.config.controller.enabled:
@@ -196,7 +196,7 @@ class IntegrationTestApp:
                 bus=self.bus,
                 session_head_ns=self.identity.session_head_ns,
             )
-            log.info("  ✓ Controller lobe initialized")
+            log.info("  OK Controller lobe initialized")
 
         # Screen
         if self.config.screen.enabled:
@@ -205,7 +205,7 @@ class IntegrationTestApp:
                 bus=self.bus,
                 session_head_ns=self.identity.session_head_ns,
             )
-            log.info("  ✓ Screen lobe initialized")
+            log.info("  OK Screen lobe initialized")
 
         # Outcome
         if self.config.outcome.enabled:
@@ -214,7 +214,7 @@ class IntegrationTestApp:
                 bus=self.bus,
                 session_head_ns=self.identity.session_head_ns,
             )
-            log.info("  ✓ Outcome lobe initialized")
+            log.info("  OK Outcome lobe initialized")
 
         # Visual
         if self.config.visual.enabled:
@@ -223,15 +223,14 @@ class IntegrationTestApp:
                 bus=self.bus,
                 session_head_ns=self.identity.session_head_ns,
             )
-            log.info("  ✓ Visual lobe initialized")
+            log.info("  OK Visual lobe initialized")
 
         # Fusion engine
         self.fusion = create_fusion_engine(
             config=self.config,
             bus=self.bus,
-            session_head_ns=self.identity.session_head_ns,
         )
-        log.info("  ✓ Fusion engine initialized")
+        log.info("  OK Fusion engine initialized")
 
         # Cross-lobe connections
         self._connect_lobes()
@@ -283,7 +282,7 @@ class IntegrationTestApp:
             self._stats['events_received'] += 1
             lobe = event.source_lobe.value
             self._stats['lobe_events'][lobe] = self._stats['lobe_events'].get(lobe, 0) + 1
-            if event.event_type == 'presence_report':
+            if event.type.value == 'presence_report':
                 self._stats['presence_reports'] += 1
                 if event.payload.get('anomalies'):
                     self._stats['anomalies_detected'] += len(event.payload['anomalies'])
@@ -316,6 +315,7 @@ class IntegrationTestApp:
         if self.fusion:
             self.fusion.start()
 
+        self.bus.start()
         self._running = True
         self._start_time = time.time()
         log.info(f"Integration test started: session={self.identity.session_id}")
@@ -342,7 +342,7 @@ class IntegrationTestApp:
         if self.streamer:
             self.streamer.stop()
 
-        self.bus.close()
+        self.bus.stop()
         elapsed = time.time() - self._start_time
         log.info(f"Integration test stopped after {elapsed:.1f}s")
 
@@ -430,6 +430,11 @@ def create_test_config(args) -> RetinaUnifiedConfig:
             elif "Call of Duty" in window:
                 game_profile = "call_of_duty"
             log.info(f"Auto-detected game: {window}")
+        else:
+            game_profile = "ncaa_football_27"
+            log.info("No game window detected; defaulting to ncaa_football_27")
+    elif game_profile == "auto":
+        game_profile = "ncaa_football_27"
 
     # Build lobe configs
     streamer_config = StreamerConfig(
@@ -437,6 +442,7 @@ def create_test_config(args) -> RetinaUnifiedConfig:
         device_index=streamer_device or 0,
         fps_target=args.streamer_fps,
         source_kind=args.streamer_source,
+        backend=args.streamer_backend,
         eye_check_required=True,
     )
 
@@ -501,16 +507,16 @@ def print_hardware_info() -> None:
     print("="*60)
 
     # Controllers
-    print("\n🎮 Controllers:")
+    print("\nControllers:")
     controllers = list_controllers()
     if controllers:
         for c in controllers:
-            print(f"  - {c['product_name']} (VID:0x{c['vendor_id']:04X} PID:0x{c['product_id']:04X})")
+            print(f"  - {c['product']} (VID:0x{c['vid']:04X} PID:0x{c['pid']:04X})")
     else:
         print("  None detected")
 
     # Capture devices
-    print("\n📷 Capture Devices:")
+    print("\nCapture Devices:")
     devices = detect_capture_devices()
     if devices:
         for d in devices:
@@ -519,7 +525,7 @@ def print_hardware_info() -> None:
         print("  None detected")
 
     # Monitors
-    print("\n🖥️  Monitors:")
+    print("\nMonitors:")
     monitors = detect_monitors()
     if monitors:
         for m in monitors:
@@ -528,7 +534,7 @@ def print_hardware_info() -> None:
         print("  None detected")
 
     # Game window
-    print("\n🎮 Game Window:")
+    print("\nGame Window:")
     window = detect_game_window()
     if window:
         print(f"  - {window}")
@@ -560,6 +566,7 @@ def main():
     parser.add_argument("--streamer-device", type=int, help="Capture device index")
     parser.add_argument("--streamer-fps", type=float, default=15.0, help="Streamer FPS")
     parser.add_argument("--streamer-source", choices=["uvc_card", "obs_virtual"], default="uvc_card")
+    parser.add_argument("--streamer-backend", choices=["auto", "dshow", "msmf"], default="dshow", help="Capture backend")
 
     # Controller
     parser.add_argument("--controller", action="store_true", help="Enable controller lobe")
@@ -628,11 +635,11 @@ def main():
     print(f"WebSocket:      {'enabled' if config.enable_ws else 'disabled'} ({config.ws_host}:{config.ws_port})")
     print(f"Duration:       {args.duration}s")
     print("\nLobes:")
-    print(f"  Streamer:     {'✓' if config.streamer.enabled else '✗'} (device={config.streamer.device_index}, fps={config.streamer.fps_target})")
-    print(f"  Controller:   {'✓' if config.controller.enabled else '✗'} (VID={config.controller.device_vid}, PID={config.controller.device_pid})")
-    print(f"  Screen:       {'✓' if config.screen.enabled else '✗'} (monitor={config.screen.monitor_index}, method={config.screen.capture_method})")
-    print(f"  Outcome:      {'✓' if config.outcome.enabled else '✗'} (profile={config.outcome.game_profile.value})")
-    print(f"  Visual:       {'✓' if config.visual.enabled else '✗'} (sample_rate={config.visual.frame_sample_rate})")
+    print(f"  Streamer:     {'ON' if config.streamer.enabled else 'OFF'} (device={config.streamer.device_index}, fps={config.streamer.fps_target})")
+    print(f"  Controller:   {'ON' if config.controller.enabled else 'OFF'} (VID={config.controller.device_vid}, PID={config.controller.device_pid})")
+    print(f"  Screen:       {'ON' if config.screen.enabled else 'OFF'} (monitor={config.screen.monitor_index}, method={config.screen.capture_method})")
+    print(f"  Outcome:      {'ON' if config.outcome.enabled else 'OFF'} (profile={config.outcome.game_profile.value})")
+    print(f"  Visual:       {'ON' if config.visual.enabled else 'OFF'} (sample_rate={config.visual.frame_sample_rate})")
     print("="*60 + "\n")
 
     if args.dry_run:
