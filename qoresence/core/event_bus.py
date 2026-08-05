@@ -4,6 +4,7 @@ Qoresence Event Bus — Phase 2
 Central event bus that all lobes publish to.
 Enforces: session_id + clock_ns + source_lobe on every event.
 Outputs: JSONL file + WebSocket server (default 127.0.0.1:8765)
+Optional: trio-retina w3bstream validation
 """
 
 from __future__ import annotations
@@ -21,6 +22,18 @@ import weakref
 from .types import BaseEvent, SourceLobe, clock_ns
 
 log = logging.getLogger(__name__)
+
+# Optional trio-retina integration
+try:
+    from qoresence.trio import TrioRetinaConfig, TrioRetinaValidator, create_validator
+    from qoresence.core import SessionIdentity
+    TRIO_AVAILABLE = True
+except ImportError:
+    TRIO_AVAILABLE = False
+    TrioRetinaConfig = None  # type: ignore
+    TrioRetinaValidator = None  # type: ignore
+    create_validator = None  # type: ignore
+    SessionIdentity = None  # type: ignore
 
 
 class RetinaEventBus:
@@ -41,6 +54,13 @@ class RetinaEventBus:
         ws_port: int = 8765,
         enable_ws: bool = True,
         max_ws_history: int = 256,
+        # Trio-retina validation
+        trio_config: Optional["TrioRetinaConfig"] = None,
+        session_identity: Optional["SessionIdentity"] = None,
+        visual_oracle_root_provider: Optional[Callable[[], str]] = None,
+        posp_root_provider: Optional[Callable[[], str]] = None,
+        first_session_id: Optional[str] = None,
+        device_key: Optional[bytes] = None,
     ):
         self.session_id = session_id
         self.jsonl_path = jsonl_path
@@ -68,6 +88,15 @@ class RetinaEventBus:
         # Stats
         self.events_emitted = 0
         self.events_rejected = 0
+
+        # Trio-retina validator (optional)
+        self._trio_validator: Optional["TrioRetinaValidator"] = None
+        self._trio_config = trio_config
+        self._session_identity = session_identity
+        self._visual_oracle_root_provider = visual_oracle_root_provider
+        self._posp_root_provider = posp_root_provider
+        self._first_session_id = first_session_id
+        self._device_key = device_key
 
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
@@ -109,6 +138,77 @@ class RetinaEventBus:
 
         self.events_emitted += 1
         return True
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # TRIO-RETINA VALIDATION
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def init_trio_validator(self) -> bool:
+        """
+        Initialize trio-retina validator if configured.
+        
+        Returns True if validator was created, False if not available or disabled.
+        """
+        if not TRIO_AVAILABLE:
+            log.debug("trio-retina not available (install qoresence[trio])")
+            return False
+        
+        if not self._trio_config or not self._trio_config.enabled:
+            log.debug("trio-retina validation disabled")
+            return False
+        
+        if not self._session_identity:
+            log.warning("trio-retina requires session_identity")
+            return False
+        
+        try:
+            self._trio_validator = create_validator(
+                config=self._trio_config,
+                session=self._session_identity,
+                event_bus=self,
+                visual_oracle_root_provider=self._visual_oracle_root_provider,
+                posp_root_provider=self._posp_root_provider,
+                first_session_id=self._first_session_id,
+                device_key=self._device_key,
+            )
+            log.info("trio-retina validator initialized")
+            return True
+        except Exception as e:
+            log.error(f"Failed to initialize trio-retina validator: {e}")
+            return False
+
+    async def start_trio_validator(self) -> bool:
+        """Start trio-retina validator (must call init_trio_validator first)."""
+        if self._trio_validator:
+            await self._trio_validator.start()
+            return True
+        return False
+
+    async def stop_trio_validator(self) -> None:
+        """Stop trio-retina validator."""
+        if self._trio_validator:
+            await self._trio_validator.stop()
+            self._trio_validator = None
+
+    def get_trio_stats(self) -> dict[str, Any]:
+        """Get trio-retina validator statistics."""
+        if self._trio_validator:
+            return self._trio_validator.get_stats()
+        return {"enabled": False}
+
+    async def trigger_trio_validation(self) -> Optional[dict]:
+        """Trigger immediate trio-retina validation of buffered events."""
+        if self._trio_validator:
+            result = await self._trio_validator.validate_now()
+            if result:
+                return {
+                    "ok": result.ok,
+                    "exit_code": result.exit_code,
+                    "error_description": result.error_description,
+                    "duration_ms": result.duration_ms,
+                    "events_validated": result.events_validated,
+                }
+        return None
 
     def emit_raw(
         self,
@@ -276,16 +376,23 @@ class RetinaEventBus:
     def stop(self) -> None:
         """Stop the bus."""
         self.stop_ws()
+        # Note: trio validator stop is async, caller should call stop_trio_validator() before stop()
+        # We can't await here, but we can schedule if there's a running loop
+        if self._trio_validator and self._ws_loop and self._ws_loop.is_running():
+            asyncio.run_coroutine_threadsafe(self._trio_validator.stop(), self._ws_loop)
 
     def stats(self) -> dict[str, Any]:
         """Return bus statistics."""
-        return {
+        stats = {
             "session_id": self.session_id,
             "events_emitted": self.events_emitted,
             "events_rejected": self.events_rejected,
             "ws_clients": len(self._ws_clients),
             "ws_history_size": len(self._ws_history),
         }
+        if self._trio_validator:
+            stats["trio_retina"] = self._trio_validator.get_stats()
+        return stats
 
 
 # ──────────────────────────────────────────────────────────────────────────────

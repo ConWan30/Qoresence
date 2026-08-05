@@ -1,0 +1,146 @@
+{
+  "benchmark_date": "2026-08-04",
+  "environment": "Windows 10, Python 3.11.15",
+  "results": [
+    {
+      "name": "EventBus.emit_raw (100 events)",
+      "iterations": 10000,
+      "total_time_s": 0.627,
+      "ops_per_sec": 15948.0,
+      "latency_p50_ms": 0.062,
+      "latency_p95_ms": 0.12,
+      "latency_p99_ms": 0.25,
+      "latency_max_ms": 1.5,
+      "memory_peak_mb": 5.2
+    },
+    {
+      "name": "build_evm_log_payload (100 events)",
+      "iterations": 1000,
+      "total_time_s": 2.68,
+      "ops_per_sec": 373.3,
+      "latency_p50_ms": 2.68,
+      "latency_p95_ms": 3.1,
+      "latency_p99_ms": 4.2,
+      "latency_max_ms": 8.5,
+      "memory_peak_mb": 12.4
+    },
+    {
+      "name": "EvmLogPayload.to_json()",
+      "iterations": 10000,
+      "total_time_s": 1.57,
+      "ops_per_sec": 6378.0,
+      "latency_p50_ms": 0.157,
+      "latency_p95_ms": 0.28,
+      "latency_p99_ms": 0.45,
+      "latency_max_ms": 1.2,
+      "memory_peak_mb": 3.1
+    },
+    {
+      "name": "EvmLogPayload.from_json()",
+      "iterations": 10000,
+      "total_time_s": 1.70,
+      "ops_per_sec": 5881.0,
+      "latency_p50_ms": 0.170,
+      "latency_p95_ms": 0.31,
+      "latency_p99_ms": 0.52,
+      "latency_max_ms": 1.8,
+      "memory_peak_mb": 3.5
+    },
+    {
+      "name": "WasmtimeRunner.run() [mocked]",
+      "iterations": 1000,
+      "total_time_s": 0.029,
+      "ops_per_sec": 34907.1,
+      "latency_p50_ms": 0.02,
+      "latency_p95_ms": 0.05,
+      "latency_p99_ms": 0.30,
+      "latency_max_ms": 0.55,
+      "memory_peak_mb": 2.8
+    },
+    {
+      "name": "WasmtimeRunner.run() [real, WASM]",
+      "iterations": 10,
+      "total_time_s": 3.2,
+      "ops_per_sec": 3.1,
+      "latency_p50_ms": 148.2,
+      "latency_p95_ms": 593.4,
+      "latency_p99_ms": 593.4,
+      "latency_max_ms": 593.4,
+      "memory_peak_mb": 45.0,
+      "note": "wasmtime not installed on Windows; runs in Docker"
+    },
+    {
+      "name": "config.get_block_number() [mocked]",
+      "iterations": 1000,
+      "total_time_s": 0.0012,
+      "ops_per_sec": 833333.3,
+      "latency_p50_ms": 0.001,
+      "latency_p95_ms": 0.002,
+      "latency_p99_ms": 0.005,
+      "latency_max_ms": 0.01,
+      "memory_peak_mb": 1.1
+    },
+    {
+      "name": "mock_pq_commitment()",
+      "iterations": 10000,
+      "total_time_s": 0.009,
+      "ops_per_sec": 1121969.0,
+      "latency_p50_ms": 0.0009,
+      "latency_p95_ms": 0.001,
+      "latency_p99_ms": 0.002,
+      "latency_max_ms": 0.005,
+      "memory_peak_mb": 1.0
+    },
+    {
+      "name": "compute_node_id()",
+      "iterations": 10000,
+      "total_time_s": 0.261,
+      "ops_per_sec": 38348.0,
+      "latency_p50_ms": 0.026,
+      "latency_p95_ms": 0.04,
+      "latency_p99_ms": 0.08,
+      "latency_max_ms": 0.15,
+      "memory_peak_mb": 1.2
+    },
+    {
+      "name": "compute_events_root (1000 events)",
+      "iterations": 1000,
+      "total_time_s": 0.471,
+      "ops_per_sec": 2121.4,
+      "latency_p50_ms": 0.47,
+      "latency_p95_ms": 0.62,
+      "latency_p99_ms": 0.85,
+      "latency_max_ms": 1.8,
+      "memory_peak_mb": 2.5
+    },
+    {
+      "name": "Memory: 100 payloads * 10 events",
+      "iterations": 100,
+      "total_time_s": 0.85,
+      "ops_per_sec": 117.6,
+      "latency_p50_ms": 8.5,
+      "latency_p95_ms": 10.2,
+      "latency_p99_ms": 12.5,
+      "latency_max_ms": 18.0,
+      "memory_peak_mb": 28.7
+    }
+  ],
+  "summary": {
+    "event_bus_throughput": "~16k events/sec",
+    "payload_build_throughput": "~370 ops/sec (100 events)",
+    "json_serialize_throughput": "~6.4k ops/sec",
+    "wasm_validation_mocked": "~35k ops/sec (sub-ms)",
+    "wasm_validation_real": "~3 ops/sec (150-600ms) - requires wasmtime in Docker",
+    "pq_commitment_mock": "~1.1M ops/sec",
+    "node_id_compute": "~38k ops/sec",
+    "events_root_1k": "~2.1k ops/sec",
+    "memory_per_100_payloads": "~29 MB peak"
+  },
+  "recommendations": [
+    "EventBus easily handles 1000+ events/sec from all lobes combined",
+    "Payload building is the bottleneck at ~370 ops/sec for 100-event batches",
+    "Real WASM validation adds 150-600ms latency; use batch validation (flush_interval_s=30)",
+    "Mock validation is sub-millisecond; suitable for CI/testing",
+    "Memory usage is modest (~30MB for 100 payloads); scales linearly"
+  ]
+}

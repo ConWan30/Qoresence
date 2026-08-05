@@ -7,7 +7,9 @@ Unified command-line interface for running Qoresence lobes.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import logging
+import os
 import signal
 import sys
 import threading
@@ -31,6 +33,14 @@ from qoresence.lobes import (
 )
 from qoresence.fusion import PresenceFusionEngine, FusionWeights, create_fusion_engine
 
+# Optional trio-retina
+try:
+    from qoresence.trio import TrioRetinaConfig
+    TRIO_AVAILABLE = True
+except ImportError:
+    TRIO_AVAILABLE = False
+    TrioRetinaConfig = None  # type: ignore
+
 log = logging.getLogger(__name__)
 
 
@@ -41,21 +51,29 @@ log = logging.getLogger(__name__)
 class QoresenceApp:
     """Main application coordinator."""
 
-    def __init__(self, config: RetinaUnifiedConfig):
+    def __init__(self, config: RetinaUnifiedConfig, trio_config: Optional["TrioRetinaConfig"] = None):
         self.config = config
+        self.trio_config = trio_config
         self.identity = SessionAuthority.mint(
             session_id=config.session_id,
-            device_id=config.device_id,
+            device_id_hex=config.device_id_hex,
             session_head_ns=config.session_head_ns,
         )
 
-        # Event bus
+        # Event bus with trio-retina validation
         self.bus = RetinaEventBus(
             session_id=self.identity.session_id,
             jsonl_path=Path(config.jsonl_path) if config.jsonl_path else None,
             enable_ws=config.enable_ws,
             ws_host=config.ws_host,
             ws_port=config.ws_port,
+            # Trio-retina
+            trio_config=self.trio_config,
+            session_identity=self.identity,
+            visual_oracle_root_provider=None,  # Will be set after visual init
+            posp_root_provider=None,  # Will be set after outcome init
+            first_session_id=self.identity.session_id,  # Use current as first for now
+            device_key=None,  # TODO: load from config
         )
 
         # Lobe runtimes
@@ -124,7 +142,6 @@ class QoresenceApp:
         self.fusion = create_fusion_engine(
             config=self.config,
             bus=self.bus,
-            session_head_ns=self.identity.session_head_ns,
         )
         log.info("Presence Fusion Engine initialized")
 
@@ -174,6 +191,32 @@ class QoresenceApp:
             if self.visual:
                 self.visual.set_presence_callback(self.fusion.update_visual_status)
 
+        # Trio-retina: set commitment root providers
+        if self.trio_config and self.trio_config.enabled:
+            # Visual oracle root provider
+            if self.visual:
+                def visual_root_provider():
+                    # Get latest visual context state root
+                    ctx = self.visual.get_last_context()
+                    if ctx and ctx.confidence > 0.5:
+                        import hashlib
+                        state_str = f"{ctx.game_state}:{ctx.confidence}:{ctx.details}"
+                        return hashlib.sha256(state_str.encode()).hexdigest()
+                    return "b" * 64  # mock fallback
+                self.bus._visual_oracle_root_provider = visual_root_provider
+            
+            # PoSP root provider
+            if self.outcome:
+                def posp_root_provider():
+                    # Get latest outcome session root
+                    state = self.outcome.get_last_state()
+                    if state and state.get('last_event'):
+                        import hashlib
+                        state_str = f"{state['last_event']}:{state.get('home_score',0)}:{state.get('away_score',0)}"
+                        return hashlib.sha256(state_str.encode()).hexdigest()
+                    return "c" * 64  # mock fallback
+                self.bus._posp_root_provider = posp_root_provider
+
     def start(self) -> bool:
         """Start all enabled lobes."""
         if self._running:
@@ -182,6 +225,13 @@ class QoresenceApp:
 
         self._running = True
         self._start_time = time.time()
+
+        # Initialize trio-retina validator
+        if self.trio_config and self.trio_config.enabled:
+            if self.bus.init_trio_validator():
+                # Start validator in background
+                asyncio.create_task(self.bus.start_trio_validator())
+                log.info("Trio-retina validator started")
 
         # Start lobes
         if self.streamer and not self.streamer.start():
@@ -217,6 +267,11 @@ class QoresenceApp:
         self._running = False
         log.info("Shutting down...")
 
+        # Stop trio-retina validator
+        if self.trio_config and self.trio_config.enabled:
+            asyncio.create_task(self.bus.stop_trio_validator())
+            log.info("Trio-retina validator stopped")
+
         if self.fusion:
             self.fusion.stop()
 
@@ -250,7 +305,7 @@ class QoresenceApp:
 
     def get_status(self) -> dict:
         """Get application status."""
-        return {
+        status = {
             "session_id": self.identity.session_id,
             "running": self._running,
             "uptime_s": round(time.time() - self._start_time, 1),
@@ -264,6 +319,9 @@ class QoresenceApp:
             },
             "bus_stats": self.bus.get_stats(),
         }
+        if self.trio_config and self.trio_config.enabled:
+            status["trio_retina"] = self.bus.get_trio_stats()
+        return status
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -324,6 +382,14 @@ def run_health_checks(app: QoresenceApp) -> dict:
             "details": fusion_stats,
         }
 
+    # Check trio-retina
+    if app.trio_config and app.trio_config.enabled:
+        trio_stats = app.bus.get_trio_stats()
+        checks["components"]["trio_retina"] = {
+            "status": "healthy" if trio_stats.get("enabled", False) else "disabled",
+            "details": trio_stats,
+        }
+
     # Overall status
     for comp, info in checks["components"].items():
         if info["status"] != "healthy":
@@ -353,7 +419,7 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
     config = RetinaUnifiedConfig(
         session_id=args.session_id or "",
         session_head_ns=args.session_head_ns or 0,
-        device_id=args.device_id or "",
+        device_id_hex=args.device_id or "",
         jsonl_path=args.jsonl_path or "",
         enable_ws=args.enable_ws,
         ws_host=args.ws_host,
@@ -410,6 +476,16 @@ def main():
     parser.add_argument("--visual", action="store_true", help="Enable visual lobe (VLM)")
     parser.add_argument("--visual-sample-rate", type=int, default=30, help="Visual frame sample rate")
 
+    # Trio-retina (w3bstream validation)
+    parser.add_argument("--trio", action="store_true", help="Enable trio-retina w3bstream validation")
+    parser.add_argument("--trio-wasm-path", default="w3bstream_applet.wasm", help="Path to w3bstream applet WASM")
+    parser.add_argument("--trio-validate-on-ingest", action="store_true", help="Validate each event at ingestion")
+    parser.add_argument("--trio-validate-on-flush", action="store_true", default=True, help="Validate batched events periodically")
+    parser.add_argument("--trio-flush-interval", type=float, default=30.0, help="Batch flush interval (seconds)")
+    parser.add_argument("--trio-block-rpc", default="https://babel-api.testnet.iotex.io", help="IoTeX RPC for block number")
+    parser.add_argument("--trio-node-session-verify", action="store_true", help="Enable DEPIN-1 LEG 2 node/session gate")
+    parser.add_argument("--trio-events-root-verify", action="store_true", help="Verify events root (merkle)")
+
     # Options
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     parser.add_argument("--health-check", action="store_true", help="Run health checks and exit")
@@ -418,6 +494,22 @@ def main():
     args = parser.parse_args()
 
     setup_logging(args.log_level)
+
+    # Create trio-retina config (CLI args take precedence over env vars)
+    trio_config = None
+    trio_enabled = args.trio or os.environ.get("QORESENCE_TRIO_ENABLED", "0") == "1"
+    if TRIO_AVAILABLE and trio_enabled:
+        trio_config = TrioRetinaConfig(
+            enabled=True,
+            wasm_path=args.trio_wasm_path or os.environ.get("QORESENCE_TRIO_WASM_PATH", "w3bstream_applet.wasm"),
+            validate_on_ingest=args.trio_validate_on_ingest or os.environ.get("QORESENCE_TRIO_VALIDATE_ON_INGEST", "0") == "1",
+            validate_on_flush=args.trio_validate_on_flush or os.environ.get("QORESENCE_TRIO_VALIDATE_ON_FLUSH", "1") == "1",
+            flush_interval_s=float(args.trio_flush_interval or os.environ.get("QORESENCE_TRIO_FLUSH_INTERVAL", "30.0")),
+            block_rpc_url=args.trio_block_rpc or os.environ.get("QORESENCE_TRIO_BLOCK_RPC", "https://babel-api.testnet.iotex.io"),
+            node_session_verify=args.trio_node_session_verify or os.environ.get("QORESENCE_TRIO_NODE_SESSION_VERIFY", "0") == "1",
+            retina_events_root_verify=args.trio_events_root_verify or os.environ.get("QORESENCE_TRIO_EVENTS_ROOT_VERIFY", "0") == "1",
+        )
+        log.info("Trio-retina validation enabled")
 
     # Create config
     config = create_config_from_args(args)
@@ -430,7 +522,7 @@ def main():
         sys.exit(1)
 
     # Create app
-    app = QoresenceApp(config)
+    app = QoresenceApp(config, trio_config)
     app.initialize_lobes()
     app.connect_lobes()
 
