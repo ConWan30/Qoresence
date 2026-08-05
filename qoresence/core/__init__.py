@@ -22,6 +22,7 @@ from .unified_config import (
     CALL_OF_DUTY_PROFILE,
     get_game_profile,
     register_game_profile,
+    GAME_PROFILE_REGISTRY,
 )
 
 from .session import SessionAuthority, SessionIdentity
@@ -57,6 +58,7 @@ __all__ = [
     "CALL_OF_DUTY_PROFILE",
     "get_game_profile",
     "register_game_profile",
+    "GAME_PROFILE_REGISTRY",
     # session
     "SessionAuthority",
     "SessionIdentity",
