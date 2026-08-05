@@ -171,12 +171,6 @@ class OutcomeRuntime:
         if self._frame_provider is None:
             log.warning("No frame provider set - outcome lobe will not detect events")
 
-        # Warm-up OCR model once (downloaded models are reused)
-        try:
-            self._ocr_provider.warmup()
-        except Exception as e:
-            log.warning(f"Outcome OCR warm-up failed: {e}")
-
         self._running = True
         self._start_time = time.time()
         self._thread = threading.Thread(target=self._run_loop, name="qoresence-outcome", daemon=True)

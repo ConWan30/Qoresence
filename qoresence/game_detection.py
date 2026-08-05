@@ -292,12 +292,7 @@ class GameAutoDetector:
             return False
 
         self._running = True
-        if self._vision_stack:
-            try:
-                self._vision_stack.warmup()
-            except Exception as e:
-                log.warning(f"Vision stack warmup failed: {e}")
-
+        # Models warm up lazily on first use so start() returns immediately
         self._thread = threading.Thread(target=self._run_loop, name="qoresence-game-detect", daemon=True)
         self._thread.start()
 

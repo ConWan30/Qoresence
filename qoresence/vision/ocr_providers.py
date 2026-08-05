@@ -16,6 +16,7 @@ from typing import Optional
 
 import cv2
 import numpy as np
+import threading
 
 from qoresence.lobes.visual import VLMClient
 
@@ -99,6 +100,8 @@ class EasyOCRProvider(BaseOCRProvider):
     """
 
     name = "easyocr"
+    _shared_reader: Optional[Any] = None
+    _shared_lock = threading.Lock()
 
     def __init__(self, languages: tuple[str, ...] = ("en",), gpu: bool = False):
         self._languages = languages
@@ -106,10 +109,14 @@ class EasyOCRProvider(BaseOCRProvider):
         self._reader: Optional[Any] = None  # type: ignore
 
     def warmup(self) -> None:
-        if self._reader is None:
-            import easyocr
-            log.info("EasyOCR downloading / loading models (first use only)...")
-            self._reader = easyocr.Reader(list(self._languages), gpu=self._gpu, verbose=False)
+        with self._shared_lock:
+            if EasyOCRProvider._shared_reader is None:
+                import easyocr
+                log.info("EasyOCR downloading / loading models (first use only)...")
+                EasyOCRProvider._shared_reader = easyocr.Reader(
+                    list(self._languages), gpu=self._gpu, verbose=False
+                )
+            self._reader = EasyOCRProvider._shared_reader
 
     def read_text(self, frame: np.ndarray) -> OCRResult:
         bboxes = self.read_text_with_bboxes(frame)
