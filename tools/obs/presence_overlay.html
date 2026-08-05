@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Qoresence Presence Overlay</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: rgba(0, 0, 0, 0.7);
+      color: #e0e0e0;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .panel {
+      background: rgba(20, 20, 30, 0.95);
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .panel-title {
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #444;
+    }
+    .status-indicator.connected { background: #0f0; }
+    .status-indicator.disconnected { background: #f00; }
+    .status-indicator.active { background: #ff0; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+      border-bottom: 1px solid #222;
+    }
+    .metric-row:last-child { border-bottom: none; }
+    .metric-label { color: #aaa; }
+    .metric-value { font-weight: 500; }
+    .metric-value.ok { color: #0f0; }
+    .metric-value.warn { color: #ff0; }
+    .metric-value.err { color: #f00; }
+    .zone-list { display: flex; flex-direction: column; gap: 4px; }
+    .zone-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 8px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+    }
+    .zone-item.active { background: rgba(255, 165, 0, 0.2); border-left: 3px solid #f80; }
+    .zone-name { font-size: 12px; }
+    .zone-state { font-weight: 600; text-transform: uppercase; }
+    .zone-state.active { color: #f80; }
+    .zone-state.quiet { color: #888; }
+    .activity-bar {
+      height: 6px;
+      background: #222;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .activity-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #0f0, #ff0, #f00);
+      transition: width 0.3s ease;
+    }
+    .session-info {
+      font-size: 11px;
+      color: #666;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #222;
+    }
+    .disclaimer {
+      font-size: 10px;
+      color: #555;
+      margin-top: 8px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="panel-title">
+      <span class="status-indicator" id="wsStatus"></span>
+      Qoresence Presence
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Session</span>
+      <span class="metric-value" id="sessionId">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Source</span>
+      <span class="metric-value" id="sourceKind">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Frames</span>
+      <span class="metric-value" id="frameCount">0</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Measured FPS</span>
+      <span class="metric-value" id="fpsMeas">0.0</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">
+      <span class="status-indicator" id="activityStatus"></span>
+      Activity
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Level</span>
+      <span class="metric-value" id="activityLevel">idle</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Motion</span>
+      <span class="metric-value" id="motionVal">0.0</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Mean Luma</span>
+      <span class="metric-value" id="lumaVal">0.0</span>
+    </div>
+    <div class="activity-bar">
+      <div class="activity-fill" id="activityFill" style="width: 0%"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">
+      <span class="status-indicator" id="presenceStatus"></span>
+      Presence Sync
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Controller Sync</span>
+      <span class="metric-value" id="presenceSync">false</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Last Input</span>
+      <span class="metric-value" id="lastInput">—</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Zones</div>
+    <div class="zone-list" id="zoneList">
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    ⚠ Observation plane only — not humanity proof, not eligibility, not anti-cheat.
+  </div>
+
+  <script>
+    // Configuration - can be overridden via URL params
+    const params = new URLSearchParams(window.location.search);
+    const WS_URL = params.get('ws') || 'ws://127.0.0.1:8765';
+
+    const wsStatus = document.getElementById('wsStatus');
+    const sessionId = document.getElementById('sessionId');
+    const sourceKind = document.getElementById('sourceKind');
+    const frameCount = document.getElementById('frameCount');
+    const fpsMeas = document.getElementById('fpsMeas');
+    const activityStatus = document.getElementById('activityStatus');
+    const activityLevel = document.getElementById('activityLevel');
+    const motionVal = document.getElementById('motionVal');
+    const lumaVal = document.getElementById('lumaVal');
+    const activityFill = document.getElementById('activityFill');
+    const presenceStatus = document.getElementById('presenceStatus');
+    const presenceSync = document.getElementById('presenceSync');
+    const lastInput = document.getElementById('lastInput');
+    const zoneList = document.getElementById('zoneList');
+
+    let ws = null;
+    let reconnectTimer = null;
+    let lastEventTime = 0;
+
+    function connect() {
+      try {
+        ws = new WebSocket(WS_URL);
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = () => {
+          wsStatus.className = 'status-indicator connected';
+          console.log('[Qoresence] WebSocket connected');
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            handleEvent(msg);
+          } catch (e) {
+            console.warn('[Qoresence] Parse error:', e);
+          }
+        };
+
+        ws.onclose = () => {
+          wsStatus.className = 'status-indicator disconnected';
+          console.log('[Qoresence] WebSocket closed, reconnecting in 2s...');
+          reconnectTimer = setTimeout(connect, 2000);
+        };
+
+        ws.onerror = (err) => {
+          console.error('[Qoresence] WebSocket error:', err);
+        };
+      } catch (e) {
+        console.error('[Qoresence] Connection failed:', e);
+        reconnectTimer = setTimeout(connect, 2000);
+      }
+    }
+
+    function handleEvent(msg) {
+      lastEventTime = Date.now();
+
+      switch (msg.type) {
+        case 'session_start':
+          sessionId.textContent = msg.session_id || '—';
+          sourceKind.textContent = msg.payload?.source_kind || '—';
+          break;
+
+        case 'frame_stats':
+          frameCount.textContent = msg.payload?.n || 0;
+          fpsMeas.textContent = (msg.payload?.fps_meas || 0).toFixed(1);
+          break;
+
+        case 'activity':
+          const level = msg.payload?.level || 'idle';
+          activityLevel.textContent = level;
+          motionVal.textContent = (msg.payload?.motion || 0).toFixed(3);
+          lumaVal.textContent = (msg.payload?.mean_luma || 0).toFixed(1);
+
+          // Activity bar
+          const width = level === 'high' ? 100 : level === 'low' ? 50 : 10;
+          activityFill.style.width = width + '%';
+
+          // Status indicator
+          activityStatus.className = 'status-indicator ' + (level === 'high' ? 'active' : level === 'low' ? 'connected' : 'disconnected');
+
+          // Presence sync
+          const sync = msg.payload?.presence_sync_ok === true;
+          presenceSync.textContent = sync ? 'true' : 'false';
+          presenceSync.className = sync ? 'metric-value ok' : 'metric-value err';
+          presenceStatus.className = 'status-indicator ' + (sync ? 'connected' : 'disconnected');
+
+          const ago = msg.payload?.last_controller_s_ago;
+          lastInput.textContent = ago !== undefined && ago !== null ? ago.toFixed(1) + 's' : '—';
+          break;
+
+        case 'zone':
+          updateZone(msg.payload?.zone_id, msg.payload?.state, msg.payload?.delta);
+          break;
+
+        case 'heartbeat':
+          // Could show uptime
+          break;
+
+        case 'session_end':
+          console.log('[Qoresence] Session ended');
+          break;
+      }
+    }
+
+    function updateZone(zoneId, state, delta) {
+      let item = document.getElementById('zone-' + zoneId);
+      if (!item) {
+        item = document.createElement('div');
+        item.id = 'zone-' + zoneId;
+        item.className = 'zone-item';
+        item.innerHTML = `
+          <span class="zone-name">${zoneId}</span>
+          <span class="zone-state">quiet</span>
+        `;
+        zoneList.appendChild(item);
+      }
+      const stateEl = item.querySelector('.zone-state');
+      stateEl.textContent = state || 'quiet';
+      item.className = 'zone-item' + (state === 'active' ? ' active' : '');
+    }
+
+    // Start connection
+    connect();
+
+    // Cleanup on unload
+    window.addEventListener('beforeunload', () => {
+      if (ws) ws.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+    });
+  </script>
+</body>
+</html>

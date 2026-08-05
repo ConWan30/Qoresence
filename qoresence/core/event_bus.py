@@ -116,6 +116,7 @@ class RetinaEventBus:
         event_type: str,
         payload: dict[str, Any],
         clock_ns_override: Optional[int] = None,
+        session_head_ns: Optional[int] = None,
     ) -> bool:
         """
         Emit a raw event (convenience method).
@@ -137,6 +138,7 @@ class RetinaEventBus:
             source_lobe=source_lobe,
             type=etype,
             payload=payload,
+            session_head_ns=session_head_ns,
         )
         return self.emit(event)
 

@@ -140,6 +140,15 @@ class StreamerConfig:
     presence_touch_file: Optional[str] = None
     presence_timeout_s: float = 5.0
 
+    # Activity detection thresholds
+    motion_high: float = 15.0
+    motion_low: float = 3.0
+    activity_hysteresis_s: float = 1.0
+
+    # Emission intervals
+    stats_every_s: float = 10.0
+    heartbeat_every_s: float = 5.0
+
 
 @dataclass(frozen=True)
 class ControllerConfig:
