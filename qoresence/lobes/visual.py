@@ -1,0 +1,529 @@
+"""
+Qoresence Visual Lobe — Phase 8
+
+VLM (Vision Language Model) integration for game-state classification
+and cross-modal verification. Uses NVIDIA Nemotron or compatible endpoint.
+"""
+
+from __future__ import annotations
+
+import base64
+import logging
+import threading
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Optional
+
+import cv2
+import numpy as np
+import requests
+
+from qoresence.core import (
+    RetinaEventBus,
+    SourceLobe,
+    EventType,
+    clock_ns,
+    VisualConfig,
+)
+
+log = logging.getLogger(__name__)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DATA STRUCTURES
+# ──────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class VisualContext:
+    """VLM analysis result."""
+    game_state: str  # "football" | "shooter" | "menu" | "unknown"
+    confidence: float
+    details: dict
+    model: str
+    latency_ms: float
+
+
+@dataclass
+class CrossModalVerdict:
+    """Cross-modal verification result."""
+    verdict: str  # "confirmed" | "inconclusive" | "contradicted"
+    confidence: float
+    reasoning: str
+    modalities_checked: list[str]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# VLM CLIENT
+# ──────────────────────────────────────────────────────────────────────────────
+
+class VLMClient:
+    """Client for NVIDIA Nemotron or compatible VLM endpoint."""
+
+    def __init__(self, config: VisualConfig):
+        self.config = config
+        self.endpoint = config.model_endpoint.rstrip('/')
+        self.model_name = config.model_name
+        self.api_key = config.api_key
+        self.max_dim = config.max_frame_dim
+        self._session = requests.Session()
+
+        # Headers
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        self._session.headers.update(headers)
+
+    def analyze_frame(self, frame: np.ndarray, prompt: str) -> Optional[VisualContext]:
+        """Send frame to VLM for analysis."""
+        start = time.perf_counter()
+
+        try:
+            # Resize frame
+            h, w = frame.shape[:2]
+            if max(h, w) > self.max_dim:
+                scale = self.max_dim / max(h, w)
+                new_w, new_h = int(w * scale), int(h * scale)
+                frame = cv2.resize(frame, (new_w, new_h))
+
+            # Encode to base64
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            b64 = base64.b64encode(buffer).decode('utf-8')
+
+            # Build request (OpenAI-compatible format)
+            payload = {
+                "model": self.model_name,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
+                        ]
+                    }
+                ],
+                "max_tokens": 300,
+                "temperature": 0.1,
+            }
+
+            response = self._session.post(
+                f"{self.endpoint}/chat/completions",
+                json=payload,
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            latency_ms = (time.perf_counter() - start) * 1000
+
+            # Parse response
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            return self._parse_response(content, latency_ms)
+
+        except Exception as e:
+            log.warning(f"VLM request failed: {e}")
+            return None
+
+    def _parse_response(self, content: str, latency_ms: float) -> VisualContext:
+        """Parse VLM response into VisualContext."""
+        # Try to extract structured info
+        game_state = "unknown"
+        confidence = 0.5
+        details = {"raw_response": content}
+
+        content_lower = content.lower()
+
+        # Game state detection
+        if any(kw in content_lower for kw in ["football", "ncaa", "college football", "touchdown", "quarterback", "down", "yard"]):
+            game_state = "football"
+            confidence = 0.9
+        elif any(kw in content_lower for kw in ["call of duty", "warzone", "multiplayer", "kill", "death", "streak", "operator", "loadout"]):
+            game_state = "shooter"
+            confidence = 0.9
+        elif any(kw in content_lower for kw in ["menu", "main menu", "settings", "lobby"]):
+            game_state = "menu"
+            confidence = 0.7
+
+        # Extract confidence hints
+        if "confident" in content_lower or "certain" in content_lower:
+            confidence = max(confidence, 0.8)
+        elif "unsure" in content_lower or "unclear" in content_lower:
+            confidence = min(confidence, 0.4)
+
+        return VisualContext(
+            game_state=game_state,
+            confidence=confidence,
+            details=details,
+            model=self.model_name,
+            latency_ms=latency_ms,
+        )
+
+    def cross_modal_check(self, frame: np.ndarray, other_modalities: dict) -> Optional[CrossModalVerdict]:
+        """Cross-modal verification against other lobe data."""
+        start = time.perf_counter()
+
+        try:
+            # Build prompt with other modality context
+            modality_summary = "\n".join([
+                f"- {k}: {v}" for k, v in other_modalities.items()
+            ])
+
+            prompt = f"""You are verifying consistency between visual observation and other sensor data.
+Other modalities:
+{modality_summary}
+
+Does the visual content match what these sensors indicate? Answer with:
+VERDICT: confirmed|inconclusive|contradicted
+CONFIDENCE: 0.0-1.0
+REASONING: brief explanation"""
+
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            b64 = base64.b64encode(buffer).decode('utf-8')
+
+            payload = {
+                "model": self.model_name,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
+                        ]
+                    }
+                ],
+                "max_tokens": 200,
+                "temperature": 0.1,
+            }
+
+            response = self._session.post(
+                f"{self.endpoint}/chat/completions",
+                json=payload,
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            latency_ms = (time.perf_counter() - start) * 1000
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+            return self._parse_cross_modal(content, latency_ms)
+
+        except Exception as e:
+            log.warning(f"Cross-modal VLM request failed: {e}")
+            return None
+
+    def _parse_cross_modal(self, content: str, latency_ms: float) -> CrossModalVerdict:
+        """Parse cross-modal response."""
+        verdict = "inconclusive"
+        confidence = 0.5
+        reasoning = content
+
+        content_lower = content.lower()
+        if "verdict: confirmed" in content_lower:
+            verdict = "confirmed"
+            confidence = 0.8
+        elif "verdict: contradicted" in content_lower:
+            verdict = "contradicted"
+            confidence = 0.8
+
+        return CrossModalVerdict(
+            verdict=verdict,
+            confidence=confidence,
+            reasoning=reasoning,
+            modalities_checked=list(other_modalities.keys()) if 'other_modalities' in locals() else [],
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# VISUAL RUNTIME
+# ──────────────────────────────────────────────────────────────────────────────
+
+class VisualRuntime:
+    """
+    Visual lobe using VLM for game-state classification and cross-modal verification.
+
+    - Samples frames at configurable rate
+    - Classifies game state (football/shooter/menu/unknown)
+    - Cross-modal verification against controller/outcome/screen data
+    - Emits visual_context and cross_modal_verdict events
+    """
+
+    def __init__(
+        self,
+        config: VisualConfig,
+        bus: RetinaEventBus,
+        session_head_ns: int,
+        frame_provider: Optional[Callable[[], Optional[np.ndarray]]] = None,
+        modality_provider: Optional[Callable[[], dict]] = None,
+    ):
+        self.config = config
+        self.bus = bus
+        self.session_head_ns = session_head_ns
+
+        # Optional providers
+        self._frame_provider = frame_provider
+        self._modality_provider = modality_provider
+
+        # VLM client
+        self._client = VLMClient(config)
+
+        # Prompts
+        self._classify_prompt = self._build_classify_prompt()
+        self._cross_modal_prompt = self._build_cross_modal_prompt()
+
+        # State
+        self._running = False
+        self._thread: Optional[threading.Thread] = None
+        self._frames_analyzed = 0
+        self._start_time = 0.0
+        self._last_context: Optional[VisualContext] = None
+        self._last_verdict: Optional[CrossModalVerdict] = None
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # PUBLIC API
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def start(self) -> bool:
+        """Start analysis thread."""
+        if self._running:
+            log.warning("VisualRuntime already running")
+            return True
+
+        if self._frame_provider is None:
+            log.warning("No frame provider set - visual lobe will not analyze frames")
+
+        self._running = True
+        self._start_time = time.time()
+        self._thread = threading.Thread(target=self._run_loop, name="qoresence-visual", daemon=True)
+        self._thread.start()
+
+        log.info(f"Visual lobe started: model={self.config.model_name}, sample_rate={self.config.frame_sample_rate}")
+        return True
+
+    def stop(self) -> None:
+        """Stop analysis thread."""
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=5.0)
+        log.info("Visual lobe stopped")
+
+    def is_running(self) -> bool:
+        return self._running
+
+    def set_frame_provider(self, provider: Callable[[], Optional[np.ndarray]]) -> None:
+        """Set frame provider (e.g., from streamer or screen lobe)."""
+        self._frame_provider = provider
+
+    def set_modality_provider(self, provider: Callable[[], dict]) -> None:
+        """Set provider for other modality data (for cross-modal check)."""
+        self._modality_provider = provider
+
+    def get_last_context(self) -> Optional[VisualContext]:
+        return self._last_context
+
+    def get_last_verdict(self) -> Optional[CrossModalVerdict]:
+        return self._last_verdict
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # MAIN LOOP
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _run_loop(self) -> None:
+        """Main analysis loop."""
+        frame_count = 0
+
+        # Emit session_start
+        self._emit_session_start()
+
+        while self._running:
+            loop_start = time.time()
+
+            # Get frame
+            frame = self._get_frame()
+            if frame is not None:
+                frame_count += 1
+
+                # Analyze every N frames
+                if frame_count % self.config.frame_sample_rate == 0:
+                    self._analyze_frame(frame)
+
+            # Pace (roughly 30fps max for frame fetching)
+            elapsed = time.time() - loop_start
+            sleep_time = max(0.033 - elapsed, 0.001)
+            time.sleep(sleep_time)
+
+        # Session end
+        self._emit_session_end()
+
+    def _get_frame(self) -> Optional[np.ndarray]:
+        """Get frame from provider."""
+        if self._frame_provider:
+            try:
+                return self._frame_provider()
+            except Exception as e:
+                log.warning(f"Frame provider error: {e}")
+        return None
+
+    def _analyze_frame(self, frame: np.ndarray) -> None:
+        """Analyze single frame with VLM."""
+        # 1. Game state classification
+        context = self._client.analyze_frame(frame, self._classify_prompt)
+        if context and context.confidence >= self.config.min_confidence:
+            self._last_context = context
+            self._emit_visual_context(context)
+
+        # 2. Cross-modal verification (if modality provider available)
+        if self._modality_provider and self._last_context:
+            other_modalities = self._modality_provider()
+            if other_modalities:
+                verdict = self._client.cross_modal_check(frame, other_modalities)
+                if verdict:
+                    self._last_verdict = verdict
+                    self._emit_cross_modal_verdict(verdict)
+
+        self._frames_analyzed += 1
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # PROMPTS
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _build_classify_prompt(self) -> str:
+        """Build classification prompt based on game category."""
+        category = self.config.game_category
+        if category == "football":
+            return """Identify if this image shows NCAA College Football gameplay.
+Look for: scoreboard, down/distance, yard lines, quarterback, football field, players in pads.
+Answer with: GAME_STATE: football|menu|unknown
+CONFIDENCE: 0.0-1.0"""
+        elif category == "shooter":
+            return """Identify if this image shows Call of Duty (Warzone/Multiplayer) gameplay.
+Look for: kill feed, health bar, ammo counter, mini-map, operator view, weapon, crosshair.
+Answer with: GAME_STATE: shooter|menu|unknown
+CONFIDENCE: 0.0-1.0"""
+        else:
+            return """Identify the game type in this image.
+Options: football (NCAA/sports), shooter (FPS/Call of Duty), menu, unknown.
+Answer with: GAME_STATE: football|shooter|menu|unknown
+CONFIDENCE: 0.0-1.0"""
+
+    def _build_cross_modal_prompt(self) -> str:
+        return """Verify visual consistency with other sensor data."""
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # EVENT EMISSION
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _emit_session_start(self) -> None:
+        self.bus.emit_raw(
+            source_lobe=SourceLobe.VISUAL,
+            event_type="session_start",
+            payload={
+                "model_endpoint": self.config.model_endpoint,
+                "model_name": self.config.model_name,
+                "frame_sample_rate": self.config.frame_sample_rate,
+                "max_frame_dim": self.config.max_frame_dim,
+                "min_confidence": self.config.min_confidence,
+                "game_category": self.config.game_category,
+            },
+            clock_ns_override=clock_ns(),
+            session_head_ns=self.session_head_ns,
+        )
+
+    def _emit_visual_context(self, context: VisualContext) -> None:
+        self.bus.emit_raw(
+            source_lobe=SourceLobe.VISUAL,
+            event_type="visual_context",
+            payload={
+                "game_state": context.game_state,
+                "confidence": context.confidence,
+                "model": context.model,
+                "latency_ms": context.latency_ms,
+                "details": context.details,
+            },
+            clock_ns_override=clock_ns(),
+            session_head_ns=self.session_head_ns,
+        )
+
+    def _emit_cross_modal_verdict(self, verdict: CrossModalVerdict) -> None:
+        self.bus.emit_raw(
+            source_lobe=SourceLobe.VISUAL,
+            event_type="cross_modal_verdict",
+            payload={
+                "verdict": verdict.verdict,
+                "confidence": verdict.confidence,
+                "reasoning": verdict.reasoning,
+                "modalities_checked": verdict.modalities_checked,
+            },
+            clock_ns_override=clock_ns(),
+            session_head_ns=self.session_head_ns,
+        )
+
+    def _emit_session_end(self) -> None:
+        elapsed = max(time.time() - self._start_time, 1e-6)
+        self.bus.emit_raw(
+            source_lobe=SourceLobe.VISUAL,
+            event_type="session_end",
+            payload={
+                "frames_analyzed": self._frames_analyzed,
+                "elapsed_s": round(elapsed, 2),
+            },
+            clock_ns_override=clock_ns(),
+            session_head_ns=self.session_head_ns,
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# MOCK VLM CLIENT (for testing without API)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class MockVLMClient:
+    """Mock VLM client for testing without real API."""
+
+    def __init__(self, config: VisualConfig):
+        self.config = config
+
+    def analyze_frame(self, frame: np.ndarray, prompt: str) -> Optional[VisualContext]:
+        # Simple heuristic based on frame content
+        h, w = frame.shape[:2]
+        mean_brightness = np.mean(frame) / 255.0
+
+        # Heuristic: green field -> football, dark with UI -> shooter
+        green_pixels = np.sum((frame[:, :, 1] > frame[:, :, 0]) & (frame[:, :, 1] > frame[:, :, 2]))
+        green_ratio = green_pixels / (h * w)
+
+        if green_ratio > 0.15:
+            game_state = "football"
+            confidence = 0.85
+        elif mean_brightness < 0.3:
+            game_state = "shooter"
+            confidence = 0.8
+        else:
+            game_state = "unknown"
+            confidence = 0.3
+
+        return VisualContext(
+            game_state=game_state,
+            confidence=confidence,
+            details={"mock": True, "green_ratio": green_ratio, "brightness": mean_brightness},
+            model="mock",
+            latency_ms=10.0,
+        )
+
+    def cross_modal_check(self, frame: np.ndarray, other_modalities: dict) -> Optional[CrossModalVerdict]:
+        # Simple mock: confirmed if outcome and controller both present
+        has_outcome = "outcome" in str(other_modalities).lower()
+        has_controller = "controller" in str(other_modalities).lower()
+
+        if has_outcome and has_controller:
+            return CrossModalVerdict(
+                verdict="confirmed",
+                confidence=0.9,
+                reasoning="Mock: outcome and controller data present",
+                modalities_checked=list(other_modalities.keys()),
+            )
+        return CrossModalVerdict(
+            verdict="inconclusive",
+            confidence=0.5,
+            reasoning="Mock: insufficient modality data",
+            modalities_checked=list(other_modalities.keys()),
+        )
