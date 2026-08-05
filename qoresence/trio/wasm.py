@@ -182,9 +182,9 @@ class WasmtimeRunner:
                 duration_ms=0,
                 payload=payload,
             )
-        
+
         wasm_path = self._get_wasm_path()
-        
+
         if not wasm_path.exists():
             return WasmResult(
                 exit_code=-1,
@@ -193,49 +193,44 @@ class WasmtimeRunner:
                 duration_ms=0,
                 payload=payload,
             )
-        
+
         payload_json = payload.to_json()
         payload_bytes = payload_json.encode("utf-8")
-        
+
         start = time.perf_counter()
-        
+
         try:
-            # Create engine and store
             engine = wasmtime.Engine()
             store = wasmtime.Store(engine)
-            
-            # Load module
             module = wasmtime.Module.from_file(engine, str(wasm_path))
-            
-            # Create linker and instantiate
-            linker = wasmtime.Linker(engine)
-            linker.define_wasi(wasmtime.WasiConfig())
-            
-            instance = linker.instantiate(store, module)
-            
-            # Get handle_poac_payload function
+            instance = wasmtime.Instance(store, module, [])
+
             handle_func = instance.exports(store)["handle_poac_payload"]
-            
-            # The function signature is: (ptr: i32, size: i32) -> i32
-            # We need to allocate memory in the WASM module, write payload, call function
-            
-            # Get memory export
             memory = instance.exports(store)["memory"]
-            
-            # Allocate space for payload (simple: use malloc if available, or fixed offset)
-            # For simplicity, we'll use the wasmtime CLI approach as it's more reliable
-            # Python bindings require more complex memory management
-            
+            heap_base = instance.exports(store)["__heap_base"].value(store)
+
+            # Place payload just above the heap base. Grow memory if needed.
+            # Reserve a small guard so the applet's allocator (if any) has
+            # headroom before reaching our data.
+            offset = heap_base + 4096
+            needed = offset + len(payload_bytes) + 1024
+            if needed > memory.data_len(store):
+                pages = (needed - memory.data_len(store) + 65535) // 65536
+                memory.grow(store, pages)
+
+            memory.write(store, payload_bytes, offset)
+
+            exit_code = handle_func(store, offset, len(payload_bytes))
+
             duration_ms = (time.perf_counter() - start) * 1000
-            
             return WasmResult(
-                exit_code=-1,
+                exit_code=exit_code,
                 stdout="",
-                stderr="Python wasmtime bindings not fully implemented; use CLI mode",
+                stderr="",
                 duration_ms=duration_ms,
                 payload=payload,
             )
-            
+
         except Exception as e:
             duration_ms = (time.perf_counter() - start) * 1000
             return WasmResult(

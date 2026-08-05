@@ -106,7 +106,7 @@ class TrioRetinaValidator:
         self._running = False
         self._buffer = EventBuffer(config.max_batch_size)
         self._flush_task: Optional[asyncio.Task] = None
-        self._ingest_subscription_id: Optional[int] = None
+        self._ingest_subscription_id: Optional[Callable[[], None]] = None
         
         # Stats
         self.stats = {
@@ -123,30 +123,30 @@ class TrioRetinaValidator:
         if self._running:
             log.warning("TrioRetinaValidator already running")
             return
-        
+
         if not self.config.enabled:
             log.info("TrioRetinaValidator disabled (config.enabled=False)")
             return
-        
+
         # Verify WASM exists
         wasm_path = self.config.resolve_wasm_path()
         if not wasm_path.exists():
             log.error(f"WASM applet not found: {wasm_path}")
             log.error("Run: cargo build --target wasm32-unknown-unknown --release in w3bstream/applet")
             return
-        
+
         log.info(f"Starting TrioRetinaValidator with WASM: {wasm_path}")
-        
+
         self._running = True
-        
-        # Subscribe to event bus if provided
-        if self.event_bus and self.config.validate_on_ingest:
+
+        # Subscribe to event bus if validation is enabled (ingest or flush)
+        if self.event_bus and (self.config.validate_on_ingest or self.config.validate_on_flush):
             self._ingest_subscription_id = self.event_bus.subscribe(self._on_event_ingest)
-        
+
         # Start flush loop if enabled
         if self.config.validate_on_flush:
             self._flush_task = asyncio.create_task(self._flush_loop())
-        
+
         log.info("TrioRetinaValidator started")
     
     async def stop(self) -> None:
@@ -166,7 +166,7 @@ class TrioRetinaValidator:
         
         # Unsubscribe from event bus
         if self.event_bus and self._ingest_subscription_id is not None:
-            self.event_bus.unsubscribe(self._ingest_subscription_id)
+            self._ingest_subscription_id()
             self._ingest_subscription_id = None
         
         # Final flush
@@ -175,25 +175,32 @@ class TrioRetinaValidator:
         log.info("TrioRetinaValidator stopped")
     
     def _on_event_ingest(self, event: Any) -> None:
-        """Callback for event bus subscription (validate_on_ingest mode)."""
-        if not self.config.validate_on_ingest:
+        """Callback for event bus subscription; always buffer, validate on ingest if configured."""
+        if not (self.config.validate_on_ingest or self.config.validate_on_flush):
             return
-        
+
         # Convert event to dict
+        source_lobe = getattr(event, "source_lobe", None)
+        event_type = getattr(event, "type", None)
         event_dict = {
-            "event_id": getattr(event, "event_id", ""),
+            "event_id": f"{getattr(event, 'session_id', '')}:{getattr(event, 'clock_ns', 0)}",
             "session_id": getattr(event, "session_id", ""),
-            "source_lobe": getattr(event, "source_lobe", "").value if hasattr(getattr(event, "source_lobe", None), "value") else str(getattr(event, "source_lobe", "")),
-            "event_type": getattr(event, "event_type", ""),
+            "source_lobe": source_lobe.value if source_lobe and hasattr(source_lobe, "value") else str(source_lobe or ""),
+            "event_type": event_type.value if event_type and hasattr(event_type, "value") else str(event_type or ""),
             "clock_ns": getattr(event, "clock_ns", 0),
             "payload": getattr(event, "payload", {}),
         }
-        
-        # Fire and forget (don't block ingestion)
-        asyncio.create_task(self._buffer.add(event_dict))
-        
-        # If buffer full, trigger immediate validation
-        # Note: can't check size synchronously, so we rely on flush loop
+
+        # Fire and forget on the validator's event loop (don't block ingestion)
+        loop = self.event_bus._ws_loop if (self.event_bus and self.event_bus._ws_loop) else None
+        if loop:
+            asyncio.run_coroutine_threadsafe(self._buffer.add(event_dict), loop)
+            if self.config.validate_on_ingest:
+                asyncio.run_coroutine_threadsafe(self._validate_batch(), loop)
+        else:
+            asyncio.create_task(self._buffer.add(event_dict))
+            if self.config.validate_on_ingest:
+                asyncio.create_task(self._validate_batch())
     
     async def _flush_loop(self) -> None:
         """Periodic batch validation loop."""
@@ -210,7 +217,7 @@ class TrioRetinaValidator:
     async def _validate_batch(self) -> Optional[ValidationResult]:
         """Validate current event batch."""
         events = await self._buffer.drain()
-        
+
         if not events:
             return None
         
@@ -236,8 +243,8 @@ class TrioRetinaValidator:
             device_key=self.device_key,
         )
         
-        # Override block number
-        payload.block_number = block_number
+        # Override block number and enforce the cadence the applet expects
+        payload.block_number = (block_number // 64) * 64
         
         # Run validation
         result = await self.runner.run(payload)
@@ -250,6 +257,7 @@ class TrioRetinaValidator:
         
         if result.ok:
             self.stats["validations_ok"] += 1
+            log.info(f"trio-retina validation ok: exit={result.exit_code} in {result.duration_ms:.1f}ms, events={len(events)}")
         else:
             self.stats["validations_failed"] += 1
             log.warning(f"trio-retina validation failed: exit={result.exit_code} ({result.error_description})")

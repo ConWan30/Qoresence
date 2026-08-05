@@ -23,17 +23,8 @@ from .types import BaseEvent, SourceLobe, clock_ns
 
 log = logging.getLogger(__name__)
 
-# Optional trio-retina integration
-try:
-    from qoresence.trio import TrioRetinaConfig, TrioRetinaValidator, create_validator
-    from qoresence.core import SessionIdentity
-    TRIO_AVAILABLE = True
-except ImportError:
-    TRIO_AVAILABLE = False
-    TrioRetinaConfig = None  # type: ignore
-    TrioRetinaValidator = None  # type: ignore
-    create_validator = None  # type: ignore
-    SessionIdentity = None  # type: ignore
+# Optional trio-retina integration is loaded lazily to avoid circular imports
+# (qoresence.trio.validator imports RetinaEventBus from qoresence.core).
 
 
 class RetinaEventBus:
@@ -149,18 +140,20 @@ class RetinaEventBus:
         
         Returns True if validator was created, False if not available or disabled.
         """
-        if not TRIO_AVAILABLE:
-            log.debug("trio-retina not available (install qoresence[trio])")
+        try:
+            from qoresence.trio import create_validator
+        except ImportError as e:
+            log.debug(f"trio-retina not available: {e}")
             return False
-        
+
         if not self._trio_config or not self._trio_config.enabled:
             log.debug("trio-retina validation disabled")
             return False
-        
+
         if not self._session_identity:
             log.warning("trio-retina requires session_identity")
             return False
-        
+
         try:
             self._trio_validator = create_validator(
                 config=self._trio_config,
@@ -350,6 +343,11 @@ class RetinaEventBus:
                     self.ws_port,
                 )
                 log.info(f"WebSocket server started on ws://{self.ws_host}:{self.ws_port}")
+
+                # Start trio-retina validator if configured
+                if self._trio_config and self._trio_config.enabled:
+                    if self.init_trio_validator():
+                        await self.start_trio_validator()
 
             self._ws_loop.run_until_complete(_start())
             self._ws_loop.run_forever()

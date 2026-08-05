@@ -18,6 +18,7 @@ import argparse
 import logging
 import signal
 import sys
+import asyncio
 import time
 from pathlib import Path
 from typing import Optional
@@ -47,6 +48,13 @@ from qoresence.lobes import (
     list_monitors,
 )
 from qoresence.fusion import PresenceFusionEngine, create_fusion_engine
+
+try:
+    from qoresence.trio import TrioRetinaConfig
+    TRIO_AVAILABLE = True
+except ImportError:
+    TrioRetinaConfig = None  # type: ignore
+    TRIO_AVAILABLE = False
 
 log = logging.getLogger(__name__)
 
@@ -141,22 +149,31 @@ def detect_game_window() -> Optional[str]:
 class IntegrationTestApp:
     """Full pipeline integration test."""
 
-    def __init__(self, config: RetinaUnifiedConfig, duration_s: float = 30.0):
+    def __init__(
+        self,
+        config: RetinaUnifiedConfig,
+        duration_s: float = 30.0,
+        trio_config: Optional["TrioRetinaConfig"] = None,
+    ):
         self.config = config
         self.duration_s = duration_s
+        self.trio_config = trio_config
         self.identity = SessionAuthority.mint(
             session_id=config.session_id,
             device_id_hex=config.device_id_hex,
             session_head_ns=config.session_head_ns,
         )
 
-        # Event bus with JSONL output
+        # Event bus with JSONL output and optional trio-retina validation
         self.bus = RetinaEventBus(
             session_id=self.identity.session_id,
             jsonl_path=Path(config.jsonl_path) if config.jsonl_path else None,
             enable_ws=config.enable_ws,
             ws_host=config.ws_host,
             ws_port=config.ws_port,
+            trio_config=trio_config,
+            session_identity=self.identity,
+            first_session_id=self.identity.session_id,
         )
 
         # Lobe runtimes
@@ -341,6 +358,14 @@ class IntegrationTestApp:
             self.controller.stop()
         if self.streamer:
             self.streamer.stop()
+
+        # Gracefully stop trio validator if running
+        if self.bus._trio_validator and self.bus._ws_loop and self.bus._ws_loop.is_running():
+            try:
+                fut = asyncio.run_coroutine_threadsafe(self.bus.stop_trio_validator(), self.bus._ws_loop)
+                fut.result(timeout=5)
+            except Exception as e:
+                log.warning(f"Trio validator stop timed out or failed: {e}")
 
         self.bus.stop()
         elapsed = time.time() - self._start_time
@@ -591,6 +616,18 @@ def main():
     parser.add_argument("--visual-api-key", help="VLM API key")
     parser.add_argument("--visual-sample-rate", type=int, default=30)
 
+    # Trio-retina (w3bstream validation)
+    parser.add_argument("--trio", action="store_true", help="Enable trio-retina w3bstream validation")
+    parser.add_argument("--trio-wasm-path", default="w3bstream_applet.wasm", help="Path to w3bstream applet WASM")
+    parser.add_argument("--trio-validate-on-ingest", action="store_true", help="Validate each event at ingestion")
+    parser.add_argument("--trio-validate-on-flush", action="store_true", help="Validate batched events periodically")
+    parser.add_argument("--trio-flush-interval", type=float, default=30.0, help="Batch flush interval (seconds)")
+    parser.add_argument("--trio-block-rpc", default="https://babel-api.testnet.iotex.io", help="IoTeX RPC for block number")
+    parser.add_argument("--trio-node-session-verify", action="store_true", help="Enable node/session verify")
+    parser.add_argument("--trio-events-root-verify", action="store_true", help="Verify events merkle root")
+    parser.add_argument("--trio-pq-commitment-source", default="mock", choices=["mock", "real"], help="PQ commitment source")
+    parser.add_argument("--trio-use-python-wasmtime", action="store_true", default=True, help="Use wasmtime Python bindings instead of CLI")
+
     # Output
     parser.add_argument("--jsonl-path", help="JSONL output path")
     parser.add_argument("--enable-ws", action="store_true", default=True, help="Enable WebSocket")
@@ -614,6 +651,23 @@ def main():
     # Create config
     config = create_test_config(args)
 
+    # Create optional trio-retina config
+    trio_config = None
+    if TRIO_AVAILABLE and args.trio:
+        trio_config = TrioRetinaConfig(
+            enabled=True,
+            wasm_path=args.trio_wasm_path,
+            validate_on_ingest=args.trio_validate_on_ingest,
+            validate_on_flush=args.trio_validate_on_flush or not args.trio_validate_on_ingest,
+            flush_interval_s=args.trio_flush_interval,
+            block_rpc_url=args.trio_block_rpc,
+            node_session_verify=args.trio_node_session_verify,
+            retina_events_root_verify=args.trio_events_root_verify,
+            pq_commitment_source=args.trio_pq_commitment_source,
+            use_python_wasmtime=args.trio_use_python_wasmtime,
+        )
+        log.info("Trio-retina validation enabled")
+
     # Validate
     errors = config.validate()
     if errors:
@@ -633,6 +687,7 @@ def main():
     print(f"Device ID:      {config.device_id_hex or '(auto)'}")
     print(f"JSONL Output:   {config.jsonl_path or '(none)'}")
     print(f"WebSocket:      {'enabled' if config.enable_ws else 'disabled'} ({config.ws_host}:{config.ws_port})")
+    print(f"Trio-retina:    {'enabled' if trio_config and trio_config.enabled else 'disabled'}")
     print(f"Duration:       {args.duration}s")
     print("\nLobes:")
     print(f"  Streamer:     {'ON' if config.streamer.enabled else 'OFF'} (device={config.streamer.device_index}, fps={config.streamer.fps_target})")
@@ -647,7 +702,7 @@ def main():
         return 0
 
     # Run integration test
-    app = IntegrationTestApp(config, duration_s=args.duration)
+    app = IntegrationTestApp(config, duration_s=args.duration, trio_config=trio_config)
 
     if not app.initialize():
         log.error("Failed to initialize")

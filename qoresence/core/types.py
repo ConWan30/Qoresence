@@ -54,6 +54,9 @@ class EventType(str, Enum):
     # Fusion
     PRESENCE_REPORT = "presence_report"
 
+    # Validation / anomalies
+    ANOMALY = "anomaly"
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # BASE EVENT STRUCTURE
