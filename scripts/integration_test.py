@@ -35,6 +35,7 @@ from qoresence.core import (
     ScreenConfig,
     OutcomeConfig,
     VisualConfig,
+    GameDetectionConfig,
     FusionWeights,
     SourceLobe,
 )
@@ -47,6 +48,7 @@ from qoresence.lobes import (
     list_controllers,
     list_monitors,
 )
+from qoresence.game_detection import GameAutoDetector
 from qoresence.fusion import PresenceFusionEngine, create_fusion_engine
 
 try:
@@ -182,6 +184,7 @@ class IntegrationTestApp:
         self.screen: Optional[ScreenRuntime] = None
         self.outcome: Optional[OutcomeRuntime] = None
         self.visual: Optional[VisualRuntime] = None
+        self.game_detector: Optional[GameAutoDetector] = None
         self.fusion: Optional[PresenceFusionEngine] = None
 
         self._running = False
@@ -242,6 +245,28 @@ class IntegrationTestApp:
             )
             log.info("  OK Visual lobe initialized")
 
+        # Game auto-detection
+        if self.config.visual.enabled and self.visual:
+            # share the visual lobe's VLM client
+            vlm_client = self.visual._client
+        elif self.config.visual.api_key:
+            from qoresence.lobes.visual import VLMClient
+            vlm_client = VLMClient(self.config.visual)
+        else:
+            vlm_client = None
+
+        if self.config.game_detection.enabled and vlm_client:
+            self.game_detector = GameAutoDetector(
+                bus=self.bus,
+                session_head_ns=self.identity.session_head_ns,
+                vlm_client=vlm_client,
+                confidence_threshold=self.config.game_detection.confidence_threshold,
+                poll_interval_s=self.config.game_detection.poll_interval_s,
+                learning_enabled=self.config.game_detection.learning_enabled,
+                learning_path=Path(self.config.game_detection.learning_path),
+            )
+            log.info("  OK Game auto-detector initialized")
+
         # Fusion engine
         self.fusion = create_fusion_engine(
             config=self.config,
@@ -275,6 +300,18 @@ class IntegrationTestApp:
                 self.outcome.set_frame_provider(self.streamer.get_current_frame)
             elif self.screen:
                 self.outcome.set_frame_provider(self.screen.get_current_frame)
+
+        # Game detector ← Streamer/Screen (frames) and → Outcome (profile switch)
+        if self.game_detector:
+            if self.streamer:
+                self.game_detector.set_frame_provider(self.streamer.get_current_frame)
+            elif self.screen:
+                self.game_detector.set_frame_provider(self.screen.get_current_frame)
+
+            if self.outcome:
+                def switch_profile(profile_id):
+                    self.outcome.set_game_profile(profile_id)
+                self.game_detector.set_profile_switch_callback(switch_profile)
 
         # Visual ← Outcome/Controller/Screen (cross-modal)
         if self.visual:
@@ -337,6 +374,9 @@ class IntegrationTestApp:
             log.error("Failed to start visual")
             return False
 
+        if self.game_detector:
+            self.game_detector.start()
+
         if self.fusion:
             self.fusion.start()
 
@@ -362,6 +402,8 @@ class IntegrationTestApp:
             self.screen.stop()
         if self.outcome:
             self.outcome.stop()
+        if self.game_detector:
+            self.game_detector.stop()
         if self.controller:
             self.controller.stop()
         if self.streamer:
@@ -518,6 +560,14 @@ def create_test_config(args) -> RetinaUnifiedConfig:
         game_category="football" if game_profile == "ncaa_football_27" else "shooter",
     )
 
+    game_detection_config = GameDetectionConfig(
+        enabled=args.auto_game_detect,
+        confidence_threshold=args.game_detect_threshold,
+        poll_interval_s=args.game_detect_poll,
+        learning_enabled=args.game_detect_learning,
+        learning_path=args.game_detect_learning_path,
+    )
+
     config = RetinaUnifiedConfig(
         session_id=session_id,
         session_head_ns=session_head_ns,
@@ -531,6 +581,7 @@ def create_test_config(args) -> RetinaUnifiedConfig:
         screen=screen_config,
         outcome=outcome_config,
         visual=visual_config,
+        game_detection=game_detection_config,
         fusion_weights=FusionWeights(
             streamer_presence_sync=0.25,
             controller_causal_density=0.25,
@@ -633,8 +684,15 @@ def main():
     parser.add_argument("--visual", action="store_true", help="Enable visual lobe")
     parser.add_argument("--visual-api-key", help="VLM API key")
     parser.add_argument("--visual-api-key-file", help="File containing VLM API key (format: label:key)")
-    parser.add_argument("--visual-model-name", default="nvidia/nemotron-nano-12b-v2-vl", help="VLM model name")
+    parser.add_argument("--visual-model-name", default="meta/llama-3.2-11b-vision-instruct", help="VLM model name")
     parser.add_argument("--visual-sample-rate", type=int, default=30)
+
+    # Game auto-detection
+    parser.add_argument("--auto-game-detect", action="store_true", help="Enable automatic game detection (VLM + OCR)")
+    parser.add_argument("--game-detect-threshold", type=float, default=0.65, help="Confidence threshold for game auto-detection")
+    parser.add_argument("--game-detect-poll", type=float, default=3.0, help="Seconds between game detection samples")
+    parser.add_argument("--game-detect-learning", action="store_true", help="Enable recursive learning for game detection")
+    parser.add_argument("--game-detect-learning-path", default="game_detection_learning.jsonl", help="Path to learning data file")
 
     # Trio-retina (w3bstream validation)
     parser.add_argument("--trio", action="store_true", help="Enable trio-retina w3bstream validation")

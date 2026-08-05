@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -199,6 +199,17 @@ class OutcomeRuntime:
     def set_frame_provider(self, provider: Callable[[], Optional[np.ndarray]]) -> None:
         """Set frame provider callback (e.g., from streamer lobe)."""
         self._frame_provider = provider
+
+    def set_game_profile(self, profile_id: GameProfileId) -> None:
+        """Switch the active game profile and rebuild detectors at runtime."""
+        if self.config.game_profile == profile_id:
+            return
+
+        self.config = replace(self.config, game_profile=profile_id)
+        self._profile = get_game_profile(profile_id)
+        self._detectors = self._build_detectors()
+        self._ocr_regions = self._get_ocr_regions()
+        log.info(f"Outcome lobe switched to profile: {profile_id.value}")
 
     # ──────────────────────────────────────────────────────────────────────────
     # DETECTOR SETUP

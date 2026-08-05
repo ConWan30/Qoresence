@@ -121,8 +121,13 @@ class TestIntegrationTestScript:
         args.visual = False
         args.visual_api_key = None
         args.visual_api_key_file = None
-        args.visual_model_name = "nvidia/nemotron-nano-12b-v2-vl"
+        args.visual_model_name = "meta/llama-3.2-11b-vision-instruct"
         args.visual_sample_rate = 30
+        args.auto_game_detect = False
+        args.game_detect_threshold = 0.65
+        args.game_detect_poll = 3.0
+        args.game_detect_learning = False
+        args.game_detect_learning_path = "game_detection_learning.jsonl"
         args.jsonl_path = "/tmp/test.jsonl"
         args.enable_ws = True
         args.ws_host = "127.0.0.1"

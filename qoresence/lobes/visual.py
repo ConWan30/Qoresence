@@ -75,10 +75,8 @@ class VLMClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         self._session.headers.update(headers)
 
-    def analyze_frame(self, frame: np.ndarray, prompt: str) -> Optional[VisualContext]:
-        """Send frame to VLM for analysis."""
-        start = time.perf_counter()
-
+    def analyze_frame_raw(self, frame: np.ndarray, prompt: str, timeout: float = 30.0) -> Optional[str]:
+        """Send frame to VLM and return the raw response content."""
         try:
             # Resize frame
             h, w = frame.shape[:2]
@@ -110,20 +108,27 @@ class VLMClient:
             response = self._session.post(
                 f"{self.endpoint}/chat/completions",
                 json=payload,
-                timeout=30,
+                timeout=timeout,
             )
             response.raise_for_status()
             data = response.json()
 
-            latency_ms = (time.perf_counter() - start) * 1000
-
-            # Parse response
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-            return self._parse_response(content, latency_ms)
+            return data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
         except Exception as e:
             log.warning(f"VLM request failed: {e}")
             return None
+
+    def analyze_frame(self, frame: np.ndarray, prompt: str) -> Optional[VisualContext]:
+        """Send frame to VLM for analysis and parse into VisualContext."""
+        start = time.perf_counter()
+
+        content = self.analyze_frame_raw(frame, prompt)
+        if content is None:
+            return None
+
+        latency_ms = (time.perf_counter() - start) * 1000
+        return self._parse_response(content, latency_ms)
 
     def _parse_response(self, content: str, latency_ms: float) -> VisualContext:
         """Parse VLM response into VisualContext."""

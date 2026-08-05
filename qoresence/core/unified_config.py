@@ -200,6 +200,16 @@ class VisualConfig:
 
 
 @dataclass(frozen=True)
+class GameDetectionConfig:
+    """Game auto-detection configuration (VLM + OCR fusion)."""
+    enabled: bool = False
+    confidence_threshold: float = 0.65
+    poll_interval_s: float = 3.0
+    learning_enabled: bool = False
+    learning_path: Optional[str] = "game_detection_learning.jsonl"
+
+
+@dataclass(frozen=True)
 class FusionWeights:
     """Weights for the presence fusion engine (must sum to 1.0)."""
     streamer_presence_sync: float = 0.25
@@ -245,6 +255,7 @@ class RetinaUnifiedConfig:
     screen: ScreenConfig = field(default_factory=ScreenConfig)
     outcome: OutcomeConfig = field(default_factory=OutcomeConfig)
     visual: VisualConfig = field(default_factory=VisualConfig)
+    game_detection: GameDetectionConfig = field(default_factory=GameDetectionConfig)
 
     # ── Fusion Engine ────────────────────────────────────────────────────────
     fusion_weights: FusionWeights = field(default_factory=FusionWeights)
@@ -432,6 +443,12 @@ class RetinaUnifiedConfig:
                 api_key=_str("QORESENCE_VISUAL_API_KEY") or None,
                 frame_sample_rate=_int("QORESENCE_VISUAL_SAMPLE_RATE", 30),
                 game_category=_str("QORESENCE_VISUAL_CATEGORY", "football"),
+            ),
+            game_detection=GameDetectionConfig(
+                enabled=_bool("QORESENCE_GAME_DETECT_ENABLED"),
+                confidence_threshold=_float("QORESENCE_GAME_DETECT_THRESHOLD", 0.65),
+                poll_interval_s=_float("QORESENCE_GAME_DETECT_POLL", 3.0),
+                learning_enabled=_bool("QORESENCE_GAME_DETECT_LEARNING"),
             ),
             jsonl_path=_str("QORESENCE_JSONL_PATH") or None,
             ws_host=_str("QORESENCE_WS_HOST", "127.0.0.1"),

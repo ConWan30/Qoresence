@@ -20,6 +20,7 @@ class SourceLobe(str, Enum):
     SCREEN = "screen"          # WGC / DXGI / mss
     OUTCOME = "outcome"        # Game-specific events
     VISUAL = "visual"          # VLM visual context
+    FUSION = "fusion"          # Cross-lobe fusion / game detection
 
 
 class EventType(str, Enum):
@@ -50,6 +51,9 @@ class EventType(str, Enum):
     # Visual lobe
     VISUAL_CONTEXT = "visual_context"
     CROSS_MODAL_VERDICT = "cross_modal_verdict"
+
+    # Game detection
+    GAME_DETECTED = "game_detected"
 
     # Fusion
     PRESENCE_REPORT = "presence_report"
