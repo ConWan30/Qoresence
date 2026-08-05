@@ -75,7 +75,7 @@ class VLMClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         self._session.headers.update(headers)
 
-    def analyze_frame_raw(self, frame: np.ndarray, prompt: str, timeout: float = 30.0) -> Optional[str]:
+    def analyze_frame_raw(self, frame: np.ndarray, prompt: str, timeout: float = 30.0, max_tokens: int = 300) -> Optional[str]:
         """Send frame to VLM and return the raw response content."""
         try:
             # Resize frame
@@ -101,7 +101,7 @@ class VLMClient:
                         ]
                     }
                 ],
-                "max_tokens": 300,
+                "max_tokens": max_tokens,
                 "temperature": 0.1,
             }
 

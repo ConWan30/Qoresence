@@ -122,11 +122,12 @@ def register_game_profile(profile: GameProfile) -> None:
 
 @dataclass(frozen=True)
 class StreamerConfig:
-    """Streamer lobe (UVC / OBS Virtual Cam) configuration."""
+    """Streamer lobe (UVC / OBS Virtual Cam / network stream) configuration."""
     enabled: bool = False
     device_index: int = 0
     device_name: Optional[str] = None
-    source_kind: str = "uvc_card"  # "uvc_card" | "obs_virtual" | "unknown"
+    url: Optional[str] = None  # network stream URL (rtmp://, http://, file, etc.)
+    source_kind: str = "uvc_card"  # "uvc_card" | "obs_virtual" | "network" | "unknown"
     width: int = 1280
     height: int = 720
     fps_target: float = 15.0
@@ -204,9 +205,12 @@ class GameDetectionConfig:
     """Game auto-detection configuration (VLM + OCR fusion)."""
     enabled: bool = False
     confidence_threshold: float = 0.65
+    stability_count: int = 2
     poll_interval_s: float = 3.0
     learning_enabled: bool = False
     learning_path: Optional[str] = "game_detection_learning.jsonl"
+    ocr_provider: str = "vlm"
+    vision_model_dir: Optional[str] = "models"
 
 
 @dataclass(frozen=True)

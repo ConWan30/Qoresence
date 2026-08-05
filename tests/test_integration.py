@@ -104,6 +104,7 @@ class TestIntegrationTestScript:
         args.auto_detect = False
         args.streamer = True
         args.streamer_device = 0
+        args.streamer_url = None
         args.streamer_fps = 15.0
         args.streamer_source = "uvc_card"
         args.controller = True
@@ -125,9 +126,12 @@ class TestIntegrationTestScript:
         args.visual_sample_rate = 30
         args.auto_game_detect = False
         args.game_detect_threshold = 0.65
+        args.game_detect_stability = 2
         args.game_detect_poll = 3.0
         args.game_detect_learning = False
         args.game_detect_learning_path = "game_detection_learning.jsonl"
+        args.ocr_provider = "easyocr"
+        args.vision_model_dir = "models"
         args.jsonl_path = "/tmp/test.jsonl"
         args.enable_ws = True
         args.ws_host = "127.0.0.1"

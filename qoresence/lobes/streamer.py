@@ -123,7 +123,8 @@ class StreamerRuntime:
         self._thread = threading.Thread(target=self._run_loop, name="qoresence-streamer", daemon=True)
         self._thread.start()
 
-        log.info(f"Streamer lobe started: device={self.config.device_index}, "
+        source = self.config.url if self.config.source_kind == "network" else self.config.device_index
+        log.info(f"Streamer lobe started: source={source}, "
                  f"source_kind={self.config.source_kind}, fps={self.config.fps_target}")
         return True
 
@@ -153,30 +154,37 @@ class StreamerRuntime:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _open_capture(self) -> bool:
-        """Open UVC device with backend selection."""
+        """Open UVC device or network stream with backend selection."""
         backend = self.config.backend.lower()
         backend_flag = None
 
-        if backend == "msmf":
+        is_network = self.config.source_kind == "network" and self.config.url
+
+        if backend == "msmf" and not is_network:
             backend_flag = cv2.CAP_MSMF
-        elif backend == "dshow":
+        elif backend == "dshow" and not is_network:
             backend_flag = cv2.CAP_DSHOW
         # "auto" = no flag
 
         try:
-            if backend_flag is not None:
+            if is_network:
+                log.info(f"Opening network stream: {self.config.url}")
+                self._cap = cv2.VideoCapture(self.config.url)
+            elif backend_flag is not None:
                 self._cap = cv2.VideoCapture(self.config.device_index, backend_flag)
             else:
                 self._cap = cv2.VideoCapture(self.config.device_index)
 
             if not self._cap.isOpened():
-                log.error(f"Failed to open capture device {self.config.device_index}")
+                source = self.config.url if is_network else self.config.device_index
+                log.error(f"Failed to open capture source {source}")
                 return False
 
-            # Set resolution and FPS
-            self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.width)
-            self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
-            self._cap.set(cv2.CAP_PROP_FPS, self.config.fps_target)
+            if not is_network:
+                # Set resolution and FPS only for local devices
+                self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.width)
+                self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
+                self._cap.set(cv2.CAP_PROP_FPS, self.config.fps_target)
 
             # Verify first frame
             ok, frame = self._cap.read()

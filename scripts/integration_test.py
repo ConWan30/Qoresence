@@ -261,9 +261,12 @@ class IntegrationTestApp:
                 session_head_ns=self.identity.session_head_ns,
                 vlm_client=vlm_client,
                 confidence_threshold=self.config.game_detection.confidence_threshold,
+                stability_count=self.config.game_detection.stability_count,
                 poll_interval_s=self.config.game_detection.poll_interval_s,
                 learning_enabled=self.config.game_detection.learning_enabled,
                 learning_path=Path(self.config.game_detection.learning_path),
+                ocr_provider=self.config.game_detection.ocr_provider,
+                model_dir=Path(self.config.game_detection.vision_model_dir),
             )
             log.info("  OK Game auto-detector initialized")
 
@@ -512,11 +515,13 @@ def create_test_config(args) -> RetinaUnifiedConfig:
         game_profile = "ncaa_football_27"
 
     # Build lobe configs
+    streamer_source = "network" if args.streamer_url else args.streamer_source
     streamer_config = StreamerConfig(
         enabled=args.streamer,
         device_index=streamer_device or 0,
+        url=args.streamer_url,
         fps_target=args.streamer_fps,
-        source_kind=args.streamer_source,
+        source_kind=streamer_source,
         backend=args.streamer_backend,
         eye_check_required=True,
     )
@@ -563,9 +568,12 @@ def create_test_config(args) -> RetinaUnifiedConfig:
     game_detection_config = GameDetectionConfig(
         enabled=args.auto_game_detect,
         confidence_threshold=args.game_detect_threshold,
+        stability_count=args.game_detect_stability,
         poll_interval_s=args.game_detect_poll,
         learning_enabled=args.game_detect_learning,
         learning_path=args.game_detect_learning_path,
+        ocr_provider=args.ocr_provider,
+        vision_model_dir=args.vision_model_dir,
     )
 
     config = RetinaUnifiedConfig(
@@ -658,6 +666,7 @@ def main():
     # Streamer
     parser.add_argument("--streamer", action="store_true", help="Enable streamer lobe")
     parser.add_argument("--streamer-device", type=int, help="Capture device index")
+    parser.add_argument("--streamer-url", help="Network stream URL (rtmp://, http://, file, etc.)")
     parser.add_argument("--streamer-fps", type=float, default=15.0, help="Streamer FPS")
     parser.add_argument("--streamer-source", choices=["uvc_card", "obs_virtual"], default="uvc_card")
     parser.add_argument("--streamer-backend", choices=["auto", "dshow", "msmf"], default="dshow", help="Capture backend")
@@ -690,9 +699,12 @@ def main():
     # Game auto-detection
     parser.add_argument("--auto-game-detect", action="store_true", help="Enable automatic game detection (VLM + OCR)")
     parser.add_argument("--game-detect-threshold", type=float, default=0.65, help="Confidence threshold for game auto-detection")
+    parser.add_argument("--game-detect-stability", type=int, default=2, help="Consecutive detections required to emit game_detected")
     parser.add_argument("--game-detect-poll", type=float, default=3.0, help="Seconds between game detection samples")
     parser.add_argument("--game-detect-learning", action="store_true", help="Enable recursive learning for game detection")
     parser.add_argument("--game-detect-learning-path", default="game_detection_learning.jsonl", help="Path to learning data file")
+    parser.add_argument("--ocr-provider", choices=["vlm", "easyocr", "tesseract"], default="easyocr", help="OCR engine used by game auto-detection")
+    parser.add_argument("--vision-model-dir", default="models", help="Directory for vision stack models (YOLOv8n, etc.)")
 
     # Trio-retina (w3bstream validation)
     parser.add_argument("--trio", action="store_true", help="Enable trio-retina w3bstream validation")
