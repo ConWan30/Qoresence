@@ -212,6 +212,29 @@
   </div>
 
   <div class="panel">
+    <div class="panel-title">
+      <span class="status-indicator" id="clutchbotStatus"></span>
+      ClutchBot
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Last Message</span>
+      <span class="metric-value" id="clutchbotMessage">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Reason</span>
+      <span class="metric-value" id="clutchbotReason">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Backends</span>
+      <span class="metric-value" id="clutchbotBackends">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Recent</span>
+      <span class="metric-value" id="clutchbotHistory" style="white-space: pre-wrap; font-size: 11px;">—</span>
+    </div>
+  </div>
+
+  <div class="panel">
     <div class="panel-title">Zones</div>
     <div class="zone-list" id="zoneList">
       <!-- Populated dynamically -->
@@ -253,10 +276,16 @@
     const possessionVal = document.getElementById('possessionVal');
     const outcomeEvent = document.getElementById('outcomeEvent');
     const outcomeFields = document.getElementById('outcomeFields');
+    const clutchbotStatus = document.getElementById('clutchbotStatus');
+    const clutchbotMessage = document.getElementById('clutchbotMessage');
+    const clutchbotReason = document.getElementById('clutchbotReason');
+    const clutchbotBackends = document.getElementById('clutchbotBackends');
+    const clutchbotHistory = document.getElementById('clutchbotHistory');
 
     let ws = null;
     let reconnectTimer = null;
     let lastEventTime = 0;
+    let clutchbotMessages = [];
 
     function connect() {
       try {
@@ -376,6 +405,34 @@
           console.log('[Qoresence] Session ended');
           gameState.textContent = 'ended';
           gameStatus.className = 'status-indicator disconnected';
+          break;
+
+        case 'agent_action':
+          if (msg.payload?.agent_name === 'clutchbot') {
+            const payload = msg.payload || {};
+            clutchbotMessage.textContent = payload.message || '—';
+            clutchbotReason.textContent = payload.reason || '—';
+            clutchbotBackends.textContent = (payload.backends || []).join(', ') || '—';
+            clutchbotStatus.className = 'status-indicator active';
+
+            const entry = `${new Date().toLocaleTimeString()}: ${payload.message || '(no message)'}`;
+            clutchbotMessages.unshift(entry);
+            clutchbotMessages = clutchbotMessages.slice(0, 5);
+            clutchbotHistory.textContent = clutchbotMessages.join('\n') || '—';
+
+            // Also mirror the situation snapshot if no visual_context has arrived yet
+            if (payload.situation) {
+              const sit = payload.situation;
+              if (sit.game_title) gameTitle.textContent = sit.game_title;
+              if (sit.game_state) gameState.textContent = sit.game_state;
+              if (sit.home_score !== undefined && sit.home_score !== null) homeScore.textContent = sit.home_score;
+              if (sit.away_score !== undefined && sit.away_score !== null) awayScore.textContent = sit.away_score;
+              if (sit.quarter !== undefined && sit.quarter !== null) quarterVal.textContent = sit.quarter;
+              if (sit.down !== undefined && sit.down !== null) downVal.textContent = sit.down;
+              if (sit.yards_to_go !== undefined && sit.yards_to_go !== null) yardsVal.textContent = sit.yards_to_go;
+              if (sit.possession) possessionVal.textContent = sit.possession;
+            }
+          }
           break;
       }
     }
