@@ -222,6 +222,9 @@ class VisualConfig:
     max_frame_dim: int = 640
     min_confidence: float = 0.6
     game_category: str = "football"  # "football" | "shooter" | "unknown"
+    local_model_path: str | None = None
+    local_fallback: bool = True
+    prefer_local: bool = False
 
 
 @dataclass(frozen=True)

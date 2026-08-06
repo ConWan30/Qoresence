@@ -39,6 +39,10 @@ visual = [
     "requests>=2.31",
     "onnxruntime>=1.16",
 ]
+local = [
+    "onnxruntime>=1.16",
+    "opencv-python>=4.8",
+]
 game = [
     "easyocr>=1.7",
     "ultralytics>=8.0",

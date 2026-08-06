@@ -1,0 +1,27 @@
+{
+  "name": "QoresenceScoreboard-10k seed (20 samples)",
+  "version": "0.1.0",
+  "description": "Starter benchmark for local vs cloud VLM. Expand to 10k with frame_hash + expected VisualContext.",
+  "samples": [
+    {"frame_hash": "a1b2c3d4e5f6a001", "expected": {"game_category": "football", "game_title": "NCAA Football 27", "home_score": 14, "away_score": 7, "quarter": 2, "down": 1, "yards_to_go": 10, "field_position": "opp 12"}},
+    {"frame_hash": "a1b2c3d4e5f6a002", "expected": {"game_category": "football", "game_title": "NCAA Football 27", "home_score": 21, "away_score": 21, "quarter": 4, "down": 3, "yards_to_go": 4, "field_position": "own 45"}},
+    {"frame_hash": "a1b2c3d4e5f6a003", "expected": {"game_category": "football", "game_title": "NCAA Football 27", "home_score": 0, "away_score": 3, "quarter": 1, "down": 2, "yards_to_go": 7, "field_position": "opp 35"}},
+    {"frame_hash": "a1b2c3d4e5f6a004", "expected": {"game_category": "football", "game_title": "NCAA Football 27", "home_score": 28, "away_score": 24, "quarter": 4, "down": 1, "yards_to_go": 10, "field_position": "opp 8"}},
+    {"frame_hash": "a1b2c3d4e5f6a005", "expected": {"game_category": "football", "game_title": "NCAA Football 27", "home_score": 10, "away_score": 17, "quarter": 3, "down": 4, "yards_to_go": 1, "field_position": "opp 2"}},
+    {"frame_hash": "b2c3d4e5f6a7b001", "expected": {"game_category": "shooter", "game_title": "Call of Duty", "health": 85, "ammo": 30, "kills": 5, "deaths": 2}},
+    {"frame_hash": "b2c3d4e5f6a7b002", "expected": {"game_category": "shooter", "game_title": "Call of Duty", "health": 25, "ammo": 7, "kills": 12, "deaths": 4}},
+    {"frame_hash": "b2c3d4e5f6a7b003", "expected": {"game_category": "shooter", "game_title": "Call of Duty", "health": 100, "ammo": 60, "kills": 0, "deaths": 0}},
+    {"frame_hash": "b2c3d4e5f6a7b004", "expected": {"game_category": "shooter", "game_title": "Call of Duty", "health": 40, "ammo": 0, "kills": 8, "deaths": 6}},
+    {"frame_hash": "b2c3d4e5f6a7b005", "expected": {"game_category": "shooter", "game_title": "Call of Duty", "health": 75, "ammo": 45, "kills": 3, "deaths": 3}},
+    {"frame_hash": "c3d4e5f6a7b8c001", "expected": {"game_category": "unknown", "game_title": "", "frame_quality": "menu"}},
+    {"frame_hash": "c3d4e5f6a7b8c002", "expected": {"game_category": "unknown", "game_title": "", "frame_quality": "dark"}},
+    {"frame_hash": "a1b2c3d4e5f6a006", "expected": {"game_category": "football", "game_title": "NCAA Football 27", "home_score": 7, "away_score": 14, "quarter": 2, "down": 2, "yards_to_go": 5, "field_position": "own 20"}},
+    {"frame_hash": "a1b2c3d4e5f6a007", "expected": {"game_category": "football", "game_title": "NCAA Football 27", "home_score": 35, "away_score": 7, "quarter": 3, "down": 1, "yards_to_go": 10, "field_position": "opp 45"}},
+    {"frame_hash": "b2c3d4e5f6a7b006", "expected": {"game_category": "shooter", "game_title": "Call of Duty", "health": 60, "ammo": 22, "kills": 15, "deaths": 7}},
+    {"frame_hash": "a1b2c3d4e5f6a008", "expected": {"game_category": "football", "game_title": "NCAA Football 27", "home_score": 17, "away_score": 17, "quarter": 4, "down": 1, "yards_to_go": 10, "field_position": "own 30"}},
+    {"frame_hash": "a1b2c3d4e5f6a009", "expected": {"game_category": "football", "game_title": "NCAA Football 27", "home_score": 3, "away_score": 0, "quarter": 1, "down": 3, "yards_to_go": 12, "field_position": "opp 28"}},
+    {"frame_hash": "b2c3d4e5f6a7b007", "expected": {"game_category": "shooter", "game_title": "Call of Duty", "health": 10, "ammo": 3, "kills": 9, "deaths": 9}},
+    {"frame_hash": "a1b2c3d4e5f6a010", "expected": {"game_category": "football", "game_title": "NCAA Football 27", "home_score": 24, "away_score": 27, "quarter": 4, "down": 2, "yards_to_go": 8, "field_position": "opp 15"}},
+    {"frame_hash": "c3d4e5f6a7b8c003", "expected": {"game_category": "unknown", "game_title": "", "frame_quality": "menu"}}
+  ]
+}

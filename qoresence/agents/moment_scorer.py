@@ -1,4 +1,4 @@
-"""
+﻿"""
 MomentScorer for ClutchBot.
 
 Decides whether the current situation is worth a chat message, clip,
@@ -15,6 +15,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from .win_probability import FootballWinProbability
 from typing import Any
 
 from .helix_client import PredictionResult
@@ -37,6 +38,94 @@ class ScoredMoment:
     payload: dict[str, Any] = field(default_factory=dict)
 
 
+
+
+import math as _math
+
+class ClipWorthinessModel:
+    """Lightweight logistic model for clip worthiness.
+
+    Features expected (all optional, defaults to 0):
+      - wp_swing: float (e.g. 0.0-0.5)
+      - red_zone: float/int/bool (1 if in red zone else 0)
+      - close_game: float/int/bool (1 if margin <=8 else 0)
+      - apm: float (normalized, e.g. apm_5s / 100)
+    Bias term is included via weights["bias"].
+    """
+
+    DEFAULT_WEIGHTS: dict[str, float] = {
+        "wp_swing": 2.5,
+        "red_zone": 0.8,
+        "close_game": 0.6,
+        "apm": 0.3,
+        "bias": -0.8,
+    }
+    DEFAULT_PATH = Path("models/clip_worthiness.json")
+
+    def __init__(self, model_path: str | Path | None = None, weights: dict[str, float] | None = None):
+        self.model_path: Path = Path(model_path) if model_path is not None else self.DEFAULT_PATH
+        self.weights: dict[str, float] = dict(weights) if weights is not None else dict(self.DEFAULT_WEIGHTS)
+        self.load()
+
+    @staticmethod
+    def _sigmoid(x: float) -> float:
+        if x > 20:
+            return 1.0
+        if x < -20:
+            return 0.0
+        return 1.0 / (1.0 + _math.exp(-x))
+
+    def predict(self, features: dict[str, float] | None = None) -> float:
+        """Predict clip worthiness in [0,1] via sigmoid(weighted sum)."""
+        features = features or {}
+        def _f(k: str) -> float:
+            v = features.get(k, 0)
+            if isinstance(v, bool):
+                return 1.0 if v else 0.0
+            try:
+                return float(v)
+            except Exception:
+                return 0.0
+        wp_swing = _f("wp_swing")
+        red_zone = _f("red_zone")
+        close_game = _f("close_game")
+        apm = _f("apm")
+        w = self.weights
+        logit = (
+            wp_swing * w.get("wp_swing", 0)
+            + red_zone * w.get("red_zone", 0)
+            + close_game * w.get("close_game", 0)
+            + apm * w.get("apm", 0)
+            + w.get("bias", 0)
+        )
+        return self._sigmoid(logit)
+
+    def load(self) -> None:
+        """Load weights from JSON if file exists."""
+        try:
+            p = self.model_path
+            if p.is_file():
+                data = json.loads(p.read_text(encoding="utf-8"))
+                w = data.get("weights") if isinstance(data, dict) and "weights" in data else data
+                if isinstance(w, dict):
+                    for k, v in w.items():
+                        try:
+                            self.weights[k] = float(v)
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
+    def save(self) -> None:
+        """Save current weights to JSON."""
+        try:
+            p = self.model_path
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps({"weights": self.weights}, indent=2), encoding="utf-8")
+        except Exception as e:
+            log.warning(f"ClipWorthinessModel save failed: {e}")
+
+
 class MomentScorer:
     """Score game situations and generate actions."""
 
@@ -47,14 +136,14 @@ class MomentScorer:
         "neutral": {
             "score_changed": "Score update: {home_score}-{away_score}.",
             "turnover": "Turnover!",
-            "first_down": "First down in the red zone — {possession}.",
+            "first_down": "First down in the red zone â€” {possession}.",
             "possession_changed": "Possession changes to {possession}.",
-            "red_zone_drive": "Red zone drive — {home_score}-{away_score} Q{quarter}.",
+            "red_zone_drive": "Red zone drive â€” {home_score}-{away_score} Q{quarter}.",
             "game_detected": "Qoresence is locked on: {game_title}.",
             "start_prediction": "Will they score on this drive?",
             "resolve_prediction_yes": "Drive result: score!",
             "resolve_prediction_no": "Drive result: no score.",
-            "kill": "Kill confirmed — {score}!",
+            "kill": "Kill confirmed â€” {score}!",
             "death": "Down!",
             "multi_kill": "Multi-kill! {score}!",
             "clip": "Clutch clip incoming!",
@@ -64,7 +153,7 @@ class MomentScorer:
             "turnover": "TURNOVER! Momentum shift!",
             "first_down": "FIRST DOWN! {possession} keeps it moving!",
             "possession_changed": "Ball changes hands! {possession} takes over!",
-            "clip": "THAT WAS CLUTCH! 🎬",
+            "clip": "THAT WAS CLUTCH! ðŸŽ¬",
             "red_zone_drive": "RED ZONE ALERT! {home_score}-{away_score} Q{quarter}!",
             "game_detected": "We are LIVE on {game_title}!",
             "start_prediction": "Are they punching it in?!",
@@ -73,14 +162,78 @@ class MomentScorer:
             "kill": "ELIMINATED! {score}!",
             "death": "DOWNED!",
             "multi_kill": "MULTI-KILL! {score}!",
-            "clip": "THAT WAS CLUTCH! 🎬",
+            "clip": "THAT WAS CLUTCH! ðŸŽ¬",
         },
     }
 
-    def __init__(self, persona: str = "neutral"):
+    def __init__(self, persona: str = "neutral", wp_enabled: bool = True, clip_model_path: str | Path | None = None, wp_swing_threshold: float = 0.12):
         self.persona = persona
         self._templates = self._load_templates(persona)
         self._last_trigger: dict[tuple[str, str], float] = {}
+        self._wp_swing_threshold: float = float(wp_swing_threshold)
+        try:
+            self._wp: FootballWinProbability | None = FootballWinProbability() if wp_enabled else None
+        except Exception as e:
+            log.warning(f"WP init failed: {e}")
+            self._wp = None
+        try:
+            self._clip_model: ClipWorthinessModel = ClipWorthinessModel(clip_model_path)
+        except Exception as e:
+            log.warning(f"ClipWorthinessModel init failed: {e}")
+            self._clip_model = ClipWorthinessModel(clip_model_path=None)
+
+
+    def _maybe_wp_clip(self, state) -> tuple | None:
+        if not getattr(self, "_wp", None):
+            return None
+        try:
+            sd = {
+                "quarter": state.quarter,
+                "clock_seconds": state.game_clock_seconds,
+                "down": state.down,
+                "yards_to_go": state.yards_to_go,
+                "field_position": state.field_position,
+                "home_score": state.home_score,
+                "away_score": state.away_score,
+                "possession": state.possession,
+            }
+            r = self._wp.compute(sd)
+            swing = float(r.get("wp_swing", 0.0))
+            if abs(swing) < 0.02:
+                return None
+            msg = self._message("clip", state, wp_swing=f"{swing:+.2f}")
+            m = self._build_moment(weight=min(0.95, 0.75+abs(swing)), action="clip", message=msg or "Clutch clip incoming!", reason=f"wp_swing {swing:+.2f}", cooldown_key="wp_clip")
+            if not m.triggered:
+                return None
+            m.payload.update({"wp_swing": swing, "win_prob": r.get("win_prob"), "expected_points": r.get("expected_points")})
+            return (m, swing)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).debug(f"_maybe_wp_clip failed: {e}")
+            return None
+
+    def _clip_gate(self, state, wp_swing: float) -> bool:
+        try:
+            import re
+            pos = (state.field_position or "").lower()
+            is_rz = 0.0
+            if "opp" in pos:
+                mm = re.search(r"opp(?:onent)?\s*(\d+)", pos)
+                if mm and int(mm.group(1)) <= 20:
+                    is_rz = 1.0
+            hs = state.home_score; aw = state.away_score
+            try:
+                margin = abs(int(hs or 0) - int(aw or 0)) if hs is not None and aw is not None else 10
+            except Exception:
+                margin = 10
+            close = 1.0 if margin <= 8 else 0.0
+            apm = float(getattr(state.controller, "apm_5s", 0) or 0) / 120.0
+            apm = max(0.0, min(1.0, apm))
+            feats = {"wp_swing": float(wp_swing), "red_zone": is_rz, "close_game": close, "apm": apm}
+            score = self._clip_model.predict(feats) if getattr(self, "_clip_model", None) else 1.0
+            return bool(score > 0.55 or abs(float(wp_swing)) > float(getattr(self, "_wp_swing_threshold", 0.12)))
+        except Exception:
+            return True
 
     def _load_templates(self, persona: str) -> dict[str, str]:
         """Load persona templates from built-ins or a JSON file path."""
@@ -147,13 +300,22 @@ class MomentScorer:
             return self._score_outcome(state, event_payload, active_prediction, features)
 
         if event_type == "visual_context":
-            return self._score_visual_context(state, event_payload or {}, active_prediction, features)
+            scored = self._score_visual_context(state, event_payload or {}, active_prediction, features)
+            wp_clip = self._maybe_wp_clip(state)
+            if wp_clip and not any(m.action == "clip" and m.triggered for m in scored):
+                if self._clip_gate(state, wp_clip[1]):
+                    scored.append(wp_clip[0])
+            return scored
 
+        wp_clip_generic = self._maybe_wp_clip(state)
+        if wp_clip_generic and wp_clip_generic[1] > self._wp_swing_threshold:
+            if self._clip_gate(state, wp_clip_generic[1]):
+                return [wp_clip_generic[0]]
         return []
 
-    # ──────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # SCORERS
-    # ──────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _score_outcome(
         self,
@@ -185,7 +347,7 @@ class MomentScorer:
                     weight=0.8,
                     action="clip",
                     message=chat.message,
-                    reason="red-zone first down — clip",
+                    reason="red-zone first down â€” clip",
                     cooldown_key="clip",
                 )
                 if clip.triggered:
@@ -243,7 +405,7 @@ class MomentScorer:
                     weight=weight,
                     action="clip",
                     message=message,
-                    reason="clutch score — clip",
+                    reason="clutch score â€” clip",
                     cooldown_key="clip",
                 )
                 if clip.triggered:
@@ -295,7 +457,7 @@ class MomentScorer:
                 weight=weight,
                 action="clip",
                 message=message,
-                reason="turnover — clip",
+                reason="turnover â€” clip",
                 cooldown_key="clip",
             )
             if clip.triggered:
@@ -391,7 +553,7 @@ class MomentScorer:
                 weight=weight,
                 action="clip",
                 message=message,
-                reason=f"{key} — clip",
+                reason=f"{key} â€” clip",
                 cooldown_key="clip",
             )
             if clip.triggered:
@@ -464,6 +626,16 @@ class MomentScorer:
             if pred.triggered:
                 moments.append(pred)
 
+        try:
+            _vc_clip_features = self._clip_features(state)
+            _vc_clip_score = self._clip_model.predict(_vc_clip_features)
+            for m in moments:
+                if m.triggered and "clip_score" not in m.payload:
+                    m.payload["clip_score"] = _vc_clip_score
+                    m.payload["clip_features"] = _vc_clip_features
+        except Exception:
+            pass
+
         return moments
 
     def _scoring_team(self, fields: dict[str, Any], state: SituationState) -> str | None:
@@ -490,9 +662,9 @@ class MomentScorer:
             return "away"
         return None
 
-    # ──────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # MESSAGE TEMPLATES
-    # ──────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _score_message(self, state: SituationState, home: Any, away: Any) -> str:
         extra = {"home_score": home or "?", "away_score": away or "?"}
@@ -511,9 +683,9 @@ class MomentScorer:
         cur = fields.get("possession") or state.possession
         return self._message("possession_changed", state, prev_possession=prev or "", possession=cur or "")
 
-    # ──────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # HELPERS
-    # ──────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _is_red_zone(self, state: SituationState) -> bool:
         # Look at field_position string, e.g. "opp 10" or "opponent 15".
@@ -574,3 +746,4 @@ class MomentScorer:
             cooldown_key=cooldown_key,
             payload=payload or {},
         )
+

@@ -6,13 +6,21 @@ Synchronized local computer-vision pipeline for game streams:
 - Motion / camera-velocity tracking (OpenCV + MediaPipe)
 - HUD region detection (YOLOv8n via ONNX / OpenVINO)
 - VisionStack orchestrator feeding GameAutoDetector
+- Local distilled VLM (offline <100ms)
 """
 
-from .ocr_providers import BaseOCRProvider, VLMOCRProvider, EasyOCRProvider, TesseractOCRProvider, create_ocr_provider
-from .motion_tracker import MotionTracker, MotionEvidence
 from .hud_detector import HUDDetector, HUDRegion
-from .visual_context import VisualContext, GameState, GameCategory, build_vlm_prompt
-from .vision_stack import VisionStack, VisionEvidence
+from .local_vlm import LocalVLMClient, create_local_vlm_client
+from .motion_tracker import MotionEvidence, MotionTracker
+from .ocr_providers import (
+    BaseOCRProvider,
+    EasyOCRProvider,
+    TesseractOCRProvider,
+    VLMOCRProvider,
+    create_ocr_provider,
+)
+from .vision_stack import VisionEvidence, VisionStack
+from .visual_context import GameCategory, GameState, VisualContext, build_vlm_prompt
 
 __all__ = [
     "BaseOCRProvider",
@@ -29,4 +37,6 @@ __all__ = [
     "build_vlm_prompt",
     "VisionStack",
     "VisionEvidence",
+    "LocalVLMClient",
+    "create_local_vlm_client",
 ]
