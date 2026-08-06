@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 import pytest
 
-from qoresence.vision.local_vlm import LocalVLMClient, create_local_vlm_client
+from qoresence.vision.local_vlm import DEFAULT_ONNX, LocalVLMClient, create_local_vlm_client
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
 
 
@@ -253,3 +253,27 @@ class TestLocalVLMClient:
         assert ctx is not None
         assert ctx.game_category == GameCategory.UNKNOWN
         assert ctx.game_state == GameState.MENU
+
+
+def test_onnx_distilled_if_present():
+    """If the distilled ONNX model exists, verify it loads and classifies correctly."""
+    if not DEFAULT_ONNX.exists():
+        pytest.skip("distilled ONNX model not present")
+
+    client = LocalVLMClient(model_path=str(DEFAULT_ONNX), game_profile="ncaa_football_27")
+    assert client.get_stats()["mode"] == "onnx"
+    assert client.get_stats()["available"] is True
+
+    eye = cv2.imread("logs/eye_verify.jpg")
+    if eye is not None:
+        ctx = client.analyze_frame(eye, game_profile="ncaa_football_27")
+        assert ctx is not None
+        assert ctx.game_category == GameCategory.FOOTBALL
+        assert ctx.confidence > 0.6
+
+    dark = np.zeros((720, 1280, 3), dtype=np.uint8)
+    dark[:, :] = 10
+    ctx = client.analyze_frame(dark, game_profile="ncaa_football_27")
+    assert ctx is not None
+    assert ctx.game_category != GameCategory.FOOTBALL
+    assert ctx.latency_ms < 100

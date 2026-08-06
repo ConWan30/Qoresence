@@ -80,7 +80,8 @@ class LocalVLMClient:
                 self._onnx_sess = ort.InferenceSession(str(self.model_path), providers=["CPUExecutionProvider"])
                 self._available = True
                 self._mode = "onnx"
-                log.info(f"LocalVLM ONNX loaded: {self.model_path}")
+                self.warmup()
+                log.info(f"LocalVLM ONNX loaded and warmed: {self.model_path}")
                 return
             except Exception as e:
                 log.warning(f"LocalVLM ONNX load failed ({e}), using heuristic")
@@ -156,17 +157,30 @@ class LocalVLMClient:
     def _onnx_infer(self, frame: np.ndarray, game_profile: str | object | None = None) -> VisualContext | None:
         try:
             inp = self._onnx_sess.get_inputs()[0]
-            h, w = frame.shape[:2]
             img = cv2.resize(frame, (224, 224))
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
             img = np.transpose(img, (2, 0, 1))[None]
             out = self._onnx_sess.run(None, {inp.name: img})
-            # expect logits [football, shooter, menu, unknown]
             logits = np.array(out[0]).flatten()
-            idx = int(np.argmax(logits))
-            conf = float(1 / (1 + np.exp(-float(np.max(logits)))))
-            cats = [GameCategory.FOOTBALL, GameCategory.SHOOTER, GameCategory.UNKNOWN, GameCategory.UNKNOWN]
-            states = [GameState.GAMEPLAY, GameState.GAMEPLAY, GameState.MENU, GameState.UNKNOWN]
+            n = len(logits)
+            if n == 3:
+                # expect logits [football, unknown, menu]
+                cats = [GameCategory.FOOTBALL, GameCategory.UNKNOWN, GameCategory.UNKNOWN]
+                states = [GameState.GAMEPLAY, GameState.UNKNOWN, GameState.MENU]
+            elif n == 4:
+                # legacy 4-class distilled model
+                cats = [GameCategory.FOOTBALL, GameCategory.SHOOTER, GameCategory.UNKNOWN, GameCategory.UNKNOWN]
+                states = [GameState.GAMEPLAY, GameState.GAMEPLAY, GameState.MENU, GameState.UNKNOWN]
+            else:
+                log.warning(f"ONNX output has unexpected class count: {n}")
+                return None
+
+            # softmax for calibrated confidence
+            shifted = logits - np.max(logits)
+            exp = np.exp(shifted)
+            probs = exp / exp.sum()
+            idx = int(np.argmax(probs))
+            conf = float(probs[idx])
             ctx = VisualContext(game_state=states[idx], game_category=cats[idx], confidence=conf)
             # leave scores zero - caller fills via outcome
             return self._profile_guard(ctx, game_profile)
