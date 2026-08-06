@@ -2,15 +2,13 @@
 from __future__ import annotations
 
 import json
-import tempfile
-from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
 
-from qoresence.vision.local_vlm import LocalVLMClient, create_local_vlm_client, DEFAULT_ONNX
-from qoresence.vision.visual_context import GameCategory, GameState
+from qoresence.vision.local_vlm import LocalVLMClient, create_local_vlm_client
+from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
 
 
 def _green_football_frame(h=90, w=160) -> np.ndarray:
@@ -180,3 +178,78 @@ class TestLocalVLMClient:
         assert provider is not None
         # VLMOCRProvider delegates to vlm_client; should not crash on None frame
         # We just verify construction
+
+    def test_heuristic_features_green_field_is_football(self):
+        """green 0.25, edge 0.27, luma > 30 -> FOOTBALL."""
+        c = LocalVLMClient(model_path="/tmp/__nonexistent__.onnx")
+        ctx = c._classify_features(green_ratio=0.25, edge_density=0.27, mean_luma=100)
+        assert ctx.game_category == GameCategory.FOOTBALL
+        assert ctx.game_state == GameState.GAMEPLAY
+        assert ctx.confidence == pytest.approx(0.72)
+
+    def test_heuristic_features_high_edge_low_green_no_shooter(self):
+        """edge 0.17, green 0.00, luma 39 -> UNKNOWN/MENU, never SHOOTER."""
+        c = LocalVLMClient(model_path="/tmp/__nonexistent__.onnx")
+        ctx = c._classify_features(green_ratio=0.00, edge_density=0.17, mean_luma=39)
+        assert ctx.game_category != GameCategory.SHOOTER
+        assert ctx.game_category == GameCategory.UNKNOWN
+        assert ctx.game_state in (GameState.UNKNOWN, GameState.MENU)
+
+    def test_heuristic_features_dark_frame_is_menu(self):
+        """green 0.00, luma 16 -> MENU."""
+        c = LocalVLMClient(model_path="/tmp/__nonexistent__.onnx")
+        ctx = c._classify_features(green_ratio=0.00, edge_density=0.05, mean_luma=16)
+        assert ctx.game_category == GameCategory.UNKNOWN
+        assert ctx.game_state == GameState.MENU
+        assert ctx.confidence == pytest.approx(0.45)
+
+    def test_football_profile_blocks_shooter(self):
+        """ncaa_football_27 profile must never emit SHOOTER."""
+        c = LocalVLMClient(model_path="/tmp/__nonexistent__.onnx", game_profile="ncaa_football_27")
+        raw = VisualContext(
+            game_state=GameState.GAMEPLAY,
+            game_category=GameCategory.SHOOTER,
+            confidence=0.62,
+            frame_quality="ok",
+        )
+        guarded = c._profile_guard(raw, "ncaa_football_27")
+        assert guarded.game_category != GameCategory.SHOOTER
+        assert guarded.game_category == GameCategory.UNKNOWN
+        assert guarded.confidence == pytest.approx(0.38)
+
+    def test_analyze_frame_no_shooter_when_football_profile(self):
+        """If the raw path would emit SHOOTER, football profile forces UNKNOWN."""
+        c = LocalVLMClient(model_path="/tmp/__nonexistent__.onnx", game_profile="ncaa_football_27")
+        # Force the private heuristic to return a shooter-like raw result.
+        c._heuristic = lambda *args, **kwargs: VisualContext(
+            game_state=GameState.GAMEPLAY,
+            game_category=GameCategory.SHOOTER,
+            confidence=0.62,
+            frame_quality="ok",
+        )
+        frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+        ctx = c.analyze_frame(frame, game_profile="ncaa_football_27")
+        assert ctx is not None
+        assert ctx.game_category != GameCategory.SHOOTER
+
+    def test_temporal_hysteresis_single_menu_does_not_flip_football(self):
+        """4 football frames + 1 menu/unknown frame still emits football."""
+        c = LocalVLMClient(model_path="/tmp/__nonexistent__.onnx")
+        football = c._classify_features(green_ratio=0.25, edge_density=0.27, mean_luma=100)
+        menu = c._classify_features(green_ratio=0.00, edge_density=0.17, mean_luma=39)
+        c._history.extend([football, football, football, menu, football])
+        ctx = c._smooth()
+        assert ctx is not None
+        assert ctx.game_category == GameCategory.FOOTBALL
+        assert ctx.game_state == GameState.GAMEPLAY
+
+    def test_temporal_hysteresis_three_menus_flip(self):
+        """3 menu/unknown frames out of 5 should win the smoothed vote."""
+        c = LocalVLMClient(model_path="/tmp/__nonexistent__.onnx")
+        football = c._classify_features(green_ratio=0.25, edge_density=0.27, mean_luma=100)
+        menu = c._classify_features(green_ratio=0.00, edge_density=0.05, mean_luma=16)
+        c._history.extend([football, menu, menu, menu, football])
+        ctx = c._smooth()
+        assert ctx is not None
+        assert ctx.game_category == GameCategory.UNKNOWN
+        assert ctx.game_state == GameState.MENU

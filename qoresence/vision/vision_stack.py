@@ -123,7 +123,7 @@ class VisionStack:
         vlm_raw = None
         visual_context: Optional[VisualContext] = None
         try:
-            vlm_raw = self._vlm_client.analyze_frame_raw(frame, self._game_prompt, max_tokens=400)
+            vlm_raw = self._vlm_client.analyze_frame_raw(frame, self._game_prompt, max_tokens=400, game_profile=self._game_profile)
             visual_context = self._parse_vlm_context(vlm_raw, frame)
         except Exception as e:
             log.warning(f"VLM game classification failed: {e}")
