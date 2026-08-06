@@ -279,8 +279,35 @@ class VisualRuntime:
         self._frame_provider = frame_provider
         self._modality_provider = modality_provider
 
-        # VLM client
-        self._client = VLMClient(config)
+        # VLM client — prefer local distilled brain when VisualConfig.prefer_local=True
+        # Wiring: LocalVLMClient (<100ms offline) is primary; cloud VLM is fallback.
+        # This is the switch that makes baf1a11's scaffold a fully wired product.
+        self._client_kind = "cloud"
+        _prefer = bool(getattr(config, "prefer_local", False))
+        _local_path = getattr(config, "local_model_path", None)
+        _fallback = bool(getattr(config, "local_fallback", True))
+        if _prefer:
+            try:
+                from qoresence.vision.local_vlm import LocalVLMClient as _LocalVLM
+                _local = _LocalVLM(model_path=_local_path)
+                if _local.is_available():
+                    self._client = _local  # type: ignore[assignment]
+                    self._client_kind = "local:onnx"
+                elif _fallback:
+                    # heuristic is always available — still local
+                    self._client = _local  # type: ignore[assignment]
+                    self._client_kind = "local:heuristic"
+                else:
+                    self._client = VLMClient(config)
+                    self._client_kind = "cloud"
+                log.info(f"VisualRuntime using {self._client_kind} (prefer_local=True, path={_local_path or 'models/qoresence-vlm-distilled.onnx'})")
+            except Exception as e:
+                log.warning(f"LocalVLM init failed ({e}), falling back to cloud VLM")
+                self._client = VLMClient(config)
+                self._client_kind = "cloud-fallback"
+        else:
+            self._client = VLMClient(config)
+            self._client_kind = "cloud"
 
         # Prompts
         self._classify_prompt = self._build_classify_prompt()

@@ -511,6 +511,9 @@ class RetinaUnifiedConfig:
                 api_key=_str("QORESENCE_VISUAL_API_KEY") or None,
                 frame_sample_rate=_int("QORESENCE_VISUAL_SAMPLE_RATE", 30),
                 game_category=_str("QORESENCE_VISUAL_CATEGORY", "football"),
+                local_model_path=_str("QORESENCE_VISUAL_LOCAL_MODEL") or None,
+                local_fallback=_bool("QORESENCE_VISUAL_LOCAL_FALLBACK", True),
+                prefer_local=_bool("QORESENCE_VISUAL_PREFER_LOCAL", False),
             ),
             game_detection=GameDetectionConfig(
                 enabled=_bool("QORESENCE_GAME_DETECT_ENABLED"),

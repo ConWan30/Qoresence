@@ -129,5 +129,10 @@ class LocalVLMClient:
         return VisualContext(game_state=GameState.UNKNOWN, game_category=GameCategory.UNKNOWN, confidence=0.35, frame_quality="ok")
 
 
+    def cross_modal_check(self, frame: np.ndarray, other_modalities: dict) -> None:  # type: ignore[override]
+        """Local brain has no cloud VLM — return inconclusive."""
+        # Keep interface compatible with VLMClient so VisualRuntime/VisionStack can swap.
+        return None
+
 def create_local_vlm_client(model_path: str | Path | None = None) -> LocalVLMClient:
     return LocalVLMClient(model_path=model_path)

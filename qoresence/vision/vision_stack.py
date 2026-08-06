@@ -25,6 +25,12 @@ import numpy as np
 
 from qoresence.core import GameProfileId
 from qoresence.lobes.visual import VLMClient
+from typing import Union  # for VLMClient | LocalVLMClient
+try:
+    from qoresence.vision.local_vlm import LocalVLMClient as _LocalVLMClient
+    VLMClientLike = Union[VLMClient, _LocalVLMClient]  # type: ignore[misc]
+except Exception:
+    VLMClientLike = VLMClient  # type: ignore[misc,assignment]
 
 from .hud_detector import HUDDetector, HUDRegion
 from .motion_tracker import MotionTracker, MotionEvidence
@@ -63,7 +69,7 @@ class VisionStack:
 
     def __init__(
         self,
-        vlm_client: VLMClient,
+        vlm_client: VLMClientLike,
         ocr_provider: Optional[BaseOCRProvider] = None,
         enable_motion: bool = True,
         enable_hud: bool = True,

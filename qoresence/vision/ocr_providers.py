@@ -19,6 +19,10 @@ import numpy as np
 import threading
 
 from qoresence.lobes.visual import VLMClient
+try:
+    from qoresence.vision.local_vlm import LocalVLMClient
+except ImportError:
+    LocalVLMClient = VLMClient  # type: ignore
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +68,7 @@ class VLMOCRProvider(BaseOCRProvider):
 
     name = "vlm"
 
-    def __init__(self, vlm_client: VLMClient):
+    def __init__(self, vlm_client):  # VLMClient | LocalVLMClient
         self._client = vlm_client
         self._prompt = (
             "You are an OCR engine. Read only the actual text, numbers, and symbols visible in the image. "

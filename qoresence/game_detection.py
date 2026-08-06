@@ -235,6 +235,23 @@ class GameAutoDetector:
         else:
             self._vlm_client = None
 
+        # Respect VisualConfig.prefer_local when no explicit client given (wired via GameDetectionConfig)
+        # If detector is created with use_vision_stack and no api_key, try LocalVLMClient as local brain
+        _prefer_local_env = False
+        try:
+            import os as _os
+            _prefer_local_env = _os.environ.get("QORESENCE_VISUAL_PREFER_LOCAL", "").lower() in ("1","true","yes","on")
+        except Exception:
+            pass
+        if self._vlm_client is None and _prefer_local_env:
+            try:
+                from qoresence.vision.local_vlm import LocalVLMClient as _LC
+                _local_path = _os.environ.get("QORESENCE_VISUAL_LOCAL_MODEL") or None
+                self._vlm_client = _LC(model_path=_local_path)  # type: ignore[assignment]
+                log.info(f"GameAutoDetector using LocalVLMClient (prefer_local env, path={_local_path or 'models/qoresence-vlm-distilled.onnx'})")
+            except Exception as e:
+                log.debug(f"LocalVLM for GameAutoDetector not available: {e}")
+
         self._confidence_threshold = confidence_threshold
         self._stability_count = stability_count
         self._evidence_window_s = evidence_window_s
