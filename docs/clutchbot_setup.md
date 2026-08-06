@@ -46,7 +46,7 @@ OAuth flow. ClutchBot needs one or two tokens:
 
 ```bash
 python -m qoresence.cli \
-  --clutchbot \
+  --stream \
   --clutchbot-channel mychannel \
   --clutchbot-username clutchbot_qoresence \
   --clutchbot-token-file /path/to/bot_oauth.txt \
@@ -63,7 +63,7 @@ python -m qoresence.cli \
 
 ```bash
 python scripts/integration_test.py \
-  --clutchbot \
+  --stream \
   --clutchbot-channel mychannel \
   ...
 ```

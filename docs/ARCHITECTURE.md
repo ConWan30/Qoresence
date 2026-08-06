@@ -2,21 +2,26 @@
 
 ## Overview
 
-Qoresence is an **observation-plane** presence engine. It synchronizes a gamer's controller inputs with their live video feed (capture card or OBS Virtual Cam) and produces **gamer-owned causal presence evidence**.
+Qoresence is a local **capture → situation → stream** pipeline. It ingests game
+events, screen context, and optionally video/HID, then produces a structured
+situation model used by **ClutchBot** for Twitch chat, clips, predictions, and
+viewer panels. The trio-retina / fusion layers are kept as optional research
+paths but are not part of the ClutchBot MVP.
 
-## Plane Separation (Non-Negotiable)
+## Plane Separation
 
-| Plane | QorTroller | Qoresence |
-|-------|------------|-----------|
-| **Truth** | PoAC, FROZEN, chain, eligibility | — |
-| **Observation** | Retina (controller/screen/visual lobes) | **Qoresence (streamer/controller/screen/outcome/visual lobes)** |
-| **Stream/Social** | Buzz, Nostr | OBS overlay, optional exports |
+| Plane | Responsibility | Qoresence default |
+|-------|----------------|-------------------|
+| **Capture** | Video, HID, screen, game events, visual context | Enabled per-lobe by operator |
+| **Situation** | Rolling score, state, APM, last outcomes | `SituationModel` |
+| **Stream/Social** | Twitch chat, clips, predictions, viewer panel | **ClutchBot** |
 
-**Qoresence never:**
+**Qoresence (ClutchBot MVP) never:**
 - Claims humanity, eligibility, or "anti-cheat"
-- Writes PoAC records or FROZEN commitments
-- Touches chain / spends IOTX
-- Imports QorTroller at runtime in core path
+- Writes to chain
+- Stores biometric data centrally
+
+Optional `trio-retina` / `fusion` modules remain for research use but are off by default.
 
 ---
 
@@ -138,11 +143,38 @@ All events emitted to `RetinaEventBus` must carry:
 ### WebSocket (`outputs/websocket.py`)
 - Default: `ws://127.0.0.1:8765`
 - Broadcasts all events to connected clients
-- OBS Browser Source consumer at `tools/obs/presence_overlay.html`
+- Consumers:
+  - `tools/obs/presence_overlay.html` (OBS Browser Source)
+  - `tools/twitch-extension/panel.html` (Twitch Extension / Browser Source)
+  - `ClutchBot` agent
 
-### Receipts (`outputs/receipt.py`)
-- Optional: cryptographic receipts for event batches
+### Receipts (`outputs/receipt.py`) — Optional
+- Cryptographic receipts for event batches
 - Merkle root over event batch for auditability
+- Used by the optional `trio-retina` research path, not the ClutchBot MVP
+
+---
+
+## ClutchBot (`qoresence/agents/`)
+
+ClutchBot is the default consumer of the event bus for the Twitch MVP.
+
+```
+┌───────────────┐
+│  ClutchBot    │
+│  Agent        │
+├───────────────┤
+│ SituationModel│  rolling game state
+│ MomentScorer  │  clutch-moment rules
+│ ActionExecutor│  pluggable backends
+│ TwitchIRC     │  chat + commands
+│ TwitchHelix   │  clips, predictions
+│ TwitchEventSub│  follow/sub/redemption alerts
+└───────────────┘
+```
+
+Agent events are written to the same JSONL and WebSocket, so the OBS overlay
+and Twitch panel can display the same data in real time.
 
 ---
 
@@ -151,8 +183,8 @@ All events emitted to `RetinaEventBus` must carry:
 Single source of truth: `RetinaUnifiedConfig` (see `core/unified_config.py`)
 
 - All lobes default `enabled = False`
-- Eye-check required: `True`
-- Never claim humanity: `True`
+- ClutchBot default `enabled = False`
+- Never claim humanity / eligibility
 - Game profiles: NCAA Football 27, Call of Duty (extensible)
 
 ---

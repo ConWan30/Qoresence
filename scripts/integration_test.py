@@ -804,6 +804,11 @@ def main():
     parser.add_argument("--vision-model-dir", default="models", help="Directory for vision stack models (YOLOv8n, etc.)")
 
     # ClutchBot (Twitch agent)
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="ClutchBot streaming preset: enables outcome, visual, clutchbot, and WebSocket",
+    )
     parser.add_argument("--clutchbot", action="store_true", help="Enable ClutchBot Twitch agent")
     parser.add_argument("--clutchbot-channel", default="", help="Twitch channel for the bot to join (no #)")
     parser.add_argument("--clutchbot-username", default="", help="Twitch bot username")
@@ -851,6 +856,13 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Initialize but don't run")
 
     args = parser.parse_args()
+
+    # --stream preset for ClutchBot MVP
+    if args.stream:
+        args.enable_ws = True
+        args.outcome = True
+        args.visual = True
+        args.clutchbot = True
 
     setup_logging(args.log_level)
 

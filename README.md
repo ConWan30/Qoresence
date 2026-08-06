@@ -1,31 +1,42 @@
 # Qoresence
 
-**Observation-plane presence engine for gamers — V.A.P.I. reference implementation.**
+**Local game-state capture and Twitch ClutchBot MVP for streamers.**
 
-Synchronizes five observation modalities (video, HID, screen, game events, visual context) into a causally correlated event stream with optional **mechanical validation** via MachineFi trio-retina w3bstream applet.
-
-> **V.A.P.I.** = Verifiable Autonomous Physical Intelligence — the DePIN sub-category where the physical-input source (gamer + controller) is the cryptographic agency-holder over the data those interactions generate.
+Qoresence ingests live game events and screen context, builds a structured,
+real-time situation model, and drives **ClutchBot** — a Twitch chat companion
+that narrates clutch moments, auto-creates clips, runs predictions, responds to
+chat commands, and shows a viewer panel.
 
 ---
 
 ## Purpose
 
+Qoresence is an opt-in, local-only observation layer for game streams. It does
+not claim humanity, act as anti-cheat, or write to chain. Its default output is
+a local JSONL event log and a WebSocket feed for overlays and the Twitch
+Extension panel.
+
 | What It Does | What It Doesn't Do |
 |--------------|-------------------|
-| Observes 5 modalities simultaneously | ❌ Claim humanity / eligibility |
-| Produces gamer-owned causal events | ❌ Act as anti-cheat |
-| Optionally validates mechanically via trio-retina | ❌ Write to chain (opt-in via w3bstream) |
-| Exports structured JSONL / WebSocket | ❌ Store biometric data centrally |
+| Observes game events and screen/HID context | ❌ Claim humanity / eligibility |
+| Produces a structured game-state event stream | ❌ Act as anti-cheat |
+| Runs ClutchBot for chat, clips, predictions | ❌ Write to chain |
+| Exports JSONL / WebSocket for overlays | ❌ Store biometric data centrally |
 
-**Core principle**: The gamer + controller is the sovereign agency. Qoresence observes; trio-retina mechanically validates; w3bstream optionally anchors on-chain. The gamer decides what leaves their machine.
+### Why this matters
+
+For streamers, game-aware chat bots currently require manual triggers or deep
+per-game integrations. Qoresence closes that gap by deriving state directly
+from the capture feed and game events, then acting on Twitch. Everything runs
+locally and the streamer decides which features are enabled.
 
 ---
 
-## Architecture: Five Lobe Observation Plane
+## Architecture: Capture → Situation → ClutchBot
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         QORESENCE OBSERVATION PLANE                         │
+│                         QORESENCE CAPTURE PLANE                             │
 ├──────────────┬──────────────┬──────────────┬──────────────┬──────────────┤
 │  STREAMER    │  CONTROLLER  │    SCREEN    │   OUTCOME    │    VISUAL    │
 │  (UVC/OBS)   │  (HID API)   │  (mss/DXGI)  │  (Game API)  │   (VLM)      │
@@ -39,19 +50,16 @@ Synchronizes five observation modalities (video, HID, screen, game events, visua
                                  ▼
                     ┌─────────────────────────┐
                     │   RETINA EVENT BUS      │
-                    │  (session_id + clock_ns)│
+                    │  (JSONL + WebSocket)    │
                     └───────────┬─────────────┘
                                 │
-                    ┌───────────┴───────────┐
-                    ▼                       ▼
-          ┌───────────────┐         ┌───────────────┐
-          │ PRESENCE FUSION│         │ TRIO-RETINA   │
-          │   ENGINE       │         │  (OPTIONAL)   │
-          │                │         │               │
-          │ Cross-modal    │         │ EvmLogPayload │
-          │ coupling       │         │ WasmtimeRunner│
-          │ Presence rpt   │         │ w3bstream WASM│
-          └───────────────┘         └───────────────┘
+                    ┌───────────┼───────────┐
+                    ▼           ▼           ▼
+          ┌──────────────┐ ┌──────────┐ ┌──────────────┐
+          │  CLUTCHBOT   │ │   OBS    │ │ OPTIONAL     │
+          │  (Twitch     │ │ Browser  │ │  trio-retina │
+          │   agent)     │ │  Source  │ │  / fusion    │
+          └──────────────┘ └──────────┘ └──────────────┘
 ```
 
 ---
@@ -61,9 +69,9 @@ Synchronizes five observation modalities (video, HID, screen, game events, visua
 ### Core (`qoresence/core/`)
 | Module | Purpose |
 |--------|---------|
-| `session.py` | `SessionAuthority`, `SessionIdentity` — cryptographic session minting |
-| `event_bus.py` | `RetinaEventBus` — central event router with trio-retina integration |
-| `unified_config.py` | `RetinaUnifiedConfig` — all lobe configs + trio-retina config |
+| `session.py` | `SessionAuthority`, `SessionIdentity` — session identity and event ordering |
+| `event_bus.py` | `RetinaEventBus` — central event router (JSONL + WebSocket outputs) |
+| `unified_config.py` | `RetinaUnifiedConfig` — capture lobe + ClutchBot + optional trio-retina config |
 | `types.py` | `SourceLobe`, `EventType`, `BaseEvent` — shared type system |
 
 ### Lobes (`qoresence/lobes/`)
@@ -135,17 +143,12 @@ cd Qoresence
 # or
 scripts\quickstart.bat        # Windows
 
-# 2. Dry-run with trio-retina validation
-python -m qoresence.cli --dry-run --trio \
-  --trio-wasm-path=w3bstream_applet.wasm \
-  --trio-validate-on-flush --trio-flush-interval=30
+# 2. Dry-run the stream preset
+python -m qoresence.cli --dry-run --stream \
+  --clutchbot-channel mychannel
 
-# 3. Live session (operator explicitly enables lobes)
-qoresence --streamer --controller --outcome --screen --visual \
-  --trio --trio-wasm-path=w3bstream_applet.wasm
-
-# 4. Stream with ClutchBot (see docs/clutchbot_setup.md for tokens)
-qoresence --outcome --visual --clutchbot \
+# 3. Stream with ClutchBot (see docs/clutchbot_setup.md for tokens)
+qoresence --stream \
   --clutchbot-channel mychannel \
   --clutchbot-username clutchbot_qoresence \
   --clutchbot-token-file /path/to/bot_oauth.txt \
@@ -153,6 +156,14 @@ qoresence --outcome --visual --clutchbot \
   --clutchbot-broadcaster-username mychannel \
   --clutchbot-enable-clips \
   --clutchbot-enable-predictions
+
+# 3. Manual lobe selection (same as --stream)
+qoresence --outcome --visual --clutchbot \
+  --clutchbot-channel mychannel ...
+
+# 4. Optional trio-retina validation (advanced)
+qoresence --streamer --controller --outcome --screen --visual \
+  --trio --trio-wasm-path=w3bstream_applet.wasm
 ```
 
 ### Docker (Real WASM + ZKSepProof)
@@ -351,6 +362,17 @@ Qoresence/
 
 ---
 
+## Background: V.A.P.I. and trio-retina
+
+Qoresence originally grew out of the V.A.P.I. (Verifiable Autonomous Physical
+Intelligence) research direction. The capture plane, session identity, and
+optional `trio-retina` validation layer are kept for that longer-term work, but
+they are **not part of the ClutchBot MVP**. The default product is a local
+game-state capture + Twitch agent stack. Validation, on-chain anchoring, and
+cryptographic presence proofs remain opt-in experiments.
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE)
@@ -361,9 +383,9 @@ MIT — see [LICENSE](LICENSE)
 
 | Project | Relationship |
 |---------|--------------|
-| **vapi-pebble-prototype** | Source of trio-retina w3bstream applet, ZKSepProof circuits, DualShock Edge calibration |
-| **QorTroller** | V.A.P.I. protocol — Qoresence is the observation plane reference implementation |
-| **MachineFi / trio-retina** | w3bstream applet mechanical validation standard |
+| **vapi-pebble-prototype** | Source of trio-retina w3bstream applet, ZKSepProof circuits, DualShock Edge calibration (research) |
+| **QorTroller** | V.A.P.I. protocol — Qoresence shares the observation-plane concept |
+| **MachineFi / trio-retina** | w3bstream applet mechanical validation standard (research) |
 
 ---
 

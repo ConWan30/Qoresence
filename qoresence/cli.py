@@ -444,6 +444,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         ws_port=args.ws_port,
     )
 
+    # Stream preset: enable the minimal ClutchBot capture stack
+    if args.stream:
+        config.enable_ws = True
+        config.outcome.enabled = True
+        config.outcome.game_profile = args.game_profile
+        config.visual.enabled = True
+        config.visual.frame_sample_rate = args.visual_sample_rate
+
     # Enable lobes based on flags
     if args.streamer:
         config.streamer.enabled = True
@@ -461,8 +469,8 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         config.visual.enabled = True
         config.visual.frame_sample_rate = args.visual_sample_rate
 
-    # ClutchBot agent
-    if args.clutchbot:
+    # ClutchBot agent (explicit or via --stream preset)
+    if args.clutchbot or args.stream:
         config.clutchbot.enabled = True
         config.clutchbot.twitch = TwitchConfig(
             enabled=args.clutchbot_channel != "",
@@ -491,7 +499,7 @@ def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         prog="qoresence",
-        description="Qoresence - Gamer Presence Observation Plane",
+        description="Qoresence - Local game-state capture + Twitch ClutchBot",
     )
 
     # Session identity
@@ -504,6 +512,13 @@ def main():
     parser.add_argument("--enable-ws", action="store_true", help="Enable WebSocket broadcast")
     parser.add_argument("--ws-host", default="127.0.0.1", help="WebSocket host")
     parser.add_argument("--ws-port", type=int, default=8765, help="WebSocket port")
+
+    # One-shot presets
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="ClutchBot streaming preset: enables outcome, visual, clutchbot, and WebSocket",
+    )
 
     # Lobes
     parser.add_argument("--streamer", action="store_true", help="Enable streamer lobe (UVC/OBS)")
