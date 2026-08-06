@@ -11,30 +11,28 @@ import json
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import Mock
 
 import pytest
 
 from qoresence.core import (
-    RetinaEventBus,
-    SourceLobe,
-    EventType,
-    clock_ns,
-    FusionWeights,
-    RetinaUnifiedConfig,
-    SessionAuthority,
-    StreamerConfig,
     ControllerConfig,
-    ScreenConfig,
+    EventType,
+    FusionWeights,
     OutcomeConfig,
+    RetinaEventBus,
+    RetinaUnifiedConfig,
+    ScreenConfig,
+    SessionAuthority,
+    SourceLobe,
+    StreamerConfig,
     VisualConfig,
-    GameProfileId,
+    clock_ns,
 )
 from qoresence.fusion.presence import (
-    PresenceFusionEngine,
-    PresenceReport,
     Anomaly,
     LobeContribution,
+    PresenceFusionEngine,
+    PresenceReport,
     create_fusion_engine,
 )
 
@@ -382,7 +380,7 @@ class TestPresenceFusionEngine:
             anomalies = engine.get_anomalies()
 
             # Check for contradiction anomaly
-            contradictions = [a for a in anomalies if a.type == "contradiction"]
+            _contradictions = [a for a in anomalies if a.type == "contradiction"]
             # Note: This test may not trigger due to time simulation limits
             # The logic is tested at unit level
 
@@ -620,7 +618,7 @@ class TestFusionWeights:
             engine = PresenceFusionEngine(config, bus)
 
             # Emit controller events (should not affect verdict)
-            for i in range(10):
+            for _ in range(10):
                 bus.emit_raw(
                     source_lobe=SourceLobe.CONTROLLER,
                     event_type=EventType.TRIGGER_ONSET,

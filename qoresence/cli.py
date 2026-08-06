@@ -451,7 +451,7 @@ def run_health_checks(app: QoresenceApp) -> dict:
         }
 
     # Overall status
-    for comp, info in checks["components"].items():
+    for _comp, info in checks["components"].items():
         if info["status"] != "healthy":
             checks["overall"] = "degraded"
             break
@@ -694,13 +694,13 @@ def main():
         from qoresence.lobes.streamer import list_dshow_devices
         devices = list_dshow_devices()
         if not devices:
-            print("No DirectShow capture devices found (pygrabber may not be installed).")
+            print("No DirectShow capture devices found (pygrabber may not be installed).")  # noqa: T201
             sys.exit(0)
-        print(f"{'Index':<6} {'Allowed':<7} {'Name'}")
-        print("-" * 60)
+        print(f"{'Index':<6} {'Allowed':<7} {'Name'}")  # noqa: T201
+        print("-" * 60)  # noqa: T201
         for idx, name, allowed in devices:
             status = "OK" if allowed else "BLOCKED"
-            print(f"{idx:<6} {status:<7} {name}")
+            print(f"{idx:<6} {status:<7} {name}")  # noqa: T201
         sys.exit(0)
 
     setup_logging(args.log_level)
@@ -743,7 +743,7 @@ def main():
     if args.health_check:
         checks = run_health_checks(app)
         import json
-        print(json.dumps(checks, indent=2))
+        print(json.dumps(checks, indent=2))  # noqa: T201
         sys.exit(0 if checks["overall"] == "healthy" else 1)
 
     # Start

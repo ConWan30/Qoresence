@@ -11,18 +11,15 @@ import json
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 
 from qoresence.core import (
     RetinaEventBus,
-    SourceLobe,
-    EventType,
-    StreamerConfig,
-    clock_ns,
     SessionAuthority,
+    StreamerConfig,
 )
 from qoresence.lobes.streamer import StreamerRuntime, ZoneSpec
 
@@ -45,7 +42,7 @@ class FakeCapture:
     def get(self, prop_id: int) -> float:
         return self._props.get(prop_id, 0.0)
 
-    def read(self) -> tuple[bool, Optional[np.ndarray]]:
+    def read(self) -> tuple[bool, np.ndarray | None]:
         if self._idx < len(self._frames):
             frame = self._frames[self._idx]
             self._idx += 1

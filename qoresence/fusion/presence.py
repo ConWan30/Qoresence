@@ -17,19 +17,19 @@ import json
 import logging
 import threading
 from collections import defaultdict, deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 import numpy as np
 
 from qoresence.core import (
-    RetinaEventBus,
-    SourceLobe,
     EventType,
-    clock_ns,
-    FusionWeights,
+    RetinaEventBus,
     RetinaUnifiedConfig,
+    SourceLobe,
+    clock_ns,
 )
 
 log = logging.getLogger(__name__)
@@ -328,7 +328,7 @@ class PresenceReport:
                     "type": a.type,
                     "severity": a.severity,
                     "description": a.description,
-                    "lobes_involved": [l.value for l in a.lobes_involved],
+                    "lobes_involved": [lobe.value for lobe in a.lobes_involved],
                     "timestamp_ns": a.timestamp_ns,
                     "details": a.details,
                 }
@@ -371,7 +371,7 @@ class VisualHysteresis:
             return "unknown"
         return category
 
-    def update(self, raw_category: Optional[str], raw_state: Optional[str], confidence: float) -> tuple[str, str, float]:
+    def update(self, raw_category: str | None, raw_state: str | None, confidence: float) -> tuple[str, str, float]:
         """Update with a fresh visual observation and return smoothed (category, state, confidence)."""
         category = str(raw_category).lower().strip() if raw_category else "unknown"
         state = str(raw_state).lower().strip() if raw_state else "unknown"
@@ -396,7 +396,7 @@ class VisualHysteresis:
             cat_confs[c] = cat_confs.get(c, 0.0) + conf
 
         # Find majority category that meets min_agree, preferring higher confidence tie-break
-        winner: Optional[str] = None
+        winner: str | None = None
         for c in sorted(cat_counts, key=lambda x: (-cat_counts[x], -cat_confs[x])):
             if cat_counts[c] >= self._min_agree:
                 winner = c
@@ -501,7 +501,7 @@ class PresenceFusionEngine:
         self._unsubscribe = bus.subscribe(self._on_event)
 
         # Report callback (optional)
-        self._report_callback: Optional[Callable[[PresenceReport], None]] = None
+        self._report_callback: Callable[[PresenceReport], None] | None = None
 
         # Emit session_start
         self._emit_report(force=True)
@@ -630,7 +630,7 @@ class PresenceFusionEngine:
         b = 0.0
 
         # gradient descent
-        for it in range(iterations):
+        for _it in range(iterations):
             logits = X @ w + b  # N
             # sigmoid
             probs = _sigmoid(logits)  # N
@@ -961,7 +961,7 @@ class PresenceFusionEngine:
             if not self._anomaly_exists(anomaly, old_anomalies):
                 log.warning(f"Anomaly detected: {anomaly.type} - {anomaly.description}")
 
-    def _anomaly_exists(self, new_anomaly: Anomaly, anomalies: Optional[list[Anomaly]] = None) -> bool:
+    def _anomaly_exists(self, new_anomaly: Anomaly, anomalies: list[Anomaly] | None = None) -> bool:
         """Check if a similar anomaly is already in the provided list (default: current list)."""
         for existing in (anomalies if anomalies is not None else self._anomalies):
             if (existing.type == new_anomaly.type and

@@ -14,7 +14,6 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import cv2
 import numpy as np
@@ -22,15 +21,14 @@ import numpy as np
 from qoresence.core import (
     RetinaEventBus,
     SourceLobe,
-    EventType,
-    clock_ns,
     StreamerConfig,
+    clock_ns,
 )
 
 log = logging.getLogger(__name__)
 
 
-def _get_dshow_device_name(index: int) -> Optional[str]:
+def _get_dshow_device_name(index: int) -> str | None:
     """Return DirectShow display name for a device index, if available."""
     try:
         from pygrabber.dshow_graph import FilterGraph
@@ -56,7 +54,7 @@ def list_dshow_devices() -> list[tuple[int, str, bool]]:
     return [(i, name, _is_allowed_capture_name(name)) for i, name in enumerate(names)]
 
 
-def _is_allowed_capture_name(name: Optional[str]) -> bool:
+def _is_allowed_capture_name(name: str | None) -> bool:
     """
     Allow only external capture cards and virtual OBS output.
     Personal webcams / laptop cameras are rejected.
@@ -84,9 +82,14 @@ def _frame_contains_person(frame: np.ndarray, area_threshold: float = 0.25) -> b
     """
     try:
         import mediapipe as mp
-        from mediapipe.tasks.python.vision.object_detector import ObjectDetector, ObjectDetectorOptions
         from mediapipe.tasks.python.core.base_options import BaseOptions
-        from mediapipe.tasks.python.vision.core.vision_task_running_mode import VisionTaskRunningMode
+        from mediapipe.tasks.python.vision.core.vision_task_running_mode import (
+            VisionTaskRunningMode,
+        )
+        from mediapipe.tasks.python.vision.object_detector import (
+            ObjectDetector,
+            ObjectDetectorOptions,
+        )
 
         # Re-use the same EfficientDet-Lite0 model that motion_tracker downloads
         from qoresence.vision.motion_tracker import MotionTracker
@@ -158,7 +161,7 @@ class StreamerRuntime:
         config: StreamerConfig,
         bus: RetinaEventBus,
         session_head_ns: int,
-        presence_touch_file: Optional[Path] = None,
+        presence_touch_file: Path | None = None,
         presence_timeout_s: float = 5.0,
     ):
         self.config = config
@@ -170,12 +173,12 @@ class StreamerRuntime:
         self.presence_timeout_s = presence_timeout_s
 
         # Capture state
-        self._cap: Optional[cv2.VideoCapture] = None
+        self._cap: cv2.VideoCapture | None = None
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
         # Metrics state
-        self._prev_gray: Optional[np.ndarray] = None
+        self._prev_gray: np.ndarray | None = None
         self._activity = "idle"
         self._activity_since = 0.0
         self._zone_emas: dict[str, float] = {}
@@ -191,21 +194,21 @@ class StreamerRuntime:
         self._last_success_frame_time = time.time()
         self._fps_window: deque[float] = deque(maxlen=max(int(config.fps_target), 15))
         self._watchdog_running = False
-        self._watchdog_thread: Optional[threading.Thread] = None
+        self._watchdog_thread: threading.Thread | None = None
         self._lock = threading.RLock()
 
         # Eye-check
         self._eye_check_done = False
-        self._eye_check_snapshot_path: Optional[Path] = None
+        self._eye_check_snapshot_path: Path | None = None
 
         # Zone configs
         self._zones = DEFAULT_ZONES if config.zones_enabled else ()
 
         # Current frame (for cross-lobe integration)
-        self._current_frame: Optional[np.ndarray] = None
+        self._current_frame: np.ndarray | None = None
 
         # Presence callback (for fusion engine)
-        self._presence_callback: Optional[callable] = None
+        self._presence_callback: callable | None = None
 
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
@@ -253,7 +256,7 @@ class StreamerRuntime:
     def is_running(self) -> bool:
         return self._running
 
-    def get_current_frame(self) -> Optional[np.ndarray]:
+    def get_current_frame(self) -> np.ndarray | None:
         """Get the most recent captured frame (for cross-lobe integration)."""
         return self._current_frame
 
@@ -430,7 +433,7 @@ class StreamerRuntime:
         # Session end
         self._emit_session_end()
 
-    def _read_frame(self) -> tuple[bool, Optional[np.ndarray]]:
+    def _read_frame(self) -> tuple[bool, np.ndarray | None]:
         """Read a frame from the capture device, retrying a few times on soft failures."""
         if self._cap is None:
             return False, None
@@ -694,7 +697,7 @@ class StreamerRuntime:
     # PRESENCE SYNC (WP-S5)
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _check_presence(self, now: float) -> tuple[bool, Optional[float]]:
+    def _check_presence(self, now: float) -> tuple[bool, float | None]:
         """
         Check if controller input was recent (via touch file).
 

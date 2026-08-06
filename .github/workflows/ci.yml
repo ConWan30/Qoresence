@@ -69,6 +69,11 @@ jobs:
         run: |
           python -m pytest tests/ -v --tb=short -x
 
+      - name: Run session eval on CLEAN (local artifact)
+        if: hashFiles('logs/session_2026-08-06_direct_usb0_CLEAN.jsonl') != ''
+        run: |
+          python eval/eval_session.py logs/session_2026-08-06_direct_usb0_CLEAN.jsonl
+
       - name: Run trio-retina tests specifically
         run: |
           python -m pytest tests/test_trio_retina.py -v --tb=short
