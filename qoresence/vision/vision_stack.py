@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import cv2
+import json
 import numpy as np
 
 from qoresence.core import GameProfileId
@@ -28,6 +29,7 @@ from qoresence.lobes.visual import VLMClient
 from .hud_detector import HUDDetector, HUDRegion
 from .motion_tracker import MotionTracker, MotionEvidence
 from .ocr_providers import BaseOCRProvider, OCRResult, VLMOCRProvider
+from .visual_context import VisualContext, GameCategory, GameState, build_vlm_prompt
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +46,7 @@ class VisionEvidence:
     ocr_provider: str
     motion: Optional[MotionEvidence]
     hud_regions: list[HUDRegion]
+    visual_context: Optional[VisualContext] = None
     details: dict = field(default_factory=dict)
 
 
@@ -67,6 +70,7 @@ class VisionStack:
         model_dir: Optional[Path] = None,
         ocr_on_crops: bool = True,
         max_workers: int = 3,
+        game_profile: GameProfileId = GameProfileId.NCAA_FOOTBALL_27,
     ):
         self._vlm_client = vlm_client
 
@@ -77,25 +81,16 @@ class VisionStack:
         self._enable_hud = enable_hud
         self._ocr_on_crops = ocr_on_crops
         self._max_workers = max_workers
+        self._game_profile = game_profile
 
         self._motion = MotionTracker() if enable_motion else None
         self._hud_detector = HUDDetector(model_dir=model_dir) if enable_hud else None
 
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="visionstack-")
 
-        # Reusable VLM classification prompt
-        self._game_prompt = (
-            "Identify the video game shown in this image. "
-            "Choose exactly one of these labels: ncaa_football_27 (also college_football_27 or ncaa), "
-            "call_of_duty (also cod), menu, unknown.\n\n"
-            "Output format (no explanation):\n"
-            "GAME: ncaa_football_27\n"
-            "CONFIDENCE: 0.95\n\n"
-            "Rules:\n"
-            "- Pick 'menu' only for the main menu or settings screens, not for an in-game pause overlay.\n"
-            "- Pick 'unknown' when the image is black, blurry, or unrecognizable.\n"
-            "- Only return the two lines above."
-        )
+        # Game-aware JSON prompt: VLM returns structured VisualContext fields
+        prompt_category = "football" if game_profile == GameProfileId.NCAA_FOOTBALL_27 else "shooter"
+        self._game_prompt = build_vlm_prompt(prompt_category)
 
     def warmup(self) -> None:
         """Pre-load / download all models."""
@@ -120,12 +115,16 @@ class VisionStack:
 
         # VLM game classification (must run, not parallel because it uses the GPU session)
         vlm_raw = None
+        visual_context: Optional[VisualContext] = None
         try:
-            vlm_raw = self._vlm_client.analyze_frame_raw(frame, self._game_prompt)
+            vlm_raw = self._vlm_client.analyze_frame_raw(frame, self._game_prompt, max_tokens=400)
+            visual_context = self._parse_vlm_context(vlm_raw, frame)
         except Exception as e:
             log.warning(f"VLM game classification failed: {e}")
 
-        vlm_game, vlm_confidence = self._parse_vlm_game(vlm_raw)
+        vlm_game, vlm_confidence = self._visual_context_to_game_profile(
+            visual_context, vlm_raw
+        )
 
         # HUD detection in parallel
         hud_regions: list[HUDRegion] = []
@@ -161,6 +160,7 @@ class VisionStack:
             ocr_provider=ocr_result.provider,
             motion=motion,
             hud_regions=hud_regions,
+            visual_context=visual_context,
             details={
                 "vlm_raw_response": vlm_raw,
                 "hud_region_count": len(hud_regions),
@@ -234,8 +234,69 @@ class VisionStack:
         return ", ".join(unique)
 
     @staticmethod
-    def _parse_vlm_game(raw: Optional[str]) -> tuple[Optional[GameProfileId], float]:
-        """Parse the VLM game classification response."""
+    def _parse_vlm_context(raw: Optional[str], frame: np.ndarray) -> Optional[VisualContext]:
+        """Parse a JSON VLM response into a VisualContext."""
+        import hashlib
+
+        if not raw:
+            return None
+
+        # Try to find a JSON object in the response
+        text = raw.strip()
+        # Some VLMs wrap the JSON in markdown fences or explanatory text
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            return None
+
+        try:
+            parsed = json.loads(text[start : end + 1])
+        except json.JSONDecodeError:
+            return None
+
+        ctx = VisualContext.from_dict(parsed)
+        ctx.raw_response = raw
+
+        # Stable frame hash for provenance
+        small = cv2.resize(frame, (160, 90))
+        gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+        ctx.frame_hash = hashlib.sha256(gray.tobytes()).hexdigest()[:16]
+
+        return ctx
+
+    @staticmethod
+    def _visual_context_to_game_profile(
+        context: Optional[VisualContext], raw: Optional[str]
+    ) -> tuple[Optional[GameProfileId], float]:
+        """Map a VisualContext to a GameProfileId and confidence."""
+        if context is not None:
+            title = (context.game_title or "").lower()
+            state = context.game_state
+            category = context.game_category
+
+            # Explicit game title takes priority
+            if "ncaa" in title or "college football" in title:
+                return GameProfileId.NCAA_FOOTBALL_27, context.confidence
+            if "call of duty" in title or "cod" in title or "warzone" in title:
+                return GameProfileId.CALL_OF_DUTY, context.confidence
+
+            # Fall back to category + game_state
+            if state == GameState.GAMEPLAY or state == GameState.PAUSED:
+                if category == GameCategory.FOOTBALL:
+                    return GameProfileId.NCAA_FOOTBALL_27, context.confidence
+                if category == GameCategory.SHOOTER:
+                    return GameProfileId.CALL_OF_DUTY, context.confidence
+
+            if state in (GameState.MENU, GameState.LOBBY, GameState.LOADING, GameState.RESULTS, GameState.CUTSCENE):
+                # Menu is still useful signal but not an active game profile
+                return None, context.confidence
+
+        # Fallback to the legacy GAME: / CONFIDENCE: format if JSON parsing failed
+        return VisionStack._legacy_parse_vlm_game(raw)
+
+    @staticmethod
+    def _legacy_parse_vlm_game(raw: Optional[str]) -> tuple[Optional[GameProfileId], float]:
+        """Parse the legacy two-line VLM game classification response."""
         import re
 
         if not raw:
@@ -249,7 +310,6 @@ class VisionStack:
 
         label = game_match.group(1).lower().strip()
 
-        # Accept common aliases the VLM may use instead of the canonical profile id
         aliases = {
             "ncaa_football_27": GameProfileId.NCAA_FOOTBALL_27,
             "ncaa": GameProfileId.NCAA_FOOTBALL_27,
@@ -263,7 +323,4 @@ class VisionStack:
             return None, 0.0
 
         confidence = float(conf_match.group(1)) if conf_match else 0.7
-
-        mapping = aliases
-
-        return mapping.get(label), confidence
+        return aliases.get(label), confidence

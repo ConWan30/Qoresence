@@ -1,172 +1,31 @@
-"""
-Phase 5 Tests — Outcome Lobe
-
-Tests for NCAA Football 27 and Call of Duty profile loading,
-event emission, OutcomeTrigger, and detector framework.
-"""
-
-from __future__ import annotations
+"""Tests for the VLM-driven Outcome lobe."""
 
 import json
 import tempfile
-import time
 from pathlib import Path
-from unittest.mock import Mock, patch
 
-import numpy as np
 import pytest
 
 from qoresence.core import (
+    GameProfileId,
+    OutcomeConfig,
     RetinaEventBus,
+    SessionAuthority,
     SourceLobe,
     EventType,
-    OutcomeConfig,
-    GameProfileId,
-    GameProfile,
-    NCAA_FOOTBALL_27_PROFILE,
-    CALL_OF_DUTY_PROFILE,
-    clock_ns,
-    SessionAuthority,
 )
 from qoresence.lobes.outcome import OutcomeRuntime, OutcomeTrigger
+from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
 
 
-class TestOutcomeRuntime:
-    """Tests for OutcomeRuntime core functionality."""
+class TestOutcomeRuntimeVLM:
+    """Tests for the VLM-driven OutcomeRuntime."""
 
-    def test_runtime_creation_ncaa(self):
+    def test_start_subscribes_to_bus(self):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
-            bus = RetinaEventBus(session_id="test_session", jsonl_path=jsonl_path, enable_ws=False)
-            identity = SessionAuthority.mint(session_id="test_session")
-
-            config = OutcomeConfig(
-                enabled=True,
-                game_profile=GameProfileId.NCAA_FOOTBALL_27,
-                detection_method="ocr",
-                confidence_threshold=0.7,
-                poll_interval_s=0.5,
-            )
-
-            runtime = OutcomeRuntime(
-                config=config,
-                bus=bus,
-                session_head_ns=identity.session_head_ns,
-            )
-
-            assert runtime._profile.profile_id == GameProfileId.NCAA_FOOTBALL_27
-            assert runtime._profile.display_name == "NCAA College Football 27"
-            assert "snap" in runtime._detectors
-            assert "score_changed" in runtime._detectors
-
-    def test_runtime_creation_cod(self):
-        with tempfile.TemporaryDirectory() as td:
-            jsonl_path = Path(td) / "events.jsonl"
-            bus = RetinaEventBus(session_id="test_session", jsonl_path=jsonl_path, enable_ws=False)
-            identity = SessionAuthority.mint(session_id="test_session")
-
-            config = OutcomeConfig(
-                enabled=True,
-                game_profile=GameProfileId.CALL_OF_DUTY,
-                detection_method="ocr",
-                confidence_threshold=0.7,
-                poll_interval_s=0.5,
-            )
-
-            runtime = OutcomeRuntime(
-                config=config,
-                bus=bus,
-                session_head_ns=identity.session_head_ns,
-            )
-
-            assert runtime._profile.profile_id == GameProfileId.CALL_OF_DUTY
-            assert runtime._profile.display_name == "Call of Duty (Warzone / Multiplayer)"
-            assert "kill" in runtime._detectors
-            assert "death" in runtime._detectors
-            assert "streak" in runtime._detectors
-
-    def test_ncaa_event_types_complete(self):
-        """Verify all NCAA Football 27 event types have detectors."""
-        expected = {
-            "snap", "down_advanced", "first_down", "score_changed",
-            "playclock_reset", "quarter_changed", "possession_changed",
-            "timeout_called", "penalty", "turnover"
-        }
-        assert set(NCAA_FOOTBALL_27_PROFILE.event_types) == expected
-
-    def test_ncaa_outcome_fields_complete(self):
-        """Verify all NCAA Football 27 outcome fields defined."""
-        expected = {
-            "home_score", "away_score", "quarter", "down",
-            "yards_to_go", "possession", "play_clock", "game_clock", "field_position"
-        }
-        assert set(NCAA_FOOTBALL_27_PROFILE.outcome_fields) == expected
-
-    def test_cod_event_types_complete(self):
-        """Verify all Call of Duty event types have detectors."""
-        expected = {
-            "kill", "death", "assist", "streak",
-            "objective_capture", "objective_defend",
-            "round_start", "round_end", "match_start", "match_end"
-        }
-        assert set(CALL_OF_DUTY_PROFILE.event_types) == expected
-
-    def test_cod_outcome_fields_complete(self):
-        """Verify all Call of Duty outcome fields defined."""
-        expected = {"kills", "deaths", "assists", "score", "streak_count", "team", "mode", "map"}
-        assert set(CALL_OF_DUTY_PROFILE.outcome_fields) == expected
-
-    def test_score_changed_detection(self):
-        """Test score_changed detector with mocked OCR."""
-        with tempfile.TemporaryDirectory() as td:
-            jsonl_path = Path(td) / "events.jsonl"
-            bus = RetinaEventBus(session_id="score_test", jsonl_path=jsonl_path, enable_ws=False)
-            identity = SessionAuthority.mint(session_id="score_test")
-
-            config = OutcomeConfig(
-                enabled=True,
-                game_profile=GameProfileId.NCAA_FOOTBALL_27,
-                confidence_threshold=0.5,  # Low for test
-            )
-
-            runtime = OutcomeRuntime(
-                config=config,
-                bus=bus,
-                session_head_ns=identity.session_head_ns,
-            )
-
-            # Mock the _ocr_region method directly
-            original_ocr = runtime._ocr_region
-            call_count = [0]
-
-            def mock_ocr(frame, region_name):
-                call_count[0] += 1
-                if region_name == "scoreboard":
-                    if call_count[0] == 1:
-                        return "21 - 14"
-                    return "21 - 14"
-                return original_ocr(frame, region_name)
-
-            runtime._ocr_region = mock_ocr
-
-            # Create dummy frame
-            frame = np.zeros((720, 1280, 3), dtype=np.uint8)
-
-            # Run detector directly
-            result = runtime._detect_score_changed(frame)
-
-            # Should detect change from initial (0,0) to (21,14)
-            assert result.detected is True
-            assert result.confidence >= 0.5
-            assert result.fields.get("home_score") == 21
-            assert result.fields.get("away_score") == 14
-
-    def test_quarter_changed_detection(self):
-        """Test quarter_changed detector."""
-        with tempfile.TemporaryDirectory() as td:
-            jsonl_path = Path(td) / "events.jsonl"
-            bus = RetinaEventBus(session_id="quarter_test", jsonl_path=jsonl_path, enable_ws=False)
-            identity = SessionAuthority.mint(session_id="quarter_test")
+            bus = RetinaEventBus(session_id="vlm_outcome", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="vlm_outcome")
 
             config = OutcomeConfig(
                 enabled=True,
@@ -174,68 +33,342 @@ class TestOutcomeRuntime:
                 confidence_threshold=0.5,
             )
 
-            runtime = OutcomeRuntime(
-                config=config,
-                bus=bus,
+            runtime = OutcomeRuntime(config, bus, identity.session_head_ns)
+            assert runtime.start() is True
+            assert runtime.is_running() is True
+            runtime.stop()
+            assert runtime.is_running() is False
+
+    def test_game_detected_triggers_session_start(self):
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="detected", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="detected")
+
+            config = OutcomeConfig(
+                enabled=True,
+                game_profile=GameProfileId.NCAA_FOOTBALL_27,
+                confidence_threshold=0.5,
+            )
+
+            runtime = OutcomeRuntime(config, bus, identity.session_head_ns)
+            runtime.start()
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.FUSION,
+                event_type=EventType.GAME_DETECTED,
+                payload={"profile_id": "ncaa_football_27", "confidence": 0.9},
                 session_head_ns=identity.session_head_ns,
             )
 
-            # Mock the _ocr_region method
-            original_ocr = runtime._ocr_region
-            call_count = [0]
+            runtime.stop()
 
-            def mock_ocr(frame, region_name):
-                call_count[0] += 1
-                if region_name == "quarter":
-                    if call_count[0] == 1:
-                        return "1"
-                    elif call_count[0] == 2:
-                        return "2"
-                    return "2"  # Third call still returns 2
-                return original_ocr(frame, region_name)
+            lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
+            events = [json.loads(line) for line in lines if line.strip()]
+            start_events = [e for e in events if e["type"] == "session_start"]
+            assert len(start_events) >= 1
+            assert start_events[-1]["source_lobe"] == "outcome"
 
-            runtime._ocr_region = mock_ocr
-
-            frame = np.zeros((720, 1280, 3), dtype=np.uint8)
-            result1 = runtime._detect_quarter_changed(frame)
-            assert result1.detected is True
-            assert result1.fields.get("quarter") == 1
-
-            # Update prev_fields manually (normally done by _emit_outcome_event)
-            runtime._prev_fields["quarter"] = 1
-
-            # Second call: Q2 (change detected)
-            result2 = runtime._detect_quarter_changed(frame)
-            assert result2.detected is True
-            assert result2.fields.get("quarter") == 2
-
-            # Update prev_fields
-            runtime._prev_fields["quarter"] = 2
-
-            # Third call: still Q2 (no change)
-            result3 = runtime._detect_quarter_changed(frame)
-            assert result3.detected is False
-
-    def test_ocr_regions_defined(self):
-        """Verify OCR regions defined for both profiles."""
+    def test_score_changed_emitted_from_visual_context(self):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
-            bus = RetinaEventBus(session_id="region_test", jsonl_path=jsonl_path, enable_ws=False)
-            identity = SessionAuthority.mint(session_id="region_test")
+            bus = RetinaEventBus(session_id="score", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="score")
 
-            # NCAA
-            ncaa_config = OutcomeConfig(game_profile=GameProfileId.NCAA_FOOTBALL_27)
-            ncaa_runtime = OutcomeRuntime(ncaa_config, bus, identity.session_head_ns)
-            assert "scoreboard" in ncaa_runtime._ocr_regions
-            assert "down_distance" in ncaa_runtime._ocr_regions
-            assert "play_clock" in ncaa_runtime._ocr_regions
+            config = OutcomeConfig(
+                enabled=True,
+                game_profile=GameProfileId.NCAA_FOOTBALL_27,
+                confidence_threshold=0.5,
+            )
 
-            # CoD
-            cod_config = OutcomeConfig(game_profile=GameProfileId.CALL_OF_DUTY)
-            cod_runtime = OutcomeRuntime(cod_config, bus, identity.session_head_ns)
-            assert "kill_feed" in cod_runtime._ocr_regions
-            assert "health" in cod_runtime._ocr_regions
-            assert "streak" in cod_runtime._ocr_regions
+            runtime = OutcomeRuntime(config, bus, identity.session_head_ns)
+            runtime.start()
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.FUSION,
+                event_type=EventType.GAME_DETECTED,
+                payload={"profile_id": "ncaa_football_27", "confidence": 0.9},
+                session_head_ns=identity.session_head_ns,
+            )
+
+            ctx1 = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                home_score=0,
+                away_score=0,
+                quarter=1,
+                down=1,
+                yards_to_go=10,
+                possession="home",
+                confidence=0.9,
+            )
+            ctx2 = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                home_score=7,
+                away_score=0,
+                quarter=1,
+                down=1,
+                yards_to_go=10,
+                possession="home",
+                confidence=0.9,
+            )
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.VISUAL,
+                event_type=EventType.VISUAL_CONTEXT,
+                payload=ctx1.to_dict(),
+                session_head_ns=identity.session_head_ns,
+            )
+            bus.emit_raw(
+                source_lobe=SourceLobe.VISUAL,
+                event_type=EventType.VISUAL_CONTEXT,
+                payload=ctx2.to_dict(),
+                session_head_ns=identity.session_head_ns,
+            )
+
+            runtime.stop()
+
+            lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
+            events = [json.loads(line) for line in lines if line.strip()]
+            score_events = [
+                e for e in events
+                if e["type"] == "outcome_event" and e["payload"].get("event_name") == "score_changed"
+            ]
+            assert len(score_events) == 1
+            assert score_events[0]["payload"]["fields"]["home_score"] == 7
+
+    def test_first_down_emitted_when_down_resets(self):
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="first", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="first")
+
+            config = OutcomeConfig(
+                enabled=True,
+                game_profile=GameProfileId.NCAA_FOOTBALL_27,
+                confidence_threshold=0.5,
+            )
+
+            runtime = OutcomeRuntime(config, bus, identity.session_head_ns)
+            runtime.start()
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.FUSION,
+                event_type=EventType.GAME_DETECTED,
+                payload={"profile_id": "ncaa_football_27", "confidence": 0.9},
+                session_head_ns=identity.session_head_ns,
+            )
+
+            ctx1 = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                down=3,
+                yards_to_go=4,
+                confidence=0.9,
+            )
+            ctx2 = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                down=1,
+                yards_to_go=10,
+                confidence=0.9,
+            )
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.VISUAL,
+                event_type=EventType.VISUAL_CONTEXT,
+                payload=ctx1.to_dict(),
+                session_head_ns=identity.session_head_ns,
+            )
+            bus.emit_raw(
+                source_lobe=SourceLobe.VISUAL,
+                event_type=EventType.VISUAL_CONTEXT,
+                payload=ctx2.to_dict(),
+                session_head_ns=identity.session_head_ns,
+            )
+
+            runtime.stop()
+
+            lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
+            events = [json.loads(line) for line in lines if line.strip()]
+            first_downs = [
+                e for e in events
+                if e["type"] == "outcome_event" and e["payload"].get("event_name") == "first_down"
+            ]
+            assert len(first_downs) == 1
+
+    def test_quarter_changed_emitted(self):
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="quarter", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="quarter")
+
+            config = OutcomeConfig(
+                enabled=True,
+                game_profile=GameProfileId.NCAA_FOOTBALL_27,
+                confidence_threshold=0.5,
+            )
+
+            runtime = OutcomeRuntime(config, bus, identity.session_head_ns)
+            runtime.start()
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.FUSION,
+                event_type=EventType.GAME_DETECTED,
+                payload={"profile_id": "ncaa_football_27", "confidence": 0.9},
+                session_head_ns=identity.session_head_ns,
+            )
+
+            ctx1 = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                quarter=1,
+                confidence=0.9,
+            )
+            ctx2 = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                quarter=2,
+                confidence=0.9,
+            )
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.VISUAL,
+                event_type=EventType.VISUAL_CONTEXT,
+                payload=ctx1.to_dict(),
+                session_head_ns=identity.session_head_ns,
+            )
+            bus.emit_raw(
+                source_lobe=SourceLobe.VISUAL,
+                event_type=EventType.VISUAL_CONTEXT,
+                payload=ctx2.to_dict(),
+                session_head_ns=identity.session_head_ns,
+            )
+
+            runtime.stop()
+
+            lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
+            events = [json.loads(line) for line in lines if line.strip()]
+            quarters = [
+                e for e in events
+                if e["type"] == "outcome_event" and e["payload"].get("event_name") == "quarter_changed"
+            ]
+            assert len(quarters) == 1
+
+    def test_low_confidence_visual_context_ignored(self):
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="lowconf", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="lowconf")
+
+            config = OutcomeConfig(
+                enabled=True,
+                game_profile=GameProfileId.NCAA_FOOTBALL_27,
+                confidence_threshold=0.7,
+            )
+
+            runtime = OutcomeRuntime(config, bus, identity.session_head_ns)
+            runtime.start()
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.FUSION,
+                event_type=EventType.GAME_DETECTED,
+                payload={"profile_id": "ncaa_football_27", "confidence": 0.9},
+                session_head_ns=identity.session_head_ns,
+            )
+
+            ctx = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                home_score=7,
+                away_score=0,
+                confidence=0.3,
+            )
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.VISUAL,
+                event_type=EventType.VISUAL_CONTEXT,
+                payload=ctx.to_dict(),
+                session_head_ns=identity.session_head_ns,
+            )
+
+            runtime.stop()
+
+            lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
+            events = [json.loads(line) for line in lines if line.strip()]
+            outcome = [e for e in events if e["type"] == "outcome_event"]
+            assert len(outcome) == 0
+
+    def test_menu_visual_context_ignored(self):
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="menu", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="menu")
+
+            config = OutcomeConfig(
+                enabled=True,
+                game_profile=GameProfileId.NCAA_FOOTBALL_27,
+                confidence_threshold=0.5,
+            )
+
+            runtime = OutcomeRuntime(config, bus, identity.session_head_ns)
+            runtime.start()
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.FUSION,
+                event_type=EventType.GAME_DETECTED,
+                payload={"profile_id": "ncaa_football_27", "confidence": 0.9},
+                session_head_ns=identity.session_head_ns,
+            )
+
+            ctx = VisualContext(
+                game_state=GameState.MENU,
+                game_category=GameCategory.FOOTBALL,
+                home_score=7,
+                away_score=0,
+                confidence=0.9,
+            )
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.VISUAL,
+                event_type=EventType.VISUAL_CONTEXT,
+                payload=ctx.to_dict(),
+                session_head_ns=identity.session_head_ns,
+            )
+
+            runtime.stop()
+
+            lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
+            events = [json.loads(line) for line in lines if line.strip()]
+            outcome = [e for e in events if e["type"] == "outcome_event"]
+            assert len(outcome) == 0
+
+    def test_profile_switches_on_game_detected(self):
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="switch", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="switch")
+
+            config = OutcomeConfig(
+                enabled=True,
+                game_profile=GameProfileId.NCAA_FOOTBALL_27,
+                confidence_threshold=0.5,
+            )
+
+            runtime = OutcomeRuntime(config, bus, identity.session_head_ns)
+            runtime.start()
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.FUSION,
+                event_type=EventType.GAME_DETECTED,
+                payload={"profile_id": "call_of_duty", "confidence": 0.9},
+                session_head_ns=identity.session_head_ns,
+            )
+
+            assert runtime._profile.profile_id == GameProfileId.CALL_OF_DUTY
+
+            runtime.stop()
 
 
 class TestOutcomeTrigger:
@@ -359,53 +492,6 @@ class TestProfileRegistry:
         # Categories should differ
         assert ncaa.category == "football"
         assert cod.category == "shooter"
-
-
-class TestOutcomeRuntimeIntegration:
-    """Integration tests for OutcomeRuntime with frame provider."""
-
-    def test_frame_provider_integration(self):
-        with tempfile.TemporaryDirectory() as td:
-            jsonl_path = Path(td) / "events.jsonl"
-            bus = RetinaEventBus(session_id="frame_test", jsonl_path=jsonl_path, enable_ws=False)
-            identity = SessionAuthority.mint(session_id="frame_test")
-
-            config = OutcomeConfig(
-                enabled=True,
-                game_profile=GameProfileId.NCAA_FOOTBALL_27,
-                confidence_threshold=0.5,
-                poll_interval_s=0.01,  # Fast for test
-            )
-
-            runtime = OutcomeRuntime(
-                config=config,
-                bus=bus,
-                session_head_ns=identity.session_head_ns,
-            )
-
-            # Set frame provider
-            frame = np.zeros((720, 1280, 3), dtype=np.uint8)
-            provider_called = []
-
-            def provider():
-                provider_called.append(1)
-                return frame if len(provider_called) <= 2 else None
-
-            runtime.set_frame_provider(provider)
-
-            runtime.start()
-            time.sleep(0.1)  # Let it run a couple iterations
-            runtime.stop()
-
-            assert len(provider_called) >= 2
-
-            # Should have session_start and session_end
-            lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
-            events = [json.loads(line) for line in lines if line.strip()]
-
-            event_types = [e['type'] for e in events]
-            assert 'session_start' in event_types
-            assert 'session_end' in event_types
 
 
 if __name__ == "__main__":

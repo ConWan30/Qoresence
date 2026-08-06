@@ -244,6 +244,7 @@ class GameAutoDetector:
                 enable_motion=True,
                 enable_hud=True,
                 model_dir=model_dir,
+                game_profile=game_profile,
             )
         else:
             self._vision_stack = None
@@ -411,6 +412,18 @@ class GameAutoDetector:
 
             if self._learning_enabled:
                 self._record_learning_sample(frame, vision)
+
+            # Emit structured visual context for the outcome lobe
+            if vision.visual_context is not None:
+                try:
+                    self.bus.emit_raw(
+                        source_lobe=SourceLobe.VISUAL,
+                        event_type=EventType.VISUAL_CONTEXT,
+                        payload=vision.visual_context.to_dict(),
+                        session_head_ns=self.session_head_ns,
+                    )
+                except Exception as e:
+                    log.warning(f"Failed to emit visual_context: {e}")
 
             # Trim old evidence
             self._prune_evidence(now_ns)

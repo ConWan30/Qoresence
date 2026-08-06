@@ -8,6 +8,7 @@ Emits activity, frame_stats, zone events onto RetinaEventBus.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from dataclasses import dataclass
@@ -270,7 +271,7 @@ class StreamerRuntime:
                 return False
 
             # Privacy / device-name guard for local capture devices
-            if not is_network:
+            if not is_network and os.environ.get("QORESENCE_PRIVACY_GUARD", "1") != "0":
                 device_name = _get_dshow_device_name(self.config.device_index)
                 if not _is_allowed_capture_name(device_name):
                     log.error(

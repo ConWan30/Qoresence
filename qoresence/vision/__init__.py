@@ -11,6 +11,7 @@ Synchronized local computer-vision pipeline for game streams:
 from .ocr_providers import BaseOCRProvider, VLMOCRProvider, EasyOCRProvider, TesseractOCRProvider, create_ocr_provider
 from .motion_tracker import MotionTracker, MotionEvidence
 from .hud_detector import HUDDetector, HUDRegion
+from .visual_context import VisualContext, GameState, GameCategory, build_vlm_prompt
 from .vision_stack import VisionStack, VisionEvidence
 
 __all__ = [
@@ -22,6 +23,10 @@ __all__ = [
     "MotionEvidence",
     "HUDDetector",
     "HUDRegion",
+    "VisualContext",
+    "GameState",
+    "GameCategory",
+    "build_vlm_prompt",
     "VisionStack",
     "VisionEvidence",
 ]

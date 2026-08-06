@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import signal
 import sys
 import asyncio
@@ -106,10 +107,11 @@ def detect_capture_devices() -> list[dict]:
 
         names = FilterGraph().get_input_devices()
         for i, name in enumerate(names):
-            # Skip laptop/personal webcams. Allowed sources:
+            # Skip laptop/personal webcams unless privacy guard is disabled.
+            # Allowed sources:
             # - USB3.0 Video (capture card)
             # - OBS Virtual Camera
-            if not _is_allowed_capture_source(name):
+            if os.environ.get("QORESENCE_PRIVACY_GUARD", "1") != "0" and not _is_allowed_capture_source(name):
                 log.debug(f"Skipping disallowed capture source: {name}")
                 continue
 
@@ -515,7 +517,7 @@ def create_test_config(args) -> RetinaUnifiedConfig:
 
     # Detect hardware if not specified, and validate manually provided indices
     streamer_device = args.streamer_device
-    if streamer_device is not None:
+    if streamer_device is not None and os.environ.get("QORESENCE_PRIVACY_GUARD", "1") != "0":
         name = _get_dshow_device_name(streamer_device)
         if not _is_allowed_capture_source(name):
             raise SystemExit(
