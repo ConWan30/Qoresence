@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -270,6 +271,9 @@ def test_onnx_distilled_if_present():
         assert ctx is not None
         assert ctx.game_category == GameCategory.FOOTBALL
         assert ctx.confidence > 0.6
+        # Phase 4 scoreboard fields (at least score + quarter)
+        assert ctx.home_score is not None or ctx.away_score is not None
+        assert ctx.quarter is not None
 
     dark = np.zeros((720, 1280, 3), dtype=np.uint8)
     dark[:, :] = 10
@@ -277,3 +281,34 @@ def test_onnx_distilled_if_present():
     assert ctx is not None
     assert ctx.game_category != GameCategory.FOOTBALL
     assert ctx.latency_ms < 100
+
+
+def test_preflight_frames_ocr_gated():
+    """Preflight eye_check frames must not trigger scoreboard OCR unless they are football.
+
+    This guards against processing person/unknown preflight captures with the
+    expensive EasyOCR pipeline.
+    """
+    if not DEFAULT_ONNX.exists():
+        pytest.skip("distilled ONNX model not present")
+
+    client = LocalVLMClient(model_path=str(DEFAULT_ONNX), game_profile="ncaa_football_27")
+    preflight = sorted(Path("logs").glob("eye_check_*.png"))
+    if not preflight:
+        pytest.skip("no preflight eye_check frames available")
+
+    for path in preflight:
+        frame = cv2.imread(str(path))
+        if frame is None or frame.size == 0:
+            continue
+        ctx = client.analyze_frame(frame, game_profile="ncaa_football_27")
+        assert ctx is not None
+        if ctx.game_category == GameCategory.FOOTBALL:
+            # The known game preflight frame should get a populated scoreboard.
+            assert ctx.home_score is not None or ctx.away_score is not None
+            assert ctx.quarter is not None
+        else:
+            # Non-football (person/unknown) preflight frames must not get scoreboard fields.
+            assert ctx.home_score is None
+            assert ctx.away_score is None
+            assert ctx.quarter is None

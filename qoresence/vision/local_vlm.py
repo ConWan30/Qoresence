@@ -14,6 +14,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from qoresence.vision.scoreboard_extractor import extract_football_scoreboard
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
 
 try:
@@ -122,6 +123,13 @@ class LocalVLMClient:
             self._history.append(raw)
 
         ctx = self._smooth()
+
+        # If the ONNX classifier thinks this is football, try to populate
+        # scoreboard fields with local OCR. Skip under the heuristic fallback
+        # so tiny test frames do not trigger expensive OCR.
+        if ctx and ctx.game_category == GameCategory.FOOTBALL and self._onnx_sess is not None:
+            ctx = extract_football_scoreboard(frame, ctx)
+
         ms = (time.perf_counter() - t0) * 1000
         n = self._stats["calls"]
         self._stats["avg_ms"] = (self._stats["avg_ms"] * n + ms) / (n + 1)
