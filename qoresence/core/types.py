@@ -7,20 +7,21 @@ All events MUST carry: session_id, clock_ns, source_lobe
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Optional
 import time
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
 
 class SourceLobe(str, Enum):
-    """Enumeration of all observation lobes."""
+    """Enumeration of all event sources (lobes and agents)."""
     STREAMER = "streamer"      # UVC / OBS Virtual Cam
     CONTROLLER = "controller"  # Local HID
     SCREEN = "screen"          # WGC / DXGI / mss
     OUTCOME = "outcome"        # Game-specific events
     VISUAL = "visual"          # VLM visual context
     FUSION = "fusion"          # Cross-lobe fusion / game detection
+    AGENT = "agent"            # Autonomous agents (ClutchBot, etc.)
 
 
 class EventType(str, Enum):
@@ -58,6 +59,9 @@ class EventType(str, Enum):
     # Fusion
     PRESENCE_REPORT = "presence_report"
 
+    # Agent actions
+    AGENT_ACTION = "agent_action"
+
     # Validation / anomalies
     ANOMALY = "anomaly"
 
@@ -81,8 +85,8 @@ class BaseEvent:
     source_lobe: SourceLobe
     type: EventType
     payload: dict[str, Any]
-    session_head_ns: Optional[int] = None
-    ts_ns: Optional[int] = None  # wall-clock timestamp
+    session_head_ns: int | None = None
+    ts_ns: int | None = None  # wall-clock timestamp
 
     def __post_init__(self):
         if self.ts_ns is None:
@@ -104,7 +108,7 @@ class BaseEvent:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BaseEvent":
+    def from_dict(cls, data: dict[str, Any]) -> BaseEvent:
         """Deserialize from dict."""
         return cls(
             session_id=data["session_id"],
@@ -140,51 +144,51 @@ class BaseEvent:
 class StreamerPayload:
     """Streamer lobe event payloads."""
     # activity event
-    level: Optional[str] = None          # "idle" | "low" | "high"
-    motion: Optional[float] = None
-    mean_luma: Optional[float] = None
-    presence_sync_ok: Optional[bool] = None
-    last_controller_s_ago: Optional[float] = None
+    level: str | None = None          # "idle" | "low" | "high"
+    motion: float | None = None
+    mean_luma: float | None = None
+    presence_sync_ok: bool | None = None
+    last_controller_s_ago: float | None = None
 
     # frame_stats event
-    n: Optional[int] = None
-    fps_meas: Optional[float] = None
+    n: int | None = None
+    fps_meas: float | None = None
 
     # zone event
-    zone_id: Optional[str] = None
-    state: Optional[str] = None          # "quiet" | "active"
-    delta: Optional[float] = None
-    luma: Optional[float] = None
+    zone_id: str | None = None
+    state: str | None = None          # "quiet" | "active"
+    delta: float | None = None
+    luma: float | None = None
 
 
 @dataclass
 class ControllerPayload:
     """Controller lobe event payloads."""
     # Generic controller event
-    button: Optional[str] = None
-    value: Optional[float] = None
-    causal_parent_ns: Optional[int] = None  # links to screen/outcome event
+    button: str | None = None
+    value: float | None = None
+    causal_parent_ns: int | None = None  # links to screen/outcome event
 
     # Trigger onset
-    trigger: Optional[str] = None           # "L2" | "R2"
-    amplitude: Optional[float] = None
-    device_ts_ms: Optional[int] = None
+    trigger: str | None = None           # "L2" | "R2"
+    amplitude: float | None = None
+    device_ts_ms: int | None = None
 
     # Stick motion
-    stick: Optional[str] = None             # "left" | "right"
-    x: Optional[float] = None
-    y: Optional[float] = None
+    stick: str | None = None             # "left" | "right"
+    x: float | None = None
+    y: float | None = None
 
 
 @dataclass
 class ScreenPayload:
     """Screen lobe event payloads."""
-    coupling_score: Optional[float] = None
-    negative_control: Optional[float] = None
-    decoupled_energy: Optional[float] = None
-    best_lag_ms: Optional[float] = None
-    ocr_region: Optional[str] = None
-    ocr_text: Optional[str] = None
+    coupling_score: float | None = None
+    negative_control: float | None = None
+    decoupled_energy: float | None = None
+    best_lag_ms: float | None = None
+    ocr_region: str | None = None
+    ocr_text: str | None = None
 
 
 @dataclass
@@ -199,25 +203,25 @@ class OutcomePayload:
 @dataclass
 class VisualPayload:
     """Visual lobe event payloads."""
-    game_state: Optional[str] = None
-    game_title: Optional[str] = None
-    game_category: Optional[str] = None      # "football" | "shooter"
-    confidence: Optional[float] = None
-    frame_hash: Optional[str] = None
+    game_state: str | None = None
+    game_title: str | None = None
+    game_category: str | None = None      # "football" | "shooter"
+    confidence: float | None = None
+    frame_hash: str | None = None
     # Game-specific fields (football)
-    football_home_score: Optional[int] = None
-    football_away_score: Optional[int] = None
-    football_quarter: Optional[int] = None
-    football_down: Optional[int] = None
-    football_yards_to_go: Optional[int] = None
-    football_possession: Optional[str] = None
-    football_clock_seconds: Optional[int] = None
-    football_play_clock: Optional[int] = None
+    football_home_score: int | None = None
+    football_away_score: int | None = None
+    football_quarter: int | None = None
+    football_down: int | None = None
+    football_yards_to_go: int | None = None
+    football_possession: str | None = None
+    football_clock_seconds: int | None = None
+    football_play_clock: int | None = None
     # Game-specific fields (shooter)
-    health: Optional[float] = None
-    ammo: Optional[int] = None
-    kills: Optional[int] = None
-    deaths: Optional[int] = None
+    health: float | None = None
+    ammo: int | None = None
+    kills: int | None = None
+    deaths: int | None = None
 
 
 @dataclass
@@ -239,7 +243,7 @@ def make_event(
     source_lobe: SourceLobe,
     event_type: EventType,
     payload: dict[str, Any],
-    session_head_ns: Optional[int] = None,
+    session_head_ns: int | None = None,
 ) -> BaseEvent:
     """Factory for creating validated events."""
     event = BaseEvent(

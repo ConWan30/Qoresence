@@ -7,10 +7,9 @@ Eye-check mandatory. Never claims humanity.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
-import time
 
 
 class SourceLobe(str, Enum):
@@ -125,8 +124,8 @@ class StreamerConfig:
     """Streamer lobe (UVC / OBS Virtual Cam / network stream) configuration."""
     enabled: bool = False
     device_index: int = 0
-    device_name: Optional[str] = None
-    url: Optional[str] = None  # network stream URL (rtmp://, http://, file, etc.)
+    device_name: str | None = None
+    url: str | None = None  # network stream URL (rtmp://, http://, file, etc.)
     source_kind: str = "uvc_card"  # "uvc_card" | "obs_virtual" | "network" | "unknown"
     width: int = 1280
     height: int = 720
@@ -135,10 +134,10 @@ class StreamerConfig:
     backend: str = "auto"  # "auto" | "msmf" | "dshow"
     zones_enabled: bool = True
     eye_check_required: bool = True
-    snapshot_path: Optional[str] = None
+    snapshot_path: str | None = None
     ws_port: int = 8765
     enable_ws: bool = True
-    presence_touch_file: Optional[str] = None
+    presence_touch_file: str | None = None
     presence_timeout_s: float = 5.0
 
     # Activity detection thresholds
@@ -155,9 +154,9 @@ class StreamerConfig:
 class ControllerConfig:
     """Controller lobe (local HID) configuration."""
     enabled: bool = False
-    device_vid: Optional[int] = None
-    device_pid: Optional[int] = None
-    device_path: Optional[str] = None
+    device_vid: int | None = None
+    device_pid: int | None = None
+    device_path: str | None = None
     poll_rate_hz: float = 1000.0
     buffer_size: int = 1000  # rolling buffer for causal correlation
     causal_parent_ns_enabled: bool = True
@@ -169,7 +168,7 @@ class ScreenConfig:
     enabled: bool = False
     capture_method: str = "wgc"  # "wgc" | "dxgi" | "mss"
     monitor_index: int = 0
-    window_title_substring: Optional[str] = None
+    window_title_substring: str | None = None
     fps_target: float = 60.0
     process_scale: float = 0.5
     cv_motion_enabled: bool = True
@@ -193,7 +192,7 @@ class VisualConfig:
     enabled: bool = False
     model_endpoint: str = "https://integrate.api.nvidia.com/v1"
     model_name: str = "nvidia/nemotron-nano-12b-v2-vl"
-    api_key: Optional[str] = None
+    api_key: str | None = None
     frame_sample_rate: int = 30  # analyze every N frames
     max_frame_dim: int = 640
     min_confidence: float = 0.6
@@ -208,9 +207,32 @@ class GameDetectionConfig:
     stability_count: int = 2
     poll_interval_s: float = 3.0
     learning_enabled: bool = False
-    learning_path: Optional[str] = "game_detection_learning.jsonl"
+    learning_path: str | None = "game_detection_learning.jsonl"
     ocr_provider: str = "vlm"
-    vision_model_dir: Optional[str] = "models"
+    vision_model_dir: str | None = "models"
+
+
+@dataclass(frozen=True)
+class TwitchConfig:
+    """Twitch IRC configuration for ClutchBot."""
+    enabled: bool = False
+    channel: str = ""                 # Broadcaster channel name (no #)
+    bot_username: str = ""            # Bot account username
+    oauth_token: str | None = None # OAuth token or path to file
+    token_file: str | None = None  # Plaintext file containing token
+    message_interval_s: float = 2.0   # Minimum seconds between sent messages
+
+
+@dataclass(frozen=True)
+class ClutchBotConfig:
+    """ClutchBot agent configuration."""
+    enabled: bool = False
+    persona: str = "neutral"          # "neutral" | "hype" | path to persona file
+    controller_window_s: float = 5.0  # Rolling controller window for APM calc
+    message_cooldown_s: float = 30.0  # Minimum seconds between any chat action
+    max_messages_per_min: int = 3     # Hard cap on chat messages per minute
+    memory_path: str | None = None # JSONL file for session memory
+    twitch: TwitchConfig = field(default_factory=TwitchConfig)
 
 
 @dataclass(frozen=True)
@@ -260,6 +282,7 @@ class RetinaUnifiedConfig:
     outcome: OutcomeConfig = field(default_factory=OutcomeConfig)
     visual: VisualConfig = field(default_factory=VisualConfig)
     game_detection: GameDetectionConfig = field(default_factory=GameDetectionConfig)
+    clutchbot: ClutchBotConfig = field(default_factory=ClutchBotConfig)
 
     # ── Fusion Engine ────────────────────────────────────────────────────────
     fusion_weights: FusionWeights = field(default_factory=FusionWeights)
@@ -269,7 +292,7 @@ class RetinaUnifiedConfig:
     never_claim_humanity: bool = True
 
     # ── Output Configuration ─────────────────────────────────────────────────
-    jsonl_path: Optional[str] = None
+    jsonl_path: str | None = None
     ws_host: str = "127.0.0.1"
     ws_port: int = 8765
     enable_ws: bool = True
@@ -357,9 +380,9 @@ class RetinaUnifiedConfig:
     @classmethod
     def create_session(
         cls,
-        session_id: Optional[str] = None,
-        device_id_hex: Optional[str] = None,
-    ) -> "RetinaUnifiedConfig":
+        session_id: str | None = None,
+        device_id_hex: str | None = None,
+    ) -> RetinaUnifiedConfig:
         """
         Create a new config with a minted session identity.
 
@@ -377,7 +400,7 @@ class RetinaUnifiedConfig:
         )
 
     @classmethod
-    def from_env(cls) -> "RetinaUnifiedConfig":
+    def from_env(cls) -> RetinaUnifiedConfig:
         """
         Create config from environment variables (for CLI/daemon usage).
 

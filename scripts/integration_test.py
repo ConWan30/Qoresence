@@ -15,42 +15,40 @@ Run with: python scripts/integration_test.py [--dry-run] [--duration SECONDS]
 from __future__ import annotations
 
 import argparse
+import asyncio
 import logging
 import os
-import signal
 import sys
-import asyncio
 import time
 from pathlib import Path
-from typing import Optional
 
 # Add qoresence to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from qoresence.agents import ClutchBotAgent
 from qoresence.core import (
-    RetinaUnifiedConfig,
+    ControllerConfig,
+    FusionWeights,
+    GameDetectionConfig,
+    OutcomeConfig,
     RetinaEventBus,
+    RetinaUnifiedConfig,
+    ScreenConfig,
     SessionAuthority,
     StreamerConfig,
-    ControllerConfig,
-    ScreenConfig,
-    OutcomeConfig,
     VisualConfig,
-    GameDetectionConfig,
-    FusionWeights,
-    SourceLobe,
 )
+from qoresence.fusion import PresenceFusionEngine, create_fusion_engine
+from qoresence.game_detection import GameAutoDetector
 from qoresence.lobes import (
-    StreamerRuntime,
     ControllerRuntime,
-    ScreenRuntime,
     OutcomeRuntime,
+    ScreenRuntime,
+    StreamerRuntime,
     VisualRuntime,
     list_controllers,
     list_monitors,
 )
-from qoresence.game_detection import GameAutoDetector
-from qoresence.fusion import PresenceFusionEngine, create_fusion_engine
 
 try:
     from qoresence.trio import TrioRetinaConfig
@@ -66,7 +64,7 @@ log = logging.getLogger(__name__)
 # HARDWARE DETECTION
 # ──────────────────────────────────────────────────────────────────────────────
 
-def detect_dualshock_edge() -> Optional[dict]:
+def detect_dualshock_edge() -> dict | None:
     """Detect DualShock Edge controller via HID."""
     try:
         import hid
@@ -86,7 +84,7 @@ def detect_dualshock_edge() -> Optional[dict]:
     return None
 
 
-def _get_dshow_device_name(index: int) -> Optional[str]:
+def _get_dshow_device_name(index: int) -> str | None:
     """Return DirectShow display name for a device index, if available."""
     try:
         from pygrabber.dshow_graph import FilterGraph
@@ -102,8 +100,8 @@ def detect_capture_devices() -> list[dict]:
     """Detect available video capture devices and filter out personal cameras."""
     devices = []
     try:
-        from pygrabber.dshow_graph import FilterGraph
         import cv2
+        from pygrabber.dshow_graph import FilterGraph
 
         names = FilterGraph().get_input_devices()
         for i, name in enumerate(names):
@@ -160,7 +158,7 @@ def detect_monitors() -> list[dict]:
         return []
 
 
-def detect_game_window() -> Optional[str]:
+def detect_game_window() -> str | None:
     """Try to detect NCAA 27 or CoD game window."""
     try:
         import win32gui
@@ -196,7 +194,7 @@ class IntegrationTestApp:
         self,
         config: RetinaUnifiedConfig,
         duration_s: float = 30.0,
-        trio_config: Optional["TrioRetinaConfig"] = None,
+        trio_config: TrioRetinaConfig | None = None,
     ):
         self.config = config
         self.duration_s = duration_s
@@ -220,13 +218,16 @@ class IntegrationTestApp:
         )
 
         # Lobe runtimes
-        self.streamer: Optional[StreamerRuntime] = None
-        self.controller: Optional[ControllerRuntime] = None
-        self.screen: Optional[ScreenRuntime] = None
-        self.outcome: Optional[OutcomeRuntime] = None
-        self.visual: Optional[VisualRuntime] = None
-        self.game_detector: Optional[GameAutoDetector] = None
-        self.fusion: Optional[PresenceFusionEngine] = None
+        self.streamer: StreamerRuntime | None = None
+        self.controller: ControllerRuntime | None = None
+        self.screen: ScreenRuntime | None = None
+        self.outcome: OutcomeRuntime | None = None
+        self.visual: VisualRuntime | None = None
+        self.game_detector: GameAutoDetector | None = None
+        self.fusion: PresenceFusionEngine | None = None
+
+        # Agent runtimes
+        self.clutchbot: ClutchBotAgent | None = None
 
         self._running = False
         self._start_time = 0.0
@@ -317,6 +318,15 @@ class IntegrationTestApp:
             bus=self.bus,
         )
         log.info("  OK Fusion engine initialized")
+
+        # ClutchBot agent
+        if self.config.clutchbot.enabled:
+            self.clutchbot = ClutchBotAgent(
+                config=self.config.clutchbot,
+                bus=self.bus,
+                session_head_ns=self.identity.session_head_ns,
+            )
+            log.info("  OK ClutchBot agent initialized")
 
         # Cross-lobe connections
         self._connect_lobes()
@@ -424,6 +434,9 @@ class IntegrationTestApp:
         if self.fusion:
             self.fusion.start()
 
+        if self.clutchbot:
+            self.clutchbot.start()
+
         self.bus.start()
         self._running = True
         self._start_time = time.time()
@@ -440,6 +453,8 @@ class IntegrationTestApp:
 
         if self.fusion:
             self.fusion.stop()
+        if self.clutchbot:
+            self.clutchbot.stop()
         if self.visual:
             self.visual.stop()
         if self.screen:
@@ -493,6 +508,7 @@ class IntegrationTestApp:
             'outcome': self.outcome.is_running() if self.outcome else 'disabled',
             'visual': self.visual.is_running() if self.visual else 'disabled',
             'fusion': self.fusion.is_running() if self.fusion else 'disabled',
+            'clutchbot': self.clutchbot.is_running() if self.clutchbot else 'disabled',
         }
 
 
@@ -627,6 +643,24 @@ def create_test_config(args) -> RetinaUnifiedConfig:
         vision_model_dir=args.vision_model_dir,
     )
 
+    from qoresence.core import ClutchBotConfig, TwitchConfig
+    clutchbot_config = ClutchBotConfig(
+        enabled=args.clutchbot,
+        persona=args.clutchbot_persona,
+        controller_window_s=args.clutchbot_window_s,
+        message_cooldown_s=args.clutchbot_cooldown,
+        max_messages_per_min=args.clutchbot_max_msg,
+        memory_path=args.clutchbot_memory,
+        twitch=TwitchConfig(
+            enabled=args.clutchbot and args.clutchbot_channel != "",
+            channel=args.clutchbot_channel,
+            bot_username=args.clutchbot_username,
+            oauth_token=args.clutchbot_token,
+            token_file=args.clutchbot_token_file,
+            message_interval_s=args.clutchbot_interval,
+        ),
+    )
+
     config = RetinaUnifiedConfig(
         session_id=session_id,
         session_head_ns=session_head_ns,
@@ -641,6 +675,7 @@ def create_test_config(args) -> RetinaUnifiedConfig:
         outcome=outcome_config,
         visual=visual_config,
         game_detection=game_detection_config,
+        clutchbot=clutchbot_config,
         fusion_weights=FusionWeights(
             streamer_presence_sync=0.25,
             controller_causal_density=0.25,
@@ -757,6 +792,19 @@ def main():
     parser.add_argument("--ocr-provider", choices=["vlm", "easyocr", "tesseract"], default="easyocr", help="OCR engine used by game auto-detection")
     parser.add_argument("--vision-model-dir", default="models", help="Directory for vision stack models (YOLOv8n, etc.)")
 
+    # ClutchBot (Twitch agent)
+    parser.add_argument("--clutchbot", action="store_true", help="Enable ClutchBot Twitch agent")
+    parser.add_argument("--clutchbot-channel", default="", help="Twitch channel for the bot to join (no #)")
+    parser.add_argument("--clutchbot-username", default="", help="Twitch bot username")
+    parser.add_argument("--clutchbot-token", default=None, help="Twitch bot OAuth token")
+    parser.add_argument("--clutchbot-token-file", default=None, help="File containing the Twitch bot OAuth token")
+    parser.add_argument("--clutchbot-persona", default="neutral", help="ClutchBot persona (neutral | hype | path to file)")
+    parser.add_argument("--clutchbot-window-s", type=float, default=5.0, help="Controller APM rolling window (seconds)")
+    parser.add_argument("--clutchbot-cooldown", type=float, default=30.0, help="Minimum seconds between chat messages")
+    parser.add_argument("--clutchbot-max-msg", type=int, default=3, help="Max chat messages per minute")
+    parser.add_argument("--clutchbot-interval", type=float, default=2.0, help="Minimum seconds between sent IRC messages")
+    parser.add_argument("--clutchbot-memory", default=None, help="Path to ClutchBot session memory JSONL")
+
     # Trio-retina (w3bstream validation)
     parser.add_argument("--trio", action="store_true", help="Enable trio-retina w3bstream validation")
     parser.add_argument("--trio-wasm-path", default="w3bstream_applet.wasm", help="Path to w3bstream applet WASM")
@@ -836,6 +884,7 @@ def main():
     print(f"  Screen:       {'ON' if config.screen.enabled else 'OFF'} (monitor={config.screen.monitor_index}, method={config.screen.capture_method})")
     print(f"  Outcome:      {'ON' if config.outcome.enabled else 'OFF'} (profile={config.outcome.game_profile.value})")
     print(f"  Visual:       {'ON' if config.visual.enabled else 'OFF'} (sample_rate={config.visual.frame_sample_rate})")
+    print(f"  ClutchBot:    {'ON' if config.clutchbot.enabled else 'OFF'} (channel={config.clutchbot.twitch.channel or 'none'})")
     print("="*60 + "\n")
 
     if args.dry_run:

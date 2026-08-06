@@ -15,23 +15,23 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Optional
 
+from qoresence.agents import ClutchBotAgent
 from qoresence.core import (
-    RetinaUnifiedConfig,
     RetinaEventBus,
+    RetinaUnifiedConfig,
     SessionAuthority,
-    SourceLobe,
+    TwitchConfig,
     clock_ns,
 )
+from qoresence.fusion import PresenceFusionEngine, create_fusion_engine
 from qoresence.lobes import (
-    StreamerRuntime,
     ControllerRuntime,
     OutcomeRuntime,
     ScreenRuntime,
+    StreamerRuntime,
     VisualRuntime,
 )
-from qoresence.fusion import PresenceFusionEngine, FusionWeights, create_fusion_engine
 
 # Optional trio-retina
 try:
@@ -51,7 +51,7 @@ log = logging.getLogger(__name__)
 class QoresenceApp:
     """Main application coordinator."""
 
-    def __init__(self, config: RetinaUnifiedConfig, trio_config: Optional["TrioRetinaConfig"] = None):
+    def __init__(self, config: RetinaUnifiedConfig, trio_config: TrioRetinaConfig | None = None):
         self.config = config
         self.trio_config = trio_config
         self.identity = SessionAuthority.mint(
@@ -77,12 +77,15 @@ class QoresenceApp:
         )
 
         # Lobe runtimes
-        self.streamer: Optional[StreamerRuntime] = None
-        self.controller: Optional[ControllerRuntime] = None
-        self.outcome: Optional[OutcomeRuntime] = None
-        self.screen: Optional[ScreenRuntime] = None
-        self.visual: Optional[VisualRuntime] = None
-        self.fusion: Optional[PresenceFusionEngine] = None
+        self.streamer: StreamerRuntime | None = None
+        self.controller: ControllerRuntime | None = None
+        self.outcome: OutcomeRuntime | None = None
+        self.screen: ScreenRuntime | None = None
+        self.visual: VisualRuntime | None = None
+        self.fusion: PresenceFusionEngine | None = None
+
+        # Agent runtimes
+        self.clutchbot: ClutchBotAgent | None = None
 
         # State
         self._running = False
@@ -145,6 +148,15 @@ class QoresenceApp:
         )
         log.info("Presence Fusion Engine initialized")
 
+        # ClutchBot agent
+        if self.config.clutchbot.enabled:
+            self.clutchbot = ClutchBotAgent(
+                config=self.config.clutchbot,
+                bus=self.bus,
+                session_head_ns=self.identity.session_head_ns,
+            )
+            log.info("ClutchBot agent initialized")
+
     def connect_lobes(self) -> None:
         """Connect lobe outputs to each other (cross-lobe integration)."""
         # Screen ← Controller (for coupling)
@@ -204,7 +216,7 @@ class QoresenceApp:
                         return hashlib.sha256(state_str.encode()).hexdigest()
                     return "b" * 64  # mock fallback
                 self.bus._visual_oracle_root_provider = visual_root_provider
-            
+
             # PoSP root provider
             if self.outcome:
                 def posp_root_provider():
@@ -256,6 +268,9 @@ class QoresenceApp:
         if self.fusion:
             self.fusion.start()
 
+        if self.clutchbot:
+            self.clutchbot.start()
+
         log.info("Qoresence started: session=%s", self.identity.session_id)
         return True
 
@@ -274,6 +289,9 @@ class QoresenceApp:
 
         if self.fusion:
             self.fusion.stop()
+
+        if self.clutchbot:
+            self.clutchbot.stop()
 
         if self.visual:
             self.visual.stop()
@@ -443,6 +461,18 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         config.visual.enabled = True
         config.visual.frame_sample_rate = args.visual_sample_rate
 
+    # ClutchBot agent
+    if args.clutchbot:
+        config.clutchbot.enabled = True
+        config.clutchbot.twitch = TwitchConfig(
+            enabled=args.clutchbot_channel != "",
+            channel=args.clutchbot_channel,
+            bot_username=args.clutchbot_username,
+            oauth_token=args.clutchbot_token,
+            token_file=args.clutchbot_token_file,
+            message_interval_s=args.clutchbot_interval,
+        )
+
     return config
 
 
@@ -475,6 +505,14 @@ def main():
     parser.add_argument("--screen-fps", type=float, default=60.0, help="Screen capture FPS")
     parser.add_argument("--visual", action="store_true", help="Enable visual lobe (VLM)")
     parser.add_argument("--visual-sample-rate", type=int, default=30, help="Visual frame sample rate")
+
+    # ClutchBot (Twitch agent)
+    parser.add_argument("--clutchbot", action="store_true", help="Enable ClutchBot Twitch agent")
+    parser.add_argument("--clutchbot-channel", default="", help="Twitch channel for the bot to join (no #)")
+    parser.add_argument("--clutchbot-username", default="", help="Twitch bot username")
+    parser.add_argument("--clutchbot-token", default=None, help="Twitch bot OAuth token")
+    parser.add_argument("--clutchbot-token-file", default=None, help="File containing the Twitch bot OAuth token")
+    parser.add_argument("--clutchbot-interval", type=float, default=2.0, help="Minimum seconds between sent IRC messages")
 
     # Trio-retina (w3bstream validation)
     parser.add_argument("--trio", action="store_true", help="Enable trio-retina w3bstream validation")
