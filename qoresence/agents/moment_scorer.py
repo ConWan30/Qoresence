@@ -182,9 +182,20 @@ class MomentScorer:
             log.warning(f"ClipWorthinessModel init failed: {e}")
             self._clip_model = ClipWorthinessModel(clip_model_path=None)
 
+    def _is_football(self, state) -> bool:
+        """Gate: FootballWinProbability only for football category."""
+        cat = getattr(state, "game_category", None)
+        if cat is None:
+            return False
+        # Handle Enum (GameCategory) or str
+        if hasattr(cat, "value"):
+            cat = cat.value
+        return str(cat).lower().strip() == "football"
 
     def _maybe_wp_clip(self, state) -> tuple | None:
         if not getattr(self, "_wp", None):
+            return None
+        if not self._is_football(state):
             return None
         try:
             sd = {
@@ -213,6 +224,8 @@ class MomentScorer:
             return None
 
     def _clip_gate(self, state, wp_swing: float) -> bool:
+        if not self._is_football(state):
+            return False
         try:
             import re
             pos = (state.field_position or "").lower()
