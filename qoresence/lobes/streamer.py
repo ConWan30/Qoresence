@@ -11,6 +11,7 @@ import logging
 import os
 import threading
 import time
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -39,6 +40,20 @@ def _get_dshow_device_name(index: int) -> Optional[str]:
     except Exception as e:
         log.debug(f"Could not enumerate DShow device name: {e}")
     return None
+
+
+def list_dshow_devices() -> list[tuple[int, str, bool]]:
+    """Enumerate DirectShow input devices with allowed/blocked status.
+
+    Returns a list of (index, name, is_allowed) tuples.
+    """
+    try:
+        from pygrabber.dshow_graph import FilterGraph
+        names = FilterGraph().get_input_devices()
+    except Exception as e:
+        log.warning(f"Could not enumerate DShow devices: {e}")
+        return []
+    return [(i, name, _is_allowed_capture_name(name)) for i, name in enumerate(names)]
 
 
 def _is_allowed_capture_name(name: Optional[str]) -> bool:
@@ -167,6 +182,17 @@ class StreamerRuntime:
         self._zone_states: dict[str, str] = {}
         self._frames_processed = 0
         self._start_time = 0.0
+        self._last_motion = 0.0
+
+        # Hardening: FPS fallback + watchdog liveness
+        self._effective_fps = float(config.fps_target)
+        self._fps_changed = False
+        self._consecutive_failures = 0
+        self._last_success_frame_time = time.time()
+        self._fps_window: deque[float] = deque(maxlen=max(int(config.fps_target), 15))
+        self._watchdog_running = False
+        self._watchdog_thread: Optional[threading.Thread] = None
+        self._lock = threading.RLock()
 
         # Eye-check
         self._eye_check_done = False
@@ -197,17 +223,26 @@ class StreamerRuntime:
 
         self._running = True
         self._start_time = time.time()
+        self._last_success_frame_time = self._start_time
         self._thread = threading.Thread(target=self._run_loop, name="qoresence-streamer", daemon=True)
         self._thread.start()
 
+        # Watchdog heartbeat prevents fusion temporal_desync when cap.read() blocks.
+        self._watchdog_running = True
+        self._watchdog_thread = threading.Thread(target=self._watchdog_loop, name="qoresence-streamer-watchdog", daemon=True)
+        self._watchdog_thread.start()
+
         source = self.config.url if self.config.source_kind == "network" else self.config.device_index
         log.info(f"Streamer lobe started: source={source}, "
-                 f"source_kind={self.config.source_kind}, fps={self.config.fps_target}")
+                 f"source_kind={self.config.source_kind}, fps_target={self._effective_fps:.1f}")
         return True
 
     def stop(self) -> None:
-        """Stop capture thread and release device."""
+        """Stop capture thread, watchdog, and release device."""
         self._running = False
+        self._watchdog_running = False
+        if self._watchdog_thread:
+            self._watchdog_thread.join(timeout=1.0)
         if self._thread:
             self._thread.join(timeout=2.0)
         if self._cap:
@@ -323,8 +358,7 @@ class StreamerRuntime:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _run_loop(self) -> None:
-        """Background capture loop."""
-        period = 1.0 / max(self.config.fps_target, 1.0)
+        """Background capture loop with retry and FPS fallback."""
         last_stats = 0.0
         last_heartbeat = 0.0
 
@@ -334,11 +368,28 @@ class StreamerRuntime:
         while self._running:
             loop_start = time.time()
 
-            # Grab frame
-            ok, frame = self._cap.read() if self._cap else (False, None)
+            # Apply any FPS change requested by the watchdog
+            with self._lock:
+                if self._fps_changed and self._cap is not None:
+                    try:
+                        self._cap.set(cv2.CAP_PROP_FPS, self._effective_fps)
+                    except Exception:
+                        pass
+                    self._fps_changed = False
+                    self._emit_degraded_notice(loop_start)
+
+            # Grab frame with retry
+            ok, frame = self._read_frame()
             if not ok or frame is None:
-                time.sleep(0.01)
+                with self._lock:
+                    self._consecutive_failures += 1
+                time.sleep(0.001)
                 continue
+
+            with self._lock:
+                self._consecutive_failures = 0
+                self._last_success_frame_time = time.time()
+                self._fps_window.append(time.time())
 
             self._frames_processed += 1
 
@@ -369,6 +420,8 @@ class StreamerRuntime:
                 last_heartbeat = now
 
             # Pace
+            with self._lock:
+                period = 1.0 / max(self._effective_fps, 1.0)
             elapsed = time.time() - loop_start
             sleep_time = period - elapsed
             if sleep_time > 0:
@@ -376,6 +429,71 @@ class StreamerRuntime:
 
         # Session end
         self._emit_session_end()
+
+    def _read_frame(self) -> tuple[bool, Optional[np.ndarray]]:
+        """Read a frame from the capture device, retrying a few times on soft failures."""
+        if self._cap is None:
+            return False, None
+        for _ in range(3):
+            try:
+                ok, frame = self._cap.read()
+                if ok and frame is not None:
+                    return True, frame
+            except Exception as e:
+                log.debug(f"Frame read exception: {e}")
+            time.sleep(0.001)
+        return False, None
+
+    def _watchdog_loop(self) -> None:
+        """Watchdog thread: emit heartbeat and degrade FPS if frames stall."""
+        while self._watchdog_running and self._running:
+            now = time.time()
+            with self._lock:
+                stall_s = now - self._last_success_frame_time
+                # Emit a streamer heartbeat every second so fusion never sees >5s silence
+                self._emit_heartbeat(now)
+
+                # If no successful frame for >1.5s, lower requested FPS to ease USB load
+                if stall_s > 1.5 and self._effective_fps > 15.0:
+                    new_fps = max(15.0, self._effective_fps / 2)
+                    log.warning(
+                        f"Streamer stalled {stall_s:.1f}s; lowering fps_target "
+                        f"{self._effective_fps:.1f} -> {new_fps:.1f}"
+                    )
+                    self._effective_fps = new_fps
+                    self._fps_changed = True
+
+            time.sleep(1.0)
+
+    def _emit_degraded_notice(self, now: float) -> None:
+        """Emit a frame_stats event noting the FPS fallback."""
+        self.bus.emit_raw(
+            source_lobe=SourceLobe.STREAMER,
+            event_type="frame_stats",
+            payload={
+                "n": self._frames_processed,
+                "fps_meas": round(self._measure_actual_fps(), 2),
+                "mean_luma": round(float(np.mean(self._prev_gray)) if self._prev_gray is not None else 0, 2),
+                "motion": round(self._last_motion, 3),
+                "activity": self._activity,
+                "presence_sync_ok": self._check_presence(now)[0],
+                "last_controller_s_ago": round(self._check_presence(now)[1], 3) if self._check_presence(now)[1] is not None else None,
+                "degraded": True,
+                "fps_target": round(self._effective_fps, 1),
+            },
+            clock_ns_override=clock_ns(),
+            session_head_ns=self.session_head_ns,
+        )
+
+    def _measure_actual_fps(self) -> float:
+        """Compute actual FPS over the last window of successful frame times."""
+        with self._lock:
+            if len(self._fps_window) < 2:
+                return 0.0
+            window_s = self._fps_window[-1] - self._fps_window[0]
+            if window_s <= 0:
+                return 0.0
+            return (len(self._fps_window) - 1) / window_s
 
     # ──────────────────────────────────────────────────────────────────────────
     # METRICS PROCESSING
@@ -388,6 +506,7 @@ class StreamerRuntime:
         if self._prev_gray is not None:
             motion = float(np.mean(np.abs(gray.astype(np.float32) - self._prev_gray.astype(np.float32))))
         self._prev_gray = gray.copy()
+        self._last_motion = motion
 
         mean_luma = float(np.mean(gray))
 
@@ -531,11 +650,9 @@ class StreamerRuntime:
             event_type="frame_stats",
             payload={
                 "n": self._frames_processed,
-                "fps_meas": round(self._frames_processed / elapsed, 2),
+                "fps_meas": round(self._measure_actual_fps() or self._frames_processed / elapsed, 2),
                 "mean_luma": round(float(np.mean(self._prev_gray)) if self._prev_gray is not None else 0, 2),
-                "motion": round(
-                    float(np.mean(np.abs(self._prev_gray.astype(np.float32) - self._prev_gray.astype(np.float32)))) if self._prev_gray is not None else 0, 3
-                ),
+                "motion": round(self._last_motion, 3),
                 "activity": self._activity,
                 "presence_sync_ok": presence_sync,
                 "last_controller_s_ago": round(last_ago, 3) if last_ago is not None else None,

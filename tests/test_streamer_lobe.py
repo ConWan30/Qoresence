@@ -460,5 +460,45 @@ class TestStreamerConfigDefaults:
         assert config.zones_enabled is True
 
 
+class TestStreamerHardening:
+    """Tests for Phase 5 streamer hardening: watchdog heartbeat + FPS fallback."""
+
+    @patch('qoresence.lobes.streamer.cv2.VideoCapture')
+    def test_watchdog_emits_heartbeat_when_capture_stalls(self, mock_cap_class):
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="watchdog_test", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="watchdog_test")
+
+            # Single frame: _open_capture consumes it, then capture stalls
+            frames = _make_test_frames(1)
+            fake_cap = FakeCapture(frames)
+            mock_cap_class.return_value = fake_cap
+
+            config = StreamerConfig(
+                enabled=True,
+                device_index=0,
+                fps_target=30.0,
+                eye_check_required=False,
+                stats_every_s=60.0,  # avoid periodic stats/heartbeat from _run_loop
+                heartbeat_every_s=60.0,
+            )
+            runtime = StreamerRuntime(
+                config=config,
+                bus=bus,
+                session_head_ns=identity.session_head_ns,
+            )
+
+            assert runtime.start() is True
+            time.sleep(1.2)
+            runtime.stop()
+
+            # Parse JSONL and look for heartbeat events (BaseEvent serializes as "type")
+            events = jsonl_path.read_text(encoding="utf-8").strip().split("\n")
+            heartbeats = [json.loads(line) for line in events if line.strip()]
+            heartbeats = [e for e in heartbeats if e.get("type") == "heartbeat"]
+            assert len(heartbeats) >= 1, "watchdog should emit at least one heartbeat while stalled"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

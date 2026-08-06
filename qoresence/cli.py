@@ -619,6 +619,7 @@ def main():
 
     # Lobes
     parser.add_argument("--streamer", action="store_true", help="Enable streamer lobe (UVC/OBS)")
+    parser.add_argument("--streamer-list", action="store_true", help="List DirectShow capture devices and exit")
     parser.add_argument("--streamer-fps", type=float, default=30.0, help="Streamer capture FPS")
     parser.add_argument("--streamer-device", type=int, default=0, help="Streamer DShow/MSMF device index (0=USB3.0 Video, 1=720p HD Camera [blocked], 2=OBS Virtual Camera)")
     parser.add_argument("--streamer-backend", choices=["auto", "dshow", "msmf"], default="dshow", help="Capture backend (dshow recommended for USB3.0 Video, msmf for some cards)")
@@ -688,6 +689,19 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Initialize but don't start lobes")
 
     args = parser.parse_args()
+
+    if args.streamer_list:
+        from qoresence.lobes.streamer import list_dshow_devices
+        devices = list_dshow_devices()
+        if not devices:
+            print("No DirectShow capture devices found (pygrabber may not be installed).")
+            sys.exit(0)
+        print(f"{'Index':<6} {'Allowed':<7} {'Name'}")
+        print("-" * 60)
+        for idx, name, allowed in devices:
+            status = "OK" if allowed else "BLOCKED"
+            print(f"{idx:<6} {status:<7} {name}")
+        sys.exit(0)
 
     setup_logging(args.log_level)
 

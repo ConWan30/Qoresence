@@ -648,5 +648,53 @@ class TestFusionWeights:
             engine.stop()
 
 
+class TestVisualHysteresis:
+    """Tests for Phase 5 visual_context temporal smoothing."""
+
+    def test_majority_required(self):
+        from qoresence.fusion.presence import VisualHysteresis
+        hysteresis = VisualHysteresis(window=5, min_agree=3, profile_category="football")
+
+        # First two football frames do not yet win; output stays unknown
+        assert hysteresis.update("football", "gameplay", 0.8) == ("unknown", "unknown", 0.0)
+        assert hysteresis.update("football", "gameplay", 0.8) == ("unknown", "unknown", 0.0)
+        # Third football frame reaches majority
+        cat, state, conf = hysteresis.update("football", "gameplay", 0.9)
+        assert cat == "football"
+        assert state == "gameplay"
+        assert 0.8 <= conf <= 0.9
+
+    def test_single_menu_frame_does_not_flip(self):
+        from qoresence.fusion.presence import VisualHysteresis
+        hysteresis = VisualHysteresis(window=5, min_agree=3, profile_category="football")
+
+        # Establish football gameplay
+        for _ in range(3):
+            hysteresis.update("football", "gameplay", 0.8)
+        cat, state, conf = hysteresis.update("unknown", "menu", 0.5)
+        # Single menu frame does not override majority
+        assert cat == "football"
+        assert state == "gameplay"
+
+    def test_football_profile_suppresses_shooter(self):
+        from qoresence.fusion.presence import VisualHysteresis
+        hysteresis = VisualHysteresis(window=5, min_agree=3, profile_category="football")
+
+        # Three shooter frames in football profile are treated as unknown
+        for _ in range(3):
+            cat, state, conf = hysteresis.update("shooter", "gameplay", 0.8)
+        assert cat == "unknown"
+        assert state == "unknown"
+
+    def test_shooter_profile_suppresses_football(self):
+        from qoresence.fusion.presence import VisualHysteresis
+        hysteresis = VisualHysteresis(window=5, min_agree=3, profile_category="shooter")
+
+        for _ in range(3):
+            cat, state, conf = hysteresis.update("football", "gameplay", 0.8)
+        assert cat == "unknown"
+        assert state == "unknown"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

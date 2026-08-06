@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -341,6 +341,92 @@ class PresenceReport:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# VISUAL HYSTERESIS
+# ──────────────────────────────────────────────────────────────────────────────
+
+class VisualHysteresis:
+    """Temporal majority smoothing for visual_context game_category/state.
+
+    Reuses Phase 2 hysteresis logic: a category must appear ``min_agree``
+    times in the last ``window`` frames before it is emitted. This prevents a
+    single menu/replay frame from flipping the fused verdict, and also lets the
+    active game profile suppress cross-game hallucinations (e.g. shooter frames
+    when the configured profile is football).
+    """
+
+    def __init__(self, window: int = 5, min_agree: int = 3, profile_category: str = "football"):
+        self._window = window
+        self._min_agree = min_agree
+        self._profile_category = profile_category
+        self._history: deque[tuple[str, str, float]] = deque(maxlen=window)
+        self._last_category: str = "unknown"
+        self._last_state: str = "unknown"
+        self._last_confidence: float = 0.0
+
+    def _guard(self, category: str) -> str:
+        """Profile-aware guard: football profile should never emit shooter."""
+        if self._profile_category == "football" and category == "shooter":
+            return "unknown"
+        if self._profile_category == "shooter" and category == "football":
+            return "unknown"
+        return category
+
+    def update(self, raw_category: Optional[str], raw_state: Optional[str], confidence: float) -> tuple[str, str, float]:
+        """Update with a fresh visual observation and return smoothed (category, state, confidence)."""
+        category = str(raw_category).lower().strip() if raw_category else "unknown"
+        state = str(raw_state).lower().strip() if raw_state else "unknown"
+
+        # If category is gameplay-specific, normalize state to gameplay
+        if category in ("football", "shooter"):
+            state = "gameplay"
+
+        # Apply profile guard. When the guard fires, treat the frame as unknown.
+        guarded = self._guard(category)
+        if guarded != category and guarded == "unknown":
+            state = "unknown"
+        category = guarded
+
+        self._history.append((category, state, float(confidence)))
+
+        # Count categories
+        cat_counts: dict[str, int] = {}
+        cat_confs: dict[str, float] = {}
+        for c, _s, conf in self._history:
+            cat_counts[c] = cat_counts.get(c, 0) + 1
+            cat_confs[c] = cat_confs.get(c, 0.0) + conf
+
+        # Find majority category that meets min_agree, preferring higher confidence tie-break
+        winner: Optional[str] = None
+        for c in sorted(cat_counts, key=lambda x: (-cat_counts[x], -cat_confs[x])):
+            if cat_counts[c] >= self._min_agree:
+                winner = c
+                break
+
+        if winner is None:
+            # No stable majority yet: hold previous smoothed output
+            return self._last_category, self._last_state, self._last_confidence
+
+        # Majority state and average confidence among winner entries
+        winner_entries = [(s, conf) for c, s, conf in self._history if c == winner]
+        state_counts: dict[str, int] = {}
+        state_confs: dict[str, float] = {}
+        for s, conf in winner_entries:
+            state_counts[s] = state_counts.get(s, 0) + 1
+            state_confs[s] = state_confs.get(s, 0.0) + conf
+        majority_state = max(state_counts, key=lambda x: (state_counts[x], -state_confs.get(x, 0.0)))
+        avg_conf = state_confs[majority_state] / max(state_counts[majority_state], 1)
+
+        self._last_category = winner
+        self._last_state = majority_state
+        self._last_confidence = avg_conf
+        return winner, majority_state, avg_conf
+
+    def get_state(self) -> tuple[str, str, float]:
+        """Return last smoothed state without updating."""
+        return self._last_category, self._last_state, self._last_confidence
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # FUSION ENGINE
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -395,6 +481,10 @@ class PresenceFusionEngine:
 
         # Coupling analyzer
         self._coupling = CouplingAnalyzer()
+
+        # VisualContext smoothing (Phase 5): reuse hysteresis, profile-aware guard
+        self._profile_category = getattr(config.active_game_profile, "category", "football")
+        self._visual_hysteresis = VisualHysteresis(window=5, min_agree=3, profile_category=self._profile_category)
 
         # Presence sync (from streamer)
         self._presence_sync_ok = False
@@ -767,9 +857,16 @@ class PresenceFusionEngine:
 
         elif lobe == SourceLobe.VISUAL:
             if event.type == EventType.VISUAL_CONTEXT:
-                state["game_state"] = payload.get("game_state")
-                state["confidence"] = payload.get("confidence", 0.0)
-                state["game_category"] = payload.get("game_category")
+                raw_category = payload.get("game_category")
+                raw_state = payload.get("game_state")
+                conf = payload.get("confidence", 0.0)
+                cat, st, conf = self._visual_hysteresis.update(raw_category, raw_state, conf)
+                state["game_category"] = cat
+                state["game_state"] = st
+                state["confidence"] = conf
+                # Expose smoothed verdict to the legacy score path
+                state["cross_modal_verdict"] = st
+                state["cross_modal_confidence"] = conf
 
             elif event.type == EventType.CROSS_MODAL_VERDICT:
                 state["cross_modal_verdict"] = payload.get("verdict")
@@ -916,9 +1013,12 @@ class PresenceFusionEngine:
                 confidence = 0.8 if coherence > 0.5 else 0.4
 
             elif lobe == SourceLobe.VISUAL:
-                verdict = state.get("cross_modal_verdict")
-                v_conf = state.get("cross_modal_confidence", 0.0)
-                score = v_conf if verdict else 0.0
+                # Prefer smoothed game_category; fall back to legacy cross_modal_verdict
+                verdict = state.get("game_category") or state.get("cross_modal_verdict")
+                v_conf = state.get("confidence", state.get("cross_modal_confidence", 0.0))
+                # Treat only active gameplay categories / confirmed verdicts as present
+                non_present = {"unknown", "menu", "inconclusive"}
+                score = v_conf if verdict and str(verdict).lower() not in non_present else 0.0
                 confidence = v_conf
 
             else:
