@@ -32,6 +32,7 @@ from .moment_scorer import MomentScorer, ScoredMoment
 from .session_memory import SessionMemory
 from .situation_model import SituationModel
 from .twitch_client import TwitchIRCClient
+from .llm_client import LLMConfig, QuicksilverLLMClient
 
 log = logging.getLogger(__name__)
 
@@ -69,6 +70,19 @@ class ClutchBotAgent:
             output_path=Path(config.memory_path) if config.memory_path else None
         )
         self._helix_client: TwitchHelixClient | None = None
+        # -- LLM via Quicksilver Pro (dedicated API, optional) --
+        try:
+            _llm_cfg = LLMConfig.from_clutchbot(config)
+            self._llm: QuicksilverLLMClient | None = QuicksilverLLMClient(_llm_cfg)
+            if _llm_cfg.enabled and self._llm.is_available():
+                log.info(f"ClutchBot LLM enabled: {_llm_cfg.provider}/{_llm_cfg.model} @ {_llm_cfg.base_url}")
+            elif _llm_cfg.enabled:
+                log.warning("ClutchBot LLM enabled but no API key — template fallback (set .secrets/quicksilver_clutchbot.key)")
+            else:
+                log.debug("ClutchBot LLM disabled — template mode")
+        except Exception as e:
+            log.warning(f"LLM init failed: {e}")
+            self._llm = None  # type: ignore[attr-defined]
 
         self._features = self._build_features()
         for backend in self._build_backends():
@@ -161,6 +175,23 @@ class ClutchBotAgent:
             return
 
         for moment in moments:
+            # LLM via Quicksilver Pro https://api.quicksilverpro.io/v1 (fallback to template)
+            _llm = getattr(self, "_llm", None)
+            if _llm is not None and _llm.is_available() and moment.action == "chat" and moment.message:
+                try:
+                    _enh = _llm.enhance_message(
+                        situation=self._situation.to_dict(),
+                        event_type=event.type.value,
+                        event_payload=event.payload if isinstance(event.payload, dict) else None,
+                        persona=self.config.persona,
+                        base_message=moment.message,
+                    )
+                    if _enh and len(_enh) > 4:
+                        import dataclasses as _dc
+                        moment = _dc.replace(moment, message=_enh)
+                except Exception as _e:
+                    log.debug(f"LLM enhance failed: {_e}")
+
             if not self._rate_limit_ok(moment):
                 continue
 

@@ -59,3 +59,9 @@ game_detection_learning.jsonl
 .env.local
 .secrets
 data/
+
+# Quicksilver / LLM dedicated API (never commit)
+*.key
+*.key.*
+.secrets/
+.secrets/**

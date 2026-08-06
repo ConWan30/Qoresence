@@ -276,6 +276,16 @@ class ClutchBotConfig:
     twitch: TwitchConfig = field(default_factory=TwitchConfig)
     learning_enabled: bool = False
     learning_log_path: str | None = None
+    # -- LLM via Quicksilver Pro (OpenAI-compatible https://api.quicksilverpro.io/v1)
+    llm_enabled: bool = False
+    llm_provider: str = "quicksilver"  # quicksilver | openai | anthropic | ollama
+    llm_model: str = "deepseek-v4-flash"
+    llm_base_url: str = "https://api.quicksilverpro.io/v1"
+    llm_api_key: str | None = None
+    llm_api_key_file: str | None = None  # file containing key (never commit)
+    llm_fallback_model: str = "gpt-4o-mini"
+    llm_timeout_s: float = 6.0
+    llm_max_tokens: int = 256
 
 
 @dataclass(frozen=True)
@@ -534,6 +544,15 @@ class RetinaUnifiedConfig:
                 memory_path=_str("QORESENCE_CLUTCHBOT_MEMORY_PATH") or None,
                 learning_enabled=_bool("QORESENCE_CLUTCHBOT_LEARNING_ENABLED", False),
                 learning_log_path=_str("QORESENCE_CLUTCHBOT_LEARNING_PATH") or None,
+                llm_enabled=_bool("QORESENCE_CLUTCHBOT_LLM_ENABLED", False),
+                llm_provider=_str("QORESENCE_CLUTCHBOT_LLM_PROVIDER", "quicksilver"),
+                llm_model=_str("QORESENCE_CLUTCHBOT_LLM_MODEL", "deepseek-v4-flash"),
+                llm_base_url=_str("QORESENCE_CLUTCHBOT_LLM_BASE_URL", "https://api.quicksilverpro.io/v1"),
+                llm_api_key=_str("QORESENCE_CLUTCHBOT_LLM_API_KEY") or None,
+                llm_api_key_file=_str("QORESENCE_CLUTCHBOT_LLM_API_KEY_FILE") or None,
+                llm_fallback_model=_str("QORESENCE_CLUTCHBOT_LLM_FALLBACK", "gpt-4o-mini"),
+                llm_timeout_s=_float("QORESENCE_CLUTCHBOT_LLM_TIMEOUT_S", 6.0),
+                llm_max_tokens=_int("QORESENCE_CLUTCHBOT_LLM_MAX_TOKENS", 256),
             ),
             jsonl_path=_str("QORESENCE_JSONL_PATH") or None,
             ws_host=_str("QORESENCE_WS_HOST", "127.0.0.1"),
