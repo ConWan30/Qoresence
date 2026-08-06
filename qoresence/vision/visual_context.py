@@ -72,6 +72,33 @@ class VisualContext:
     raw_response: str = ""
     frame_hash: str = ""
 
+    # VLM client metadata
+    model: str = ""
+    latency_ms: float = 0.0
+    details: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Normalize string/enum inputs."""
+        raw_state = ""
+        if isinstance(self.game_state, str):
+            raw_state = self.game_state.lower().strip()
+            if raw_state in {"football", "shooter"}:
+                try:
+                    self.game_category = GameCategory(raw_state)
+                except ValueError:
+                    self.game_category = GameCategory.UNKNOWN
+                self.game_state = GameState.GAMEPLAY
+            else:
+                try:
+                    self.game_state = GameState(raw_state)
+                except ValueError:
+                    self.game_state = GameState.UNKNOWN
+        if isinstance(self.game_category, str):
+            try:
+                self.game_category = GameCategory(self.game_category.lower().strip())
+            except ValueError:
+                self.game_category = GameCategory.UNKNOWN
+
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
             "game_state": self.game_state.value,
@@ -113,34 +140,61 @@ class VisualContext:
 
         d["raw_response"] = self.raw_response[:500]
         d["frame_hash"] = self.frame_hash
+        d["model"] = self.model
+        d["latency_ms"] = self.latency_ms
+        d["details"] = self.details
         return d
 
     @staticmethod
     def from_dict(raw: dict[str, Any]) -> "VisualContext":
-        """Build a VisualContext from a parsed VLM JSON response."""
+        """Build a VisualContext from a parsed VLM JSON response.
+
+        Accepts both flat VLM output (legacy/LLM prompt shape) and the nested
+        ``to_dict`` round-trip shape. Also normalizes legacy state names such
+        as ``"football"`` / ``"shooter"`` into proper ``game_state`` +
+        ``game_category`` pairs.
+        """
         ctx = VisualContext()
         if not raw:
             return ctx
 
         def _state(s: Any) -> GameState:
+            if s is None:
+                return GameState.UNKNOWN
             try:
                 return GameState(str(s).lower().strip())
             except (ValueError, AttributeError):
                 return GameState.UNKNOWN
 
         def _cat(s: Any) -> GameCategory:
+            if s is None:
+                return GameCategory.UNKNOWN
             try:
                 return GameCategory(str(s).lower().strip())
             except (ValueError, AttributeError):
                 return GameCategory.UNKNOWN
 
-        ctx.game_state = _state(raw.get("game_state"))
+        raw_state = str(raw.get("game_state", "")).lower().strip()
+        category = _cat(raw.get("game_category"))
+
+        # Legacy: VLM sometimes returns game_state="football"/"shooter"/"menu".
+        if raw_state in {"football", "shooter"}:
+            category = _cat(raw_state)
+            ctx.game_state = GameState.GAMEPLAY
+        else:
+            ctx.game_state = _state(raw_state) if raw_state else GameState.UNKNOWN
+
         ctx.game_title = str(raw.get("game_title", ""))
-        ctx.game_category = _cat(raw.get("game_category"))
+        ctx.game_category = category
         ctx.confidence = float(raw.get("confidence", 0.0))
 
-        # Football fields
-        fb = raw.get("football") or {}
+        # Football fields: support nested "football" block or flat top-level keys
+        fb = raw.get("football")
+        if fb is None and (category == GameCategory.FOOTBALL or ctx.game_title.lower() in {"ncaa football 27", "ncaa"}):
+            fb = raw
+        else:
+            fb = fb or {}
+
         ctx.home_score = _to_int(fb.get("home_score"))
         ctx.away_score = _to_int(fb.get("away_score"))
         ctx.quarter = _to_int(fb.get("quarter"))
@@ -153,8 +207,13 @@ class VisualContext:
         ctx.field_position = _to_str(fb.get("field_position"))
         ctx.down_distance_text = _to_str(fb.get("down_distance_text"))
 
-        # Shooter fields
-        sh = raw.get("shooter") or {}
+        # Shooter fields: support nested "shooter" block or flat top-level keys
+        sh = raw.get("shooter")
+        if sh is None and category == GameCategory.SHOOTER:
+            sh = raw
+        else:
+            sh = sh or {}
+
         ctx.health = _to_int(sh.get("health"))
         ctx.ammo = _to_int(sh.get("ammo"))
         ctx.score = _to_int(sh.get("score"))
@@ -168,6 +227,12 @@ class VisualContext:
         ctx.has_screen_tearing = bool(qual.get("has_screen_tearing", False))
         ctx.has_lag_indicator = bool(qual.get("has_lag_indicator", False))
         ctx.frame_quality = str(qual.get("frame_quality", "ok"))
+
+        ctx.raw_response = str(raw.get("raw_response", ""))[:500]
+        ctx.frame_hash = str(raw.get("frame_hash", ""))
+        ctx.model = str(raw.get("model", ""))
+        ctx.latency_ms = float(raw.get("latency_ms", 0.0))
+        ctx.details = raw.get("details") or {}
 
         return ctx
 

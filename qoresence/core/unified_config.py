@@ -104,10 +104,35 @@ GAME_PROFILE_REGISTRY: dict[GameProfileId, GameProfile] = {
     CALL_OF_DUTY_PROFILE.profile_id: CALL_OF_DUTY_PROFILE,
 }
 
+# Friendly / legacy aliases for CLI and VLM output normalization.
+GAME_PROFILE_ALIASES: dict[str, GameProfileId] = {
+    "madden_27": GameProfileId.NCAA_FOOTBALL_27,
+    "madden_2027": GameProfileId.NCAA_FOOTBALL_27,
+    "ncaa_27": GameProfileId.NCAA_FOOTBALL_27,
+    "college_football_27": GameProfileId.NCAA_FOOTBALL_27,
+    "ea_sports_college_football_27": GameProfileId.NCAA_FOOTBALL_27,
+    "cod": GameProfileId.CALL_OF_DUTY,
+    "call_of_duty": GameProfileId.CALL_OF_DUTY,
+    "modern_warfare": GameProfileId.CALL_OF_DUTY,
+    "warzone": GameProfileId.CALL_OF_DUTY,
+}
 
-def get_game_profile(profile_id: GameProfileId) -> GameProfile:
-    """Retrieve a game profile by ID."""
-    return GAME_PROFILE_REGISTRY[profile_id]
+
+def normalize_game_profile(profile_id: GameProfileId | str) -> GameProfileId:
+    """Resolve a profile ID or alias to a canonical GameProfileId."""
+    value = profile_id.value if isinstance(profile_id, GameProfileId) else str(profile_id).lower().strip()
+    if value in GAME_PROFILE_ALIASES:
+        return GAME_PROFILE_ALIASES[value]
+    try:
+        return GameProfileId(value)
+    except ValueError:
+        raise ValueError(f"Unknown game profile: {profile_id}")
+
+
+def get_game_profile(profile_id: GameProfileId | str) -> GameProfile:
+    """Retrieve a game profile by ID or alias."""
+    canonical = normalize_game_profile(profile_id)
+    return GAME_PROFILE_REGISTRY[canonical]
 
 
 def register_game_profile(profile: GameProfile) -> None:
@@ -242,6 +267,8 @@ class ClutchBotConfig:
     controller_window_s: float = 5.0  # Rolling controller window for APM calc
     message_cooldown_s: float = 30.0  # Minimum seconds between any chat action
     max_messages_per_min: int = 3     # Hard cap on chat messages per minute
+    enable_chat: bool = True          # Allow chat/greeting actions
+    clip_has_delay: bool = True       # Clip with delay to include the preceding action
     memory_path: str | None = None # JSONL file for session memory
     twitch: TwitchConfig = field(default_factory=TwitchConfig)
 

@@ -27,6 +27,11 @@ from qoresence.core import (
     clock_ns,
     VisualConfig,
 )
+from qoresence.vision.visual_context import (
+    GameCategory,
+    GameState,
+    VisualContext,
+)
 
 log = logging.getLogger(__name__)
 
@@ -34,16 +39,8 @@ log = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 # DATA STRUCTURES
 # ──────────────────────────────────────────────────────────────────────────────
-
-@dataclass
-class VisualContext:
-    """VLM analysis result."""
-    game_state: str  # "football" | "shooter" | "menu" | "unknown"
-    confidence: float
-    details: dict
-    model: str
-    latency_ms: float
-
+# VisualContext is defined canonically in qoresence.vision.visual_context.
+# It is re-exported here for backward compatibility.
 
 @dataclass
 class CrossModalVerdict:
@@ -131,7 +128,7 @@ class VLMClient:
         return self._parse_response(content, latency_ms)
 
     def _parse_response(self, content: str, latency_ms: float) -> VisualContext:
-        """Parse VLM response into VisualContext."""
+        """Parse VLM response into the canonical VisualContext."""
         details = {"raw_response": content}
 
         # Prefer explicit GAME_STATE / CONFIDENCE in the response
@@ -166,13 +163,15 @@ class VLMClient:
                 game_state = "unknown"
                 confidence = 0.5
 
-        return VisualContext(
-            game_state=game_state,
-            confidence=confidence,
-            details=details,
-            model=self.model_name,
-            latency_ms=latency_ms,
-        )
+        ctx = VisualContext.from_dict({
+            "game_state": game_state,
+            "confidence": confidence,
+        })
+        ctx.details = details
+        ctx.raw_response = content[:500]
+        ctx.model = self.model_name
+        ctx.latency_ms = latency_ms
+        return ctx
 
     def cross_modal_check(self, frame: np.ndarray, other_modalities: dict) -> Optional[CrossModalVerdict]:
         """Cross-modal verification against other lobe data."""
@@ -336,7 +335,7 @@ class VisualRuntime:
     def get_last_state(self) -> dict:
         """Get last visual state for cross-modal verification."""
         return {
-            'game_state': self._last_context.game_state if self._last_context else 'unknown',
+            'game_state': self._last_context.game_state.value if self._last_context else 'unknown',
             'confidence': self._last_context.confidence if self._last_context else 0.0,
             'last_verdict': self._last_verdict.verdict if self._last_verdict else 'inconclusive',
         }
@@ -471,16 +470,11 @@ Do not add any explanation."""
         )
 
     def _emit_visual_context(self, context: VisualContext) -> None:
+        """Emit the canonical visual_context payload."""
         self.bus.emit_raw(
             source_lobe=SourceLobe.VISUAL,
             event_type="visual_context",
-            payload={
-                "game_state": context.game_state,
-                "confidence": context.confidence,
-                "model": context.model,
-                "latency_ms": context.latency_ms,
-                "details": context.details,
-            },
+            payload=context.to_dict(),
             clock_ns_override=clock_ns(),
             session_head_ns=self.session_head_ns,
         )
@@ -490,7 +484,7 @@ Do not add any explanation."""
             try:
                 self._presence_callback({
                     "lobe": "visual",
-                    "game_state": context.game_state,
+                    "game_state": context.game_state.value,
                     "confidence": context.confidence,
                 })
             except Exception:
@@ -553,13 +547,14 @@ class MockVLMClient:
             game_state = "unknown"
             confidence = 0.3
 
-        return VisualContext(
-            game_state=game_state,
-            confidence=confidence,
-            details={"mock": True, "green_ratio": green_ratio, "brightness": mean_brightness},
-            model="mock",
-            latency_ms=10.0,
-        )
+        ctx = VisualContext.from_dict({
+            "game_state": game_state,
+            "confidence": confidence,
+        })
+        ctx.details = {"mock": True, "green_ratio": green_ratio, "brightness": mean_brightness}
+        ctx.model = "mock"
+        ctx.latency_ms = 10.0
+        return ctx
 
     def cross_modal_check(self, frame: np.ndarray, other_modalities: dict) -> Optional[CrossModalVerdict]:
         # Simple mock: confirmed if outcome and controller both present

@@ -25,6 +25,7 @@ from .types import (
 )
 from .unified_config import (
     CALL_OF_DUTY_PROFILE,
+    GAME_PROFILE_ALIASES,
     GAME_PROFILE_REGISTRY,
     NCAA_FOOTBALL_27_PROFILE,
     ClutchBotConfig,
@@ -40,6 +41,7 @@ from .unified_config import (
     TwitchConfig,
     VisualConfig,
     get_game_profile,
+    normalize_game_profile,
     register_game_profile,
 )
 
@@ -60,8 +62,10 @@ __all__ = [
     "NCAA_FOOTBALL_27_PROFILE",
     "CALL_OF_DUTY_PROFILE",
     "get_game_profile",
+    "normalize_game_profile",
     "register_game_profile",
     "GAME_PROFILE_REGISTRY",
+    "GAME_PROFILE_ALIASES",
     # session
     "SessionAuthority",
     "SessionIdentity",

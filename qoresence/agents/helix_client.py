@@ -24,6 +24,7 @@ class ClipResult:
     id: str
     edit_url: str
     created_at: str
+    url: str = ""  # Public viewer URL (https://clips.twitch.tv/<id>)
 
 
 @dataclass
@@ -32,6 +33,7 @@ class PredictionResult:
     title: str
     outcomes: list[dict[str, Any]]
     status: str
+    offense: str | None = None  # "home" | "away" — team predicted to score
 
 
 class TwitchHelixClient:
@@ -109,10 +111,12 @@ class TwitchHelixClient:
 
         clip = data["data"][0]
         self._last_clip_time = time.time()
+        clip_id = clip["id"]
         self._last_clip = ClipResult(
-            id=clip["id"],
+            id=clip_id,
             edit_url=clip["edit_url"],
             created_at=clip["created_at"],
+            url=f"https://clips.twitch.tv/{clip_id}",
         )
         return self._last_clip
 
@@ -121,6 +125,7 @@ class TwitchHelixClient:
         title: str,
         outcomes: list[str],
         window_s: int = 120,
+        offense: str | None = None,
     ) -> PredictionResult | None:
         """Create a channel-point prediction."""
         if not self.broadcaster_id:
@@ -154,6 +159,7 @@ class TwitchHelixClient:
             title=pred["title"],
             outcomes=pred["outcomes"],
             status=pred["status"],
+            offense=offense,
         )
         self._prediction_start_ns = time.time_ns()
         return self._active_prediction
@@ -208,7 +214,9 @@ class TwitchHelixClient:
 
     @property
     def last_clip_url(self) -> str | None:
-        return self._last_clip.edit_url if self._last_clip else None
+        if not self._last_clip:
+            return None
+        return self._last_clip.url or self._last_clip.edit_url
 
     def get_current_user(self) -> dict[str, Any] | None:
         """Return the user associated with the current access token."""

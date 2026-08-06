@@ -132,6 +132,8 @@ class TwitchEventSubClient:
     def _on_welcome(self, data: dict[str, Any]) -> None:
         session_id = data["payload"]["session"]["id"]
         log.info(f"EventSub session welcome: {session_id[:8]}...")
+        # New session means old subscriptions are gone; re-subscribe.
+        self._subscribed_types.clear()
         self._subscribe(session_id)
 
     def _subscribe(self, session_id: str) -> None:

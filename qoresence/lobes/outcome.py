@@ -11,6 +11,7 @@ heavy local OCR loop.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -25,6 +26,7 @@ from qoresence.core import (
     GameProfileId,
     GameProfile,
     get_game_profile,
+    normalize_game_profile,
 )
 from qoresence.vision.visual_context import (
     GameCategory,
@@ -112,6 +114,7 @@ class OutcomeRuntime:
         self._down: Optional[int] = None
         self._yards_to_go: Optional[int] = None
         self._possession: Optional[str] = None
+        self._field_position: Optional[str] = None
         self._play_clock: Optional[int] = None
 
         # Cached shooter state
@@ -119,6 +122,9 @@ class OutcomeRuntime:
         self._health: Optional[int] = None
         self._ammo: Optional[int] = None
         self._enemies_visible: int = 0
+
+        # Presence callback (for fusion engine)
+        self._presence_callback: Optional[callable] = None
 
         # Confidence threshold
         self._confidence_threshold = config.confidence_threshold
@@ -162,15 +168,20 @@ class OutcomeRuntime:
         """Set frame provider callback (kept for compatibility; unused)."""
         self._frame_provider = provider
 
-    def set_game_profile(self, profile_id: GameProfileId) -> None:
+    def set_presence_callback(self, callback: callable) -> None:
+        """Set callback for presence status updates (for fusion engine)."""
+        self._presence_callback = callback
+
+    def set_game_profile(self, profile_id: GameProfileId | str) -> None:
         """Switch the active game profile and reset state."""
-        if self._profile.profile_id == profile_id:
+        canonical = normalize_game_profile(profile_id)
+        if self._profile.profile_id == canonical:
             return
 
-        self.config = replace(self.config, game_profile=profile_id)
-        self._profile = get_game_profile(profile_id)
+        self.config = replace(self.config, game_profile=canonical)
+        self._profile = get_game_profile(canonical)
         self._reset_state()
-        log.info(f"Outcome lobe switched to profile: {profile_id.value}")
+        log.info(f"Outcome lobe switched to profile: {canonical.value}")
 
     def get_last_state(self) -> dict:
         """Get last outcome state for cross-modal verification."""
@@ -203,10 +214,15 @@ class OutcomeRuntime:
 
     def _on_game_detected(self, event: Any) -> None:
         """Handle a new stable game detection."""
-        try:
-            profile_id = GameProfileId(event.payload.get("profile_id"))
-        except (KeyError, ValueError):
+        raw_id = event.payload.get("profile_id")
+        if not raw_id:
             log.warning("Outcome: game_detected payload missing profile_id")
+            return
+
+        try:
+            profile_id = normalize_game_profile(raw_id)
+        except ValueError:
+            log.warning(f"Outcome: unknown game profile: {raw_id}")
             return
 
         if self._profile.profile_id != profile_id:
@@ -310,11 +326,30 @@ class OutcomeRuntime:
             and ctx.possession != self._possession
             and self._possession is not None
         ):
-            self._emit_outcome_event(
-                "possession_changed",
-                {"possession": ctx.possession, "prev_possession": self._possession},
-                ctx.confidence,
-            )
+            # Turnover heuristic: possession flipped while in opponent territory
+            # and no score change. Use field position to detect a sudden reversal.
+            prev_yard = self._field_position_to_yard_line(self._field_position)
+            cur_yard = self._field_position_to_yard_line(ctx.field_position)
+            in_opp_territory = prev_yard is not None and prev_yard >= 60
+            moved_back_to_own = cur_yard is not None and cur_yard <= 40
+
+            if in_opp_territory and moved_back_to_own:
+                self._emit_outcome_event(
+                    "turnover",
+                    {
+                        "possession": ctx.possession,
+                        "prev_possession": self._possession,
+                        "field_position": ctx.field_position,
+                        "prev_field_position": self._field_position,
+                    },
+                    ctx.confidence,
+                )
+            else:
+                self._emit_outcome_event(
+                    "possession_changed",
+                    {"possession": ctx.possession, "prev_possession": self._possession},
+                    ctx.confidence,
+                )
 
         # Play clock reset (play_clock jumps up after being low)
         if (
@@ -340,8 +375,32 @@ class OutcomeRuntime:
         self._down = ctx.down
         self._yards_to_go = ctx.yards_to_go
         self._possession = ctx.possession
+        self._field_position = ctx.field_position
         self._play_clock = ctx.play_clock
         self._prev_context = ctx
+
+    @staticmethod
+    def _field_position_to_yard_line(field_position: Optional[str]) -> Optional[int]:
+        """Map a field position string to a 0-100 yard line.
+
+        0 = own goal line, 50 = midfield, 100 = opponent goal line.
+        Examples: "opp 10" -> 90, "own 25" -> 25, "opponent 15" -> 85.
+        """
+        if not field_position:
+            return None
+        pos = field_position.lower().strip()
+        match = re.search(r"opp(?:onent)?\s*(\d+)", pos)
+        if match:
+            yard = int(match.group(1))
+            return min(100, 100 - yard)
+        match = re.search(r"own\s*(\d+)", pos)
+        if match:
+            return min(100, int(match.group(1)))
+        match = re.search(r"(\d+)", pos)
+        if match:
+            # Ambiguous numeric-only: assume distance from own goal
+            return min(100, int(match.group(1)))
+        return None
 
     # ──────────────────────────────────────────────────────────────────────────
     # SHOOTER PROCESSING
@@ -393,6 +452,7 @@ class OutcomeRuntime:
         self._down = None
         self._yards_to_go = None
         self._possession = None
+        self._field_position = None
         self._play_clock = None
         self._shooter_score = None
         self._health = None

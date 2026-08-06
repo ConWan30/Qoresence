@@ -68,7 +68,8 @@ class TestVisualRuntime:
         context = client.analyze_frame(frame, "test prompt")
 
         assert context is not None
-        assert context.game_state == "football"
+        assert context.game_state.value == "gameplay"
+        assert context.game_category.value == "football"
         assert context.confidence > 0.8
         assert context.model == "mock"
 
@@ -84,7 +85,8 @@ class TestVisualRuntime:
         context = client.analyze_frame(frame, "test prompt")
 
         assert context is not None
-        assert context.game_state == "shooter"
+        assert context.game_state.value == "gameplay"
+        assert context.game_category.value == "shooter"
         assert context.confidence > 0.7
 
     def test_mock_vlm_cross_modal_confirmed(self):
@@ -176,7 +178,8 @@ class TestVisualRuntime:
                 assert e['session_id'] == 'visual_test'
                 assert e['source_lobe'] == 'visual'
                 assert 'clock_ns' in e
-                assert e['payload']['game_state'] == 'football'
+                assert e['payload']['game_state'] == 'gameplay'
+                assert e['payload']['game_category'] == 'football'
                 assert e['payload']['confidence'] == 0.9
 
     @patch('qoresence.lobes.visual.VLMClient')
@@ -307,7 +310,8 @@ class TestVisualContext:
             model="test-model",
             latency_ms=100.0,
         )
-        assert context.game_state == "football"
+        assert context.game_state.value == "gameplay"
+        assert context.game_category.value == "football"
         assert context.confidence == 0.9
 
 

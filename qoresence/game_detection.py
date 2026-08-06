@@ -34,7 +34,15 @@ try:
 except ImportError:
     pytesseract = None
 
-from qoresence.core import GameProfileId, RetinaEventBus, SourceLobe, VisualConfig, clock_ns
+from qoresence.core import (
+    GAME_PROFILE_ALIASES,
+    GameProfileId,
+    RetinaEventBus,
+    SourceLobe,
+    VisualConfig,
+    clock_ns,
+    get_game_profile,
+)
 from qoresence.core.types import EventType
 from qoresence.lobes.visual import VLMClient
 from qoresence.vision import VisionStack, VisionEvidence
@@ -207,6 +215,7 @@ class GameAutoDetector:
         model_dir: Optional[Path] = None,
         learning_enabled: bool = False,
         learning_path: Optional[Path] = None,
+        game_profile: GameProfileId = GameProfileId.NCAA_FOOTBALL_27,
     ):
         self.bus = bus
         self.session_head_ns = session_head_ns
@@ -825,17 +834,18 @@ class GameAutoDetector:
         label = game_match.group(1).lower().strip()
 
         # Reject if the model echoed the option list with pipes
-        if "|" in label or label not in {"ncaa_football_27", "call_of_duty", "menu", "unknown"}:
+        valid_labels = {"ncaa_football_27", "call_of_duty", "menu", "unknown"}
+        valid_labels |= set(GAME_PROFILE_ALIASES.keys())
+        if "|" in label or label not in valid_labels:
             return None, 0.0
 
         confidence = float(conf_match.group(1)) if conf_match else 0.7
 
-        mapping = {
-            "ncaa_football_27": GameProfileId.NCAA_FOOTBALL_27,
-            "call_of_duty": GameProfileId.CALL_OF_DUTY,
-        }
-
-        return mapping.get(label), confidence
+        try:
+            profile_id = get_game_profile(label).profile_id
+        except ValueError:
+            return None, 0.0
+        return profile_id, confidence
 
 
 def create_game_detector(

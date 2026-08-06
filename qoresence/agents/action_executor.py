@@ -38,6 +38,15 @@ class ActionResult:
 class ActionExecutor:
     """Dispatch scored moments to backends."""
 
+    # Canonical action -> preferred backend name(s). Unknown or unmapped
+    # actions fall back to trying all backends in order.
+    ACTION_ROUTING: dict[str, tuple[str, ...]] = {
+        "chat": ("twitch_chat",),
+        "clip": ("twitch_clip",),
+        "start_prediction": ("twitch_prediction",),
+        "resolve_prediction": ("twitch_prediction",),
+    }
+
     def __init__(self, backends: list[Backend] | None = None):
         self.backends = backends or []
 
@@ -76,7 +85,18 @@ class ActionExecutor:
         }
 
         results: list[ActionResult] = []
-        for backend in self.backends:
+        allowed_names = self.ACTION_ROUTING.get(moment.action)
+        if allowed_names is not None:
+            candidates = [b for b in self.backends if b.name() in allowed_names]
+            if not candidates:
+                log.warning(
+                    f"No preferred backend for action {moment.action}; falling back"
+                )
+                candidates = self.backends
+        else:
+            candidates = self.backends
+
+        for backend in candidates:
             try:
                 success = backend.execute(moment.action, payload)
                 results.append(ActionResult(

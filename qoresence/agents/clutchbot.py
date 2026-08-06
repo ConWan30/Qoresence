@@ -152,6 +152,10 @@ class ClutchBotAgent:
             }
             results = self._executor.execute(moment, context)
 
+            # Only count chat if it actually reached a backend successfully
+            if moment.action == "chat" and any(r.success for r in results):
+                self._record_chat_sent()
+
             self._emit_agent_action(moment, results)
             self._memory.record(
                 moment=moment,
@@ -178,8 +182,6 @@ class ClutchBotAgent:
                 log.debug("ClutchBot hit per-minute message limit")
                 return False
 
-            self._messages_this_minute += 1
-
         # Global cooldown per action type
         last = self._last_action_time.get(moment.action, 0.0)
         cooldown_s = self._cooldown_for(moment.action)
@@ -189,15 +191,25 @@ class ClutchBotAgent:
 
         return True
 
-    @staticmethod
-    def _cooldown_for(action: str) -> float:
+    def _record_chat_sent(self) -> None:
+        """Increment per-minute chat counter after a successful send."""
+        now = time.time()
+        if now - self._minute_start >= 60.0:
+            self._minute_start = now
+            self._messages_this_minute = 0
+        self._messages_this_minute += 1
+
+    def _cooldown_for(self, action: str) -> float:
+        base = self.config.message_cooldown_s
         if action == "chat":
-            return 30.0
+            return base
         if action == "clip":
-            return 60.0
-        if action in ("start_prediction", "resolve_prediction"):
+            return max(60.0, base)
+        if action == "start_prediction":
+            return max(120.0, base)
+        if action == "resolve_prediction":
             return 5.0
-        return 0.0
+        return max(10.0, base)
 
     def _emit_agent_action(self, moment: ScoredMoment, results: list[Any]) -> None:
         self.bus.emit_raw(
@@ -221,7 +233,9 @@ class ClutchBotAgent:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _build_features(self) -> set[str]:
-        features: set[str] = {"chat"}
+        features: set[str] = set()
+        if self.config.enable_chat:
+            features.add("chat")
         tw = self.config.twitch
         if tw and tw.enabled:
             if tw.enable_clips:
@@ -257,7 +271,7 @@ class ClutchBotAgent:
             )
 
             if tw.enable_clips:
-                backends.append(_TwitchClipBackend(self._helix_client, irc_client))
+                backends.append(_TwitchClipBackend(self._helix_client, irc_client, has_delay=self.config.clip_has_delay))
 
             if tw.enable_predictions:
                 backends.append(_TwitchPredictionBackend(self._helix_client, irc_client))
@@ -343,11 +357,12 @@ class _TwitchChatBackend:
 
 
 class _TwitchClipBackend:
-    """Creates Twitch clips and announces the edit URL in chat."""
+    """Creates Twitch clips and announces the public URL in chat."""
 
-    def __init__(self, helix: TwitchHelixClient, irc: TwitchIRCClient | None):
+    def __init__(self, helix: TwitchHelixClient, irc: TwitchIRCClient | None, has_delay: bool = True):
         self.helix = helix
         self.irc = irc
+        self.has_delay = has_delay
 
     def name(self) -> str:
         return "twitch_clip"
@@ -362,12 +377,13 @@ class _TwitchClipBackend:
         if action != "clip":
             return False
 
-        result = self.helix.create_clip()
+        result = self.helix.create_clip(has_delay=self.has_delay)
         if not result:
             return False
 
         if self.irc:
-            message = f"🎬 Clutch clip: {result.edit_url}"
+            clip_url = result.url or result.edit_url
+            message = f"🎬 Clutch clip: {clip_url}"
             self.irc.send_message(message)
 
         return True
@@ -391,10 +407,12 @@ class _TwitchPredictionBackend:
 
     def execute(self, action: str, payload: dict[str, Any]) -> bool:
         if action == "start_prediction":
-            title = payload.get("payload", {}).get("title") or payload.get("message", "Will it happen?")
-            outcomes = payload.get("payload", {}).get("outcomes") or ["Yes", "No"]
-            window_s = payload.get("payload", {}).get("window_s") or 120
-            result = self.helix.create_prediction(title, outcomes, window_s)
+            inner = payload.get("payload", {})
+            title = inner.get("title") or payload.get("message", "Will it happen?")
+            outcomes = inner.get("outcomes") or ["Yes", "No"]
+            window_s = inner.get("window_s") or 120
+            offense = inner.get("offense")
+            result = self.helix.create_prediction(title, outcomes, window_s, offense=offense)
             if result and self.irc:
                 self.irc.send_message(f"📊 Prediction live: {result.title}")
             return result is not None

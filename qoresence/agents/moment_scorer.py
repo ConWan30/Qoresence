@@ -9,10 +9,12 @@ later.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from .helix_client import PredictionResult
@@ -38,9 +40,88 @@ class ScoredMoment:
 class MomentScorer:
     """Score game situations and generate actions."""
 
+    # Built-in message templates keyed by situation. Format placeholders:
+    # {home_score}, {away_score}, {quarter}, {down}, {yards_to_go},
+    # {possession}, {field_position}, {game_title}.
+    DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
+        "neutral": {
+            "score_changed": "Score update: {home_score}-{away_score}.",
+            "turnover": "Turnover!",
+            "first_down": "First down in the red zone — {possession}.",
+            "possession_changed": "Possession changes to {possession}.",
+            "red_zone_drive": "Red zone drive — {home_score}-{away_score} Q{quarter}.",
+            "game_detected": "Qoresence is locked on: {game_title}.",
+            "start_prediction": "Will they score on this drive?",
+            "resolve_prediction_yes": "Drive result: score!",
+            "resolve_prediction_no": "Drive result: no score.",
+            "kill": "Kill confirmed — {score}!",
+            "death": "Down!",
+            "multi_kill": "Multi-kill! {score}!",
+            "clip": "Clutch clip incoming!",
+        },
+        "hype": {
+            "score_changed": "SCORE! {home_score}-{away_score}!",
+            "turnover": "TURNOVER! Momentum shift!",
+            "first_down": "FIRST DOWN! {possession} keeps it moving!",
+            "possession_changed": "Ball changes hands! {possession} takes over!",
+            "clip": "THAT WAS CLUTCH! 🎬",
+            "red_zone_drive": "RED ZONE ALERT! {home_score}-{away_score} Q{quarter}!",
+            "game_detected": "We are LIVE on {game_title}!",
+            "start_prediction": "Are they punching it in?!",
+            "resolve_prediction_yes": "CALLED IT! TOUCHDOWN/SCORE!",
+            "resolve_prediction_no": "Drive stalls! No dice.",
+            "kill": "ELIMINATED! {score}!",
+            "death": "DOWNED!",
+            "multi_kill": "MULTI-KILL! {score}!",
+            "clip": "THAT WAS CLUTCH! 🎬",
+        },
+    }
+
     def __init__(self, persona: str = "neutral"):
         self.persona = persona
+        self._templates = self._load_templates(persona)
         self._last_trigger: dict[tuple[str, str], float] = {}
+
+    def _load_templates(self, persona: str) -> dict[str, str]:
+        """Load persona templates from built-ins or a JSON file path."""
+        if persona in self.DEFAULT_TEMPLATES:
+            return self.DEFAULT_TEMPLATES[persona]
+
+        path = Path(persona)
+        if path.is_file():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+            except Exception as e:
+                log.warning(f"Failed to load persona from {persona}: {e}")
+
+        log.warning(f"Unknown persona '{persona}'; using neutral")
+        return self.DEFAULT_TEMPLATES["neutral"]
+
+    def _message(self, key: str, state: SituationState, **extra: Any) -> str:
+        """Format a persona-aware message."""
+        template = self._templates.get(key, self.DEFAULT_TEMPLATES["neutral"].get(key, ""))
+        if not template:
+            return ""
+
+        fmt = {
+            "home_score": state.home_score if state.home_score is not None else "?",
+            "away_score": state.away_score if state.away_score is not None else "?",
+            "quarter": state.quarter or "?",
+            "down": state.down or "?",
+            "yards_to_go": state.yards_to_go or "?",
+            "possession": state.possession or "",
+            "field_position": state.field_position or "",
+            "game_title": state.game_title or state.game_profile or "the game",
+        }
+        fmt.update({k: v if v is not None else "" for k, v in extra.items()})
+
+        try:
+            return template.format(**fmt)
+        except (KeyError, ValueError):
+            return template
 
     def score(
         self,
@@ -114,6 +195,12 @@ class MomentScorer:
         if event_name == "possession_changed":
             return self._score_possession_change(state, fields, active_prediction, features)
 
+        if event_name == "kill":
+            return self._score_kill(state, fields, features)
+
+        if event_name == "death":
+            return self._score_death(state, fields, features)
+
         return []
 
     def _score_score_changed(
@@ -163,16 +250,22 @@ class MomentScorer:
                     moments.append(clip)
 
             if "prediction" in features and active_prediction:
-                resolve = self._build_moment(
-                    weight=0.9,
-                    action="resolve_prediction",
-                    message="Drive result: score!",
-                    reason="score_changed resolves prediction",
-                    cooldown_key="prediction_resolve",
-                    payload={"winning_outcome_index": 0},
-                )
-                if resolve.triggered:
-                    moments.append(resolve)
+                scoring_team = self._scoring_team(fields, state)
+                if scoring_team is not None:
+                    winning_index = 0 if scoring_team == active_prediction.offense else 1
+                    resolve = self._build_moment(
+                        weight=0.9,
+                        action="resolve_prediction",
+                        message=self._message(
+                            "resolve_prediction_yes" if winning_index == 0 else "resolve_prediction_no",
+                            state,
+                        ),
+                        reason="score_changed resolves prediction",
+                        cooldown_key="prediction_resolve",
+                        payload={"winning_outcome_index": winning_index},
+                    )
+                    if resolve.triggered:
+                        moments.append(resolve)
 
         return moments
 
@@ -209,16 +302,18 @@ class MomentScorer:
                 moments.append(clip)
 
         if chat.triggered and "prediction" in features and active_prediction:
-            resolve = self._build_moment(
-                weight=0.9,
-                action="resolve_prediction",
-                message="Drive result: turnover",
-                reason="turnover resolves prediction as loss",
-                cooldown_key="prediction_resolve",
-                payload={"winning_outcome_index": 1},
-            )
-            if resolve.triggered:
-                moments.append(resolve)
+            losing_team = fields.get("prev_possession") or state.possession
+            if losing_team == active_prediction.offense:
+                resolve = self._build_moment(
+                    weight=0.9,
+                    action="resolve_prediction",
+                    message=self._message("resolve_prediction_no", state),
+                    reason="turnover resolves prediction as loss",
+                    cooldown_key="prediction_resolve",
+                    payload={"winning_outcome_index": 1},
+                )
+                if resolve.triggered:
+                    moments.append(resolve)
 
         return moments
 
@@ -247,24 +342,83 @@ class MomentScorer:
         moments: list[ScoredMoment] = [chat] if chat.triggered else []
 
         if chat.triggered and "prediction" in features and active_prediction:
-            resolve = self._build_moment(
-                weight=0.85,
-                action="resolve_prediction",
-                message="Drive result: no score",
-                reason="possession change resolves prediction as loss",
-                cooldown_key="prediction_resolve",
-                payload={"winning_outcome_index": 1},
-            )
-            if resolve.triggered:
-                moments.append(resolve)
+            losing_team = fields.get("prev_possession") or state.possession
+            if losing_team == active_prediction.offense:
+                resolve = self._build_moment(
+                    weight=0.85,
+                    action="resolve_prediction",
+                    message=self._message("resolve_prediction_no", state),
+                    reason="possession change resolves prediction as loss",
+                    cooldown_key="prediction_resolve",
+                    payload={"winning_outcome_index": 1},
+                )
+                if resolve.triggered:
+                    moments.append(resolve)
 
         return moments
+
+    def _score_kill(
+        self,
+        state: SituationState,
+        fields: dict[str, Any],
+        features: set[str],
+    ) -> list[ScoredMoment]:
+        weight = 0.5
+        score = fields.get("score", state.score)
+        try:
+            streak = int(fields.get("streak_count", 1) or 1)
+        except (ValueError, TypeError):
+            streak = 1
+        if streak >= 3:
+            weight += 0.3
+        if state.game_category == "shooter" and (state.health is not None and state.health < 50):
+            weight += 0.1
+
+        key = "multi_kill" if streak >= 3 else "kill"
+        message = self._message(key, state, score=score or "?", streak=streak)
+
+        chat = self._build_moment(
+            weight=min(weight, 1.0),
+            action="chat",
+            message=message,
+            reason=key,
+            cooldown_key="kill",
+        )
+        moments: list[ScoredMoment] = [chat] if chat.triggered else []
+
+        if chat.triggered and "clip" in features and weight >= 0.8:
+            clip = self._build_moment(
+                weight=weight,
+                action="clip",
+                message=message,
+                reason=f"{key} — clip",
+                cooldown_key="clip",
+            )
+            if clip.triggered:
+                moments.append(clip)
+
+        return moments
+
+    def _score_death(
+        self,
+        state: SituationState,
+        fields: dict[str, Any],
+        features: set[str],
+    ) -> list[ScoredMoment]:
+        chat = self._build_moment(
+            weight=0.4,
+            action="chat",
+            message=self._message("death", state, health=fields.get("health", state.health)),
+            reason="death",
+            cooldown_key="death",
+        )
+        return [chat] if chat.triggered else []
 
     def _score_game_detected(self, state: SituationState) -> ScoredMoment:
         return self._build_moment(
             weight=0.4,
             action="chat",
-            message=f"Qoresence is locked on: {state.game_title or state.game_profile or 'game detected'}.",
+            message=self._message("game_detected", state),
             reason="game detected",
             cooldown_key="game_detected",
         )
@@ -285,7 +439,7 @@ class MomentScorer:
             chat = self._build_moment(
                 weight=0.6,
                 action="chat",
-                message=f"Late drive in the red zone — {state.home_score or '?'}-{state.away_score or '?'} Q{quarter}.",
+                message=self._message("red_zone_drive", state, quarter=quarter),
                 reason="late red-zone drive",
                 cooldown_key="late_drive",
             )
@@ -297,13 +451,14 @@ class MomentScorer:
             pred = self._build_moment(
                 weight=0.7,
                 action="start_prediction",
-                message="Will they score on this drive?",
+                message=self._message("start_prediction", state),
                 reason="red-zone, close game drive",
                 cooldown_key="prediction_start",
                 payload={
                     "title": "Score on this drive?",
                     "outcomes": ["Yes", "No"],
                     "window_s": 90,
+                    "offense": state.possession,
                 },
             )
             if pred.triggered:
@@ -311,55 +466,50 @@ class MomentScorer:
 
         return moments
 
+    def _scoring_team(self, fields: dict[str, Any], state: SituationState) -> str | None:
+        """Determine which team just scored from outcome fields and state."""
+        home = fields.get("home_score", state.home_score)
+        away = fields.get("away_score", state.away_score)
+        prev_home = fields.get("prev_home_score", state.home_score)
+        prev_away = fields.get("prev_away_score", state.away_score)
+
+        if home is None or away is None:
+            return None
+
+        try:
+            home = int(home)
+            away = int(away)
+            prev_home = int(prev_home) if prev_home is not None else home
+            prev_away = int(prev_away) if prev_away is not None else away
+        except (ValueError, TypeError):
+            return None
+
+        if home > prev_home:
+            return "home"
+        if away > prev_away:
+            return "away"
+        return None
+
     # ──────────────────────────────────────────────────────────────────────────
     # MESSAGE TEMPLATES
     # ──────────────────────────────────────────────────────────────────────────
 
     def _score_message(self, state: SituationState, home: Any, away: Any) -> str:
-        quarter = state.quarter
-        down = state.down
-        ytg = state.yards_to_go
-
-        prefix = "Score update"
-        if quarter:
-            prefix += f" — Q{quarter}"
-
-        score_str = f"{home or '?'} - {away or '?'}"
-        if state.possession:
-            score_str += f" | possession: {state.possession}"
-
-        if down is not None and ytg is not None:
-            score_str += f" | {down} & {ytg}"
-
+        extra = {"home_score": home or "?", "away_score": away or "?"}
         if state.controller.apm_5s > 80:
-            score_str += f" | APM {int(state.controller.apm_5s)}"
-
-        return f"{prefix}: {score_str}"
+            extra["apm"] = int(state.controller.apm_5s)
+        return self._message("score_changed", state, **extra)
 
     def _turnover_message(self, state: SituationState, fields: dict[str, Any]) -> str:
-        msg = "Turnover!"
-        if state.quarter:
-            msg += f" Q{state.quarter}"
-        if state.possession:
-            msg += f" — {state.possession} ball"
-        if state.home_score is not None and state.away_score is not None:
-            msg += f" | {state.home_score}-{state.away_score}"
-        return msg
+        return self._message("turnover", state)
 
     def _first_down_message(self, state: SituationState) -> str:
-        msg = "First down in the red zone"
-        if state.possession:
-            msg += f" — {state.possession}"
-        if state.down is not None and state.yards_to_go is not None:
-            msg += f" | {state.down} & {state.yards_to_go}"
-        return msg
+        return self._message("first_down", state)
 
     def _possession_message(self, state: SituationState, fields: dict[str, Any]) -> str:
         prev = fields.get("prev_possession")
         cur = fields.get("possession") or state.possession
-        if prev and cur:
-            return f"Red zone possession switch: {prev} → {cur}"
-        return f"Red zone possession change: {cur or 'unknown'}"
+        return self._message("possession_changed", state, prev_possession=prev or "", possession=cur or "")
 
     # ──────────────────────────────────────────────────────────────────────────
     # HELPERS

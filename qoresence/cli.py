@@ -25,6 +25,7 @@ from qoresence.core import (
     clock_ns,
 )
 from qoresence.fusion import PresenceFusionEngine, create_fusion_engine
+from qoresence.game_detection import GameAutoDetector
 from qoresence.lobes import (
     ControllerRuntime,
     OutcomeRuntime,
@@ -82,6 +83,7 @@ class QoresenceApp:
         self.outcome: OutcomeRuntime | None = None
         self.screen: ScreenRuntime | None = None
         self.visual: VisualRuntime | None = None
+        self.game_detector: GameAutoDetector | None = None
         self.fusion: PresenceFusionEngine | None = None
 
         # Agent runtimes
@@ -141,6 +143,23 @@ class QoresenceApp:
             )
             log.info("Visual lobe initialized")
 
+        # Game auto-detection (rich visual context for outcome + clutchbot)
+        if self.config.game_detection.enabled and self.config.visual.enabled:
+            self.game_detector = GameAutoDetector(
+                bus=self.bus,
+                session_head_ns=self.identity.session_head_ns,
+                vlm_client=self.visual._client,
+                confidence_threshold=self.config.game_detection.confidence_threshold,
+                stability_count=self.config.game_detection.stability_count,
+                poll_interval_s=self.config.game_detection.poll_interval_s,
+                learning_enabled=self.config.game_detection.learning_enabled,
+                learning_path=Path(self.config.game_detection.learning_path) if self.config.game_detection.learning_path else None,
+                ocr_provider=self.config.game_detection.ocr_provider,
+                model_dir=Path(self.config.game_detection.vision_model_dir) if self.config.game_detection.vision_model_dir else None,
+                game_profile=self.config.outcome.game_profile,
+            )
+            log.info("Game auto-detector initialized")
+
         # Fusion engine (always created for presence reports)
         self.fusion = create_fusion_engine(
             config=self.config,
@@ -189,6 +208,23 @@ class QoresenceApp:
                     modalities['screen'] = {'coupling_score': 0.0}  # Would need screen coupling access
                 return modalities
             self.visual.set_modality_provider(modality_provider)
+
+        # Game detector ← Streamer/Screen (frames) and → Outcome (profile switch)
+        if self.game_detector:
+            if self.streamer:
+                self.game_detector.set_frame_provider(self.streamer.get_current_frame)
+            elif self.screen:
+                self.game_detector.set_frame_provider(self.screen.get_current_frame)
+            else:
+                log.warning(
+                    "Game auto-detection enabled but no frame source. "
+                    "Add --screen or --streamer (or run `pip install qoresence[screen]`)."
+                )
+
+            if self.outcome:
+                def switch_profile(profile_id):
+                    self.outcome.set_game_profile(profile_id)
+                self.game_detector.set_profile_switch_callback(switch_profile)
 
         # Fusion ← All lobes (lobe status updates)
         if self.fusion:
@@ -265,6 +301,9 @@ class QoresenceApp:
             log.error("Failed to start visual")
             return False
 
+        if self.game_detector:
+            self.game_detector.start()
+
         if self.fusion:
             self.fusion.start()
 
@@ -292,6 +331,9 @@ class QoresenceApp:
 
         if self.clutchbot:
             self.clutchbot.stop()
+
+        if self.game_detector:
+            self.game_detector.stop()
 
         if self.visual:
             self.visual.stop()
@@ -432,8 +474,8 @@ def setup_logging(level: str = "INFO") -> None:
 
 def create_config_from_args(args) -> RetinaUnifiedConfig:
     """Create config from CLI arguments."""
-    # This would use the unified config factory
-    # For now, create minimal config
+    from dataclasses import replace
+
     config = RetinaUnifiedConfig(
         session_id=args.session_id or "",
         session_head_ns=args.session_head_ns or 0,
@@ -444,52 +486,75 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         ws_port=args.ws_port,
     )
 
+    # Default frame source for --stream: screen if available, unless user picked streamer.
+    if args.stream and not args.screen and not args.streamer:
+        try:
+            import importlib.util
+            if importlib.util.find_spec("mss"):
+                args.screen = True
+                args.screen_fps = min(args.screen_fps, 5.0)
+                log.debug("--stream: defaulting to screen capture (5 fps)")
+        except Exception:
+            pass
+
     # Stream preset: enable the minimal ClutchBot capture stack
     if args.stream:
         config.enable_ws = True
-        config.outcome.enabled = True
-        config.outcome.game_profile = args.game_profile
-        config.visual.enabled = True
-        config.visual.frame_sample_rate = args.visual_sample_rate
+        config.outcome = replace(config.outcome, enabled=True, game_profile=args.game_profile)
+        config.visual = replace(config.visual, enabled=True, frame_sample_rate=args.visual_sample_rate)
+        config.game_detection = replace(config.game_detection, enabled=getattr(args, "game_detect", True))
+
+    if getattr(args, "game_detect", False):
+        config.game_detection = replace(config.game_detection, enabled=True)
+    if getattr(args, "no_game_detect", False):
+        config.game_detection = replace(config.game_detection, enabled=False)
+
+    # Game detection tuning
+    config.game_detection = replace(
+        config.game_detection,
+        confidence_threshold=getattr(args, "game_detect_confidence", config.game_detection.confidence_threshold),
+        stability_count=getattr(args, "game_detect_stability", config.game_detection.stability_count),
+        poll_interval_s=getattr(args, "game_detect_poll", config.game_detection.poll_interval_s),
+    )
 
     # Enable lobes based on flags
     if args.streamer:
-        config.streamer.enabled = True
-        config.streamer.capture_fps = args.streamer_fps
+        config.streamer = replace(config.streamer, enabled=True, capture_fps=args.streamer_fps)
     if args.controller:
-        config.controller.enabled = True
-        config.controller.poll_rate_hz = args.controller_rate
+        config.controller = replace(config.controller, enabled=True, poll_rate_hz=args.controller_rate)
     if args.outcome:
-        config.outcome.enabled = True
-        config.outcome.game_profile = args.game_profile
+        config.outcome = replace(config.outcome, enabled=True, game_profile=args.game_profile)
     if args.screen:
-        config.screen.enabled = True
-        config.screen.fps_target = args.screen_fps
+        config.screen = replace(config.screen, enabled=True, fps_target=args.screen_fps)
     if args.visual:
-        config.visual.enabled = True
-        config.visual.frame_sample_rate = args.visual_sample_rate
+        config.visual = replace(config.visual, enabled=True, frame_sample_rate=args.visual_sample_rate)
 
     # ClutchBot agent (explicit or via --stream preset)
     if args.clutchbot or args.stream:
-        config.clutchbot.enabled = True
-        config.clutchbot.twitch = TwitchConfig(
-            enabled=args.clutchbot_channel != "",
-            channel=args.clutchbot_channel,
-            bot_username=args.clutchbot_username,
-            oauth_token=args.clutchbot_token,
-            token_file=args.clutchbot_token_file,
-            helix_token=args.clutchbot_helix_token,
-            helix_token_file=args.clutchbot_helix_token_file,
-            client_id=args.clutchbot_client_id,
-            client_secret=args.clutchbot_client_secret,
-            broadcaster_id=args.clutchbot_broadcaster_id,
-            broadcaster_username=args.clutchbot_broadcaster_username,
-            message_interval_s=args.clutchbot_interval,
-            enable_clips=args.clutchbot_enable_clips,
-            enable_predictions=args.clutchbot_enable_predictions,
-            enable_follow_alerts=args.clutchbot_enable_follow_alerts,
-            enable_sub_alerts=args.clutchbot_enable_sub_alerts,
-            enable_redemption_alerts=args.clutchbot_enable_redemption_alerts,
+        config.clutchbot = replace(
+            config.clutchbot,
+            enabled=True,
+            enable_chat=not args.clutchbot_no_chat,
+            clip_has_delay=not args.clutchbot_no_clip_delay,
+            twitch=TwitchConfig(
+                enabled=args.clutchbot_channel != "",
+                channel=args.clutchbot_channel,
+                bot_username=args.clutchbot_username,
+                oauth_token=args.clutchbot_token,
+                token_file=args.clutchbot_token_file,
+                helix_token=args.clutchbot_helix_token,
+                helix_token_file=args.clutchbot_helix_token_file,
+                client_id=args.clutchbot_client_id,
+                client_secret=args.clutchbot_client_secret,
+                broadcaster_id=args.clutchbot_broadcaster_id,
+                broadcaster_username=args.clutchbot_broadcaster_username,
+                message_interval_s=args.clutchbot_interval,
+                enable_clips=args.clutchbot_enable_clips,
+                enable_predictions=args.clutchbot_enable_predictions,
+                enable_follow_alerts=args.clutchbot_enable_follow_alerts,
+                enable_sub_alerts=args.clutchbot_enable_sub_alerts,
+                enable_redemption_alerts=args.clutchbot_enable_redemption_alerts,
+            ),
         )
 
     return config
@@ -526,11 +591,27 @@ def main():
     parser.add_argument("--controller", action="store_true", help="Enable controller lobe (HID)")
     parser.add_argument("--controller-rate", type=float, default=1000.0, help="Controller poll rate (Hz)")
     parser.add_argument("--outcome", action="store_true", help="Enable outcome lobe (game events)")
-    parser.add_argument("--game-profile", choices=["ncaa_football_27", "call_of_duty"], default="ncaa_football_27")
+    parser.add_argument(
+        "--game-profile",
+        choices=[
+            "ncaa_football_27", "call_of_duty",
+            "madden_27", "madden_2027", "ncaa_27", "college_football_27",
+            "ea_sports_college_football_27", "cod", "modern_warfare", "warzone",
+        ],
+        default="ncaa_football_27",
+        help="Game profile (supports common aliases)",
+    )
     parser.add_argument("--screen", action="store_true", help="Enable screen lobe (mss/DXGI)")
     parser.add_argument("--screen-fps", type=float, default=60.0, help="Screen capture FPS")
     parser.add_argument("--visual", action="store_true", help="Enable visual lobe (VLM)")
     parser.add_argument("--visual-sample-rate", type=int, default=30, help="Visual frame sample rate")
+
+    # Game detection (rich visual context for outcome/clutchbot)
+    parser.add_argument("--game-detect", action="store_true", help="Enable game auto-detection (enabled by --stream)")
+    parser.add_argument("--no-game-detect", action="store_true", help="Disable game auto-detection even in --stream")
+    parser.add_argument("--game-detect-confidence", type=float, default=0.65, help="Game detection confidence threshold")
+    parser.add_argument("--game-detect-stability", type=int, default=2, help="Consecutive detections required")
+    parser.add_argument("--game-detect-poll", type=float, default=3.0, help="Game detection poll interval (s)")
 
     # ClutchBot (Twitch agent)
     parser.add_argument("--clutchbot", action="store_true", help="Enable ClutchBot Twitch agent")
@@ -545,7 +626,9 @@ def main():
     parser.add_argument("--clutchbot-broadcaster-id", default=None, help="Twitch broadcaster user ID")
     parser.add_argument("--clutchbot-broadcaster-username", default=None, help="Twitch broadcaster login name")
     parser.add_argument("--clutchbot-interval", type=float, default=2.0, help="Minimum seconds between sent IRC messages")
+    parser.add_argument("--clutchbot-no-chat", action="store_true", help="Disable chat/greeting actions")
     parser.add_argument("--clutchbot-enable-clips", action="store_true", help="Create clips on clutch moments")
+    parser.add_argument("--clutchbot-no-clip-delay", action="store_true", help="Disable delay when creating clips (default: has delay)")
     parser.add_argument("--clutchbot-enable-predictions", action="store_true", help="Start channel-point predictions")
     parser.add_argument("--clutchbot-enable-follow-alerts", action="store_true", help="EventSub follow alerts")
     parser.add_argument("--clutchbot-enable-sub-alerts", action="store_true", help="EventSub subscription alerts")

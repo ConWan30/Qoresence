@@ -43,10 +43,13 @@ validation) are noted but not on the critical path.
 - [x] `tests/test_clutchbot.py`
 
 ## Phase 4 — Packaging & Polish
-- [ ] `scripts/run_qoresence.py` or `qoresence` background entry point
-- [ ] `--stream` preset that enables outcome, visual, clutchbot, and WebSocket
+- [x] `qoresence` CLI entry point (`qoresence/cli.py`)
+- [x] `--stream` preset enables outcome, visual, game-detection, clutchbot, and WebSocket
 - [ ] System tray / status indicator (optional)
 - [ ] Windows installer / one-liner launcher
+- [x] Game profile aliases (madden_27, cod, warzone, etc.)
+- [x] Persona-aware message templates (neutral, hype, custom JSON)
+- [x] Configurable clip `has_delay` and public clip URLs
 
 ## Phase 5 — Game Profile Expansion
 - [ ] Additional football event types (sack, interception, two-point conversion)

@@ -99,28 +99,41 @@ class SituationModel:
             return
 
         self._last_visual_context_ns = event.clock_ns
-        self._state.game_state = ctx.game_state.value if ctx.game_state else None
-        self._state.game_category = ctx.game_category.value if ctx.game_category else None
-        self._state.game_title = ctx.game_title
+        if ctx.game_state is not None:
+            self._state.game_state = ctx.game_state.value if hasattr(ctx.game_state, "value") else str(ctx.game_state)
+        if ctx.game_category is not None:
+            self._state.game_category = ctx.game_category.value if hasattr(ctx.game_category, "value") else str(ctx.game_category)
+        if ctx.game_title:
+            self._state.game_title = ctx.game_title
         self._state.visual_confidence = ctx.confidence
 
         if ctx.game_category and ctx.game_category.value == "football":
-            self._state.home_score = ctx.home_score
-            self._state.away_score = ctx.away_score
-            self._state.quarter = ctx.quarter
-            self._state.down = ctx.down
-            self._state.yards_to_go = ctx.yards_to_go
-            self._state.possession = ctx.possession
-            self._state.field_position = ctx.field_position
-            self._state.play_clock = ctx.play_clock
-            self._state.game_clock_seconds = ctx.clock_seconds
+            self._apply_if_set(
+                home_score=ctx.home_score,
+                away_score=ctx.away_score,
+                quarter=ctx.quarter,
+                down=ctx.down,
+                yards_to_go=ctx.yards_to_go,
+                possession=ctx.possession,
+                field_position=ctx.field_position,
+                play_clock=ctx.play_clock,
+                game_clock_seconds=ctx.clock_seconds,
+            )
 
         if ctx.game_category and ctx.game_category.value == "shooter":
-            self._state.health = ctx.health
-            self._state.ammo = ctx.ammo
-            self._state.kills = ctx.kills
-            self._state.deaths = ctx.deaths
-            self._state.score = ctx.score
+            self._apply_if_set(
+                health=ctx.health,
+                ammo=ctx.ammo,
+                kills=ctx.kills,
+                deaths=ctx.deaths,
+                score=ctx.score,
+            )
+
+    def _apply_if_set(self, **kwargs: Any) -> None:
+        """Update state fields only when the incoming value is not None."""
+        for key, value in kwargs.items():
+            if value is not None and value != "":
+                setattr(self._state, key, value)
 
     def _handle_outcome_event(self, payload: dict[str, Any]) -> None:
         self._state.last_outcome_event = payload.get("event_name")
