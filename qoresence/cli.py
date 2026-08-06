@@ -377,7 +377,7 @@ class QoresenceApp:
                 "visual": self.visual.is_running() if self.visual else False,
                 "fusion": self.fusion.is_running() if self.fusion else False,
             },
-            "bus_stats": self.bus.get_stats(),
+            "bus_stats": self.bus.stats(),
         }
         if self.trio_config and self.trio_config.enabled:
             status["trio_retina"] = self.bus.get_trio_stats()
@@ -398,7 +398,7 @@ def run_health_checks(app: QoresenceApp) -> dict:
     }
 
     # Check event bus
-    bus_stats = app.bus.get_stats()
+    bus_stats = (app.bus.stats() if hasattr(app.bus, "stats") else app.bus.get_stats())  # type: ignore
     checks["components"]["event_bus"] = {
         "status": "healthy" if bus_stats.get("subscribers", 0) >= 0 else "degraded",
         "details": bus_stats,
