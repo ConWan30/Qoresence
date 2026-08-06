@@ -538,7 +538,15 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
 
     # Enable lobes based on flags
     if args.streamer:
-        config.streamer = replace(config.streamer, enabled=True, capture_fps=args.streamer_fps)
+        config.streamer = replace(
+            config.streamer,
+            enabled=True,
+            device_index=getattr(args, "streamer_device", 0),
+            backend=getattr(args, "streamer_backend", "dshow"),
+            width=getattr(args, "streamer_width", 1280),
+            height=getattr(args, "streamer_height", 720),
+            fps_target=args.streamer_fps,
+        )
     if args.controller:
         config.controller = replace(config.controller, enabled=True, poll_rate_hz=args.controller_rate)
     if args.outcome:
@@ -612,6 +620,10 @@ def main():
     # Lobes
     parser.add_argument("--streamer", action="store_true", help="Enable streamer lobe (UVC/OBS)")
     parser.add_argument("--streamer-fps", type=float, default=30.0, help="Streamer capture FPS")
+    parser.add_argument("--streamer-device", type=int, default=0, help="Streamer DShow/MSMF device index (0=USB3.0 Video, 1=720p HD Camera [blocked], 2=OBS Virtual Camera)")
+    parser.add_argument("--streamer-backend", choices=["auto", "dshow", "msmf"], default="dshow", help="Capture backend (dshow recommended for USB3.0 Video, msmf for some cards)")
+    parser.add_argument("--streamer-width", type=int, default=1280, help="Capture width")
+    parser.add_argument("--streamer-height", type=int, default=720, help="Capture height")
     parser.add_argument("--controller", action="store_true", help="Enable controller lobe (HID)")
     parser.add_argument("--controller-rate", type=float, default=1000.0, help="Controller poll rate (Hz)")
     parser.add_argument("--outcome", action="store_true", help="Enable outcome lobe (game events)")

@@ -119,8 +119,8 @@ class LocalVLMClient:
         edges = cv2.Canny(gray, 80, 180)
         edge_density = float((edges > 0).mean())
         mean_luma = float(gray.mean())
-        has_scoreboard = mean_luma > 30 and edge_density > 0.04
-        if green_ratio > 0.18 and has_scoreboard:
+        has_scoreboard = mean_luma > 30 and edge_density > 0.02
+        if green_ratio > 0.06 and has_scoreboard:
             return VisualContext(game_state=GameState.GAMEPLAY, game_category=GameCategory.FOOTBALL, confidence=0.72, frame_quality="ok")
         if edge_density > 0.06 and green_ratio < 0.08:
             return VisualContext(game_state=GameState.GAMEPLAY, game_category=GameCategory.SHOOTER, confidence=0.62, frame_quality="ok")
