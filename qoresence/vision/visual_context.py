@@ -58,6 +58,8 @@ class VisualContext:
     health: Optional[int] = None
     ammo: Optional[int] = None
     score: Optional[int] = None
+    kills: Optional[int] = None
+    deaths: Optional[int] = None
     round_info: str = ""
     enemies_visible: int = 0
     is_combat: bool = False
@@ -217,6 +219,14 @@ class VisualContext:
         ctx.health = _to_int(sh.get("health"))
         ctx.ammo = _to_int(sh.get("ammo"))
         ctx.score = _to_int(sh.get("score"))
+        # kills/deaths: new fields (also accept legacy flat score / details)
+        ctx.kills = _to_int(sh.get("kills")) if sh.get("kills") is not None else _to_int(raw.get("kills"))
+        ctx.deaths = _to_int(sh.get("deaths")) if sh.get("deaths") is not None else _to_int(raw.get("deaths"))
+        # fallback: details.kills/deaths or score as kills
+        if ctx.kills is None and isinstance(ctx.details, dict) and ctx.details.get("kills") is not None:
+            ctx.kills = _to_int(ctx.details.get("kills"))
+        if ctx.deaths is None and isinstance(ctx.details, dict) and ctx.details.get("deaths") is not None:
+            ctx.deaths = _to_int(ctx.details.get("deaths"))
         ctx.round_info = str(sh.get("round_info", ""))
         ctx.enemies_visible = int(sh.get("enemies_visible", 0))
         ctx.is_combat = bool(sh.get("is_combat", False))

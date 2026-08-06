@@ -122,11 +122,11 @@ class SituationModel:
 
         if ctx.game_category and ctx.game_category.value == "shooter":
             self._apply_if_set(
-                health=ctx.health,
-                ammo=ctx.ammo,
-                kills=ctx.kills,
-                deaths=ctx.deaths,
-                score=ctx.score,
+                health=getattr(ctx, "health", None),
+                ammo=getattr(ctx, "ammo", None),
+                kills=getattr(ctx, "kills", None),
+                deaths=getattr(ctx, "deaths", None),
+                score=getattr(ctx, "score", None),
             )
 
     def _apply_if_set(self, **kwargs: Any) -> None:

@@ -287,8 +287,8 @@ class QoresenceApp:
             return False
 
         if self.controller and not self.controller.start():
-            log.error("Failed to start controller")
-            return False
+            log.warning("Controller failed to start (HID busy/permissions) — continuing without controller; coupling_score will be 0 until replug")
+            # don't return False — screen+visual still produce 10k
 
         if self.outcome:
             self.outcome.start()
@@ -517,6 +517,25 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         poll_interval_s=getattr(args, "game_detect_poll", config.game_detection.poll_interval_s),
     )
 
+    # Honor VisualConfig env overrides even when launched via --stream (fix 401 fallback)
+    import os as _os
+    _prefer = _os.environ.get("QORESENCE_VISUAL_PREFER_LOCAL", "").lower() in ("1", "true", "yes", "on")
+    _fallback_env = _os.environ.get("QORESENCE_VISUAL_LOCAL_FALLBACK", "")
+    _fallback = True if _fallback_env == "" else _fallback_env.lower() in ("1", "true", "yes", "on")
+    _local_model = _os.environ.get("QORESENCE_VISUAL_LOCAL_MODEL") or None
+    if _prefer or _local_model is not None or _fallback_env != "":
+        from dataclasses import replace as _replace2
+        config.visual = _replace2(
+            config.visual,
+            prefer_local=_prefer or config.visual.prefer_local,
+            local_fallback=_fallback,
+            local_model_path=_local_model or config.visual.local_model_path,
+        )
+    # CLI flag override (if added)
+    if getattr(args, "visual_prefer_local", False):
+        from dataclasses import replace as _replace3
+        config.visual = _replace3(config.visual, prefer_local=True)
+
     # Enable lobes based on flags
     if args.streamer:
         config.streamer = replace(config.streamer, enabled=True, capture_fps=args.streamer_fps)
@@ -527,7 +546,12 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
     if args.screen:
         config.screen = replace(config.screen, enabled=True, fps_target=args.screen_fps)
     if args.visual:
-        config.visual = replace(config.visual, enabled=True, frame_sample_rate=args.visual_sample_rate)
+        _vlm_extra = {}
+        if getattr(args, "visual_local_model", None):
+            _vlm_extra["local_model_path"] = args.visual_local_model
+        if getattr(args, "visual_prefer_local", False):
+            _vlm_extra["prefer_local"] = True
+        config.visual = replace(config.visual, enabled=True, frame_sample_rate=args.visual_sample_rate, **_vlm_extra)
 
     # ClutchBot agent (explicit or via --stream preset)
     if args.clutchbot or args.stream:
@@ -605,6 +629,8 @@ def main():
     parser.add_argument("--screen-fps", type=float, default=60.0, help="Screen capture FPS")
     parser.add_argument("--visual", action="store_true", help="Enable visual lobe (VLM)")
     parser.add_argument("--visual-sample-rate", type=int, default=30, help="Visual frame sample rate")
+    parser.add_argument("--visual-prefer-local", action="store_true", help="Use LocalVLMClient (heuristic/ONNX) instead of cloud VLM")
+    parser.add_argument("--visual-local-model", default=None, help="Path to qoresence-vlm-distilled.onnx")
 
     # Game detection (rich visual context for outcome/clutchbot)
     parser.add_argument("--game-detect", action="store_true", help="Enable game auto-detection (enabled by --stream)")
