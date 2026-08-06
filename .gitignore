@@ -58,3 +58,4 @@ game_detection_learning.jsonl
 *.secret
 .env.local
 .secrets
+data/
