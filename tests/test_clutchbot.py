@@ -13,6 +13,7 @@ from qoresence.agents import (
     MomentScorer,
     SessionMemory,
     SituationModel,
+    TwitchHelixClient,
     TwitchIRCClient,
 )
 from qoresence.agents.moment_scorer import ScoredMoment
@@ -132,16 +133,16 @@ class TestMomentScorer:
             "confidence": 0.9,
             "fields": {"home_score": 21, "away_score": 14, "prev_home_score": 14},
         }
-        moment = scorer.score(state, event_type="outcome_event", event_payload=payload)
-        assert moment.triggered is True
-        assert moment.action == "chat"
-        assert "Score update" in moment.message
+        moments = scorer.score(state, event_type="outcome_event", event_payload=payload)
+        assert any(m.triggered and m.action == "chat" for m in moments)
+        chat = next(m for m in moments if m.triggered and m.action == "chat")
+        assert "Score update" in chat.message
 
     def test_menu_state_is_ignored(self):
         scorer = MomentScorer()
         state = SituationState(game_state="menu")
-        moment = scorer.score(state, event_type="outcome_event", event_payload={"event_name": "score_changed"})
-        assert moment.triggered is False
+        moments = scorer.score(state, event_type="outcome_event", event_payload={"event_name": "score_changed"})
+        assert not any(m.triggered for m in moments)
 
     def test_cooldown_prevents_spam(self):
         scorer = MomentScorer()
@@ -163,10 +164,55 @@ class TestMomentScorer:
         }
 
         m1 = scorer.score(state, event_type="outcome_event", event_payload=payload)
-        assert m1.triggered is True
+        assert any(m.triggered for m in m1)
 
         m2 = scorer.score(state, event_type="outcome_event", event_payload=payload)
-        assert m2.triggered is False  # cooldown
+        assert not any(m.triggered for m in m2)
+
+    def test_score_changed_can_trigger_clip(self):
+        scorer = MomentScorer()
+        state = SituationState(
+            game_state="gameplay",
+            game_profile="ncaa_football_27",
+            home_score=14,
+            away_score=14,
+            quarter=4,
+            down=1,
+            yards_to_go=10,
+            possession="home",
+        )
+        payload = {
+            "event_name": "score_changed",
+            "profile_id": "ncaa_football_27",
+            "confidence": 0.9,
+            "fields": {"home_score": 21, "away_score": 14},
+        }
+        moments = scorer.score(
+            state,
+            event_type="outcome_event",
+            event_payload=payload,
+            features={"chat", "clip"},
+        )
+        assert any(m.action == "clip" for m in moments)
+
+    def test_visual_context_can_start_prediction(self):
+        scorer = MomentScorer()
+        state = SituationState(
+            game_state="gameplay",
+            game_profile="ncaa_football_27",
+            home_score=14,
+            away_score=14,
+            quarter=4,
+            down=1,
+            field_position="opp 10",
+            possession="home",
+        )
+        moments = scorer.score(
+            state,
+            event_type="visual_context",
+            features={"chat", "prediction"},
+        )
+        assert any(m.action == "start_prediction" for m in moments)
 
 
 class TestActionExecutor:
@@ -325,6 +371,71 @@ class TestClutchBotAgent:
             agent_actions = [e for e in events if e["type"] == "agent_action"]
             assert len(agent_actions) >= 1
             assert agent_actions[0]["payload"]["action"] == "chat"
+
+
+class TestTwitchHelixClient:
+    """Tests for the Twitch Helix client with mocked requests."""
+
+    def test_create_clip(self):
+        client = TwitchHelixClient(
+            client_id="test_client",
+            access_token="test_token",
+            broadcaster_id="12345",
+        )
+        with patch.object(client._session, "post") as mock_post:
+            resp = MagicMock()
+            resp.status_code = 202
+            resp.ok = True
+            resp.json.return_value = {
+                "data": [{
+                    "id": "CuriousDeliciousApple123",
+                    "edit_url": "https://clips.twitch.tv/edit/CuriousDeliciousApple123",
+                    "created_at": "2026-08-06T00:00:00Z",
+                }]
+            }
+            mock_post.return_value = resp
+
+            clip = client.create_clip()
+            assert clip is not None
+            assert clip.id == "CuriousDeliciousApple123"
+            assert "clips.twitch.tv" in clip.edit_url
+
+    def test_create_and_resolve_prediction(self):
+        client = TwitchHelixClient(
+            client_id="test_client",
+            access_token="test_token",
+            broadcaster_id="12345",
+        )
+        with patch.object(client._session, "post") as mock_post, patch.object(client._session, "patch") as mock_patch:
+            post_resp = MagicMock()
+            post_resp.status_code = 201
+            post_resp.ok = True
+            post_resp.json.return_value = {
+                "data": [{
+                    "id": "pred-1",
+                    "title": "Score on this drive?",
+                    "outcomes": [
+                        {"id": "out-yes", "title": "Yes"},
+                        {"id": "out-no", "title": "No"},
+                    ],
+                    "status": "ACTIVE",
+                }]
+            }
+            mock_post.return_value = post_resp
+
+            pred = client.create_prediction("Score on this drive?", ["Yes", "No"], 120)
+            assert pred is not None
+            assert pred.id == "pred-1"
+            assert client.active_prediction is not None
+
+            patch_resp = MagicMock()
+            patch_resp.status_code = 200
+            patch_resp.ok = True
+            patch_resp.json.return_value = {"data": [{"id": "pred-1", "status": "RESOLVED"}]}
+            mock_patch.return_value = patch_resp
+
+            assert client.resolve_prediction(0) is True
+            assert client.active_prediction is None
 
 
 if __name__ == "__main__":

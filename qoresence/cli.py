@@ -470,7 +470,15 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             bot_username=args.clutchbot_username,
             oauth_token=args.clutchbot_token,
             token_file=args.clutchbot_token_file,
+            helix_token=args.clutchbot_helix_token,
+            helix_token_file=args.clutchbot_helix_token_file,
+            client_id=args.clutchbot_client_id,
+            client_secret=args.clutchbot_client_secret,
+            broadcaster_id=args.clutchbot_broadcaster_id,
+            broadcaster_username=args.clutchbot_broadcaster_username,
             message_interval_s=args.clutchbot_interval,
+            enable_clips=args.clutchbot_enable_clips,
+            enable_predictions=args.clutchbot_enable_predictions,
         )
 
     return config
@@ -512,7 +520,15 @@ def main():
     parser.add_argument("--clutchbot-username", default="", help="Twitch bot username")
     parser.add_argument("--clutchbot-token", default=None, help="Twitch bot OAuth token")
     parser.add_argument("--clutchbot-token-file", default=None, help="File containing the Twitch bot OAuth token")
+    parser.add_argument("--clutchbot-helix-token", default=None, help="Twitch Helix access token (for clips/predictions)")
+    parser.add_argument("--clutchbot-helix-token-file", default=None, help="File containing the Twitch Helix token")
+    parser.add_argument("--clutchbot-client-id", default=None, help="Twitch application Client ID")
+    parser.add_argument("--clutchbot-client-secret", default=None, help="Twitch application Client Secret")
+    parser.add_argument("--clutchbot-broadcaster-id", default=None, help="Twitch broadcaster user ID")
+    parser.add_argument("--clutchbot-broadcaster-username", default=None, help="Twitch broadcaster login name")
     parser.add_argument("--clutchbot-interval", type=float, default=2.0, help="Minimum seconds between sent IRC messages")
+    parser.add_argument("--clutchbot-enable-clips", action="store_true", help="Create clips on clutch moments")
+    parser.add_argument("--clutchbot-enable-predictions", action="store_true", help="Start channel-point predictions")
 
     # Trio-retina (w3bstream validation)
     parser.add_argument("--trio", action="store_true", help="Enable trio-retina w3bstream validation")

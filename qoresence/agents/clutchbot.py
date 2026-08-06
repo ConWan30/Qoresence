@@ -25,6 +25,7 @@ from qoresence.core import (
 )
 
 from .action_executor import ActionExecutor, Backend
+from .helix_client import TwitchHelixClient
 from .moment_scorer import MomentScorer, ScoredMoment
 from .session_memory import SessionMemory
 from .situation_model import SituationModel
@@ -55,11 +56,13 @@ class ClutchBotAgent:
         self._memory = SessionMemory(
             output_path=Path(config.memory_path) if config.memory_path else None
         )
+        self._helix_client: TwitchHelixClient | None = None
 
+        self._features = self._build_features()
         for backend in self._build_backends():
             self._executor.add_backend(backend)
 
-        self._last_action_time = 0.0
+        self._last_action_time: dict[str, float] = {}
         self._messages_this_minute = 0
         self._minute_start = 0.0
 
@@ -81,6 +84,7 @@ class ClutchBotAgent:
         self._minute_start = time.time()
         log.info(
             f"ClutchBot started: persona={self.config.persona}, "
+            f"features={sorted(self._features)}, "
             f"max_chat_per_min={self.config.max_messages_per_min}"
         )
         return True
@@ -124,77 +128,75 @@ class ClutchBotAgent:
             self._maybe_act(event)
 
     def _maybe_act(self, event: BaseEvent) -> None:
-        if event.type == EventType.OUTCOME_EVENT:
-            moment = self._scorer.score(
-                self._situation.state,
-                event_type=event.type.value,
-                event_payload=event.payload,
-            )
-        elif event.type == EventType.GAME_DETECTED:
-            moment = self._scorer.score(
-                self._situation.state,
-                event_type=event.type.value,
-                event_payload=event.payload,
-            )
-        else:
-            # Visual context can trigger a chat update if score is close/late
-            if event.type == EventType.VISUAL_CONTEXT:
-                moment = self._scorer.score(
-                    self._situation.state,
-                    event_type=event.type.value,
-                    event_payload=event.payload,
-                )
-            else:
-                return
-
-        if not moment.triggered:
-            return
-
-        if not self._rate_limit_ok(moment):
-            return
-
-        context = {
-            "session_id": self.bus.session_id,
-            "event_type": event.type.value,
-            "event_clock_ns": event.clock_ns,
-        }
-        results = self._executor.execute(moment, context)
-
-        self._emit_agent_action(moment, results)
-        self._memory.record(
-            moment=moment,
-            situation=self._situation,
-            results=[
-                {"backend": r.backend, "action": r.action, "success": r.success, "detail": r.detail}
-                for r in results
-            ],
+        active_prediction = self._helix_client.active_prediction if self._helix_client else None
+        moments = self._scorer.score(
+            self._situation.state,
+            event_type=event.type.value,
+            event_payload=event.payload,
+            active_prediction=active_prediction,
+            features=self._features,
         )
 
-        self._last_action_time = time.time()
+        if not moments:
+            return
+
+        for moment in moments:
+            if not self._rate_limit_ok(moment):
+                continue
+
+            context = {
+                "session_id": self.bus.session_id,
+                "event_type": event.type.value,
+                "event_clock_ns": event.clock_ns,
+            }
+            results = self._executor.execute(moment, context)
+
+            self._emit_agent_action(moment, results)
+            self._memory.record(
+                moment=moment,
+                situation=self._situation,
+                results=[
+                    {"backend": r.backend, "action": r.action, "success": r.success, "detail": r.detail}
+                    for r in results
+                ],
+            )
+
+            self._last_action_time[moment.action] = time.time()
 
     def _rate_limit_ok(self, moment: ScoredMoment) -> bool:
-        """Enforce message rate limits."""
-        if moment.action != "chat":
-            return True
-
+        """Enforce action rate limits."""
         now = time.time()
 
-        # Per-minute bucket
-        if now - self._minute_start >= 60.0:
-            self._minute_start = now
-            self._messages_this_minute = 0
+        if moment.action == "chat":
+            # Per-minute bucket
+            if now - self._minute_start >= 60.0:
+                self._minute_start = now
+                self._messages_this_minute = 0
 
-        if self._messages_this_minute >= self.config.max_messages_per_min:
-            log.debug("ClutchBot hit per-minute message limit")
+            if self._messages_this_minute >= self.config.max_messages_per_min:
+                log.debug("ClutchBot hit per-minute message limit")
+                return False
+
+            self._messages_this_minute += 1
+
+        # Global cooldown per action type
+        last = self._last_action_time.get(moment.action, 0.0)
+        cooldown_s = self._cooldown_for(moment.action)
+        if now - last < cooldown_s:
+            log.debug(f"ClutchBot {moment.action} cooldown active")
             return False
 
-        # Global cooldown
-        if now - self._last_action_time < self.config.message_cooldown_s:
-            log.debug("ClutchBot global cooldown active")
-            return False
-
-        self._messages_this_minute += 1
         return True
+
+    @staticmethod
+    def _cooldown_for(action: str) -> float:
+        if action == "chat":
+            return 30.0
+        if action == "clip":
+            return 60.0
+        if action in ("start_prediction", "resolve_prediction"):
+            return 5.0
+        return 0.0
 
     def _emit_agent_action(self, moment: ScoredMoment, results: list[Any]) -> None:
         self.bus.emit_raw(
@@ -217,33 +219,69 @@ class ClutchBotAgent:
     # BACKEND FACTORY
     # ──────────────────────────────────────────────────────────────────────────
 
+    def _build_features(self) -> set[str]:
+        features: set[str] = {"chat"}
+        tw = self.config.twitch
+        if tw and tw.enabled:
+            if tw.enable_clips:
+                features.add("clip")
+            if tw.enable_predictions:
+                features.add("prediction")
+        return features
+
     def _build_backends(self) -> list[Backend]:
         backends: list[Backend] = []
+        tw = self.config.twitch
+        if not tw or not tw.enabled:
+            return backends
 
-        if self.config.twitch and self.config.twitch.enabled:
-            from .twitch_client import TwitchIRCClient
-
-            client = TwitchIRCClient(
-                username=self.config.twitch.bot_username,
-                oauth_token=self._resolve_token(self.config.twitch),
-                channel=self.config.twitch.channel,
-                min_interval_s=self.config.twitch.message_interval_s,
+        irc_client: TwitchIRCClient | None = None
+        if tw.bot_username and (tw.oauth_token or tw.token_file):
+            irc_client = TwitchIRCClient(
+                username=tw.bot_username,
+                oauth_token=self._resolve_irc_token(tw),
+                channel=tw.channel,
+                min_interval_s=tw.message_interval_s,
             )
-            backends.append(_TwitchChatBackend(client))
+            backends.append(_TwitchChatBackend(irc_client))
+
+        if tw.client_id and (tw.broadcaster_id or tw.broadcaster_username):
+            helix_token = self._resolve_helix_token(tw)
+            self._helix_client = TwitchHelixClient(
+                client_id=tw.client_id,
+                access_token=helix_token,
+                broadcaster_id=tw.broadcaster_id,
+                broadcaster_username=tw.broadcaster_username,
+            )
+
+            if tw.enable_clips:
+                backends.append(_TwitchClipBackend(self._helix_client, irc_client))
+
+            if tw.enable_predictions:
+                backends.append(_TwitchPredictionBackend(self._helix_client, irc_client))
 
         return backends
 
     @staticmethod
-    def _resolve_token(config: TwitchConfig) -> str:
+    def _resolve_irc_token(config: TwitchConfig) -> str:
         if config.oauth_token:
             return config.oauth_token
         if config.token_file:
-            from pathlib import Path
-
             p = Path(config.token_file)
             if p.exists():
                 return p.read_text(encoding="utf-8").strip()
         raise ValueError("Twitch OAuth token or token_file required")
+
+    @staticmethod
+    def _resolve_helix_token(config: TwitchConfig) -> str:
+        if config.helix_token:
+            return config.helix_token
+        if config.helix_token_file:
+            p = Path(config.helix_token_file)
+            if p.exists():
+                return p.read_text(encoding="utf-8").strip()
+        # Fallback to IRC token if no Helix-specific token supplied
+        return ClutchBotAgent._resolve_irc_token(config)
 
 
 class _TwitchChatBackend:
@@ -268,3 +306,71 @@ class _TwitchChatBackend:
         if not message:
             return False
         return self.client.send_message(message)
+
+
+class _TwitchClipBackend:
+    """Creates Twitch clips and announces the edit URL in chat."""
+
+    def __init__(self, helix: TwitchHelixClient, irc: TwitchIRCClient | None):
+        self.helix = helix
+        self.irc = irc
+
+    def name(self) -> str:
+        return "twitch_clip"
+
+    def start(self) -> bool:
+        return self.helix.start()
+
+    def stop(self) -> None:
+        self.helix.stop()
+
+    def execute(self, action: str, payload: dict[str, Any]) -> bool:
+        if action != "clip":
+            return False
+
+        result = self.helix.create_clip()
+        if not result:
+            return False
+
+        if self.irc:
+            message = f"🎬 Clutch clip: {result.edit_url}"
+            self.irc.send_message(message)
+
+        return True
+
+
+class _TwitchPredictionBackend:
+    """Starts and resolves Twitch channel-point predictions."""
+
+    def __init__(self, helix: TwitchHelixClient, irc: TwitchIRCClient | None):
+        self.helix = helix
+        self.irc = irc
+
+    def name(self) -> str:
+        return "twitch_prediction"
+
+    def start(self) -> bool:
+        return self.helix.start()
+
+    def stop(self) -> None:
+        self.helix.stop()
+
+    def execute(self, action: str, payload: dict[str, Any]) -> bool:
+        if action == "start_prediction":
+            title = payload.get("payload", {}).get("title") or payload.get("message", "Will it happen?")
+            outcomes = payload.get("payload", {}).get("outcomes") or ["Yes", "No"]
+            window_s = payload.get("payload", {}).get("window_s") or 120
+            result = self.helix.create_prediction(title, outcomes, window_s)
+            if result and self.irc:
+                self.irc.send_message(f"📊 Prediction live: {result.title}")
+            return result is not None
+
+        if action == "resolve_prediction":
+            winning = payload.get("payload", {}).get("winning_outcome_index", 0)
+            success = self.helix.resolve_prediction(winning)
+            if success and self.irc:
+                result = "Yes" if winning == 0 else "No"
+                self.irc.send_message(f"📊 Prediction resolved: {result}")
+            return success
+
+        return False

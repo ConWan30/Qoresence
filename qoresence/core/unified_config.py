@@ -214,13 +214,21 @@ class GameDetectionConfig:
 
 @dataclass(frozen=True)
 class TwitchConfig:
-    """Twitch IRC configuration for ClutchBot."""
+    """Twitch configuration for ClutchBot."""
     enabled: bool = False
-    channel: str = ""                 # Broadcaster channel name (no #)
-    bot_username: str = ""            # Bot account username
-    oauth_token: str | None = None # OAuth token or path to file
-    token_file: str | None = None  # Plaintext file containing token
-    message_interval_s: float = 2.0   # Minimum seconds between sent messages
+    channel: str = ""                      # Broadcaster channel name (no #)
+    bot_username: str = ""                 # Bot account username
+    oauth_token: str | None = None         # Bot OAuth token for IRC
+    token_file: str | None = None          # Plaintext file containing bot token
+    helix_token: str | None = None         # Helix access token (defaults to oauth_token)
+    helix_token_file: str | None = None    # Plaintext file containing Helix token
+    client_id: str | None = None           # Twitch application Client ID for Helix
+    client_secret: str | None = None       # Twitch application Client Secret (optional)
+    broadcaster_id: str | None = None      # Twitch broadcaster user ID
+    broadcaster_username: str | None = None# Broadcaster login name (used to lookup ID)
+    message_interval_s: float = 2.0        # Minimum seconds between sent IRC messages
+    enable_clips: bool = False             # Create clips on clutch moments
+    enable_predictions: bool = False       # Start channel-point predictions
 
 
 @dataclass(frozen=True)

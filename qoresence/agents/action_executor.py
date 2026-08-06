@@ -71,6 +71,7 @@ class ActionExecutor:
             "weight": moment.weight,
             "reason": moment.reason,
             "cooldown_key": moment.cooldown_key,
+            "payload": moment.payload,
             "context": context,
         }
 
