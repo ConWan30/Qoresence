@@ -1,4 +1,4 @@
-﻿"""
+"""
 MomentScorer for ClutchBot.
 
 Decides whether the current situation is worth a chat message, clip,
@@ -136,14 +136,14 @@ class MomentScorer:
         "neutral": {
             "score_changed": "Score update: {home_score}-{away_score}.",
             "turnover": "Turnover!",
-            "first_down": "First down in the red zone â€” {possession}.",
+            "first_down": "First down in the red zone — {possession}.",
             "possession_changed": "Possession changes to {possession}.",
-            "red_zone_drive": "Red zone drive â€” {home_score}-{away_score} Q{quarter}.",
+            "red_zone_drive": "Red zone drive — {home_score}-{away_score} Q{quarter}.",
             "game_detected": "Qoresence is locked on: {game_title}.",
             "start_prediction": "Will they score on this drive?",
             "resolve_prediction_yes": "Drive result: score!",
             "resolve_prediction_no": "Drive result: no score.",
-            "kill": "Kill confirmed â€” {score}!",
+            "kill": "Kill confirmed — {score}!",
             "death": "Down!",
             "multi_kill": "Multi-kill! {score}!",
             "clip": "Clutch clip incoming!",
@@ -153,7 +153,7 @@ class MomentScorer:
             "turnover": "TURNOVER! Momentum shift!",
             "first_down": "FIRST DOWN! {possession} keeps it moving!",
             "possession_changed": "Ball changes hands! {possession} takes over!",
-            "clip": "THAT WAS CLUTCH! ðŸŽ¬",
+            "clip": "THAT WAS CLUTCH! 🎬",
             "red_zone_drive": "RED ZONE ALERT! {home_score}-{away_score} Q{quarter}!",
             "game_detected": "We are LIVE on {game_title}!",
             "start_prediction": "Are they punching it in?!",
@@ -162,7 +162,7 @@ class MomentScorer:
             "kill": "ELIMINATED! {score}!",
             "death": "DOWNED!",
             "multi_kill": "MULTI-KILL! {score}!",
-            "clip": "THAT WAS CLUTCH! ðŸŽ¬",
+            "clip": "THAT WAS CLUTCH! 🎬",
         },
     }
 
@@ -313,9 +313,9 @@ class MomentScorer:
                 return [wp_clip_generic[0]]
         return []
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────────────────────────────────
     # SCORERS
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────────────────────────────────
 
     def _score_outcome(
         self,
@@ -347,7 +347,7 @@ class MomentScorer:
                     weight=0.8,
                     action="clip",
                     message=chat.message,
-                    reason="red-zone first down â€” clip",
+                    reason="red-zone first down — clip",
                     cooldown_key="clip",
                 )
                 if clip.triggered:
@@ -405,7 +405,7 @@ class MomentScorer:
                     weight=weight,
                     action="clip",
                     message=message,
-                    reason="clutch score â€” clip",
+                    reason="clutch score — clip",
                     cooldown_key="clip",
                 )
                 if clip.triggered:
@@ -457,7 +457,7 @@ class MomentScorer:
                 weight=weight,
                 action="clip",
                 message=message,
-                reason="turnover â€” clip",
+                reason="turnover — clip",
                 cooldown_key="clip",
             )
             if clip.triggered:
@@ -553,7 +553,7 @@ class MomentScorer:
                 weight=weight,
                 action="clip",
                 message=message,
-                reason=f"{key} â€” clip",
+                reason=f"{key} — clip",
                 cooldown_key="clip",
             )
             if clip.triggered:
@@ -662,9 +662,9 @@ class MomentScorer:
             return "away"
         return None
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────────────────────────────────
     # MESSAGE TEMPLATES
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────────────────────────────────
 
     def _score_message(self, state: SituationState, home: Any, away: Any) -> str:
         extra = {"home_score": home or "?", "away_score": away or "?"}
@@ -683,9 +683,9 @@ class MomentScorer:
         cur = fields.get("possession") or state.possession
         return self._message("possession_changed", state, prev_possession=prev or "", possession=cur or "")
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────────────────────────────────
     # HELPERS
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────────────────────────────────
 
     def _is_red_zone(self, state: SituationState) -> bool:
         # Look at field_position string, e.g. "opp 10" or "opponent 15".
