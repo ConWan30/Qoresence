@@ -123,7 +123,12 @@ class LocalVLMClient:
         if green_ratio > 0.06 and has_scoreboard:
             return VisualContext(game_state=GameState.GAMEPLAY, game_category=GameCategory.FOOTBALL, confidence=0.72, frame_quality="ok")
         if edge_density > 0.06 and green_ratio < 0.08:
-            return VisualContext(game_state=GameState.GAMEPLAY, game_category=GameCategory.SHOOTER, confidence=0.62, frame_quality="ok")
+            # was SHOOTER — but this session is 100% football (NCAA 27). High-edge + low-green
+            # is playcall/replay/zoom/scoreboard, NOT a different game. Don't hallucinate shooter
+            # when profile is football; emit UNKNOWN/MENU so training labels stay clean.
+            if mean_luma < 35:
+                return VisualContext(game_state=GameState.MENU, game_category=GameCategory.UNKNOWN, confidence=0.45, frame_quality="dark")
+            return VisualContext(game_state=GameState.UNKNOWN, game_category=GameCategory.UNKNOWN, confidence=0.38, frame_quality="ok")
         if mean_luma < 20:
             return VisualContext(game_state=GameState.MENU, game_category=GameCategory.UNKNOWN, confidence=0.45, frame_quality="dark")
         return VisualContext(game_state=GameState.UNKNOWN, game_category=GameCategory.UNKNOWN, confidence=0.35, frame_quality="ok")
