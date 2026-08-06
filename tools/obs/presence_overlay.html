@@ -153,6 +153,65 @@
   </div>
 
   <div class="panel">
+    <div class="panel-title">
+      <span class="status-indicator" id="gameStatus"></span>
+      Game
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Title</span>
+      <span class="metric-value" id="gameTitle">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">State</span>
+      <span class="metric-value" id="gameState">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Confidence</span>
+      <span class="metric-value" id="gameConfidence">—</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Scoreboard</div>
+    <div class="metric-row">
+      <span class="metric-label">Home</span>
+      <span class="metric-value" id="homeScore">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Away</span>
+      <span class="metric-value" id="awayScore">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Quarter</span>
+      <span class="metric-value" id="quarterVal">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Down</span>
+      <span class="metric-value" id="downVal">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Yards</span>
+      <span class="metric-value" id="yardsVal">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Possession</span>
+      <span class="metric-value" id="possessionVal">—</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Last Outcome</div>
+    <div class="metric-row">
+      <span class="metric-label">Event</span>
+      <span class="metric-value" id="outcomeEvent">—</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Fields</span>
+      <span class="metric-value" id="outcomeFields">—</span>
+    </div>
+  </div>
+
+  <div class="panel">
     <div class="panel-title">Zones</div>
     <div class="zone-list" id="zoneList">
       <!-- Populated dynamically -->
@@ -182,6 +241,18 @@
     const presenceSync = document.getElementById('presenceSync');
     const lastInput = document.getElementById('lastInput');
     const zoneList = document.getElementById('zoneList');
+    const gameStatus = document.getElementById('gameStatus');
+    const gameTitle = document.getElementById('gameTitle');
+    const gameState = document.getElementById('gameState');
+    const gameConfidence = document.getElementById('gameConfidence');
+    const homeScore = document.getElementById('homeScore');
+    const awayScore = document.getElementById('awayScore');
+    const quarterVal = document.getElementById('quarterVal');
+    const downVal = document.getElementById('downVal');
+    const yardsVal = document.getElementById('yardsVal');
+    const possessionVal = document.getElementById('possessionVal');
+    const outcomeEvent = document.getElementById('outcomeEvent');
+    const outcomeFields = document.getElementById('outcomeFields');
 
     let ws = null;
     let reconnectTimer = null;
@@ -266,8 +337,45 @@
           // Could show uptime
           break;
 
+        case 'game_detected':
+          gameTitle.textContent = msg.payload?.display_name || msg.payload?.profile_id || '—';
+          gameState.textContent = 'detected';
+          gameConfidence.textContent = (msg.payload?.confidence || 0).toFixed(2);
+          gameStatus.className = 'status-indicator connected';
+          break;
+
+        case 'visual_context':
+          const ctx = msg.payload || {};
+          const fb = ctx.football || {};
+          gameTitle.textContent = ctx.game_title || ctx.game_category || '—';
+          gameState.textContent = ctx.game_state || '—';
+          gameConfidence.textContent = (ctx.confidence || 0).toFixed(2);
+          gameStatus.className = 'status-indicator ' + (ctx.game_state === 'gameplay' ? 'active' : 'connected');
+          if (ctx.game_category === 'football') {
+            homeScore.textContent = fb.home_score !== null ? fb.home_score : '—';
+            awayScore.textContent = fb.away_score !== null ? fb.away_score : '—';
+            quarterVal.textContent = fb.quarter !== null ? fb.quarter : '—';
+            downVal.textContent = fb.down !== null ? fb.down : '—';
+            yardsVal.textContent = fb.yards_to_go !== null ? fb.yards_to_go : '—';
+            possessionVal.textContent = fb.possession || '—';
+          }
+          break;
+
+        case 'outcome_event':
+          const p = msg.payload || {};
+          outcomeEvent.textContent = p.event_name || '—';
+          outcomeEvent.className = 'metric-value active';
+          try {
+            outcomeFields.textContent = JSON.stringify(p.fields || {});
+          } catch (e) {
+            outcomeFields.textContent = '—';
+          }
+          break;
+
         case 'session_end':
           console.log('[Qoresence] Session ended');
+          gameState.textContent = 'ended';
+          gameStatus.className = 'status-indicator disconnected';
           break;
       }
     }
