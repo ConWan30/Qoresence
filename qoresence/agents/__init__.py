@@ -7,6 +7,7 @@ Twitch chat companion that posts at clutch moments.
 
 from .action_executor import ActionExecutor
 from .clutchbot import ClutchBotAgent
+from .eventsub_client import TwitchEventSubClient
 from .helix_client import TwitchHelixClient
 from .moment_scorer import MomentScorer
 from .session_memory import SessionMemory
@@ -17,6 +18,7 @@ __all__ = [
     "ClutchBotAgent",
     "TwitchIRCClient",
     "TwitchHelixClient",
+    "TwitchEventSubClient",
     "SituationModel",
     "MomentScorer",
     "ActionExecutor",

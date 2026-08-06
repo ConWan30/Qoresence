@@ -229,6 +229,9 @@ class TwitchConfig:
     message_interval_s: float = 2.0        # Minimum seconds between sent IRC messages
     enable_clips: bool = False             # Create clips on clutch moments
     enable_predictions: bool = False       # Start channel-point predictions
+    enable_follow_alerts: bool = False     # EventSub follow alerts
+    enable_sub_alerts: bool = False        # EventSub subscription alerts
+    enable_redemption_alerts: bool = False # EventSub channel-point redemption alerts
 
 
 @dataclass(frozen=True)

@@ -50,6 +50,7 @@ class TwitchHelixClient:
         self.broadcaster_username = (broadcaster_username or "").lower().strip()
 
         self._session = requests.Session()
+        self._last_clip: ClipResult | None = None
         self._last_clip_time = 0.0
         self._active_prediction: PredictionResult | None = None
         self._prediction_start_ns: int | None = None
@@ -108,11 +109,12 @@ class TwitchHelixClient:
 
         clip = data["data"][0]
         self._last_clip_time = time.time()
-        return ClipResult(
+        self._last_clip = ClipResult(
             id=clip["id"],
             edit_url=clip["edit_url"],
             created_at=clip["created_at"],
         )
+        return self._last_clip
 
     def create_prediction(
         self,
@@ -203,6 +205,38 @@ class TwitchHelixClient:
     @property
     def active_prediction(self) -> PredictionResult | None:
         return self._active_prediction
+
+    @property
+    def last_clip_url(self) -> str | None:
+        return self._last_clip.edit_url if self._last_clip else None
+
+    def get_current_user(self) -> dict[str, Any] | None:
+        """Return the user associated with the current access token."""
+        data = self._get(f"{HELIX_URL}/users")
+        if data and data.get("data"):
+            return data["data"][0]
+        return None
+
+    def create_eventsub_subscription(
+        self,
+        subscription_type: str,
+        version: str,
+        condition: dict[str, str],
+        session_id: str,
+    ) -> str | None:
+        """Create an EventSub subscription over a WebSocket session."""
+        url = f"{HELIX_URL}/eventsub/subscriptions"
+        payload = {
+            "type": subscription_type,
+            "version": version,
+            "condition": condition,
+            "transport": {"method": "websocket", "session_id": session_id},
+        }
+        data = self._post(url, json=payload)
+        if not data or not data.get("data"):
+            log.warning(f"Failed to create EventSub {subscription_type}: {data}")
+            return None
+        return data["data"][0].get("id")
 
     # ──────────────────────────────────────────────────────────────────────────
     # INTERNALS

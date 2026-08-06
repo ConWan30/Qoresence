@@ -105,7 +105,23 @@ Synchronizes five observation modalities (video, HID, screen, game events, visua
 | Tool | Purpose |
 |------|---------|
 | `tools/obs/presence_overlay.html` | OBS Browser Source — real-time telemetry dashboard |
+| `tools/twitch-extension/panel.html` | Twitch Extension / Browser Source viewer panel |
 | `scripts/quickstart.sh\|.bat` | New developer onboarding (<5 min) |
+
+### Agents (`qoresence/agents/`)
+
+**ClutchBot** — game-state-aware Twitch companion for Qoresence.
+
+| Feature | Status | Trigger | Output |
+|---------|--------|---------|--------|
+| Chat narration | ✅ | Clutch moments (score, turnover, red zone) | `agent_action` + Twitch PRIVMSG |
+| Auto-clips | ✅ | High-weight clutch moments | Twitch clip + edit URL in chat |
+| Predictions | ✅ | Red-zone close-game drives | Twitch channel-point prediction |
+| Chat commands | ✅ | `!state`, `!score`, `!lastclip`, `!help` | PRIVMSG replies |
+| Follow / sub / redemption alerts | ✅ | EventSub WebSocket | Thank-you PRIVMSG |
+| Viewer panel | ✅ | Browser Source / Extension | `tools/twitch-extension/panel.html` |
+
+See [docs/clutchbot_setup.md](docs/clutchbot_setup.md) for Twitch app, tokens, and scopes.
 
 ---
 
@@ -127,6 +143,16 @@ python -m qoresence.cli --dry-run --trio \
 # 3. Live session (operator explicitly enables lobes)
 qoresence --streamer --controller --outcome --screen --visual \
   --trio --trio-wasm-path=w3bstream_applet.wasm
+
+# 4. Stream with ClutchBot (see docs/clutchbot_setup.md for tokens)
+qoresence --outcome --visual --clutchbot \
+  --clutchbot-channel mychannel \
+  --clutchbot-username clutchbot_qoresence \
+  --clutchbot-token-file /path/to/bot_oauth.txt \
+  --clutchbot-client-id <client_id> \
+  --clutchbot-broadcaster-username mychannel \
+  --clutchbot-enable-clips \
+  --clutchbot-enable-predictions
 ```
 
 ### Docker (Real WASM + ZKSepProof)
@@ -220,6 +246,7 @@ instrument_validator(validator)
 |----------|-------------|
 | [trio-retina Integration](docs/trio-retina-integration.md) | Architecture, data flows, validation modes |
 | [trio-retina Runbook](docs/trio-retina-runbook.md) | Operator procedures, deployment, troubleshooting |
+| [ClutchBot Setup](docs/clutchbot_setup.md) | Twitch app, tokens, scopes, and panel setup |
 | [Architecture](docs/ARCHITECTURE.md) | Core observation plane design |
 | [Roadmap](docs/ROADMAP.md) | Planned phases |
 
@@ -228,10 +255,13 @@ instrument_validator(validator)
 ## Testing
 
 ```bash
-# All tests (184)
+# All tests
 python -m pytest tests/ -v
 
-# Trio-retina specific (31)
+# ClutchBot agent specific
+python -m pytest tests/test_clutchbot.py -v
+
+# Trio-retina specific
 python -m pytest tests/test_trio_retina.py -v
 
 # Benchmarks
@@ -239,7 +269,7 @@ python scripts/benchmark.py
 cat benchmark_results.json
 ```
 
-**Current status**: 184 tests passing (178 core + 6 metrics).
+**Current status**: 200+ tests passing.
 
 ---
 
@@ -265,11 +295,18 @@ Qoresence/
 ├── docs/
 │   ├── trio-retina-integration.md    # Integration design
 │   ├── trio-retina-runbook.md        # Operator procedures
+│   ├── clutchbot_setup.md            # Twitch app, tokens, scopes
 │   ├── ARCHITECTURE.md               # Core architecture
 │   └── ROADMAP.md                    # Roadmap
 ├── qoresence/
 │   ├── core/                         # Session, EventBus, Config, Types
 │   ├── lobes/                        # streamer, controller, screen, outcome, visual
+│   ├── agents/                       # ClutchBot Twitch agent
+│   │   ├── clutchbot.py
+│   │   ├── helix_client.py
+│   │   ├── twitch_client.py
+│   │   ├── eventsub_client.py
+│   │   └── moment_scorer.py
 │   ├── fusion/                       # PresenceFusionEngine, FusionWeights
 │   ├── trio/                         # trio-retina validation layer
 │   │   ├── config.py
@@ -279,6 +316,7 @@ Qoresence/
 │   │   └── metrics.py                # Prometheus exporter
 │   └── cli.py                        # Main CLI entry
 ├── tools/obs/presence_overlay.html   # OBS Browser Source overlay
+├── tools/twitch-extension/panel.html # Twitch Extension / Browser Source panel
 ├── scripts/
 │   ├── quickstart.sh                 # Linux/macOS onboarding
 │   ├── quickstart.bat                # Windows onboarding
@@ -307,6 +345,7 @@ Qoresence/
 | `controller` | `hidapi` | DualShock Edge HID |
 | `screen` | `mss`, `opencv-python` | Screen capture |
 | `visual` | `requests`, `onnxruntime` | VLM inference |
+| `twitch` | `requests`, `websockets` | ClutchBot Twitch agent |
 | **`trio`** | `trio-retina≥0.3.0`, `wasmtime≥16.0`, `prometheus-client≥0.19` | **trio-retina validation** |
 | `dev` | `pytest`, `ruff`, `mypy` | Development |
 

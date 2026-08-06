@@ -666,6 +666,9 @@ def create_test_config(args) -> RetinaUnifiedConfig:
             message_interval_s=args.clutchbot_interval,
             enable_clips=args.clutchbot_enable_clips,
             enable_predictions=args.clutchbot_enable_predictions,
+            enable_follow_alerts=args.clutchbot_enable_follow_alerts,
+            enable_sub_alerts=args.clutchbot_enable_sub_alerts,
+            enable_redemption_alerts=args.clutchbot_enable_redemption_alerts,
         ),
     )
 
@@ -820,6 +823,9 @@ def main():
     parser.add_argument("--clutchbot-memory", default=None, help="Path to ClutchBot session memory JSONL")
     parser.add_argument("--clutchbot-enable-clips", action="store_true", help="Create clips on clutch moments")
     parser.add_argument("--clutchbot-enable-predictions", action="store_true", help="Start channel-point predictions")
+    parser.add_argument("--clutchbot-enable-follow-alerts", action="store_true", help="EventSub follow alerts")
+    parser.add_argument("--clutchbot-enable-sub-alerts", action="store_true", help="EventSub subscription alerts")
+    parser.add_argument("--clutchbot-enable-redemption-alerts", action="store_true", help="EventSub redemption alerts")
 
     # Trio-retina (w3bstream validation)
     parser.add_argument("--trio", action="store_true", help="Enable trio-retina w3bstream validation")

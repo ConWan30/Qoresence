@@ -25,6 +25,7 @@ from qoresence.core import (
 )
 
 from .action_executor import ActionExecutor, Backend
+from .eventsub_client import TwitchEventSubClient
 from .helix_client import TwitchHelixClient
 from .moment_scorer import MomentScorer, ScoredMoment
 from .session_memory import SessionMemory
@@ -242,6 +243,7 @@ class ClutchBotAgent:
                 oauth_token=self._resolve_irc_token(tw),
                 channel=tw.channel,
                 min_interval_s=tw.message_interval_s,
+                command_callback=self._handle_chat_command,
             )
             backends.append(_TwitchChatBackend(irc_client))
 
@@ -260,7 +262,39 @@ class ClutchBotAgent:
             if tw.enable_predictions:
                 backends.append(_TwitchPredictionBackend(self._helix_client, irc_client))
 
+            if tw.enable_follow_alerts or tw.enable_sub_alerts or tw.enable_redemption_alerts:
+                backends.append(_TwitchEventSubBackend(self._helix_client, irc_client, tw))
+
         return backends
+
+    def _handle_chat_command(self, sender: str, text: str) -> str | None:
+        """Respond to viewer chat commands."""
+        parts = text.lower().split()
+        if not parts:
+            return None
+
+        cmd = parts[0]
+        if cmd == "!state":
+            s = self._situation.state
+            return (
+                f"Qoresence sees {s.game_title or 'a game'} — "
+                f"{s.home_score or '?'} - {s.away_score or '?'} Q{s.quarter or '?'}, "
+                f"{s.possession or '?'} ball, {s.down or '?'} & {s.yards_to_go or '?'}."
+            )
+
+        if cmd == "!score":
+            s = self._situation.state
+            return f"Score: {s.home_score or '?'} - {s.away_score or '?'} (Q{s.quarter or '?'})."
+
+        if cmd == "!lastclip":
+            if self._helix_client and self._helix_client.last_clip_url:
+                return f"Last clutch clip: {self._helix_client.last_clip_url}"
+            return "No clutch clip yet."
+
+        if cmd == "!help":
+            return "ClutchBot commands: !state, !score, !lastclip, !help"
+
+        return None
 
     @staticmethod
     def _resolve_irc_token(config: TwitchConfig) -> str:
@@ -373,4 +407,29 @@ class _TwitchPredictionBackend:
                 self.irc.send_message(f"📊 Prediction resolved: {result}")
             return success
 
+        return False
+
+
+class _TwitchEventSubBackend:
+    """Wraps the EventSub client as an ActionExecutor backend."""
+
+    def __init__(self, helix: TwitchHelixClient, irc: TwitchIRCClient | None, config: TwitchConfig):
+        self.client = TwitchEventSubClient(
+            helix,
+            irc,
+            follow_alerts=config.enable_follow_alerts,
+            sub_alerts=config.enable_sub_alerts,
+            redemption_alerts=config.enable_redemption_alerts,
+        )
+
+    def name(self) -> str:
+        return "twitch_eventsub"
+
+    def start(self) -> bool:
+        return self.client.start()
+
+    def stop(self) -> None:
+        self.client.stop()
+
+    def execute(self, action: str, payload: dict[str, Any]) -> bool:
         return False

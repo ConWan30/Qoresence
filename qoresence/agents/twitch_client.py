@@ -14,6 +14,7 @@ import socket
 import ssl
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 log = logging.getLogger(__name__)
@@ -48,11 +49,13 @@ class TwitchIRCClient:
         oauth_token: str,
         channel: str,
         min_interval_s: float = DEFAULT_MIN_INTERVAL_S,
+        command_callback: Callable[[str, str], str | None] | None = None,
     ):
         self.username = username.lower().strip()
         self.oauth_token = self._normalize_token(oauth_token)
         self.channel = channel.lower().strip().lstrip("#")
         self.min_interval_s = min_interval_s
+        self.command_callback = command_callback
 
         self._sock: ssl.SSLSocket | None = None
         self._thread: threading.Thread | None = None
@@ -247,9 +250,18 @@ class TwitchIRCClient:
             return
 
         if msg.command == "PRIVMSG":
-            # Could be used for commands later
             sender = self._parse_sender(msg.prefix)
             log.debug(f"Twitch chat from {sender}: {msg.trailing}")
+            if sender == self.username:
+                return
+            text = msg.trailing.strip()
+            if text.startswith("!") and self.command_callback:
+                try:
+                    reply = self.command_callback(sender, text)
+                    if reply:
+                        self.send_message(reply)
+                except Exception as e:
+                    log.error(f"Twitch chat command callback error: {e}")
             return
 
         if msg.command in ("NOTICE", "HOSTTARGET", "CLEARCHAT", "CLEARMSG"):

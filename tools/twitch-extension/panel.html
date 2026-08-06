@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClutchBot Panel</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: rgba(10, 10, 15, 0.92);
+      color: #f3f4f6;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
+    #panel {
+      padding: 12px 14px;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #8b5cf6;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+    }
+    .status-dot.connected { background: #22c55e; }
+    .status-dot.active { background: #f59e0b; animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .label { color: #9ca3af; font-size: 12px; }
+    .value { font-weight: 600; font-size: 13px; }
+
+    .scoreboard {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      font-size: 22px;
+      font-weight: 800;
+      margin: 4px 0;
+    }
+    .vs { color: #6b7280; font-size: 14px; }
+
+    .message-box {
+      font-size: 12px;
+      line-height: 1.45;
+      color: #e5e7eb;
+      min-height: 36px;
+    }
+    .reason { color: #9ca3af; font-size: 11px; margin-top: 4px; }
+
+    .history {
+      font-size: 11px;
+      color: #9ca3af;
+      max-height: 64px;
+      overflow-y: auto;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <div class="title">
+      <div id="statusDot" class="status-dot"></div>
+      ClutchBot
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="label">Game</span><span id="gameTitle" class="value">—</span></div>
+      <div class="scoreboard">
+        <span id="homeScore">-</span>
+        <span class="vs">vs</span>
+        <span id="awayScore">-</span>
+      </div>
+      <div class="row">
+        <span class="label">QTR</span><span id="quarter" class="value">—</span>
+        <span class="label">DOWN</span><span id="down" class="value">—</span>
+        <span class="label">DIST</span><span id="yards" class="value">—</span>
+        <span class="label">BALL</span><span id="possession" class="value">—</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="lastMessage" class="message-box">Waiting for ClutchBot...</div>
+      <div id="lastReason" class="reason">—</div>
+    </div>
+
+    <div class="card history" id="history">—</div>
+  </div>
+
+  <script>
+    // Default to the local Qoresence WebSocket. Twitch Extensions cannot load
+    // ws:// directly, so this panel is also intended for OBS Browser Source use
+    // or can be served through a local wss bridge.
+    const params = new URLSearchParams(window.location.search);
+    const WS_URL = params.get('ws') || 'ws://127.0.0.1:8765';
+
+    const statusDot = document.getElementById('statusDot');
+    const gameTitle = document.getElementById('gameTitle');
+    const homeScore = document.getElementById('homeScore');
+    const awayScore = document.getElementById('awayScore');
+    const quarter = document.getElementById('quarter');
+    const down = document.getElementById('down');
+    const yards = document.getElementById('yards');
+    const possession = document.getElementById('possession');
+    const lastMessage = document.getElementById('lastMessage');
+    const lastReason = document.getElementById('lastReason');
+    const history = document.getElementById('history');
+
+    let ws = null;
+    let reconnectTimer = null;
+    let historyEntries = [];
+
+    function connect() {
+      try {
+        ws = new WebSocket(WS_URL);
+      } catch (e) {
+        console.error('[ClutchBot panel] WebSocket error:', e);
+        scheduleReconnect();
+        return;
+      }
+
+      ws.onopen = () => {
+        console.log('[ClutchBot panel] Connected');
+        statusDot.className = 'status-dot connected';
+        clearTimeout(reconnectTimer);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          handleMessage(msg);
+        } catch (e) {
+          console.error('[ClutchBot panel] JSON parse error:', e);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error('[ClutchBot panel] WebSocket error:', err);
+        statusDot.className = 'status-dot';
+      };
+
+      ws.onclose = () => {
+        console.log('[ClutchBot panel] Disconnected');
+        statusDot.className = 'status-dot';
+        scheduleReconnect();
+      };
+    }
+
+    function scheduleReconnect() {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connect, 5000);
+    }
+
+    function handleMessage(msg) {
+      if (!msg || !msg.type) return;
+
+      switch (msg.type) {
+        case 'visual_context':
+        case 'game_detected':
+          const ctx = msg.payload || {};
+          if (ctx.game_title) gameTitle.textContent = ctx.game_title;
+          if (ctx.game_state) gameTitle.textContent += ` (${ctx.game_state})`;
+          if (ctx.home_score !== undefined) homeScore.textContent = ctx.home_score;
+          if (ctx.away_score !== undefined) awayScore.textContent = ctx.away_score;
+          if (ctx.quarter !== undefined) quarter.textContent = ctx.quarter;
+          if (ctx.down !== undefined) down.textContent = ctx.down;
+          if (ctx.yards_to_go !== undefined) yards.textContent = ctx.yards_to_go;
+          if (ctx.possession) possession.textContent = ctx.possession;
+          break;
+
+        case 'agent_action':
+          if (msg.payload?.agent_name === 'clutchbot') {
+            const p = msg.payload || {};
+            lastMessage.textContent = p.message || '—';
+            lastReason.textContent = `${p.action || 'action'} — ${p.reason || '—'}`;
+            statusDot.className = 'status-dot active';
+
+            const entry = `${new Date().toLocaleTimeString()}: ${p.message || '(no message)'}`;
+            historyEntries.unshift(entry);
+            historyEntries = historyEntries.slice(0, 10);
+            history.textContent = historyEntries.join('\n') || '—';
+
+            const sit = p.situation || {};
+            if (sit.game_title) gameTitle.textContent = sit.game_title;
+            if (sit.home_score !== undefined) homeScore.textContent = sit.home_score;
+            if (sit.away_score !== undefined) awayScore.textContent = sit.away_score;
+            if (sit.quarter !== undefined) quarter.textContent = sit.quarter;
+            if (sit.down !== undefined) down.textContent = sit.down;
+            if (sit.yards_to_go !== undefined) yards.textContent = sit.yards_to_go;
+            if (sit.possession) possession.textContent = sit.possession;
+          }
+          break;
+
+        case 'outcome_event':
+          const out = msg.payload || {};
+          if (out.fields?.home_score !== undefined) homeScore.textContent = out.fields.home_score;
+          if (out.fields?.away_score !== undefined) awayScore.textContent = out.fields.away_score;
+          break;
+
+        case 'session_end':
+          statusDot.className = 'status-dot';
+          lastMessage.textContent = 'Session ended';
+          break;
+      }
+    }
+
+    connect();
+  </script>
+</body>
+</html>
