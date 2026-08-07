@@ -855,7 +855,12 @@ def main():
     parser.add_argument(
         "--streamer-list", action="store_true", help="List DirectShow capture devices and exit"
     )
-    parser.add_argument("--streamer-fps", type=float, default=30.0, help="Streamer capture FPS")
+    parser.add_argument(
+        "--streamer-fps",
+        type=float,
+        default=30.0,
+        help="Streamer capture FPS (use 60 under --play for PS5 60 Hz so capture ≥ 30 fps LIVE ring)",
+    )
     parser.add_argument(
         "--streamer-device",
         type=int,
@@ -1119,6 +1124,21 @@ def main():
                     pass
             # HDMI / UVC capture card (PS5) — primary frame source for --play
             try:
+                # Capture at 60 Hz under --play so the 30 fps LIVE ring can half-sample.
+                # Override with --streamer-fps N if needed.
+                _sfps = float(getattr(args, "streamer_fps", 30.0) or 30.0)
+                _explicit_sfps = False
+                try:
+                    import sys as _sys_sfps
+
+                    _explicit_sfps = any(
+                        a == "--streamer-fps" or a.startswith("--streamer-fps=")
+                        for a in _sys_sfps.argv
+                    )
+                except Exception:
+                    pass
+                if not _explicit_sfps:
+                    _sfps = 60.0
                 config = _rep_play(
                     config,
                     streamer=_rep_play(
@@ -1128,16 +1148,17 @@ def main():
                         backend=str(getattr(args, "streamer_backend", "dshow") or "dshow"),
                         width=int(getattr(args, "streamer_width", 1280) or 1280),
                         height=int(getattr(args, "streamer_height", 720) or 720),
-                        fps_target=float(getattr(args, "streamer_fps", 30.0) or 30.0),
+                        fps_target=_sfps,
                     ),
                 )
                 log.info(
-                    "play frame source: streamer %s idx=%s (%sx%s) — HDMI/UVC, not desktop; "
-                    "list devices: python -m qoresence.cli --streamer-list",
+                    "play frame source: streamer %s idx=%s (%sx%s @ %.0ffps) — HDMI/UVC; "
+                    "LIVE ring half-rates to 30; list: python -m qoresence.cli --streamer-list",
                     getattr(args, "streamer_backend", "dshow"),
                     getattr(args, "streamer_device", 0),
                     getattr(args, "streamer_width", 1280),
                     getattr(args, "streamer_height", 720),
+                    _sfps,
                 )
             except Exception:
                 try:

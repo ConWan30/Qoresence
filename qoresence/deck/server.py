@@ -23,6 +23,10 @@ log = logging.getLogger(__name__)
 DECK_HOST = "127.0.0.1"
 DECK_PORT = 8765
 WS_PATH = "/retina"
+# Ghost Theater LIVE default: half-rate of PS5 60 Hz (smooth, bounded CPU/RAM)
+DEFAULT_LIVE_FPS = 30.0
+LIVE_FPS_MIN = 5.0
+LIVE_FPS_MAX = 60.0
 
 # FastAPI must be importable at module scope when using
 # `from __future__ import annotations`. Nested endpoints get stringized
@@ -60,11 +64,17 @@ class DeckState:
     updated_ns: int = 0  # monotonic ns of last live update — for staleness check
 
     def snapshot(self) -> dict[str, Any]:
-        video: dict[str, Any] = {"has_frame": False, "age_s": None, "frames": 0}
+        video: dict[str, Any] = {
+            "has_frame": False,
+            "age_s": None,
+            "frames": 0,
+            "live_fps_default": DEFAULT_LIVE_FPS,
+        }
         try:
             from qoresence.vision.clip_buffer import get_clip_buffer
 
             video = get_clip_buffer().stats()
+            video["live_fps_default"] = DEFAULT_LIVE_FPS
         except Exception:
             pass
         return {
@@ -144,21 +154,51 @@ def _placeholder_jpeg() -> bytes:
     return buf.tobytes() if ok else b""
 
 
-def _mjpeg_generator(fps: float = 10.0):  # type: ignore[no-untyped-def]
-    """Yield multipart MJPEG frames from clip_buffer.latest_jpeg (~10 fps)."""
+def _clamp_live_fps(fps: float) -> float:
+    return float(min(LIVE_FPS_MAX, max(LIVE_FPS_MIN, fps)))
+
+
+def _resolve_live_fps(query_fps: float | None = None) -> float:
+    """?fps= → clip_buffer.target_fps → DEFAULT_LIVE_FPS; clamped 5–60."""
+    if query_fps is not None:
+        try:
+            return _clamp_live_fps(float(query_fps))
+        except (TypeError, ValueError):
+            pass
+    try:
+        from qoresence.vision.clip_buffer import get_clip_buffer
+
+        return _clamp_live_fps(float(get_clip_buffer().target_fps))
+    except Exception:
+        return _clamp_live_fps(DEFAULT_LIVE_FPS)
+
+
+def _mjpeg_generator(fps: float = DEFAULT_LIVE_FPS):  # type: ignore[no-untyped-def]
+    """Yield multipart MJPEG from clip_buffer at paced fps (default 30 = PS5/2)."""
     import time as _time
 
-    from qoresence.vision.clip_buffer import get_latest_jpeg
+    from qoresence.vision.clip_buffer import get_latest_frame, get_latest_jpeg
 
+    fps = _clamp_live_fps(fps)
     boundary = b"frame"
-    interval = 1.0 / max(fps, 1.0)
+    interval = 1.0 / fps
     dark = _placeholder_jpeg()
+    last_seq = -1
     while True:
         t0 = _time.monotonic()
+        jpg: bytes | None = None
         try:
-            jpg = get_latest_jpeg() or dark
+            fr = get_latest_frame()
+            if fr is not None:
+                jpg, seq = fr
+                # Prefer newest seq; still re-yield same frame if stalled so
+                # multipart stays alive (no busy loop — we always sleep).
+                if seq != last_seq:
+                    last_seq = seq
+            if not jpg:
+                jpg = get_latest_jpeg()
         except Exception:
-            jpg = dark
+            jpg = None
         if not jpg:
             jpg = dark
         header = (
@@ -190,12 +230,27 @@ def create_app():  # type: ignore[no-untyped-def]
         return JSONResponse(_state.snapshot())
 
     @app.get("/video")
-    async def live_video():  # type: ignore[no-untyped-def]
-        """Continuous LIVE HDMI preview from clip_buffer JPEG ring (MJPEG)."""
+    async def live_video(request: Request):  # type: ignore[no-untyped-def]
+        """Continuous LIVE HDMI preview from clip_buffer JPEG ring (MJPEG).
+
+        Query: ?fps=30 (default) or ?fps=60 for full-rate preview (clamped 5–60).
+        """
+        qfps = None
+        try:
+            raw = request.query_params.get("fps")
+            if raw is not None and str(raw).strip() != "":
+                qfps = float(raw)
+        except (TypeError, ValueError):
+            qfps = None
+        fps = _resolve_live_fps(qfps)
         return StreamingResponse(
-            _mjpeg_generator(10.0),
+            _mjpeg_generator(fps),
             media_type="multipart/x-mixed-replace; boundary=frame",
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "X-Qoresence-Live-Fps": f"{fps:g}",
+            },
         )
 
     @app.get("/api/clip/status")
@@ -392,12 +447,24 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 )
                 return
             if self.path == "/video" or self.path.startswith("/video?"):
+                qfps = None
+                if "?" in self.path:
+                    from urllib.parse import parse_qs, urlparse
+
+                    qs = parse_qs(urlparse(self.path).query)
+                    if "fps" in qs and qs["fps"]:
+                        try:
+                            qfps = float(qs["fps"][0])
+                        except (TypeError, ValueError):
+                            qfps = None
+                fps = _resolve_live_fps(qfps)
                 self.send_response(200)
                 self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
                 self.send_header("Cache-Control", "no-cache, no-store")
+                self.send_header("X-Qoresence-Live-Fps", f"{fps:g}")
                 self.end_headers()
                 try:
-                    for chunk in _mjpeg_generator(10.0):
+                    for chunk in _mjpeg_generator(fps):
                         self.wfile.write(chunk)
                         self.wfile.flush()
                 except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
@@ -451,7 +518,9 @@ def start_deck(
         t.start()
         log.info("Retina Deck http://%s:%s  ws://%s:%s%s", host, port, host, port, WS_PATH)
         log.info(
-            "Lens /overlay.html  Theater /deck.html  LIVE /video  (clip_buffer MJPEG)"
+            "Lens /overlay.html  Theater /deck.html  LIVE /video default %.0ffps "
+            "(PS5 60 Hz half-rate; override ?fps= up to 60)",
+            DEFAULT_LIVE_FPS,
         )
         return t
     # fallback

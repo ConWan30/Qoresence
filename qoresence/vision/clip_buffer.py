@@ -22,9 +22,11 @@ import numpy as np
 log = logging.getLogger(__name__)
 
 DEFAULT_SECONDS = 30.0
-DEFAULT_FPS = 10.0
+# Half-sample of 60 Hz PS5 HDMI for smooth LIVE + bounded RAM (not full-rate JPEG).
+# Full 60 via get_clip_buffer(target_fps=60) or GET /video?fps=60.
+DEFAULT_FPS = 30.0
 DEFAULT_MAX_WIDTH = 960
-DEFAULT_JPEG_QUALITY = 80
+DEFAULT_JPEG_QUALITY = 75  # slightly lower to offset 30 fps frame count
 DEFAULT_OUT_DIR = Path("clips")
 
 
@@ -58,11 +60,13 @@ class HdmiClipBuffer:
         self.out_dir = Path(out_dir)
         self._interval = 1.0 / max(self.target_fps, 1.0)
         self._maxlen = max(1, int(self.seconds * self.target_fps) + 2)
-        self._frames: deque[tuple[float, bytes, int, int]] = deque(maxlen=self._maxlen)
+        # (ts, jpeg_bytes, w, h, seq)
+        self._frames: deque[tuple[float, bytes, int, int, int]] = deque(maxlen=self._maxlen)
         self._lock = threading.Lock()
         self._last_push = 0.0
         self._pushes = 0
         self._skipped = 0
+        self._seq = 0
         self._enabled = True
 
     def enable(self, on: bool = True) -> None:
@@ -102,7 +106,8 @@ class HdmiClipBuffer:
             if not ok:
                 return
             with self._lock:
-                self._frames.append((now, buf.tobytes(), sw, sh))
+                self._seq += 1
+                self._frames.append((now, buf.tobytes(), sw, sh, self._seq))
                 self._pushes += 1
         except Exception as e:
             log.debug("ClipBuffer push failed: %s", e)
@@ -113,6 +118,14 @@ class HdmiClipBuffer:
             if not self._frames:
                 return None
             return self._frames[-1][1]
+
+    def latest_frame(self) -> tuple[bytes, int] | None:
+        """Return (jpeg_bytes, seq) for newest frame. Empty → None."""
+        with self._lock:
+            if not self._frames:
+                return None
+            _ts, jpg, _w, _h, seq = self._frames[-1]
+            return (jpg, seq)
 
     def stats(self) -> dict[str, Any]:
         with self._lock:
@@ -125,6 +138,7 @@ class HdmiClipBuffer:
             w = self._frames[-1][2] if n else 0
             h = self._frames[-1][3] if n else 0
             age_s = (now - self._frames[-1][0]) if n else None
+            seq = self._frames[-1][4] if n else 0
             return {
                 "enabled": self._enabled,
                 "frames": n,
@@ -138,6 +152,7 @@ class HdmiClipBuffer:
                 "out_dir": str(self.out_dir.resolve()),
                 "has_frame": n > 0,
                 "age_s": None if age_s is None else round(float(age_s), 3),
+                "seq": int(seq),
             }
 
     def export(
@@ -171,7 +186,8 @@ class HdmiClipBuffer:
 
         span = snapshot[-1][0] - snapshot[0][0]
         fps = (len(snapshot) - 1) / span if span > 0.05 else self.target_fps
-        fps = float(min(30.0, max(5.0, fps)))
+        # Allow full PS5-rate encode when ring was filled at 60
+        fps = float(min(60.0, max(5.0, fps)))
 
         self.out_dir.mkdir(parents=True, exist_ok=True)
         if path is None:
@@ -331,6 +347,11 @@ def push_frame(frame: np.ndarray | None) -> None:
 def get_latest_jpeg() -> bytes | None:
     """Newest JPEG from the shared HDMI ring (for Deck LIVE MJPEG)."""
     return get_clip_buffer().latest_jpeg()
+
+
+def get_latest_frame() -> tuple[bytes, int] | None:
+    """Newest (jpeg, seq) from the shared HDMI ring."""
+    return get_clip_buffer().latest_frame()
 
 
 def export_clip(seconds: float | None = None, path: str | Path | None = None) -> ClipExportResult | None:
