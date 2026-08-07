@@ -281,11 +281,17 @@ class HdmiClipBuffer:
             size // 1024,
             ok_h264,
         )
-        # Optional InputRing sidecar (best-effort; never fail MP4 export)
+        # Optional InputRing + chapter sidecars (best-effort; never fail MP4 export)
         try:
             _write_buttons_sidecar(final_path, duration_s=dur)
         except Exception as e:
             log.debug("buttons sidecar skipped: %s", e)
+        try:
+            from qoresence.vision.clip_chapters import chapters_after_export
+
+            chapters_after_export(final_path, duration_s=dur)
+        except Exception as e:
+            log.debug("chapters sidecar skipped: %s", e)
         return ClipExportResult(
             path=str(final_path.resolve()),
             frames=written,

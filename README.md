@@ -172,6 +172,7 @@ python -m qoresence.cli --play --deck --monitor --controller --streamer-device <
 | [docs/RETINA_MONITOR.md](docs/RETINA_MONITOR.md) | Native monitor / FrameHub |
 | [docs/CONTROLLER_VIDEO_SYNC.md](docs/CONTROLLER_VIDEO_SYNC.md) | IVC + InputRing |
 | [docs/TWO_SPEED_CLUTCHBOT.md](docs/TWO_SPEED_CLUTCHBOT.md) | Fast video+input path; OCR confirm |
+| [docs/PRIORITY_INTEGRATIONS.md](docs/PRIORITY_INTEGRATIONS.md) | Timeline · prediction lifecycle · clip chapters |
 | [docs/RETINA_DECK_UIUX.md](docs/RETINA_DECK_UIUX.md) | Lens / Rail / Theater |
 | [docs/clutchbot_setup.md](docs/clutchbot_setup.md) | Twitch tokens & scopes |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases & versioning |

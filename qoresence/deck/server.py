@@ -104,6 +104,18 @@ class DeckState:
         }
         if controller:
             out["controller"] = controller
+        # Session timeline why-strip / active drive (optional)
+        try:
+            from qoresence.agents.session_timeline import get_session_timeline
+
+            snap = get_session_timeline().snapshot(recent_n=12)
+            out["timeline"] = {
+                "why_last": snap.get("why_last"),
+                "active_drive": snap.get("active_drive"),
+                "count": snap.get("count", 0),
+            }
+        except Exception:
+            pass
         return out
 
 
@@ -317,6 +329,16 @@ def create_app():  # type: ignore[no-untyped-def]
     async def api_situation():  # type: ignore[no-untyped-def]
         return JSONResponse(_state.snapshot())
 
+    @app.get("/api/timeline")
+    async def api_timeline():  # type: ignore[no-untyped-def]
+        """SessionTimeline snapshot — why-last, drives, recent causal events."""
+        try:
+            from qoresence.agents.session_timeline import get_session_timeline
+
+            return JSONResponse({"ok": True, **get_session_timeline().snapshot()})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
     @app.get("/video")
     async def live_video(request: Request):  # type: ignore[no-untyped-def]
         """Continuous LIVE HDMI preview from clip_buffer JPEG ring (MJPEG).
@@ -441,18 +463,29 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/media/clips/{name}")
     async def media_clip(name: str):  # type: ignore[no-untyped-def]
-        """Stream a local HDMI clip MP4 for in-page / browser video players."""
+        """Stream a local HDMI clip MP4 or sidecar JSON for in-page players."""
         import re
 
         from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
 
         safe = pathlib.Path(name).name
-        if not re.fullmatch(r"hdmi_clip_[\w.\-]+", safe):
+        # MP4/AVI or sidecars: foo.chapters.json / foo.buttons.json
+        if not re.fullmatch(
+            r"hdmi_clip_[\w\-]+(\.(mp4|avi|json)|(\.(chapters|buttons)\.json))",
+            safe,
+            flags=re.I,
+        ):
             return JSONResponse({"ok": False, "error": "invalid name"}, status_code=400)
         path = pathlib.Path(DEFAULT_OUT_DIR) / safe
         if not path.is_file():
             return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
-        media = "video/mp4" if path.suffix.lower() == ".mp4" else "video/x-msvideo"
+        suf = path.suffix.lower()
+        if suf == ".json":
+            media = "application/json"
+        elif suf == ".mp4":
+            media = "video/mp4"
+        else:
+            media = "video/x-msvideo"
         return FileResponse(
             path,
             media_type=media,

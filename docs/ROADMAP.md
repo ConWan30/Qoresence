@@ -36,6 +36,12 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] ClutchBot dispatches fast-then-confirm; graceful degrade without controller
 - [x] Docs: `docs/TWO_SPEED_CLUTCHBOT.md`
 
+### Priority integrations ✓
+- [x] `SessionTimeline` — drive/session causal memory + why_last  
+- [x] `PredictionLifecycleManager` — arm → open → resolve \| cancel on timeline  
+- [x] Clip `.chapters.json` + Deck why strip + `/api/timeline`  
+- [x] Docs: `docs/PRIORITY_INTEGRATIONS.md`
+
 ---
 
 ## Phase 0 — Skeleton ✓
