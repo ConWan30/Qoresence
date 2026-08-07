@@ -31,6 +31,7 @@ from .learning_loop import LearningLogger
 from .llm_client import LLMConfig, QuicksilverLLMClient
 from .fast_moment import FastMomentEngine
 from .moment_scorer import MomentScorer, ScoredMoment
+from .prediction_lifecycle import PredictionLifecycleManager, get_prediction_lifecycle
 from .session_memory import SessionMemory
 from .situation_model import SituationModel
 from .twitch_client import TwitchIRCClient
@@ -91,6 +92,7 @@ class ClutchBotAgent:
         self._scorer = MomentScorer(persona=config.persona, learning_logger=_learning_logger)
         # Two-speed: fast = video+input co-occurrence; confirm = OCR/outcome referee
         self._fast = FastMomentEngine()
+        self._pred_life: PredictionLifecycleManager = get_prediction_lifecycle()
         self._executor = ActionExecutor()
         self._memory = SessionMemory(
             output_path=Path(config.memory_path) if config.memory_path else None
@@ -138,6 +140,11 @@ class ClutchBotAgent:
 
         self._unsubscribe = self.bus.subscribe(self._on_event)
         self._minute_start = time.time()
+        # Wire Helix open/resolve into prediction lifecycle when available
+        try:
+            self._wire_prediction_lifecycle()
+        except Exception as e:
+            log.debug("prediction lifecycle wire skipped: %s", e)
         log.info(
             "ClutchBot started: persona=%s features=%s backends=%s max_chat_per_min=%s "
             "two_speed=fast+confirm (OCR is referee, not starter)",
@@ -209,6 +216,21 @@ class ClutchBotAgent:
             except Exception:
                 coupling = {"coupling": 0.0, "input_energy": 0.0, "path": "fast"}
 
+        # Lifecycle tick (arm TTL / pressure) on every fast-path pulse
+        try:
+            cval = float((coupling or {}).get("coupling") or 0.0)
+            pressure = self._still_pressure_context()
+            self._pred_life.tick(coupling=cval, still_pressure_context=pressure, clock_ns=event.clock_ns)
+            if (
+                "prediction" in self._features
+                and self._pred_life.state.value == "armed"
+                and cval >= self._pred_life.min_coupling_to_open
+            ):
+                # Policy open — not every chat; only armed + high coupling
+                self._pred_life.try_open(coupling=cval, clock_ns=event.clock_ns)
+        except Exception as e:
+            log.debug("pred lifecycle tick: %s", e)
+
         moments = self._fast.score_fast(
             self._situation.state,
             coupling=coupling,
@@ -229,11 +251,21 @@ class ClutchBotAgent:
             features=self._features,
         )
 
-        # If fast path armed prediction and confirm sees score_changed, clear latch
-        # (resolve still handled by MomentScorer as today)
+        # Confirm score_changed → lifecycle resolve + clear fast latch
         if event.type == EventType.OUTCOME_EVENT and isinstance(event.payload, dict):
             if event.payload.get("event_name") == "score_changed":
                 self._fast.on_confirm_score()
+                try:
+                    win = 0
+                    fields = event.payload.get("fields") or {}
+                    # Heuristic: home increased → Yes(0) often "they scored" if home possession
+                    self._pred_life.resolve(
+                        int(win),
+                        clock_ns=event.clock_ns,
+                        reason="OCR score_changed",
+                    )
+                except Exception as e:
+                    log.debug("pred lifecycle resolve: %s", e)
 
         if getattr(self, "_learning_logger", None) is not None and moments:
             try:
@@ -284,10 +316,23 @@ class ClutchBotAgent:
                 except Exception as _e:
                     log.debug(f"LLM enhance failed: {_e}")
 
-            # arm_prediction is latch-only for social backends; still deck_feed
+            # arm_prediction → PredictionLifecycleManager (source of truth for TTL)
             if moment.action == "arm_prediction":
                 if not self._rate_limit_ok(moment):
                     continue
+                pl = moment.payload if isinstance(moment.payload, dict) else {}
+                try:
+                    self._pred_life.arm(
+                        coupling=pl.get("coupling"),
+                        frame_seq=pl.get("frame_seq"),
+                        buttons=list(pl.get("buttons") or []),
+                        reason=moment.reason or "fast arm_prediction",
+                        clock_ns=event.clock_ns,
+                        auto_open=False,  # never open Helix on every arm
+                    )
+                    self._fast._prediction_armed = True  # keep FastMoment latch in sync
+                except Exception as e:
+                    log.debug("pred arm failed: %s", e)
                 context = {
                     "session_id": self.bus.session_id,
                     "event_type": event.type.value,
@@ -296,7 +341,8 @@ class ClutchBotAgent:
                 }
                 results = self._executor.execute(moment, context)
                 self._emit_agent_action(moment, results)
-                self._record_timeline(moment, path_label=path_label, event=event)
+                # Timeline already got kind=arm from lifecycle; skip double arm row
+                # but record fast_chat-style heat if needed — arm is enough
                 self._last_action_time[moment.action] = time.time()
                 continue
 
@@ -313,6 +359,33 @@ class ClutchBotAgent:
 
             if moment.action == "chat" and any(r.success for r in results):
                 self._record_chat_sent()
+
+            # Lifecycle mirrors MomentScorer prediction actions when they fire
+            if moment.action == "start_prediction":
+                try:
+                    pl = moment.payload if isinstance(moment.payload, dict) else {}
+                    if self._pred_life.state.value == "idle":
+                        self._pred_life.arm(
+                            coupling=pl.get("coupling"),
+                            reason="confirm start_prediction",
+                            clock_ns=event.clock_ns,
+                        )
+                    self._pred_life.try_open(
+                        coupling=pl.get("coupling"),
+                        force=True,
+                        title=moment.message or "Will they score?",
+                        clock_ns=event.clock_ns,
+                    )
+                except Exception as e:
+                    log.debug("pred open from scorer: %s", e)
+            if moment.action == "resolve_prediction":
+                try:
+                    pl = moment.payload if isinstance(moment.payload, dict) else {}
+                    win = int(pl.get("winning_outcome_index", 0) or 0)
+                    self._pred_life.resolve(win, clock_ns=event.clock_ns, reason=moment.reason or "resolve")
+                    self._fast.on_confirm_score()
+                except Exception as e:
+                    log.debug("pred resolve from scorer: %s", e)
 
             self._emit_agent_action(moment, results)
             self._record_timeline(moment, path_label=path_label, event=event)
@@ -331,6 +404,50 @@ class ClutchBotAgent:
             )
 
             self._last_action_time[moment.action] = time.time()
+
+    def _still_pressure_context(self) -> bool:
+        """True if situation still looks like a clutch window (red zone / close / late)."""
+        try:
+            st = self._situation.state
+            from qoresence.agents.fast_moment import FastMomentEngine
+
+            return bool(
+                FastMomentEngine._is_red_zone(st)
+                or (FastMomentEngine._is_close(st) and FastMomentEngine._is_late(st))
+            )
+        except Exception:
+            return True
+
+    def _wire_prediction_lifecycle(self) -> None:
+        """Optional Helix callbacks — local open if no helix."""
+        helix = self._helix_client
+        if helix is None:
+            return
+
+        def _open(meta: dict[str, Any]) -> bool:
+            try:
+                title = str(meta.get("title") or "Will they score on this drive?")
+                outcomes = meta.get("outcomes") or ["Yes", "No"]
+                # Helix client API may vary — best-effort
+                if hasattr(helix, "create_prediction"):
+                    r = helix.create_prediction(title, outcomes, 60, offense=None)
+                    return bool(r)
+                return False
+            except Exception as e:
+                log.debug("helix open failed: %s", e)
+                return False
+
+        def _resolve(idx: int) -> bool:
+            try:
+                if hasattr(helix, "resolve_prediction"):
+                    return bool(helix.resolve_prediction(idx))
+                return False
+            except Exception as e:
+                log.debug("helix resolve failed: %s", e)
+                return False
+
+        self._pred_life.open_callback = _open
+        self._pred_life.resolve_callback = _resolve
 
     def _record_timeline(
         self, moment: ScoredMoment, *, path_label: str, event: BaseEvent
