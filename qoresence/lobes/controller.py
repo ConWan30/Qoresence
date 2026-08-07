@@ -34,12 +34,12 @@ log = logging.getLogger(__name__)
 # DUALSHOCK EDGE HID CONSTANTS
 # ──────────────────────────────────────────────────────────────────────────────
 
-# Sony DualShock Edge (CFI-ZCP1)
+# Sony DualSense / DualSense Edge
 DS_EDGE_VID = 0x054C  # Sony
-DS_EDGE_PID = 0x0CE6  # DualSense Edge
-
-# Generic DualSense (for fallback)
-DS_PID = 0x0CE6
+DS_EDGE_PID = 0x0DF2  # DualSense Edge Wireless Controller
+DS_PID = 0x0CE6  # DualSense (standard)
+# Try these in order when config has no explicit VID/PID
+_SONY_CONTROLLER_PIDS = (0x0DF2, 0x0CE6, 0x05C4)  # Edge, DualSense, DS4
 
 # Report IDs
 REPORT_ID_INPUT = 0x01
@@ -270,27 +270,92 @@ class ControllerRuntime:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _open_device(self) -> bool:
-        """Open HID device by VID/PID or path."""
-        try:
-            self._device = HIDDevice()
-
-            # Priority 1: Explicit path
-            if self.config.device_path:
-                self._device.open_path(self.config.device_path.encode())
-                self._device_path = self.config.device_path
+        """Open HID device by VID/PID or path (DualSense Edge preferred)."""
+        # Priority 1: Explicit path
+        if self.config.device_path:
+            try:
+                self._device = HIDDevice()
+                path = self.config.device_path
+                path_b = path.encode() if isinstance(path, str) else path
+                self._device.open_path(path_b)
+                self._device_path = path if isinstance(path, str) else path.decode(errors="replace")
+                log.info("Controller HID opened by path: %s", self._device_path)
                 return True
+            except Exception as e:
+                log.error("Failed to open HID path %s: %s", self.config.device_path, e)
+                self._device = None
+                return False
 
-            # Priority 2: Explicit VID/PID
-            vid = self.config.device_vid or DS_EDGE_VID
-            pid = self.config.device_pid or DS_EDGE_PID
-            self._device.open(vid, pid)
-            self._device_path = f"vid={vid:04x},pid={pid:04x}"
-            return True
+        # Priority 2: Explicit VID/PID
+        if self.config.device_vid is not None and self.config.device_pid is not None:
+            try:
+                self._device = HIDDevice()
+                vid, pid = int(self.config.device_vid), int(self.config.device_pid)
+                self._device.open(vid, pid)
+                self._device_path = f"vid={vid:04x},pid={pid:04x}"
+                log.info("Controller HID opened: %s", self._device_path)
+                return True
+            except Exception as e:
+                log.error("Failed to open HID vid=%s pid=%s: %s", self.config.device_vid, self.config.device_pid, e)
+                self._device = None
+                return False
 
-        except Exception as e:
-            log.error(f"Failed to open HID device: {e}")
-            self._device = None
-            return False
+        # Priority 3: Enumerate Sony DualSense family and open first usable path
+        candidates = list_controllers()
+        sony = [c for c in candidates if int(c.get("vid") or 0) == DS_EDGE_VID]
+        # Prefer Edge product string / Edge PID, then any Sony pad
+        def _rank(c: dict) -> int:
+            pid = int(c.get("pid") or 0)
+            prod = (c.get("product") or "").lower()
+            if "edge" in prod or pid == DS_EDGE_PID:
+                return 0
+            if pid in _SONY_CONTROLLER_PIDS:
+                return 1
+            return 2
+
+        sony.sort(key=_rank)
+        last_err: Exception | None = None
+        for c in sony:
+            path = c.get("path")
+            if not path:
+                continue
+            try:
+                self._device = HIDDevice()
+                path_b = path.encode() if isinstance(path, str) else path
+                self._device.open_path(path_b)
+                self._device_path = (
+                    f"{c.get('product') or 'Sony'} vid={int(c.get('vid') or 0):04x},"
+                    f"pid={int(c.get('pid') or 0):04x}"
+                )
+                log.info("Controller HID opened: %s", self._device_path)
+                return True
+            except Exception as e:
+                last_err = e
+                self._device = None
+                continue
+
+        # Priority 4: Classic open by known PIDs
+        for pid in _SONY_CONTROLLER_PIDS:
+            try:
+                self._device = HIDDevice()
+                self._device.open(DS_EDGE_VID, pid)
+                self._device_path = f"vid={DS_EDGE_VID:04x},pid={pid:04x}"
+                log.info("Controller HID opened: %s", self._device_path)
+                return True
+            except Exception as e:
+                last_err = e
+                self._device = None
+                continue
+
+        log.error(
+            "Failed to open DualSense HID (Edge/standard). last_err=%s listed=%s",
+            last_err,
+            [
+                f"vid={c.get('vid'):04x} pid={c.get('pid'):04x} {c.get('product')}"
+                for c in candidates[:8]
+            ],
+        )
+        return False
 
     def _enumerate_devices(self) -> list[dict]:
         """List all HID devices for debugging."""

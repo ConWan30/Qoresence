@@ -195,10 +195,11 @@ class HdmiClipBuffer:
 
         w = snapshot[0][2]
         h = snapshot[0][3]
-        # force consistent size
-        for _ts, _jpg, fw, fh in snapshot:
-            w, h = fw, fh
-            break
+        # force consistent size (entries: ts, jpeg, w, h, seq)
+        for entry in snapshot:
+            if len(entry) >= 4:
+                w, h = int(entry[2]), int(entry[3])
+                break
 
         span = snapshot[-1][0] - snapshot[0][0]
         fps = (len(snapshot) - 1) / span if span > 0.05 else self.target_fps
@@ -233,7 +234,10 @@ class HdmiClipBuffer:
 
         written = 0
         try:
-            for _ts, jpg, fw, fh in snapshot:
+            for entry in snapshot:
+                # (ts, jpeg, w, h[, seq])
+                jpg = entry[1]
+                fw, fh = int(entry[2]), int(entry[3])
                 arr = np.frombuffer(jpg, dtype=np.uint8)
                 img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
                 if img is None:
