@@ -116,9 +116,15 @@ class SituationModel:
         self._state.visual_confidence = ctx.confidence
 
         if ctx.game_category and ctx.game_category.value == "football":
+            # Scores: only apply if plausible (OCR often emits 17-2 for a real 17-17)
+            hs, aws = ctx.home_score, ctx.away_score
+            if hs is not None and not self._score_plausible(self._state.home_score, hs):
+                hs = None
+            if aws is not None and not self._score_plausible(self._state.away_score, aws):
+                aws = None
             self._apply_if_set(
-                home_score=ctx.home_score,
-                away_score=ctx.away_score,
+                home_score=hs,
+                away_score=aws,
                 quarter=ctx.quarter,
                 down=ctx.down,
                 yards_to_go=ctx.yards_to_go,
@@ -142,6 +148,32 @@ class SituationModel:
         for key, value in kwargs.items():
             if value is not None and value != "":
                 setattr(self._state, key, value)
+
+    @staticmethod
+    def _score_plausible(prev: Any, new: Any) -> bool:
+        """Reject large score drops / nonsense (OCR flicker). Stabilizer is primary."""
+        if new is None:
+            return False
+        try:
+            n = int(new)
+        except Exception:
+            return False
+        if not (0 <= n <= 99):
+            return False
+        if prev is None:
+            return True
+        try:
+            p = int(prev)
+        except Exception:
+            return True
+        d = n - p
+        if d <= -7:
+            return False
+        if d < 0:
+            return False
+        if d > 14:
+            return False
+        return True
 
     def _handle_outcome_event(self, payload: dict[str, Any]) -> None:
         self._state.last_outcome_event = payload.get("event_name")

@@ -276,17 +276,31 @@ class OutcomeRuntime:
             self._sync_football_state(ctx)
             return
 
-        # Score change
+        # Score change — reject flaky OCR (e.g. 17-17 → 17-2 single-frame glitch)
         if ctx.home_score != self._home_score or ctx.away_score != self._away_score:
             fields: dict[str, Any] = {}
             if ctx.home_score is not None and ctx.home_score != self._home_score:
-                fields["home_score"] = ctx.home_score
-                fields["prev_home_score"] = self._home_score
-                self._home_score = ctx.home_score
+                if self._score_change_ok(self._home_score, ctx.home_score):
+                    fields["home_score"] = ctx.home_score
+                    fields["prev_home_score"] = self._home_score
+                    self._home_score = ctx.home_score
+                else:
+                    log.debug(
+                        "outcome reject home_score OCR %s → %s",
+                        self._home_score,
+                        ctx.home_score,
+                    )
             if ctx.away_score is not None and ctx.away_score != self._away_score:
-                fields["away_score"] = ctx.away_score
-                fields["prev_away_score"] = self._away_score
-                self._away_score = ctx.away_score
+                if self._score_change_ok(self._away_score, ctx.away_score):
+                    fields["away_score"] = ctx.away_score
+                    fields["prev_away_score"] = self._away_score
+                    self._away_score = ctx.away_score
+                else:
+                    log.debug(
+                        "outcome reject away_score OCR %s → %s",
+                        self._away_score,
+                        ctx.away_score,
+                    )
             if fields:
                 self._emit_outcome_event("score_changed", fields, ctx.confidence)
 
@@ -366,13 +380,46 @@ class OutcomeRuntime:
         # Sync state after change detection so we don't double-emit
         self._sync_football_state(ctx)
 
+    @staticmethod
+    def _score_change_ok(prev: int | None, new: int | None) -> bool:
+        """Gate OCR score flips — reject classic misreads (17→2) without consensus path.
+
+        Stabilizer upstream should already filter; this is a second belt for outcome events.
+        """
+        if new is None:
+            return False
+        if prev is None:
+            return 0 <= int(new) <= 99
+        try:
+            p, n = int(prev), int(new)
+        except Exception:
+            return False
+        if not (0 <= n <= 99):
+            return False
+        if p == n:
+            return True
+        d = n - p
+        # Large drops are almost always OCR (17→2, 21→1)
+        if d <= -7:
+            return False
+        # Any decrease is suspicious for football (scores only go up in-game)
+        if d < 0:
+            return False
+        # Unrealistically large single-play jump
+        if d > 14:
+            return False
+        return True
+
     def _sync_football_state(self, ctx: VisualContext) -> None:
-        """Update cached football state."""
-        self._home_score = ctx.home_score
-        self._away_score = ctx.away_score
-        self._quarter = ctx.quarter
-        self._down = ctx.down
-        self._yards_to_go = ctx.yards_to_go
+        """Update cached football state (scores only when OCR change is plausible)."""
+        if ctx.home_score is not None and self._score_change_ok(self._home_score, ctx.home_score):
+            self._home_score = ctx.home_score
+        if ctx.away_score is not None and self._score_change_ok(self._away_score, ctx.away_score):
+            self._away_score = ctx.away_score
+        self._quarter = ctx.quarter if ctx.quarter is not None else self._quarter
+        self._down = ctx.down if ctx.down is not None else self._down
+        if ctx.yards_to_go is not None:
+            self._yards_to_go = ctx.yards_to_go
         self._possession = ctx.possession
         self._field_position = ctx.field_position
         self._play_clock = ctx.play_clock

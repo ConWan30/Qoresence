@@ -2,12 +2,17 @@
 
 Uses EasyOCR on a bottom-center crop and extracts score, quarter, clock,
 down/distance, and play-clock from the HUD. No cloud VLM calls.
+
+Score updates are **stabilized** (temporal consensus + plausible deltas) so a
+single misread like 17-2 cannot wipe a real 17-17.
 """
 
 from __future__ import annotations
 
 import logging
 import re
+import time
+from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
@@ -17,6 +22,9 @@ import numpy as np
 from qoresence.vision.visual_context import GameCategory, VisualContext
 
 log = logging.getLogger(__name__)
+
+# Football scoring increments (one team) — used for plausibility, not hard law
+_PLAUSIBLE_SCORE_DELTAS = frozenset({0, 1, 2, 3, 6, 7, 8})
 
 
 def _normalize_quarter_word(token: str) -> str:
@@ -98,10 +106,143 @@ class _Cluster:
     conf: float
 
 
+class _ScoreStabilizer:
+    """Require consensus before publishing score changes (anti-OCR flicker)."""
+
+    def __init__(self, window: int = 5, need: int = 2) -> None:
+        self._window = max(3, int(window))
+        self._need = max(2, int(need))
+        self._recent: deque[tuple[int | None, int | None]] = deque(maxlen=self._window)
+        self._stable: tuple[int | None, int | None] = (None, None)
+
+    def update(
+        self, home: int | None, away: int | None
+    ) -> tuple[int | None, int | None]:
+        """Return stabilized (home, away). May keep previous if new read is flaky."""
+        if home is None and away is None:
+            return self._stable
+
+        # Clamp football-ish range
+        if home is not None and not (0 <= home <= 99):
+            home = None
+        if away is not None and not (0 <= away <= 99):
+            away = None
+        if home is None and away is None:
+            return self._stable
+
+        cand = (home, away)
+        self._recent.append(cand)
+
+        sh, sa = self._stable
+
+        # First lock-in: need two matching pair reads (prefer coherent pairs)
+        if sh is None and sa is None:
+            need = self._need
+            # Suspicious first read (e.g. 17-2): demand extra consensus
+            if self._looks_suspicious_pair(cand):
+                need = self._need + 1
+            if self._count_pair(cand) >= need:
+                self._stable = cand
+                log.info("scoreboard lock-in %s-%s", cand[0], cand[1])
+            return self._stable
+
+        # Same as stable — refresh
+        if cand == self._stable:
+            return self._stable
+
+        # Partial update: fill only missing side from stable
+        merged_h = home if home is not None else sh
+        merged_a = away if away is not None else sa
+        merged = (merged_h, merged_a)
+
+        if merged == self._stable:
+            return self._stable
+
+        # Reject implausible jumps (score drops / 17→2) unless very strong consensus
+        need = self._need
+        if not self._plausible_transition(self._stable, merged):
+            need = self._need + 3  # e.g. 5 agreeing frames to overturn a stable score
+            if self._count_pair(merged) < need:
+                log.debug(
+                    "scoreboard reject flaky %s-%s (stable %s-%s, need %s)",
+                    merged[0],
+                    merged[1],
+                    sh,
+                    sa,
+                    need,
+                )
+                return self._stable
+
+        # Accept change only after repeated agreement
+        if self._count_pair(merged) >= need:
+            log.info(
+                "scoreboard update %s-%s → %s-%s (consensus x%s)",
+                sh,
+                sa,
+                merged[0],
+                merged[1],
+                need,
+            )
+            self._stable = merged
+            return self._stable
+
+        # Hold stable; wait for more frames
+        return self._stable
+
+    def _count_pair(self, pair: tuple[int | None, int | None]) -> int:
+        return sum(1 for p in self._recent if p == pair)
+
+    @staticmethod
+    def _looks_suspicious_pair(pair: tuple[int | None, int | None]) -> bool:
+        h, a = pair
+        if h is None or a is None:
+            return True
+        # One side multi-digit, other tiny 1–4 → often down/quarter leak
+        if (h >= 10 and 1 <= a <= 4) or (a >= 10 and 1 <= h <= 4):
+            return True
+        return False
+
+    @staticmethod
+    def _plausible_transition(
+        old: tuple[int | None, int | None],
+        new: tuple[int | None, int | None],
+    ) -> bool:
+        oh, oa = old
+        nh, na = new
+        if oh is None or oa is None or nh is None or na is None:
+            return True
+        dh = nh - oh
+        da = na - oa
+        # Both sides change at once is rare (except rare simultaneous / OCR flip)
+        if dh != 0 and da != 0:
+            # Allow both to correct toward a tie / similar values if close
+            if abs(nh - na) <= 3 and abs(oh - oa) > 8:
+                return True  # correcting a bad prior
+            # Simultaneous changes need consensus (caller checks count)
+            return False
+        # Score should not drop unless correcting OCR (large drop is suspicious)
+        if dh < 0 or da < 0:
+            # Single-digit drop from 17→2 is classic OCR failure
+            drop = abs(min(dh, 0)) + abs(min(da, 0))
+            if drop >= 7:
+                return False
+            return False  # any drop requires consensus
+        # Increase: typical football increments
+        for d in (dh, da):
+            if d == 0:
+                continue
+            if d not in _PLAUSIBLE_SCORE_DELTAS and d not in (4, 5, 9, 10, 14):
+                # Unusual but allow safety with consensus later
+                return d <= 14
+        return True
+
+
 class FootballScoreboardExtractor:
     """Extract football scoreboard fields from a BGR frame."""
 
     _reader: Any | None = None
+    # Process-wide stabilizer so multi-instance extractors share consensus
+    _stabilizer: _ScoreStabilizer | None = None
 
     def __init__(self) -> None:
         self._easyocr_available = False
@@ -111,6 +252,8 @@ class FootballScoreboardExtractor:
             self._easyocr_available = True
         except Exception:
             log.warning("easyocr not installed; scoreboard extraction disabled")
+        if FootballScoreboardExtractor._stabilizer is None:
+            FootballScoreboardExtractor._stabilizer = _ScoreStabilizer(window=6, need=2)
 
     @classmethod
     def _get_reader(cls) -> Any:
@@ -133,6 +276,29 @@ class FootballScoreboardExtractor:
             return ctx
 
         parsed = self._parse(tokens)
+
+        # Stabilize scores so one bad frame cannot flip 17-17 → 17-2
+        raw_h, raw_a = parsed.get("home_score"), parsed.get("away_score")
+        stab = FootballScoreboardExtractor._stabilizer
+        if stab is not None and (raw_h is not None or raw_a is not None):
+            sh, sa = stab.update(raw_h, raw_a)
+            if sh is not None:
+                parsed["home_score"] = sh
+            else:
+                parsed.pop("home_score", None)
+            if sa is not None:
+                parsed["away_score"] = sa
+            else:
+                parsed.pop("away_score", None)
+            if (raw_h, raw_a) != (sh, sa):
+                log.debug(
+                    "scoreboard raw %s-%s stabilized to %s-%s",
+                    raw_h,
+                    raw_a,
+                    sh,
+                    sa,
+                )
+
         if parsed.get("home_score") is not None:
             ctx.home_score = parsed["home_score"]
         if parsed.get("away_score") is not None:
@@ -259,6 +425,13 @@ class FootballScoreboardExtractor:
                 parsed["play_clock"] = val
                 break
 
+        # Prefer explicit "17-17" / "17–17" / "17 17" pair patterns from OCR text
+        pair = self._find_score_pair_text(clusters)
+        if pair is not None:
+            parsed["home_score"] = pair[0]
+            parsed["away_score"] = pair[1]
+            return parsed
+
         # Scores: left-of-center (home) and right-of-center (away).
         # Use team positions to anchor.
         left_team = min((c for c in team_clusters), key=lambda c: c.x, default=None)
@@ -268,6 +441,7 @@ class FootballScoreboardExtractor:
             val = self._parse_int(c.text)
             if val is None:
                 return False
+            # Single-digit 1–4 near center often quarter/down — deprioritize later
             # Exclude clock/play-clock/quarter/down tokens already consumed.
             if (
                 quarter_cluster
@@ -305,7 +479,8 @@ class FootballScoreboardExtractor:
             if val is None or val > 30:
                 return False
             for team in team_clusters:
-                if abs(c.x - team.x) < 0.12 and abs(c.y - team.y) < 0.10:
+                # Rank is usually LEFT of team name (e.g. "5 LOUISVILLE")
+                if 0 < (team.x - c.x) < 0.14 and abs(c.y - team.y) < 0.10:
                     return True
             return False
 
@@ -314,32 +489,81 @@ class FootballScoreboardExtractor:
         home_score: int | None = None
         away_score: int | None = None
 
+        def _best_score(cands: list[_Cluster], prefer_right: bool) -> int | None:
+            """Prefer higher-confidence, multi-digit scores over flaky single digits."""
+            if not cands:
+                return None
+            scored: list[tuple[float, int, _Cluster]] = []
+            for c in cands:
+                v = self._parse_int(c.text)
+                if v is None or v > 99:
+                    continue
+                # Weight: confidence + bonus for 2-digit + mild position preference
+                w = float(c.conf)
+                if v >= 10:
+                    w += 0.35
+                if v == 0:
+                    w += 0.05
+                # Single digit 1–4 is often down/quarter noise
+                if 1 <= v <= 4:
+                    w -= 0.25
+                scored.append((w, v, c))
+            if not scored:
+                return None
+            scored.sort(key=lambda t: (-t[0], t[2].x if prefer_right else -t[2].x))
+            return scored[0][1]
+
         if left_team:
-            left_candidates = [c for c in candidates if left_team.x < c.x < 0.45]
-            if left_candidates:
-                home_score = self._parse_int(min(left_candidates, key=lambda c: c.x).text)
+            left_candidates = [c for c in candidates if left_team.x < c.x < 0.48]
+            home_score = _best_score(left_candidates, prefer_right=False)
 
         if right_team:
-            right_candidates = [c for c in candidates if 0.55 < c.x < right_team.x]
-            if right_candidates:
-                away_score = self._parse_int(max(right_candidates, key=lambda c: c.x).text)
+            right_candidates = [c for c in candidates if 0.52 < c.x < right_team.x]
+            away_score = _best_score(right_candidates, prefer_right=True)
 
         # Fallback to leftmost/rightmost remaining candidates in the team row.
         if home_score is None and candidates:
-            left_c = min([c for c in candidates if c.x < 0.45], key=lambda c: c.x, default=None)
-            if left_c:
-                home_score = self._parse_int(left_c.text)
+            left_pool = [c for c in candidates if c.x < 0.48]
+            home_score = _best_score(left_pool, prefer_right=False)
         if away_score is None and candidates:
-            right_c = max([c for c in candidates if c.x > 0.55], key=lambda c: c.x, default=None)
-            if right_c:
-                away_score = self._parse_int(right_c.text)
+            right_pool = [c for c in candidates if c.x > 0.52]
+            away_score = _best_score(right_pool, prefer_right=True)
 
+        # If only one side found, leave the other unset (don't invent 0)
         if home_score is not None:
             parsed["home_score"] = home_score
         if away_score is not None:
             parsed["away_score"] = away_score
 
         return parsed
+
+    @staticmethod
+    def _find_score_pair_text(clusters: list[_Cluster]) -> tuple[int, int] | None:
+        """Detect explicit scoreline patterns like 17-17, 17–17, 21 14."""
+        for c in clusters:
+            text = c.text.replace("–", "-").replace("—", "-").replace(":", "-")
+            m = re.search(r"\b(\d{1,2})\s*[-/]\s*(\d{1,2})\b", text)
+            if m:
+                a, b = int(m.group(1)), int(m.group(2))
+                if 0 <= a <= 99 and 0 <= b <= 99:
+                    return a, b
+        # Two nearby pure numbers on same row with similar magnitude
+        nums: list[tuple[int, float, float]] = []
+        for c in clusters:
+            if re.fullmatch(r"\d{1,2}", c.text.strip()):
+                v = int(c.text.strip())
+                if 0 <= v <= 99:
+                    nums.append((v, c.x, c.y))
+        nums.sort(key=lambda t: t[1])
+        for i in range(len(nums) - 1):
+            v1, x1, y1 = nums[i]
+            v2, x2, y2 = nums[i + 1]
+            if abs(y1 - y2) < 0.12 and 0.15 < (x2 - x1) < 0.55:
+                # Skip if looks like clock fragments
+                if x1 > 0.35 and x2 < 0.65 and max(v1, v2) <= 59 and min(v1, v2) < 10:
+                    continue
+                return v1, v2
+        return None
 
     @staticmethod
     def _cluster_tokens(
