@@ -1,94 +1,213 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Retina Rail — LIVE</title>
+<title>Retina Deck — Streamer Console</title>
 <style>
+:root{
+  --bg:#070A0F; --panel:#0E131B; --card:#141B26; --line:rgba(232,237,240,.12);
+  --text:#E8EDF0; --muted:rgba(232,237,240,.55); --gold:#F5C542; --gold-dim:rgba(245,197,66,.14);
+  --danger:#E74C3C; --ok:#2ECC71; --rail-w:400px;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Inter,system-ui,sans-serif;background:#070A0F;color:#E8EDF0;display:flex;min-height:100vh;overflow:hidden}
-#stage{flex:1;min-width:0;display:flex;flex-direction:column;background:
-  radial-gradient(ellipse 80% 60% at 50% 40%,rgba(245,197,66,.06),transparent 60%),
-  linear-gradient(180deg,#0A0E14 0%,#070A0F 100%);position:relative}
-#stageHead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid rgba(232,237,240,.08);flex-wrap:wrap}
-#stageHead h1{font:700 13px/1 JetBrains Mono,monospace;letter-spacing:.1em;color:#F5C542;text-transform:uppercase}
-#modeBar{display:flex;gap:6px;align-items:center}
-.modeBtn{appearance:none;border:1px solid rgba(245,197,66,.3);background:rgba(245,197,66,.08);color:#E8EDF0;border-radius:8px;padding:6px 14px;font:700 11px/1 JetBrains Mono,monospace;cursor:pointer;letter-spacing:.06em}
-.modeBtn.active{background:#F5C542;color:#0A0E14;border-color:#F5C542}
-#stageMeta{font:500 11px/1 JetBrains Mono,monospace;color:rgba(232,237,240,.45)}
-#playerWrap{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;position:relative;min-height:0}
-#player,#liveFeed{width:100%;max-width:min(1100px,96%);max-height:100%;aspect-ratio:16/9;background:#000;border-radius:16px;border:1px solid rgba(245,197,66,.18);box-shadow:0 24px 80px rgba(0,0,0,.55);object-fit:contain}
-#liveFeed{display:none}
-#player{display:none}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;overflow:hidden}
+body{display:grid;grid-template-columns:1fr var(--rail-w);grid-template-rows:auto 1fr;min-height:100vh}
+
+/* ── Top command bar (always reachable) ── */
+#cmd{
+  grid-column:1 / -1; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); z-index:5;
+}
+#cmd .brand{font:800 12px/1 JetBrains Mono,monospace;letter-spacing:.12em;color:var(--gold);text-transform:uppercase;margin-right:8px}
+#modeBar{display:flex;gap:6px}
+.modeBtn,.actionBtn{
+  appearance:none; border:1px solid rgba(245,197,66,.35); background:var(--gold-dim); color:var(--text);
+  border-radius:10px; padding:10px 18px; font:800 13px/1 JetBrains Mono,monospace; cursor:pointer;
+  letter-spacing:.04em; min-height:42px;
+}
+.modeBtn.active{background:var(--gold); color:#0A0E14; border-color:var(--gold)}
+.modeBtn:hover:not(.active),.actionBtn:hover{border-color:var(--gold); filter:brightness(1.08)}
+#btnClip{
+  background:var(--gold); color:#0A0E14; border:0; margin-left:auto;
+  padding:12px 22px; font-size:14px; min-width:200px;
+}
+#btnClip:disabled{opacity:.55;cursor:wait}
+#cmdStatus{font:600 12px/1.2 JetBrains Mono,monospace;color:var(--muted); min-width:180px}
+#cmdStatus .dot{color:var(--ok)}
+#cmdStatus .dot.warn{color:var(--gold)}
+#cmdStatus .dot.bad{color:var(--danger)}
+#cmd a{color:var(--gold); text-decoration:none; font:600 12px JetBrains Mono,monospace; opacity:.85}
+#cmd a:hover{opacity:1}
+
+/* ── Stage (video + clip strip) ── */
+#stage{
+  display:grid; grid-template-rows:auto minmax(0,1fr) auto; min-width:0; min-height:0;
+  background:radial-gradient(ellipse 70% 50% at 50% 35%,rgba(245,197,66,.05),transparent 55%), var(--bg);
+}
+#stageSub{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:10px 16px 6px; color:var(--muted); font:600 12px/1 JetBrains Mono,monospace;
+}
+#playerWrap{
+  position:relative; margin:0 16px; min-height:0; display:flex; align-items:center; justify-content:center;
+  background:#000; border-radius:16px; border:1px solid rgba(245,197,66,.2);
+  box-shadow:0 20px 60px rgba(0,0,0,.5); overflow:hidden;
+}
+#player,#liveFeed{
+  width:100%; height:100%; max-height:100%; object-fit:contain; background:#000; display:none;
+}
 body.mode-live #liveFeed{display:block}
 body.mode-replay #player{display:block}
-#playerEmpty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;color:rgba(232,237,240,.4);font:500 14px/1.5 Inter,sans-serif;text-align:center;padding:24px}
-#playerEmpty strong{color:rgba(245,197,66,.75);font-weight:700}
-#playerWrap.has-video #playerEmpty{display:none}
-#stageFoot{padding:12px 20px 16px;border-top:1px solid rgba(232,237,240,.08)}
-#clipGrid{display:flex;flex-wrap:wrap;gap:8px;max-height:120px;overflow:auto}
-.clipBtn{appearance:none;border:1px solid rgba(245,197,66,.28);background:rgba(245,197,66,.08);color:#E8EDF0;border-radius:10px;padding:8px 12px;font:600 11px/1.2 JetBrains Mono,monospace;cursor:pointer;transition:all .15s;text-align:left;min-width:140px}
-.clipBtn:hover,.clipBtn.active{background:rgba(245,197,66,.22);border-color:#F5C542;color:#fff;transform:translateY(-1px)}
-.clipBtn small{display:block;font-weight:500;color:rgba(232,237,240,.5);margin-top:4px}
-#rail{width:380px;flex-shrink:0;min-height:100vh;background:rgba(10,14,20,.92);backdrop-filter:blur(16px);border-left:1px solid rgba(232,237,240,.12);padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:-16px 0 48px rgba(0,0,0,.45);overflow:auto}
-.card{background:rgba(232,237,240,.07);border:1px solid rgba(232,237,240,.10);border-radius:14px;padding:12px 14px}
-.card h3{font:600 11px/1 JetBrains Mono,monospace;letter-spacing:.08em;color:rgba(232,237,240,.62);margin-bottom:8px;text-transform:uppercase}
-#strip{font:600 13px/1.4 JetBrains Mono,monospace;min-height:18px}#strip.wait{color:rgba(232,237,240,.55);font-weight:500}
-#lat{font:500 11px/1 JetBrains Mono,monospace;color:rgba(232,237,240,.55);margin-top:6px}
-#feed{max-height:280px;overflow:auto;display:flex;flex-direction:column;gap:8px;min-height:40px}
-#feed.empty::before{content:"No clutch moments yet — score change or Foundry clip.";color:rgba(232,237,240,.45);font:500 11px/1.4 Inter,sans-serif;padding:6px}
-.item{padding:9px 10px;border-radius:10px;background:rgba(245,197,66,.10);border:1px solid rgba(245,197,66,.18);font:500 12px/1.4 Inter,sans-serif}
-.item.playable{cursor:pointer;display:flex;align-items:center;gap:10px}
-.item.playable:hover{background:rgba(245,197,66,.2);border-color:#F5C542}
-.item .play{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:#F5C542;color:#0A0E14;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
-.item .body{min-width:0;flex:1}
-.item .body .t{font-weight:700}
-.item .body .r{font:500 10px/1.3 JetBrains Mono,monospace;color:rgba(232,237,240,.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
-#foundry{width:100%;padding:12px;border-radius:12px;border:0;background:#F5C542;color:#0A0E14;font:700 13px/1 Inter,sans-serif;cursor:pointer}
-#foundry:disabled{opacity:.6;cursor:wait}
-#trail{font:500 11px/1 JetBrains Mono,monospace;color:rgba(232,237,240,.55);display:flex;justify-content:space-between;margin-top:4px}
-a{color:#F5C542;text-decoration:none}
-@media (max-width:900px){
-  body{flex-direction:column}
-  #stage{min-height:45vh}
-  #rail{width:100%;min-height:auto;border-left:0;border-top:1px solid rgba(232,237,240,.12)}
+#playerEmpty{
+  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; color:var(--muted); font:500 14px/1.5 Inter,sans-serif; text-align:center; padding:24px; pointer-events:none;
 }
-</style></head><body class="mode-live">
-<div id="stage">
-  <div id="stageHead">
-    <h1>Ghost Theater · HDMI</h1>
-    <div id="modeBar">
-      <button type="button" class="modeBtn active" id="btnLive" data-mode="live">LIVE</button>
-      <button type="button" class="modeBtn" id="btnReplay" data-mode="replay">REPLAY</button>
-    </div>
-    <div id="stageMeta">LIVE from capture card</div>
+#playerEmpty strong{color:var(--gold); font-size:16px}
+#playerWrap.has-video #playerEmpty{display:none}
+
+/* Clip strip — ABOVE the fold, large hit targets */
+#clipDock{
+  padding:12px 16px 16px; border-top:1px solid var(--line); background:rgba(14,19,27,.95);
+  min-height:140px; max-height:28vh; display:flex; flex-direction:column; gap:10px;
+}
+#clipDock header{display:flex; align-items:center; justify-content:space-between; gap:10px}
+#clipDock h2{font:800 12px/1 JetBrains Mono,monospace; letter-spacing:.1em; color:var(--gold); text-transform:uppercase}
+#clipCount{font:600 11px JetBrains Mono,monospace; color:var(--muted)}
+#clipGrid{
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:10px;
+  overflow:auto; flex:1; min-height:88px; padding-bottom:4px;
+  scrollbar-width:thin; scrollbar-color:var(--gold) transparent;
+}
+.clipBtn{
+  appearance:none; border:2px solid rgba(245,197,66,.35); background:var(--card); color:var(--text);
+  border-radius:12px; padding:14px 12px; font:700 13px/1.25 Inter,sans-serif; cursor:pointer;
+  text-align:left; min-height:76px; transition:border-color .12s, transform .12s, background .12s;
+  display:flex; flex-direction:column; justify-content:center; gap:6px;
+}
+.clipBtn:hover{border-color:var(--gold); background:var(--gold-dim); transform:translateY(-1px)}
+.clipBtn.active{border-color:var(--gold); background:rgba(245,197,66,.22); box-shadow:0 0 0 1px var(--gold)}
+.clipBtn .playIcon{font-size:16px; color:var(--gold)}
+.clipBtn .name{font:800 13px/1.2 JetBrains Mono,monospace; word-break:break-all}
+.clipBtn .meta{font:600 11px/1.2 JetBrains Mono,monospace; color:var(--muted)}
+#clipEmpty{color:var(--muted); font:500 13px/1.4 Inter,sans-serif; padding:16px; grid-column:1/-1}
+
+/* ── Right rail ── */
+#rail{
+  display:flex; flex-direction:column; gap:12px; padding:14px; background:var(--panel);
+  border-left:1px solid var(--line); overflow:auto; min-height:0;
+}
+.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px}
+.card h3{font:800 11px/1 JetBrains Mono,monospace; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; margin-bottom:10px}
+#strip{font:800 18px/1.35 JetBrains Mono,monospace; min-height:28px; color:var(--text)}
+#strip.wait{color:var(--muted); font-weight:600; font-size:14px}
+#lat{font:600 11px/1.3 JetBrains Mono,monospace; color:var(--muted); margin-top:8px}
+#bufBar{height:8px; border-radius:99px; background:rgba(255,255,255,.06); overflow:hidden; margin-top:10px}
+#bufFill{height:100%; width:0%; background:linear-gradient(90deg,#1A3A2A,var(--gold)); transition:width .3s}
+#bufLabel{font:600 11px JetBrains Mono,monospace; color:var(--muted); margin-top:6px}
+#feed{display:flex; flex-direction:column; gap:8px; max-height:220px; overflow:auto; min-height:48px}
+#feed.empty::before{content:"Moments appear on score changes · clips are playable ▶"; color:var(--muted); font:500 12px/1.4 Inter,sans-serif; padding:4px 0}
+.item{padding:12px; border-radius:12px; background:var(--gold-dim); border:1px solid rgba(245,197,66,.22); font:600 13px/1.35 Inter,sans-serif}
+.item.playable{cursor:pointer; display:flex; align-items:center; gap:12px}
+.item.playable:hover{border-color:var(--gold); background:rgba(245,197,66,.22)}
+.item .play{flex-shrink:0; width:36px; height:36px; border-radius:50%; background:var(--gold); color:#0A0E14;
+  display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:900}
+.item .body{min-width:0; flex:1}
+.item .body .t{font-weight:800}
+.item .body .r{font:600 11px/1.3 JetBrains Mono,monospace; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:4px}
+#railFoundry{margin-top:auto}
+#railFoundry .hint{font:500 11px/1.35 Inter,sans-serif; color:var(--muted); margin-top:8px}
+#trail{display:flex; justify-content:space-between; gap:8px; font:600 11px JetBrains Mono,monospace; color:var(--muted); padding:0 2px}
+#links{display:flex; flex-wrap:wrap; gap:10px 14px; font:600 12px JetBrains Mono,monospace}
+#links a{color:var(--gold); text-decoration:none}
+#links a:hover{text-decoration:underline}
+
+@media (max-width:1100px){
+  body{grid-template-columns:1fr; grid-template-rows:auto auto 1fr auto}
+  #cmd{grid-column:1}
+  #stage{grid-row:2; min-height:50vh}
+  #rail{grid-row:3; border-left:0; border-top:1px solid var(--line); max-height:42vh}
+  #clipDock{max-height:22vh}
+  :root{--rail-w:100%}
+}
+@media (max-width:700px){
+  #btnClip{min-width:100%; margin-left:0}
+  #modeBar{order:2}
+  .clipBtn{min-height:64px}
+}
+</style>
+</head>
+<body class="mode-live">
+<header id="cmd">
+  <div class="brand">Retina Deck</div>
+  <div id="modeBar">
+    <button type="button" class="modeBtn active" id="btnLive">LIVE</button>
+    <button type="button" class="modeBtn" id="btnReplay">REPLAY</button>
+  </div>
+  <div id="cmdStatus"><span class="dot warn" id="statusDot">●</span> <span id="statusText">connecting…</span></div>
+  <button type="button" class="actionBtn" id="btnClip">▶ Make HDMI Clip (30s)</button>
+  <a href="/overlay.html" target="_blank" title="OBS Browser Source">Lens</a>
+  <a href="/health" target="_blank">Health</a>
+</header>
+
+<main id="stage">
+  <div id="stageSub">
+    <span id="stageMeta">LIVE from capture card</span>
+    <span id="stageHint">Streamer console · clips play here</span>
   </div>
   <div id="playerWrap">
-    <div id="playerEmpty"><strong>Waiting for HDMI…</strong><br>Buffer fills from USB3.0 capture.<br>LIVE uses /video · REPLAY plays MP4 clips.</div>
+    <div id="playerEmpty">
+      <strong>Waiting for HDMI…</strong>
+      Run <code style="color:var(--gold)">--play --deck --streamer-device 0</code>
+      <span>LIVE = /video · REPLAY = saved MP4</span>
+    </div>
     <img id="liveFeed" alt="LIVE HDMI" src="/video?fps=30" decoding="async" fetchpriority="high">
     <video id="player" controls playsinline></video>
   </div>
-  <div id="stageFoot">
-    <div class="card" style="background:transparent;border:0;padding:0">
-      <h3 style="margin-bottom:10px">Clip library — click → REPLAY</h3>
-      <div id="clipGrid"></div>
-    </div>
+  <section id="clipDock" aria-label="Clip library">
+    <header>
+      <h2>Clip library</h2>
+      <span id="clipCount">0 clips</span>
+    </header>
+    <div id="clipGrid"><div id="clipEmpty">No clips yet — hit <strong style="color:var(--gold)">Make HDMI Clip</strong> while LIVE.</div></div>
+  </section>
+</main>
+
+<aside id="rail">
+  <div class="card">
+    <h3>Situation</h3>
+    <div id="strip" class="wait">Waiting for scoreboard…</div>
+    <div id="lat">deck live</div>
+    <div id="bufBar"><div id="bufFill"></div></div>
+    <div id="bufLabel">Buffer: …</div>
   </div>
-</div>
-<div id="rail">
-  <div class="card"><h3>Situation — LIVE</h3><div id="strip" class="wait">Waiting for HDMI — run python -m qoresence.cli --play</div><div id="lat">deck live — polling /api/situation every 2s</div></div>
-  <div class="card"><h3>Clutch Feed</h3><div id="feed" class="empty"></div></div>
-  <div class="card"><h3>Foundry</h3>
-    <button id="foundry">Make HDMI Clip (last 30s)</button>
-    <div style="margin-top:8px;font:500 11px/1.3 JetBrains Mono,monospace;color:rgba(232,237,240,.55)">Buffer <code id="hash">…</code></div>
+  <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column">
+    <h3>Clutch feed</h3>
+    <div id="feed" class="empty"></div>
   </div>
-  <div id="trail"><span id="t1">● waiting</span><span>LIVE /video</span><span id="t3">theater</span></div>
-  <small style="text-align:center;display:block"><a href="/overlay.html" target="_blank">Lens</a> · <a href="/video" target="_blank">/video</a> · <a href="/health">health</a></small>
-</div>
+  <div class="card" id="railFoundry">
+    <h3>Foundry</h3>
+    <p class="hint">Same as top bar — exports last 30s from HDMI ring to <code>clips/</code>, then switches to REPLAY.</p>
+  </div>
+  <div id="trail"><span id="t1">● waiting</span><span>30fps LIVE</span><span id="t3">local</span></div>
+  <div id="links">
+    <a href="/video" target="_blank">/video raw</a>
+    <a href="/api/clips" target="_blank">/api/clips</a>
+    <a href="/api/situation" target="_blank">situation</a>
+  </div>
+</aside>
+
 <script>
-const strip=document.getElementById('strip'),lat=document.getElementById('lat'),feed=document.getElementById('feed'),t1=document.getElementById('t1');
-const player=document.getElementById('player'),liveFeed=document.getElementById('liveFeed'),playerWrap=document.getElementById('playerWrap');
-const stageMeta=document.getElementById('stageMeta'),clipGrid=document.getElementById('clipGrid');
-const btnLive=document.getElementById('btnLive'),btnReplay=document.getElementById('btnReplay');
+const strip=document.getElementById('strip'), lat=document.getElementById('lat'), feed=document.getElementById('feed');
+const t1=document.getElementById('t1'), player=document.getElementById('player'), liveFeed=document.getElementById('liveFeed');
+const playerWrap=document.getElementById('playerWrap'), stageMeta=document.getElementById('stageMeta');
+const clipGrid=document.getElementById('clipGrid'), clipCount=document.getElementById('clipCount');
+const btnLive=document.getElementById('btnLive'), btnReplay=document.getElementById('btnReplay'), btnClip=document.getElementById('btnClip');
+const statusDot=document.getElementById('statusDot'), statusText=document.getElementById('statusText');
+const bufFill=document.getElementById('bufFill'), bufLabel=document.getElementById('bufLabel');
 let activeUrl='', mode='live';
 
+function setStatus(kind, text){
+  statusDot.className='dot'+(kind==='ok'?'':kind==='bad'?' bad':' warn');
+  statusText.textContent=text;
+}
 function setMode(m){
   mode=m==='replay'?'replay':'live';
   document.body.classList.toggle('mode-live', mode==='live');
@@ -97,23 +216,32 @@ function setMode(m){
   btnReplay.classList.toggle('active', mode==='replay');
   if(mode==='live'){
     try{player.pause()}catch(e){}
-    // restart MJPEG stream (browsers sometimes freeze multipart after pause)
     liveFeed.src='/video?fps=30&t='+Date.now();
-    stageMeta.textContent='LIVE · low-latency MJPEG (not 1:1 with game clock)';
+    stageMeta.textContent='LIVE · capture preview (not 1:1 TV latency)';
     t1.textContent='● LIVE';
+    setStatus('ok','LIVE HDMI');
   } else {
-    stageMeta.textContent=activeUrl?('REPLAY · '+(activeUrl.split('/').pop()||'')):'REPLAY · pick a clip';
+    stageMeta.textContent=activeUrl?('REPLAY · '+(activeUrl.split('/').pop()||'')):'REPLAY · tap a clip below';
+    setStatus('warn','REPLAY mode');
   }
 }
 btnLive.onclick=()=>setMode('live');
 btnReplay.onclick=()=>setMode('replay');
 setMode('live');
 
-function isLive(s){if(!s||typeof s!=='object') return false; const hv=s.home_score!=null||s.away_score!=null||s.score_home!=null||s.score_away!=null; return hv||s.quarter!=null||s.down!=null||s.clock!=null||s.game_clock_seconds!=null||s.game_state==='gameplay'||s.kills!=null||s.health!=null||Object.keys(s).length>3;}
-function fmt(s){if(!isLive(s)) return null; const sc=s.score_home!=null?s.score_home+'-'+s.score_away:(s.home_score!=null?s.home_score+'-'+s.away_score:(s.score||'')); const q=s.quarter||'',down=s.down,dist=s.distance||s.yards_to_go,yl=s.yard_line||s.field_position||'',clock=s.clock|| (s.game_clock_seconds!=null? Math.floor(s.game_clock_seconds/60)+':'+String(s.game_clock_seconds%60).padStart(2,'0') : ''),wp=s.win_prob; const parts=[]; if(sc && sc!=='null-null') parts.push(sc); if(q) parts.push(q+(clock?' '+clock:'')); if(down) parts.push(down+' & '+(dist||'')); if(yl) parts.push('@ '+yl); if(wp!=null) parts.push('WP '+Math.round(wp*100)+'%'); return parts.join(' · ')||JSON.stringify(s).slice(0,90);}
-
+function isLiveSit(s){
+  if(!s||typeof s!=='object') return false;
+  return s.home_score!=null||s.away_score!=null||s.quarter!=null||s.down!=null||s.game_state==='gameplay'||s.kills!=null||s.health!=null;
+}
+function fmt(s){
+  if(!isLiveSit(s)) return null;
+  const sc=s.home_score!=null?(s.home_score+'-'+s.away_score):(s.score||'');
+  const q=s.quarter!=null?('Q'+s.quarter):'';
+  const clock=s.game_clock_seconds!=null?(Math.floor(s.game_clock_seconds/60)+':'+String(s.game_clock_seconds%60).padStart(2,'0')):'';
+  const down=s.down!=null?(s.down+' & '+(s.yards_to_go!=null?s.yards_to_go:'?')):'';
+  return [sc, q+(clock?' '+clock:''), down].filter(Boolean).join('  ·  ')||'LIVE';
+}
 function markHasVideo(on){ playerWrap.classList.toggle('has-video', !!on); }
-
 function clipUrlFromPayload(p){
   if(!p) return null;
   if(p.url && String(p.url).startsWith('/media/clips/')) return p.url;
@@ -122,7 +250,6 @@ function clipUrlFromPayload(p){
   const m=r.replace(/\\/g,'/').match(/hdmi_clip_[\w.\-]+$/);
   return m ? '/media/clips/'+m[0] : null;
 }
-
 function playClip(url, label){
   if(!url) return;
   activeUrl=url;
@@ -136,16 +263,14 @@ function playClip(url, label){
   source.src=src; source.type='video/mp4';
   player.appendChild(source);
   player.load();
-  const go=()=>player.play().catch(err=>{
-    stageMeta.textContent='play blocked: '+(err&&err.message?err.message:'click ▶');
-  });
+  const go=()=>player.play().catch(()=>{ stageMeta.textContent='Click ▶ on the player to start'; });
   if(player.readyState>=2) go(); else player.oncanplay=()=>{player.oncanplay=null; go();};
-  player.onerror=()=>{ stageMeta.textContent='decode error — re-make clip (H.264)'; };
-  stageMeta.textContent=label||url.split('/').pop();
+  player.onerror=()=>{ stageMeta.textContent='Decode error — re-make clip (needs H.264)'; setStatus('bad','video error'); };
+  stageMeta.textContent='REPLAY · '+(label||url.split('/').pop());
   document.querySelectorAll('.clipBtn').forEach(b=>b.classList.toggle('active', (b.dataset.url||'')===url));
   t1.textContent='● REPLAY';
+  setStatus('warn','Playing clip');
 }
-
 function addMoment(p){
   feed.classList.remove('empty');
   const url=clipUrlFromPayload(p);
@@ -154,60 +279,70 @@ function addMoment(p){
   if(url){
     d.innerHTML='<div class="play">▶</div><div class="body"><div class="t">'+(p.clock||'now')+' '+(p.title||'CLUTCH')+'</div><div class="r">'+(p.name||p.reason||url)+'</div></div>';
     d.onclick=()=>playClip(url, p.title||p.name);
-    d.title='Play in Ghost Theater (REPLAY)';
   } else {
-    d.textContent=(p.clock||'now')+' '+(p.title||'CLUTCH')+(p.reason?' · '+p.reason:'');
+    d.textContent=(p.clock||'now')+'  '+(p.title||'CLUTCH')+(p.reason?' · '+p.reason:'');
   }
   feed.prepend(d);
-  while(feed.children.length>8) feed.removeChild(feed.lastChild);
+  while(feed.children.length>10) feed.removeChild(feed.lastChild);
 }
-
 function applySnap(snap,latMs){
-  if(snap && snap.situation && isLive(snap.situation)){
+  if(snap && snap.situation && isLiveSit(snap.situation)){
     strip.textContent=fmt(snap.situation); strip.classList.remove('wait');
-    if(latMs!=null) lat.textContent=latMs.toFixed(2)+'ms p50 · local ONNX — live';
+    if(latMs!=null && latMs<5000) lat.textContent=latMs.toFixed(0)+' ms visual path';
+    else if(latMs!=null) lat.textContent='visual path warm / OCR heavy';
     if(mode==='live') t1.textContent='● LIVE';
   } else if(snap && snap.situation){
-    strip.textContent='Waiting for HDMI — on field to populate score/down'; strip.classList.add('wait');
+    strip.textContent='On field for scorebug…'; strip.classList.add('wait');
   }
-  if(snap && snap.video){
-    if(snap.video.has_frame || (snap.video.frames||0)>0){
-      if(mode==='live') markHasVideo(true);
-    }
+  if(snap && snap.video && (snap.video.has_frame || (snap.video.frames||0)>0)){
+    if(mode==='live') markHasVideo(true);
   }
-  if(snap && snap.moments){ feed.innerHTML=''; if(snap.moments.length===0) feed.classList.add('empty'); else snap.moments.slice(-8).forEach(addMoment); }
+  if(snap && snap.moments){
+    feed.innerHTML='';
+    if(!snap.moments.length) feed.classList.add('empty');
+    else snap.moments.slice(-10).forEach(addMoment);
+  }
 }
 function handle(m){
   const snap=m.state||m.snapshot||(m.type==='snapshot'?m:null)||(m.situation?m:null);
   if(m.type==='snapshot'|| (snap&&snap.type==='snapshot')){ applySnap(snap||m, (snap||m).latency_ms); return; }
   if(snap && (snap.situation||snap.state)) applySnap(snap, m.latency_ms||snap.latency_ms);
-  else if(m.situation||m.payload){ const s=m.situation||m.payload; if(isLive(s)){ strip.textContent=fmt(s); strip.classList.remove('wait'); }}
   if(m.type==='moment'&&m.payload){
     addMoment(m.payload);
     const u=clipUrlFromPayload(m.payload);
     if(u) playClip(u, m.payload.title||m.payload.name);
   }
 }
-function connect(){try{ const ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/retina'); ws.onmessage=e=>{try{handle(JSON.parse(e.data))}catch{}}; ws.onclose=()=>setTimeout(connect,1200);}catch{setTimeout(connect,1200)}}
+function connect(){
+  try{
+    const ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/retina');
+    ws.onopen=()=>setStatus('ok', mode==='live'?'LIVE HDMI':'REPLAY');
+    ws.onmessage=e=>{try{handle(JSON.parse(e.data))}catch{}};
+    ws.onclose=()=>{ setStatus('bad','Deck WS disconnected'); setTimeout(connect,1200); };
+  }catch{ setTimeout(connect,1200); }
+}
 connect();
-setInterval(()=>{fetch('/api/situation').then(r=>r.json()).then(j=>{ if(j) handle(j.type==='snapshot'?j:{state:j});}).catch(()=>{});},2000);
+setInterval(()=>{fetch('/api/situation').then(r=>r.json()).then(j=>{ if(j) handle(j.type==='snapshot'?j:{state:j}); }).catch(()=>{});},2000);
 
 function refreshClipLibrary(){
   fetch('/api/clips').then(r=>r.json()).then(j=>{
     if(!j||!j.ok) return;
+    const clips=j.clips||[];
+    clipCount.textContent=clips.length+' clip'+(clips.length===1?'':'s');
     clipGrid.innerHTML='';
-    if(!j.clips||!j.clips.length){
-      clipGrid.innerHTML='<span style="color:rgba(232,237,240,.4);font:500 12px Inter,sans-serif">No clips yet — Foundry while LIVE.</span>';
+    if(!clips.length){
+      clipGrid.innerHTML='<div id="clipEmpty">No clips yet — hit <strong style="color:var(--gold)">Make HDMI Clip</strong> in the top bar while LIVE.</div>';
       return;
     }
-    j.clips.forEach(c=>{
+    clips.forEach(c=>{
       const b=document.createElement('button');
       b.type='button';
       b.className='clipBtn'+(activeUrl===c.url?' active':'');
       b.dataset.url=c.url;
-      const kb=Math.round((c.size_bytes||0)/1024);
-      const when=c.mtime?new Date(c.mtime*1000).toLocaleTimeString():'';
-      b.innerHTML=c.name.replace('hdmi_clip_','').replace(/\.\w+$/,'')+'<small>'+kb+' KB · '+when+' · REPLAY</small>';
+      const kb=c.size_bytes>=1048576?(c.size_bytes/1048576).toFixed(1)+' MB':Math.round((c.size_bytes||0)/1024)+' KB';
+      const when=c.mtime?new Date(c.mtime*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
+      const short=(c.name||'').replace(/^hdmi_clip_/,'').replace(/\.(mp4|avi)$/i,'');
+      b.innerHTML='<span class="playIcon">▶ PLAY</span><span class="name">'+short+'</span><span class="meta">'+kb+' · '+when+'</span>';
       b.onclick=()=>playClip(c.url, c.name);
       clipGrid.appendChild(b);
     });
@@ -216,34 +351,46 @@ function refreshClipLibrary(){
 refreshClipLibrary();
 setInterval(refreshClipLibrary, 4000);
 
-document.getElementById('foundry').onclick=()=>{
-  const btn=document.getElementById('foundry'), hash=document.getElementById('hash');
-  btn.disabled=true; btn.textContent='Encoding HDMI…';
+function doClip(){
+  btnClip.disabled=true;
+  const prev=btnClip.textContent;
+  btnClip.textContent='Encoding…';
+  setStatus('warn','Encoding HDMI clip');
   fetch('/api/clip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({seconds:30})})
     .then(r=>r.json()).then(j=>{
       if(j&&j.ok&&j.clip){
-        hash.textContent=j.clip.name||j.clip.path;
         addMoment({title:'HDMI CLIP '+j.clip.duration_s+'s',reason:j.clip.path,url:j.clip.url,name:j.clip.name,clock:'now',action:'clip'});
         playClip(j.clip.url, j.clip.name);
         refreshClipLibrary();
+        setStatus('ok','Clip saved');
       } else {
-        hash.textContent=(j&&j.error)||'failed';
         addMoment({title:'CLIP failed',reason:(j&&j.error)||'no buffer',clock:'now'});
+        setStatus('bad',(j&&j.error)||'clip failed');
       }
-    }).catch(e=>{ hash.textContent=String(e); addMoment({title:'CLIP error',reason:String(e),clock:'now'}); })
-    .finally(()=>{ btn.disabled=false; btn.textContent='Make HDMI Clip (last 30s)'; });
-};
+    }).catch(e=>{ addMoment({title:'CLIP error',reason:String(e),clock:'now'}); setStatus('bad','clip error'); })
+    .finally(()=>{ btnClip.disabled=false; btnClip.textContent=prev; });
+}
+btnClip.onclick=doClip;
+// keyboard: C = clip, L = live, R = replay
+window.addEventListener('keydown',e=>{
+  if(e.target && (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')) return;
+  if(e.key==='c'||e.key==='C'){ e.preventDefault(); if(!btnClip.disabled) doClip(); }
+  if(e.key==='l'||e.key==='L'){ e.preventDefault(); setMode('live'); }
+  if(e.key==='r'||e.key==='R'){ e.preventDefault(); setMode('replay'); }
+});
+
 setInterval(()=>{fetch('/api/clip/status').then(r=>r.json()).then(j=>{
   if(!j||!j.ok||!j.buffer) return;
   const b=j.buffer;
-  const h=document.getElementById('hash');
-  if(!h.textContent.includes('hdmi_clip')) h.textContent='buf '+b.frames+'f / '+b.duration_s+'s @ '+b.width+'x'+b.height;
+  const pct=Math.min(100, Math.round(((b.duration_s||0)/30)*100));
+  bufFill.style.width=pct+'%';
+  bufLabel.textContent='Buffer '+b.frames+'f · '+(b.duration_s||0).toFixed(1)+'s / 30s · '+b.width+'×'+b.height+(b.age_s!=null?' · age '+(b.age_s*1000).toFixed(0)+'ms':'');
   if(b.has_frame || b.frames>0){
-    if(mode==='live') markHasVideo(true);
+    if(mode==='live'){ markHasVideo(true); if(statusText.textContent.indexOf('connect')>=0) setStatus('ok','LIVE HDMI'); }
   }
-}).catch(()=>{});},2000);
+}).catch(()=>{});},1500);
 
-// LIVE img errors → soft retry
-liveFeed.onerror=()=>{ if(mode==='live') setTimeout(()=>{ liveFeed.src='/video?t='+Date.now(); }, 1500); };
+liveFeed.onerror=()=>{ if(mode==='live') setTimeout(()=>{ liveFeed.src='/video?fps=30&t='+Date.now(); }, 1200); };
 liveFeed.onload=()=>{ if(mode==='live') markHasVideo(true); };
-</script></body></html>
+</script>
+</body></html>
