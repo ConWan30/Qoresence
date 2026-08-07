@@ -20,6 +20,16 @@ def test_stabilizer_rejects_17_to_2_flicker():
     assert s.update(17, 2) == (17, 17)
 
 
+def test_never_lock_in_12_2_or_17_2():
+    s = _ScoreStabilizer(window=8, need=2)
+    for _ in range(6):
+        assert s.update(12, 2) == (None, None)
+        assert s.update(17, 2) == (None, None)
+    # Coherent tie can lock
+    assert s.update(17, 17) == (None, None)
+    assert s.update(17, 17) == (17, 17)
+
+
 def test_stabilizer_accepts_real_score_increase():
     s = _ScoreStabilizer(window=6, need=2)
     s.update(17, 17)

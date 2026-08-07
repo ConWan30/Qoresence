@@ -135,12 +135,15 @@ class _ScoreStabilizer:
 
         sh, sa = self._stable
 
-        # First lock-in: need two matching pair reads (prefer coherent pairs)
+        # First lock-in: BOTH sides required; never lock asymmetric garbage (12-2, 17-2)
         if sh is None and sa is None:
-            need = self._need
-            # Suspicious first read (e.g. 17-2): demand extra consensus
+            if home is None or away is None:
+                return self._stable
             if self._looks_suspicious_pair(cand):
-                need = self._need + 1
+                # Do not lock — wait for a coherent pair (e.g. 17-17)
+                log.debug("scoreboard skip suspicious lock-in %s-%s", home, away)
+                return self._stable
+            need = self._need
             if self._count_pair(cand) >= need:
                 self._stable = cand
                 log.info("scoreboard lock-in %s-%s", cand[0], cand[1])
@@ -197,8 +200,14 @@ class _ScoreStabilizer:
         h, a = pair
         if h is None or a is None:
             return True
-        # One side multi-digit, other tiny 1–4 → often down/quarter leak
+        # One side multi-digit / large, other tiny 1–4 → down/quarter/play-clock leak
+        # Classic failures: 17-2, 12-2, 21-1
         if (h >= 10 and 1 <= a <= 4) or (a >= 10 and 1 <= h <= 4):
+            return True
+        if (h >= 7 and 1 <= a <= 4) or (a >= 7 and 1 <= h <= 4):
+            return True
+        # Huge imbalance with tiny side (e.g. 28-1 mid-game OCR glitch)
+        if min(h, a) <= 3 and max(h, a) >= 14:
             return True
         return False
 
@@ -318,42 +327,95 @@ class FootballScoreboardExtractor:
         return ctx
 
     def _ocr_tokens(self, frame: np.ndarray) -> list[_Token]:
-        """OCR the bottom-center scoreboard region and return tokens."""
+        """OCR scoreboard regions and return tokens (multi-crop for CFB 27 HUD)."""
         h, w = frame.shape[:2]
-        # Bottom-center scoreboard crop, ignoring far left/right ticker edges.
-        x1 = int(w * 0.28)
-        x2 = int(w * 0.72)
-        y1 = int(h * 0.83)
-        y2 = int(h * 0.97)
-        if y1 < 0 or y2 <= y1 or x2 <= x1:
-            return []
-
-        crop = frame[y1:y2, x1:x2]
-        gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-        # White text on dark background is the dominant scoreboard pattern.
-        _, binary = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY)
-        scaled = cv2.resize(
-            binary, (crop.shape[1] * 3, crop.shape[0] * 3), interpolation=cv2.INTER_CUBIC
+        # CFB 27 scorebug is bottom-center; also try a slightly higher band.
+        # Fractions of full frame (x1,x2,y1,y2)
+        crops_frac = (
+            (0.22, 0.78, 0.80, 0.98),  # primary bottom scorebug
+            (0.28, 0.72, 0.74, 0.90),  # slightly higher (large-score layouts)
         )
-
+        tokens: list[_Token] = []
         try:
             reader = self._get_reader()
-            results = reader.readtext(scaled, detail=1)
         except Exception as e:
-            log.debug(f"Scoreboard OCR failed: {e}")
+            log.debug(f"Scoreboard OCR reader failed: {e}")
             return []
 
-        tokens: list[_Token] = []
-        for bbox, text, conf in results:
-            xs = [p[0] for p in bbox]
-            ys = [p[1] for p in bbox]
-            cx = (min(xs) + max(xs)) / 2 / scaled.shape[1]
-            cy = (min(ys) + max(ys)) / 2 / scaled.shape[0]
-            tokens.append(_Token(text=text.strip(), x=cx, y=cy, conf=float(conf)))
+        for x1f, x2f, y1f, y2f in crops_frac:
+            x1, x2 = int(w * x1f), int(w * x2f)
+            y1, y2 = int(h * y1f), int(h * y2f)
+            if y2 <= y1 or x2 <= x1:
+                continue
+            crop = frame[y1:y2, x1:x2]
+            if crop.size == 0:
+                continue
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+            # Dual threshold: white-on-dark + Otsu (handles red/glass HUDs better)
+            variants = []
+            _, b1 = cv2.threshold(gray, 170, 255, cv2.THRESH_BINARY)
+            variants.append(b1)
+            _, b2 = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            variants.append(b2)
+            # Also try inverted Otsu for dark text
+            variants.append(cv2.bitwise_not(b2))
 
-        # Sort top-to-bottom, then left-to-right.
+            for binary in variants:
+                scaled = cv2.resize(
+                    binary,
+                    (max(1, crop.shape[1] * 3), max(1, crop.shape[0] * 3)),
+                    interpolation=cv2.INTER_CUBIC,
+                )
+                try:
+                    results = reader.readtext(scaled, detail=1)
+                except Exception as e:
+                    log.debug(f"Scoreboard OCR failed: {e}")
+                    continue
+                for bbox, text, conf in results:
+                    if conf is not None and float(conf) < 0.25:
+                        continue
+                    xs = [p[0] for p in bbox]
+                    ys = [p[1] for p in bbox]
+                    # Map back to crop-normalized then full-frame-normalized x/y
+                    cx_c = (min(xs) + max(xs)) / 2 / scaled.shape[1]
+                    cy_c = (min(ys) + max(ys)) / 2 / scaled.shape[0]
+                    cx = x1f + cx_c * (x2f - x1f)
+                    cy = y1f + cy_c * (y2f - y1f)
+                    # Re-normalize to crop-local 0..1 for parse band logic:
+                    # keep crop-relative for _parse which expects band coords
+                    tokens.append(
+                        _Token(
+                            text=str(text).strip(),
+                            x=float(cx_c),
+                            y=float(cy_c),
+                            conf=float(conf),
+                        )
+                    )
+
+        # Dedup similar text near same position
+        tokens = self._dedupe_tokens(tokens)
         tokens.sort(key=lambda t: (round(t.y, 1), t.x))
+        if tokens:
+            log.debug(
+                "scoreboard tokens: %s",
+                [(round(t.conf, 2), round(t.x, 2), t.text) for t in tokens[:16]],
+            )
         return tokens
+
+    @staticmethod
+    def _dedupe_tokens(tokens: list[_Token]) -> list[_Token]:
+        if not tokens:
+            return []
+        out: list[_Token] = []
+        for t in sorted(tokens, key=lambda z: -z.conf):
+            dup = False
+            for u in out:
+                if t.text == u.text and abs(t.x - u.x) < 0.08 and abs(t.y - u.y) < 0.12:
+                    dup = True
+                    break
+            if not dup:
+                out.append(t)
+        return out
 
     def _parse(self, tokens: list[_Token]) -> dict[str, Any]:
         """Parse sorted OCR tokens into football fields."""
@@ -528,6 +590,22 @@ class FootballScoreboardExtractor:
         if away_score is None and candidates:
             right_pool = [c for c in candidates if c.x > 0.52]
             away_score = _best_score(right_pool, prefer_right=True)
+
+        # Hard-reject asymmetric garbage at parse time (before stabilizer lock-in)
+        if home_score is not None and away_score is not None:
+            if _ScoreStabilizer._looks_suspicious_pair((home_score, away_score)):
+                log.debug(
+                    "scoreboard parse drop suspicious pair %s-%s",
+                    home_score,
+                    away_score,
+                )
+                # Prefer dropping the tiny side (usually quarter/down leak)
+                if home_score <= 4 and away_score >= 7:
+                    home_score = None
+                elif away_score <= 4 and home_score >= 7:
+                    away_score = None
+                else:
+                    home_score, away_score = None, None
 
         # If only one side found, leave the other unset (don't invent 0)
         if home_score is not None:
