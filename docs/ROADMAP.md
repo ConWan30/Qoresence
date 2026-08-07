@@ -1,76 +1,96 @@
 # Qoresence Roadmap
 
-This roadmap reflects the **ClutchBot MVP**: a local game-state capture pipeline
-with a Twitch agent. Optional research modules (fusion, trio-retina, on-chain
-validation) are noted but not on the critical path.
+Local **capture → situation → operator glass → optional social** pipeline.  
+Research modules (fusion, trio-retina) stay off the critical path unless opted in.
+
+---
+
+## Shipped milestones (2026)
+
+### Capture ownership & Deck glass ✓
+- [x] Pattern A: OBS owns physical card → Virtual Cam → Qoresence (`docs/OBS_OWNS_CARD.md`)
+- [x] Retina Deck: Lens `/overlay.html`, Theater `/deck.html`, LIVE `/video`
+- [x] Async MJPEG + latency-oriented LIVE path
+- [x] Local HDMI clip buffer (Foundry) + browser-safe H.264 remux
+- [x] Streamer console UX (clip dock, top bar)
+
+### Native monitor (Phase 2) ✓
+- [x] `FrameHub` process-local latest-frame slot (`seq` + `clock_ns`)
+- [x] Streamer best-effort `publish` after `clip_buffer.push` (no second capture)
+- [x] `--monitor` OpenCV HighGUI Retina Monitor (default OFF)
+- [x] Docs: `docs/RETINA_MONITOR.md`
+
+### Controller ↔ video sync ✓
+- [x] `InputRing` — thread-safe HID edges
+- [x] `InputVideoCoupler` (IVC) — lag band join to FrameHub stamps
+- [x] Bus `coupling_score` (co-occurrence language only)
+- [x] Clip sidecars `*.buttons.json` + Deck `buttons_summary`
+- [x] Thin moment-scorer boost when coupling + clutch context
+- [x] DualSense Edge `0x0DF2` enumeration open
+- [x] Docs: `docs/CONTROLLER_VIDEO_SYNC.md`
+
+---
 
 ## Phase 0 — Skeleton ✓
-- [x] Folder structure
-- [x] Git init + remote
-- [x] README, LICENSE, pyproject.toml, .gitignore
-- [x] docs/ARCHITECTURE.md, docs/clutchbot_setup.md
-- [x] Initial commit
+- [x] Repo structure, README, LICENSE, pyproject, CI
+- [x] Architecture + ClutchBot setup docs
 
-## Phase 1 — Core Capture Bus ✓
-- [x] `qoresence/core/unified_config.py` — `RetinaUnifiedConfig` + lobe configs
-- [x] `qoresence/core/types.py` — `SourceLobe`, `EventType`, `BaseEvent`
-- [x] `qoresence/core/session.py` — `SessionAuthority.mint()`
-- [x] `qoresence/core/event_bus.py` — `RetinaEventBus` with JSONL + WebSocket
+## Phase 1 — Core capture bus ✓
+- [x] Unified config, types, session mint, `RetinaEventBus` (JSONL + WS)
 - [x] Unit tests
 
-## Phase 2 — Capture Lobes ✓
-- [x] `qoresence/lobes/outcome.py` — game-specific event profiles
-  - NCAA Football 27: score_changed, turnover, first_down, possession_changed
-  - Call of Duty: kill, death, assist, streak
-- [x] `qoresence/lobes/visual.py` — VLM-driven `visual_context`
-- [x] `qoresence/lobes/screen.py` — screen capture + OCR/motion (optional)
-- [x] `qoresence/lobes/controller.py` — HID capture (optional)
-- [x] `qoresence/lobes/streamer.py` — UVC/OBS capture (optional)
+## Phase 2 — Capture lobes ✓
+- [x] Streamer, controller, screen, outcome, visual
+- [x] NCAA Football 27 & Call of Duty first-class profiles
 
 ## Phase 3 — ClutchBot MVP ✓
-- [x] `qoresence/agents/situation_model.py` — rolling game state
-- [x] `qoresence/agents/moment_scorer.py` — clutch-moment rules
-- [x] `qoresence/agents/action_executor.py` — pluggable backends
-- [x] `qoresence/agents/twitch_client.py` — IRC chat + chat commands
-- [x] `qoresence/agents/helix_client.py` — clips + predictions
-- [x] `qoresence/agents/eventsub_client.py` — follow/sub/redemption alerts
-- [x] `qoresence/agents/clutchbot.py` — agent runtime + `agent_action` events
-- [x] `qoresence/agents/session_memory.py` — JSONL audit trail
-- [x] `tools/obs/presence_overlay.html` — OBS overlay
-- [x] `tools/twitch-extension/panel.html` — viewer panel
-- [x] `docs/clutchbot_setup.md` — setup guide
-- [x] CLI + `integration_test.py` wiring
-- [x] `tests/test_clutchbot.py`
+- [x] SituationModel, MomentScorer, ActionExecutor
+- [x] Twitch IRC / Helix / EventSub backends
+- [x] Deck feed + local HDMI clip backends (offline-capable)
+- [x] Session memory / learning hooks
 
-## Phase 4 — Packaging & Polish
-- [x] `qoresence` CLI entry point (`qoresence/cli.py`)
-- [x] `--stream` preset enables outcome, visual, game-detection, clutchbot, and WebSocket
-- [ ] System tray / status indicator (optional)
+## Phase 4 — Packaging & polish (partial)
+- [x] CLI entry + `--play` / `--stream` presets
+- [x] Game profile aliases, personas
+- [ ] System tray / status indicator
 - [ ] Windows installer / one-liner launcher
-- [x] Game profile aliases (madden_27, cod, warzone, etc.)
-- [x] Persona-aware message templates (neutral, hype, custom JSON)
-- [x] Configurable clip `has_delay` and public clip URLs
 
-## Phase 5 — Game Profile Expansion
-- [ ] Additional football event types (sack, interception, two-point conversion)
-- [ ] First-person shooter support beyond Call of Duty
+## Phase 5 — Game profile expansion
+- [ ] Richer football event vocabulary
+- [ ] FPS profiles beyond CoD
 - [ ] Community game-profile SDK
 
-## Future Considerations (Optional / Research)
+## Phase 6 — Operator glass polish
+- [ ] Deck `controller` strip in Theater UI (beyond API field)
+- [ ] Monitor HUD layout presets
+- [ ] DualSense Edge HID report decode harden (reduce phantom edges)
+- [ ] Pattern A lag auto-tune hints from measured VCam age
 
-- **Fusion / Presence Engine**: cross-modal `PresenceReport` (currently off by default)
-- **Trio-Retina**: w3bstream WASM validation and optional on-chain receipts
-- **Data Availability**: PDA / Merkle-root receipts
-- **Mobile Companion**: session monitoring app
-- **V.A.P.I. / QorTroller Integration**: opt-in adapter for research use
+## Phase 7 — Research (optional)
+- [ ] Fusion presence reports productization
+- [ ] Trio-retina WASM path hardening
+- [ ] DA / Merkle receipts (opt-in)
+- [ ] Mobile companion (session monitor only)
+
+---
 
 ## Versioning
 
 | Version | Milestone |
 |---------|-----------|
-| 0.1.0   | Core bus + config |
-| 0.2.0   | Outcome + Visual lobes |
-| 0.3.0   | ClutchBot MVP |
-| 0.4.0   | Packaging + `--stream` preset |
-| 0.5.0   | Game profile expansion |
-| 1.0.0   | Stable ClutchBot release |
+| 0.1.0 | Core bus + config |
+| 0.2.0 | Outcome + visual lobes |
+| 0.3.0 | ClutchBot MVP |
+| 0.4.0 | Packaging + `--stream` / `--play` |
+| **0.5.0** | **Deck LIVE + OBS owns card + FrameHub monitor + IVC** ← current main |
+| 0.6.0 | Profile expansion + Edge HID polish |
+| 1.0.0 | Stable ClutchBot + operator glass release |
+
+---
+
+## Non-goals
+
+- Second `VideoCapture` opened “for sync”
+- Twitch-delay as master clock
+- Truth-plane / anti-cheat product claims
+- Cloud storage of raw biometrics by default

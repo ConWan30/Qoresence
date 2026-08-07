@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Qoresence — Local observation-plane engine</title>
+  <meta name="description" content="HDMI/OBS + DualSense + Retina Deck + ClutchBot. FrameHub, Input-Video Coupler, gamer-owned causal presence. Lobes default OFF." />
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --panel: #12161c;
+      --text: #e8edf4;
+      --muted: #8b97a8;
+      --gold: #f5c542;
+      --line: #243041;
+      --accent: #3d9cf0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1a2433 0%, var(--bg) 55%);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    a { color: var(--gold); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 3rem 1.25rem 1.5rem;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gold);
+      border: 1px solid #5c4a1a;
+      background: #1c1608;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+    }
+    h1 {
+      font-size: clamp(2rem, 5vw, 2.75rem);
+      margin: 0.75rem 0 0.5rem;
+      letter-spacing: -0.02em;
+    }
+    .lead { color: var(--muted); font-size: 1.1rem; max-width: 42rem; }
+    .cta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+    .btn {
+      display: inline-block;
+      padding: 0.65rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      text-decoration: none;
+    }
+    .btn.primary { background: var(--gold); color: #1a1400; border-color: #c9a020; }
+    .btn:hover { text-decoration: none; filter: brightness(1.08); }
+    main { max-width: 960px; margin: 0 auto; padding: 0 1.25rem 4rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.1rem 1.15rem;
+    }
+    .card h3 { margin: 0 0 0.4rem; font-size: 1.05rem; color: var(--gold); }
+    .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+    pre {
+      background: #0a0e14;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      color: #c9d4e3;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+      margin: 1rem 0 2rem;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      padding: 0.55rem 0.4rem;
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-weight: 600; }
+    footer {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1rem 1.25rem 3rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    code { font-family: ui-monospace, Consolas, monospace; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="badge">Observation plane · lobes default OFF</span>
+    <h1>Qoresence</h1>
+    <p class="lead">
+      Local game presence engine: HDMI / OBS Virtual Cam + DualSense HID + situation model,
+      rendered through Retina Deck, native FrameHub monitor, Foundry clips, and optional ClutchBot —
+      without dual-opening the capture card or claiming truth-plane legitimacy.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/ConWan30/Qoresence">GitHub</a>
+      <a class="btn" href="https://github.com/ConWan30/Qoresence/wiki">Wiki</a>
+      <a class="btn" href="https://github.com/ConWan30/Qoresence/discussions">Discussions</a>
+      <a class="btn" href="https://github.com/ConWan30/Qoresence/blob/main/docs/ROADMAP.md">Roadmap</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid">
+      <div class="card">
+        <h3>One brain → N glasses</h3>
+        <p>Event bus + situation once. Lens, Theater, Monitor, and Twitch panel are views — not duplicate engines.</p>
+      </div>
+      <div class="card">
+        <h3>OBS owns the card</h3>
+        <p>Physical HDMI stays with OBS. Qoresence consumes Virtual Camera. Preview remains the low-lag eye.</p>
+      </div>
+      <div class="card">
+        <h3>FrameHub · no second capture</h3>
+        <p>Streamer publishes BGR frames it already holds. Monitor and IVC subscribe only.</p>
+      </div>
+      <div class="card">
+        <h3>Input–Video Coupler</h3>
+        <p>HID edges join frame <code>clock_ns</code> / <code>seq</code> for co-occurrence coupling — observation only.</p>
+      </div>
+    </section>
+
+    <h2>Pilot command</h2>
+    <pre>python -m qoresence.cli --play --deck --monitor --controller --streamer-device &lt;OBS_VCAM&gt; --streamer-fps 30</pre>
+
+    <h2>Docs</h2>
+    <table>
+      <thead><tr><th>Topic</th><th>Link</th></tr></thead>
+      <tbody>
+        <tr><td>Architecture</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/ARCHITECTURE.md">ARCHITECTURE.md</a></td></tr>
+        <tr><td>Capture ownership</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/OBS_OWNS_CARD.md">OBS_OWNS_CARD.md</a></td></tr>
+        <tr><td>Retina Monitor</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/RETINA_MONITOR.md">RETINA_MONITOR.md</a></td></tr>
+        <tr><td>Controller ↔ video</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/CONTROLLER_VIDEO_SYNC.md">CONTROLLER_VIDEO_SYNC.md</a></td></tr>
+        <tr><td>Wiki source (in-repo)</td><td><a href="https://github.com/ConWan30/Qoresence/tree/main/docs/wiki">docs/wiki/</a></td></tr>
+        <tr><td>Roadmap</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/ROADMAP.md">ROADMAP.md</a></td></tr>
+      </tbody>
+    </table>
+
+    <h2>What it is not</h2>
+    <p class="lead" style="margin-top:0">
+      Not anti-cheat. Not a humanity claim. Not a second DShow open on the same physical card.
+      Twitch delay is never the master clock.
+    </p>
+  </main>
+
+  <footer>
+    ConWan30/Qoresence · GitHub Pages from <code>/docs</code> · enable Pages under repo Settings if this is the first deploy.
+  </footer>
+</body>
+</html>

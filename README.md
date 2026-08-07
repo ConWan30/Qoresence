@@ -1,405 +1,223 @@
 # Qoresence
 
-**Local game-state capture and Twitch ClutchBot MVP for streamers.**
+**Local observation-plane engine for streamers and gamers.**
 
-Qoresence ingests live game events and screen context, builds a structured,
-real-time situation model, and drives **ClutchBot** — a Twitch chat companion
-that narrates clutch moments, auto-creates clips, runs predictions, responds to
-chat commands, and shows a viewer panel.
+Qoresence turns HDMI/OBS video, DualSense HID, and game situation into a **single causal event bus** — then surfaces it through Retina Deck, native Retina Monitor, local HDMI clips, and optional ClutchBot on Twitch.
 
----
+It does **not** claim humanity, act as anti-cheat, or write to chain by default. Every lobe is **OFF** until you opt in.
 
-## Purpose
-
-Qoresence is an opt-in, local-only observation layer for game streams. It does
-not claim humanity, act as anti-cheat, or write to chain. Its default output is
-a local JSONL event log and a WebSocket feed for overlays and the Twitch
-Extension panel.
-
-| What It Does | What It Doesn't Do |
-|--------------|-------------------|
-| Observes game events and screen/HID context | ❌ Claim humanity / eligibility |
-| Produces a structured game-state event stream | ❌ Act as anti-cheat |
-| Runs ClutchBot for chat, clips, predictions | ❌ Write to chain |
-| Exports JSONL / WebSocket for overlays | ❌ Store biometric data centrally |
-
-### Why this matters
-
-For streamers, game-aware chat bots currently require manual triggers or deep
-per-game integrations. Qoresence closes that gap by deriving state directly
-from the capture feed and game events, then acting on Twitch. Everything runs
-locally and the streamer decides which features are enabled.
+[![GitHub](https://img.shields.io/badge/github-ConWan30%2FQoresence-181717?logo=github)](https://github.com/ConWan30/Qoresence)
+[![Docs](https://img.shields.io/badge/docs-site-blue)](https://conwan30.github.io/Qoresence/)
+[![Wiki](https://img.shields.io/badge/wiki-operator%20glass-informational)](https://github.com/ConWan30/Qoresence/wiki)
+[![Python](https://img.shields.io/badge/python-3.11%2B-yellow)](https://www.python.org/)
 
 ---
 
-## Architecture: Capture → Situation → ClutchBot
+## What makes it novel
 
+| Idea | Why it matters |
+|------|----------------|
+| **One brain → N glasses** | Situation + events once; Lens (OBS), Rail/Theater (Deck), Monitor, Twitch panel are *views* |
+| **OBS owns the card** | Physical HDMI has one owner; Qoresence consumes **OBS Virtual Camera** (Pattern A) |
+| **FrameHub (no second capture)** | Streamer already holds BGR frames; monitor + IVC **subscribe** — never dual-open DShow |
+| **Input–Video Coupler (IVC)** | DualSense edges join `clock_ns` / `frame_seq` for co-occurrence *coupling* (observation only) |
+| **Local HDMI Foundry** | True capture-ring clips (`clips/*.mp4`) + optional `.buttons.json` sidecars — not Twitch Helix-only |
+| **Causal event bus** | Every event carries `session_id` + `clock_ns` + `source_lobe` |
+
+**Language:** *co-occurrence / coupling / presence evidence* — **not** legitimacy verification.
+
+---
+
+## Architecture (novel stack)
+
+```text
+ PS5 / console HDMI
+        │
+        ▼
+ ┌──────────────────┐     Pattern A (recommended)
+ │ OBS Video Capture│──── Start Virtual Camera
+ │ (owns physical)  │
+ └────────┬─────────┘
+          │ VCam DShow
+          ▼
+ ┌────────────────────────────────────────────────────────────┐
+ │              StreamerRuntime (UVC / OBS VCam)              │
+ │  clip_buffer.push  ·  FrameHub.publish(frame, clock_ns)    │
+ └───────┬──────────────────────────────┬─────────────────────┘
+         │                              │
+         ▼                              ▼
+  Foundry / MJPEG LIVE           Retina Monitor (OpenCV)
+  Deck /video                    FrameHub blit only
+         │
+         │   DualSense HID (optional --controller)
+         ▼
+  ControllerRuntime ──► InputRing ──► IVC (10–20 Hz)
+         │                 lag band 20–120/200 ms
+         ▼                      │
+  RetinaEventBus ◄──────────────┘  coupling_score
+  (JSONL + WebSocket)
+         │
+    ┌────┼────┬─────────────┐
+    ▼    ▼    ▼             ▼
+ Situation  ClutchBot   Overlay    optional trio-retina
+ Model      Deck feed   Lens       / fusion research
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         QORESENCE CAPTURE PLANE                             │
-├──────────────┬──────────────┬──────────────┬──────────────┬──────────────┤
-│  STREAMER    │  CONTROLLER  │    SCREEN    │   OUTCOME    │    VISUAL    │
-│  (UVC/OBS)   │  (HID API)   │  (mss/DXGI)  │  (Game API)  │   (VLM)      │
-│              │              │              │              │              │
-│  Frame stats │  Trigger/HID │  CV motion   │  Game events │  Visual ctx  │
-│  Zone detect │  Tremor samp │  OCR HUD     │  Score/state │  Cross-modal │
-└──────┬───────┴──────┬───────┴──────┬───────┴──────┬───────┴──────┬───────┘
-       │             │             │             │             │
-       └─────────────┴─────────────┴─────────────┴─────────────┘
-                                 │
-                                 ▼
-                    ┌─────────────────────────┐
-                    │   RETINA EVENT BUS      │
-                    │  (JSONL + WebSocket)    │
-                    └───────────┬─────────────┘
-                                │
-                    ┌───────────┼───────────┐
-                    ▼           ▼           ▼
-          ┌──────────────┐ ┌──────────┐ ┌──────────────┐
-          │  CLUTCHBOT   │ │   OBS    │ │ OPTIONAL     │
-          │  (Twitch     │ │ Browser  │ │  trio-retina │
-          │   agent)     │ │  Source  │ │  / fusion    │
-          └──────────────┘ └──────────┘ └──────────────┘
+
+**Planes**
+
+| Plane | Default | Role |
+|-------|---------|------|
+| Capture | Opt-in per lobe | Streamer, controller, screen, outcome, visual |
+| Situation | With `--play` | Score, down, clutch context |
+| Operator glass | `--deck` / `--monitor` | Theater, Lens, native monitor |
+| Social | `--clutchbot` | Chat, clips, predictions |
+| Research | Off | Fusion, trio-retina / WASM |
+
+---
+
+## Recent milestones (shipped on `main`)
+
+| Commit / theme | What landed |
+|----------------|-------------|
+| **OBS owns card** | Pattern A docs + Virtual Cam pilot path |
+| **Retina Deck LIVE** | Async MJPEG, lower lag, streamer console UX |
+| **FrameHub + Retina Monitor** | `--monitor` native OpenCV glass; no second capture |
+| **Input–Video Coupler** | InputRing + IVC; coupling bus events; clip `.buttons.json` |
+| **DualSense Edge open** | Enumerate `0x0DF2` Edge; clip export 5-tuple fix |
+
+Docs for each: [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md)
+
+---
+
+## Quickstart (Windows-first pilot)
+
+```powershell
+git clone https://github.com/ConWan30/Qoresence.git
+cd Qoresence
+pip install -e ".[monitor]"   # opencv for Retina Monitor
+
+# 1) OBS: physical capture → Start Virtual Camera
+# 2) List devices; pick OBS Virtual Camera index
+python -m qoresence.cli --streamer-list
+
+# 3) Play stack — Deck theater + Lens overlay
+python -m qoresence.cli --play --deck --streamer-device <OBS_VCAM> --streamer-fps 30
+
+# 4) Optional: native monitor + DualSense coupling
+$env:QORESENCE_IVC_LAG_HI_MS = "200"
+python -m qoresence.cli --play --deck --monitor --controller --streamer-device <OBS_VCAM> --streamer-fps 30
 ```
+
+| URL | Glass |
+|-----|--------|
+| http://127.0.0.1:8765/deck.html | Ghost Theater / Rail |
+| http://127.0.0.1:8765/overlay.html | Clutch Lens (OBS Browser Source) |
+| http://127.0.0.1:8765/video | LIVE MJPEG (ops; not aim glass) |
+| http://127.0.0.1:8765/api/situation | Snapshot (+ `controller` when IVC on) |
+
+**Gameplay eye:** OBS Preview (physical card). **Not** Twitch delay. **Not** Deck LIVE as primary aim.
 
 ---
 
 ## Components
 
-### Core (`qoresence/core/`)
-| Module | Purpose |
-|--------|---------|
-| `session.py` | `SessionAuthority`, `SessionIdentity` — session identity and event ordering |
-| `event_bus.py` | `RetinaEventBus` — central event router (JSONL + WebSocket outputs) |
-| `unified_config.py` | `RetinaUnifiedConfig` — capture lobe + ClutchBot + optional trio-retina config |
-| `types.py` | `SourceLobe`, `EventType`, `BaseEvent` — shared type system |
+### Core · Lobes · Sync · Monitor · Deck · Agents
 
-### Lobes (`qoresence/lobes/`)
-| Lobe | Status | Input | Output Events |
-|------|--------|-------|---------------|
-| **Streamer** | ✅ | UVC capture card / OBS Virtual Cam | `frame_stats`, `zone`, `activity` |
-| **Controller** | ✅ | DualShock Edge HID | `trigger_onset`, `stick_motion`, `tremor_sample` |
-| **Screen** | ✅ | mss / DXGI capture | `cv_motion`, `ocr_hud`, `coupling_score` |
-| **Outcome** | ✅ | Game memory / API (NCAA 27, CoD) | `outcome_event` |
-| **Visual** | ✅ | VLM (ONNX / API) | `visual_context`, `cross_modal_verdict` |
+| Path | Role |
+|------|------|
+| `qoresence/core/` | Session, `RetinaEventBus`, unified config, types |
+| `qoresence/lobes/` | streamer, controller, screen, outcome, visual |
+| `qoresence/sync/` | **InputRing**, **Input–Video Coupler** |
+| `qoresence/monitor/` | **FrameHub**, OpenCV Retina Monitor |
+| `qoresence/vision/clip_buffer.py` | HDMI ring + Foundry export + buttons sidecar |
+| `qoresence/deck/` | FastAPI Deck, overlay, LIVE, clip API |
+| `qoresence/agents/` | SituationModel, MomentScorer, ClutchBot |
+| `qoresence/fusion/` | Presence fusion (optional) |
+| `qoresence/trio/` | trio-retina WASM validation (optional) |
 
-**All lobes default `enabled = False`** — operator explicitly enables each.
+**All lobes default `enabled = False`.**
 
-### Fusion (`qoresence/fusion/`)
-| Component | Purpose |
-|-----------|---------|
-| `PresenceFusionEngine` | Cross-modal coupling, presence reports |
-| `FusionWeights` | Tunable weights per modality |
+### CLI flags (high signal)
 
-### Trio-Retina Validation (`qoresence/trio/`) — **Optional Layer**
-| Module | Purpose |
-|--------|---------|
-| `config.py` | `TrioRetinaConfig` — ingest/flush modes, on-chain flags |
-| `payload.py` | `EvmLogPayload` builder matching w3bstream applet format |
-| `wasm.py` | `WasmtimeRunner` — CLI subprocess + embedded wasmtime |
-| `validator.py` | `TrioRetinaValidator` — async batch validation |
-| `metrics.py` | Prometheus exporter for validation stats |
-
-**Validation modes**:
-- `validate_on_ingest` — per-event (high latency, not recommended)
-- `validate_on_flush` — batch every N seconds (default 30s, recommended)
-
-**On-chain gates** (DEPIN-1 LEG 2):
-- `node_session_verify` — `node_id` + `session_root` spine
-- `retina_events_root_verify` — events Merkle root
-- `pq_commitment_source=real` — ZKSepProof Groth16 (requires artifacts)
-
-### Tools
-| Tool | Purpose |
-|------|---------|
-| `tools/obs/presence_overlay.html` | OBS Browser Source — real-time telemetry dashboard |
-| `tools/twitch-extension/panel.html` | Twitch Extension / Browser Source viewer panel |
-| `scripts/quickstart.sh\|.bat` | New developer onboarding (<5 min) |
-
-### Agents (`qoresence/agents/`)
-
-**ClutchBot** — game-state-aware Twitch companion for Qoresence.
-
-| Feature | Status | Trigger | Output |
-|---------|--------|---------|--------|
-| Chat narration | ✅ | Clutch moments (score, turnover, red zone) | `agent_action` + Twitch PRIVMSG |
-| Auto-clips | ✅ | High-weight clutch moments | Twitch clip + edit URL in chat |
-| Predictions | ✅ | Red-zone close-game drives | Twitch channel-point prediction |
-| Chat commands | ✅ | `!state`, `!score`, `!lastclip`, `!help` | PRIVMSG replies |
-| Follow / sub / redemption alerts | ✅ | EventSub WebSocket | Thank-you PRIVMSG |
-| Viewer panel | ✅ | Browser Source / Extension | `tools/twitch-extension/panel.html` |
-
-See [docs/clutchbot_setup.md](docs/clutchbot_setup.md) for Twitch app, tokens, and scopes.
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--play` | off | Streamer + visual(local) + outcome + ClutchBot backends + deck wiring |
+| `--deck` | off | Retina Deck HTTP/WS on `:8765` |
+| `--monitor` | off | Native FrameHub window |
+| `--controller` | off | DualSense HID + InputRing + IVC |
+| `--streamer-device N` | 0 | Prefer OBS VCam index under Pattern A |
+| `--clutchbot` / Twitch flags | off | IRC + Helix (see clutchbot setup) |
 
 ---
 
-## Streaming setup (OBS owns card)
+## What it does / doesn't
 
-Daily pilot model: **OBS** holds the physical HDMI capture device and **Start Virtual Camera**; **Qoresence** uses that Virtual Camera as `--streamer-device`. On-stream HUD = Lens Browser Source `http://127.0.0.1:8765/overlay.html`. Ghost Theater LIVE is ops glass only — use **OBS Preview** for real-time gameplay eye.
-
-See **[docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md)** and **[tools/obs/VIRTUAL_CAM.md](tools/obs/VIRTUAL_CAM.md)**.
-
-```text
-python -m qoresence.cli --streamer-list
-python -m qoresence.cli --play --deck --streamer-device <OBS_VCAM> --streamer-fps 30
-```
-
----
-
-## Quickstart
-
-```bash
-# 1. Clone & setup
-git clone https://github.com/ConWan30/Qoresence.git
-cd Qoresence
-./scripts/quickstart.sh       # Linux/macOS
-# or
-scripts\quickstart.bat        # Windows
-
-# 2. Dry-run the stream preset
-python -m qoresence.cli --dry-run --stream \
-  --clutchbot-channel mychannel
-
-# 3. Stream with ClutchBot (see docs/clutchbot_setup.md for tokens)
-qoresence --stream \
-  --clutchbot-channel mychannel \
-  --clutchbot-username clutchbot_qoresence \
-  --clutchbot-token-file /path/to/bot_oauth.txt \
-  --clutchbot-client-id <client_id> \
-  --clutchbot-broadcaster-username mychannel \
-  --clutchbot-enable-clips \
-  --clutchbot-enable-predictions
-
-# 3. Manual lobe selection (same as --stream)
-qoresence --outcome --visual --clutchbot \
-  --clutchbot-channel mychannel ...
-
-# 4. Optional trio-retina validation (advanced)
-qoresence --streamer --controller --outcome --screen --visual \
-  --trio --trio-wasm-path=w3bstream_applet.wasm
-```
-
-### Docker (Real WASM + ZKSepProof)
-
-```bash
-# Build (includes wasmtime, Node.js, snarkjs, ZKSepProof artifacts)
-docker build -t qoresence:latest .
-
-# Run with trio-retina
-docker run --rm qoresence:latest --dry-run --trio \
-  --trio-wasm-path=/app/w3bstream_applet.wasm \
-  --trio-validate-on-flush
-
-# Production via Compose
-docker-compose up -d
-# Configure via .env (see docker-compose.yml)
-```
+| Does | Does not |
+|------|----------|
+| Observe frames + HID + game situation | Claim humanity / eligibility |
+| Join inputs to video by **shared clock** | Anti-cheat / legitimacy “proof” |
+| Local MP4 + button sidecars | Dual-open the same capture card |
+| Overlays, Deck, optional Twitch agent | Store biometrics in the cloud by default |
+| Optional research trio-retina | Require on-chain for MVP |
 
 ---
 
-## Configuration
+## Documentation map
 
-### Environment Variables (Production)
+| Doc | Topic |
+|-----|--------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Core design |
+| [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Capture ownership Pattern A/B |
+| [docs/RETINA_MONITOR.md](docs/RETINA_MONITOR.md) | Native monitor / FrameHub |
+| [docs/CONTROLLER_VIDEO_SYNC.md](docs/CONTROLLER_VIDEO_SYNC.md) | IVC + InputRing |
+| [docs/RETINA_DECK_UIUX.md](docs/RETINA_DECK_UIUX.md) | Lens / Rail / Theater |
+| [docs/clutchbot_setup.md](docs/clutchbot_setup.md) | Twitch tokens & scopes |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Phases & versioning |
+| [docs/wiki/](docs/wiki/) | Wiki source (mirrors GitHub Wiki) |
+| [docs/index.html](docs/index.html) | GitHub Pages landing |
 
-```bash
-# Core trio-retina
-export QORESENCE_TRIO_ENABLED=1
-export QORESENCE_TRIO_WASM_PATH=/app/w3bstream_applet.wasm
-export QORESENCE_TRIO_VALIDATE_ON_FLUSH=1
-export QORESENCE_TRIO_FLUSH_INTERVAL=30.0
-
-# On-chain path (requires w3bstream project)
-export QORESENCE_TRIO_BLOCK_RPC=https://babel-api.testnet.iotex.io
-export QORESENCE_TRIO_NODE_SESSION_VERIFY=1
-export QORESENCE_TRIO_EVENTS_ROOT_VERIFY=1
-
-# PQ Commitment
-export QORESENCE_TRIO_PQ_COMMITMENT_SOURCE=real
-export VAPI_ZK_ARTIFACTS_DIR=/app/zk_artifacts
-
-# Device Identity (DualShock Edge VMDR)
-export QORESENCE_DEVICE_ID_HEX=<64-hex VMDR pubkey hash>
-```
-
-### CLI Flags (Override Env)
-
-```bash
-qoresence --trio \
-  --trio-wasm-path=/app/w3bstream_applet.wasm \
-  --trio-validate-on-flush \
-  --trio-flush-interval=30 \
-  --trio-block-rpc=https://babel-api.testnet.iotex.io \
-  --trio-node-session-verify \
-  --trio-events-root-verify \
-  --trio-pq-commitment-source=real
-```
-
----
-
-## Monitoring
-
-### Health Endpoint
-```bash
-curl http://localhost:8765/health | jq .trio_retina
-```
-
-### Prometheus Metrics (`/metrics`)
-| Type | Metrics |
-|------|---------|
-| **Counter** | `qoresence_trio_retina_validations_total{result="success\|failure"}` |
-| **Histogram** | `validation_duration_seconds`, `payload_size_bytes` |
-| **Gauge** | `flush_interval_seconds`, `last_flush_timestamp`, `pending_events`, `wasm_runner_status`, `enabled`, `node_session_verify`, `events_root_verify` |
-| **Info** | `pq_commitment_source` |
-
-### Integration
-```python
-from qoresence.trio import TrioRetinaMetricsMiddleware, instrument_validator
-
-# ASGI middleware
-app.add_middleware(TrioRetinaMetricsMiddleware, path="/metrics")
-
-# Auto-instrument validator
-instrument_validator(validator)
-```
-
----
-
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [trio-retina Integration](docs/trio-retina-integration.md) | Architecture, data flows, validation modes |
-| [trio-retina Runbook](docs/trio-retina-runbook.md) | Operator procedures, deployment, troubleshooting |
-| [ClutchBot Setup](docs/clutchbot_setup.md) | Twitch app, tokens, scopes, and panel setup |
-| [Architecture](docs/ARCHITECTURE.md) | Core observation plane design |
-| [Roadmap](docs/ROADMAP.md) | Planned phases |
+**Community:** [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Discussions](https://github.com/ConWan30/Qoresence/discussions) · [Pages](https://conwan30.github.io/Qoresence/)  
+*(If wiki/discussions/pages are first-time, enable once under Settings — see [docs/GITHUB_COMMUNITY.md](docs/GITHUB_COMMUNITY.md).)*
 
 ---
 
 ## Testing
 
 ```bash
-# All tests
-python -m pytest tests/ -v
-
-# ClutchBot agent specific
-python -m pytest tests/test_clutchbot.py -v
-
-# Trio-retina specific
-python -m pytest tests/test_trio_retina.py -v
-
-# Benchmarks
-python scripts/benchmark.py
-cat benchmark_results.json
+python -m pytest tests/ -q
+python -m pytest tests/test_frame_hub.py tests/test_input_ring.py tests/test_ivc.py -q
 ```
-
-**Current status**: 200+ tests passing.
 
 ---
 
-## Performance Benchmarks (Local)
+## Project structure (short)
 
-| Component | Throughput | Latency (p50/p95/p99) |
-|-----------|------------|----------------------|
-| EventBus.emit_raw | **15,948 events/sec** | 0.06 / 0.12 / 0.25 ms |
-| build_evm_log_payload (100 events) | **373 ops/sec** | 2.7 / 3.1 / 4.2 ms |
-| JSON serialize/deserialize | ~6,000 ops/sec | <0.5 ms |
-| WASM validation (mocked) | **34,907 ops/sec** | 0.02 / 0.05 / 0.30 ms |
-| WASM validation (real, wasmtime) | **3.1 ops/sec** | **148 / 593 / 593 ms** |
-| mock_pq_commitment | **1.1M ops/sec** | ~0.001 ms |
-| Memory (100 payloads × 10 events) | 118 ops/sec | ~29 MB peak |
-
----
-
-## Project Structure
-
-```
+```text
 Qoresence/
-├── .github/workflows/ci.yml          # GitHub Actions CI
-├── docs/
-│   ├── trio-retina-integration.md    # Integration design
-│   ├── trio-retina-runbook.md        # Operator procedures
-│   ├── clutchbot_setup.md            # Twitch app, tokens, scopes
-│   ├── ARCHITECTURE.md               # Core architecture
-│   └── ROADMAP.md                    # Roadmap
+├── docs/                 # Architecture, runbooks, wiki source, Pages
 ├── qoresence/
-│   ├── core/                         # Session, EventBus, Config, Types
-│   ├── lobes/                        # streamer, controller, screen, outcome, visual
-│   ├── agents/                       # ClutchBot Twitch agent
-│   │   ├── clutchbot.py
-│   │   ├── helix_client.py
-│   │   ├── twitch_client.py
-│   │   ├── eventsub_client.py
-│   │   └── moment_scorer.py
-│   ├── fusion/                       # PresenceFusionEngine, FusionWeights
-│   ├── trio/                         # trio-retina validation layer
-│   │   ├── config.py
-│   │   ├── payload.py
-│   │   ├── wasm.py
-│   │   ├── validator.py
-│   │   └── metrics.py                # Prometheus exporter
-│   └── cli.py                        # Main CLI entry
-├── tools/obs/presence_overlay.html   # OBS Browser Source overlay
-├── tools/twitch-extension/panel.html # Twitch Extension / Browser Source panel
-├── scripts/
-│   ├── quickstart.sh                 # Linux/macOS onboarding
-│   ├── quickstart.bat                # Windows onboarding
-│   └── benchmark.py                  # Performance benchmarks
+│   ├── core/             # Bus, session, config
+│   ├── lobes/            # Capture lobes
+│   ├── sync/             # InputRing + IVC
+│   ├── monitor/          # FrameHub + Retina Monitor
+│   ├── vision/           # clip_buffer, OCR, VLM helpers
+│   ├── deck/             # Operator theater + Lens
+│   ├── agents/           # ClutchBot stack
+│   ├── fusion/           # Optional presence fusion
+│   └── trio/             # Optional WASM path
 ├── tests/
-│   ├── test_trio_retina.py           # 31 trio-retina tests
-│   └── ... (153 core tests)
-├── Dockerfile                        # Multi-stage with wasmtime + snarkjs
-├── docker-compose.yml                # Production compose
-├── pyproject.toml                    # Dependencies + [trio] extra
-└── README.md
+└── tools/obs/            # Virtual cam & overlay notes
 ```
 
 ---
 
-## Dependencies
+## License & principles
 
-### Core
-- Python ≥3.11
-- `pydantic≥2.0`, `numpy≥1.24`
-
-### Optional Extras (`pip install -e ".[extra]"`)
-| Extra | Dependencies | Purpose |
-|-------|--------------|---------|
-| `streamer` | `opencv-python`, `websockets` | Video capture |
-| `controller` | `hidapi` | DualShock Edge HID |
-| `screen` | `mss`, `opencv-python` | Screen capture |
-| `visual` | `requests`, `onnxruntime` | VLM inference |
-| `twitch` | `requests`, `websockets` | ClutchBot Twitch agent |
-| **`trio`** | `trio-retina≥0.3.0`, `wasmtime≥16.0`, `prometheus-client≥0.19` | **trio-retina validation** |
-| `dev` | `pytest`, `ruff`, `mypy` | Development |
+- **Observation plane** by default; research modules opt-in  
+- **One physical DShow device → one owner**  
+- **Streamer decides** which lobes and social backends run  
+- See repository `LICENSE` for terms  
 
 ---
 
-## Background: V.A.P.I. and trio-retina
-
-Qoresence originally grew out of the V.A.P.I. (Verifiable Autonomous Physical
-Intelligence) research direction. The capture plane, session identity, and
-optional `trio-retina` validation layer are kept for that longer-term work, but
-they are **not part of the ClutchBot MVP**. The default product is a local
-game-state capture + Twitch agent stack. Validation, on-chain anchoring, and
-cryptographic presence proofs remain opt-in experiments.
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE)
-
----
-
-## Related Projects
-
-| Project | Relationship |
-|---------|--------------|
-| **vapi-pebble-prototype** | Source of trio-retina w3bstream applet, ZKSepProof circuits, DualShock Edge calibration (research) |
-| **QorTroller** | V.A.P.I. protocol — Qoresence shares the observation-plane concept |
-| **MachineFi / trio-retina** | w3bstream applet mechanical validation standard (research) |
-
----
-
-*Generated with [Devin](https://devin.ai)*
+*Built for operators who want local, auditable, multi-glass presence — not another delayed browser preview of the same card.*
