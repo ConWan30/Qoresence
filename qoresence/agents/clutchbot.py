@@ -296,6 +296,7 @@ class ClutchBotAgent:
                 }
                 results = self._executor.execute(moment, context)
                 self._emit_agent_action(moment, results)
+                self._record_timeline(moment, path_label=path_label, event=event)
                 self._last_action_time[moment.action] = time.time()
                 continue
 
@@ -314,6 +315,7 @@ class ClutchBotAgent:
                 self._record_chat_sent()
 
             self._emit_agent_action(moment, results)
+            self._record_timeline(moment, path_label=path_label, event=event)
             self._memory.record(
                 moment=moment,
                 situation=self._situation,
@@ -329,6 +331,59 @@ class ClutchBotAgent:
             )
 
             self._last_action_time[moment.action] = time.time()
+
+    def _record_timeline(
+        self, moment: ScoredMoment, *, path_label: str, event: BaseEvent
+    ) -> None:
+        """Append executed moment to SessionTimeline (shared causal log)."""
+        try:
+            from qoresence.agents.session_timeline import get_session_timeline
+
+            pl = moment.payload if isinstance(moment.payload, dict) else {}
+            path = str(pl.get("path") or path_label or "")
+            factual = pl.get("factual")
+            if factual is None:
+                factual = path == "confirm"
+            kind = str(moment.action or "moment")
+            if path == "fast":
+                kind = {
+                    "chat": "fast_chat",
+                    "clip": "fast_clip",
+                    "arm_prediction": "arm",
+                }.get(moment.action, f"fast_{moment.action}")
+            elif path == "confirm":
+                kind = {
+                    "chat": "confirm_chat",
+                    "clip": "confirm_clip",
+                    "start_prediction": "prediction_open",
+                    "resolve_prediction": "prediction_resolve",
+                }.get(moment.action, f"confirm_{moment.action}")
+
+            open_drive = moment.action in ("arm_prediction",) or (
+                path == "fast" and moment.action in ("chat", "clip") and pl.get("coupling", 0)
+            )
+            # Open drive on arm or first fast heat; close on resolve / score confirm
+            close_drive = moment.action == "resolve_prediction" or (
+                path == "confirm"
+                and moment.action == "chat"
+                and "score" in (moment.reason or "").lower()
+            )
+            get_session_timeline().append(
+                kind=kind,
+                path=path,
+                message=moment.message or "",
+                reason=moment.reason or "",
+                frame_seq=pl.get("frame_seq"),
+                coupling=pl.get("coupling"),
+                buttons=list(pl.get("buttons") or [])[:8],
+                factual=bool(factual) if factual is not None else None,
+                payload={"action": moment.action, "weight": moment.weight, **{k: v for k, v in pl.items() if k not in ("buttons",)}},
+                clock_ns=getattr(event, "clock_ns", None),
+                open_drive=bool(open_drive and kind in ("arm", "fast_chat", "fast_clip")),
+                close_drive=bool(close_drive),
+            )
+        except Exception as e:
+            log.debug("timeline append skipped: %s", e)
 
     def _rate_limit_ok(self, moment: ScoredMoment) -> bool:
         """Enforce action rate limits."""
