@@ -113,6 +113,7 @@ class DeckState:
                 "why_last": snap.get("why_last"),
                 "active_drive": snap.get("active_drive"),
                 "count": snap.get("count", 0),
+                "drive_graph": snap.get("drive_graph"),
             }
         except Exception:
             pass
@@ -141,7 +142,22 @@ def push_moment(moment: dict[str, Any]) -> None:
     if not moment or not moment.get("title"):
         return
     import time as _t
+
     moment = dict(moment)
+    # Drop near-duplicate of the last entry (same title+action+path within 2s)
+    try:
+        last = _state.last_moment
+        if last and str(last.get("title") or "") == str(moment.get("title") or ""):
+            if str(last.get("action") or "") == str(moment.get("action") or ""):
+                if str(last.get("path") or last.get("moment_path") or "") == str(
+                    moment.get("path") or moment.get("moment_path") or ""
+                ):
+                    last_ts = int(last.get("ts_ns") or 0)
+                    now_ns = _t.monotonic_ns()
+                    if last_ts and (now_ns - last_ts) < 2_000_000_000:
+                        return
+    except Exception:
+        pass
     moment.setdefault("ts_ns", _t.monotonic_ns())
     _state.last_moment = moment
     _state.moments.append(moment)

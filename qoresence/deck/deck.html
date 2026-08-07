@@ -76,7 +76,8 @@ body.mode-replay #player{display:block}
 #bufBar{height:8px; border-radius:99px; background:rgba(255,255,255,.06); overflow:hidden; margin-top:10px}
 #bufFill{height:100%; width:0%; background:linear-gradient(90deg,#1A3A2A,var(--gold)); transition:width .3s}
 #bufLabel{font:600 11px JetBrains Mono,monospace; color:var(--muted); margin-top:6px}
-#feed{display:flex; flex-direction:column; gap:8px; max-height:220px; overflow:auto; min-height:48px}
+#feedCard{flex:1;min-height:0;display:flex;flex-direction:column}
+#feed{display:flex; flex-direction:column; gap:8px; flex:1; min-height:120px; max-height:none; overflow:auto}
 #feed.empty::before{content:"Moments · score / fast path · playable clips ▶ appear here"; color:var(--muted); font:500 12px/1.4 Inter,sans-serif; padding:4px 0}
 .item{padding:12px; border-radius:12px; background:var(--gold-dim); border:1px solid rgba(245,197,66,.22); font:600 13px/1.35 Inter,sans-serif}
 .item.playable{cursor:pointer; display:flex; align-items:center; gap:12px}
@@ -86,9 +87,7 @@ body.mode-replay #player{display:block}
 .item .body{min-width:0; flex:1}
 .item .body .t{font-weight:800}
 .item .body .r{font:600 11px/1.3 JetBrains Mono,monospace; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:4px}
-#railFoundry{margin-top:auto}
-#railFoundry .hint{font:500 11px/1.35 Inter,sans-serif; color:var(--muted); margin-top:8px}
-#trail{display:flex; justify-content:space-between; gap:8px; font:600 11px JetBrains Mono,monospace; color:var(--muted); padding:0 2px}
+#trail{display:flex; justify-content:space-between; gap:8px; font:600 11px JetBrains Mono,monospace; color:var(--muted); padding:0 2px; margin-top:auto}
 #links{display:flex; flex-wrap:wrap; gap:10px 14px; font:600 12px JetBrains Mono,monospace}
 #links a{color:var(--gold); text-decoration:none}
 #links a:hover{text-decoration:underline}
@@ -166,13 +165,9 @@ body.mode-replay #player{display:block}
     <h3>REPLAY chapters</h3>
     <div id="chapterList"></div>
   </div>
-  <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column">
+  <div class="card" id="feedCard">
     <h3>Clutch feed</h3>
     <div id="feed" class="empty"></div>
-  </div>
-  <div class="card" id="railFoundry">
-    <h3>Foundry</h3>
-    <p class="hint">Top bar <strong>Make HDMI Clip</strong> exports last 30s to <code>clips/</code> and opens REPLAY. Playable clip moments also appear in the clutch feed.</p>
   </div>
   <div id="trail"><span id="t1">● waiting</span><span>30fps LIVE</span><span id="t3">local</span></div>
   <div id="links">
@@ -303,11 +298,42 @@ function applyWhy(tl){
   driveLine.textContent=driveBits.join(' · ');
   whyCard.classList.add('show');
 }
+const FEED_MAX=20;
+const feedKeys=[]; // newest-first keys — de-dupe WS + poll
+function momentKey(p){
+  if(!p||typeof p!=='object') return '';
+  if(p.ts_ns!=null) return 'ts:'+p.ts_ns;
+  const url=clipUrlFromPayload(p);
+  if(url) return 'clip:'+url;
+  if(p.name) return 'name:'+p.name;
+  const title=String(p.title||'').trim().slice(0,80);
+  const reason=String(p.reason||'').trim().slice(0,80);
+  const action=String(p.action||'');
+  const path=String(p.path||p.moment_path||'');
+  // Collapse near-identical soft/confirm lines
+  return [action,path,title,reason].join('\u001f');
+}
 function addMoment(p){
+  if(!p) return false;
+  const key=momentKey(p);
+  if(!key) return false;
+  if(feedKeys.indexOf(key)>=0) return false;
+  // Also skip if same title as current head (rapid double-fire)
+  const title=String(p.title||'').trim();
+  if(title && feed.firstElementChild){
+    const head=feed.firstElementChild.getAttribute('data-title')||'';
+    if(head===title && feedKeys[0] && feedKeys[0].indexOf(title)>=0){
+      // allow if different action/path encoded in key already handled above
+    }
+  }
+  feedKeys.unshift(key);
+  while(feedKeys.length>FEED_MAX) feedKeys.pop();
   feed.classList.remove('empty');
   const url=clipUrlFromPayload(p);
   const d=document.createElement('div');
   d.className='item'+(url?' playable':'');
+  d.setAttribute('data-key', key);
+  d.setAttribute('data-title', title);
   if(url){
     d.innerHTML='<div class="play">▶</div><div class="body"><div class="t">'+(p.clock||'now')+' '+(p.title||'CLUTCH')+'</div><div class="r">'+(p.name||p.reason||url)+'</div></div>';
     d.onclick=()=>playClip(url, p.title||p.name);
@@ -315,7 +341,8 @@ function addMoment(p){
     d.textContent=(p.clock||'now')+'  '+(p.title||'CLUTCH')+(p.reason?' · '+p.reason:'');
   }
   feed.prepend(d);
-  while(feed.children.length>10) feed.removeChild(feed.lastChild);
+  while(feed.children.length>FEED_MAX) feed.removeChild(feed.lastChild);
+  return true;
 }
 function applySnap(snap,latMs){
   if(snap && snap.situation && isLiveSit(snap.situation)){
@@ -329,10 +356,9 @@ function applySnap(snap,latMs){
   if(snap && snap.video && (snap.video.has_frame || (snap.video.frames||0)>0)){
     if(mode==='live') markHasVideo(true);
   }
-  if(snap && snap.moments){
-    feed.innerHTML='';
-    if(!snap.moments.length) feed.classList.add('empty');
-    else snap.moments.slice(-10).forEach(addMoment);
+  // Merge moments without wiping — poll used to re-render the same 3 forever
+  if(snap && Array.isArray(snap.moments) && snap.moments.length){
+    snap.moments.forEach(function(m){ addMoment(m); });
   }
   if(snap && snap.timeline) applyWhy(snap.timeline);
 }
