@@ -90,6 +90,52 @@ class QoresenceApp:
             first_session_id=self.identity.session_id,  # Use current as first for now
             device_key=None,  # TODO: load from config
         )
+        # DECK_BRIDGE_MARKER: RetinaEventBus -> Deck ws live
+        try:
+            from qoresence.deck.server import update_situation as _deck_update, push_moment as _deck_push
+            _deck_enabled = getattr(self.config, 'deck_enabled', True)
+            if _deck_enabled:
+                def _on_situation(ev):
+                    try:
+                        payload = getattr(ev, 'payload', None) or (ev.get('payload') if isinstance(ev, dict) else None) or {}
+                        situation = payload.get('situation') if isinstance(payload, dict) else {}
+                        if not situation and isinstance(ev, dict):
+                            situation = ev.get('situation', {})
+                        if situation:
+                            _deck_update(situation)
+                    except Exception:
+                        pass
+                def _on_moment(ev):
+                    try:
+                        payload = getattr(ev, 'payload', None) or (ev.get('payload') if isinstance(ev, dict) else ev)
+                        if payload:
+                            _deck_push(payload if isinstance(payload, dict) else {'title': str(payload)})
+                    except Exception:
+                        pass
+                try:
+                    self.bus.subscribe('situation', _on_situation)
+                except Exception:
+                    pass
+                try:
+                    self.bus.subscribe('moment', _on_moment)
+                except Exception:
+                    pass
+                import threading, time
+                def _deck_poll():
+                    while True:
+                        try:
+                            sm = getattr(self, 'situation_model', None) or getattr(self, '_situation', None)
+                            if sm is not None:
+                                s = sm.to_dict() if hasattr(sm, 'to_dict') else (sm if isinstance(sm, dict) else {})
+                                if s and any(k in s for k in ('score_home','quarter','down','clock','win_prob')):
+                                    _deck_update(s)
+                        except Exception:
+                            pass
+                        time.sleep(1.0)
+                threading.Thread(target=_deck_poll, name='deck-poll', daemon=True).start()
+        except Exception:
+            pass
+
 
         # Lobe runtimes
         self.streamer: StreamerRuntime | None = None
