@@ -277,6 +277,11 @@ class HdmiClipBuffer:
             size // 1024,
             ok_h264,
         )
+        # Optional InputRing sidecar (best-effort; never fail MP4 export)
+        try:
+            _write_buttons_sidecar(final_path, duration_s=dur)
+        except Exception as e:
+            log.debug("buttons sidecar skipped: %s", e)
         return ClipExportResult(
             path=str(final_path.resolve()),
             frames=written,
@@ -372,3 +377,52 @@ def get_latest_frame() -> tuple[bytes, int] | None:
 
 def export_clip(seconds: float | None = None, path: str | Path | None = None) -> ClipExportResult | None:
     return get_clip_buffer().export(path=path, seconds=seconds)
+
+
+def _write_buttons_sidecar(mp4_path: Path, duration_s: float) -> Path | None:
+    """Write clips/<stem>.buttons.json from InputRing snapshot. Never raises to caller."""
+    import json
+
+    try:
+        from qoresence.sync.input_ring import get_input_ring
+    except Exception:
+        return None
+    try:
+        seconds = max(0.5, float(duration_s) if duration_s else 5.0)
+        events = get_input_ring().snapshot(seconds=seconds)
+        if not events:
+            return None
+        # Sibling: foo.mp4 → foo.buttons.json
+        out = Path(mp4_path).with_name(Path(mp4_path).stem + ".buttons.json")
+        names = [e.get("name") for e in events if e.get("kind") in ("press", "trigger")]
+        summary: dict[str, int] = {}
+        for n in names:
+            if n:
+                summary[str(n)] = summary.get(str(n), 0) + 1
+        payload = {
+            "duration_s": round(float(seconds), 3),
+            "events": events,
+            "buttons_summary": summary,
+        }
+        out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        log.info("buttons sidecar: %s (%d events)", out.name, len(events))
+        return out
+    except Exception as e:
+        log.debug("buttons sidecar write failed: %s", e)
+        return None
+
+
+def buttons_summary_for_export(duration_s: float = 5.0) -> dict[str, int]:
+    """Compact button counts for Deck moment payload (empty if no ring/inputs)."""
+    try:
+        from qoresence.sync.input_ring import get_input_ring
+
+        events = get_input_ring().snapshot(seconds=max(0.5, float(duration_s)))
+        summary: dict[str, int] = {}
+        for e in events:
+            if e.get("kind") in ("press", "trigger") and e.get("name"):
+                n = str(e["name"])
+                summary[n] = summary.get(n, 0) + 1
+        return summary
+    except Exception:
+        return {}

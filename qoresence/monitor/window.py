@@ -66,6 +66,22 @@ def _fmt_situation(sit: dict[str, Any] | None) -> str:
     return "  ·  ".join(parts)
 
 
+def _fmt_controller_hud() -> str:
+    """Thin InputRing + IVC strip (empty if controller/IVC off)."""
+    try:
+        from qoresence.sync.input_ring import get_input_ring
+        from qoresence.sync.ivc import get_last_coupling
+
+        btns = get_input_ring().latest_buttons()
+        coup = get_last_coupling()
+        c = float(coup.get("coupling") or 0.0)
+        seq = coup.get("frame_seq") or 0
+        btn_s = "+".join(btns[:6]) if btns else "—"
+        return f"pad {btn_s}  c={c:.2f}  fs={seq}"
+    except Exception:
+        return ""
+
+
 def _draw_hud(frame: np.ndarray, text: str) -> np.ndarray:
     import cv2
 
@@ -138,7 +154,10 @@ def run_monitor(
                     sit_text = _fmt_situation(sit)
                     last_sit_poll = now
                 age_ms = int(age * 1000) if age is not None else 0
+                pad_hud = _fmt_controller_hud()
                 hud = f"{sit_text}   |   seq {seq}  age {age_ms}ms"
+                if pad_hud:
+                    hud = f"{hud}   |   {pad_hud}"
                 display = _draw_hud(display, hud)
                 cv2.imshow(window_title, display)
             else:

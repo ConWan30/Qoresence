@@ -277,6 +277,14 @@ class MomentScorer:
             close = 1.0 if margin <= 8 else 0.0
             apm = float(getattr(state.controller, "apm_5s", 0) or 0) / 120.0
             apm = max(0.0, min(1.0, apm))
+            # Thin IVC boost: high co-occurrence + clutch context raises score slightly
+            coupling = 0.0
+            try:
+                from qoresence.sync.ivc import get_last_coupling
+
+                coupling = float(get_last_coupling().get("coupling") or 0.0)
+            except Exception:
+                coupling = 0.0
             feats = {
                 "wp_swing": float(wp_swing),
                 "red_zone": is_rz,
@@ -284,6 +292,8 @@ class MomentScorer:
                 "apm": apm,
             }
             score = self._clip_model.predict(feats) if getattr(self, "_clip_model", None) else 1.0
+            if coupling >= 0.45 and (is_rz > 0 or close > 0 or abs(float(wp_swing)) > 0.08):
+                score = min(1.0, score + 0.08 * coupling)
             return bool(
                 score > 0.55
                 or abs(float(wp_swing)) > float(getattr(self, "_wp_swing_threshold", 0.12))

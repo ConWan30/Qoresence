@@ -233,6 +233,9 @@ class QoresenceApp:
         # Agent runtimes
         self.clutchbot: ClutchBotAgent | None = None
 
+        # Input–Video Coupler (only when controller enabled)
+        self.ivc = None
+
         # State
         self._running = False
         self._shutdown_event = threading.Event()
@@ -474,10 +477,50 @@ class QoresenceApp:
             return False
 
         if self.controller and not self.controller.start():
+            try:
+                from qoresence.lobes.controller import list_controllers
+
+                found = list_controllers()
+                hint = (
+                    ", ".join(
+                        f"{c.get('product') or '?'} vid={int(c.get('vid') or 0):04x}"
+                        for c in found[:5]
+                    )
+                    if found
+                    else "none listed — plug DualSense USB / Remote Play"
+                )
+            except Exception:
+                hint = "check USB / Remote Play; python -c \"from qoresence.lobes.controller import list_controllers; print(list_controllers())\""
             log.warning(
-                "Controller failed to start (HID busy/permissions) â€” continuing without controller; coupling_score will be 0 until replug"
+                "Controller failed to start (HID busy/permissions/missing) — "
+                "continuing without controller; video path unchanged. Devices: %s",
+                hint,
             )
-            # don't return False â€” screen+visual still produce 10k
+            # don't return False — video stack continues
+
+        # Input–Video Coupler when controller lobe is configured (even if HID open failed,
+        # ring stays empty; coupling stays ~0)
+        if self.config.controller.enabled:
+            try:
+                from qoresence.sync.ivc import start_ivc
+
+                # Pattern A (OBS VCam): allow wider lag band via env or default 120
+                lag_hi = 120.0
+                try:
+                    import os as _os_ivc
+
+                    lag_hi = float(_os_ivc.environ.get("QORESENCE_IVC_LAG_HI_MS", "120") or 120)
+                    lag_hi = max(40.0, min(250.0, lag_hi))
+                except Exception:
+                    lag_hi = 120.0
+                self.ivc = start_ivc(
+                    bus=self.bus,
+                    session_head_ns=self.identity.session_head_ns,
+                    lag_lo_ms=20.0,
+                    lag_hi_ms=lag_hi,
+                )
+            except Exception as e:
+                log.warning("IVC failed to start: %s (video path continues)", e)
 
         if self.outcome:
             self.outcome.start()
@@ -532,6 +575,15 @@ class QoresenceApp:
 
         if self.outcome:
             self.outcome.stop()
+
+        if self.ivc is not None:
+            try:
+                from qoresence.sync.ivc import stop_ivc
+
+                stop_ivc()
+            except Exception:
+                pass
+            self.ivc = None
 
         if self.controller:
             self.controller.stop()
@@ -875,7 +927,11 @@ def main():
     )
     parser.add_argument("--streamer-width", type=int, default=1280, help="Capture width")
     parser.add_argument("--streamer-height", type=int, default=720, help="Capture height")
-    parser.add_argument("--controller", action="store_true", help="Enable controller lobe (HID)")
+    parser.add_argument(
+        "--controller",
+        action="store_true",
+        help="Enable controller lobe (HID DualSense) + InputRing + IVC. Default OFF.",
+    )
     parser.add_argument(
         "--controller-rate", type=float, default=1000.0, help="Controller poll rate (Hz)"
     )

@@ -484,11 +484,11 @@ class StreamerRuntime:
                 _clip_push(frame)
             except Exception:
                 pass
-            # FrameHub for native Retina Monitor (same frames — never second capture)
+            # FrameHub for monitor + IVC (same frames — never second capture)
             try:
                 from qoresence.monitor.frame_hub import publish as _hub_publish
 
-                _hub_publish(frame)
+                _hub_publish(frame, clock_ns=clock_ns())
             except Exception:
                 pass
 

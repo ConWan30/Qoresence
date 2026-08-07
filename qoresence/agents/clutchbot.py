@@ -480,18 +480,28 @@ class _LocalHdmiClipBackend:
 
             clip_name = _P(result.path).name
             media_url = f"/media/clips/{clip_name}"
-            _deck_push(
-                {
-                    "title": f"HDMI CLIP {result.duration_s:.0f}s",
-                    "reason": result.path,
-                    "clock": "now",
-                    "action": "clip",
-                    "icon": "🎬",
-                    "path": result.path,
-                    "name": clip_name,
-                    "url": media_url,
-                }
-            )
+            buttons_summary: dict = {}
+            try:
+                from qoresence.vision.clip_buffer import buttons_summary_for_export
+
+                buttons_summary = buttons_summary_for_export(
+                    duration_s=float(result.duration_s or 5.0)
+                )
+            except Exception:
+                buttons_summary = {}
+            moment_payload = {
+                "title": f"HDMI CLIP {result.duration_s:.0f}s",
+                "reason": result.path,
+                "clock": "now",
+                "action": "clip",
+                "icon": "🎬",
+                "path": result.path,
+                "name": clip_name,
+                "url": media_url,
+            }
+            if buttons_summary:
+                moment_payload["buttons_summary"] = buttons_summary
+            _deck_push(moment_payload)
             log.info("LocalHdmiClip saved %s", result.path)
             return True
         except Exception as e:

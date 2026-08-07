@@ -132,6 +132,14 @@ python -m qoresence.cli --play --deck --monitor --streamer-device <OBS_VCAM> --s
 
 ---
 
+## 9. Controller sync (optional)
+
+DualSense HID → **InputRing** + **Input–Video Coupler** joins button edges to FrameHub `clock_ns` / `frame_seq`. **Default OFF** (`--controller`). Independent of who owns the HDMI card; VCam may need a wider lag band (`QORESENCE_IVC_LAG_HI_MS`).
+
+Full docs: **[CONTROLLER_VIDEO_SYNC.md](CONTROLLER_VIDEO_SYNC.md)**
+
+---
+
 ## Related
 
 - Operator runbook: [tools/obs/VIRTUAL_CAM.md](../tools/obs/VIRTUAL_CAM.md)  

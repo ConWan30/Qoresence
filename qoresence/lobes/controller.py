@@ -471,44 +471,87 @@ class ControllerRuntime:
 
         self._prev_state = state
 
+    def _push_input_ring(
+        self,
+        *,
+        kind: str,
+        name: str,
+        value: float,
+        clock_ns: int,
+        buttons_mask: int | None = None,
+    ) -> None:
+        """Best-effort InputRing edge for IVC / clip sidecar (additive)."""
+        try:
+            from qoresence.sync.input_ring import push as _ring_push
+
+            frame_seq = None
+            try:
+                from qoresence.monitor.frame_hub import get_latest_stamp
+
+                st = get_latest_stamp()
+                if st.get("has_frame"):
+                    frame_seq = int(st.get("seq") or 0) or None
+            except Exception:
+                frame_seq = None
+            _ring_push(
+                {
+                    "clock_ns": clock_ns,
+                    "kind": kind,
+                    "name": name,
+                    "value": value,
+                    "buttons_mask": buttons_mask,
+                    "frame_seq": frame_seq,
+                }
+            )
+        except Exception:
+            pass
+
     def _check_trigger_onsets(self, state: ControllerState, now_ns: int) -> None:
         """Detect trigger press onsets (rising edge past threshold)."""
         # L2
         if self._prev_l2 <= self._trigger_threshold and state.l2 > self._trigger_threshold:
             causal_parent = self.find_causal_parent()
+            amp = state.l2 / 255.0
             self.bus.emit_raw(
                 source_lobe=SourceLobe.CONTROLLER,
                 event_type="trigger_onset",
                 payload={
                     "trigger": "L2",
-                    "amplitude": state.l2 / 255.0,
+                    "amplitude": amp,
                     "device_ts_ms": state.device_ts // 1000,
                     "causal_parent_ns": causal_parent,
                 },
                 clock_ns_override=now_ns,
                 session_head_ns=self.session_head_ns,
             )
+            self._push_input_ring(kind="trigger", name="L2", value=amp, clock_ns=now_ns)
         # R2
         if self._prev_r2 <= self._trigger_threshold and state.r2 > self._trigger_threshold:
             causal_parent = self.find_causal_parent()
+            amp = state.r2 / 255.0
             self.bus.emit_raw(
                 source_lobe=SourceLobe.CONTROLLER,
                 event_type="trigger_onset",
                 payload={
                     "trigger": "R2",
-                    "amplitude": state.r2 / 255.0,
+                    "amplitude": amp,
                     "device_ts_ms": state.device_ts // 1000,
                     "causal_parent_ns": causal_parent,
                 },
                 clock_ns_override=now_ns,
                 session_head_ns=self.session_head_ns,
             )
+            self._push_input_ring(kind="trigger", name="R2", value=amp, clock_ns=now_ns)
 
         self._prev_l2 = state.l2
         self._prev_r2 = state.r2
 
     def _check_stick_motion(self, state: ControllerState, now_ns: int) -> None:
-        """Detect significant stick motion (beyond deadzone)."""
+        """Detect significant stick motion (beyond deadzone).
+
+        Bus emit keeps prior behavior; InputRing only gets *edges* (enter
+        deadzone-out) so IVC is not flooded at poll rate.
+        """
         deadzone = 15
         for stick, x, y, px, py in [
             ("left", state.lx, state.ly, self._prev_state.lx, self._prev_state.ly),
@@ -516,7 +559,11 @@ class ControllerRuntime:
         ]:
             dx = abs(x - 128)
             dy = abs(y - 128)
-            if dx > deadzone or dy > deadzone:
+            pdx = abs(px - 128)
+            pdy = abs(py - 128)
+            outside = dx > deadzone or dy > deadzone
+            was_outside = pdx > deadzone or pdy > deadzone
+            if outside:
                 # Significant motion from center
                 causal_parent = self.find_causal_parent()
                 self.bus.emit_raw(
@@ -533,6 +580,12 @@ class ControllerRuntime:
                     clock_ns_override=now_ns,
                     session_head_ns=self.session_head_ns,
                 )
+                # InputRing: edge only (center → outside)
+                if not was_outside:
+                    mag = min(1.0, max(dx, dy) / 127.0)
+                    self._push_input_ring(
+                        kind="stick", name=stick, value=mag, clock_ns=now_ns
+                    )
 
     def _emit_tremor_sample(self, state: ControllerState, now_ns: int) -> None:
         """Emit IMU tremor sample for biometric correlation."""
@@ -584,6 +637,13 @@ class ControllerRuntime:
                     clock_ns_override=now_ns,
                     session_head_ns=self.session_head_ns,
                 )
+                self._push_input_ring(
+                    kind="press",
+                    name=name,
+                    value=1.0,
+                    clock_ns=now_ns,
+                    buttons_mask=int(pressed) if pressed else None,
+                )
             elif released & mask:
                 causal_parent = self.find_causal_parent()
                 self.bus.emit_raw(
@@ -597,6 +657,9 @@ class ControllerRuntime:
                     },
                     clock_ns_override=now_ns,
                     session_head_ns=self.session_head_ns,
+                )
+                self._push_input_ring(
+                    kind="release", name=name, value=0.0, clock_ns=now_ns
                 )
 
     def _emit_controller_event(self, state: ControllerState, now_ns: int) -> None:

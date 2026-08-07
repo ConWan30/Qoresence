@@ -77,7 +77,22 @@ class DeckState:
             video["live_fps_default"] = DEFAULT_LIVE_FPS
         except Exception:
             pass
-        return {
+        controller: dict[str, Any] = {}
+        try:
+            from qoresence.sync.input_ring import get_input_ring
+            from qoresence.sync.ivc import get_ivc, get_last_coupling
+
+            if get_ivc() is not None:
+                coup = get_last_coupling()
+                controller = {
+                    "buttons": get_input_ring().latest_buttons()[:8],
+                    "coupling": coup.get("coupling", 0.0),
+                    "frame_seq": coup.get("frame_seq", 0),
+                    "input_energy": coup.get("input_energy", 0.0),
+                }
+        except Exception:
+            controller = {}
+        out: dict[str, Any] = {
             "type": "snapshot",
             "situation": self.situation,
             "last_moment": self.last_moment,
@@ -87,6 +102,9 @@ class DeckState:
             "updated_ns": self.updated_ns,
             "video": video,
         }
+        if controller:
+            out["controller"] = controller
+        return out
 
 
 _state = DeckState()

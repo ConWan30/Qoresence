@@ -48,3 +48,15 @@ def test_module_helpers():
     assert got is not None
     assert got.shape[0] == 32
     assert get_frame_hub().stats()["has_frame"] is True
+
+
+def test_publish_clock_ns_and_stamp():
+    hub = FrameHub()
+    f = np.zeros((8, 8, 3), dtype=np.uint8)
+    t = 9_000_000_123
+    hub.publish(f, clock_ns=t)
+    st = hub.get_latest_stamp()
+    assert st["has_frame"] is True
+    assert st["seq"] == 1
+    assert st["clock_ns"] == t
+    assert hub.stats()["clock_ns"] == t
