@@ -107,15 +107,24 @@ class HdmiClipBuffer:
         except Exception as e:
             log.debug("ClipBuffer push failed: %s", e)
 
+    def latest_jpeg(self) -> bytes | None:
+        """Return newest JPEG bytes in the ring (no re-encode). Empty → None."""
+        with self._lock:
+            if not self._frames:
+                return None
+            return self._frames[-1][1]
+
     def stats(self) -> dict[str, Any]:
         with self._lock:
             n = len(self._frames)
+            now = time.monotonic()
             if n >= 2:
                 dur = self._frames[-1][0] - self._frames[0][0]
             else:
                 dur = 0.0
             w = self._frames[-1][2] if n else 0
             h = self._frames[-1][3] if n else 0
+            age_s = (now - self._frames[-1][0]) if n else None
             return {
                 "enabled": self._enabled,
                 "frames": n,
@@ -127,6 +136,8 @@ class HdmiClipBuffer:
                 "pushes": self._pushes,
                 "skipped": self._skipped,
                 "out_dir": str(self.out_dir.resolve()),
+                "has_frame": n > 0,
+                "age_s": None if age_s is None else round(float(age_s), 3),
             }
 
     def export(
@@ -315,6 +326,11 @@ def get_clip_buffer(
 
 def push_frame(frame: np.ndarray | None) -> None:
     get_clip_buffer().push(frame)
+
+
+def get_latest_jpeg() -> bytes | None:
+    """Newest JPEG from the shared HDMI ring (for Deck LIVE MJPEG)."""
+    return get_clip_buffer().latest_jpeg()
 
 
 def export_clip(seconds: float | None = None, path: str | Path | None = None) -> ClipExportResult | None:

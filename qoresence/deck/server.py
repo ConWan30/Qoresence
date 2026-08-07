@@ -60,6 +60,13 @@ class DeckState:
     updated_ns: int = 0  # monotonic ns of last live update — for staleness check
 
     def snapshot(self) -> dict[str, Any]:
+        video: dict[str, Any] = {"has_frame": False, "age_s": None, "frames": 0}
+        try:
+            from qoresence.vision.clip_buffer import get_clip_buffer
+
+            video = get_clip_buffer().stats()
+        except Exception:
+            pass
         return {
             "type": "snapshot",
             "situation": self.situation,
@@ -68,6 +75,7 @@ class DeckState:
             "latency_ms": self.latency_ms,
             "fps": self.fps,
             "updated_ns": self.updated_ns,
+            "video": video,
         }
 
 
@@ -125,9 +133,51 @@ def _html(name: str) -> str:
     return f"<h1>{name} missing</h1>"
 
 
+def _placeholder_jpeg() -> bytes:
+    """Tiny dark JPEG so MJPEG clients stay connected while buffer is empty."""
+    import cv2
+    import numpy as np
+
+    img = np.zeros((180, 320, 3), dtype=np.uint8)
+    img[:] = (18, 14, 10)
+    ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+    return buf.tobytes() if ok else b""
+
+
+def _mjpeg_generator(fps: float = 10.0):  # type: ignore[no-untyped-def]
+    """Yield multipart MJPEG frames from clip_buffer.latest_jpeg (~10 fps)."""
+    import time as _time
+
+    from qoresence.vision.clip_buffer import get_latest_jpeg
+
+    boundary = b"frame"
+    interval = 1.0 / max(fps, 1.0)
+    dark = _placeholder_jpeg()
+    while True:
+        t0 = _time.monotonic()
+        try:
+            jpg = get_latest_jpeg() or dark
+        except Exception:
+            jpg = dark
+        if not jpg:
+            jpg = dark
+        header = (
+            b"--" + boundary + b"\r\n"
+            b"Content-Type: image/jpeg\r\n"
+            b"Content-Length: " + str(len(jpg)).encode() + b"\r\n\r\n"
+        )
+        yield header + jpg + b"\r\n"
+        elapsed = _time.monotonic() - t0
+        sleep = interval - elapsed
+        if sleep > 0:
+            _time.sleep(sleep)
+
+
 def create_app():  # type: ignore[no-untyped-def]
     if not _HAS_FASTAPI:
         return None
+
+    from fastapi.responses import StreamingResponse
 
     app = FastAPI(title="Retina Deck", version="0.1.0")
 
@@ -138,6 +188,15 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.get("/api/situation")
     async def api_situation():  # type: ignore[no-untyped-def]
         return JSONResponse(_state.snapshot())
+
+    @app.get("/video")
+    async def live_video():  # type: ignore[no-untyped-def]
+        """Continuous LIVE HDMI preview from clip_buffer JPEG ring (MJPEG)."""
+        return StreamingResponse(
+            _mjpeg_generator(10.0),
+            media_type="multipart/x-mixed-replace; boundary=frame",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+        )
 
     @app.get("/api/clip/status")
     async def api_clip_status():  # type: ignore[no-untyped-def]
@@ -329,7 +388,20 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 self.end_headers()
                 self.wfile.write(
                     b'<a href="/overlay.html">Lens</a> | <a href="/deck.html">Rail</a>'
+                    b' | <a href="/video">LIVE /video</a>'
                 )
+                return
+            if self.path == "/video" or self.path.startswith("/video?"):
+                self.send_response(200)
+                self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+                self.send_header("Cache-Control", "no-cache, no-store")
+                self.end_headers()
+                try:
+                    for chunk in _mjpeg_generator(10.0):
+                        self.wfile.write(chunk)
+                        self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                    return
                 return
             if self.path == "/health":
                 self.send_response(200)
@@ -378,6 +450,9 @@ def start_deck(
         t = threading.Thread(target=_run, name="retina-deck", daemon=daemon)
         t.start()
         log.info("Retina Deck http://%s:%s  ws://%s:%s%s", host, port, host, port, WS_PATH)
+        log.info(
+            "Lens /overlay.html  Theater /deck.html  LIVE /video  (clip_buffer MJPEG)"
+        )
         return t
     # fallback
     t = threading.Thread(
