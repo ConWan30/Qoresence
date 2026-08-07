@@ -48,8 +48,6 @@ def test_latest_jpeg_after_push():
 
 
 def test_latest_frame_returns_seq():
-    import time
-
     buf = HdmiClipBuffer(seconds=2, target_fps=1000, max_width=160)
     assert buf.latest_frame() is None
     f = np.full((100, 160, 3), 40, dtype=np.uint8)
@@ -59,7 +57,7 @@ def test_latest_frame_returns_seq():
     jpg, seq = fr
     assert jpg[:2] == b"\xff\xd8"
     assert seq == 1
-    time.sleep(0.002)  # clear throttle interval
+    buf._last_push = 0.0  # bypass throttle for deterministic seq++
     buf.push(f)
     fr2 = buf.latest_frame()
     assert fr2 is not None
