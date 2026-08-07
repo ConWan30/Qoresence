@@ -48,6 +48,8 @@ class ActionExecutor:
         "clip": ("local_hdmi", "twitch_clip", "deck_feed"),
         "start_prediction": ("twitch_prediction", "deck_feed"),
         "resolve_prediction": ("twitch_prediction", "deck_feed"),
+        # Fast path latch — deck only (no Twitch prediction until confirm)
+        "arm_prediction": ("deck_feed",),
     }
 
     def __init__(self, backends: list[Backend] | None = None):

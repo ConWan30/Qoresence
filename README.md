@@ -21,6 +21,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 | **OBS owns the card** | Physical HDMI has one owner; Qoresence consumes **OBS Virtual Camera** (Pattern A) |
 | **FrameHub (no second capture)** | Streamer already holds BGR frames; monitor + IVC **subscribe** — never dual-open DShow |
 | **Input–Video Coupler (IVC)** | DualSense edges join `clock_ns` / `frame_seq` for co-occurrence *coupling* (observation only) |
+| **Two-speed ClutchBot** | `path=fast` video+input soft acts; OCR/outcome is `path=confirm` referee (never invents scores on fast) |
 | **Local HDMI Foundry** | True capture-ring clips (`clips/*.mp4`) + optional `.buttons.json` sidecars — not Twitch Helix-only |
 | **Causal event bus** | Every event carries `session_id` + `clock_ns` + `source_lobe` |
 
@@ -170,6 +171,7 @@ python -m qoresence.cli --play --deck --monitor --controller --streamer-device <
 | [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Capture ownership Pattern A/B |
 | [docs/RETINA_MONITOR.md](docs/RETINA_MONITOR.md) | Native monitor / FrameHub |
 | [docs/CONTROLLER_VIDEO_SYNC.md](docs/CONTROLLER_VIDEO_SYNC.md) | IVC + InputRing |
+| [docs/TWO_SPEED_CLUTCHBOT.md](docs/TWO_SPEED_CLUTCHBOT.md) | Fast video+input path; OCR confirm |
 | [docs/RETINA_DECK_UIUX.md](docs/RETINA_DECK_UIUX.md) | Lens / Rail / Theater |
 | [docs/clutchbot_setup.md](docs/clutchbot_setup.md) | Twitch tokens & scopes |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases & versioning |

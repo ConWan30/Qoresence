@@ -57,6 +57,7 @@ class InputVideoCoupler:
             "input_energy": 0.0,
             "coupling": 0.0,
             "lag_band_ms": [self.lag_lo_ms, self.lag_hi_ms],
+            "path": "fast",
         }
 
     def start(self) -> None:
@@ -141,6 +142,8 @@ class InputVideoCoupler:
             "input_energy": round(energy, 4),
             "coupling": round(coupling, 4),
             "lag_band_ms": [self.lag_lo_ms, self.lag_hi_ms],
+            # Two-speed ClutchBot: IVC is the realtime (fast) path signal
+            "path": "fast",
         }
         with self._lock:
             self._last = payload
@@ -217,5 +220,8 @@ def get_last_coupling() -> dict[str, Any]:
             "input_energy": 0.0,
             "coupling": 0.0,
             "lag_band_ms": [DEFAULT_LAG_LO_MS, DEFAULT_LAG_HI_MS],
+            "path": "fast",
         }
-    return ivc.get_last_coupling()
+    out = ivc.get_last_coupling()
+    out.setdefault("path", "fast")
+    return out

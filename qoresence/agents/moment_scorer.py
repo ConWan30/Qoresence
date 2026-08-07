@@ -855,6 +855,10 @@ class MomentScorer:
             )
 
         self._last_trigger[key] = now
+        pl = dict(payload or {})
+        # Confirm path tag (two-speed ClutchBot): OCR/outcome is factual referee
+        pl.setdefault("path", "confirm")
+        pl.setdefault("factual", True)
         return ScoredMoment(
             triggered=True,
             weight=weight,
@@ -862,5 +866,5 @@ class MomentScorer:
             message=message,
             reason=reason,
             cooldown_key=cooldown_key,
-            payload=payload or {},
+            payload=pl,
         )

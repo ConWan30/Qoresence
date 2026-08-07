@@ -60,3 +60,17 @@ def test_publish_clock_ns_and_stamp():
     assert st["seq"] == 1
     assert st["clock_ns"] == t
     assert hub.stats()["clock_ns"] == t
+
+
+def test_sync_frame_hub_shim_meta():
+    """Two-speed scaffold: qoresence.sync.frame_hub.get_latest_meta()."""
+    from qoresence.sync.frame_hub import get_frame_hub, get_latest_meta, publish as sync_publish
+
+    hub = get_frame_hub()
+    hub.clear()
+    f = np.zeros((4, 4, 3), dtype=np.uint8)
+    sync_publish(f, clock_ns=111)
+    meta = get_latest_meta()
+    assert meta["has_frame"] is True
+    assert meta["seq"] >= 1
+    assert meta["clock_ns"] == 111

@@ -12,6 +12,7 @@
 | [Capture-Ownership](Capture-Ownership) | OBS owns card vs lab Pattern B |
 | [Retina-Deck-and-Monitor](Retina-Deck-and-Monitor) | Glasses: Lens, Theater, LIVE, FrameHub monitor |
 | [Controller-Video-Sync](Controller-Video-Sync) | InputRing + IVC |
+| [Two-Speed-ClutchBot](Two-Speed-ClutchBot) | Fast video+input; OCR referee |
 | [Roadmap](Roadmap) | Shipped + next |
 | [FAQ](FAQ) | Common failures |
 

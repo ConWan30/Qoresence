@@ -9,6 +9,7 @@ from .action_executor import ActionExecutor
 from .clutchbot import ClutchBotAgent
 from .eventsub_client import TwitchEventSubClient
 from .helix_client import TwitchHelixClient
+from .fast_moment import FastMomentEngine
 from .moment_scorer import MomentScorer
 from .session_memory import SessionMemory
 from .situation_model import SituationModel
@@ -21,6 +22,7 @@ __all__ = [
     "TwitchEventSubClient",
     "SituationModel",
     "MomentScorer",
+    "FastMomentEngine",
     "ActionExecutor",
     "SessionMemory",
 ]

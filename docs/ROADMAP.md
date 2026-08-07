@@ -29,6 +29,13 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] DualSense Edge `0x0DF2` enumeration open
 - [x] Docs: `docs/CONTROLLER_VIDEO_SYNC.md`
 
+### Two-speed ClutchBot ✓
+- [x] `FastMomentEngine` — soft chat / clip intent / arm_prediction (`path=fast`)
+- [x] OCR/outcome remains factual referee (`path=confirm`)
+- [x] Fast chat never invents score digits
+- [x] ClutchBot dispatches fast-then-confirm; graceful degrade without controller
+- [x] Docs: `docs/TWO_SPEED_CLUTCHBOT.md`
+
 ---
 
 ## Phase 0 — Skeleton ✓

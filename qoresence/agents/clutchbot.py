@@ -29,12 +29,34 @@ from .eventsub_client import TwitchEventSubClient
 from .helix_client import TwitchHelixClient
 from .learning_loop import LearningLogger
 from .llm_client import LLMConfig, QuicksilverLLMClient
+from .fast_moment import FastMomentEngine
 from .moment_scorer import MomentScorer, ScoredMoment
 from .session_memory import SessionMemory
 from .situation_model import SituationModel
 from .twitch_client import TwitchIRCClient
 
 log = logging.getLogger(__name__)
+
+# Events that can wake the realtime (fast) path — no OCR required
+_FAST_TRIGGER_TYPES = frozenset(
+    {
+        EventType.CONTROLLER_EVENT,
+        EventType.TRIGGER_ONSET,
+        EventType.STICK_MOTION,
+        EventType.COUPLING_SCORE,
+        EventType.PRESENCE_REPORT,
+        EventType.VISUAL_CONTEXT,  # re-score fast with refreshed situation context
+    }
+)
+
+# Events that drive OCR/outcome confirm path
+_CONFIRM_TRIGGER_TYPES = frozenset(
+    {
+        EventType.VISUAL_CONTEXT,
+        EventType.OUTCOME_EVENT,
+        EventType.GAME_DETECTED,
+    }
+)
 
 
 class ClutchBotAgent:
@@ -67,6 +89,8 @@ class ClutchBotAgent:
 
         self._situation = SituationModel(window_s=config.controller_window_s)
         self._scorer = MomentScorer(persona=config.persona, learning_logger=_learning_logger)
+        # Two-speed: fast = video+input co-occurrence; confirm = OCR/outcome referee
+        self._fast = FastMomentEngine()
         self._executor = ActionExecutor()
         self._memory = SessionMemory(
             output_path=Path(config.memory_path) if config.memory_path else None
@@ -115,10 +139,12 @@ class ClutchBotAgent:
         self._unsubscribe = self.bus.subscribe(self._on_event)
         self._minute_start = time.time()
         log.info(
-            f"ClutchBot started: persona={self.config.persona}, "
-            f"features={sorted(self._features)}, "
-            f"backends={[b.name() for b in self._executor.backends]}, "
-            f"max_chat_per_min={self.config.max_messages_per_min}"
+            "ClutchBot started: persona=%s features=%s backends=%s max_chat_per_min=%s "
+            "two_speed=fast+confirm (OCR is referee, not starter)",
+            self.config.persona,
+            sorted(self._features),
+            [b.name() for b in self._executor.backends],
+            self.config.max_messages_per_min,
         )
         return True
 
@@ -149,18 +175,51 @@ class ClutchBotAgent:
 
         self._situation.update(event)
 
-        if event.type in {
-            EventType.VISUAL_CONTEXT,
-            EventType.OUTCOME_EVENT,
-            EventType.GAME_DETECTED,
+        # Two-speed ClutchBot:
+        # 1) Fast path — video+input co-occurrence (IVC), last-known situation
+        # 2) Confirm path — OCR/outcome MomentScorer (factual referee)
+        if event.type in _FAST_TRIGGER_TYPES:
+            try:
+                self._maybe_act_fast(event)
+            except Exception as e:
+                log.debug("ClutchBot fast path error: %s", e)
+
+        if event.type in _CONFIRM_TRIGGER_TYPES or event.type in {
             EventType.CONTROLLER_EVENT,
             EventType.TRIGGER_ONSET,
             EventType.STICK_MOTION,
             EventType.PRESENCE_REPORT,
         }:
-            self._maybe_act(event)
+            # Confirm still runs on visual/outcome; controller events keep prior
+            # behavior for scorer hooks that use APM etc. via situation only when
+            # confirm types fire — avoid double-scoring confirm on pure HID.
+            if event.type in _CONFIRM_TRIGGER_TYPES:
+                self._maybe_act_confirm(event)
 
-    def _maybe_act(self, event: BaseEvent) -> None:
+    def _maybe_act_fast(self, event: BaseEvent) -> None:
+        """Realtime path: coupling + last situation → soft chat / clip intent / arm."""
+        coupling = None
+        if event.type == EventType.COUPLING_SCORE and isinstance(event.payload, dict):
+            coupling = event.payload
+        else:
+            try:
+                from qoresence.sync.ivc import get_last_coupling
+
+                coupling = get_last_coupling()
+            except Exception:
+                coupling = {"coupling": 0.0, "input_energy": 0.0, "path": "fast"}
+
+        moments = self._fast.score_fast(
+            self._situation.state,
+            coupling=coupling,
+            features=self._features,
+        )
+        if not moments:
+            return
+        self._dispatch_moments(moments, event, path_label="fast")
+
+    def _maybe_act_confirm(self, event: BaseEvent) -> None:
+        """OCR/outcome referee path — may invent nothing; uses real scores when present."""
         active_prediction = self._helix_client.active_prediction if self._helix_client else None
         moments = self._scorer.score(
             self._situation.state,
@@ -169,6 +228,12 @@ class ClutchBotAgent:
             active_prediction=active_prediction,
             features=self._features,
         )
+
+        # If fast path armed prediction and confirm sees score_changed, clear latch
+        # (resolve still handled by MomentScorer as today)
+        if event.type == EventType.OUTCOME_EVENT and isinstance(event.payload, dict):
+            if event.payload.get("event_name") == "score_changed":
+                self._fast.on_confirm_score()
 
         if getattr(self, "_learning_logger", None) is not None and moments:
             try:
@@ -188,16 +253,22 @@ class ClutchBotAgent:
 
         if not moments:
             return
+        self._dispatch_moments(moments, event, path_label="confirm")
 
+    def _dispatch_moments(
+        self, moments: list[ScoredMoment], event: BaseEvent, *, path_label: str
+    ) -> None:
         for moment in moments:
-            # LLM via Quicksilver Pro https://api.quicksilverpro.io/v1 (fallback to template)
+            if not moment.triggered:
+                continue
+
+            # Fast soft chat: never LLM-invent score digits; skip enhance for non-factual
+            allow_llm = moment.action == "chat" and moment.message
+            if path_label == "fast" or moment.payload.get("factual") is False:
+                allow_llm = False  # keep soft templates clean
+
             _llm = getattr(self, "_llm", None)
-            if (
-                _llm is not None
-                and _llm.is_available()
-                and moment.action == "chat"
-                and moment.message
-            ):
+            if allow_llm and _llm is not None and _llm.is_available():
                 try:
                     _enh = _llm.enhance_message(
                         situation=self._situation.to_dict(),
@@ -213,6 +284,21 @@ class ClutchBotAgent:
                 except Exception as _e:
                     log.debug(f"LLM enhance failed: {_e}")
 
+            # arm_prediction is latch-only for social backends; still deck_feed
+            if moment.action == "arm_prediction":
+                if not self._rate_limit_ok(moment):
+                    continue
+                context = {
+                    "session_id": self.bus.session_id,
+                    "event_type": event.type.value,
+                    "event_clock_ns": event.clock_ns,
+                    "path": path_label,
+                }
+                results = self._executor.execute(moment, context)
+                self._emit_agent_action(moment, results)
+                self._last_action_time[moment.action] = time.time()
+                continue
+
             if not self._rate_limit_ok(moment):
                 continue
 
@@ -220,10 +306,10 @@ class ClutchBotAgent:
                 "session_id": self.bus.session_id,
                 "event_type": event.type.value,
                 "event_clock_ns": event.clock_ns,
+                "path": path_label,
             }
             results = self._executor.execute(moment, context)
 
-            # Only count chat if it actually reached a backend successfully
             if moment.action == "chat" and any(r.success for r in results):
                 self._record_chat_sent()
 
@@ -277,6 +363,8 @@ class ClutchBotAgent:
 
     def _cooldown_for(self, action: str) -> float:
         base = self.config.message_cooldown_s
+        if action == "arm_prediction":
+            return 60.0
         if action == "chat":
             return base
         if action == "clip":
@@ -489,8 +577,14 @@ class _LocalHdmiClipBackend:
                 )
             except Exception:
                 buttons_summary = {}
+            path_tag = ""
+            if isinstance(inner, dict):
+                path_tag = str(inner.get("path") or "")
+            title = f"HDMI CLIP {result.duration_s:.0f}s"
+            if path_tag == "fast":
+                title = f"FAST {title}"
             moment_payload = {
-                "title": f"HDMI CLIP {result.duration_s:.0f}s",
+                "title": title,
                 "reason": result.path,
                 "clock": "now",
                 "action": "clip",
@@ -499,6 +593,8 @@ class _LocalHdmiClipBackend:
                 "name": clip_name,
                 "url": media_url,
             }
+            if path_tag:
+                moment_payload["moment_path"] = path_tag
             if buttons_summary:
                 moment_payload["buttons_summary"] = buttons_summary
             _deck_push(moment_payload)
@@ -530,26 +626,40 @@ class _DeckFeedBackend:
         # Clips are owned by local_hdmi (real MP4). DeckFeed still handles chat/etc.
         if action == "clip":
             return False
+        inner = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
+        path = (inner or {}).get("path") or payload.get("path") or ""
+        factual = (inner or {}).get("factual")
         title = (
             payload.get("message")
-            or (payload.get("payload") or {}).get("title")
+            or (inner or {}).get("title")
             or action
             or "CLUTCH"
         )
         reason = payload.get("reason") or action or ""
+        if path:
+            reason = f"[{path}] {reason}"
         try:
             from qoresence.deck.server import push_moment as _deck_push
 
-            _deck_push(
-                {
-                    "title": str(title)[:80],
-                    "reason": str(reason)[:160],
-                    "clock": "now",
-                    "action": str(action),
-                    "icon": "⚡" if action == "chat" else "📊",
-                }
-            )
-            log.info("DeckFeed %s: %s", action, str(title)[:60])
+            icon = "⚡" if action == "chat" else "📊"
+            if path == "fast":
+                icon = "⚡" if action == "chat" else ("🎬" if action == "clip" else "🎯")
+            if action == "arm_prediction":
+                title = title if title and title != "arm_prediction" else "FAST arm prediction"
+                icon = "🎯"
+            moment = {
+                "title": str(title)[:80] if title else str(action),
+                "reason": str(reason)[:160],
+                "clock": "now",
+                "action": str(action),
+                "icon": icon,
+            }
+            if path:
+                moment["path"] = path
+            if factual is not None:
+                moment["factual"] = factual
+            _deck_push(moment)
+            log.info("DeckFeed %s path=%s: %s", action, path or "—", str(title)[:60])
             return True
         except Exception as e:
             log.warning("DeckFeed push failed: %s", e)
