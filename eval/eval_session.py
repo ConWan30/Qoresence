@@ -9,6 +9,7 @@ Reports:
 - desync count observed during replay
 - weighted verdict distribution from the fusion engine
 """
+
 from __future__ import annotations
 
 import argparse
@@ -149,7 +150,9 @@ def eval_session(path: Path) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Replay a Qoresence session JSONL and report metrics.")
+    parser = argparse.ArgumentParser(
+        description="Replay a Qoresence session JSONL and report metrics."
+    )
     parser.add_argument("jsonl_path", type=Path, help="Path to session JSONL")
     args = parser.parse_args()
 
