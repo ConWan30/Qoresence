@@ -281,12 +281,26 @@ function loadChaptersForClip(url){
   }).catch(()=>{ chaptersCard.classList.remove('show'); chapterList.innerHTML=''; });
 }
 function applyWhy(tl){
-  if(!tl||!tl.why_last){ whyCard.classList.remove('show'); return; }
+  if(!tl){ whyCard.classList.remove('show'); return; }
+  // Prefer DriveGraph climax line when present
+  const g=tl.drive_graph;
+  let line=null;
+  if(g&&g.climax&&g.climax.best_label){
+    const sc=(g.climax.score!=null)?Number(g.climax.score).toFixed(2):'—';
+    line=(g.phase||'—')+' · climax '+sc+' · '+g.climax.best_label+' · path='+(g.climax.best_path||'—');
+  }
   const w=tl.why_last;
-  whyLine.textContent=w.line||(w.path+' · '+(w.message||w.kind||''));
+  if(!line&&w) line=w.line||(w.path+' · '+(w.message||w.kind||''));
+  if(!line){ whyCard.classList.remove('show'); return; }
+  whyLine.textContent=line;
+  let driveBits=[];
   if(tl.active_drive&&tl.active_drive.drive_id){
-    driveLine.textContent='drive '+tl.active_drive.drive_id+' · '+(tl.active_drive.event_count||0)+' events';
-  } else { driveLine.textContent=''; }
+    driveBits.push('drive '+tl.active_drive.drive_id+' · '+(tl.active_drive.event_count||0)+' events');
+  }
+  if(g&&g.phase){
+    driveBits.push('phase '+g.phase+(g.match_rate!=null?' · match '+(Number(g.match_rate)*100).toFixed(0)+'%':''));
+  }
+  driveLine.textContent=driveBits.join(' · ');
   whyCard.classList.add('show');
 }
 function addMoment(p){

@@ -211,14 +211,52 @@ class SessionTimeline:
             events = [e.to_dict() for e in list(self._events)[-recent_n:]]
             drives = [d.to_dict() for d in self._drives[-12:]]
             active = self._active.to_dict() if self._active else None
+            active_obj = self._active
+            last_drive_obj = self._drives[-1] if self._drives else None
         why = self.why_last()
-        return {
+        # DriveGraph enrichment (optional; never break snapshot)
+        drive_graph_summary = None
+        why_graph_line = None
+        try:
+            from qoresence.agents.drive_graph import DriveGraph
+
+            drive = active_obj or last_drive_obj
+            if drive is not None:
+                g = DriveGraph.from_timeline_drive(self, drive)
+                if g is not None and g.nodes:
+                    drive_graph_summary = g.summary()
+                    why_graph_line = g.why_line()
+        except Exception:
+            drive_graph_summary = None
+            why_graph_line = None
+
+        # Prefer graph-backed why line when available
+        if why is not None and why_graph_line:
+            why = dict(why)
+            why["line"] = why_graph_line
+            why["source"] = "drive_graph"
+            if drive_graph_summary:
+                why["phase"] = drive_graph_summary.get("phase")
+                cl = drive_graph_summary.get("climax") or {}
+                why["climax_score"] = cl.get("score")
+                why["best_label"] = cl.get("best_label")
+        elif why is None and why_graph_line:
+            why = {
+                "line": why_graph_line,
+                "source": "drive_graph",
+                "phase": (drive_graph_summary or {}).get("phase"),
+            }
+
+        out: dict[str, Any] = {
             "events": events,
             "drives": drives,
             "active_drive": active,
             "why_last": why,
             "count": len(events),
         }
+        if drive_graph_summary is not None:
+            out["drive_graph"] = drive_graph_summary
+        return out
 
     def clear(self) -> None:
         with self._lock:
