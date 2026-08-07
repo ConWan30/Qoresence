@@ -25,8 +25,9 @@ DEFAULT_SECONDS = 30.0
 # Half-sample of 60 Hz PS5 HDMI for smooth LIVE + bounded RAM (not full-rate JPEG).
 # Full 60 via get_clip_buffer(target_fps=60) or GET /video?fps=60.
 DEFAULT_FPS = 30.0
-DEFAULT_MAX_WIDTH = 960
-DEFAULT_JPEG_QUALITY = 75  # slightly lower to offset 30 fps frame count
+# Smaller LIVE JPEGs = faster encode + less browser MJPEG buffer lag.
+DEFAULT_MAX_WIDTH = 640
+DEFAULT_JPEG_QUALITY = 55
 DEFAULT_OUT_DIR = Path("clips")
 
 
@@ -68,6 +69,10 @@ class HdmiClipBuffer:
         self._skipped = 0
         self._seq = 0
         self._enabled = True
+        # Fast path for LIVE MJPEG (overwritten every successful encode)
+        self._live_jpeg: bytes | None = None
+        self._live_seq: int = 0
+        self._live_ts: float = 0.0
 
     def enable(self, on: bool = True) -> None:
         self._enabled = bool(on)
@@ -89,7 +94,8 @@ class HdmiClipBuffer:
             if self.max_width > 0 and w > self.max_width:
                 scale = self.max_width / float(w)
                 nh = max(1, int(h * scale))
-                small = cv2.resize(frame, (self.max_width, nh), interpolation=cv2.INTER_AREA)
+                # INTER_LINEAR is much faster than INTER_AREA for LIVE path
+                small = cv2.resize(frame, (self.max_width, nh), interpolation=cv2.INTER_LINEAR)
             else:
                 small = frame
             sh, sw = int(small.shape[0]), int(small.shape[1])
@@ -105,16 +111,23 @@ class HdmiClipBuffer:
             )
             if not ok:
                 return
+            jpeg = buf.tobytes()
             with self._lock:
                 self._seq += 1
-                self._frames.append((now, buf.tobytes(), sw, sh, self._seq))
+                self._frames.append((now, jpeg, sw, sh, self._seq))
+                # Dedicated latest slot for LIVE (always newest, no ring scan)
+                self._live_jpeg = jpeg
+                self._live_seq = self._seq
+                self._live_ts = now
                 self._pushes += 1
         except Exception as e:
             log.debug("ClipBuffer push failed: %s", e)
 
     def latest_jpeg(self) -> bytes | None:
-        """Return newest JPEG bytes in the ring (no re-encode). Empty → None."""
+        """Return newest JPEG bytes (LIVE slot, no re-encode). Empty → None."""
         with self._lock:
+            if self._live_jpeg is not None:
+                return self._live_jpeg
             if not self._frames:
                 return None
             return self._frames[-1][1]
@@ -122,6 +135,8 @@ class HdmiClipBuffer:
     def latest_frame(self) -> tuple[bytes, int] | None:
         """Return (jpeg_bytes, seq) for newest frame. Empty → None."""
         with self._lock:
+            if self._live_jpeg is not None and self._live_seq > 0:
+                return (self._live_jpeg, self._live_seq)
             if not self._frames:
                 return None
             _ts, jpg, _w, _h, seq = self._frames[-1]
@@ -137,8 +152,9 @@ class HdmiClipBuffer:
                 dur = 0.0
             w = self._frames[-1][2] if n else 0
             h = self._frames[-1][3] if n else 0
-            age_s = (now - self._frames[-1][0]) if n else None
-            seq = self._frames[-1][4] if n else 0
+            live_ts = self._live_ts or (self._frames[-1][0] if n else 0.0)
+            age_s = (now - live_ts) if live_ts else None
+            seq = self._live_seq or (self._frames[-1][4] if n else 0)
             return {
                 "enabled": self._enabled,
                 "frames": n,
@@ -150,7 +166,7 @@ class HdmiClipBuffer:
                 "pushes": self._pushes,
                 "skipped": self._skipped,
                 "out_dir": str(self.out_dir.resolve()),
-                "has_frame": n > 0,
+                "has_frame": n > 0 or self._live_jpeg is not None,
                 "age_s": None if age_s is None else round(float(age_s), 3),
                 "seq": int(seq),
             }

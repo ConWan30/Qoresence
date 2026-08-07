@@ -203,31 +203,56 @@ def _read_live_jpeg() -> bytes:
 
 
 async def _mjpeg_stream(fps: float = DEFAULT_LIVE_FPS):  # type: ignore[no-untyped-def]
-    """Async multipart MJPEG — await sleep so LIVE does not block uvicorn workers."""
+    """Async multipart MJPEG — wait for new seq when possible (lower display lag).
+
+    Fixed-rate re-send of the same JPEG made Theater feel "behind" gameplay.
+    We poll for a newer seq up to 1/fps, then yield immediately.
+    """
     import time as _time
+
+    from qoresence.vision.clip_buffer import get_latest_frame
 
     fps = _clamp_live_fps(fps)
     boundary = b"frame"
     interval = 1.0 / fps
     dark = _placeholder_jpeg()
+    last_seq = -1
     while True:
         t0 = _time.monotonic()
-        try:
-            jpg = _read_live_jpeg() or dark
-        except Exception:
-            jpg = dark
+        jpg: bytes | None = None
+        deadline = t0 + interval
+        # Wait for a *new* frame instead of sleeping full interval after send
+        while True:
+            try:
+                fr = get_latest_frame()
+                if fr is not None:
+                    candidate, seq = fr
+                    if seq != last_seq:
+                        jpg = candidate
+                        last_seq = seq
+                        break
+            except Exception:
+                pass
+            now = _time.monotonic()
+            if now >= deadline:
+                # Timeout: still emit latest (or placeholder) to keep connection alive
+                try:
+                    fr = get_latest_frame()
+                    if fr is not None:
+                        jpg, last_seq = fr[0], fr[1]
+                except Exception:
+                    jpg = None
+                break
+            await asyncio.sleep(min(0.002, deadline - now))
         if not jpg:
             jpg = dark
         header = (
             b"--" + boundary + b"\r\n"
             b"Content-Type: image/jpeg\r\n"
-            b"Content-Length: " + str(len(jpg)).encode() + b"\r\n\r\n"
+            b"Content-Length: " + str(len(jpg)).encode() + b"\r\n"
+            b"X-Timestamp: " + f"{_time.time():.3f}".encode() + b"\r\n\r\n"
         )
         yield header + jpg + b"\r\n"
-        elapsed = _time.monotonic() - t0
-        remaining = interval - elapsed
-        if remaining > 0:
-            await asyncio.sleep(remaining)
 
 
 def _mjpeg_generator(fps: float = DEFAULT_LIVE_FPS):  # type: ignore[no-untyped-def]

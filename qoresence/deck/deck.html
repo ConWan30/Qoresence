@@ -62,7 +62,7 @@ a{color:#F5C542;text-decoration:none}
   </div>
   <div id="playerWrap">
     <div id="playerEmpty"><strong>Waiting for HDMI…</strong><br>Buffer fills from USB3.0 capture.<br>LIVE uses /video · REPLAY plays MP4 clips.</div>
-    <img id="liveFeed" alt="LIVE HDMI" src="/video">
+    <img id="liveFeed" alt="LIVE HDMI" src="/video?fps=30" decoding="async" fetchpriority="high">
     <video id="player" controls playsinline></video>
   </div>
   <div id="stageFoot">
@@ -98,8 +98,8 @@ function setMode(m){
   if(mode==='live'){
     try{player.pause()}catch(e){}
     // restart MJPEG stream (browsers sometimes freeze multipart after pause)
-    liveFeed.src='/video?t='+Date.now();
-    stageMeta.textContent='LIVE from capture card · /video';
+    liveFeed.src='/video?fps=30&t='+Date.now();
+    stageMeta.textContent='LIVE · low-latency MJPEG (not 1:1 with game clock)';
     t1.textContent='● LIVE';
   } else {
     stageMeta.textContent=activeUrl?('REPLAY · '+(activeUrl.split('/').pop()||'')):'REPLAY · pick a clip';
