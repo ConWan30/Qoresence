@@ -3,17 +3,21 @@
 In-repo content is complete under `docs/wiki/`, `docs/index.html`, and `docs/discussions/`.  
 Publishing Wiki/Discussions/Pages may require **one-time** toggles in GitHub Settings if the token lacks `admin:repo`.
 
-## 1. Enable features (repo owner UI)
+## 1. Enable features (repo owner UI) — **required once**
 
-GitHub → **Qoresence** → **Settings**:
+The automation PAT cannot flip Features (HTTP 403). As **repo owner**, open:
+
+**https://github.com/ConWan30/Qoresence/settings**
 
 | Feature | Path | Action |
 |---------|------|--------|
-| **Wiki** | Features | Enable Wikis |
-| **Discussions** | Features | Enable Discussions |
-| **Pages** | Pages | Source: **Deploy from a branch** → Branch `main` → Folder `/docs` → Save |
+| **Wiki** | General → Features | ☑ Wikis |
+| **Discussions** | General → Features | ☑ Discussions |
+| **Pages** | Pages | Build and deployment → Source: **GitHub Actions** |
 
-Or after pushing, run (needs admin-capable token):
+Then re-run publish scripts / re-run the **Deploy GitHub Pages** workflow.
+
+Or with an admin-scoped token:
 
 ```powershell
 gh repo edit ConWan30/Qoresence --enable-wiki --enable-discussions --homepage "https://conwan30.github.io/Qoresence/"
