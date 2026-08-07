@@ -26,6 +26,17 @@ from qoresence.core import (
 )
 from qoresence.fusion import PresenceFusionEngine, create_fusion_engine
 from qoresence.game_detection import GameAutoDetector
+
+try:
+    from qoresence.deck.server import start_deck as _start_deck
+    from qoresence.deck.server import DECK_HOST as _DECK_HOST, DECK_PORT as _DECK_PORT
+
+    _DECK_AVAILABLE = True
+except ImportError:
+    _start_deck = None  # type: ignore[assignment]
+    _DECK_HOST = "127.0.0.1"
+    _DECK_PORT = 8765
+    _DECK_AVAILABLE = False
 from qoresence.lobes import (
     ControllerRuntime,
     OutcomeRuntime,
@@ -294,6 +305,21 @@ class QoresenceApp:
             log.warning("Already running")
             return True
 
+        # Retina Deck -- start ws http://127.0.0.1:8765 if --deck/--play
+        try:
+            if getattr(self.config, "deck_enabled", False) and _start_deck is not None:
+                _start_deck(
+                    host=getattr(self.config, "deck_host", _DECK_HOST),
+                    port=getattr(self.config, "deck_port", _DECK_PORT),
+                    daemon=True,
+                )
+                log.info(
+                    "Retina Deck http://%s:%s  Lens /overlay.html  Rail /deck.html",
+                    getattr(self.config, "deck_host", _DECK_HOST),
+                    getattr(self.config, "deck_port", _DECK_PORT),
+                )
+        except Exception as e:
+            log.warning("Deck start failed: %s", e)
         self._running = True
         self._start_time = time.time()
 

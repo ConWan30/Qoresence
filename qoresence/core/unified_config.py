@@ -292,6 +292,9 @@ class ClutchBotConfig:
     twitch: TwitchConfig = field(default_factory=TwitchConfig)
     learning_enabled: bool = False
     learning_log_path: str | None = None
+    deck_enabled: bool = False
+    deck_host: str = "127.0.0.1"
+    deck_port: int = 8765
     # -- LLM via Quicksilver Pro (OpenAI-compatible https://api.quicksilverpro.io/v1)
     llm_enabled: bool = False
     llm_provider: str = "quicksilver"  # quicksilver | openai | anthropic | ollama
@@ -572,6 +575,9 @@ class RetinaUnifiedConfig:
                 llm_api_key_file=_str("QORESENCE_CLUTCHBOT_LLM_API_KEY_FILE") or None,
                 llm_fallback_model=_str("QORESENCE_CLUTCHBOT_LLM_FALLBACK", "gpt-4o-mini"),
                 llm_timeout_s=_float("QORESENCE_CLUTCHBOT_LLM_TIMEOUT_S", 6.0),
+                deck_enabled=_bool("QORESENCE_DECK_ENABLED", False),
+                deck_host=_str("QORESENCE_DECK_HOST", "127.0.0.1"),
+                deck_port=_int("QORESENCE_DECK_PORT", 8765),
                 llm_max_tokens=_int("QORESENCE_CLUTCHBOT_LLM_MAX_TOKENS", 256),
             ),
             jsonl_path=_str("QORESENCE_JSONL_PATH") or None,
