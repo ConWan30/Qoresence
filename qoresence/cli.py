@@ -1045,6 +1045,17 @@ def main():
     parser.add_argument("--deck-port", type=int, default=8765, help="Deck port")
     parser.add_argument("--health-check", action="store_true", help="Run health checks and exit")
     parser.add_argument("--dry-run", action="store_true", help="Initialize but don't start lobes")
+    parser.add_argument(
+        "--monitor",
+        action="store_true",
+        help="Open native Retina Monitor (FrameHub blit; no second capture). Default OFF.",
+    )
+    parser.add_argument(
+        "--monitor-max-width",
+        type=int,
+        default=1280,
+        help="Retina Monitor max display width (default 1280)",
+    )
 
     args = parser.parse_args()
 
@@ -1330,6 +1341,30 @@ def main():
         log.error("Failed to start")
         sys.exit(1)
 
+    # Optional native Retina Monitor (in-process FrameHub ← streamer; default OFF)
+    _monitor_stop = None
+    if getattr(args, "monitor", False):
+        try:
+            from qoresence.monitor.window import start_monitor_thread
+
+            deck_port = int(getattr(args, "deck_port", 8765) or 8765)
+            _mon_t, _monitor_stop = start_monitor_thread(
+                max_width=int(getattr(args, "monitor_max_width", 1280) or 1280),
+                situation_url=f"http://127.0.0.1:{deck_port}/api/situation",
+                target_hz=30.0,
+            )
+            log.info(
+                "Retina Monitor on (FrameHub ← streamer; no second capture) thread=%s",
+                _mon_t.name,
+            )
+        except Exception as e:
+            log.error(
+                "Retina Monitor failed to start: %s. "
+                "Install opencv (pip install 'qoresence[monitor]'). "
+                "Play/Deck continue without the window.",
+                e,
+            )
+
     # Signal handling
     def signal_handler(signum, frame):
         log.info("Received signal %s, shutting down...", signum)
@@ -1343,6 +1378,12 @@ def main():
         app.wait_for_shutdown()
     except KeyboardInterrupt:
         pass
+
+    if _monitor_stop is not None:
+        try:
+            _monitor_stop.set()
+        except Exception:
+            pass
 
     app.stop()
     log.info("Goodbye")

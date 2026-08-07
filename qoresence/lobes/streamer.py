@@ -484,6 +484,13 @@ class StreamerRuntime:
                 _clip_push(frame)
             except Exception:
                 pass
+            # FrameHub for native Retina Monitor (same frames — never second capture)
+            try:
+                from qoresence.monitor.frame_hub import publish as _hub_publish
+
+                _hub_publish(frame)
+            except Exception:
+                pass
 
             # Downscale for metrics
             scale = self.config.process_scale

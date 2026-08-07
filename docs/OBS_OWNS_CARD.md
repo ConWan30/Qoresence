@@ -118,13 +118,17 @@ Theater LIVE is **ops glass** (is HDMI path alive?). Do not use it as your aim/m
 
 ---
 
-## 8. Phase 2 pointer (not implemented in Phase 1)
+## 8. Phase 2 — Native Retina Monitor
 
-A **native Retina Monitor** may later blit the **same** frames Qoresence already holds (FrameHub ← streamer) with no JPEG browser path and **no second capture open**.
+A **native Retina Monitor** blits the **same** frames Qoresence already holds (`FrameHub` ← streamer) with no JPEG browser path and **no second capture open**.
 
-- Gated on Phase 1 pilot success.  
+```text
+python -m qoresence.cli --play --deck --monitor --streamer-device <OBS_VCAM> --streamer-fps 30
+```
+
 - Still one physical-card owner (usually OBS + VCam).  
-- See future `docs/RETINA_MONITOR.md` when Phase 2 lands.
+- Closing the monitor does not stop Deck/streamer.  
+- Full docs: **[RETINA_MONITOR.md](RETINA_MONITOR.md)**
 
 ---
 
