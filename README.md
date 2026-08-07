@@ -133,6 +133,19 @@ See [docs/clutchbot_setup.md](docs/clutchbot_setup.md) for Twitch app, tokens, a
 
 ---
 
+## Streaming setup (OBS owns card)
+
+Daily pilot model: **OBS** holds the physical HDMI capture device and **Start Virtual Camera**; **Qoresence** uses that Virtual Camera as `--streamer-device`. On-stream HUD = Lens Browser Source `http://127.0.0.1:8765/overlay.html`. Ghost Theater LIVE is ops glass only — use **OBS Preview** for real-time gameplay eye.
+
+See **[docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md)** and **[tools/obs/VIRTUAL_CAM.md](tools/obs/VIRTUAL_CAM.md)**.
+
+```text
+python -m qoresence.cli --streamer-list
+python -m qoresence.cli --play --deck --streamer-device <OBS_VCAM> --streamer-fps 30
+```
+
+---
+
 ## Quickstart
 
 ```bash

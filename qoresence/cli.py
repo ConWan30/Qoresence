@@ -1049,17 +1049,34 @@ def main():
     args = parser.parse_args()
 
     if args.streamer_list:
-        from qoresence.lobes.streamer import list_dshow_devices
+        from qoresence.lobes.streamer import (
+            _is_obs_virtual_camera_name,
+            list_dshow_devices,
+        )
 
         devices = list_dshow_devices()
         if not devices:
             print("No DirectShow capture devices found (pygrabber may not be installed).")  # noqa: T201
             sys.exit(0)
-        print(f"{'Index':<6} {'Allowed':<7} {'Name'}")  # noqa: T201
-        print("-" * 60)  # noqa: T201
-        for idx, name, allowed in devices:
+        # Index | Allowed | Backend | Name [annotation]
+        print(f"{'Index':<6} {'Allowed':<8} {'Backend':<8} {'Name'}")  # noqa: T201
+        print("-" * 78)  # noqa: T201
+        for row in devices:
+            if len(row) >= 4:
+                idx, name, allowed, backend = row[0], row[1], row[2], row[3]
+            else:
+                idx, name, allowed = row[0], row[1], row[2]
+                backend = "dshow"
             status = "OK" if allowed else "BLOCKED"
-            print(f"{idx:<6} {status:<7} {name}")  # noqa: T201
+            note = ""
+            if _is_obs_virtual_camera_name(name):
+                note = "  [recommended when OBS owns card]"
+            print(f"{idx:<6} {status:<8} {backend:<8} {name}{note}")  # noqa: T201
+        print("")  # noqa: T201
+        print(  # noqa: T201
+            "Pattern A: OBS holds physical HDMI → Start Virtual Camera → "
+            "--streamer-device <OBS Virtual Camera index>. See docs/OBS_OWNS_CARD.md"
+        )
         sys.exit(0)
 
     setup_logging(args.log_level)

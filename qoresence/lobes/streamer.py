@@ -41,10 +41,19 @@ def _get_dshow_device_name(index: int) -> str | None:
     return None
 
 
-def list_dshow_devices() -> list[tuple[int, str, bool]]:
+def _is_obs_virtual_camera_name(name: str | None) -> bool:
+    """True if device name looks like OBS Virtual Camera (Pattern A source)."""
+    if not name:
+        return False
+    n = name.lower()
+    return "obs virtual" in n or n.strip() in {"obs-camera", "obs camera"}
+
+
+def list_dshow_devices() -> list[tuple[int, str, bool, str]]:
     """Enumerate DirectShow input devices with allowed/blocked status.
 
-    Returns a list of (index, name, is_allowed) tuples.
+    Returns a list of (index, name, is_allowed, backend) tuples.
+    Backend is ``dshow`` for pygrabber enumeration (Windows pilot).
     """
     try:
         from pygrabber.dshow_graph import FilterGraph
@@ -53,7 +62,10 @@ def list_dshow_devices() -> list[tuple[int, str, bool]]:
     except Exception as e:
         log.warning(f"Could not enumerate DShow devices: {e}")
         return []
-    return [(i, name, _is_allowed_capture_name(name)) for i, name in enumerate(names)]
+    return [
+        (i, name, _is_allowed_capture_name(name), "dshow")
+        for i, name in enumerate(names)
+    ]
 
 
 def _is_allowed_capture_name(name: str | None) -> bool:
@@ -326,10 +338,28 @@ class StreamerRuntime:
             else:
                 self._cap = cv2.VideoCapture(self.config.device_index)
 
+            device_name = None if is_network else _get_dshow_device_name(self.config.device_index)
+
             if not self._cap.isOpened():
                 source = self.config.url if is_network else self.config.device_index
                 log.error(f"Failed to open capture source {source}")
+                # Pattern A hint: physical card often busy when OBS owns it
+                if not is_network:
+                    looks_physical = not _is_obs_virtual_camera_name(device_name)
+                    if looks_physical or device_name is None:
+                        log.error(
+                            "Device busy or unavailable — if OBS has the physical card, "
+                            "Start Virtual Camera and pass --streamer-device <OBS Virtual Camera index>. "
+                            "See docs/OBS_OWNS_CARD.md"
+                        )
                 return False
+
+            if not is_network and _is_obs_virtual_camera_name(device_name):
+                log.info(
+                    "streamer source: OBS Virtual Camera (OBS owns physical card) idx=%s name=%r",
+                    self.config.device_index,
+                    device_name,
+                )
 
             if not is_network:
                 # Set resolution and FPS only for local devices
@@ -341,12 +371,18 @@ class StreamerRuntime:
             ok, frame = self._cap.read()
             if not ok or frame is None:
                 log.error("First frame read failed")
+                if not is_network and not _is_obs_virtual_camera_name(device_name):
+                    log.error(
+                        "Device busy — if OBS has the card, Start Virtual Camera and pass "
+                        "--streamer-device <OBS Virtual Camera index>. See docs/OBS_OWNS_CARD.md"
+                    )
                 self._cap.release()
                 return False
 
             # Privacy / device-name guard for local capture devices
             if not is_network and os.environ.get("QORESENCE_PRIVACY_GUARD", "1") != "0":
-                device_name = _get_dshow_device_name(self.config.device_index)
+                if device_name is None:
+                    device_name = _get_dshow_device_name(self.config.device_index)
                 if not _is_allowed_capture_name(device_name):
                     log.error(
                         f"PRIVACY GUARD: device index {self.config.device_index} "
@@ -378,6 +414,11 @@ class StreamerRuntime:
 
         except Exception as e:
             log.error(f"Capture open failed: {e}")
+            if not is_network:
+                log.error(
+                    "If OBS has the physical card, Start Virtual Camera and use "
+                    "--streamer-device <OBS Virtual Camera index>. See docs/OBS_OWNS_CARD.md"
+                )
             if self._cap:
                 self._cap.release()
             return False

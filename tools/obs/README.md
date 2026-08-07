@@ -1,10 +1,33 @@
 # OBS — Retina Clutch Lens (Browser Source)
 
-## Correct setup
+## Capture ownership
 
-1. Start Deck / play stack:
+**One physical HDMI/DShow card has one owner.**
+
+| Pattern | Physical card | Qoresence streamer source |
+|---------|---------------|---------------------------|
+| **A (recommended)** | **OBS** Video Capture | **OBS Virtual Camera** index from `--streamer-list` |
+| B (lab only) | Qoresence device `0` | Physical card; OBS must **not** open it |
+
+- Full pilot model: **[docs/OBS_OWNS_CARD.md](../../docs/OBS_OWNS_CARD.md)**  
+- Short operator steps: **[VIRTUAL_CAM.md](VIRTUAL_CAM.md)**  
+
+If OBS holds the physical card, Qoresence **must** use the **OBS Virtual Camera** device index — **not** device `0` by habit.
+
+```text
+python -m qoresence.cli --streamer-list
+python -m qoresence.cli --play --deck --streamer-device <OBS_VCAM_INDEX> --streamer-fps 30
+```
+
+Theater LIVE (`/video`) is ops/context glass. **OBS Preview** is the low-lag eye on gameplay.
+
+---
+
+## Correct setup (Lens)
+
+1. Start Deck / play stack (with Virtual Cam index when OBS owns card):
    ```text
-   python -m qoresence.cli --play --deck
+   python -m qoresence.cli --play --deck --streamer-device N --streamer-fps 30
    ```
 2. Confirm Deck is up:
    ```text
@@ -51,10 +74,10 @@
 
 1. **OBS URL / layer** — this README.  
 2. **Scorebug OCR** — LocalVLM runs EasyOCR on football for ONNX *and* heuristic (`QORESENCE_DISABLE_SCOREBOARD_OCR=1` only in tests).  
-3. **Frame source** — `--play` uses **streamer** (DShow HDMI/UVC idx 0), not mss desktop.  
+3. **Frame source** — `--play` uses **streamer** (DShow). With OBS owning the card, pass **Virtual Camera** index (see **Capture ownership** above), not physical `0`.  
    ```text
    python -m qoresence.cli --streamer-list
-   python -m qoresence.cli --play --deck --streamer-device 0
+   python -m qoresence.cli --play --deck --streamer-device N --streamer-fps 30
    ```
    Desktop (`--screen`) is optional and wrong for PS5 HDMI scoreboard OCR.
 
