@@ -1,34 +1,41 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Retina Lens — Clutch Glass</title>
+<title>Retina Lens — LIVE</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font-family:Inter,JetBrains Mono,system-ui,sans-serif}
 #ribbon{position:absolute;top:0;left:0;height:4px;width:100%;background:linear-gradient(90deg,#1A3A2A 0%,#F5C542 100%);opacity:0.08;transition:opacity .8s}
-#pill{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);background:rgba(10,14,20,.72);backdrop-filter:blur(12px);border:1px solid rgba(232,237,240,.18);border-radius:999px;padding:10px 22px;color:#E8EDF0;font:600 13px/1 JetBrains Mono,monospace;letter-spacing:.04em;opacity:0;transition:opacity .8s,transform .6s;white-space:nowrap}
-#pill.show{opacity:1}#pill.hide{opacity:0;transform:translateX(-50%) translateY(8px)}
+#pill{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);background:rgba(10,14,20,.72);backdrop-filter:blur(12px);border:1px solid rgba(232,237,240,.18);border-radius:999px;padding:10px 22px;color:#E8EDF0;font:600 13px/1 JetBrains Mono,monospace;letter-spacing:.04em;opacity:0;transition:opacity .8s;white-space:nowrap}
+#pill.show{opacity:1}#pill.hide{opacity:0}
 #spark{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%) scale(.92);font:800 88px/1 Inter,sans-serif;letter-spacing:-.03em;color:#F5C542;text-shadow:0 8px 32px rgba(245,197,66,.45);opacity:0;transition:all .55s cubic-bezier(.34,1.56,.64,1)}
 #spark.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
-#eye{position:absolute;right:22px;top:16px;font:500 11px/1 JetBrains Mono,monospace;color:rgba(232,237,240,.55);background:rgba(10,14,20,.55);padding:6px 10px;border-radius:8px;backdrop-filter:blur(8px)}
+#eye{position:absolute;right:22px;top:16px;font:500 11px/1 JetBrains Mono,monospace;color:rgba(232,237,240,.55);background:rgba(10,14,20,.55);padding:6px 10px;border-radius:8px}
 #eye strong{color:#F5C542}
+#wait{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:rgba(232,237,240,.72);font:500 14px/1 Inter,sans-serif;background:rgba(10,14,20,.55);padding:10px 14px;border-radius:10px;border:1px solid rgba(232,237,240,.12)}
 </style></head><body>
-<div id="ribbon"></div><div id="pill">LOU 14 — GT 7 · Q3 00:42 · 3rd & 2</div><div id="spark"></div><div id="eye">● <strong>local</strong> 1.12ms p50</div>
+<div id="ribbon"></div><div id="pill" class="hide">Waiting for game — run --play</div><div id="spark"></div><div id="eye">● <strong>waiting</strong> — no game</div><div id="wait">Retina live — waiting for HDMI. Start: python -m qoresence.cli --play</div>
 <script>
-const ribbon=document.getElementById('ribbon'),pill=document.getElementById('pill'),spark=document.getElementById('spark'),eye=document.getElementById('eye');
-function setRibbon(wp,clip){const pct=Math.round(wp*100);ribbon.style.background='linear-gradient(90deg,#1A3A2A 0%,#F5C542 '+pct+'%,#E8EDF0 100%)';ribbon.style.opacity=(0.08+clip*0.6).toFixed(2);if(clip>0.7) ribbon.animate([{opacity:ribbon.style.opacity},{opacity:'0.9'},{opacity:ribbon.style.opacity}],{duration:900,iterations:1})}
+const ribbon=document.getElementById('ribbon'),pill=document.getElementById('pill'),spark=document.getElementById('spark'),eye=document.getElementById('eye'),wait=document.getElementById('wait');
+function isLive(s){return s && (s.score_home!=null||s.score_away!=null||s.quarter||s.down||s.clock||s.win_prob!=null);}
+function setRibbon(wp,clip){const pct=Math.round((wp||0)*100);ribbon.style.background='linear-gradient(90deg,#1A3A2A 0%,#F5C542 '+pct+'%,#E8EDF0 100%)';ribbon.style.opacity=(0.08+(clip||0)*0.6).toFixed(2)}
 function setPill(t,show){pill.textContent=t;pill.className=show?'show':'hide'}
 function setSpark(w,icon){spark.textContent=(icon||'⚡')+' '+(w||'');spark.className='show';setTimeout(()=>spark.className='',2600)}
 function handle(m){
-  const s=m.situation||m.payload||{};
-  if(s && (s.score_home!=null||s.quarter||s.down)){
-    const sc=s.score_home!=null? s.score_home+'–'+s.score_away : (s.score||'14–7');
-    const q=s.quarter||'Q3',down=s.down||3,dist=s.distance||2,clock=s.clock||'00:42';
-    const wp=s.win_prob!=null?s.win_prob:0.62,cl=s.clip_worthiness!=null?s.clip_worthiness:0;
-    setRibbon(wp,cl);setPill(sc+' · '+q+' '+clock+' · '+down+' & '+dist+' · WP '+Math.round(wp*100)+'%', down>=3||cl>0.55);
-    eye.innerHTML='● <strong>local</strong> '+((m.latency_ms||1.12).toFixed(2))+'ms p50';
-  }
-  if(m.type==='moment'&&m.payload){const p=m.payload;if(p.title) setSpark(p.title.toUpperCase(),p.icon)}
+  const snap=m.state||m.snapshot||null;
+  const s=(snap&&snap.situation)?snap.situation:(m.situation||m.payload||{});
+  const lat=m.latency_ms!=null?m.latency_ms:(snap&&snap.latency_ms!=null?snap.latency_ms:null);
+  if(isLive(s)){
+    wait.style.display='none';
+    const sc=s.score_home!=null? s.score_home+'-' +s.score_away : (s.score||'');
+    const q=s.quarter||'',down=s.down,dist=s.distance,clock=s.clock||'',wp=s.win_prob,cl=s.clip_worthiness||0;
+    const parts=[]; if(sc) parts.push(sc); if(q) parts.push(q+(clock?' '+clock:'')); if(down) parts.push(down+' & '+(dist||'')); if(wp!=null) parts.push('WP '+Math.round(wp*100)+'%');
+    setRibbon(wp||0,cl); setPill(parts.join(' · ')||'LIVE',true);
+    eye.innerHTML='● <strong>local</strong> '+((lat!=null?lat:1.12).toFixed(2))+'ms p50';
+  } else { setRibbon(0,0); pill.className='hide'; eye.innerHTML='● <strong>waiting</strong> — no game'; }
+  if(m.type==='moment'&&m.payload&&m.payload.title) setSpark(m.payload.title.toUpperCase(),m.payload.icon||'⚡');
 }
-function connect(){const ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/retina');ws.onmessage=e=>{try{handle(JSON.parse(e.data))}catch{}};ws.onclose=()=>setTimeout(connect,1200)}
-connect();setRibbon(0.58,0.18);setPill('LOU 14 — GT 7 · Q3 00:42 · 3rd & 2 · WP 58%',true);
+let ws=null;
+function connect(){try{ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/retina');ws.onmessage=e=>{try{handle(JSON.parse(e.data))}catch{}};ws.onopen=()=>{wait.textContent='Retina connected — waiting for HDMI...'};ws.onclose=()=>setTimeout(connect,1200);}catch(e){setTimeout(connect,1200)}}
+connect();
+setInterval(()=>{fetch('/api/situation').then(r=>r.json()).then(j=>{ if(j) handle({state:j.state||j, latency_ms:j.latency_ms});}).catch(()=>{});},2000);
 </script></body></html>
