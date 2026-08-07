@@ -870,6 +870,16 @@ def main():
     parser.add_argument(
         "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
     )
+    parser.add_argument(
+        "--play",
+        action="store_true",
+        help="Exquisite play mode: streamer+visual+fusion+clutchbot+deck (while playing)",
+    )
+    parser.add_argument(
+        "--deck", action="store_true", help="Enable Retina Deck ws://127.0.0.1:8765 (Lens+Rail)"
+    )
+    parser.add_argument("--deck-host", default="127.0.0.1", help="Deck host")
+    parser.add_argument("--deck-port", type=int, default=8765, help="Deck port")
     parser.add_argument("--health-check", action="store_true", help="Run health checks and exit")
     parser.add_argument("--dry-run", action="store_true", help="Initialize but don't start lobes")
 
@@ -917,6 +927,31 @@ def main():
 
     # Create config
     config = create_config_from_args(args)
+    # --play / --deck wiring (Retina Deck exquisite while playing)
+    if getattr(args, "play", False):
+        try:
+            object.__setattr__(config, "deck_enabled", True)
+            object.__setattr__(config, "deck_host", getattr(args, "deck_host", "127.0.0.1"))
+            object.__setattr__(config, "deck_port", int(getattr(args, "deck_port", 8765)))
+            if hasattr(config, "streamer"):
+                try:
+                    object.__setattr__(config.streamer, "enabled", True)
+                except Exception:
+                    pass
+            if hasattr(config, "visual"):
+                try:
+                    object.__setattr__(config.visual, "enabled", True)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    if getattr(args, "deck", False):
+        try:
+            object.__setattr__(config, "deck_enabled", True)
+            object.__setattr__(config, "deck_host", getattr(args, "deck_host", "127.0.0.1"))
+            object.__setattr__(config, "deck_port", int(getattr(args, "deck_port", 8765)))
+        except Exception:
+            pass
 
     # Validate
     try:
