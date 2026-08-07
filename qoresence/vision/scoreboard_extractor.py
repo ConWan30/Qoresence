@@ -426,7 +426,8 @@ class FootballScoreboardExtractor:
         if not band:
             return parsed
 
-        clusters = self._cluster_tokens(band, x_threshold=0.10, y_threshold=0.12)
+        # Tight cluster: don't glue team names onto score digits (HOME+31, 38+AWAY)
+        clusters = self._cluster_tokens(band, x_threshold=0.045, y_threshold=0.10)
 
         # Identify teams and numeric clusters, splitting "5 LOUISVILLE"-style ranks.
         team_clusters: list[_Cluster] = []
@@ -444,15 +445,42 @@ class FootballScoreboardExtractor:
             elif has_digit and not has_alpha:
                 numeric_clusters.append(c)
             elif has_alpha and has_digit:
-                # Mixed, e.g. "5 LOUISVILLE" (rank + team) or "1st" (quarter).
+                # Mixed: split rank+team OR peel score digits off team names
                 rank_team = re.match(r"^(\d+)\s+([A-Za-z].*)$", text)
-                if rank_team:
-                    # Keep the team name; discard the leading rank number from scoring.
+                team_score = re.match(r"^([A-Za-z][A-Za-z\s]+?)\s+(\d{1,2})$", text)
+                score_team = re.match(r"^(\d{1,2})\s+([A-Za-z].*)$", text)
+                if rank_team and int(rank_team.group(1)) <= 25 and not re.search(
+                    r"\d{2}", rank_team.group(1)
+                ):
+                    # "5 LOUISVILLE" ranking — keep team only
                     team_clusters.append(
                         _Cluster(text=rank_team.group(2), x=c.x, y=c.y, conf=c.conf)
                     )
+                elif team_score:
+                    # "HOME 31" / "FSU 31"
+                    team_clusters.append(
+                        _Cluster(text=team_score.group(1).strip(), x=c.x - 0.02, y=c.y, conf=c.conf)
+                    )
+                    numeric_clusters.append(
+                        _Cluster(text=team_score.group(2), x=c.x + 0.02, y=c.y, conf=c.conf)
+                    )
+                elif score_team and int(score_team.group(1)) >= 7:
+                    # "31 HOME" or "38 LOUISVILLE"
+                    numeric_clusters.append(
+                        _Cluster(text=score_team.group(1), x=c.x - 0.02, y=c.y, conf=c.conf)
+                    )
+                    team_clusters.append(
+                        _Cluster(text=score_team.group(2).strip(), x=c.x + 0.02, y=c.y, conf=c.conf)
+                    )
                 else:
-                    numeric_clusters.append(c)
+                    # Peel any standalone 1–2 digit as possible score
+                    for m in re.finditer(r"\b(\d{1,2})\b", text):
+                        numeric_clusters.append(
+                            _Cluster(text=m.group(1), x=c.x, y=c.y, conf=c.conf * 0.9)
+                        )
+                    letters = re.sub(r"\d+", "", text).strip()
+                    if len(letters) >= 2:
+                        team_clusters.append(_Cluster(text=letters, x=c.x, y=c.y, conf=c.conf))
 
         # Quarter: standalone down suffix token not followed by '&'.
         quarter_cluster = self._find_quarter(clusters, numeric_clusters)
@@ -563,23 +591,46 @@ class FootballScoreboardExtractor:
                 # Weight: confidence + bonus for 2-digit + mild position preference
                 w = float(c.conf)
                 if v >= 10:
-                    w += 0.35
+                    w += 0.55  # strong preference for real late-game scores (31, 38, …)
+                elif v >= 7:
+                    w += 0.2
                 if v == 0:
                     w += 0.05
                 # Single digit 1–4 is often down/quarter noise
                 if 1 <= v <= 4:
-                    w -= 0.25
+                    w -= 0.45
                 scored.append((w, v, c))
             if not scored:
                 return None
             scored.sort(key=lambda t: (-t[0], t[2].x if prefer_right else -t[2].x))
             return scored[0][1]
 
-        if left_team:
+        # --- Primary: multi-digit scores in left/right halves (CFB 27) ---
+        # 31-38 style: both ≥10, opposite sides of center — ignore team anchors.
+        multi_left = [
+            c
+            for c in candidates
+            if c.x < 0.45
+            and (self._parse_int(c.text) or -1) >= 7
+            and not (0.40 <= c.x <= 0.60 and _normalize_clock(c.text))
+        ]
+        multi_right = [
+            c
+            for c in candidates
+            if c.x > 0.55
+            and (self._parse_int(c.text) or -1) >= 7
+            and not (0.40 <= c.x <= 0.60 and _normalize_clock(c.text))
+        ]
+        if multi_left and multi_right:
+            home_score = _best_score(multi_left, prefer_right=False)
+            away_score = _best_score(multi_right, prefer_right=True)
+
+        # Team-anchored fallback
+        if home_score is None and left_team:
             left_candidates = [c for c in candidates if left_team.x < c.x < 0.48]
             home_score = _best_score(left_candidates, prefer_right=False)
 
-        if right_team:
+        if away_score is None and right_team:
             right_candidates = [c for c in candidates if 0.52 < c.x < right_team.x]
             away_score = _best_score(right_candidates, prefer_right=True)
 
@@ -624,23 +675,26 @@ class FootballScoreboardExtractor:
             if m:
                 a, b = int(m.group(1)), int(m.group(2))
                 if 0 <= a <= 99 and 0 <= b <= 99:
+                    if _ScoreStabilizer._looks_suspicious_pair((a, b)):
+                        continue
                     return a, b
-        # Two nearby pure numbers on same row with similar magnitude
+        # Prefer left-half + right-half multi-digit pair (true scorebug), not
+        # adjacent (31, 2) where 2 is quarter in the center.
         nums: list[tuple[int, float, float]] = []
         for c in clusters:
             if re.fullmatch(r"\d{1,2}", c.text.strip()):
                 v = int(c.text.strip())
                 if 0 <= v <= 99:
                     nums.append((v, c.x, c.y))
-        nums.sort(key=lambda t: t[1])
-        for i in range(len(nums) - 1):
-            v1, x1, y1 = nums[i]
-            v2, x2, y2 = nums[i + 1]
-            if abs(y1 - y2) < 0.12 and 0.15 < (x2 - x1) < 0.55:
-                # Skip if looks like clock fragments
-                if x1 > 0.35 and x2 < 0.65 and max(v1, v2) <= 59 and min(v1, v2) < 10:
-                    continue
-                return v1, v2
+        left = [n for n in nums if n[1] < 0.42 and n[0] >= 7]
+        right = [n for n in nums if n[1] > 0.58 and n[0] >= 7]
+        if left and right:
+            # Highest value confidence proxy: prefer >=10, then rightmost/leftmost
+            lh = max(left, key=lambda n: (n[0] >= 10, n[0], -abs(n[1] - 0.25)))
+            rh = max(right, key=lambda n: (n[0] >= 10, n[0], -abs(n[1] - 0.75)))
+            pair = (lh[0], rh[0])
+            if not _ScoreStabilizer._looks_suspicious_pair(pair):
+                return pair
         return None
 
     @staticmethod

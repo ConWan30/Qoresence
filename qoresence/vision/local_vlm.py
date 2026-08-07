@@ -143,16 +143,31 @@ class LocalVLMClient:
 
         ctx = self._smooth()
 
-        # Scoreboard OCR for football — ONNX *or* heuristic. Previously gated on
-        # `_onnx_sess is not None`, so heuristic-only live sessions never filled
-        # home_score/quarter/down (Lens pill empty while game_state=gameplay).
-        if ctx and ctx.game_category == GameCategory.FOOTBALL and self._should_run_scoreboard_ocr(
-            frame
-        ):
+        # Scoreboard OCR when profile is football OR classifier says football.
+        # Do not wait only on frame category — pause menus / red UI often
+        # misclassify while the scorebug is still readable.
+        run_fb_ocr = False
+        if ctx is not None and self._should_run_scoreboard_ocr(frame):
+            run_fb_ocr = ctx.game_category == GameCategory.FOOTBALL or _is_football_profile(
+                self.game_profile or profile
+            )
+        if run_fb_ocr and ctx is not None:
+            if ctx.game_category != GameCategory.FOOTBALL:
+                # Ensure extractor path is open
+                ctx.game_category = GameCategory.FOOTBALL
             self._football_n += 1
             if self._football_n % max(1, self._ocr_every_n) == 0:
+                before = (ctx.home_score, ctx.away_score)
                 ctx = extract_football_scoreboard(frame, ctx)
                 self._stats["ocr_calls"] = int(self._stats.get("ocr_calls", 0)) + 1
+                if (ctx.home_score, ctx.away_score) != before:
+                    log.info(
+                        "scoreboard OCR → %s-%s (was %s-%s)",
+                        ctx.home_score,
+                        ctx.away_score,
+                        before[0],
+                        before[1],
+                    )
             else:
                 self._stats["ocr_skips"] = int(self._stats.get("ocr_skips", 0)) + 1
 
