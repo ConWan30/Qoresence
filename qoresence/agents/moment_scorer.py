@@ -195,6 +195,10 @@ class MomentScorer:
             self._clip_model = ClipWorthinessModel(clip_model_path=None)
 
         self._learning_logger: Any | None = learning_logger
+        # Track last board scores so visual_context alone can fire score moments
+        # when outcome_event is missing/late.
+        self._prev_home: int | None = None
+        self._prev_away: int | None = None
 
     def _is_football(self, state) -> bool:
         """Gate: FootballWinProbability only for football category."""
@@ -677,6 +681,24 @@ class MomentScorer:
         quarter = state.quarter or 0
         margin = abs((state.home_score or 0) - (state.away_score or 0))
         moments: list[ScoredMoment] = []
+
+        # OCR scoreboard delta → clutch chat (primary path under --play HDMI)
+        home = state.home_score
+        away = state.away_score
+        if home is not None and away is not None:
+            if self._prev_home is not None and self._prev_away is not None:
+                if home != self._prev_home or away != self._prev_away:
+                    fields = {
+                        "home_score": home,
+                        "away_score": away,
+                        "prev_home_score": self._prev_home,
+                        "prev_away_score": self._prev_away,
+                    }
+                    moments.extend(
+                        self._score_score_changed(state, fields, active_prediction, features)
+                    )
+            # else: first lock — no moment (avoid spam on session start)
+            self._prev_home, self._prev_away = home, away
 
         # Late/close drive worth narrating
         if quarter >= 4 and margin <= 8 and self._is_red_zone(state) and state.down == 1:

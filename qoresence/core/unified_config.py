@@ -508,6 +508,58 @@ class RetinaUnifiedConfig:
         def _str(key: str, default: str = "") -> str:
             return os.environ.get(key, default)
 
+        def _twitch() -> TwitchConfig:
+            """Build TwitchConfig from env (channel + token required to enable)."""
+            from pathlib import Path as _P
+
+            channel = (
+                _str("QORESENCE_TWITCH_CHANNEL")
+                or _str("QORESENCE_CLUTCHBOT_CHANNEL")
+            ).strip()
+            bot = (
+                _str("QORESENCE_TWITCH_BOT_USERNAME")
+                or _str("QORESENCE_CLUTCHBOT_USERNAME")
+            ).strip()
+            token = (
+                _str("QORESENCE_TWITCH_OAUTH_TOKEN")
+                or _str("QORESENCE_CLUTCHBOT_TOKEN")
+            ).strip() or None
+            token_file = (
+                _str("QORESENCE_TWITCH_TOKEN_FILE")
+                or _str("QORESENCE_CLUTCHBOT_TOKEN_FILE")
+            ).strip() or None
+            if not token_file and _P(".secrets/twitch_oauth.txt").exists():
+                token_file = ".secrets/twitch_oauth.txt"
+            client_id = (
+                _str("QORESENCE_TWITCH_CLIENT_ID")
+                or _str("QORESENCE_CLUTCHBOT_CLIENT_ID")
+            ).strip() or None
+            broadcaster = (
+                _str("QORESENCE_TWITCH_BROADCASTER")
+                or _str("QORESENCE_CLUTCHBOT_BROADCASTER_USERNAME")
+                or channel
+            ).strip() or None
+            has_creds = bool(channel and bot and (token or (token_file and _P(token_file).exists())))
+            return TwitchConfig(
+                enabled=has_creds or _bool("QORESENCE_TWITCH_ENABLED"),
+                channel=channel,
+                bot_username=bot or channel,
+                oauth_token=token,
+                token_file=token_file,
+                helix_token=_str("QORESENCE_TWITCH_HELIX_TOKEN") or None,
+                helix_token_file=_str("QORESENCE_TWITCH_HELIX_TOKEN_FILE") or None,
+                client_id=client_id,
+                client_secret=_str("QORESENCE_TWITCH_CLIENT_SECRET") or None,
+                broadcaster_id=_str("QORESENCE_TWITCH_BROADCASTER_ID") or None,
+                broadcaster_username=broadcaster,
+                message_interval_s=_float("QORESENCE_TWITCH_MSG_INTERVAL_S", 2.0),
+                enable_clips=_bool("QORESENCE_TWITCH_ENABLE_CLIPS"),
+                enable_predictions=_bool("QORESENCE_TWITCH_ENABLE_PREDICTIONS"),
+                enable_follow_alerts=_bool("QORESENCE_TWITCH_ENABLE_FOLLOW_ALERTS"),
+                enable_sub_alerts=_bool("QORESENCE_TWITCH_ENABLE_SUB_ALERTS"),
+                enable_redemption_alerts=_bool("QORESENCE_TWITCH_ENABLE_REDEMPTION_ALERTS"),
+            )
+
         return cls(
             session_id=_str("QORESENCE_SESSION_ID"),
             session_head_ns=_int("QORESENCE_SESSION_HEAD_NS", 0),
@@ -572,13 +624,19 @@ class RetinaUnifiedConfig:
                     "QORESENCE_CLUTCHBOT_LLM_BASE_URL", "https://api.quicksilverpro.io/v1"
                 ),
                 llm_api_key=_str("QORESENCE_CLUTCHBOT_LLM_API_KEY") or None,
-                llm_api_key_file=_str("QORESENCE_CLUTCHBOT_LLM_API_KEY_FILE") or None,
+                llm_api_key_file=_str("QORESENCE_CLUTCHBOT_LLM_API_KEY_FILE")
+                or (
+                    ".secrets/quicksilver_clutchbot.key"
+                    if __import__("pathlib").Path(".secrets/quicksilver_clutchbot.key").exists()
+                    else None
+                ),
                 llm_fallback_model=_str("QORESENCE_CLUTCHBOT_LLM_FALLBACK", "gpt-4o-mini"),
                 llm_timeout_s=_float("QORESENCE_CLUTCHBOT_LLM_TIMEOUT_S", 6.0),
                 deck_enabled=_bool("QORESENCE_DECK_ENABLED", False),
                 deck_host=_str("QORESENCE_DECK_HOST", "127.0.0.1"),
                 deck_port=_int("QORESENCE_DECK_PORT", 8765),
                 llm_max_tokens=_int("QORESENCE_CLUTCHBOT_LLM_MAX_TOKENS", 256),
+                twitch=_twitch(),
             ),
             jsonl_path=_str("QORESENCE_JSONL_PATH") or None,
             ws_host=_str("QORESENCE_WS_HOST", "127.0.0.1"),

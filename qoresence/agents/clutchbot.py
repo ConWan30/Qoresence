@@ -117,6 +117,7 @@ class ClutchBotAgent:
         log.info(
             f"ClutchBot started: persona={self.config.persona}, "
             f"features={sorted(self._features)}, "
+            f"backends={[b.name() for b in self._executor.backends]}, "
             f"max_chat_per_min={self.config.max_messages_per_min}"
         )
         return True
@@ -311,53 +312,73 @@ class ClutchBotAgent:
         features: set[str] = set()
         if self.config.enable_chat:
             features.add("chat")
+        # Local HDMI clips always available (capture ring buffer) — not Helix-only
+        features.add("clip")
         tw = self.config.twitch
         if tw and tw.enabled:
-            if tw.enable_clips:
-                features.add("clip")
             if tw.enable_predictions:
                 features.add("prediction")
         return features
 
     def _build_backends(self) -> list[Backend]:
         backends: list[Backend] = []
+
+        # Always wire Deck feed so Rail/Lens clutch feed updates without Twitch.
+        # Local HDMI clip buffer (true capture card) for clip actions.
+        backends.append(_DeckFeedBackend())
+        backends.append(_LocalHdmiClipBackend())
+
         tw = self.config.twitch
         if not tw or not tw.enabled:
+            log.info(
+                "ClutchBot backends: deck_feed + local_hdmi "
+                "(set --clutchbot-channel + token for Twitch IRC)"
+            )
             return backends
 
         irc_client: TwitchIRCClient | None = None
         if tw.bot_username and (tw.oauth_token or tw.token_file):
-            irc_client = TwitchIRCClient(
-                username=tw.bot_username,
-                oauth_token=self._resolve_irc_token(tw),
-                channel=tw.channel,
-                min_interval_s=tw.message_interval_s,
-                command_callback=self._handle_chat_command,
-            )
-            backends.append(_TwitchChatBackend(irc_client))
+            try:
+                irc_client = TwitchIRCClient(
+                    username=tw.bot_username,
+                    oauth_token=self._resolve_irc_token(tw),
+                    channel=tw.channel,
+                    min_interval_s=tw.message_interval_s,
+                    command_callback=self._handle_chat_command,
+                )
+                backends.append(_TwitchChatBackend(irc_client))
+            except Exception as e:
+                log.warning("Twitch IRC backend not wired: %s", e)
 
         if tw.client_id and (tw.broadcaster_id or tw.broadcaster_username):
-            helix_token = self._resolve_helix_token(tw)
-            self._helix_client = TwitchHelixClient(
-                client_id=tw.client_id,
-                access_token=helix_token,
-                broadcaster_id=tw.broadcaster_id,
-                broadcaster_username=tw.broadcaster_username,
-            )
-
-            if tw.enable_clips:
-                backends.append(
-                    _TwitchClipBackend(
-                        self._helix_client, irc_client, has_delay=self.config.clip_has_delay
-                    )
+            try:
+                helix_token = self._resolve_helix_token(tw)
+                self._helix_client = TwitchHelixClient(
+                    client_id=tw.client_id,
+                    access_token=helix_token,
+                    broadcaster_id=tw.broadcaster_id,
+                    broadcaster_username=tw.broadcaster_username,
                 )
 
-            if tw.enable_predictions:
-                backends.append(_TwitchPredictionBackend(self._helix_client, irc_client))
+                if tw.enable_clips:
+                    backends.append(
+                        _TwitchClipBackend(
+                            self._helix_client, irc_client, has_delay=self.config.clip_has_delay
+                        )
+                    )
 
-            if tw.enable_follow_alerts or tw.enable_sub_alerts or tw.enable_redemption_alerts:
-                backends.append(_TwitchEventSubBackend(self._helix_client, irc_client, tw))
+                if tw.enable_predictions:
+                    backends.append(_TwitchPredictionBackend(self._helix_client, irc_client))
 
+                if tw.enable_follow_alerts or tw.enable_sub_alerts or tw.enable_redemption_alerts:
+                    backends.append(_TwitchEventSubBackend(self._helix_client, irc_client, tw))
+            except Exception as e:
+                log.warning("Twitch Helix backends not wired: %s", e)
+
+        log.info(
+            "ClutchBot backends: %s",
+            [getattr(b, "name", lambda: "?")() for b in backends],
+        )
         return backends
 
     def _handle_chat_command(self, sender: str, text: str) -> str | None:
@@ -409,6 +430,120 @@ class ClutchBotAgent:
                 return p.read_text(encoding="utf-8").strip()
         # Fallback to IRC token if no Helix-specific token supplied
         return ClutchBotAgent._resolve_irc_token(config)
+
+
+class _LocalHdmiClipBackend:
+    """Export last N seconds from the capture-card ring buffer (true PS5 HDMI)."""
+
+    def name(self) -> str:
+        return "local_hdmi"
+
+    def start(self) -> bool:
+        try:
+            from qoresence.vision.clip_buffer import get_clip_buffer
+
+            get_clip_buffer()  # ensure singleton exists
+            log.info("LocalHdmiClip backend ready (clips/hdmi_clip_*.mp4)")
+            return True
+        except Exception as e:
+            log.warning("LocalHdmiClip backend unavailable: %s", e)
+            return True  # non-fatal
+
+    def stop(self) -> None:
+        return None
+
+    def execute(self, action: str, payload: dict[str, Any]) -> bool:
+        if action != "clip":
+            return False
+        try:
+            from qoresence.vision.clip_buffer import export_clip
+            from qoresence.deck.server import push_moment as _deck_push
+
+            seconds = None
+            inner = payload.get("payload") or {}
+            if isinstance(inner, dict) and inner.get("seconds") is not None:
+                seconds = float(inner["seconds"])
+            result = export_clip(seconds=seconds)
+            if result is None:
+                log.warning("LocalHdmiClip: buffer empty — keep playing to fill ~5–30s")
+                _deck_push(
+                    {
+                        "title": "CLIP failed — buffer empty",
+                        "reason": "wait for HDMI frames",
+                        "clock": "now",
+                        "action": "clip",
+                        "icon": "🎬",
+                    }
+                )
+                return False
+            from pathlib import Path as _P
+
+            clip_name = _P(result.path).name
+            media_url = f"/media/clips/{clip_name}"
+            _deck_push(
+                {
+                    "title": f"HDMI CLIP {result.duration_s:.0f}s",
+                    "reason": result.path,
+                    "clock": "now",
+                    "action": "clip",
+                    "icon": "🎬",
+                    "path": result.path,
+                    "name": clip_name,
+                    "url": media_url,
+                }
+            )
+            log.info("LocalHdmiClip saved %s", result.path)
+            return True
+        except Exception as e:
+            log.warning("LocalHdmiClip failed: %s", e)
+            return False
+
+
+class _DeckFeedBackend:
+    """Local always-on backend: push scored moments into Retina Deck Rail/Lens.
+
+    No network. Works offline so `Action executor started with 0 backend(s)` never
+    happens under --play. Twitch IRC is optional on top.
+    """
+
+    def name(self) -> str:
+        return "deck_feed"
+
+    def start(self) -> bool:
+        log.info("DeckFeed backend ready (moments → /retina + Rail feed)")
+        return True
+
+    def stop(self) -> None:
+        return None
+
+    def execute(self, action: str, payload: dict[str, Any]) -> bool:
+        # Clips are owned by local_hdmi (real MP4). DeckFeed still handles chat/etc.
+        if action == "clip":
+            return False
+        title = (
+            payload.get("message")
+            or (payload.get("payload") or {}).get("title")
+            or action
+            or "CLUTCH"
+        )
+        reason = payload.get("reason") or action or ""
+        try:
+            from qoresence.deck.server import push_moment as _deck_push
+
+            _deck_push(
+                {
+                    "title": str(title)[:80],
+                    "reason": str(reason)[:160],
+                    "clock": "now",
+                    "action": str(action),
+                    "icon": "⚡" if action == "chat" else "📊",
+                }
+            )
+            log.info("DeckFeed %s: %s", action, str(title)[:60])
+            return True
+        except Exception as e:
+            log.warning("DeckFeed push failed: %s", e)
+            return False
 
 
 class _TwitchChatBackend:

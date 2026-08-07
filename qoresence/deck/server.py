@@ -24,6 +24,27 @@ DECK_HOST = "127.0.0.1"
 DECK_PORT = 8765
 WS_PATH = "/retina"
 
+# FastAPI must be importable at module scope when using
+# `from __future__ import annotations`. Nested endpoints get stringized
+# annotations resolved via module globals — a local `from fastapi import
+# WebSocket` leaves websocket_param_name=None, so FastAPI treats the param
+# as a required query field and uvicorn rejects the upgrade with HTTP 403.
+# That is exactly OBS Browser Source FIN_WAIT_2 thrash + clients:0.
+try:
+    from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+
+    _HAS_FASTAPI = True
+except ImportError:  # pragma: no cover
+    FastAPI = None  # type: ignore[misc, assignment]
+    Request = None  # type: ignore[misc, assignment]
+    WebSocket = None  # type: ignore[misc, assignment]
+    WebSocketDisconnect = None  # type: ignore[misc, assignment]
+    FileResponse = None  # type: ignore[misc, assignment]
+    HTMLResponse = None  # type: ignore[misc, assignment]
+    JSONResponse = None  # type: ignore[misc, assignment]
+    _HAS_FASTAPI = False
+
 # ---------------------------------------------------------------------------
 # State store — updated by RetinaEventBus subscriber (cli wires this)
 # ---------------------------------------------------------------------------
@@ -36,6 +57,7 @@ class DeckState:
     moments: list[dict[str, Any]] = field(default_factory=list)
     latency_ms: float = 1.12
     fps: int = 6
+    updated_ns: int = 0  # monotonic ns of last live update — for staleness check
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -45,6 +67,7 @@ class DeckState:
             "moments": self.moments[-3:],
             "latency_ms": self.latency_ms,
             "fps": self.fps,
+            "updated_ns": self.updated_ns,
         }
 
 
@@ -54,13 +77,24 @@ _loop: asyncio.AbstractEventLoop | None = None
 
 
 def update_situation(situation: dict[str, Any], latency_ms: float | None = None) -> None:
+    # Reject stale/empty payloads — live feed must have at least one real field
+    if not situation or not any(situation.get(k) is not None for k in ("home_score", "away_score", "quarter", "down", "kills", "health", "game_state", "score_home")):
+        return
+    import time as _t
     _state.situation = situation
+    _state.updated_ns = _t.monotonic_ns()
     if latency_ms is not None:
         _state.latency_ms = latency_ms
-    _broadcast({"type": "situation", "payload": situation, "latency_ms": _state.latency_ms})
+    _broadcast({"type": "situation", "payload": situation, "latency_ms": _state.latency_ms, "updated_ns": _state.updated_ns})
 
 
 def push_moment(moment: dict[str, Any]) -> None:
+    # Only allow live-triggered moments (must have title)
+    if not moment or not moment.get("title"):
+        return
+    import time as _t
+    moment = dict(moment)
+    moment.setdefault("ts_ns", _t.monotonic_ns())
     _state.last_moment = moment
     _state.moments.append(moment)
     if len(_state.moments) > 100:
@@ -92,10 +126,7 @@ def _html(name: str) -> str:
 
 
 def create_app():  # type: ignore[no-untyped-def]
-    try:
-        from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-        from fastapi.responses import HTMLResponse, JSONResponse
-    except ImportError:
+    if not _HAS_FASTAPI:
         return None
 
     app = FastAPI(title="Retina Deck", version="0.1.0")
@@ -108,6 +139,115 @@ def create_app():  # type: ignore[no-untyped-def]
     async def api_situation():  # type: ignore[no-untyped-def]
         return JSONResponse(_state.snapshot())
 
+    @app.get("/api/clip/status")
+    async def api_clip_status():  # type: ignore[no-untyped-def]
+        try:
+            from qoresence.vision.clip_buffer import get_clip_buffer
+
+            return JSONResponse({"ok": True, "buffer": get_clip_buffer().stats()})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.post("/api/clip")
+    async def api_clip(request: Request):  # type: ignore[no-untyped-def]
+        """Export last N seconds of true HDMI capture to local MP4 (not Twitch Helix)."""
+        try:
+            from qoresence.vision.clip_buffer import export_clip
+
+            seconds = None
+            try:
+                body = await request.json()
+                if isinstance(body, dict):
+                    seconds = body.get("seconds")
+            except Exception:
+                pass
+            result = await asyncio.to_thread(export_clip, seconds=seconds)
+            if result is None:
+                return JSONResponse(
+                    {
+                        "ok": False,
+                        "error": "no frames buffered yet — wait ~5s after HDMI capture starts",
+                    },
+                    status_code=503,
+                )
+            clip_name = pathlib.Path(result.path).name
+            media_url = f"/media/clips/{clip_name}"
+            push_moment(
+                {
+                    "title": f"HDMI CLIP {result.duration_s:.0f}s",
+                    "reason": result.path,
+                    "clock": "now",
+                    "action": "clip",
+                    "icon": "🎬",
+                    "path": result.path,
+                    "url": media_url,
+                    "name": clip_name,
+                }
+            )
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "clip": {
+                        "path": result.path,
+                        "name": clip_name,
+                        "url": media_url,
+                        "frames": result.frames,
+                        "duration_s": result.duration_s,
+                        "width": result.width,
+                        "height": result.height,
+                        "fps": result.fps,
+                        "size_bytes": result.size_bytes,
+                        "source": result.source,
+                    },
+                }
+            )
+        except Exception as e:
+            log.exception("POST /api/clip failed")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/api/clips")
+    async def api_clips():  # type: ignore[no-untyped-def]
+        try:
+            from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
+
+            root = pathlib.Path(DEFAULT_OUT_DIR)
+            items = []
+            if root.exists():
+                for p in sorted(root.glob("hdmi_clip_*.*"), key=lambda x: x.stat().st_mtime, reverse=True)[:40]:
+                    items.append(
+                        {
+                            "name": p.name,
+                            "path": str(p.resolve()),
+                            "url": f"/media/clips/{p.name}",
+                            "size_bytes": p.stat().st_size,
+                            "mtime": p.stat().st_mtime,
+                        }
+                    )
+            return JSONResponse({"ok": True, "clips": items})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/media/clips/{name}")
+    async def media_clip(name: str):  # type: ignore[no-untyped-def]
+        """Stream a local HDMI clip MP4 for in-page / browser video players."""
+        import re
+
+        from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
+
+        safe = pathlib.Path(name).name
+        if not re.fullmatch(r"hdmi_clip_[\w.\-]+", safe):
+            return JSONResponse({"ok": False, "error": "invalid name"}, status_code=400)
+        path = pathlib.Path(DEFAULT_OUT_DIR) / safe
+        if not path.is_file():
+            return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+        media = "video/mp4" if path.suffix.lower() == ".mp4" else "video/x-msvideo"
+        return FileResponse(
+            path,
+            media_type=media,
+            filename=safe,
+            headers={"Accept-Ranges": "bytes", "Cache-Control": "no-cache"},
+        )
+
     @app.get("/overlay.html")
     async def overlay():  # type: ignore[no-untyped-def]
         return HTMLResponse(_html("overlay.html"))
@@ -119,23 +259,53 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.get("/")
     async def index():  # type: ignore[no-untyped-def]
         return HTMLResponse(
-            '<a href="/overlay.html">Lens</a> | <a href="/deck.html">Rail</a> | <a href="/health">health</a>'
+            "<!doctype html><meta charset=utf-8><title>Retina Deck</title>"
+            "<body style='font:14px/1.5 system-ui;background:#0a0e14;color:#e8edf0;padding:24px'>"
+            "<h1 style='color:#f5c542'>Retina Deck</h1>"
+            "<p><a href='/overlay.html' style='color:#f5c542'>Lens</a> · "
+            "<a href='/deck.html' style='color:#f5c542'>Rail</a> · "
+            "<a href='/health' style='color:#f5c542'>health</a> · "
+            "<a href='/api/situation' style='color:#f5c542'>api</a></p>"
+            "<h2>OBS Browser Source</h2>"
+            "<ol>"
+            "<li>Sources → <b>+</b> → <b>Browser</b></li>"
+            "<li><b>URL</b> (not file://): "
+            "<code style='background:#1a2030;padding:2px 8px;border-radius:4px'>"
+            "http://127.0.0.1:8765/overlay.html</code></li>"
+            "<li>Size <b>1920×1080</b> · Shutdown when not visible <b>OFF</b> · "
+            "Refresh when scene active <b>ON</b></li>"
+            "<li>Layer <b>above</b> Video Capture (HDMI PS5); background is transparent</li>"
+            "<li>Check <code>/health</code> → <code>clients &gt;= 1</code></li>"
+            "</ol>"
+            "<p style='opacity:.7'>file:///…/overlay.html → WS fail → FIN_WAIT_2 + clients:0. "
+            "Test in Edge first, then Refresh OBS source.</p>"
+            "</body>"
         )
 
     @app.websocket(WS_PATH)
-    async def retina_ws(ws: WebSocket):  # type: ignore[no-untyped-def]
+    async def retina_ws(websocket: WebSocket):  # type: ignore[no-untyped-def]
+        # Param MUST type as module-global WebSocket (see import note above).
+        # OBS CEF Browser Source connects here; 403 = clients stays 0 (FIN_WAIT_2 thrash).
         global _loop
-        await ws.accept()
-        _ws_clients.add(ws)
+        await websocket.accept()
+        _ws_clients.add(websocket)
         _loop = asyncio.get_running_loop()
-        await ws.send_text(json.dumps(_state.snapshot()))
+        log.info("Deck WS client connected (%d total)", len(_ws_clients))
+        await websocket.send_text(json.dumps(_state.snapshot()))
         try:
             while True:
-                await ws.receive_text()  # keepalive / client pings
+                # receive() accepts text + binary pings; receive_text() alone can
+                # disconnect OBS on non-text frames.
+                msg = await websocket.receive()
+                if msg.get("type") == "websocket.disconnect":
+                    break
         except WebSocketDisconnect:
             pass
+        except Exception:
+            pass
         finally:
-            _ws_clients.discard(ws)
+            _ws_clients.discard(websocket)
+            log.info("Deck WS client gone (%d total)", len(_ws_clients))
 
     return app
 

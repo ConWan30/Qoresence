@@ -1,5 +1,5 @@
 """
-Qoresence CLI — Phase 9 Production Entry Point
+Qoresence CLI â€” Phase 9 Production Entry Point
 
 Unified command-line interface for running Qoresence lobes.
 """
@@ -12,7 +12,6 @@ import logging
 import os
 import signal
 import sys
-import threading
 import time
 from pathlib import Path
 
@@ -58,9 +57,9 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # GLOBAL STATE
-# ──────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class QoresenceApp:
@@ -90,52 +89,137 @@ class QoresenceApp:
             first_session_id=self.identity.session_id,  # Use current as first for now
             device_key=None,  # TODO: load from config
         )
-        # DECK_BRIDGE_MARKER: RetinaEventBus -> Deck ws live
+        # DECK_BRIDGE_MARKER: RetinaEventBus -> Deck ws live (LIVE FEED ONLY - no mock)
         try:
-            from qoresence.deck.server import update_situation as _deck_update, push_moment as _deck_push
-            _deck_enabled = getattr(self.config, 'deck_enabled', True)
+            from qoresence.core import EventType as _ET  # local import to avoid cycle
+
+            from qoresence.deck.server import push_moment as _deck_push
+            from qoresence.deck.server import update_situation as _deck_update
+
+            _deck_enabled = getattr(self.config, "deck_enabled", True)
             if _deck_enabled:
-                def _on_situation(ev):
+
+                def _on_bus_event(ev):  # type: ignore[no-untyped-def]
                     try:
-                        payload = getattr(ev, 'payload', None) or (ev.get('payload') if isinstance(ev, dict) else None) or {}
-                        situation = payload.get('situation') if isinstance(payload, dict) else {}
-                        if not situation and isinstance(ev, dict):
-                            situation = ev.get('situation', {})
-                        if situation:
-                            _deck_update(situation)
+                        et = getattr(ev, "type", None)
+                        et_val = et.value if hasattr(et, "value") else str(et) if et else ""
+                        payload = getattr(ev, "payload", None)
+                        if payload is None and isinstance(ev, dict):
+                            payload = ev.get("payload", ev)
+                        if not isinstance(payload, dict):
+                            return
+                        # SituationModel lives in ClutchBot; we push structured snapshots
+                        # Only push when this is a VISUAL_CONTEXT / OUTCOME / PRESENCE event
+                        if et_val in (
+                            _ET.VISUAL_CONTEXT.value,
+                            _ET.OUTCOME_EVENT.value,
+                            _ET.PRESENCE_REPORT.value,
+                            _ET.GAME_DETECTED.value,
+                        ):
+                            sm = getattr(self, "situation_model", None)
+                            if sm is not None:
+                                s = sm.to_dict() if hasattr(sm, "to_dict") else {}
+                                # require at least one live field; otherwise skip to avoid stale overlay
+                                if s and any(
+                                    s.get(k) is not None
+                                    for k in (
+                                        "home_score",
+                                        "away_score",
+                                        "quarter",
+                                        "down",
+                                        "game_state",
+                                        "game_category",
+                                    )
+                                ):
+                                    # latency_ms must be visual path time, never confidence
+                                    lat = None
+                                    try:
+                                        vis = getattr(self, "visual", None)
+                                        if vis is not None:
+                                            ctx = vis.get_last_context()
+                                            if ctx is not None:
+                                                lat = getattr(ctx, "latency_ms", None)
+                                    except Exception:
+                                        pass
+                                    _deck_update(s, latency_ms=lat)
+                        # Direct moment / agent_action -> Deck Feed
+                        if et_val == _ET.AGENT_ACTION.value:
+                            # payload contains action/message/reason
+                            title = payload.get("message") or payload.get("action") or ""
+                            if title:
+                                _deck_push({"title": str(title)[:80], "reason": payload.get("reason", ""), "clock": "now"})
                     except Exception:
                         pass
-                def _on_moment(ev):
+
+                def _on_moment_fallback(ev):  # type: ignore[no-untyped-def]
                     try:
-                        payload = getattr(ev, 'payload', None) or (ev.get('payload') if isinstance(ev, dict) else ev)
-                        if payload:
-                            _deck_push(payload if isinstance(payload, dict) else {'title': str(payload)})
+                        payload = getattr(ev, "payload", None)
+                        if payload is None and isinstance(ev, dict):
+                            payload = ev
+                        if isinstance(payload, dict) and payload.get("title"):
+                            _deck_push(payload)
                     except Exception:
                         pass
+
+                # Correct subscribe signature: subscribe(callback) -> unsubscribe
                 try:
-                    self.bus.subscribe('situation', _on_situation)
+                    self.bus.subscribe(_on_bus_event)
                 except Exception:
                     pass
                 try:
-                    self.bus.subscribe('moment', _on_moment)
+                    self.bus.subscribe(_on_moment_fallback)
                 except Exception:
                     pass
-                import threading, time
+                import threading
+                import time
+
                 def _deck_poll():
+                    # Fallback poll when bus events are sparse (1 Hz) - LIVE only
                     while True:
                         try:
-                            sm = getattr(self, 'situation_model', None) or getattr(self, '_situation', None)
-                            if sm is not None:
-                                s = sm.to_dict() if hasattr(sm, 'to_dict') else (sm if isinstance(sm, dict) else {})
-                                if s and any(k in s for k in ('score_home','quarter','down','clock','win_prob')):
-                                    _deck_update(s)
+                            sm = getattr(self, "situation_model", None)
+                            if sm is None and getattr(self, "clutchbot", None) is not None:
+                                sm = getattr(self.clutchbot, "_situation", None)  # type: ignore[attr-defined]
+                                if sm is not None:
+                                    # cache for next iteration
+                                    try:
+                                        object.__setattr__(self, "situation_model", sm)  # type: ignore[attr-defined]
+                                    except Exception:
+                                        self.situation_model = sm  # type: ignore[attr-defined]
+                            if sm is not None and hasattr(sm, "to_dict"):
+                                s = sm.to_dict()
+                                # Include game_state/category so Lens can leave the
+                                # center wait banner even when scorebug is still null.
+                                if s and any(
+                                    s.get(k) is not None
+                                    for k in (
+                                        "home_score",
+                                        "away_score",
+                                        "quarter",
+                                        "down",
+                                        "kills",
+                                        "health",
+                                        "game_state",
+                                        "game_category",
+                                    )
+                                ):
+                                    lat = None
+                                    try:
+                                        vis = getattr(self, "visual", None)
+                                        if vis is not None:
+                                            ctx = vis.get_last_context()
+                                            if ctx is not None:
+                                                lat = getattr(ctx, "latency_ms", None)
+                                    except Exception:
+                                        pass
+                                    _deck_update(s, latency_ms=lat)
                         except Exception:
                             pass
                         time.sleep(1.0)
-                threading.Thread(target=_deck_poll, name='deck-poll', daemon=True).start()
+
+                threading.Thread(target=_deck_poll, name="deck-poll", daemon=True).start()
         except Exception:
             pass
-
 
         # Lobe runtimes
         self.streamer: StreamerRuntime | None = None
@@ -242,7 +326,7 @@ class QoresenceApp:
 
     def connect_lobes(self) -> None:
         """Connect lobe outputs to each other (cross-lobe integration)."""
-        # Screen ← Controller (for coupling)
+        # Screen â† Controller (for coupling)
         if self.screen and self.controller:
 
             def controller_provider():
@@ -252,7 +336,7 @@ class QoresenceApp:
 
             self.screen.set_controller_provider(controller_provider)
 
-        # Visual ← Streamer/Screen (for frame provider)
+        # Visual â† Streamer/Screen (for frame provider)
         if self.visual:
             if self.streamer:
 
@@ -267,7 +351,7 @@ class QoresenceApp:
 
                 self.visual.set_frame_provider(frame_provider)
 
-            # Visual ← Outcome/Controller/Screen (for cross-modal)
+            # Visual â† Outcome/Controller/Screen (for cross-modal)
             def modality_provider():
                 modalities = {}
                 if self.outcome:
@@ -282,7 +366,7 @@ class QoresenceApp:
 
             self.visual.set_modality_provider(modality_provider)
 
-        # Game detector ← Streamer/Screen (frames) and → Outcome (profile switch)
+        # Game detector â† Streamer/Screen (frames) and â†’ Outcome (profile switch)
         if self.game_detector:
             if self.streamer:
                 self.game_detector.set_frame_provider(self.streamer.get_current_frame)
@@ -301,7 +385,7 @@ class QoresenceApp:
 
                 self.game_detector.set_profile_switch_callback(switch_profile)
 
-        # Fusion ← All lobes (lobe status updates)
+        # Fusion â† All lobes (lobe status updates)
         if self.fusion:
             if self.streamer:
                 self.streamer.set_presence_callback(self.fusion.update_streamer_status)
@@ -360,10 +444,17 @@ class QoresenceApp:
                     port=getattr(self.config, "deck_port", _DECK_PORT),
                     daemon=True,
                 )
+                _dh = getattr(self.config, "deck_host", _DECK_HOST)
+                _dp = getattr(self.config, "deck_port", _DECK_PORT)
                 log.info(
                     "Retina Deck http://%s:%s  Lens /overlay.html  Rail /deck.html",
-                    getattr(self.config, "deck_host", _DECK_HOST),
-                    getattr(self.config, "deck_port", _DECK_PORT),
+                    _dh,
+                    _dp,
+                )
+                log.info(
+                    "OBS Browser Source URL (not file://): http://%s:%s/overlay.html",
+                    _dh,
+                    _dp,
                 )
         except Exception as e:
             log.warning("Deck start failed: %s", e)
@@ -384,9 +475,9 @@ class QoresenceApp:
 
         if self.controller and not self.controller.start():
             log.warning(
-                "Controller failed to start (HID busy/permissions) — continuing without controller; coupling_score will be 0 until replug"
+                "Controller failed to start (HID busy/permissions) â€” continuing without controller; coupling_score will be 0 until replug"
             )
-            # don't return False — screen+visual still produce 10k
+            # don't return False â€” screen+visual still produce 10k
 
         if self.outcome:
             self.outcome.start()
@@ -482,9 +573,9 @@ class QoresenceApp:
         return status
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # HEALTH CHECKS
-# ──────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def run_health_checks(app: QoresenceApp) -> dict:
@@ -558,9 +649,9 @@ def run_health_checks(app: QoresenceApp) -> dict:
     return checks
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # CLI ENTRY POINT
-# ──────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def setup_logging(level: str = "INFO") -> None:
@@ -603,7 +694,11 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         config.enable_ws = True
         config.outcome = replace(config.outcome, enabled=True, game_profile=args.game_profile)
         config.visual = replace(
-            config.visual, enabled=True, frame_sample_rate=args.visual_sample_rate
+            config.visual,
+            enabled=True,
+            prefer_local=True,
+            local_fallback=True,
+            frame_sample_rate=args.visual_sample_rate,
         )
         config.game_detection = replace(
             config.game_detection, enabled=getattr(args, "game_detect", True)
@@ -679,28 +774,45 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         if getattr(args, "visual_prefer_local", False):
             _vlm_extra["prefer_local"] = True
         config.visual = replace(
-            config.visual, enabled=True, frame_sample_rate=args.visual_sample_rate, **_vlm_extra
+            config.visual,
+            enabled=True,
+            prefer_local=True,
+            local_fallback=True,
+            frame_sample_rate=args.visual_sample_rate,
+            **_vlm_extra,
         )
 
     # ClutchBot agent (explicit or via --stream preset)
     if args.clutchbot or args.stream:
+        from pathlib import Path as _P_cb
+
+        _tok_file = args.clutchbot_token_file
+        if not _tok_file and _P_cb(".secrets/twitch_oauth.txt").exists():
+            _tok_file = ".secrets/twitch_oauth.txt"
+        _ch = (args.clutchbot_channel or "").strip()
+        _tw_enabled = bool(_ch and (args.clutchbot_username or _ch) and (args.clutchbot_token or _tok_file))
+        _llm_key = ".secrets/quicksilver_clutchbot.key"
         config.clutchbot = replace(
             config.clutchbot,
             enabled=True,
             enable_chat=not args.clutchbot_no_chat,
             clip_has_delay=not args.clutchbot_no_clip_delay,
+            deck_enabled=True,
+            llm_enabled=config.clutchbot.llm_enabled or _P_cb(_llm_key).exists(),
+            llm_api_key_file=config.clutchbot.llm_api_key_file
+            or (_llm_key if _P_cb(_llm_key).exists() else None),
             twitch=TwitchConfig(
-                enabled=args.clutchbot_channel != "",
+                enabled=_tw_enabled or args.clutchbot_channel != "",
                 channel=args.clutchbot_channel,
-                bot_username=args.clutchbot_username,
+                bot_username=args.clutchbot_username or args.clutchbot_channel,
                 oauth_token=args.clutchbot_token,
-                token_file=args.clutchbot_token_file,
+                token_file=_tok_file,
                 helix_token=args.clutchbot_helix_token,
                 helix_token_file=args.clutchbot_helix_token_file,
                 client_id=args.clutchbot_client_id,
                 client_secret=args.clutchbot_client_secret,
                 broadcaster_id=args.clutchbot_broadcaster_id,
-                broadcaster_username=args.clutchbot_broadcaster_username,
+                broadcaster_username=args.clutchbot_broadcaster_username or args.clutchbot_channel or None,
                 message_interval_s=args.clutchbot_interval,
                 enable_clips=args.clutchbot_enable_clips,
                 enable_predictions=args.clutchbot_enable_predictions,
@@ -973,22 +1085,175 @@ def main():
 
     # Create config
     config = create_config_from_args(args)
-    # --play / --deck wiring (Retina Deck exquisite while playing)
+    # --play / --deck wiring (Retina Deck exquisite while playing) — LIVE FEED CONTRACT
+    # --play: HDMI streamer (DShow) + visual(local) + outcome + clutchbot + deck.
+    # Default frame source is USB/HDMI capture — NOT mss desktop (monitor 0).
+    # Use --screen only if you intentionally want desktop capture as fallback.
     if getattr(args, "play", False):
         try:
             object.__setattr__(config, "deck_enabled", True)
             object.__setattr__(config, "deck_host", getattr(args, "deck_host", "127.0.0.1"))
             object.__setattr__(config, "deck_port", int(getattr(args, "deck_port", 8765)))
-            if hasattr(config, "streamer"):
+            # force live capture stack
+            from dataclasses import replace as _rep_play
+            try:
+                config = _rep_play(config, enable_ws=True)
+            except Exception:
+                pass
+            # outcome live
+            try:
+                object.__setattr__(config.outcome, "enabled", True)
+            except Exception:
+                try:
+                    config = _rep_play(config, outcome=_rep_play(config.outcome, enabled=True, game_profile=getattr(args, "game_profile", config.outcome.game_profile)))
+                except Exception:
+                    pass
+            # visual live — LOCAL ONNX/heuristic only, never mock/cloud fallback
+            try:
+                config = _rep_play(config, visual=_rep_play(config.visual, enabled=True, prefer_local=True, local_fallback=True, frame_sample_rate=getattr(args, "visual_sample_rate", config.visual.frame_sample_rate)))
+            except Exception:
+                try:
+                    object.__setattr__(config.visual, "enabled", True)
+                    object.__setattr__(config.visual, "prefer_local", True)
+                except Exception:
+                    pass
+            # HDMI / UVC capture card (PS5) — primary frame source for --play
+            try:
+                config = _rep_play(
+                    config,
+                    streamer=_rep_play(
+                        config.streamer,
+                        enabled=True,
+                        device_index=int(getattr(args, "streamer_device", 0) or 0),
+                        backend=str(getattr(args, "streamer_backend", "dshow") or "dshow"),
+                        width=int(getattr(args, "streamer_width", 1280) or 1280),
+                        height=int(getattr(args, "streamer_height", 720) or 720),
+                        fps_target=float(getattr(args, "streamer_fps", 30.0) or 30.0),
+                    ),
+                )
+                log.info(
+                    "play frame source: streamer %s idx=%s (%sx%s) — HDMI/UVC, not desktop; "
+                    "list devices: python -m qoresence.cli --streamer-list",
+                    getattr(args, "streamer_backend", "dshow"),
+                    getattr(args, "streamer_device", 0),
+                    getattr(args, "streamer_width", 1280),
+                    getattr(args, "streamer_height", 720),
+                )
+            except Exception:
                 try:
                     object.__setattr__(config.streamer, "enabled", True)
                 except Exception:
                     pass
-            if hasattr(config, "visual"):
+            # mss desktop only when user explicitly asked (--screen). Desktop frames
+            # make LocalVLM guess football from wallpaper green while OCR crop is empty.
+            if getattr(args, "screen", False):
                 try:
-                    object.__setattr__(config.visual, "enabled", True)
+                    config = _rep_play(
+                        config,
+                        screen=_rep_play(
+                            config.screen,
+                            enabled=True,
+                            fps_target=min(float(getattr(args, "screen_fps", 5.0) or 5.0), 6.0),
+                        ),
+                    )
+                    log.info("play also enabled --screen (mss monitor); visual still prefers streamer if both run")
+                except Exception:
+                    try:
+                        object.__setattr__(config.screen, "enabled", True)
+                    except Exception:
+                        pass
+            # clutchbot live — deck_feed backend always; Twitch if channel+token set
+            try:
+                from pathlib import Path as _P_play
+
+                from qoresence.core import TwitchConfig as _TwPlay
+
+                _ch = (getattr(args, "clutchbot_channel", "") or "").strip()
+                _user = (getattr(args, "clutchbot_username", "") or "").strip()
+                _tok = getattr(args, "clutchbot_token", None)
+                _tok_file = getattr(args, "clutchbot_token_file", None)
+                if not _tok_file and _P_play(".secrets/twitch_oauth.txt").exists():
+                    _tok_file = ".secrets/twitch_oauth.txt"
+                if not _ch:
+                    import os as _os_tw
+
+                    _ch = (
+                        _os_tw.environ.get("QORESENCE_TWITCH_CHANNEL")
+                        or _os_tw.environ.get("QORESENCE_CLUTCHBOT_CHANNEL")
+                        or ""
+                    ).strip()
+                    _user = _user or (
+                        _os_tw.environ.get("QORESENCE_TWITCH_BOT_USERNAME")
+                        or _os_tw.environ.get("QORESENCE_CLUTCHBOT_USERNAME")
+                        or _ch
+                    ).strip()
+                    _tok = _tok or _os_tw.environ.get("QORESENCE_TWITCH_OAUTH_TOKEN")
+                    _tok_file = _tok_file or _os_tw.environ.get("QORESENCE_TWITCH_TOKEN_FILE")
+                _tw_ok = bool(_ch and (_user or _ch) and (_tok or _tok_file))
+                _tw = _TwPlay(
+                    enabled=_tw_ok,
+                    channel=_ch,
+                    bot_username=_user or _ch,
+                    oauth_token=_tok,
+                    token_file=_tok_file,
+                    helix_token=getattr(args, "clutchbot_helix_token", None),
+                    helix_token_file=getattr(args, "clutchbot_helix_token_file", None),
+                    client_id=getattr(args, "clutchbot_client_id", None),
+                    client_secret=getattr(args, "clutchbot_client_secret", None),
+                    broadcaster_id=getattr(args, "clutchbot_broadcaster_id", None),
+                    broadcaster_username=getattr(args, "clutchbot_broadcaster_username", None)
+                    or _ch
+                    or None,
+                    message_interval_s=float(getattr(args, "clutchbot_interval", 2.0) or 2.0),
+                    enable_clips=bool(getattr(args, "clutchbot_enable_clips", False)),
+                    enable_predictions=bool(getattr(args, "clutchbot_enable_predictions", False)),
+                    enable_follow_alerts=bool(getattr(args, "clutchbot_enable_follow_alerts", False)),
+                    enable_sub_alerts=bool(getattr(args, "clutchbot_enable_sub_alerts", False)),
+                    enable_redemption_alerts=bool(
+                        getattr(args, "clutchbot_enable_redemption_alerts", False)
+                    ),
+                )
+                _llm_key = ".secrets/quicksilver_clutchbot.key"
+                _llm_on = _P_play(_llm_key).exists() or bool(
+                    getattr(config.clutchbot, "llm_api_key", None)
+                    or getattr(config.clutchbot, "llm_api_key_file", None)
+                )
+                config = _rep_play(
+                    config,
+                    clutchbot=_rep_play(
+                        config.clutchbot,
+                        enabled=True,
+                        enable_chat=not bool(getattr(args, "clutchbot_no_chat", False)),
+                        twitch=_tw,
+                        deck_enabled=True,
+                        deck_host=getattr(args, "deck_host", "127.0.0.1"),
+                        deck_port=int(getattr(args, "deck_port", 8765) or 8765),
+                        llm_enabled=_llm_on or bool(getattr(config.clutchbot, "llm_enabled", False)),
+                        llm_api_key_file=(
+                            getattr(config.clutchbot, "llm_api_key_file", None)
+                            or (_llm_key if _P_play(_llm_key).exists() else None)
+                        ),
+                    ),
+                )
+                log.info(
+                    "play ClutchBot: deck_feed=on twitch=%s llm=%s",
+                    "on" if _tw_ok else "off (add channel+token for IRC)",
+                    "on" if _llm_on else "off",
+                )
+            except Exception as _cb_e:
+                log.warning("play ClutchBot wiring partial: %s", _cb_e)
+                try:
+                    object.__setattr__(config.clutchbot, "enabled", True)
                 except Exception:
                     pass
+            # Allow scoreboard OCR under heuristic when ONNX is absent (live play).
+            # Tests set QORESENCE_DISABLE_SCOREBOARD_OCR=1 in conftest.
+            try:
+                import os as _os_play
+
+                _os_play.environ.pop("QORESENCE_DISABLE_SCOREBOARD_OCR", None)
+            except Exception:
+                pass
         except Exception:
             pass
     if getattr(args, "deck", False):

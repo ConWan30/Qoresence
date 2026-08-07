@@ -72,15 +72,22 @@ class LocalVLMClient:
         model_path: str | Path | None = None,
         fallback: str = "heuristic",
         game_profile: str | object | None = None,
+        scoreboard_ocr: bool | None = None,
     ):
         self.model_path = Path(model_path) if model_path else DEFAULT_ONNX
         self.fallback = fallback
         self.game_profile = game_profile
+        # None = auto (football + min frame size); False = never; True = always when football.
+        # Heuristic mode used to skip OCR entirely when ONNX was missing — that left
+        # home_score/quarter/down null forever on live --play without distilled weights.
+        self.scoreboard_ocr = scoreboard_ocr
         self._onnx_sess = None
         self._available = False
         self._mode = "heuristic"
-        self._stats = {"calls": 0, "avg_ms": 0.0}
+        self._stats = {"calls": 0, "avg_ms": 0.0, "ocr_calls": 0, "ocr_skips": 0}
         self._history: deque[VisualContext] = deque(maxlen=5)
+        self._ocr_every_n = 1  # run OCR every N football frames (1 = every)
+        self._football_n = 0
         self._try_load()
 
     def _try_load(self) -> None:
@@ -136,11 +143,18 @@ class LocalVLMClient:
 
         ctx = self._smooth()
 
-        # If the ONNX classifier thinks this is football, try to populate
-        # scoreboard fields with local OCR. Skip under the heuristic fallback
-        # so tiny test frames do not trigger expensive OCR.
-        if ctx and ctx.game_category == GameCategory.FOOTBALL and self._onnx_sess is not None:
-            ctx = extract_football_scoreboard(frame, ctx)
+        # Scoreboard OCR for football — ONNX *or* heuristic. Previously gated on
+        # `_onnx_sess is not None`, so heuristic-only live sessions never filled
+        # home_score/quarter/down (Lens pill empty while game_state=gameplay).
+        if ctx and ctx.game_category == GameCategory.FOOTBALL and self._should_run_scoreboard_ocr(
+            frame
+        ):
+            self._football_n += 1
+            if self._football_n % max(1, self._ocr_every_n) == 0:
+                ctx = extract_football_scoreboard(frame, ctx)
+                self._stats["ocr_calls"] = int(self._stats.get("ocr_calls", 0)) + 1
+            else:
+                self._stats["ocr_skips"] = int(self._stats.get("ocr_skips", 0)) + 1
 
         ms = (time.perf_counter() - t0) * 1000
         n = self._stats["calls"]
@@ -152,6 +166,27 @@ class LocalVLMClient:
         if ms > 150:
             log.debug(f"LocalVLM slow: {ms:.1f}ms")
         return ctx
+
+    def _should_run_scoreboard_ocr(self, frame: np.ndarray) -> bool:
+        """Gate expensive EasyOCR: allow heuristic football, skip tiny/test frames."""
+        import os
+
+        if self.scoreboard_ocr is False:
+            return False
+        if os.environ.get("QORESENCE_DISABLE_SCOREBOARD_OCR", "").strip() in {
+            "1",
+            "true",
+            "yes",
+        }:
+            return False
+        if frame is None or not hasattr(frame, "shape") or len(frame.shape) < 2:
+            return False
+        h, w = int(frame.shape[0]), int(frame.shape[1])
+        # Unit-test synthetics and eye thumbnails stay under this; live HDMI is 720p+.
+        if h < 480 or w < 640:
+            return False
+        # Explicit True → always; None/auto → football path for both onnx + heuristic.
+        return True
 
     def analyze_frame_raw(
         self,

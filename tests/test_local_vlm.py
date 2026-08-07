@@ -259,10 +259,18 @@ class TestLocalVLMClient:
 
 def test_onnx_distilled_if_present():
     """If the distilled ONNX model exists, verify it loads and classifies correctly."""
+    import os
+
     if not DEFAULT_ONNX.exists():
         pytest.skip("distilled ONNX model not present")
 
-    client = LocalVLMClient(model_path=str(DEFAULT_ONNX), game_profile="ncaa_football_27")
+    # Opt into OCR for this integration-style check (conftest disables it globally).
+    os.environ.pop("QORESENCE_DISABLE_SCOREBOARD_OCR", None)
+    client = LocalVLMClient(
+        model_path=str(DEFAULT_ONNX),
+        game_profile="ncaa_football_27",
+        scoreboard_ocr=True,
+    )
     assert client.get_stats()["mode"] == "onnx"
     assert client.get_stats()["available"] is True
 
@@ -290,10 +298,17 @@ def test_preflight_frames_ocr_gated():
     This guards against processing person/unknown preflight captures with the
     expensive EasyOCR pipeline.
     """
+    import os
+
     if not DEFAULT_ONNX.exists():
         pytest.skip("distilled ONNX model not present")
 
-    client = LocalVLMClient(model_path=str(DEFAULT_ONNX), game_profile="ncaa_football_27")
+    os.environ.pop("QORESENCE_DISABLE_SCOREBOARD_OCR", None)
+    client = LocalVLMClient(
+        model_path=str(DEFAULT_ONNX),
+        game_profile="ncaa_football_27",
+        scoreboard_ocr=True,
+    )
     preflight = sorted(Path("logs").glob("eye_check_*.png"))
     if not preflight:
         pytest.skip("no preflight eye_check frames available")

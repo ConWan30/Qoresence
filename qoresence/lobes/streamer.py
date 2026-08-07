@@ -436,6 +436,13 @@ class StreamerRuntime:
 
             # Store current frame for cross-lobe integration
             self._current_frame = frame
+            # Rolling HDMI buffer for local Foundry / ClutchBot clips (true capture card)
+            try:
+                from qoresence.vision.clip_buffer import push_frame as _clip_push
+
+                _clip_push(frame)
+            except Exception:
+                pass
 
             # Downscale for metrics
             scale = self.config.process_scale

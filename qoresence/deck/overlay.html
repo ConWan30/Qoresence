@@ -11,31 +11,109 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 #spark.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
 #eye{position:absolute;right:22px;top:16px;font:500 11px/1 JetBrains Mono,monospace;color:rgba(232,237,240,.55);background:rgba(10,14,20,.55);padding:6px 10px;border-radius:8px}
 #eye strong{color:#F5C542}
-#wait{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:rgba(232,237,240,.72);font:500 14px/1 Inter,sans-serif;background:rgba(10,14,20,.55);padding:10px 14px;border-radius:10px;border:1px solid rgba(232,237,240,.12)}
+#wait{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#E8EDF0;font:700 18px/1 Inter,sans-serif;background:rgba(245,197,66,.96);padding:16px 22px;border-radius:12px;border:2px solid #0A0E14;box-shadow:0 10px 30px rgba(0,0,0,.4);z-index:9} #wait.connected{background:rgba(10,14,20,.82);color:#E8EDF0;border-color:rgba(232,237,240,.18);font-weight:500;font-size:14px}
 </style></head><body>
-<div id="ribbon"></div><div id="pill" class="hide">Waiting for game — run --play</div><div id="spark"></div><div id="eye">● <strong>waiting</strong> — no game</div><div id="wait">Retina live — waiting for HDMI. Start: python -m qoresence.cli --play</div>
+<div id="ribbon"></div><div id="pill" class="hide">Waiting for game — run --play</div><div id="spark"></div><div id="eye">● <strong>waiting</strong> — no game</div><div id="wait">OBS URL must be http://127.0.0.1:8765/overlay.html (not file://) · then: python -m qoresence.cli --play</div>
 <script>
 const ribbon=document.getElementById('ribbon'),pill=document.getElementById('pill'),spark=document.getElementById('spark'),eye=document.getElementById('eye'),wait=document.getElementById('wait');
-function isLive(s){return s && (s.score_home!=null||s.score_away!=null||s.quarter||s.down||s.clock||s.win_prob!=null);}
+let lastLiveNs=0, wsOk=false, lastSit=null;
+// Scorebug / HUD numbers — without these the pill stays hidden (no fake 0-0).
+function hasBoard(s){
+  if(!s||typeof s!=='object') return false;
+  return s.home_score!=null||s.away_score!=null||s.score_home!=null||s.score_away!=null
+    ||s.quarter!=null||s.down!=null||s.clock!=null||s.game_clock_seconds!=null
+    ||s.kills!=null||s.health!=null||s.win_prob!=null;
+}
+// Classifier sees a game (may still have null scores).
+function isClassified(s){
+  if(!s||typeof s!=='object') return false;
+  return s.game_state==='gameplay'||s.game_category==='football'||s.game_category==='shooter'||hasBoard(s);
+}
+function isLive(s){ return isClassified(s); }
+function fmtClock(s){
+  if(s.clock!=null&&s.clock!=='') return String(s.clock);
+  if(s.game_clock_seconds==null) return '';
+  const sec=Number(s.game_clock_seconds)|0;
+  return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
+}
 function setRibbon(wp,clip){const pct=Math.round((wp||0)*100);ribbon.style.background='linear-gradient(90deg,#1A3A2A 0%,#F5C542 '+pct+'%,#E8EDF0 100%)';ribbon.style.opacity=(0.08+(clip||0)*0.6).toFixed(2)}
 function setPill(t,show){pill.textContent=t;pill.className=show?'show':'hide'}
 function setSpark(w,icon){spark.textContent=(icon||'⚡')+' '+(w||'');spark.className='show';setTimeout(()=>spark.className='',2600)}
+function setEye(html){eye.innerHTML=html}
+function hideWait(){wait.style.display='none'}
+function showWait(msg, bad){
+  wait.textContent=msg;
+  wait.style.display='block';
+  if(bad){wait.style.background='rgba(231,76,60,.95)';wait.style.color='#fff';wait.classList.remove('connected')}
+  else{wait.style.background='';wait.style.color='';wait.classList.add('connected')}
+}
 function handle(m){
-  const snap=m.state||m.snapshot||null;
-  const s=(snap&&snap.situation)?snap.situation:(m.situation||m.payload||{});
+  // Accept snapshot | situation | raw state shapes from WS + /api/situation poll.
+  const snap=(m&&m.type==='snapshot')?m:(m.state||m.snapshot||null);
+  let s={};
+  if(snap&&snap.situation) s=snap.situation;
+  else if(m&&m.situation) s=m.situation;
+  else if(m&&m.payload&&typeof m.payload==='object'&&!Array.isArray(m.payload)) s=m.payload;
+  else if(m&&m.game_state!=null) s=m;
+  lastSit=s;
   const lat=m.latency_ms!=null?m.latency_ms:(snap&&snap.latency_ms!=null?snap.latency_ms:null);
+  const upd=m.updated_ns!=null?m.updated_ns:(snap&&snap.updated_ns);
+  if(upd) lastLiveNs=upd;
+
   if(isLive(s)){
-    wait.style.display='none';
-    const sc=s.score_home!=null? s.score_home+'-' +s.score_away : (s.score||'');
-    const q=s.quarter||'',down=s.down,dist=s.distance,clock=s.clock||'',wp=s.win_prob,cl=s.clip_worthiness||0;
-    const parts=[]; if(sc) parts.push(sc); if(q) parts.push(q+(clock?' '+clock:'')); if(down) parts.push(down+' & '+(dist||'')); if(wp!=null) parts.push('WP '+Math.round(wp*100)+'%');
-    setRibbon(wp||0,cl); setPill(parts.join(' · ')||'LIVE',true);
-    eye.innerHTML='● <strong>local</strong> '+((lat!=null?lat:1.12).toFixed(2))+'ms p50';
-  } else { setRibbon(0,0); pill.className='hide'; eye.innerHTML='● <strong>waiting</strong> — no game'; }
+    hideWait();
+    const cat=s.game_category||s.game_state||'live';
+    const conf=s.visual_confidence!=null?(' · '+(Number(s.visual_confidence)*100|0)+'%'):'';
+    if(hasBoard(s)){
+      const sc=s.score_home!=null? (s.score_home+'-'+s.score_away) : (s.home_score!=null? (s.home_score+'-'+s.away_score) : (s.score!=null?String(s.score):''));
+      const q=s.quarter!=null?('Q'+s.quarter):'';
+      const down=s.down, dist=s.distance||s.yards_to_go, clock=fmtClock(s), wp=s.win_prob, cl=s.clip_worthiness||0;
+      const parts=[]; if(sc!==''&&sc!=='null-null') parts.push(sc); if(q) parts.push(q+(clock?' '+clock:'')); if(down!=null) parts.push(down+' & '+(dist!=null?dist:'')); if(wp!=null) parts.push('WP '+Math.round(wp*100)+'%');
+      setRibbon(wp||0,cl); setPill(parts.join(' · ')||'LIVE',true);
+      setEye('● <strong>live</strong> '+cat+(lat!=null?(' '+(Number(lat).toFixed(1))+'ms'):'')+conf);
+    } else {
+      // Classified football/gameplay but scorebug still null — hide center wait + hide pill.
+      setRibbon(0,0); setPill('',false);
+      setEye('● <strong>live</strong> '+cat+' · no scorebug'+conf+(wsOk?'':' · http'));
+    }
+  } else {
+    setRibbon(0,0); setPill('',false);
+    if(wsOk){
+      showWait('Retina connected — waiting for HDMI / classifier…', false);
+      setEye('● <strong>connected</strong> :8765 · no game yet');
+    } else {
+      showWait('Retina live — waiting for Deck WS. Start: python -m qoresence.cli --play', false);
+      setEye('● <strong>waiting</strong> — no game');
+    }
+  }
   if(m.type==='moment'&&m.payload&&m.payload.title) setSpark(m.payload.title.toUpperCase(),m.payload.icon||'⚡');
 }
 let ws=null;
-function connect(){try{ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/retina');ws.onmessage=e=>{try{handle(JSON.parse(e.data))}catch{}};ws.onopen=()=>{wait.textContent='Retina connected — waiting for HDMI...'};ws.onclose=()=>setTimeout(connect,1200);}catch(e){setTimeout(connect,1200)}}
+function connect(){
+  try{
+    ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/retina');
+    ws.onmessage=e=>{try{handle(JSON.parse(e.data))}catch{}};
+    ws.onopen=()=>{
+      wsOk=true;
+      // Do not force the yellow "waiting for HDMI" over a live classified snapshot.
+      if(isLive(lastSit)){ hideWait(); setEye('● <strong>live</strong> '+(lastSit.game_category||lastSit.game_state||'')+' · ws'); }
+      else { showWait('Retina connected — waiting for HDMI / classifier…', false); setEye('● <strong>connected</strong> :8765'); }
+    };
+    ws.onclose=()=>{
+      wsOk=false;
+      showWait('● Deck DISCONNECTED — reconnecting…', true);
+      setEye('● disconnected');
+      setTimeout(connect,1200);
+    };
+  }catch(e){ setTimeout(connect,1200); }
+}
 connect();
-setInterval(()=>{fetch('/api/situation').then(r=>r.json()).then(j=>{ if(j) handle({state:j.state||j, latency_ms:j.latency_ms});}).catch(()=>{});},2000);
+// HTTP poll backup when WS is 403/down (same origin as Browser Source).
+setInterval(()=>{
+  fetch('/api/situation').then(r=>r.json()).then(j=>{
+    if(!j) return;
+    // /api/situation returns the snapshot object itself.
+    handle(j.type==='snapshot'?j:{state:j, latency_ms:j.latency_ms, updated_ns:j.updated_ns});
+  }).catch(()=>{});
+},2000);
 </script></body></html>

@@ -142,10 +142,14 @@ class OutcomeRuntime:
 
         self._running = True
         self._start_time = time.time()
+        # Active immediately for the configured profile. Waiting only for
+        # GAME_DETECTED left score_changed silent under --play (no game_detect),
+        # so ClutchBot never saw clutch moments despite live OCR scores.
+        self._active = True
         self._unsubscribe = self.bus.subscribe(self._on_event)
 
         log.info(
-            f"Outcome lobe started: profile={self._profile.profile_id.value}, method=vlm_context"
+            f"Outcome lobe started: profile={self._profile.profile_id.value}, method=vlm_context, active={self._active}"
         )
         return True
 

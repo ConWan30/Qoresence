@@ -41,11 +41,13 @@ class ActionExecutor:
 
     # Canonical action -> preferred backend name(s). Unknown or unmapped
     # actions fall back to trying all backends in order.
+    # Preferred backends in order. twitch_irc is the real IRC name used by
+    # _TwitchChatBackend; deck_feed always runs so Rail/Lens get moments without Twitch.
     ACTION_ROUTING: dict[str, tuple[str, ...]] = {
-        "chat": ("twitch_chat",),
-        "clip": ("twitch_clip",),
-        "start_prediction": ("twitch_prediction",),
-        "resolve_prediction": ("twitch_prediction",),
+        "chat": ("twitch_irc", "twitch_chat", "deck_feed"),
+        "clip": ("local_hdmi", "twitch_clip", "deck_feed"),
+        "start_prediction": ("twitch_prediction", "deck_feed"),
+        "resolve_prediction": ("twitch_prediction", "deck_feed"),
     }
 
     def __init__(self, backends: list[Backend] | None = None):

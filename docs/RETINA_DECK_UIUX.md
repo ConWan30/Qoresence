@@ -24,6 +24,15 @@ Standard overlays **cover** gameplay. Standard dashboards make you **alt-tab awa
 
 ### A) Clutch Lens — In-Game HUD (OBS Browser Source, transparent 1920x1080)
 
+**OBS setup (required):** Sources → **+** → **Browser**
+
+| Field | Value |
+|-------|--------|
+| **URL** | `http://127.0.0.1:8765/overlay.html` — **not** `file:///…` |
+| Width × Height | `1920` × `1080` |
+
+`file://` breaks same-origin WS → FIN_WAIT_2 thrash and `/health` `clients:0`. See `tools/obs/README.md`.
+
 Lives **on** the game, never **over** the ball. Bottom 8% safe area, 80px tall max.
 
 | Element | When | Design |

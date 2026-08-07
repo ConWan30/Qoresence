@@ -28,6 +28,9 @@ Thumbs.db
 *.log
 logs/
 
+# Local HDMI clips (capture-card exports)
+clips/
+
 # Local data (never commit)
 sessions/
 *.db
