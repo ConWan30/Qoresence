@@ -109,8 +109,9 @@ def write_clip_sidecar(
     why: dict[str, Any] | None = None,
     *,
     duration_s: float | None = None,
+    graph_summary: dict[str, Any] | None = None,
 ) -> Path | None:
-    """Write ``<stem>.chapters.json`` with chapters + optional buttons + why."""
+    """Write ``<stem>.chapters.json`` with chapters + optional buttons + why + graph."""
     try:
         path = Path(mp4_path)
         out = path.with_name(path.stem + ".chapters.json")
@@ -121,9 +122,21 @@ def write_clip_sidecar(
             "buttons": buttons or {},
             "source": "session_timeline",
         }
-        # Drop null why
         if why is None:
             payload.pop("why", None)
+        if graph_summary:
+            # Trimmed: phase, climax, match_rate
+            cl = graph_summary.get("climax") or {}
+            payload["graph_summary"] = {
+                "phase": graph_summary.get("phase"),
+                "match_rate": graph_summary.get("match_rate", cl.get("match_rate")),
+                "climax": {
+                    "score": cl.get("score"),
+                    "best_label": cl.get("best_label"),
+                    "has_fast_confirm": cl.get("has_fast_confirm"),
+                },
+                "drive_id": graph_summary.get("drive_id"),
+            }
         out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         log.info("chapters sidecar: %s (%d chapters)", out.name, len(chapters))
         return out
@@ -164,6 +177,47 @@ def chapters_after_export(mp4_path: str | Path, duration_s: float) -> Path | Non
             input_events,
             window_end_ns=end_ns,
         )
+        # DriveGraph ranking: boost / merge chapter seeds (never drop confirms)
+        graph_summary = None
+        try:
+            from qoresence.agents.drive_graph import DriveGraph, active_drive_graph
+
+            g = active_drive_graph(tl)
+            if g is None and events:
+                g = DriveGraph.from_events("export", events)
+            if g is not None and g.nodes:
+                graph_summary = {
+                    "phase": g.phase(),
+                    "climax": g.climax_score(),
+                    "match_rate": g.climax_score().get("match_rate", 0),
+                    "drive_id": g.drive_id,
+                }
+                ranked = g.ranked_chapter_nodes(k=8)
+                # Map ranked nodes into t_s within export window
+                start_ns = end_ns - int(max(0.5, float(duration_s)) * 1e9)
+                dur = max(0.5, float(duration_s))
+                by_label = {(c.get("label"), round(float(c.get("t_s") or 0), 2)) for c in chapters}
+                for n in ranked:
+                    t_s = max(0.0, min(dur, (n.clock_ns - start_ns) / 1e9))
+                    key = (n.label, round(t_s, 2))
+                    if key in by_label:
+                        continue
+                    # Prefer graph-ranked nodes (especially confirms)
+                    chapters.append(
+                        {
+                            "t_s": round(t_s, 3),
+                            "label": n.label,
+                            "kind": n.kind,
+                            "path": n.path or "",
+                            "frame_seq": n.frame_seq,
+                            "source": "drive_graph",
+                        }
+                    )
+                    by_label.add(key)
+                chapters.sort(key=lambda c: float(c.get("t_s") or 0))
+        except Exception as e:
+            log.debug("drive graph chapters merge skipped: %s", e)
+
         why = tl.why_last()
         return write_clip_sidecar(
             mp4_path,
@@ -171,6 +225,7 @@ def chapters_after_export(mp4_path: str | Path, duration_s: float) -> Path | Non
             buttons=buttons_summary,
             why=why,
             duration_s=float(duration_s),
+            graph_summary=graph_summary,
         )
     except Exception as e:
         log.debug("chapters_after_export failed: %s", e)

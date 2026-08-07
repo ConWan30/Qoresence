@@ -61,3 +61,31 @@ def test_snapshot_and_singleton():
     snap = tl.snapshot()
     assert snap["why_last"] is not None
     assert snap["count"] >= 1
+
+
+def test_snapshot_includes_drive_graph():
+    reset_session_timeline()
+    from qoresence.agents.session_timeline import get_session_timeline
+
+    tl = get_session_timeline()
+    t0 = 50_000_000_000
+    tl.append(kind="arm", path="fast", message="arm", open_drive=True, clock_ns=t0, coupling=0.7)
+    tl.append(kind="fast_chat", path="fast", message="heat", clock_ns=t0 + 1000, coupling=0.8)
+    tl.append(
+        kind="confirm_chat",
+        path="confirm",
+        message="score",
+        clock_ns=t0 + 2_000_000,
+        factual=True,
+    )
+    snap = tl.snapshot()
+    assert snap.get("drive_graph") is not None
+    assert snap["drive_graph"]["phase"] in (
+        "armed",
+        "pressure",
+        "active",
+        "resolved",
+        "open",
+    )
+    assert "climax" in snap["drive_graph"]
+    assert snap["why_last"] is not None

@@ -42,6 +42,13 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] Clip `.chapters.json` + Deck why strip + `/api/timeline`  
 - [x] Docs: `docs/PRIORITY_INTEGRATIONS.md`
 
+### DriveGraph ✓
+- [x] Time-DAG per drive: precedes / arms / confirms / cancels / boosts  
+- [x] `climax_score`, `match_fast_confirm`, `ranked_chapter_nodes`  
+- [x] Attached to `/api/timeline` + Deck Why preference  
+- [x] Chapter merge + `graph_summary` sidecar; thin learning samples  
+- [x] Docs: `docs/DRIVE_GRAPH.md`
+
 ---
 
 ## Phase 0 — Skeleton ✓

@@ -50,12 +50,19 @@ def test_sidecar_written(tmp_path: Path):
         buttons={"r1": 1},
         why={"line": "path=fast · test"},
         duration_s=5.0,
+        graph_summary={
+            "phase": "resolved",
+            "match_rate": 1.0,
+            "drive_id": "d1",
+            "climax": {"score": 0.8, "best_label": "x", "has_fast_confirm": True},
+        },
     )
     assert out is not None and out.is_file()
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["chapters"][0]["t_s"] == 0.5
     assert data["buttons"]["r1"] == 1
     assert "why" in data
+    assert data["graph_summary"]["phase"] == "resolved"
 
 
 def test_snapshot_why_last_after_append():

@@ -226,8 +226,22 @@ class ClutchBotAgent:
                 and self._pred_life.state.value == "armed"
                 and cval >= self._pred_life.min_coupling_to_open
             ):
-                # Policy open — not every chat; only armed + high coupling
-                self._pred_life.try_open(coupling=cval, clock_ns=event.clock_ns)
+                # Policy open: prefer armed/pressure + climax threshold (DriveGraph)
+                allow_open = True
+                try:
+                    from qoresence.agents.drive_graph import active_drive_graph
+
+                    g = active_drive_graph()
+                    if g is not None and g.nodes:
+                        ph = g.phase()
+                        cl = g.climax_score()
+                        allow_open = ph in ("armed", "pressure", "open", "active") and float(
+                            cl.get("score") or 0
+                        ) >= 0.25
+                except Exception:
+                    allow_open = True
+                if allow_open:
+                    self._pred_life.try_open(coupling=cval, clock_ns=event.clock_ns)
         except Exception as e:
             log.debug("pred lifecycle tick: %s", e)
 
@@ -266,6 +280,8 @@ class ClutchBotAgent:
                     )
                 except Exception as e:
                     log.debug("pred lifecycle resolve: %s", e)
+                # Best-effort graph calibration sample on drive close / score resolve
+                self._log_drive_graph_sample(event)
 
         if getattr(self, "_learning_logger", None) is not None and moments:
             try:
@@ -417,6 +433,42 @@ class ClutchBotAgent:
             )
         except Exception:
             return True
+
+    def _log_drive_graph_sample(self, event: BaseEvent) -> None:
+        """Thin calibration: match_rate / climax / phase → learning log (non-blocking)."""
+        if getattr(self, "_learning_logger", None) is None:
+            return
+        try:
+            from qoresence.agents.drive_graph import active_drive_graph
+
+            g = active_drive_graph()
+            if g is None or not g.nodes:
+                return
+            cl = g.climax_score()
+            sample_moment = type(
+                "M",
+                (),
+                {
+                    "to_dict": lambda self: {
+                        "action": "drive_graph_sample",
+                        "path": "system",
+                        "phase": g.phase(),
+                        "match_rate": cl.get("match_rate"),
+                        "climax_score": cl.get("score"),
+                        "has_fast_confirm": cl.get("has_fast_confirm"),
+                        "drive_id": g.drive_id,
+                    }
+                },
+            )()
+            self._learning_logger.log(
+                state=self._situation.to_dict(),
+                moment=sample_moment,
+                label=None,
+                frame_hash="",
+                wp_swing=float(cl.get("score") or 0.0),
+            )
+        except Exception as e:
+            log.debug("drive graph learning sample skipped: %s", e)
 
     def _wire_prediction_lifecycle(self) -> None:
         """Optional Helix callbacks — local open if no helix."""
