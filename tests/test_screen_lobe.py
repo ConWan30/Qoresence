@@ -10,16 +10,13 @@ import json
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 
 from qoresence.core import (
     RetinaEventBus,
-    SourceLobe,
-    EventType,
-    clock_ns,
     ScreenConfig,
     SessionAuthority,
 )
@@ -45,9 +42,9 @@ class MockMSS:
         # Create a moving pattern - shift a bright region each frame
         x_offset = (self._frame_counter * 10) % w
         y_offset = (self._frame_counter * 5) % h
-        frame[y_offset:y_offset+100, x_offset:x_offset+100, 0] = 255  # Blue
-        frame[y_offset:y_offset+100, x_offset:x_offset+100, 1] = 255  # Green
-        frame[y_offset:y_offset+100, x_offset:x_offset+100, 2] = 255  # Red
+        frame[y_offset : y_offset + 100, x_offset : x_offset + 100, 0] = 255  # Blue
+        frame[y_offset : y_offset + 100, x_offset : x_offset + 100, 1] = 255  # Green
+        frame[y_offset : y_offset + 100, x_offset : x_offset + 100, 2] = 255  # Red
         frame[:, :, 3] = 255  # Alpha
         self._frame_counter += 1
         return MockScreenshot(frame)
@@ -87,7 +84,7 @@ class TestScreenRuntime:
             assert runtime.session_head_ns == identity.session_head_ns
             assert not runtime.is_running()
 
-    @patch('qoresence.lobes.screen.mss.mss', return_value=MockMSS())
+    @patch("qoresence.lobes.screen.mss.mss", return_value=MockMSS())
     def test_start_opens_capture(self, mock_mss_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -107,7 +104,7 @@ class TestScreenRuntime:
 
             runtime.stop()
 
-    @patch('qoresence.lobes.screen.mss.mss', return_value=MockMSS())
+    @patch("qoresence.lobes.screen.mss.mss", return_value=MockMSS())
     def test_motion_detection_emits_cv_motion(self, mock_mss_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -132,17 +129,17 @@ class TestScreenRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            motion_events = [e for e in events if e['type'] == 'cv_motion']
+            motion_events = [e for e in events if e["type"] == "cv_motion"]
             assert len(motion_events) >= 1
 
             for e in motion_events:
-                assert e['session_id'] == 'motion_test'
-                assert e['source_lobe'] == 'screen'
-                assert 'clock_ns' in e
-                assert 'motion' in e['payload']
-                assert 0.0 <= e['payload']['motion'] <= 1.0
+                assert e["session_id"] == "motion_test"
+                assert e["source_lobe"] == "screen"
+                assert "clock_ns" in e
+                assert "motion" in e["payload"]
+                assert 0.0 <= e["payload"]["motion"] <= 1.0
 
-    @patch('qoresence.lobes.screen.mss.mss', return_value=MockMSS())
+    @patch("qoresence.lobes.screen.mss.mss", return_value=MockMSS())
     def test_coupling_score_with_controller_provider(self, mock_mss_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -174,16 +171,16 @@ class TestScreenRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            coupling_events = [e for e in events if e['type'] == 'coupling_score']
+            coupling_events = [e for e in events if e["type"] == "coupling_score"]
             assert len(coupling_events) >= 1
 
             for e in coupling_events:
-                assert 'coupling_score' in e['payload']
-                assert 'negative_control' in e['payload']
-                assert 'best_lag_ms' in e['payload']
-                assert -1.0 <= e['payload']['coupling_score'] <= 1.0
+                assert "coupling_score" in e["payload"]
+                assert "negative_control" in e["payload"]
+                assert "best_lag_ms" in e["payload"]
+                assert -1.0 <= e["payload"]["coupling_score"] <= 1.0
 
-    @patch('qoresence.lobes.screen.mss.mss', return_value=MockMSS())
+    @patch("qoresence.lobes.screen.mss.mss", return_value=MockMSS())
     def test_ocr_hud_emits_events(self, mock_mss_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -211,14 +208,14 @@ class TestScreenRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            ocr_events = [e for e in events if e['type'] == 'ocr_hud']
+            ocr_events = [e for e in events if e["type"] == "ocr_hud"]
             assert len(ocr_events) >= 1
 
             for e in ocr_events:
-                assert 'region' in e['payload']
-                assert 'text' in e['payload']
+                assert "region" in e["payload"]
+                assert "text" in e["payload"]
 
-    @patch('qoresence.lobes.screen.mss.mss', return_value=MockMSS())
+    @patch("qoresence.lobes.screen.mss.mss", return_value=MockMSS())
     def test_session_start_and_end_events(self, mock_mss_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -240,18 +237,18 @@ class TestScreenRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            event_types = [e['type'] for e in events]
-            assert 'session_start' in event_types
-            assert 'session_end' in event_types
+            event_types = [e["type"] for e in events]
+            assert "session_start" in event_types
+            assert "session_end" in event_types
 
             # Check session_start payload
-            start_event = next(e for e in events if e['type'] == 'session_start')
-            assert start_event['payload']['capture_fps'] == 30.0
+            start_event = next(e for e in events if e["type"] == "session_start")
+            assert start_event["payload"]["capture_fps"] == 30.0
 
             # Check session_end payload
-            end_event = next(e for e in events if e['type'] == 'session_end')
-            assert 'frames_captured' in end_event['payload']
-            assert end_event['payload']['frames_captured'] > 0
+            end_event = next(e for e in events if e["type"] == "session_end")
+            assert "frames_captured" in end_event["payload"]
+            assert end_event["payload"]["frames_captured"] > 0
 
 
 class TestScreenConfigDefaults:
@@ -270,27 +267,29 @@ class TestScreenConfigDefaults:
 class TestListMonitors:
     """Test list_monitors helper."""
 
-    @patch('qoresence.lobes.screen.mss.mss')
+    @patch("qoresence.lobes.screen.mss.mss")
     def test_lists_monitors(self, mock_mss_class):
         mock_sct = MockMSS()
         mock_mss_class.return_value.__enter__.return_value = mock_sct
 
         monitors = list_monitors()
         assert len(monitors) >= 1
-        assert monitors[0]['index'] == 0
-        assert monitors[0]['width'] == 1920
-        assert monitors[0]['height'] == 1080
+        assert monitors[0]["index"] == 0
+        assert monitors[0]["width"] == 1920
+        assert monitors[0]["height"] == 1080
 
 
 class TestScreenRuntimeIntegration:
     """Integration tests for ScreenRuntime with other lobes."""
 
-    @patch('qoresence.lobes.screen.mss.mss', return_value=MockMSS())
+    @patch("qoresence.lobes.screen.mss.mss", return_value=MockMSS())
     def test_coupling_with_controller_lobe(self, mock_mss_class):
         """Test coupling analysis with controller lobe features."""
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
-            bus = RetinaEventBus(session_id="integration_test", jsonl_path=jsonl_path, enable_ws=False)
+            bus = RetinaEventBus(
+                session_id="integration_test", jsonl_path=jsonl_path, enable_ws=False
+            )
             identity = SessionAuthority.mint(session_id="integration_test")
 
             config = ScreenConfig(
@@ -324,15 +323,15 @@ class TestScreenRuntimeIntegration:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            coupling_events = [e for e in events if e['type'] == 'coupling_score']
+            coupling_events = [e for e in events if e["type"] == "coupling_score"]
             assert len(coupling_events) >= 1
 
             # Verify coupling score structure
             for e in coupling_events:
-                payload = e['payload']
-                assert 'coupling_score' in payload
-                assert 'negative_control' in payload
-                assert 'best_lag_ms' in payload
+                payload = e["payload"]
+                assert "coupling_score" in payload
+                assert "negative_control" in payload
+                assert "best_lag_ms" in payload
 
 
 class TestHUDRegions:
@@ -340,12 +339,13 @@ class TestHUDRegions:
 
     def test_ncaa_regions_defined(self):
         from qoresence.lobes.screen import NCAA_HUD_REGIONS
+
         assert "scoreboard" in NCAA_HUD_REGIONS
         assert "down_distance" in NCAA_HUD_REGIONS
         assert "play_clock" in NCAA_HUD_REGIONS
         assert "quarter" in NCAA_HUD_REGIONS
 
-        for region, (x, y, w, h) in NCAA_HUD_REGIONS.items():
+        for _region, (x, y, w, h) in NCAA_HUD_REGIONS.items():
             assert 0 <= x <= 1
             assert 0 <= y <= 1
             assert 0 < w <= 1
@@ -353,12 +353,13 @@ class TestHUDRegions:
 
     def test_cod_regions_defined(self):
         from qoresence.lobes.screen import COD_HUD_REGIONS
+
         assert "kill_feed" in COD_HUD_REGIONS
         assert "health" in COD_HUD_REGIONS
         assert "ammo" in COD_HUD_REGIONS
         assert "streak" in COD_HUD_REGIONS
 
-        for region, (x, y, w, h) in COD_HUD_REGIONS.items():
+        for _region, (x, y, w, h) in COD_HUD_REGIONS.items():
             assert 0 <= x <= 1
             assert 0 <= y <= 1
             assert 0 < w <= 1

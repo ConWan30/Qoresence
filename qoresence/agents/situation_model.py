@@ -19,6 +19,7 @@ from qoresence.vision.visual_context import VisualContext
 @dataclass
 class ControllerSnapshot:
     """Rolling controller-derived signals."""
+
     last_input_ns: int = 0
     apm_5s: float = 0.0
     stick_motion_5s: float = 0.0
@@ -28,6 +29,7 @@ class ControllerSnapshot:
 @dataclass
 class SituationState:
     """Current situation that ClutchBot acts on."""
+
     game_profile: str | None = None
     game_state: str | None = None
     game_category: str | None = None
@@ -100,9 +102,15 @@ class SituationModel:
 
         self._last_visual_context_ns = event.clock_ns
         if ctx.game_state is not None:
-            self._state.game_state = ctx.game_state.value if hasattr(ctx.game_state, "value") else str(ctx.game_state)
+            self._state.game_state = (
+                ctx.game_state.value if hasattr(ctx.game_state, "value") else str(ctx.game_state)
+            )
         if ctx.game_category is not None:
-            self._state.game_category = ctx.game_category.value if hasattr(ctx.game_category, "value") else str(ctx.game_category)
+            self._state.game_category = (
+                ctx.game_category.value
+                if hasattr(ctx.game_category, "value")
+                else str(ctx.game_category)
+            )
         if ctx.game_title:
             self._state.game_title = ctx.game_title
         self._state.visual_confidence = ctx.confidence

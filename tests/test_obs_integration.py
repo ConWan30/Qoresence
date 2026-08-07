@@ -16,9 +16,7 @@ import pytest
 
 from qoresence.core import (
     RetinaEventBus,
-    SourceLobe,
     SessionAuthority,
-    clock_ns,
 )
 from qoresence.lobes import StreamerRuntime
 
@@ -97,7 +95,7 @@ class TestOBSOverlayIntegration:
         assert "not eligibility" in content, "Missing disclaimer text"
         assert "not anti-cheat" in content, "Missing disclaimer text"
 
-    @patch('qoresence.lobes.streamer.cv2.VideoCapture')
+    @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_streamer_emits_events_for_overlay(self, mock_cv2_class):
         """Test that streamer emits events that overlay can consume."""
         with tempfile.TemporaryDirectory() as td:
@@ -114,14 +112,17 @@ class TestOBSOverlayIntegration:
 
             # Create a simple frame
             import numpy as np
+
             frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
             read_count = [0]
+
             def mock_read():
                 read_count[0] += 1
                 if read_count[0] <= 3:
                     return True, frame
                 return False, None
+
             mock_cap.read.side_effect = mock_read
 
             config = Mock()
@@ -160,17 +161,17 @@ class TestOBSOverlayIntegration:
             events = [json.loads(line) for line in lines if line.strip()]
 
             # Check for events that overlay needs
-            event_types = [e['type'] for e in events]
-            assert 'session_start' in event_types
-            assert 'activity' in event_types or 'frame_stats' in event_types
-            assert 'session_end' in event_types
+            event_types = [e["type"] for e in events]
+            assert "session_start" in event_types
+            assert "activity" in event_types or "frame_stats" in event_types
+            assert "session_end" in event_types
 
             # Verify event structure for overlay
             for e in events:
-                assert 'session_id' in e
-                assert 'source_lobe' in e
-                assert 'clock_ns' in e
-                assert 'payload' in e
+                assert "session_id" in e
+                assert "source_lobe" in e
+                assert "clock_ns" in e
+                assert "payload" in e
 
 
 class TestOBSOverlayHealthCheck:

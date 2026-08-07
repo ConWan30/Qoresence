@@ -1,4 +1,5 @@
 """Phase 6 tests for eval/eval_session.py replay metrics."""
+
 from __future__ import annotations
 
 import json
@@ -58,9 +59,24 @@ def test_eval_session_passes_for_football_only():
         _make_session_jsonl(
             path,
             [
-                {"category": "football", "state": "gameplay", "confidence": 0.8, "latency_ms": 10.0},
-                {"category": "football", "state": "gameplay", "confidence": 0.9, "latency_ms": 12.0},
-                {"category": "football", "state": "gameplay", "confidence": 0.85, "latency_ms": 8.0},
+                {
+                    "category": "football",
+                    "state": "gameplay",
+                    "confidence": 0.8,
+                    "latency_ms": 10.0,
+                },
+                {
+                    "category": "football",
+                    "state": "gameplay",
+                    "confidence": 0.9,
+                    "latency_ms": 12.0,
+                },
+                {
+                    "category": "football",
+                    "state": "gameplay",
+                    "confidence": 0.85,
+                    "latency_ms": 8.0,
+                },
                 {"category": "unknown", "state": "menu", "confidence": 0.4, "latency_ms": 5.0},
             ],
         )
@@ -78,7 +94,12 @@ def test_eval_session_fails_when_shooter_present():
         _make_session_jsonl(
             path,
             [
-                {"category": "football", "state": "gameplay", "confidence": 0.8, "latency_ms": 10.0},
+                {
+                    "category": "football",
+                    "state": "gameplay",
+                    "confidence": 0.8,
+                    "latency_ms": 10.0,
+                },
                 {"category": "shooter", "state": "gameplay", "confidence": 0.8, "latency_ms": 9.0},
             ],
         )

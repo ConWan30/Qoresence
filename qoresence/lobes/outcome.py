@@ -13,18 +13,18 @@ from __future__ import annotations
 import logging
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, replace
-from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 from qoresence.core import (
+    EventType,
+    GameProfile,
+    GameProfileId,
+    OutcomeConfig,
     RetinaEventBus,
     SourceLobe,
-    EventType,
     clock_ns,
-    OutcomeConfig,
-    GameProfileId,
-    GameProfile,
     get_game_profile,
     normalize_game_profile,
 )
@@ -40,6 +40,7 @@ log = logging.getLogger(__name__)
 @dataclass
 class DetectionResult:
     """Result of a single detector check."""
+
     event_name: str
     detected: bool
     confidence: float
@@ -84,7 +85,7 @@ class OutcomeRuntime:
         config: OutcomeConfig,
         bus: RetinaEventBus,
         session_head_ns: int,
-        frame_provider: Optional[Callable[[], Optional[Any]]] = None,
+        frame_provider: Callable[[], Any | None] | None = None,
     ):
         self.config = config
         self.bus = bus
@@ -99,32 +100,32 @@ class OutcomeRuntime:
 
         # State
         self._running = False
-        self._unsubscribe: Optional[Callable[[], None]] = None
+        self._unsubscribe: Callable[[], None] | None = None
         self._active = False
         self._detections_count = 0
         self._start_time = 0.0
 
         # Previous visual context for change detection
-        self._prev_context: Optional[VisualContext] = None
+        self._prev_context: VisualContext | None = None
 
         # Cached football state
-        self._home_score: Optional[int] = None
-        self._away_score: Optional[int] = None
-        self._quarter: Optional[int] = None
-        self._down: Optional[int] = None
-        self._yards_to_go: Optional[int] = None
-        self._possession: Optional[str] = None
-        self._field_position: Optional[str] = None
-        self._play_clock: Optional[int] = None
+        self._home_score: int | None = None
+        self._away_score: int | None = None
+        self._quarter: int | None = None
+        self._down: int | None = None
+        self._yards_to_go: int | None = None
+        self._possession: str | None = None
+        self._field_position: str | None = None
+        self._play_clock: int | None = None
 
         # Cached shooter state
-        self._shooter_score: Optional[int] = None
-        self._health: Optional[int] = None
-        self._ammo: Optional[int] = None
+        self._shooter_score: int | None = None
+        self._health: int | None = None
+        self._ammo: int | None = None
         self._enemies_visible: int = 0
 
         # Presence callback (for fusion engine)
-        self._presence_callback: Optional[callable] = None
+        self._presence_callback: callable | None = None
 
         # Confidence threshold
         self._confidence_threshold = config.confidence_threshold
@@ -144,8 +145,7 @@ class OutcomeRuntime:
         self._unsubscribe = self.bus.subscribe(self._on_event)
 
         log.info(
-            f"Outcome lobe started: profile={self._profile.profile_id.value}, "
-            f"method=vlm_context"
+            f"Outcome lobe started: profile={self._profile.profile_id.value}, method=vlm_context"
         )
         return True
 
@@ -164,7 +164,7 @@ class OutcomeRuntime:
     def is_running(self) -> bool:
         return self._running
 
-    def set_frame_provider(self, provider: Callable[[], Optional[Any]]) -> None:
+    def set_frame_provider(self, provider: Callable[[], Any | None]) -> None:
         """Set frame provider callback (kept for compatibility; unused)."""
         self._frame_provider = provider
 
@@ -296,12 +296,7 @@ class OutcomeRuntime:
             self._quarter = ctx.quarter
 
         # First down: down == 1 and previous down was not 1 (and not a fresh quarter start)
-        if (
-            ctx.down is not None
-            and ctx.down == 1
-            and self._down is not None
-            and self._down != 1
-        ):
+        if ctx.down is not None and ctx.down == 1 and self._down is not None and self._down != 1:
             self._emit_outcome_event(
                 "first_down",
                 {
@@ -380,7 +375,7 @@ class OutcomeRuntime:
         self._prev_context = ctx
 
     @staticmethod
-    def _field_position_to_yard_line(field_position: Optional[str]) -> Optional[int]:
+    def _field_position_to_yard_line(field_position: str | None) -> int | None:
         """Map a field position string to a 0-100 yard line.
 
         0 = own goal line, 50 = midfield, 100 = opponent goal line.
@@ -513,6 +508,7 @@ class OutcomeRuntime:
 # ──────────────────────────────────────────────────────────────────────────────
 # EXTERNAL TRIGGER INTERFACE (for testing / integration)
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class OutcomeTrigger:
     """

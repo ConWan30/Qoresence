@@ -29,6 +29,7 @@ class Backend(Protocol):
 @dataclass
 class ActionResult:
     """Result of executing an action."""
+
     backend: str
     action: str
     success: bool
@@ -68,7 +69,9 @@ class ActionExecutor:
             except Exception as e:
                 log.warning(f"Backend {backend.name()} stop error: {e}")
 
-    def execute(self, moment: ScoredMoment, context: dict[str, Any] | None = None) -> list[ActionResult]:
+    def execute(
+        self, moment: ScoredMoment, context: dict[str, Any] | None = None
+    ) -> list[ActionResult]:
         """Execute a scored moment across all backends that can handle it."""
         if not moment.triggered:
             return []
@@ -89,9 +92,7 @@ class ActionExecutor:
         if allowed_names is not None:
             candidates = [b for b in self.backends if b.name() in allowed_names]
             if not candidates:
-                log.warning(
-                    f"No preferred backend for action {moment.action}; falling back"
-                )
+                log.warning(f"No preferred backend for action {moment.action}; falling back")
                 candidates = self.backends
         else:
             candidates = self.backends
@@ -99,19 +100,23 @@ class ActionExecutor:
         for backend in candidates:
             try:
                 success = backend.execute(moment.action, payload)
-                results.append(ActionResult(
-                    backend=backend.name(),
-                    action=moment.action,
-                    success=success,
-                    detail="ok" if success else "backend refused",
-                ))
+                results.append(
+                    ActionResult(
+                        backend=backend.name(),
+                        action=moment.action,
+                        success=success,
+                        detail="ok" if success else "backend refused",
+                    )
+                )
             except Exception as e:
                 log.error(f"ActionExecutor error in {backend.name()}: {e}")
-                results.append(ActionResult(
-                    backend=backend.name(),
-                    action=moment.action,
-                    success=False,
-                    detail=str(e),
-                ))
+                results.append(
+                    ActionResult(
+                        backend=backend.name(),
+                        action=moment.action,
+                        success=False,
+                        detail=str(e),
+                    )
+                )
 
         return results

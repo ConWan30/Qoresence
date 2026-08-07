@@ -12,18 +12,16 @@ import struct
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from qoresence.core import (
-    RetinaEventBus,
-    SourceLobe,
-    EventType,
     ControllerConfig,
-    clock_ns,
+    EventType,
+    RetinaEventBus,
     SessionAuthority,
+    SourceLobe,
 )
 from qoresence.lobes.controller import ControllerRuntime, list_controllers
 
@@ -41,13 +39,15 @@ class FakeHIDDevice:
         self._closed = False
         self._opened = False
 
-    def open(self, vendor_id: int = 0, product_id: int = 0, serial_number: Optional[str] = None) -> None:
+    def open(
+        self, vendor_id: int = 0, product_id: int = 0, serial_number: str | None = None
+    ) -> None:
         self._opened = True
 
     def open_path(self, path: bytes) -> None:
         self._opened = True
 
-    def read(self, max_length: int, timeout_ms: int = 0) -> Optional[list[int]]:
+    def read(self, max_length: int, timeout_ms: int = 0) -> list[int] | None:
         if self._closed or not self._opened or self._idx >= len(self._reports):
             return None
         report = self._reports[self._idx]
@@ -88,8 +88,8 @@ def _make_dualsense_report(
 
     # IMU at bytes 13-24 (6 int16)
     if any(gyro) or any(accel):
-        struct.pack_into('<hhh', report, 13, *gyro)
-        struct.pack_into('<hhh', report, 19, *accel)
+        struct.pack_into("<hhh", report, 13, *gyro)
+        struct.pack_into("<hhh", report, 19, *accel)
 
     report[30] = battery
     report[31] = usb_state
@@ -118,7 +118,7 @@ class TestControllerRuntime:
             assert runtime.session_head_ns == identity.session_head_ns
             assert not runtime.is_running()
 
-    @patch('qoresence.lobes.controller.HIDDevice')
+    @patch("qoresence.lobes.controller.HIDDevice")
     def test_start_opens_device(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -143,7 +143,7 @@ class TestControllerRuntime:
 
             runtime.stop()
 
-    @patch('qoresence.lobes.controller.HIDDevice')
+    @patch("qoresence.lobes.controller.HIDDevice")
     def test_button_press_emits_events(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -177,23 +177,23 @@ class TestControllerRuntime:
             events = [json.loads(line) for line in lines]
 
             # Check for controller_event with button press/release
-            controller_events = [e for e in events if e['type'] == 'controller_event']
-            button_events = [e for e in controller_events if 'button' in e['payload']]
+            controller_events = [e for e in events if e["type"] == "controller_event"]
+            button_events = [e for e in controller_events if "button" in e["payload"]]
 
-            press_events = [e for e in button_events if e['payload'].get('action') == 'press']
-            release_events = [e for e in button_events if e['payload'].get('action') == 'release']
+            press_events = [e for e in button_events if e["payload"].get("action") == "press"]
+            release_events = [e for e in button_events if e["payload"].get("action") == "release"]
 
             assert len(press_events) >= 1, "Expected button press event"
             assert len(release_events) >= 1, "Expected button release event"
 
             for e in press_events + release_events:
-                assert e['session_id'] == 'button_test'
-                assert e['source_lobe'] == 'controller'
-                assert 'clock_ns' in e
-                assert 'session_head_ns' in e
-                assert 'causal_parent_ns' in e['payload']
+                assert e["session_id"] == "button_test"
+                assert e["source_lobe"] == "controller"
+                assert "clock_ns" in e
+                assert "session_head_ns" in e
+                assert "causal_parent_ns" in e["payload"]
 
-    @patch('qoresence.lobes.controller.HIDDevice')
+    @patch("qoresence.lobes.controller.HIDDevice")
     def test_trigger_onset_detection(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -206,7 +206,7 @@ class TestControllerRuntime:
             reports = [
                 _make_dualsense_report(r2=0),
                 _make_dualsense_report(r2=10),
-                _make_dualsense_report(r2=50),   # Onset here
+                _make_dualsense_report(r2=50),  # Onset here
                 _make_dualsense_report(r2=200),
                 _make_dualsense_report(r2=200),
                 _make_dualsense_report(r2=0),
@@ -227,14 +227,14 @@ class TestControllerRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines]
 
-            trigger_events = [e for e in events if e['type'] == 'trigger_onset']
-            r2_events = [e for e in trigger_events if e['payload']['trigger'] == 'R2']
+            trigger_events = [e for e in events if e["type"] == "trigger_onset"]
+            r2_events = [e for e in trigger_events if e["payload"]["trigger"] == "R2"]
 
             assert len(r2_events) == 1, f"Expected exactly one R2 onset, got {len(r2_events)}"
-            assert r2_events[0]['payload']['amplitude'] > 0.1
-            assert 'causal_parent_ns' in r2_events[0]['payload']
+            assert r2_events[0]["payload"]["amplitude"] > 0.1
+            assert "causal_parent_ns" in r2_events[0]["payload"]
 
-    @patch('qoresence.lobes.controller.HIDDevice')
+    @patch("qoresence.lobes.controller.HIDDevice")
     def test_stick_motion_detection(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -267,16 +267,16 @@ class TestControllerRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines]
 
-            stick_events = [e for e in events if e['type'] == 'stick_motion']
-            left_stick = [e for e in stick_events if e['payload']['stick'] == 'left']
+            stick_events = [e for e in events if e["type"] == "stick_motion"]
+            left_stick = [e for e in stick_events if e["payload"]["stick"] == "left"]
 
             assert len(left_stick) >= 1, "Expected left stick motion event"
             for e in left_stick:
-                assert 'x' in e['payload']
-                assert 'y' in e['payload']
-                assert 'causal_parent_ns' in e['payload']
+                assert "x" in e["payload"]
+                assert "y" in e["payload"]
+                assert "causal_parent_ns" in e["payload"]
 
-    @patch('qoresence.lobes.controller.HIDDevice')
+    @patch("qoresence.lobes.controller.HIDDevice")
     def test_imu_tremor_sample(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -306,17 +306,17 @@ class TestControllerRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines]
 
-            tremor_events = [e for e in events if e['type'] == 'tremor_sample']
+            tremor_events = [e for e in events if e["type"] == "tremor_sample"]
             assert len(tremor_events) >= 1, "Expected tremor_sample event"
 
             for e in tremor_events:
-                assert 'gyro' in e['payload']
-                assert 'accel' in e['payload']
-                assert len(e['payload']['gyro']) == 3
-                assert len(e['payload']['accel']) == 3
-                assert 'causal_parent_ns' in e['payload']
+                assert "gyro" in e["payload"]
+                assert "accel" in e["payload"]
+                assert len(e["payload"]["gyro"]) == 3
+                assert len(e["payload"]["accel"]) == 3
+                assert "causal_parent_ns" in e["payload"]
 
-    @patch('qoresence.lobes.controller.HIDDevice')
+    @patch("qoresence.lobes.controller.HIDDevice")
     def test_rolling_buffer_populated(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -350,7 +350,7 @@ class TestControllerRuntime:
                 assert isinstance(entry.event_type, EventType)
                 assert isinstance(entry.payload, dict)
 
-    @patch('qoresence.lobes.controller.HIDDevice')
+    @patch("qoresence.lobes.controller.HIDDevice")
     def test_causal_parent_ns_in_events(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -362,9 +362,9 @@ class TestControllerRuntime:
             # Two rapid button presses
             reports = [
                 _make_dualsense_report(buttons=0),
-                _make_dualsense_report(buttons=1),   # CROSS press
+                _make_dualsense_report(buttons=1),  # CROSS press
                 _make_dualsense_report(buttons=0),
-                _make_dualsense_report(buttons=2),   # CIRCLE press
+                _make_dualsense_report(buttons=2),  # CIRCLE press
                 _make_dualsense_report(buttons=0),
             ]
             fake_device = FakeHIDDevice(reports)
@@ -383,16 +383,17 @@ class TestControllerRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines]
 
-            button_events = [e for e in events
-                           if e['type'] == 'controller_event' and 'button' in e['payload']]
+            button_events = [
+                e for e in events if e["type"] == "controller_event" and "button" in e["payload"]
+            ]
 
             # Second press should have causal_parent_ns pointing to first press
             for e in button_events:
-                if e['payload'].get('action') == 'press':
-                    parent = e['payload'].get('causal_parent_ns')
+                if e["payload"].get("action") == "press":
+                    parent = e["payload"].get("causal_parent_ns")
                     if parent is not None:
                         assert parent > 0
-                        assert parent <= e['clock_ns']  # Can be equal due to time resolution
+                        assert parent <= e["clock_ns"]  # Can be equal due to time resolution
 
 
 class TestControllerConfigDefaults:
@@ -411,28 +412,36 @@ class TestControllerConfigDefaults:
 class TestListControllers:
     """Test list_controllers helper."""
 
-    @patch('qoresence.lobes.controller.hid.enumerate')
+    @patch("qoresence.lobes.controller.hid.enumerate")
     def test_lists_sony_controller(self, mock_enumerate):
         mock_enumerate.return_value = [
-            {"vendor_id": 0x054C, "product_id": 0x0CE6,
-             "path": b"/dev/hidraw0", "product_string": "DualSense Edge",
-             "manufacturer_string": "Sony Interactive Entertainment"},
-            {"vendor_id": 0x046D, "product_id": 0xC077,
-             "path": b"/dev/hidraw1", "product_string": "G502 Mouse",
-             "manufacturer_string": "Logitech"},  # Not a controller
+            {
+                "vendor_id": 0x054C,
+                "product_id": 0x0CE6,
+                "path": b"/dev/hidraw0",
+                "product_string": "DualSense Edge",
+                "manufacturer_string": "Sony Interactive Entertainment",
+            },
+            {
+                "vendor_id": 0x046D,
+                "product_id": 0xC077,
+                "path": b"/dev/hidraw1",
+                "product_string": "G502 Mouse",
+                "manufacturer_string": "Logitech",
+            },  # Not a controller
         ]
 
         controllers = list_controllers()
         assert len(controllers) == 1
-        assert controllers[0]['vid'] == 0x054C
-        assert controllers[0]['pid'] == 0x0CE6
-        assert "DualSense" in controllers[0]['product']
+        assert controllers[0]["vid"] == 0x054C
+        assert controllers[0]["pid"] == 0x0CE6
+        assert "DualSense" in controllers[0]["product"]
 
 
 class TestPresenceTouchFile:
     """Test presence touch file creation."""
 
-    @patch('qoresence.lobes.controller.HIDDevice')
+    @patch("qoresence.lobes.controller.HIDDevice")
     def test_touch_file_created_on_input(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -446,7 +455,7 @@ class TestPresenceTouchFile:
             reports = [
                 _make_dualsense_report(buttons=0),
                 _make_dualsense_report(buttons=1),  # Button press
-                _make_dualsense_report(r2=100),     # Trigger
+                _make_dualsense_report(r2=100),  # Trigger
             ]
             fake_device = FakeHIDDevice(reports)
             mock_device_class.return_value = fake_device

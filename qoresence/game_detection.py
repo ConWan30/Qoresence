@@ -14,7 +14,6 @@ be fed back to update keyword weights over time.
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 import logging
@@ -22,9 +21,10 @@ import re
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Deque, Optional
+from typing import Any
 
 import cv2
 import numpy as np
@@ -45,7 +45,7 @@ from qoresence.core import (
 )
 from qoresence.core.types import EventType
 from qoresence.lobes.visual import VLMClient
-from qoresence.vision import VisionStack, VisionEvidence
+from qoresence.vision import VisionEvidence, VisionStack
 
 log = logging.getLogger(__name__)
 
@@ -53,9 +53,11 @@ log = logging.getLogger(__name__)
 # VOCABULARY DIFFERENTIATOR
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class GameVocabulary:
     """Weighted terminology dictionary for a single game profile."""
+
     profile_id: GameProfileId
     display_name: str
     keywords: dict[str, float] = field(default_factory=dict)
@@ -144,12 +146,14 @@ COD_VOCABULARY = GameVocabulary(
 # EVIDENCE & LEARNING DATA
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class DetectionEvidence:
     """A single piece of evidence (VLM or OCR)."""
+
     timestamp_ns: int
     source: str  # "vlm" or "ocr"
-    profile_id: Optional[GameProfileId]
+    profile_id: GameProfileId | None
     confidence: float
     details: dict[str, Any]
 
@@ -157,6 +161,7 @@ class DetectionEvidence:
 @dataclass
 class GameDetectionResult:
     """Fused detection result at a point in time."""
+
     profile_id: GameProfileId
     display_name: str
     confidence: float
@@ -170,21 +175,23 @@ class GameDetectionResult:
 @dataclass
 class LearningSample:
     """One captured sample for recursive learning."""
+
     timestamp_ns: int
     frame_hash: str
     ocr_text: str
     vlm_response: str
-    detected_profile: Optional[str]
+    detected_profile: str | None
     vlm_confidence: float
     ocr_confidence: float
     motion_camera: float = 0.0
     hud_regions: list[dict] = field(default_factory=list)
-    labeled_profile: Optional[str] = None
+    labeled_profile: str | None = None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # GAME AUTO-DETECTOR
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class GameAutoDetector:
     """
@@ -199,8 +206,8 @@ class GameAutoDetector:
         self,
         bus: RetinaEventBus,
         session_head_ns: int,
-        vlm_client: Optional[VLMClient] = None,
-        api_key: Optional[str] = None,
+        vlm_client: VLMClient | None = None,
+        api_key: str | None = None,
         model_endpoint: str = "https://integrate.api.nvidia.com/v1",
         model_name: str = "meta/llama-3.2-11b-vision-instruct",
         confidence_threshold: float = 0.65,
@@ -212,9 +219,9 @@ class GameAutoDetector:
         motion_weight: float = 0.15,
         use_vision_stack: bool = True,
         ocr_provider: str = "easyocr",
-        model_dir: Optional[Path] = None,
+        model_dir: Path | None = None,
         learning_enabled: bool = False,
-        learning_path: Optional[Path] = None,
+        learning_path: Path | None = None,
         game_profile: GameProfileId = GameProfileId.NCAA_FOOTBALL_27,
     ):
         self.bus = bus
@@ -224,14 +231,16 @@ class GameAutoDetector:
         if vlm_client is not None:
             self._vlm_client = vlm_client
         elif api_key:
-            self._vlm_client = VLMClient(VisualConfig(
-                enabled=True,
-                api_key=api_key,
-                model_endpoint=model_endpoint,
-                model_name=model_name,
-                frame_sample_rate=1,
-                game_category="unknown",
-            ))
+            self._vlm_client = VLMClient(
+                VisualConfig(
+                    enabled=True,
+                    api_key=api_key,
+                    model_endpoint=model_endpoint,
+                    model_name=model_name,
+                    frame_sample_rate=1,
+                    game_category="unknown",
+                )
+            )
         else:
             self._vlm_client = None
 
@@ -240,15 +249,24 @@ class GameAutoDetector:
         _prefer_local_env = False
         try:
             import os as _os
-            _prefer_local_env = _os.environ.get("QORESENCE_VISUAL_PREFER_LOCAL", "").lower() in ("1","true","yes","on")
+
+            _prefer_local_env = _os.environ.get("QORESENCE_VISUAL_PREFER_LOCAL", "").lower() in (
+                "1",
+                "true",
+                "yes",
+                "on",
+            )
         except Exception:
             pass
         if self._vlm_client is None and _prefer_local_env:
             try:
                 from qoresence.vision.local_vlm import LocalVLMClient as _LC
+
                 _local_path = _os.environ.get("QORESENCE_VISUAL_LOCAL_MODEL") or None
                 self._vlm_client = _LC(model_path=_local_path)  # type: ignore[assignment]
-                log.info(f"GameAutoDetector using LocalVLMClient (prefer_local env, path={_local_path or 'models/qoresence-vlm-distilled.onnx'})")
+                log.info(
+                    f"GameAutoDetector using LocalVLMClient (prefer_local env, path={_local_path or 'models/qoresence-vlm-distilled.onnx'})"
+                )
             except Exception as e:
                 log.debug(f"LocalVLM for GameAutoDetector not available: {e}")
 
@@ -264,6 +282,7 @@ class GameAutoDetector:
         self._use_vision_stack = use_vision_stack and self._vlm_client is not None
         if self._use_vision_stack:
             from qoresence.vision import create_ocr_provider
+
             self._vision_stack = VisionStack(
                 vlm_client=self._vlm_client,
                 ocr_provider=create_ocr_provider(ocr_provider, vlm_client=self._vlm_client),
@@ -275,8 +294,8 @@ class GameAutoDetector:
         else:
             self._vision_stack = None
 
-        self._frame_provider: Optional[Callable[[], Optional[np.ndarray]]] = None
-        self._profile_switch_callback: Optional[Callable[[GameProfileId], None]] = None
+        self._frame_provider: Callable[[], np.ndarray | None] | None = None
+        self._profile_switch_callback: Callable[[GameProfileId], None] | None = None
 
         self._vocabularies: dict[GameProfileId, GameVocabulary] = {
             GameProfileId.NCAA_FOOTBALL_27: NCAA_VOCABULARY,
@@ -284,9 +303,9 @@ class GameAutoDetector:
         }
         self._all_profiles = tuple(self._vocabularies.keys())
 
-        self._evidence: Deque[DetectionEvidence] = deque()
-        self._current_result: Optional[GameDetectionResult] = None
-        self._last_emitted_profile: Optional[GameProfileId] = None
+        self._evidence: deque[DetectionEvidence] = deque()
+        self._current_result: GameDetectionResult | None = None
+        self._last_emitted_profile: GameProfileId | None = None
         self._consecutive_detections: int = 0
 
         self._learning_enabled = learning_enabled
@@ -294,13 +313,13 @@ class GameAutoDetector:
         self._learning_samples: list[LearningSample] = []
 
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
     # ──────────────────────────────────────────────────────────────────────────
 
-    def set_frame_provider(self, provider: Callable[[], Optional[np.ndarray]]) -> None:
+    def set_frame_provider(self, provider: Callable[[], np.ndarray | None]) -> None:
         """Set frame provider (e.g., streamer or screen lobe)."""
         self._frame_provider = provider
 
@@ -320,7 +339,9 @@ class GameAutoDetector:
 
         self._running = True
         # Models warm up lazily on first use so start() returns immediately
-        self._thread = threading.Thread(target=self._run_loop, name="qoresence-game-detect", daemon=True)
+        self._thread = threading.Thread(
+            target=self._run_loop, name="qoresence-game-detect", daemon=True
+        )
         self._thread.start()
 
         log.info(
@@ -347,7 +368,7 @@ class GameAutoDetector:
     def is_running(self) -> bool:
         return self._running
 
-    def get_current_detection(self) -> Optional[GameDetectionResult]:
+    def get_current_detection(self) -> GameDetectionResult | None:
         with self._lock():
             return self._current_result
 
@@ -421,12 +442,17 @@ class GameAutoDetector:
                     source="vlm",
                     profile_id=vision.vlm_game,
                     confidence=vision.vlm_confidence,
-                    details={"raw_response": vision.vlm_response, "hud_regions": len(vision.hud_regions)},
+                    details={
+                        "raw_response": vision.vlm_response,
+                        "hud_regions": len(vision.hud_regions),
+                    },
                 )
                 self._evidence.append(vlm_evidence)
 
             # OCR vocabulary evidence
-            ocr_evidence = self._score_ocr_text(vision.timestamp_ns, vision.ocr_text, vision.ocr_provider)
+            ocr_evidence = self._score_ocr_text(
+                vision.timestamp_ns, vision.ocr_text, vision.ocr_provider
+            )
             if ocr_evidence:
                 self._evidence.append(ocr_evidence)
 
@@ -480,7 +506,7 @@ class GameAutoDetector:
 
         self._maybe_emit_and_switch(result)
 
-    def _maybe_emit_and_switch(self, result: Optional[GameDetectionResult]) -> None:
+    def _maybe_emit_and_switch(self, result: GameDetectionResult | None) -> None:
         if result is None:
             log.debug("_maybe_emit_and_switch: no result")
             return
@@ -515,7 +541,7 @@ class GameAutoDetector:
     # EVIDENCE COLLECTION
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _get_frame(self) -> Optional[np.ndarray]:
+    def _get_frame(self) -> np.ndarray | None:
         if self._frame_provider is None:
             return None
         try:
@@ -524,7 +550,7 @@ class GameAutoDetector:
             log.warning(f"Frame provider error: {e}")
             return None
 
-    def _collect_vlm_evidence(self, frame: np.ndarray) -> Optional[DetectionEvidence]:
+    def _collect_vlm_evidence(self, frame: np.ndarray) -> DetectionEvidence | None:
         if self._vlm_client is None:
             return None
 
@@ -560,7 +586,7 @@ class GameAutoDetector:
             details=details,
         )
 
-    def _collect_ocr_evidence(self, frame: np.ndarray) -> Optional[DetectionEvidence]:
+    def _collect_ocr_evidence(self, frame: np.ndarray) -> DetectionEvidence | None:
         """Run OCR on a downscaled grayscale copy and score both vocabularies."""
         if pytesseract is None:
             return None
@@ -577,7 +603,7 @@ class GameAutoDetector:
                 return None
 
             # Score each vocabulary
-            best_profile: Optional[GameProfileId] = None
+            best_profile: GameProfileId | None = None
             best_score = 0.0
             for profile_id, vocab in self._vocabularies.items():
                 score = vocab.score_text(text)
@@ -592,7 +618,10 @@ class GameAutoDetector:
                     source="ocr",
                     profile_id=None,
                     confidence=0.3,
-                    details={"ocr_text": text[:500], "scores": {p.value: 0.0 for p in self._vocabularies}},
+                    details={
+                        "ocr_text": text[:500],
+                        "scores": {p.value: 0.0 for p in self._vocabularies},
+                    },
                 )
 
             return DetectionEvidence(
@@ -600,19 +629,24 @@ class GameAutoDetector:
                 source="ocr",
                 profile_id=best_profile,
                 confidence=min(best_score, 1.0),
-                details={"ocr_text": text[:500], "scores": {p.value: v.score_text(text) for p, v in self._vocabularies.items()}},
+                details={
+                    "ocr_text": text[:500],
+                    "scores": {p.value: v.score_text(text) for p, v in self._vocabularies.items()},
+                },
             )
 
         except Exception as e:
             log.warning(f"OCR evidence collection failed: {e}")
             return None
 
-    def _score_ocr_text(self, timestamp_ns: int, text: str, provider: str) -> Optional[DetectionEvidence]:
+    def _score_ocr_text(
+        self, timestamp_ns: int, text: str, provider: str
+    ) -> DetectionEvidence | None:
         """Score OCR text against game vocabularies and return evidence."""
         if not text:
             return None
 
-        best_profile: Optional[GameProfileId] = None
+        best_profile: GameProfileId | None = None
         best_score = 0.0
         for profile_id, vocab in self._vocabularies.items():
             score = vocab.score_text(text)
@@ -635,7 +669,7 @@ class GameAutoDetector:
             },
         )
 
-    def _motion_evidence(self, timestamp_ns: int, motion: Any) -> Optional[DetectionEvidence]:
+    def _motion_evidence(self, timestamp_ns: int, motion: Any) -> DetectionEvidence | None:
         """Convert motion analysis into a detection evidence."""
         cam = motion.camera_velocity
         obj = motion.object_velocity
@@ -695,7 +729,7 @@ class GameAutoDetector:
             )
 
         # Accumulate per-profile scores
-        scores: dict[GameProfileId, float] = {p: 0.0 for p in self._all_profiles}
+        scores: dict[GameProfileId, float] = dict.fromkeys(self._all_profiles, 0.0)
         counts: dict[str, int] = {"vlm": 0, "ocr": 0, "motion": 0}
         vlm_total = 0.0
         ocr_total = 0.0
@@ -792,7 +826,17 @@ class GameAutoDetector:
             vlm_confidence=vision.vlm_confidence,
             ocr_confidence=vision.ocr_confidence,
             motion_camera=motion_camera,
-            hud_regions=[{"label": r.label, "x1": r.x1, "y1": r.y1, "x2": r.x2, "y2": r.y2, "conf": r.confidence} for r in vision.hud_regions],
+            hud_regions=[
+                {
+                    "label": r.label,
+                    "x1": r.x1,
+                    "y1": r.y1,
+                    "x2": r.x2,
+                    "y2": r.y2,
+                    "conf": r.confidence,
+                }
+                for r in vision.hud_regions
+            ],
         )
 
         self._learning_samples.append(sample)
@@ -813,18 +857,24 @@ class GameAutoDetector:
         try:
             with self._learning_path.open("a", encoding="utf-8") as f:
                 for sample in self._learning_samples:
-                    f.write(json.dumps({
-                        "timestamp_ns": sample.timestamp_ns,
-                        "frame_hash": sample.frame_hash,
-                        "ocr_text": sample.ocr_text,
-                        "vlm_response": sample.vlm_response,
-                        "detected_profile": sample.detected_profile,
-                        "vlm_confidence": sample.vlm_confidence,
-                        "ocr_confidence": sample.ocr_confidence,
-                        "motion_camera": sample.motion_camera,
-                        "hud_regions": sample.hud_regions,
-                        "labeled_profile": sample.labeled_profile,
-                    }, separators=(",", ":")) + "\n")
+                    f.write(
+                        json.dumps(
+                            {
+                                "timestamp_ns": sample.timestamp_ns,
+                                "frame_hash": sample.frame_hash,
+                                "ocr_text": sample.ocr_text,
+                                "vlm_response": sample.vlm_response,
+                                "detected_profile": sample.detected_profile,
+                                "vlm_confidence": sample.vlm_confidence,
+                                "ocr_confidence": sample.ocr_confidence,
+                                "motion_camera": sample.motion_camera,
+                                "hud_regions": sample.hud_regions,
+                                "labeled_profile": sample.labeled_profile,
+                            },
+                            separators=(",", ":"),
+                        )
+                        + "\n"
+                    )
             self._learning_samples.clear()
         except Exception as e:
             log.warning(f"Failed to save game detection learning data: {e}")
@@ -834,7 +884,7 @@ class GameAutoDetector:
     # ──────────────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _parse_game_response(raw: str) -> tuple[Optional[GameProfileId], float]:
+    def _parse_game_response(raw: str) -> tuple[GameProfileId | None, float]:
         """Parse VLM response in GAME: <label> CONFIDENCE: <number> format."""
         if not raw:
             return None, 0.0
@@ -868,7 +918,7 @@ class GameAutoDetector:
 def create_game_detector(
     bus: RetinaEventBus,
     session_head_ns: int,
-    vlm_client: Optional[VLMClient] = None,
+    vlm_client: VLMClient | None = None,
     **kwargs,
 ) -> GameAutoDetector:
     """Factory for GameAutoDetector."""

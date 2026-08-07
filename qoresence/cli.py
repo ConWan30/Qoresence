@@ -37,6 +37,7 @@ from qoresence.lobes import (
 # Optional trio-retina
 try:
     from qoresence.trio import TrioRetinaConfig
+
     TRIO_AVAILABLE = True
 except ImportError:
     TRIO_AVAILABLE = False
@@ -48,6 +49,7 @@ log = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 # GLOBAL STATE
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class QoresenceApp:
     """Main application coordinator."""
@@ -153,9 +155,13 @@ class QoresenceApp:
                 stability_count=self.config.game_detection.stability_count,
                 poll_interval_s=self.config.game_detection.poll_interval_s,
                 learning_enabled=self.config.game_detection.learning_enabled,
-                learning_path=Path(self.config.game_detection.learning_path) if self.config.game_detection.learning_path else None,
+                learning_path=Path(self.config.game_detection.learning_path)
+                if self.config.game_detection.learning_path
+                else None,
                 ocr_provider=self.config.game_detection.ocr_provider,
-                model_dir=Path(self.config.game_detection.vision_model_dir) if self.config.game_detection.vision_model_dir else None,
+                model_dir=Path(self.config.game_detection.vision_model_dir)
+                if self.config.game_detection.vision_model_dir
+                else None,
                 game_profile=self.config.outcome.game_profile,
             )
             log.info("Game auto-detector initialized")
@@ -180,33 +186,42 @@ class QoresenceApp:
         """Connect lobe outputs to each other (cross-lobe integration)."""
         # Screen ← Controller (for coupling)
         if self.screen and self.controller:
+
             def controller_provider():
                 # Return recent trigger/stick state as feature vector
                 stats = self.controller.get_stats()
-                return [stats.get('last_trigger', 0.0), stats.get('stick_motion', 0.0)]
+                return [stats.get("last_trigger", 0.0), stats.get("stick_motion", 0.0)]
+
             self.screen.set_controller_provider(controller_provider)
 
         # Visual ← Streamer/Screen (for frame provider)
         if self.visual:
             if self.streamer:
+
                 def frame_provider():
                     return self.streamer.get_current_frame()
+
                 self.visual.set_frame_provider(frame_provider)
             elif self.screen:
+
                 def frame_provider():
                     return self.screen.get_current_frame()
+
                 self.visual.set_frame_provider(frame_provider)
 
             # Visual ← Outcome/Controller/Screen (for cross-modal)
             def modality_provider():
                 modalities = {}
                 if self.outcome:
-                    modalities['outcome'] = self.outcome.get_last_state()
+                    modalities["outcome"] = self.outcome.get_last_state()
                 if self.controller:
-                    modalities['controller'] = self.controller.get_stats()
+                    modalities["controller"] = self.controller.get_stats()
                 if self.screen:
-                    modalities['screen'] = {'coupling_score': 0.0}  # Would need screen coupling access
+                    modalities["screen"] = {
+                        "coupling_score": 0.0
+                    }  # Would need screen coupling access
                 return modalities
+
             self.visual.set_modality_provider(modality_provider)
 
         # Game detector ← Streamer/Screen (frames) and → Outcome (profile switch)
@@ -222,8 +237,10 @@ class QoresenceApp:
                 )
 
             if self.outcome:
+
                 def switch_profile(profile_id):
                     self.outcome.set_game_profile(profile_id)
+
                 self.game_detector.set_profile_switch_callback(switch_profile)
 
         # Fusion ← All lobes (lobe status updates)
@@ -243,26 +260,32 @@ class QoresenceApp:
         if self.trio_config and self.trio_config.enabled:
             # Visual oracle root provider
             if self.visual:
+
                 def visual_root_provider():
                     # Get latest visual context state root
                     ctx = self.visual.get_last_context()
                     if ctx and ctx.confidence > 0.5:
                         import hashlib
+
                         state_str = f"{ctx.game_state}:{ctx.confidence}:{ctx.details}"
                         return hashlib.sha256(state_str.encode()).hexdigest()
                     return "b" * 64  # mock fallback
+
                 self.bus._visual_oracle_root_provider = visual_root_provider
 
             # PoSP root provider
             if self.outcome:
+
                 def posp_root_provider():
                     # Get latest outcome session root
                     state = self.outcome.get_last_state()
-                    if state and state.get('last_event'):
+                    if state and state.get("last_event"):
                         import hashlib
-                        state_str = f"{state['last_event']}:{state.get('home_score',0)}:{state.get('away_score',0)}"
+
+                        state_str = f"{state['last_event']}:{state.get('home_score', 0)}:{state.get('away_score', 0)}"
                         return hashlib.sha256(state_str.encode()).hexdigest()
                     return "c" * 64  # mock fallback
+
                 self.bus._posp_root_provider = posp_root_provider
 
     def start(self) -> bool:
@@ -287,7 +310,9 @@ class QoresenceApp:
             return False
 
         if self.controller and not self.controller.start():
-            log.warning("Controller failed to start (HID busy/permissions) — continuing without controller; coupling_score will be 0 until replug")
+            log.warning(
+                "Controller failed to start (HID busy/permissions) — continuing without controller; coupling_score will be 0 until replug"
+            )
             # don't return False — screen+visual still produce 10k
 
         if self.outcome:
@@ -388,6 +413,7 @@ class QoresenceApp:
 # HEALTH CHECKS
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def run_health_checks(app: QoresenceApp) -> dict:
     """Run health checks on all components."""
     checks = {
@@ -398,7 +424,7 @@ def run_health_checks(app: QoresenceApp) -> dict:
     }
 
     # Check event bus
-    bus_stats = (app.bus.stats() if hasattr(app.bus, "stats") else app.bus.get_stats())  # type: ignore
+    bus_stats = app.bus.stats() if hasattr(app.bus, "stats") else app.bus.get_stats()  # type: ignore
     checks["components"]["event_bus"] = {
         "status": "healthy" if bus_stats.get("subscribers", 0) >= 0 else "degraded",
         "details": bus_stats,
@@ -463,6 +489,7 @@ def run_health_checks(app: QoresenceApp) -> dict:
 # CLI ENTRY POINT
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def setup_logging(level: str = "INFO") -> None:
     """Configure logging."""
     logging.basicConfig(
@@ -490,6 +517,7 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
     if args.stream and not args.screen and not args.streamer:
         try:
             import importlib.util
+
             if importlib.util.find_spec("mss"):
                 args.screen = True
                 args.screen_fps = min(args.screen_fps, 5.0)
@@ -501,8 +529,12 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
     if args.stream:
         config.enable_ws = True
         config.outcome = replace(config.outcome, enabled=True, game_profile=args.game_profile)
-        config.visual = replace(config.visual, enabled=True, frame_sample_rate=args.visual_sample_rate)
-        config.game_detection = replace(config.game_detection, enabled=getattr(args, "game_detect", True))
+        config.visual = replace(
+            config.visual, enabled=True, frame_sample_rate=args.visual_sample_rate
+        )
+        config.game_detection = replace(
+            config.game_detection, enabled=getattr(args, "game_detect", True)
+        )
 
     if getattr(args, "game_detect", False):
         config.game_detection = replace(config.game_detection, enabled=True)
@@ -512,19 +544,30 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
     # Game detection tuning
     config.game_detection = replace(
         config.game_detection,
-        confidence_threshold=getattr(args, "game_detect_confidence", config.game_detection.confidence_threshold),
-        stability_count=getattr(args, "game_detect_stability", config.game_detection.stability_count),
+        confidence_threshold=getattr(
+            args, "game_detect_confidence", config.game_detection.confidence_threshold
+        ),
+        stability_count=getattr(
+            args, "game_detect_stability", config.game_detection.stability_count
+        ),
         poll_interval_s=getattr(args, "game_detect_poll", config.game_detection.poll_interval_s),
     )
 
     # Honor VisualConfig env overrides even when launched via --stream (fix 401 fallback)
     import os as _os
-    _prefer = _os.environ.get("QORESENCE_VISUAL_PREFER_LOCAL", "").lower() in ("1", "true", "yes", "on")
+
+    _prefer = _os.environ.get("QORESENCE_VISUAL_PREFER_LOCAL", "").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
     _fallback_env = _os.environ.get("QORESENCE_VISUAL_LOCAL_FALLBACK", "")
     _fallback = True if _fallback_env == "" else _fallback_env.lower() in ("1", "true", "yes", "on")
     _local_model = _os.environ.get("QORESENCE_VISUAL_LOCAL_MODEL") or None
     if _prefer or _local_model is not None or _fallback_env != "":
         from dataclasses import replace as _replace2
+
         config.visual = _replace2(
             config.visual,
             prefer_local=_prefer or config.visual.prefer_local,
@@ -534,6 +577,7 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
     # CLI flag override (if added)
     if getattr(args, "visual_prefer_local", False):
         from dataclasses import replace as _replace3
+
         config.visual = _replace3(config.visual, prefer_local=True)
 
     # Enable lobes based on flags
@@ -548,7 +592,9 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             fps_target=args.streamer_fps,
         )
     if args.controller:
-        config.controller = replace(config.controller, enabled=True, poll_rate_hz=args.controller_rate)
+        config.controller = replace(
+            config.controller, enabled=True, poll_rate_hz=args.controller_rate
+        )
     if args.outcome:
         config.outcome = replace(config.outcome, enabled=True, game_profile=args.game_profile)
     if args.screen:
@@ -559,7 +605,9 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             _vlm_extra["local_model_path"] = args.visual_local_model
         if getattr(args, "visual_prefer_local", False):
             _vlm_extra["prefer_local"] = True
-        config.visual = replace(config.visual, enabled=True, frame_sample_rate=args.visual_sample_rate, **_vlm_extra)
+        config.visual = replace(
+            config.visual, enabled=True, frame_sample_rate=args.visual_sample_rate, **_vlm_extra
+        )
 
     # ClutchBot agent (explicit or via --stream preset)
     if args.clutchbot or args.stream:
@@ -619,21 +667,42 @@ def main():
 
     # Lobes
     parser.add_argument("--streamer", action="store_true", help="Enable streamer lobe (UVC/OBS)")
-    parser.add_argument("--streamer-list", action="store_true", help="List DirectShow capture devices and exit")
+    parser.add_argument(
+        "--streamer-list", action="store_true", help="List DirectShow capture devices and exit"
+    )
     parser.add_argument("--streamer-fps", type=float, default=30.0, help="Streamer capture FPS")
-    parser.add_argument("--streamer-device", type=int, default=0, help="Streamer DShow/MSMF device index (0=USB3.0 Video, 1=720p HD Camera [blocked], 2=OBS Virtual Camera)")
-    parser.add_argument("--streamer-backend", choices=["auto", "dshow", "msmf"], default="dshow", help="Capture backend (dshow recommended for USB3.0 Video, msmf for some cards)")
+    parser.add_argument(
+        "--streamer-device",
+        type=int,
+        default=0,
+        help="Streamer DShow/MSMF device index (0=USB3.0 Video, 1=720p HD Camera [blocked], 2=OBS Virtual Camera)",
+    )
+    parser.add_argument(
+        "--streamer-backend",
+        choices=["auto", "dshow", "msmf"],
+        default="dshow",
+        help="Capture backend (dshow recommended for USB3.0 Video, msmf for some cards)",
+    )
     parser.add_argument("--streamer-width", type=int, default=1280, help="Capture width")
     parser.add_argument("--streamer-height", type=int, default=720, help="Capture height")
     parser.add_argument("--controller", action="store_true", help="Enable controller lobe (HID)")
-    parser.add_argument("--controller-rate", type=float, default=1000.0, help="Controller poll rate (Hz)")
+    parser.add_argument(
+        "--controller-rate", type=float, default=1000.0, help="Controller poll rate (Hz)"
+    )
     parser.add_argument("--outcome", action="store_true", help="Enable outcome lobe (game events)")
     parser.add_argument(
         "--game-profile",
         choices=[
-            "ncaa_football_27", "call_of_duty",
-            "madden_27", "madden_2027", "ncaa_27", "college_football_27",
-            "ea_sports_college_football_27", "cod", "modern_warfare", "warzone",
+            "ncaa_football_27",
+            "call_of_duty",
+            "madden_27",
+            "madden_2027",
+            "ncaa_27",
+            "college_football_27",
+            "ea_sports_college_football_27",
+            "cod",
+            "modern_warfare",
+            "warzone",
         ],
         default="ncaa_football_27",
         help="Game profile (supports common aliases)",
@@ -641,50 +710,139 @@ def main():
     parser.add_argument("--screen", action="store_true", help="Enable screen lobe (mss/DXGI)")
     parser.add_argument("--screen-fps", type=float, default=60.0, help="Screen capture FPS")
     parser.add_argument("--visual", action="store_true", help="Enable visual lobe (VLM)")
-    parser.add_argument("--visual-sample-rate", type=int, default=30, help="Visual frame sample rate")
-    parser.add_argument("--visual-prefer-local", action="store_true", help="Use LocalVLMClient (heuristic/ONNX) instead of cloud VLM")
-    parser.add_argument("--visual-local-model", default=None, help="Path to qoresence-vlm-distilled.onnx")
+    parser.add_argument(
+        "--visual-sample-rate", type=int, default=30, help="Visual frame sample rate"
+    )
+    parser.add_argument(
+        "--visual-prefer-local",
+        action="store_true",
+        help="Use LocalVLMClient (heuristic/ONNX) instead of cloud VLM",
+    )
+    parser.add_argument(
+        "--visual-local-model", default=None, help="Path to qoresence-vlm-distilled.onnx"
+    )
 
     # Game detection (rich visual context for outcome/clutchbot)
-    parser.add_argument("--game-detect", action="store_true", help="Enable game auto-detection (enabled by --stream)")
-    parser.add_argument("--no-game-detect", action="store_true", help="Disable game auto-detection even in --stream")
-    parser.add_argument("--game-detect-confidence", type=float, default=0.65, help="Game detection confidence threshold")
-    parser.add_argument("--game-detect-stability", type=int, default=2, help="Consecutive detections required")
-    parser.add_argument("--game-detect-poll", type=float, default=3.0, help="Game detection poll interval (s)")
+    parser.add_argument(
+        "--game-detect",
+        action="store_true",
+        help="Enable game auto-detection (enabled by --stream)",
+    )
+    parser.add_argument(
+        "--no-game-detect", action="store_true", help="Disable game auto-detection even in --stream"
+    )
+    parser.add_argument(
+        "--game-detect-confidence",
+        type=float,
+        default=0.65,
+        help="Game detection confidence threshold",
+    )
+    parser.add_argument(
+        "--game-detect-stability", type=int, default=2, help="Consecutive detections required"
+    )
+    parser.add_argument(
+        "--game-detect-poll", type=float, default=3.0, help="Game detection poll interval (s)"
+    )
 
     # ClutchBot (Twitch agent)
     parser.add_argument("--clutchbot", action="store_true", help="Enable ClutchBot Twitch agent")
-    parser.add_argument("--clutchbot-channel", default="", help="Twitch channel for the bot to join (no #)")
+    parser.add_argument(
+        "--clutchbot-channel", default="", help="Twitch channel for the bot to join (no #)"
+    )
     parser.add_argument("--clutchbot-username", default="", help="Twitch bot username")
     parser.add_argument("--clutchbot-token", default=None, help="Twitch bot OAuth token")
-    parser.add_argument("--clutchbot-token-file", default=None, help="File containing the Twitch bot OAuth token")
-    parser.add_argument("--clutchbot-helix-token", default=None, help="Twitch Helix access token (for clips/predictions)")
-    parser.add_argument("--clutchbot-helix-token-file", default=None, help="File containing the Twitch Helix token")
+    parser.add_argument(
+        "--clutchbot-token-file", default=None, help="File containing the Twitch bot OAuth token"
+    )
+    parser.add_argument(
+        "--clutchbot-helix-token",
+        default=None,
+        help="Twitch Helix access token (for clips/predictions)",
+    )
+    parser.add_argument(
+        "--clutchbot-helix-token-file", default=None, help="File containing the Twitch Helix token"
+    )
     parser.add_argument("--clutchbot-client-id", default=None, help="Twitch application Client ID")
-    parser.add_argument("--clutchbot-client-secret", default=None, help="Twitch application Client Secret")
-    parser.add_argument("--clutchbot-broadcaster-id", default=None, help="Twitch broadcaster user ID")
-    parser.add_argument("--clutchbot-broadcaster-username", default=None, help="Twitch broadcaster login name")
-    parser.add_argument("--clutchbot-interval", type=float, default=2.0, help="Minimum seconds between sent IRC messages")
-    parser.add_argument("--clutchbot-no-chat", action="store_true", help="Disable chat/greeting actions")
-    parser.add_argument("--clutchbot-enable-clips", action="store_true", help="Create clips on clutch moments")
-    parser.add_argument("--clutchbot-no-clip-delay", action="store_true", help="Disable delay when creating clips (default: has delay)")
-    parser.add_argument("--clutchbot-enable-predictions", action="store_true", help="Start channel-point predictions")
-    parser.add_argument("--clutchbot-enable-follow-alerts", action="store_true", help="EventSub follow alerts")
-    parser.add_argument("--clutchbot-enable-sub-alerts", action="store_true", help="EventSub subscription alerts")
-    parser.add_argument("--clutchbot-enable-redemption-alerts", action="store_true", help="EventSub redemption alerts")
+    parser.add_argument(
+        "--clutchbot-client-secret", default=None, help="Twitch application Client Secret"
+    )
+    parser.add_argument(
+        "--clutchbot-broadcaster-id", default=None, help="Twitch broadcaster user ID"
+    )
+    parser.add_argument(
+        "--clutchbot-broadcaster-username", default=None, help="Twitch broadcaster login name"
+    )
+    parser.add_argument(
+        "--clutchbot-interval",
+        type=float,
+        default=2.0,
+        help="Minimum seconds between sent IRC messages",
+    )
+    parser.add_argument(
+        "--clutchbot-no-chat", action="store_true", help="Disable chat/greeting actions"
+    )
+    parser.add_argument(
+        "--clutchbot-enable-clips", action="store_true", help="Create clips on clutch moments"
+    )
+    parser.add_argument(
+        "--clutchbot-no-clip-delay",
+        action="store_true",
+        help="Disable delay when creating clips (default: has delay)",
+    )
+    parser.add_argument(
+        "--clutchbot-enable-predictions",
+        action="store_true",
+        help="Start channel-point predictions",
+    )
+    parser.add_argument(
+        "--clutchbot-enable-follow-alerts", action="store_true", help="EventSub follow alerts"
+    )
+    parser.add_argument(
+        "--clutchbot-enable-sub-alerts", action="store_true", help="EventSub subscription alerts"
+    )
+    parser.add_argument(
+        "--clutchbot-enable-redemption-alerts",
+        action="store_true",
+        help="EventSub redemption alerts",
+    )
 
     # Trio-retina (w3bstream validation)
-    parser.add_argument("--trio", action="store_true", help="Enable trio-retina w3bstream validation")
-    parser.add_argument("--trio-wasm-path", default="w3bstream_applet.wasm", help="Path to w3bstream applet WASM")
-    parser.add_argument("--trio-validate-on-ingest", action="store_true", help="Validate each event at ingestion")
-    parser.add_argument("--trio-validate-on-flush", action="store_true", default=True, help="Validate batched events periodically")
-    parser.add_argument("--trio-flush-interval", type=float, default=30.0, help="Batch flush interval (seconds)")
-    parser.add_argument("--trio-block-rpc", default="https://babel-api.testnet.iotex.io", help="IoTeX RPC for block number")
-    parser.add_argument("--trio-node-session-verify", action="store_true", help="Enable DEPIN-1 LEG 2 node/session gate")
-    parser.add_argument("--trio-events-root-verify", action="store_true", help="Verify events root (merkle)")
+    parser.add_argument(
+        "--trio", action="store_true", help="Enable trio-retina w3bstream validation"
+    )
+    parser.add_argument(
+        "--trio-wasm-path", default="w3bstream_applet.wasm", help="Path to w3bstream applet WASM"
+    )
+    parser.add_argument(
+        "--trio-validate-on-ingest", action="store_true", help="Validate each event at ingestion"
+    )
+    parser.add_argument(
+        "--trio-validate-on-flush",
+        action="store_true",
+        default=True,
+        help="Validate batched events periodically",
+    )
+    parser.add_argument(
+        "--trio-flush-interval", type=float, default=30.0, help="Batch flush interval (seconds)"
+    )
+    parser.add_argument(
+        "--trio-block-rpc",
+        default="https://babel-api.testnet.iotex.io",
+        help="IoTeX RPC for block number",
+    )
+    parser.add_argument(
+        "--trio-node-session-verify",
+        action="store_true",
+        help="Enable DEPIN-1 LEG 2 node/session gate",
+    )
+    parser.add_argument(
+        "--trio-events-root-verify", action="store_true", help="Verify events root (merkle)"
+    )
 
     # Options
-    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
+    parser.add_argument(
+        "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
+    )
     parser.add_argument("--health-check", action="store_true", help="Run health checks and exit")
     parser.add_argument("--dry-run", action="store_true", help="Initialize but don't start lobes")
 
@@ -692,6 +850,7 @@ def main():
 
     if args.streamer_list:
         from qoresence.lobes.streamer import list_dshow_devices
+
         devices = list_dshow_devices()
         if not devices:
             print("No DirectShow capture devices found (pygrabber may not be installed).")  # noqa: T201
@@ -711,13 +870,21 @@ def main():
     if TRIO_AVAILABLE and trio_enabled:
         trio_config = TrioRetinaConfig(
             enabled=True,
-            wasm_path=args.trio_wasm_path or os.environ.get("QORESENCE_TRIO_WASM_PATH", "w3bstream_applet.wasm"),
-            validate_on_ingest=args.trio_validate_on_ingest or os.environ.get("QORESENCE_TRIO_VALIDATE_ON_INGEST", "0") == "1",
-            validate_on_flush=args.trio_validate_on_flush or os.environ.get("QORESENCE_TRIO_VALIDATE_ON_FLUSH", "1") == "1",
-            flush_interval_s=float(args.trio_flush_interval or os.environ.get("QORESENCE_TRIO_FLUSH_INTERVAL", "30.0")),
-            block_rpc_url=args.trio_block_rpc or os.environ.get("QORESENCE_TRIO_BLOCK_RPC", "https://babel-api.testnet.iotex.io"),
-            node_session_verify=args.trio_node_session_verify or os.environ.get("QORESENCE_TRIO_NODE_SESSION_VERIFY", "0") == "1",
-            retina_events_root_verify=args.trio_events_root_verify or os.environ.get("QORESENCE_TRIO_EVENTS_ROOT_VERIFY", "0") == "1",
+            wasm_path=args.trio_wasm_path
+            or os.environ.get("QORESENCE_TRIO_WASM_PATH", "w3bstream_applet.wasm"),
+            validate_on_ingest=args.trio_validate_on_ingest
+            or os.environ.get("QORESENCE_TRIO_VALIDATE_ON_INGEST", "0") == "1",
+            validate_on_flush=args.trio_validate_on_flush
+            or os.environ.get("QORESENCE_TRIO_VALIDATE_ON_FLUSH", "1") == "1",
+            flush_interval_s=float(
+                args.trio_flush_interval or os.environ.get("QORESENCE_TRIO_FLUSH_INTERVAL", "30.0")
+            ),
+            block_rpc_url=args.trio_block_rpc
+            or os.environ.get("QORESENCE_TRIO_BLOCK_RPC", "https://babel-api.testnet.iotex.io"),
+            node_session_verify=args.trio_node_session_verify
+            or os.environ.get("QORESENCE_TRIO_NODE_SESSION_VERIFY", "0") == "1",
+            retina_events_root_verify=args.trio_events_root_verify
+            or os.environ.get("QORESENCE_TRIO_EVENTS_ROOT_VERIFY", "0") == "1",
         )
         log.info("Trio-retina validation enabled")
 
@@ -743,6 +910,7 @@ def main():
     if args.health_check:
         checks = run_health_checks(app)
         import json
+
         print(json.dumps(checks, indent=2))  # noqa: T201
         sys.exit(0 if checks["overall"] == "healthy" else 1)
 

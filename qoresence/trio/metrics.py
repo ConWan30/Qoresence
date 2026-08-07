@@ -9,10 +9,23 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .config import TrioRetinaConfig
+    from .validator import TrioRetinaValidator
 
 try:
-    from prometheus_client import Counter, Gauge, Histogram, Info, generate_latest, CONTENT_TYPE_LATEST, CollectorRegistry
+    from prometheus_client import (
+        CONTENT_TYPE_LATEST,
+        CollectorRegistry,
+        Counter,
+        Gauge,
+        Histogram,
+        Info,
+        generate_latest,
+    )
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -20,10 +33,10 @@ except ImportError:
 
 
 # Custom registry for trio-retina metrics (avoids global registry conflicts in tests)
-_trio_registry: Optional["CollectorRegistry"] = None
+_trio_registry: CollectorRegistry | None = None
 
 
-def get_trio_registry() -> "CollectorRegistry":
+def get_trio_registry() -> CollectorRegistry:
     """Get or create trio-retina specific registry."""
     global _trio_registry
     if not PROMETHEUS_AVAILABLE:
@@ -44,83 +57,105 @@ class TrioRetinaMetrics:
     """Prometheus metrics for trio-retina validation layer."""
 
     # Validation counters
-    validations_total: "Counter" = field(default_factory=lambda: Counter(
-        "qoresence_trio_retina_validations_total",
-        "Total number of trio-retina validations performed",
-        ["result"],  # "success", "failure"
-        registry=get_trio_registry(),
-    ))
+    validations_total: Counter = field(
+        default_factory=lambda: Counter(
+            "qoresence_trio_retina_validations_total",
+            "Total number of trio-retina validations performed",
+            ["result"],  # "success", "failure"
+            registry=get_trio_registry(),
+        )
+    )
 
     # Validation latency
-    validation_duration_seconds: "Histogram" = field(default_factory=lambda: Histogram(
-        "qoresence_trio_retina_validation_duration_seconds",
-        "Time spent in trio-retina WASM validation",
-        buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
-        registry=get_trio_registry(),
-    ))
+    validation_duration_seconds: Histogram = field(
+        default_factory=lambda: Histogram(
+            "qoresence_trio_retina_validation_duration_seconds",
+            "Time spent in trio-retina WASM validation",
+            buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
+            registry=get_trio_registry(),
+        )
+    )
 
     # Payload size
-    payload_size_bytes: "Histogram" = field(default_factory=lambda: Histogram(
-        "qoresence_trio_retina_payload_size_bytes",
-        "Size of EvmLogPayload submitted for validation",
-        buckets=[100, 500, 1000, 2000, 5000, 10000, 20000, 50000],
-        registry=get_trio_registry(),
-    ))
+    payload_size_bytes: Histogram = field(
+        default_factory=lambda: Histogram(
+            "qoresence_trio_retina_payload_size_bytes",
+            "Size of EvmLogPayload submitted for validation",
+            buckets=[100, 500, 1000, 2000, 5000, 10000, 20000, 50000],
+            registry=get_trio_registry(),
+        )
+    )
 
     # Flush interval tracking
-    flush_interval_seconds: "Gauge" = field(default_factory=lambda: Gauge(
-        "qoresence_trio_retina_flush_interval_seconds",
-        "Configured flush interval for batch validation",
-        registry=get_trio_registry(),
-    ))
+    flush_interval_seconds: Gauge = field(
+        default_factory=lambda: Gauge(
+            "qoresence_trio_retina_flush_interval_seconds",
+            "Configured flush interval for batch validation",
+            registry=get_trio_registry(),
+        )
+    )
 
     # Last flush timestamp
-    last_flush_timestamp: "Gauge" = field(default_factory=lambda: Gauge(
-        "qoresence_trio_retina_last_flush_timestamp",
-        "Unix timestamp of last validation flush",
-        registry=get_trio_registry(),
-    ))
+    last_flush_timestamp: Gauge = field(
+        default_factory=lambda: Gauge(
+            "qoresence_trio_retina_last_flush_timestamp",
+            "Unix timestamp of last validation flush",
+            registry=get_trio_registry(),
+        )
+    )
 
     # Pending events in buffer
-    pending_events: "Gauge" = field(default_factory=lambda: Gauge(
-        "qoresence_trio_retina_pending_events",
-        "Number of events waiting in validation buffer",
-        registry=get_trio_registry(),
-    ))
+    pending_events: Gauge = field(
+        default_factory=lambda: Gauge(
+            "qoresence_trio_retina_pending_events",
+            "Number of events waiting in validation buffer",
+            registry=get_trio_registry(),
+        )
+    )
 
     # WASM runner status
-    wasm_runner_status: "Gauge" = field(default_factory=lambda: Gauge(
-        "qoresence_trio_retina_wasm_runner_status",
-        "WASM runner status (1=healthy, 0=error, -1=not initialized)",
-        registry=get_trio_registry(),
-    ))
+    wasm_runner_status: Gauge = field(
+        default_factory=lambda: Gauge(
+            "qoresence_trio_retina_wasm_runner_status",
+            "WASM runner status (1=healthy, 0=error, -1=not initialized)",
+            registry=get_trio_registry(),
+        )
+    )
 
     # PQ commitment source
-    pq_commitment_source: "Info" = field(default_factory=lambda: Info(
-        "qoresence_trio_retina_pq_commitment_source",
-        "PQ commitment generation mode",
-        registry=get_trio_registry(),
-    ))
+    pq_commitment_source: Info = field(
+        default_factory=lambda: Info(
+            "qoresence_trio_retina_pq_commitment_source",
+            "PQ commitment generation mode",
+            registry=get_trio_registry(),
+        )
+    )
 
     # Trio-retina enabled state
-    enabled: "Gauge" = field(default_factory=lambda: Gauge(
-        "qoresence_trio_retina_enabled",
-        "Whether trio-retina validation is enabled (1) or disabled (0)",
-        registry=get_trio_registry(),
-    ))
+    enabled: Gauge = field(
+        default_factory=lambda: Gauge(
+            "qoresence_trio_retina_enabled",
+            "Whether trio-retina validation is enabled (1) or disabled (0)",
+            registry=get_trio_registry(),
+        )
+    )
 
     # Node/Session verification flags
-    node_session_verify: "Gauge" = field(default_factory=lambda: Gauge(
-        "qoresence_trio_retina_node_session_verify",
-        "Whether node/session verification is enabled (1) or disabled (0)",
-        registry=get_trio_registry(),
-    ))
+    node_session_verify: Gauge = field(
+        default_factory=lambda: Gauge(
+            "qoresence_trio_retina_node_session_verify",
+            "Whether node/session verification is enabled (1) or disabled (0)",
+            registry=get_trio_registry(),
+        )
+    )
 
-    events_root_verify: "Gauge" = field(default_factory=lambda: Gauge(
-        "qoresence_trio_retina_events_root_verify",
-        "Whether events root verification is enabled (1) or disabled (0)",
-        registry=get_trio_registry(),
-    ))
+    events_root_verify: Gauge = field(
+        default_factory=lambda: Gauge(
+            "qoresence_trio_retina_events_root_verify",
+            "Whether events root verification is enabled (1) or disabled (0)",
+            registry=get_trio_registry(),
+        )
+    )
 
     def __post_init__(self):
         if not PROMETHEUS_AVAILABLE:
@@ -165,7 +200,7 @@ class TrioRetinaMetrics:
 
 
 # Global metrics instance
-_trio_metrics: Optional[TrioRetinaMetrics] = None
+_trio_metrics: TrioRetinaMetrics | None = None
 
 
 def get_trio_metrics() -> TrioRetinaMetrics:
@@ -187,7 +222,8 @@ def reset_trio_metrics():
 # Integration with TrioRetinaValidator
 # ──────────────────────────────────────────────────────────────────────
 
-def instrument_validator(validator: "TrioRetinaValidator") -> None:
+
+def instrument_validator(validator: TrioRetinaValidator) -> None:
     """
     Instrument a TrioRetinaValidator with Prometheus metrics.
 
@@ -257,6 +293,7 @@ def instrument_validator(validator: "TrioRetinaValidator") -> None:
 # HTTP /metrics endpoint (for aiohttp/FastAPI/Starlette)
 # ──────────────────────────────────────────────────────────────────────
 
+
 def create_metrics_endpoint():
     """
     Create a Prometheus /metrics endpoint handler.
@@ -264,13 +301,17 @@ def create_metrics_endpoint():
     Returns a callable compatible with aiohttp, FastAPI, Starlette, etc.
     """
     if not PROMETHEUS_AVAILABLE:
+
         async def not_available(request):
             from aiohttp import web
+
             return web.Response(text="prometheus_client not installed", status=503)
+
         return not_available
 
     async def metrics_handler(request):
         from aiohttp import web
+
         # Update metrics from event bus if available
         # This would be called periodically or on each request
         output = generate_latest()
@@ -282,6 +323,7 @@ def create_metrics_endpoint():
 # ──────────────────────────────────────────────────────────────────────
 # Middleware for automatic instrumentation
 # ──────────────────────────────────────────────────────────────────────
+
 
 class TrioRetinaMetricsMiddleware:
     """
@@ -307,7 +349,8 @@ class TrioRetinaMetricsMiddleware:
 # Convenience function for manual metric updates
 # ──────────────────────────────────────────────────────────────────────
 
-def update_trio_metrics_from_stats(stats: dict, config: "TrioRetinaConfig") -> None:
+
+def update_trio_metrics_from_stats(stats: dict, config: TrioRetinaConfig) -> None:
     """
     Update Prometheus metrics from validator stats dict.
 

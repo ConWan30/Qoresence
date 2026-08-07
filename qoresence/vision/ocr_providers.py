@@ -10,15 +10,16 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any
 
 import cv2
 import numpy as np
-import threading
 
 from qoresence.lobes.visual import VLMClient
+
 try:
     from qoresence.vision.local_vlm import LocalVLMClient
 except ImportError:
@@ -38,10 +39,11 @@ def _resize_for_ocr(frame: np.ndarray, max_dim: int = 640) -> np.ndarray:
 @dataclass
 class OCRResult:
     """Structured OCR output."""
+
     text: str
     confidence: float
     provider: str
-    raw_details: Optional[dict] = None
+    raw_details: dict | None = None
 
 
 class BaseOCRProvider(ABC):
@@ -55,6 +57,7 @@ class BaseOCRProvider(ABC):
 
     def warmup(self) -> None:
         """Optional initialization / model download."""
+        return None
 
 
 class VLMOCRProvider(BaseOCRProvider):
@@ -92,7 +95,9 @@ class VLMOCRProvider(BaseOCRProvider):
         # Strip common prose and normalize
         text = re.sub(r"(?i)^text[:\-]?\s*", "", text)
         text = re.sub(r"\n+", ", ", text)
-        return OCRResult(text=text, confidence=0.85, provider=self.name, raw_details={"raw_response": raw})
+        return OCRResult(
+            text=text, confidence=0.85, provider=self.name, raw_details={"raw_response": raw}
+        )
 
 
 class EasyOCRProvider(BaseOCRProvider):
@@ -104,18 +109,19 @@ class EasyOCRProvider(BaseOCRProvider):
     """
 
     name = "easyocr"
-    _shared_reader: Optional[Any] = None
+    _shared_reader: Any | None = None
     _shared_lock = threading.Lock()
 
     def __init__(self, languages: tuple[str, ...] = ("en",), gpu: bool = False):
         self._languages = languages
         self._gpu = gpu
-        self._reader: Optional[Any] = None  # type: ignore
+        self._reader: Any | None = None  # type: ignore
 
     def warmup(self) -> None:
         with self._shared_lock:
             if EasyOCRProvider._shared_reader is None:
                 import easyocr
+
                 log.info("EasyOCR downloading / loading models (first use only)...")
                 EasyOCRProvider._shared_reader = easyocr.Reader(
                     list(self._languages), gpu=self._gpu, verbose=False
@@ -131,7 +137,12 @@ class EasyOCRProvider(BaseOCRProvider):
         total_conf = sum(conf for (_bbox, _text, conf) in bboxes if _text)
         joined = ", ".join(parts)
         avg_conf = total_conf / len(parts) if parts else 0.0
-        return OCRResult(text=joined, confidence=avg_conf, provider=self.name, raw_details={"detections": len(parts)})
+        return OCRResult(
+            text=joined,
+            confidence=avg_conf,
+            provider=self.name,
+            raw_details={"detections": len(parts)},
+        )
 
     def read_text_with_bboxes(
         self, frame: np.ndarray, max_dim: int = 640
@@ -163,6 +174,7 @@ class TesseractOCRProvider(BaseOCRProvider):
     def warmup(self) -> None:
         try:
             import pytesseract
+
             _ = pytesseract.get_tesseract_version()
         except Exception as e:
             log.warning(f"Tesseract not available: {e}")
@@ -170,6 +182,7 @@ class TesseractOCRProvider(BaseOCRProvider):
     def read_text(self, frame: np.ndarray) -> OCRResult:
         try:
             import pytesseract
+
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             text = pytesseract.image_to_string(binary, config=f"--psm {self._psm}").strip()
@@ -179,7 +192,9 @@ class TesseractOCRProvider(BaseOCRProvider):
             return OCRResult(text="", confidence=0.0, provider=self.name)
 
 
-def create_ocr_provider(provider: str, vlm_client: Optional[VLMClient] = None, **kwargs) -> BaseOCRProvider:
+def create_ocr_provider(
+    provider: str, vlm_client: VLMClient | None = None, **kwargs
+) -> BaseOCRProvider:
     """Factory for OCR providers."""
     provider = provider.lower()
     if provider == "vlm":

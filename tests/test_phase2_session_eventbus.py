@@ -8,17 +8,16 @@ from __future__ import annotations
 
 import json
 import tempfile
-import time
 from pathlib import Path
 
 import pytest
 
 from qoresence.core import (
-    SessionAuthority,
-    RetinaEventBus,
-    SourceLobe,
-    EventType,
     BaseEvent,
+    EventType,
+    RetinaEventBus,
+    SessionAuthority,
+    SourceLobe,
     clock_ns,
     make_event,
 )
@@ -59,6 +58,7 @@ class TestSessionAuthority:
 
     def test_from_env(self):
         import os
+
         os.environ["QORESENCE_SESSION_ID"] = "env_session"
         os.environ["QORESENCE_DEVICE_ID_HEX"] = "b" * 64
         os.environ["QORESENCE_SESSION_HEAD_NS"] = "9999999999"
@@ -234,11 +234,14 @@ class TestRetinaEventBus:
             jsonl_path = Path(td) / "events.jsonl"
             bus = RetinaEventBus(session_id="raw_test", jsonl_path=jsonl_path, enable_ws=False)
 
-            assert bus.emit_raw(
-                source_lobe=SourceLobe.CONTROLLER,
-                event_type="trigger_onset",
-                payload={"trigger": "R2", "amplitude": 0.9},
-            ) is True
+            assert (
+                bus.emit_raw(
+                    source_lobe=SourceLobe.CONTROLLER,
+                    event_type="trigger_onset",
+                    payload={"trigger": "R2", "amplitude": 0.9},
+                )
+                is True
+            )
             assert bus.events_emitted == 1
 
 
@@ -253,7 +256,9 @@ class TestMultiLobeSharedIdentity:
     def test_synthetic_multi_lobe_shared_identity(self):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "multi_lobe.jsonl"
-            bus = RetinaEventBus(session_id="multi_lobe_session", jsonl_path=jsonl_path, enable_ws=False)
+            bus = RetinaEventBus(
+                session_id="multi_lobe_session", jsonl_path=jsonl_path, enable_ws=False
+            )
 
             # Simulate 3 lobes emitting events
             lobes = [
@@ -273,7 +278,9 @@ class TestMultiLobeSharedIdentity:
                         session_id=session_id,
                         clock_ns=clock_ns(),  # Each gets current monotonic time
                         source_lobe=lobe,
-                        event_type=EventType.ACTIVITY if lobe == SourceLobe.STREAMER else EventType.CONTROLLER_EVENT,
+                        event_type=EventType.ACTIVITY
+                        if lobe == SourceLobe.STREAMER
+                        else EventType.CONTROLLER_EVENT,
                         payload={"seq": i, "lobe": lobe.value},
                         session_head_ns=head_ns,
                     )
@@ -330,6 +337,7 @@ class TestMultiLobeSharedIdentity:
 
             # Emit 1 invalid (wrong session) - use BaseEvent directly
             from qoresence.core.types import BaseEvent
+
             wrong_session_event = BaseEvent(
                 session_id="wrong_session",
                 clock_ns=clock_ns(),

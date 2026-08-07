@@ -4,6 +4,7 @@ Tries ONNX model at models/qoresence-vlm-distilled.onnx; falls back to
 lightweight heuristic that still returns a valid VisualContext.
 Interface mirrors VLMClient.analyze_frame so swapping is trivial.
 """
+
 from __future__ import annotations
 
 import logging
@@ -40,8 +41,16 @@ def _is_football_profile(game_profile: str | object | None) -> bool:
     s = str(game_profile).lower().strip()
     if s == "football":
         return True
-    if s in ("ncaa_football_27", "ncaa", "college_football", "college_football_27",
-             "ea_sports_college_football_27", "ncaa_27", "madden_27", "madden_2027"):
+    if s in (
+        "ncaa_football_27",
+        "ncaa",
+        "college_football",
+        "college_football_27",
+        "ea_sports_college_football_27",
+        "ncaa_27",
+        "madden_27",
+        "madden_2027",
+    ):
         return True
     if GameProfileId is not None and isinstance(game_profile, GameProfileId):
         try:
@@ -78,7 +87,10 @@ class LocalVLMClient:
         if self.model_path.exists():
             try:
                 import onnxruntime as ort  # type: ignore
-                self._onnx_sess = ort.InferenceSession(str(self.model_path), providers=["CPUExecutionProvider"])
+
+                self._onnx_sess = ort.InferenceSession(
+                    str(self.model_path), providers=["CPUExecutionProvider"]
+                )
                 self._available = True
                 self._mode = "onnx"
                 self.warmup()
@@ -153,16 +165,21 @@ class LocalVLMClient:
         if ctx is None:
             return None
         import json
+
         return json.dumps(ctx.to_dict())
 
-    def _classify(self, frame: np.ndarray, game_profile: str | object | None) -> VisualContext | None:
+    def _classify(
+        self, frame: np.ndarray, game_profile: str | object | None
+    ) -> VisualContext | None:
         if self._onnx_sess is not None:
             ctx = self._onnx_infer(frame, game_profile)
             if ctx is not None:
                 return ctx
         return self._heuristic(frame, game_profile)
 
-    def _onnx_infer(self, frame: np.ndarray, game_profile: str | object | None = None) -> VisualContext | None:
+    def _onnx_infer(
+        self, frame: np.ndarray, game_profile: str | object | None = None
+    ) -> VisualContext | None:
         try:
             inp = self._onnx_sess.get_inputs()[0]
             img = cv2.resize(frame, (224, 224))
@@ -177,7 +194,12 @@ class LocalVLMClient:
                 states = [GameState.GAMEPLAY, GameState.UNKNOWN, GameState.MENU]
             elif n == 4:
                 # legacy 4-class distilled model
-                cats = [GameCategory.FOOTBALL, GameCategory.SHOOTER, GameCategory.UNKNOWN, GameCategory.UNKNOWN]
+                cats = [
+                    GameCategory.FOOTBALL,
+                    GameCategory.SHOOTER,
+                    GameCategory.UNKNOWN,
+                    GameCategory.UNKNOWN,
+                ]
                 states = [GameState.GAMEPLAY, GameState.GAMEPLAY, GameState.MENU, GameState.UNKNOWN]
             else:
                 log.warning(f"ONNX output has unexpected class count: {n}")
@@ -196,7 +218,9 @@ class LocalVLMClient:
             log.debug(f"ONNX infer failed: {e}")
             return None
 
-    def _heuristic(self, frame: np.ndarray, game_profile: str | object | None = None) -> VisualContext:
+    def _heuristic(
+        self, frame: np.ndarray, game_profile: str | object | None = None
+    ) -> VisualContext:
         # fast heuristic: luma + edge density + green-field ratio
         small = cv2.resize(frame, (160, 90))
         hsv = cv2.cvtColor(small, cv2.COLOR_BGR2HSV)
@@ -225,24 +249,74 @@ class LocalVLMClient:
 
         if _is_football_profile(game_profile):
             if green_ratio > 0.06 and has_scoreboard:
-                return VisualContext(game_state=GameState.GAMEPLAY, game_category=GameCategory.FOOTBALL, confidence=0.72, frame_quality="ok")
+                return VisualContext(
+                    game_state=GameState.GAMEPLAY,
+                    game_category=GameCategory.FOOTBALL,
+                    confidence=0.72,
+                    frame_quality="ok",
+                )
             if edge_density > 0.06 and green_ratio < 0.08:
                 if mean_luma < 35:
-                    return VisualContext(game_state=GameState.MENU, game_category=GameCategory.UNKNOWN, confidence=0.45, frame_quality="dark")
-                return VisualContext(game_state=GameState.UNKNOWN, game_category=GameCategory.UNKNOWN, confidence=0.38, frame_quality="ok")
+                    return VisualContext(
+                        game_state=GameState.MENU,
+                        game_category=GameCategory.UNKNOWN,
+                        confidence=0.45,
+                        frame_quality="dark",
+                    )
+                return VisualContext(
+                    game_state=GameState.UNKNOWN,
+                    game_category=GameCategory.UNKNOWN,
+                    confidence=0.38,
+                    frame_quality="ok",
+                )
             if mean_luma < 20:
-                return VisualContext(game_state=GameState.MENU, game_category=GameCategory.UNKNOWN, confidence=0.45, frame_quality="dark")
-            return VisualContext(game_state=GameState.UNKNOWN, game_category=GameCategory.UNKNOWN, confidence=0.35, frame_quality="ok")
+                return VisualContext(
+                    game_state=GameState.MENU,
+                    game_category=GameCategory.UNKNOWN,
+                    confidence=0.45,
+                    frame_quality="dark",
+                )
+            return VisualContext(
+                game_state=GameState.UNKNOWN,
+                game_category=GameCategory.UNKNOWN,
+                confidence=0.35,
+                frame_quality="ok",
+            )
 
         if green_ratio > 0.06 and has_scoreboard:
-            return VisualContext(game_state=GameState.GAMEPLAY, game_category=GameCategory.FOOTBALL, confidence=0.72, frame_quality="ok")
+            return VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                confidence=0.72,
+                frame_quality="ok",
+            )
         if edge_density > 0.06 and green_ratio < 0.08:
             if mean_luma < 35:
-                return VisualContext(game_state=GameState.MENU, game_category=GameCategory.UNKNOWN, confidence=0.45, frame_quality="dark")
-            return VisualContext(game_state=GameState.UNKNOWN, game_category=GameCategory.UNKNOWN, confidence=0.38, frame_quality="ok")
+                return VisualContext(
+                    game_state=GameState.MENU,
+                    game_category=GameCategory.UNKNOWN,
+                    confidence=0.45,
+                    frame_quality="dark",
+                )
+            return VisualContext(
+                game_state=GameState.UNKNOWN,
+                game_category=GameCategory.UNKNOWN,
+                confidence=0.38,
+                frame_quality="ok",
+            )
         if mean_luma < 20:
-            return VisualContext(game_state=GameState.MENU, game_category=GameCategory.UNKNOWN, confidence=0.45, frame_quality="dark")
-        return VisualContext(game_state=GameState.UNKNOWN, game_category=GameCategory.UNKNOWN, confidence=0.35, frame_quality="ok")
+            return VisualContext(
+                game_state=GameState.MENU,
+                game_category=GameCategory.UNKNOWN,
+                confidence=0.45,
+                frame_quality="dark",
+            )
+        return VisualContext(
+            game_state=GameState.UNKNOWN,
+            game_category=GameCategory.UNKNOWN,
+            confidence=0.35,
+            frame_quality="ok",
+        )
 
     def _profile_guard(
         self,
@@ -274,6 +348,7 @@ class LocalVLMClient:
         required = max(1, (3 * n + 4) // 5)
 
         from collections import Counter
+
         cat_counts = Counter(h.game_category for h in self._history)
         winner, winner_count = cat_counts.most_common(1)[0]
 

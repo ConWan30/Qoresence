@@ -32,6 +32,7 @@ DEFAULT_MIN_INTERVAL_S = 2.0
 @dataclass
 class IRCMessage:
     """Parsed Twitch IRC message."""
+
     raw: str
     tags: dict[str, str]
     prefix: str

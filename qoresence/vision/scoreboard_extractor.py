@@ -3,6 +3,7 @@
 Uses EasyOCR on a bottom-center crop and extracts score, quarter, clock,
 down/distance, and play-clock from the HUD. No cloud VLM calls.
 """
+
 from __future__ import annotations
 
 import logging
@@ -39,12 +40,30 @@ def _fix_digits_in(token: str) -> str:
     if re.search(r"[a-z]{2,}", token, re.IGNORECASE):
         # Contains a word, don't mangle it
         return token
-    mapping = str.maketrans({
-        "J": "1", "j": "1", "I": "1", "i": "1", "l": "1", "L": "1",
-        "O": "0", "o": "0", "S": "5", "s": "5", "B": "8", "b": "8",
-        "G": "6", "g": "6", "Z": "2", "z": "2", "T": "7", "t": "7",
-        "|": "", ":": "",
-    })
+    mapping = str.maketrans(
+        {
+            "J": "1",
+            "j": "1",
+            "I": "1",
+            "i": "1",
+            "l": "1",
+            "L": "1",
+            "O": "0",
+            "o": "0",
+            "S": "5",
+            "s": "5",
+            "B": "8",
+            "b": "8",
+            "G": "6",
+            "g": "6",
+            "Z": "2",
+            "z": "2",
+            "T": "7",
+            "t": "7",
+            "|": "",
+            ":": "",
+        }
+    )
     return token.translate(mapping)
 
 
@@ -88,6 +107,7 @@ class FootballScoreboardExtractor:
         self._easyocr_available = False
         try:
             import easyocr  # noqa: F401
+
             self._easyocr_available = True
         except Exception:
             log.warning("easyocr not installed; scoreboard extraction disabled")
@@ -96,6 +116,7 @@ class FootballScoreboardExtractor:
     def _get_reader(cls) -> Any:
         if cls._reader is None:
             import easyocr
+
             log.info("Loading EasyOCR reader for scoreboard extraction...")
             cls._reader = easyocr.Reader(["en"], gpu=False, verbose=False)
         return cls._reader
@@ -145,7 +166,9 @@ class FootballScoreboardExtractor:
         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
         # White text on dark background is the dominant scoreboard pattern.
         _, binary = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY)
-        scaled = cv2.resize(binary, (crop.shape[1] * 3, crop.shape[0] * 3), interpolation=cv2.INTER_CUBIC)
+        scaled = cv2.resize(
+            binary, (crop.shape[1] * 3, crop.shape[0] * 3), interpolation=cv2.INTER_CUBIC
+        )
 
         try:
             reader = self._get_reader()
@@ -197,7 +220,9 @@ class FootballScoreboardExtractor:
                 rank_team = re.match(r"^(\d+)\s+([A-Za-z].*)$", text)
                 if rank_team:
                     # Keep the team name; discard the leading rank number from scoring.
-                    team_clusters.append(_Cluster(text=rank_team.group(2), x=c.x, y=c.y, conf=c.conf))
+                    team_clusters.append(
+                        _Cluster(text=rank_team.group(2), x=c.x, y=c.y, conf=c.conf)
+                    )
                 else:
                     numeric_clusters.append(c)
 
@@ -211,7 +236,9 @@ class FootballScoreboardExtractor:
         # Down/distance.
         down_cluster = self._find_down_distance(clusters)
         if down_cluster:
-            m = re.search(r"(\d)\s*(?:st|nd|rd|th)\s*(?:&|and)\s*(\d+)", down_cluster.text, re.IGNORECASE)
+            m = re.search(
+                r"(\d)\s*(?:st|nd|rd|th)\s*(?:&|and)\s*(\d+)", down_cluster.text, re.IGNORECASE
+            )
             if m:
                 parsed["down"] = int(m.group(1))
                 parsed["yards_to_go"] = int(m.group(2))
@@ -242,9 +269,17 @@ class FootballScoreboardExtractor:
             if val is None:
                 return False
             # Exclude clock/play-clock/quarter/down tokens already consumed.
-            if quarter_cluster and abs(c.x - quarter_cluster.x) < 0.08 and abs(c.y - quarter_cluster.y) < 0.10:
+            if (
+                quarter_cluster
+                and abs(c.x - quarter_cluster.x) < 0.08
+                and abs(c.y - quarter_cluster.y) < 0.10
+            ):
                 return False
-            if down_cluster and abs(c.x - down_cluster.x) < 0.15 and abs(c.y - down_cluster.y) < 0.15:
+            if (
+                down_cluster
+                and abs(c.x - down_cluster.x) < 0.15
+                and abs(c.y - down_cluster.y) < 0.15
+            ):
                 return False
             if parsed.get("clock_seconds") and abs(c.x - 0.50) < 0.10 and _normalize_clock(c.text):
                 return False
@@ -307,7 +342,9 @@ class FootballScoreboardExtractor:
         return parsed
 
     @staticmethod
-    def _cluster_tokens(tokens: list[_Token], x_threshold: float = 0.06, y_threshold: float = 0.10) -> list[_Cluster]:
+    def _cluster_tokens(
+        tokens: list[_Token], x_threshold: float = 0.06, y_threshold: float = 0.10
+    ) -> list[_Cluster]:
         """Merge tokens that are close in 2D into single text clusters."""
         if not tokens:
             return []
@@ -335,7 +372,9 @@ class FootballScoreboardExtractor:
         conf = sum(t.conf for t in tokens) / len(tokens)
         return _Cluster(text=text, x=x, y=y, conf=conf)
 
-    def _find_quarter(self, clusters: list[_Cluster], numeric_clusters: list[_Cluster]) -> _Cluster | None:
+    def _find_quarter(
+        self, clusters: list[_Cluster], numeric_clusters: list[_Cluster]
+    ) -> _Cluster | None:
         """Find a standalone quarter token (1st/2nd/3rd/4th) in the center-left."""
         for c in clusters:
             text = _normalize_quarter_word(c.text)
@@ -378,6 +417,8 @@ class FootballScoreboardExtractor:
             return None
 
 
-def extract_football_scoreboard(frame: np.ndarray, ctx: VisualContext | None = None) -> VisualContext:
+def extract_football_scoreboard(
+    frame: np.ndarray, ctx: VisualContext | None = None
+) -> VisualContext:
     """Convenience entry point."""
     return FootballScoreboardExtractor().extract(frame, ctx)

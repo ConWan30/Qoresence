@@ -11,22 +11,21 @@ import logging
 import threading
 import time
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import hid
 
-# hidapi uses lowercase 'device' class on Windows
-HIDDevice = hid.device
-
 from qoresence.core import (
+    ControllerConfig,
+    EventType,
     RetinaEventBus,
     SourceLobe,
-    EventType,
     clock_ns,
-    ControllerConfig,
 )
+
+# hidapi uses lowercase 'device' class on Windows
+HIDDevice = hid.device
 
 log = logging.getLogger(__name__)
 
@@ -36,8 +35,8 @@ log = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Sony DualShock Edge (CFI-ZCP1)
-DS_EDGE_VID = 0x054C   # Sony
-DS_EDGE_PID = 0x0CE6   # DualSense Edge
+DS_EDGE_VID = 0x054C  # Sony
+DS_EDGE_PID = 0x0CE6  # DualSense Edge
 
 # Generic DualSense (for fallback)
 DS_PID = 0x0CE6
@@ -55,9 +54,11 @@ INPUT_REPORT_SIZE = 64
 # CONTROLLER STATE
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ControllerState:
     """Decoded controller state from HID report."""
+
     # Buttons (bitmask)
     buttons: int = 0
     # Triggers (0-255)
@@ -85,22 +86,22 @@ class ControllerState:
 
 # Button bitmasks (DualSense standard layout)
 class Buttons:
-    CROSS = 1 << 0      # South
-    CIRCLE = 1 << 1     # East
-    SQUARE = 1 << 2     # West
-    TRIANGLE = 1 << 3   # North
+    CROSS = 1 << 0  # South
+    CIRCLE = 1 << 1  # East
+    SQUARE = 1 << 2  # West
+    TRIANGLE = 1 << 3  # North
     L1 = 1 << 4
     R1 = 1 << 5
     L2 = 1 << 6
     R2 = 1 << 7
-    CREATE = 1 << 8     # Share
-    OPTIONS = 1 << 9    # Options
+    CREATE = 1 << 8  # Share
+    OPTIONS = 1 << 9  # Options
     L3 = 1 << 10
     R3 = 1 << 11
     PS = 1 << 12
     TOUCHPAD = 1 << 13
-    MUTE = 1 << 14      # Mic mute
-    FN_LEFT = 1 << 15   # Left function (Edge)
+    MUTE = 1 << 14  # Mic mute
+    FN_LEFT = 1 << 15  # Left function (Edge)
     FN_RIGHT = 1 << 16  # Right function (Edge)
 
 
@@ -108,19 +109,22 @@ class Buttons:
 # ROLLING BUFFER ENTRY
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class BufferEntry:
     """Entry in the causal rolling buffer."""
+
     clock_ns: int
     source_lobe: SourceLobe
     event_type: EventType
     payload: dict
-    causal_parent_ns: Optional[int] = None
+    causal_parent_ns: int | None = None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CONTROLLER RUNTIME
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class ControllerRuntime:
     """
@@ -139,7 +143,7 @@ class ControllerRuntime:
         config: ControllerConfig,
         bus: RetinaEventBus,
         session_head_ns: int,
-        presence_touch_file: Optional[Path] = None,
+        presence_touch_file: Path | None = None,
     ):
         self.config = config
         self.bus = bus
@@ -150,12 +154,12 @@ class ControllerRuntime:
         self.presence_touch_file.parent.mkdir(parents=True, exist_ok=True)
 
         # HID device
-        self._device: Optional[hid.Device] = None
-        self._device_path: Optional[str] = None
+        self._device: hid.Device | None = None
+        self._device_path: str | None = None
 
         # State
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._prev_state = ControllerState()
 
         # Rolling buffer for causal correlation
@@ -171,7 +175,7 @@ class ControllerRuntime:
         self._start_time = 0.0
 
         # Presence callback (for fusion engine)
-        self._presence_callback: Optional[callable] = None
+        self._presence_callback: callable | None = None
 
         # Track last trigger/stick values for cross-lobe coupling
         self._last_trigger_value = 0.0
@@ -194,11 +198,15 @@ class ControllerRuntime:
 
         self._running = True
         self._start_time = time.time()
-        self._thread = threading.Thread(target=self._run_loop, name="qoresence-controller", daemon=True)
+        self._thread = threading.Thread(
+            target=self._run_loop, name="qoresence-controller", daemon=True
+        )
         self._thread.start()
 
-        log.info(f"Controller lobe started: {self._device_path}, "
-                 f"poll_rate={self.config.poll_rate_hz}Hz, buffer={self.config.buffer_size}")
+        log.info(
+            f"Controller lobe started: {self._device_path}, "
+            f"poll_rate={self.config.poll_rate_hz}Hz, buffer={self.config.buffer_size}"
+        )
         return True
 
     def stop(self) -> None:
@@ -224,24 +232,28 @@ class ControllerRuntime:
     def get_stats(self) -> dict:
         """Get controller statistics for cross-lobe coupling."""
         return {
-            'last_trigger': self._last_trigger_value if hasattr(self, '_last_trigger_value') else 0.0,
-            'stick_motion': self._last_stick_motion if hasattr(self, '_last_stick_motion') else 0.0,
-            'causal_density': self._causal_density if hasattr(self, '_causal_density') else 0,
-            'last_event_ns': self._last_event_ns if hasattr(self, '_last_event_ns') else 0,
+            "last_trigger": self._last_trigger_value
+            if hasattr(self, "_last_trigger_value")
+            else 0.0,
+            "stick_motion": self._last_stick_motion if hasattr(self, "_last_stick_motion") else 0.0,
+            "causal_density": self._causal_density if hasattr(self, "_causal_density") else 0,
+            "last_event_ns": self._last_event_ns if hasattr(self, "_last_event_ns") else 0,
         }
 
     def get_last_state(self) -> dict:
         """Get last controller state for cross-modal verification."""
         return {
-            'causal_density': self._causal_density if hasattr(self, '_causal_density') else 0,
-            'last_trigger': self._last_trigger_value if hasattr(self, '_last_trigger_value') else 0.0,
+            "causal_density": self._causal_density if hasattr(self, "_causal_density") else 0,
+            "last_trigger": self._last_trigger_value
+            if hasattr(self, "_last_trigger_value")
+            else 0.0,
         }
 
     def get_buffer_snapshot(self) -> list[BufferEntry]:
         """Get copy of rolling buffer for cross-lobe correlation."""
         return list(self._buffer)
 
-    def find_causal_parent(self, max_age_ns: int = 50_000_000) -> Optional[int]:
+    def find_causal_parent(self, max_age_ns: int = 50_000_000) -> int | None:
         """
         Find most recent controller event within max_age_ns for causal_parent_ns.
 
@@ -284,13 +296,15 @@ class ControllerRuntime:
         """List all HID devices for debugging."""
         devices = []
         for d in hid.enumerate():
-            devices.append({
-                "vid": d["vendor_id"],
-                "pid": d["product_id"],
-                "path": d["path"].decode() if isinstance(d["path"], bytes) else d["path"],
-                "product": d.get("product_string", ""),
-                "manufacturer": d.get("manufacturer_string", ""),
-            })
+            devices.append(
+                {
+                    "vid": d["vendor_id"],
+                    "pid": d["product_id"],
+                    "path": d["path"].decode() if isinstance(d["path"], bytes) else d["path"],
+                    "product": d.get("product_string", ""),
+                    "manufacturer": d.get("manufacturer_string", ""),
+                }
+            )
         return devices
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -342,7 +356,7 @@ class ControllerRuntime:
     # HID REPORT READING
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _read_report(self) -> Optional[bytes]:
+    def _read_report(self) -> bytes | None:
         """Read single input report from device."""
         if not self._device:
             return None
@@ -386,12 +400,13 @@ class ControllerRuntime:
         # Accel: bytes 19-24 (3x int16)
         if len(report) >= 25:
             import struct
-            state.gyro_x = struct.unpack_from('<h', report, 13)[0]
-            state.gyro_y = struct.unpack_from('<h', report, 15)[0]
-            state.gyro_z = struct.unpack_from('<h', report, 17)[0]
-            state.accel_x = struct.unpack_from('<h', report, 19)[0]
-            state.accel_y = struct.unpack_from('<h', report, 21)[0]
-            state.accel_z = struct.unpack_from('<h', report, 23)[0]
+
+            state.gyro_x = struct.unpack_from("<h", report, 13)[0]
+            state.gyro_y = struct.unpack_from("<h", report, 15)[0]
+            state.gyro_z = struct.unpack_from("<h", report, 17)[0]
+            state.accel_x = struct.unpack_from("<h", report, 19)[0]
+            state.accel_y = struct.unpack_from("<h", report, 21)[0]
+            state.accel_z = struct.unpack_from("<h", report, 23)[0]
 
         # Battery (byte 30)
         if len(report) > 30:
@@ -425,8 +440,9 @@ class ControllerRuntime:
         self._check_stick_motion(state, now_ns)
 
         # IMU tremor sample (if IMU available)
-        if any([state.gyro_x, state.gyro_y, state.gyro_z,
-                state.accel_x, state.accel_y, state.accel_z]):
+        if any(
+            [state.gyro_x, state.gyro_y, state.gyro_z, state.accel_x, state.accel_y, state.accel_z]
+        ):
             self._emit_tremor_sample(state, now_ns)
 
         # Generic controller event (full state dump at lower rate)
@@ -434,15 +450,20 @@ class ControllerRuntime:
             self._emit_controller_event(state, now_ns)
 
         # Update rolling buffer
-        self._add_to_buffer(now_ns, SourceLobe.CONTROLLER, EventType.CONTROLLER_EVENT, {
-            "buttons": state.buttons,
-            "l2": state.l2,
-            "r2": state.r2,
-            "lx": state.lx,
-            "ly": state.ly,
-            "rx": state.rx,
-            "ry": state.ry,
-        })
+        self._add_to_buffer(
+            now_ns,
+            SourceLobe.CONTROLLER,
+            EventType.CONTROLLER_EVENT,
+            {
+                "buttons": state.buttons,
+                "l2": state.l2,
+                "r2": state.r2,
+                "lx": state.lx,
+                "ly": state.ly,
+                "rx": state.rx,
+                "ry": state.ry,
+            },
+        )
 
         # Update touch file for presence sync (on any input)
         if changed or state.l2 > self._trigger_threshold or state.r2 > self._trigger_threshold:
@@ -531,14 +552,23 @@ class ControllerRuntime:
     def _emit_button_events(self, pressed: int, released: int, now_ns: int) -> None:
         """Emit button press/release events."""
         for name, mask in [
-            ("cross", Buttons.CROSS), ("circle", Buttons.CIRCLE),
-            ("square", Buttons.SQUARE), ("triangle", Buttons.TRIANGLE),
-            ("l1", Buttons.L1), ("r1", Buttons.R1),
-            ("l2_btn", Buttons.L2), ("r2_btn", Buttons.R2),
-            ("create", Buttons.CREATE), ("options", Buttons.OPTIONS),
-            ("l3", Buttons.L3), ("r3", Buttons.R3),
-            ("ps", Buttons.PS), ("touchpad", Buttons.TOUCHPAD),
-            ("mute", Buttons.MUTE), ("fn_left", Buttons.FN_LEFT), ("fn_right", Buttons.FN_RIGHT),
+            ("cross", Buttons.CROSS),
+            ("circle", Buttons.CIRCLE),
+            ("square", Buttons.SQUARE),
+            ("triangle", Buttons.TRIANGLE),
+            ("l1", Buttons.L1),
+            ("r1", Buttons.R1),
+            ("l2_btn", Buttons.L2),
+            ("r2_btn", Buttons.R2),
+            ("create", Buttons.CREATE),
+            ("options", Buttons.OPTIONS),
+            ("l3", Buttons.L3),
+            ("r3", Buttons.R3),
+            ("ps", Buttons.PS),
+            ("touchpad", Buttons.TOUCHPAD),
+            ("mute", Buttons.MUTE),
+            ("fn_left", Buttons.FN_LEFT),
+            ("fn_right", Buttons.FN_RIGHT),
         ]:
             if pressed & mask:
                 causal_parent = self.find_causal_parent()
@@ -594,12 +624,14 @@ class ControllerRuntime:
         # Call presence callback for fusion engine
         if self._presence_callback:
             try:
-                self._presence_callback({
-                    "lobe": "controller",
-                    "causal_density": self._causal_density,
-                    "last_trigger": self._last_trigger_value,
-                    "last_event_ns": self._last_event_ns,
-                })
+                self._presence_callback(
+                    {
+                        "lobe": "controller",
+                        "causal_density": self._causal_density,
+                        "last_trigger": self._last_trigger_value,
+                        "last_event_ns": self._last_event_ns,
+                    }
+                )
             except Exception:
                 pass
 
@@ -659,8 +691,9 @@ class ControllerRuntime:
     # BUFFER MANAGEMENT
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _add_to_buffer(self, clock_ns: int, source_lobe: SourceLobe,
-                       event_type: EventType, payload: dict) -> None:
+    def _add_to_buffer(
+        self, clock_ns: int, source_lobe: SourceLobe, event_type: EventType, payload: dict
+    ) -> None:
         """Add entry to rolling causal buffer."""
         entry = BufferEntry(
             clock_ns=clock_ns,
@@ -676,6 +709,7 @@ class ControllerRuntime:
 # HELPER: List available controllers
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def list_controllers() -> list[dict]:
     """List all HID devices that look like controllers."""
     result = []
@@ -684,11 +718,13 @@ def list_controllers() -> list[dict]:
         pid = d["product_id"]
         # Common controller VIDs
         if vid in (0x054C, 0x045E, 0x057E, 0x2DC8, 0x0F0D):  # Sony, MS, Nintendo, Razer, Hori
-            result.append({
-                "vid": vid,
-                "pid": pid,
-                "path": d["path"].decode() if isinstance(d["path"], bytes) else d["path"],
-                "product": d.get("product_string", ""),
-                "manufacturer": d.get("manufacturer_string", ""),
-            })
+            result.append(
+                {
+                    "vid": vid,
+                    "pid": pid,
+                    "path": d["path"].decode() if isinstance(d["path"], bytes) else d["path"],
+                    "product": d.get("product_string", ""),
+                    "manufacturer": d.get("manufacturer_string", ""),
+                }
+            )
     return result

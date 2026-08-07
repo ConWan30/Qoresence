@@ -13,23 +13,25 @@ OpenCV KLT/Farneback algorithms that MediaPipe uses internally.
 from __future__ import annotations
 
 import logging
+from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Optional
+from typing import Any
 
 import cv2
 import numpy as np
-from collections import deque
 
 log = logging.getLogger(__name__)
 
 MEDIAPIPE_AVAILABLE = False
 try:
-    import mediapipe as mp
+    import mediapipe as mp  # noqa: F401
+    from mediapipe.tasks.python.core.base_options import BaseOptions
+    from mediapipe.tasks.python.vision.core.vision_task_running_mode import VisionTaskRunningMode
+
     # The wheel on this platform does not expose mediapipe.tasks.vision directly;
     # the real modules live under mediapipe.tasks.python.{vision,core}.
     from mediapipe.tasks.python.vision.object_detector import ObjectDetector, ObjectDetectorOptions
-    from mediapipe.tasks.python.core.base_options import BaseOptions
-    from mediapipe.tasks.python.vision.core.vision_task_running_mode import VisionTaskRunningMode
+
     MEDIAPIPE_AVAILABLE = True
 except ImportError as _e:
     log.debug(f"MediaPipe Tasks Python API not available: {_e}")
@@ -38,10 +40,11 @@ except ImportError as _e:
 @dataclass
 class MotionEvidence:
     """Motion analysis result for one frame."""
-    camera_velocity: float       # global flow magnitude (pixels/frame)
-    object_velocity: float       # median flow in detected ROIs
-    flow_confidence: float       # 0.0-1.0, based on feature count and spread
-    motion_class_hint: str       # "low" | "medium" | "high"
+
+    camera_velocity: float  # global flow magnitude (pixels/frame)
+    object_velocity: float  # median flow in detected ROIs
+    flow_confidence: float  # 0.0-1.0, based on feature count and spread
+    motion_class_hint: str  # "low" | "medium" | "high"
     raw_details: dict
 
 
@@ -64,15 +67,15 @@ class MotionTracker:
         self._flow_scale = flow_scale
         self._use_mediapipe_mask = use_mediapipe_mask and MEDIAPIPE_AVAILABLE
 
-        self._prev_gray: Optional[np.ndarray] = None
-        self._prev_frame: Optional[np.ndarray] = None
+        self._prev_gray: np.ndarray | None = None
+        self._prev_frame: np.ndarray | None = None
 
         # Motion history for smoothing
-        self._camera_vel: Deque[float] = deque(maxlen=history)
-        self._object_vel: Deque[float] = deque(maxlen=history)
+        self._camera_vel: deque[float] = deque(maxlen=history)
+        self._object_vel: deque[float] = deque(maxlen=history)
 
         # MediaPipe object detector lazy init
-        self._object_detector: Optional[Any] = None  # type: ignore
+        self._object_detector: Any | None = None  # type: ignore
         self._max_detections = max_mediapipe_detections
 
     def _ensure_detector(self) -> None:
@@ -108,7 +111,7 @@ class MotionTracker:
         urllib.request.urlretrieve(url, model_path)
         return str(model_path)
 
-    def _get_roi_mask(self, frame: np.ndarray) -> Optional[np.ndarray]:
+    def _get_roi_mask(self, frame: np.ndarray) -> np.ndarray | None:
         """Return a binary mask of likely foreground objects (player, reticle, etc)."""
         if not self._use_mediapipe_mask:
             return None
@@ -119,6 +122,7 @@ class MotionTracker:
 
         try:
             import mediapipe as mp
+
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
             results = self._object_detector.detect(mp_image)
@@ -153,9 +157,16 @@ class MotionTracker:
 
         # Dense optical flow (Farneback)
         flow = cv2.calcOpticalFlowFarneback(
-            self._prev_gray, gray, None,
-            pyr_scale=0.5, levels=3, winsize=15,
-            iterations=3, poly_n=5, poly_sigma=1.2, flags=0,
+            self._prev_gray,
+            gray,
+            None,
+            pyr_scale=0.5,
+            levels=3,
+            winsize=15,
+            iterations=3,
+            poly_n=5,
+            poly_sigma=1.2,
+            flags=0,
         )
 
         # Global camera velocity = robust mean magnitude
@@ -208,11 +219,15 @@ class MotionTracker:
 
     def _sparse_object_velocity(self, prev_gray: np.ndarray, gray: np.ndarray) -> float:
         """Use KLT to estimate foreground / local object velocity."""
-        p0 = cv2.goodFeaturesToTrack(prev_gray, maxCount=100, qualityLevel=0.3, minDistance=7, blockSize=7)
+        p0 = cv2.goodFeaturesToTrack(
+            prev_gray, maxCount=100, qualityLevel=0.3, minDistance=7, blockSize=7
+        )
         if p0 is None:
             return 0.0
 
-        p1, st, err = cv2.calcOpticalFlowPyrLK(prev_gray, gray, p0, None, winSize=(15, 15), maxLevel=2)
+        p1, st, err = cv2.calcOpticalFlowPyrLK(
+            prev_gray, gray, p0, None, winSize=(15, 15), maxLevel=2
+        )
         if p1 is None or st is None:
             return 0.0
 

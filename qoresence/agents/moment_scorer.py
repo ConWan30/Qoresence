@@ -11,15 +11,16 @@ from __future__ import annotations
 
 import json
 import logging
+import math as _math
 import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from .win_probability import FootballWinProbability
 from typing import Any
 
 from .helix_client import PredictionResult
 from .situation_model import SituationState
+from .win_probability import FootballWinProbability
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ DEFAULT_FEATURES = frozenset({"chat"})
 @dataclass
 class ScoredMoment:
     """A scored moment with an action plan."""
+
     triggered: bool
     weight: float
     action: str  # "chat", "clip", "start_prediction", "resolve_prediction", "none"
@@ -37,10 +39,6 @@ class ScoredMoment:
     cooldown_key: str
     payload: dict[str, Any] = field(default_factory=dict)
 
-
-
-
-import math as _math
 
 class ClipWorthinessModel:
     """Lightweight logistic model for clip worthiness.
@@ -62,9 +60,13 @@ class ClipWorthinessModel:
     }
     DEFAULT_PATH = Path("models/clip_worthiness.json")
 
-    def __init__(self, model_path: str | Path | None = None, weights: dict[str, float] | None = None):
+    def __init__(
+        self, model_path: str | Path | None = None, weights: dict[str, float] | None = None
+    ):
         self.model_path: Path = Path(model_path) if model_path is not None else self.DEFAULT_PATH
-        self.weights: dict[str, float] = dict(weights) if weights is not None else dict(self.DEFAULT_WEIGHTS)
+        self.weights: dict[str, float] = (
+            dict(weights) if weights is not None else dict(self.DEFAULT_WEIGHTS)
+        )
         self.load()
 
     @staticmethod
@@ -78,6 +80,7 @@ class ClipWorthinessModel:
     def predict(self, features: dict[str, float] | None = None) -> float:
         """Predict clip worthiness in [0,1] via sigmoid(weighted sum)."""
         features = features or {}
+
         def _f(k: str) -> float:
             v = features.get(k, 0)
             if isinstance(v, bool):
@@ -86,6 +89,7 @@ class ClipWorthinessModel:
                 return float(v)
             except Exception:
                 return 0.0
+
         wp_swing = _f("wp_swing")
         red_zone = _f("red_zone")
         close_game = _f("close_game")
@@ -162,17 +166,25 @@ class MomentScorer:
             "kill": "ELIMINATED! {score}!",
             "death": "DOWNED!",
             "multi_kill": "MULTI-KILL! {score}!",
-            "clip": "THAT WAS CLUTCH! 🎬",
         },
     }
 
-    def __init__(self, persona: str = "neutral", wp_enabled: bool = True, clip_model_path: str | Path | None = None, wp_swing_threshold: float = 0.12, learning_logger: Any | None = None):
+    def __init__(
+        self,
+        persona: str = "neutral",
+        wp_enabled: bool = True,
+        clip_model_path: str | Path | None = None,
+        wp_swing_threshold: float = 0.12,
+        learning_logger: Any | None = None,
+    ):
         self.persona = persona
         self._templates = self._load_templates(persona)
         self._last_trigger: dict[tuple[str, str], float] = {}
         self._wp_swing_threshold: float = float(wp_swing_threshold)
         try:
-            self._wp: FootballWinProbability | None = FootballWinProbability() if wp_enabled else None
+            self._wp: FootballWinProbability | None = (
+                FootballWinProbability() if wp_enabled else None
+            )
         except Exception as e:
             log.warning(f"WP init failed: {e}")
             self._wp = None
@@ -183,6 +195,7 @@ class MomentScorer:
             self._clip_model = ClipWorthinessModel(clip_model_path=None)
 
         self._learning_logger: Any | None = learning_logger
+
     def _is_football(self, state) -> bool:
         """Gate: FootballWinProbability only for football category."""
         cat = getattr(state, "game_category", None)
@@ -214,13 +227,26 @@ class MomentScorer:
             if abs(swing) < 0.02:
                 return None
             msg = self._message("clip", state, wp_swing=f"{swing:+.2f}")
-            m = self._build_moment(weight=min(0.95, 0.75+abs(swing)), action="clip", message=msg or "Clutch clip incoming!", reason=f"wp_swing {swing:+.2f}", cooldown_key="wp_clip")
+            m = self._build_moment(
+                weight=min(0.95, 0.75 + abs(swing)),
+                action="clip",
+                message=msg or "Clutch clip incoming!",
+                reason=f"wp_swing {swing:+.2f}",
+                cooldown_key="wp_clip",
+            )
             if not m.triggered:
                 return None
-            m.payload.update({"wp_swing": swing, "win_prob": r.get("win_prob"), "expected_points": r.get("expected_points")})
+            m.payload.update(
+                {
+                    "wp_swing": swing,
+                    "win_prob": r.get("win_prob"),
+                    "expected_points": r.get("expected_points"),
+                }
+            )
             return (m, swing)
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).debug(f"_maybe_wp_clip failed: {e}")
             return None
 
@@ -229,23 +255,35 @@ class MomentScorer:
             return False
         try:
             import re
+
             pos = (state.field_position or "").lower()
             is_rz = 0.0
             if "opp" in pos:
                 mm = re.search(r"opp(?:onent)?\s*(\d+)", pos)
                 if mm and int(mm.group(1)) <= 20:
                     is_rz = 1.0
-            hs = state.home_score; aw = state.away_score
+            hs = state.home_score
+            aw = state.away_score
             try:
-                margin = abs(int(hs or 0) - int(aw or 0)) if hs is not None and aw is not None else 10
+                margin = (
+                    abs(int(hs or 0) - int(aw or 0)) if hs is not None and aw is not None else 10
+                )
             except Exception:
                 margin = 10
             close = 1.0 if margin <= 8 else 0.0
             apm = float(getattr(state.controller, "apm_5s", 0) or 0) / 120.0
             apm = max(0.0, min(1.0, apm))
-            feats = {"wp_swing": float(wp_swing), "red_zone": is_rz, "close_game": close, "apm": apm}
+            feats = {
+                "wp_swing": float(wp_swing),
+                "red_zone": is_rz,
+                "close_game": close,
+                "apm": apm,
+            }
             score = self._clip_model.predict(feats) if getattr(self, "_clip_model", None) else 1.0
-            return bool(score > 0.55 or abs(float(wp_swing)) > float(getattr(self, "_wp_swing_threshold", 0.12)))
+            return bool(
+                score > 0.55
+                or abs(float(wp_swing)) > float(getattr(self, "_wp_swing_threshold", 0.12))
+            )
         except Exception:
             return True
 
@@ -257,7 +295,7 @@ class MomentScorer:
         path = Path(persona)
         if path.is_file():
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     data = json.load(f)
                 if isinstance(data, dict):
                     return data
@@ -314,7 +352,9 @@ class MomentScorer:
             return self._score_outcome(state, event_payload, active_prediction, features)
 
         if event_type == "visual_context":
-            scored = self._score_visual_context(state, event_payload or {}, active_prediction, features)
+            scored = self._score_visual_context(
+                state, event_payload or {}, active_prediction, features
+            )
             wp_clip = self._maybe_wp_clip(state)
             if wp_clip and not any(m.action == "clip" and m.triggered for m in scored):
                 if self._clip_gate(state, wp_clip[1]):
@@ -323,7 +363,13 @@ class MomentScorer:
                 try:
                     for _m in scored:
                         if _m.triggered:
-                            self._learning_logger.log(state, _m, label=None, frame_hash=str((event_payload or {}).get("frame_hash", "")), wp_swing=float(_m.payload.get("wp_swing", 0.0) or 0.0))
+                            self._learning_logger.log(
+                                state,
+                                _m,
+                                label=None,
+                                frame_hash=str((event_payload or {}).get("frame_hash", "")),
+                                wp_swing=float(_m.payload.get("wp_swing", 0.0) or 0.0),
+                            )
                 except Exception:
                     pass
             return scored
@@ -335,7 +381,13 @@ class MomentScorer:
                 if getattr(self, "_learning_logger", None) is not None:
                     try:
                         for _m in moments:
-                            self._learning_logger.log(state, _m, label=None, frame_hash=str((event_payload or {}).get("frame_hash", "")), wp_swing=float(wp_clip_generic[1]))
+                            self._learning_logger.log(
+                                state,
+                                _m,
+                                label=None,
+                                frame_hash=str((event_payload or {}).get("frame_hash", "")),
+                                wp_swing=float(wp_clip_generic[1]),
+                            )
                     except Exception:
                         pass
                 return moments
@@ -447,7 +499,9 @@ class MomentScorer:
                         weight=0.9,
                         action="resolve_prediction",
                         message=self._message(
-                            "resolve_prediction_yes" if winning_index == 0 else "resolve_prediction_no",
+                            "resolve_prediction_yes"
+                            if winning_index == 0
+                            else "resolve_prediction_no",
                             state,
                         ),
                         reason="score_changed resolves prediction",
@@ -709,7 +763,9 @@ class MomentScorer:
     def _possession_message(self, state: SituationState, fields: dict[str, Any]) -> str:
         prev = fields.get("prev_possession")
         cur = fields.get("possession") or state.possession
-        return self._message("possession_changed", state, prev_possession=prev or "", possession=cur or "")
+        return self._message(
+            "possession_changed", state, prev_possession=prev or "", possession=cur or ""
+        )
 
     # ──────────────────────────────────────────────────────────────────────────
     # HELPERS
@@ -762,7 +818,9 @@ class MomentScorer:
             cooldown_s = 5.0
 
         if now - last < cooldown_s:
-            return ScoredMoment(False, weight, "none", "", f"cooldown for {cooldown_key}", cooldown_key)
+            return ScoredMoment(
+                False, weight, "none", "", f"cooldown for {cooldown_key}", cooldown_key
+            )
 
         self._last_trigger[key] = now
         return ScoredMoment(
@@ -774,4 +832,3 @@ class MomentScorer:
             cooldown_key=cooldown_key,
             payload=payload or {},
         )
-

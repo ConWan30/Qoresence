@@ -7,16 +7,17 @@ Mints: session_id, session_head_ns, device_id_hex
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional
 import os
 import time
 import uuid
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
 class SessionIdentity:
     """Immutable session identity triplet."""
+
     session_id: str
     session_head_ns: int
     device_id_hex: str
@@ -44,14 +45,14 @@ class SessionAuthority:
     Single source of truth — all lobes get identity from here.
     """
 
-    _current_session: Optional[SessionIdentity] = None
+    _current_session: SessionIdentity | None = None
 
     @classmethod
     def mint(
         cls,
-        session_id: Optional[str] = None,
-        device_id_hex: Optional[str] = None,
-        session_head_ns: Optional[int] = None,
+        session_id: str | None = None,
+        device_id_hex: str | None = None,
+        session_head_ns: int | None = None,
     ) -> SessionIdentity:
         """
         Mint a new session identity.
@@ -84,7 +85,7 @@ class SessionAuthority:
         return identity
 
     @classmethod
-    def current(cls) -> Optional[SessionIdentity]:
+    def current(cls) -> SessionIdentity | None:
         """Get the current active session identity."""
         return cls._current_session
 
@@ -114,7 +115,3 @@ class SessionAuthority:
             device_id_hex=device_id_hex,
             session_head_ns=session_head_ns,
         )
-
-
-# Need to import Any for type hint
-from typing import Any

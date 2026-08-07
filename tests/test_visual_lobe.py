@@ -18,13 +18,10 @@ import pytest
 
 from qoresence.core import (
     RetinaEventBus,
-    SourceLobe,
-    EventType,
-    clock_ns,
-    VisualConfig,
     SessionAuthority,
+    VisualConfig,
 )
-from qoresence.lobes.visual import VisualRuntime, MockVLMClient, VisualContext, CrossModalVerdict
+from qoresence.lobes.visual import CrossModalVerdict, MockVLMClient, VisualContext, VisualRuntime
 
 
 class TestVisualRuntime:
@@ -120,7 +117,7 @@ class TestVisualRuntime:
         assert verdict.verdict == "inconclusive"
         assert verdict.confidence == 0.5
 
-    @patch('qoresence.lobes.visual.VLMClient')
+    @patch("qoresence.lobes.visual.VLMClient")
     def test_visual_context_emission(self, mock_client_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -169,20 +166,20 @@ class TestVisualRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            visual_events = [e for e in events if e['source_lobe'] == 'visual']
-            context_events = [e for e in visual_events if e['type'] == 'visual_context']
+            visual_events = [e for e in events if e["source_lobe"] == "visual"]
+            context_events = [e for e in visual_events if e["type"] == "visual_context"]
 
             assert len(context_events) >= 1
 
             for e in context_events:
-                assert e['session_id'] == 'visual_test'
-                assert e['source_lobe'] == 'visual'
-                assert 'clock_ns' in e
-                assert e['payload']['game_state'] == 'gameplay'
-                assert e['payload']['game_category'] == 'football'
-                assert e['payload']['confidence'] == 0.9
+                assert e["session_id"] == "visual_test"
+                assert e["source_lobe"] == "visual"
+                assert "clock_ns" in e
+                assert e["payload"]["game_state"] == "gameplay"
+                assert e["payload"]["game_category"] == "football"
+                assert e["payload"]["confidence"] == 0.9
 
-    @patch('qoresence.lobes.visual.VLMClient')
+    @patch("qoresence.lobes.visual.VLMClient")
     def test_cross_modal_verdict_emission(self, mock_client_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -242,15 +239,15 @@ class TestVisualRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            visual_events = [e for e in events if e['source_lobe'] == 'visual']
-            verdict_events = [e for e in visual_events if e['type'] == 'cross_modal_verdict']
+            visual_events = [e for e in events if e["source_lobe"] == "visual"]
+            verdict_events = [e for e in visual_events if e["type"] == "cross_modal_verdict"]
 
             assert len(verdict_events) >= 1
 
             for e in verdict_events:
-                assert e['payload']['verdict'] == 'confirmed'
-                assert e['payload']['confidence'] == 0.95
-                assert 'modalities_checked' in e['payload']
+                assert e["payload"]["verdict"] == "confirmed"
+                assert e["payload"]["confidence"] == 0.95
+                assert "modalities_checked" in e["payload"]
 
     def test_session_start_and_end_events(self):
         with tempfile.TemporaryDirectory() as td:
@@ -273,15 +270,15 @@ class TestVisualRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            event_types = [e['type'] for e in events]
-            assert 'session_start' in event_types
-            assert 'session_end' in event_types
+            event_types = [e["type"] for e in events]
+            assert "session_start" in event_types
+            assert "session_end" in event_types
 
-            start_event = next(e for e in events if e['type'] == 'session_start')
-            assert start_event['payload']['model_name'] == config.model_name
+            start_event = next(e for e in events if e["type"] == "session_start")
+            assert start_event["payload"]["model_name"] == config.model_name
 
-            end_event = next(e for e in events if e['type'] == 'session_end')
-            assert 'frames_analyzed' in end_event['payload']
+            end_event = next(e for e in events if e["type"] == "session_end")
+            assert "frames_analyzed" in end_event["payload"]
 
 
 class TestVisualConfigDefaults:
@@ -332,7 +329,7 @@ class TestCrossModalVerdict:
 class TestVisualRuntimeIntegration:
     """Integration tests with other lobes."""
 
-    @patch('qoresence.lobes.visual.VLMClient')
+    @patch("qoresence.lobes.visual.VLMClient")
     def test_integration_with_outcome_and_controller(self, mock_client_class):
         """Test visual lobe receives modality data from outcome and controller."""
         with tempfile.TemporaryDirectory() as td:
@@ -347,7 +344,10 @@ class TestVisualRuntimeIntegration:
                 game_state="football", confidence=0.9, details={}, model="mock", latency_ms=10.0
             )
             mock_client.cross_modal_check.return_value = CrossModalVerdict(
-                verdict="confirmed", confidence=0.9, reasoning="Match", modalities_checked=["outcome", "controller"]
+                verdict="confirmed",
+                confidence=0.9,
+                reasoning="Match",
+                modalities_checked=["outcome", "controller"],
             )
             mock_client_class.return_value = mock_client
 
@@ -383,14 +383,14 @@ class TestVisualRuntimeIntegration:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            visual_events = [e for e in events if e['source_lobe'] == 'visual']
-            verdict_events = [e for e in visual_events if e['type'] == 'cross_modal_verdict']
+            visual_events = [e for e in events if e["source_lobe"] == "visual"]
+            verdict_events = [e for e in visual_events if e["type"] == "cross_modal_verdict"]
 
             assert len(verdict_events) >= 1
-            verdict = verdict_events[0]['payload']
-            assert verdict['verdict'] == 'confirmed'
-            assert 'outcome' in verdict['modalities_checked']
-            assert 'controller' in verdict['modalities_checked']
+            verdict = verdict_events[0]["payload"]
+            assert verdict["verdict"] == "confirmed"
+            assert "outcome" in verdict["modalities_checked"]
+            assert "controller" in verdict["modalities_checked"]
 
 
 if __name__ == "__main__":

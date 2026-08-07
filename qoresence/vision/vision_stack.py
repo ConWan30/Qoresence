@@ -13,29 +13,30 @@ a game detection decision.
 
 from __future__ import annotations
 
+import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import cv2
-import json
 import numpy as np
 
 from qoresence.core import GameProfileId
 from qoresence.lobes.visual import VLMClient
-from typing import Union  # for VLMClient | LocalVLMClient
+
 try:
     from qoresence.vision.local_vlm import LocalVLMClient as _LocalVLMClient
-    VLMClientLike = Union[VLMClient, _LocalVLMClient]  # type: ignore[misc]
+
+    VLMClientLike = VLMClient | _LocalVLMClient  # type: ignore[misc]
 except Exception:
     VLMClientLike = VLMClient  # type: ignore[misc,assignment]
 
 from .hud_detector import HUDDetector, HUDRegion
-from .motion_tracker import MotionTracker, MotionEvidence
+from .motion_tracker import MotionEvidence, MotionTracker
 from .ocr_providers import BaseOCRProvider, OCRResult, VLMOCRProvider
-from .visual_context import VisualContext, GameCategory, GameState, build_vlm_prompt
+from .visual_context import GameCategory, GameState, VisualContext, build_vlm_prompt
 
 log = logging.getLogger(__name__)
 
@@ -43,16 +44,17 @@ log = logging.getLogger(__name__)
 @dataclass
 class VisionEvidence:
     """All evidence extracted from a single frame."""
+
     timestamp_ns: int
-    vlm_game: Optional[GameProfileId]
+    vlm_game: GameProfileId | None
     vlm_confidence: float
     vlm_response: str
     ocr_text: str
     ocr_confidence: float
     ocr_provider: str
-    motion: Optional[MotionEvidence]
+    motion: MotionEvidence | None
     hud_regions: list[HUDRegion]
-    visual_context: Optional[VisualContext] = None
+    visual_context: VisualContext | None = None
     details: dict = field(default_factory=dict)
 
 
@@ -70,10 +72,10 @@ class VisionStack:
     def __init__(
         self,
         vlm_client: VLMClientLike,
-        ocr_provider: Optional[BaseOCRProvider] = None,
+        ocr_provider: BaseOCRProvider | None = None,
         enable_motion: bool = True,
         enable_hud: bool = True,
-        model_dir: Optional[Path] = None,
+        model_dir: Path | None = None,
         ocr_on_crops: bool = True,
         max_workers: int = 3,
         game_profile: GameProfileId = GameProfileId.NCAA_FOOTBALL_27,
@@ -92,10 +94,14 @@ class VisionStack:
         self._motion = MotionTracker() if enable_motion else None
         self._hud_detector = HUDDetector(model_dir=model_dir) if enable_hud else None
 
-        self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="visionstack-")
+        self._executor = ThreadPoolExecutor(
+            max_workers=max_workers, thread_name_prefix="visionstack-"
+        )
 
         # Game-aware JSON prompt: VLM returns structured VisualContext fields
-        prompt_category = "football" if game_profile == GameProfileId.NCAA_FOOTBALL_27 else "shooter"
+        prompt_category = (
+            "football" if game_profile == GameProfileId.NCAA_FOOTBALL_27 else "shooter"
+        )
         self._game_prompt = build_vlm_prompt(prompt_category)
 
     def warmup(self) -> None:
@@ -113,7 +119,7 @@ class VisionStack:
     def stop(self) -> None:
         self._executor.shutdown(wait=False, cancel_futures=True)
 
-    def analyze(self, frame: np.ndarray) -> Optional[VisionEvidence]:
+    def analyze(self, frame: np.ndarray) -> VisionEvidence | None:
         """Run the full synchronized stack on one frame."""
         from qoresence.core import clock_ns
 
@@ -121,16 +127,16 @@ class VisionStack:
 
         # VLM game classification (must run, not parallel because it uses the GPU session)
         vlm_raw = None
-        visual_context: Optional[VisualContext] = None
+        visual_context: VisualContext | None = None
         try:
-            vlm_raw = self._vlm_client.analyze_frame_raw(frame, self._game_prompt, max_tokens=400, game_profile=self._game_profile)
+            vlm_raw = self._vlm_client.analyze_frame_raw(
+                frame, self._game_prompt, max_tokens=400, game_profile=self._game_profile
+            )
             visual_context = self._parse_vlm_context(vlm_raw, frame)
         except Exception as e:
             log.warning(f"VLM game classification failed: {e}")
 
-        vlm_game, vlm_confidence = self._visual_context_to_game_profile(
-            visual_context, vlm_raw
-        )
+        vlm_game, vlm_confidence = self._visual_context_to_game_profile(visual_context, vlm_raw)
 
         # HUD detection in parallel
         hud_regions: list[HUDRegion] = []
@@ -141,7 +147,7 @@ class VisionStack:
                 log.warning(f"HUD detection failed: {e}")
 
         # Motion in parallel with OCR
-        motion_future: Optional[Any] = None
+        motion_future: Any | None = None
         if self._enable_motion and self._motion:
             motion_future = self._executor.submit(self._motion.analyze, frame)
 
@@ -149,7 +155,7 @@ class VisionStack:
         ocr_result = self._run_ocr(frame, hud_regions)
 
         # Collect motion result
-        motion: Optional[MotionEvidence] = None
+        motion: MotionEvidence | None = None
         if motion_future:
             try:
                 motion = motion_future.result(timeout=1.0)
@@ -190,7 +196,7 @@ class VisionStack:
         crop_confs: list[float] = []
 
         for region in sorted_regions[:2]:  # top 2 largest / most confident regions
-            crop = frame[region.y1:region.y2, region.x1:region.x2]
+            crop = frame[region.y1 : region.y2, region.x1 : region.x2]
             if crop.size == 0:
                 continue
             try:
@@ -212,7 +218,10 @@ class VisionStack:
             text=merged,
             confidence=avg_conf,
             provider=self._ocr_provider.name,
-            raw_details={"crops": len(crop_texts), "regions": [r.label for r in sorted_regions[:2]]},
+            raw_details={
+                "crops": len(crop_texts),
+                "regions": [r.label for r in sorted_regions[:2]],
+            },
         )
 
     @staticmethod
@@ -227,8 +236,19 @@ class VisionStack:
                 continue
             # Filter noisy / overly generic tokens that VLM OCR often hallucinates
             if lower in {
-                "white", "black", "red", "green", "blue", "gray", "yellow",
-                "background", "wall", "ceiling", "floor", "screen", "tv",
+                "white",
+                "black",
+                "red",
+                "green",
+                "blue",
+                "gray",
+                "yellow",
+                "background",
+                "wall",
+                "ceiling",
+                "floor",
+                "screen",
+                "tv",
             }:
                 continue
             seen.add(lower)
@@ -240,7 +260,7 @@ class VisionStack:
         return ", ".join(unique)
 
     @staticmethod
-    def _parse_vlm_context(raw: Optional[str], frame: np.ndarray) -> Optional[VisualContext]:
+    def _parse_vlm_context(raw: str | None, frame: np.ndarray) -> VisualContext | None:
         """Parse a JSON VLM response into a VisualContext."""
         import hashlib
 
@@ -272,8 +292,8 @@ class VisionStack:
 
     @staticmethod
     def _visual_context_to_game_profile(
-        context: Optional[VisualContext], raw: Optional[str]
-    ) -> tuple[Optional[GameProfileId], float]:
+        context: VisualContext | None, raw: str | None
+    ) -> tuple[GameProfileId | None, float]:
         """Map a VisualContext to a GameProfileId and confidence."""
         if context is not None:
             title = (context.game_title or "").lower()
@@ -293,7 +313,13 @@ class VisionStack:
                 if category == GameCategory.SHOOTER:
                     return GameProfileId.CALL_OF_DUTY, context.confidence
 
-            if state in (GameState.MENU, GameState.LOBBY, GameState.LOADING, GameState.RESULTS, GameState.CUTSCENE):
+            if state in (
+                GameState.MENU,
+                GameState.LOBBY,
+                GameState.LOADING,
+                GameState.RESULTS,
+                GameState.CUTSCENE,
+            ):
                 # Menu is still useful signal but not an active game profile
                 return None, context.confidence
 
@@ -301,7 +327,7 @@ class VisionStack:
         return VisionStack._legacy_parse_vlm_game(raw)
 
     @staticmethod
-    def _legacy_parse_vlm_game(raw: Optional[str]) -> tuple[Optional[GameProfileId], float]:
+    def _legacy_parse_vlm_game(raw: str | None) -> tuple[GameProfileId | None, float]:
         """Parse the legacy two-line VLM game classification response."""
         import re
 

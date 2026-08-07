@@ -1,4 +1,5 @@
 """Tests for local scoreboard OCR extraction."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,7 +15,9 @@ from qoresence.vision.visual_context import GameCategory, GameState, VisualConte
 def test_extract_leaves_non_football_unchanged():
     extractor = FootballScoreboardExtractor()
     ctx = VisualContext(game_category=GameCategory.UNKNOWN)
-    frame = (255 * (cv2.getGaussianKernel(100, 10) @ cv2.getGaussianKernel(100, 10).T)).astype("uint8")
+    frame = (255 * (cv2.getGaussianKernel(100, 10) @ cv2.getGaussianKernel(100, 10).T)).astype(
+        "uint8"
+    )
     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
     result = extractor.extract(frame, ctx)
     assert result is ctx

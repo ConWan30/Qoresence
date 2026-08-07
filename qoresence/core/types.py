@@ -9,23 +9,25 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class SourceLobe(str, Enum):
+class SourceLobe(StrEnum):
     """Enumeration of all event sources (lobes and agents)."""
-    STREAMER = "streamer"      # UVC / OBS Virtual Cam
+
+    STREAMER = "streamer"  # UVC / OBS Virtual Cam
     CONTROLLER = "controller"  # Local HID
-    SCREEN = "screen"          # WGC / DXGI / mss
-    OUTCOME = "outcome"        # Game-specific events
-    VISUAL = "visual"          # VLM visual context
-    FUSION = "fusion"          # Cross-lobe fusion / game detection
-    AGENT = "agent"            # Autonomous agents (ClutchBot, etc.)
+    SCREEN = "screen"  # WGC / DXGI / mss
+    OUTCOME = "outcome"  # Game-specific events
+    VISUAL = "visual"  # VLM visual context
+    FUSION = "fusion"  # Cross-lobe fusion / game detection
+    AGENT = "agent"  # Autonomous agents (ClutchBot, etc.)
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     """Standard event types across lobes."""
+
     # Streamer lobe
     ACTIVITY = "activity"
     FRAME_STATS = "frame_stats"
@@ -80,6 +82,7 @@ class BaseEvent:
 
     NON-NEGOTIABLE: Every event carries session_id + clock_ns + source_lobe.
     """
+
     session_id: str
     clock_ns: int
     source_lobe: SourceLobe
@@ -140,11 +143,13 @@ class BaseEvent:
 # LOBE-SPECIFIC EVENT PAYLOADS (TypedDict for clarity)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class StreamerPayload:
     """Streamer lobe event payloads."""
+
     # activity event
-    level: str | None = None          # "idle" | "low" | "high"
+    level: str | None = None  # "idle" | "low" | "high"
     motion: float | None = None
     mean_luma: float | None = None
     presence_sync_ok: bool | None = None
@@ -156,7 +161,7 @@ class StreamerPayload:
 
     # zone event
     zone_id: str | None = None
-    state: str | None = None          # "quiet" | "active"
+    state: str | None = None  # "quiet" | "active"
     delta: float | None = None
     luma: float | None = None
 
@@ -164,18 +169,19 @@ class StreamerPayload:
 @dataclass
 class ControllerPayload:
     """Controller lobe event payloads."""
+
     # Generic controller event
     button: str | None = None
     value: float | None = None
     causal_parent_ns: int | None = None  # links to screen/outcome event
 
     # Trigger onset
-    trigger: str | None = None           # "L2" | "R2"
+    trigger: str | None = None  # "L2" | "R2"
     amplitude: float | None = None
     device_ts_ms: int | None = None
 
     # Stick motion
-    stick: str | None = None             # "left" | "right"
+    stick: str | None = None  # "left" | "right"
     x: float | None = None
     y: float | None = None
 
@@ -183,6 +189,7 @@ class ControllerPayload:
 @dataclass
 class ScreenPayload:
     """Screen lobe event payloads."""
+
     coupling_score: float | None = None
     negative_control: float | None = None
     decoupled_energy: float | None = None
@@ -194,18 +201,20 @@ class ScreenPayload:
 @dataclass
 class OutcomePayload:
     """Outcome lobe event payloads (game-profile specific)."""
-    event_name: str                          # e.g., "snap", "kill", "down_advanced"
-    profile_id: str                          # "ncaa_football_27" | "call_of_duty"
+
+    event_name: str  # e.g., "snap", "kill", "down_advanced"
+    profile_id: str  # "ncaa_football_27" | "call_of_duty"
     confidence: float
-    fields: dict[str, Any]                   # profile-specific fields
+    fields: dict[str, Any]  # profile-specific fields
 
 
 @dataclass
 class VisualPayload:
     """Visual lobe event payloads."""
+
     game_state: str | None = None
     game_title: str | None = None
-    game_category: str | None = None      # "football" | "shooter"
+    game_category: str | None = None  # "football" | "shooter"
     confidence: float | None = None
     frame_hash: str | None = None
     # Game-specific fields (football)
@@ -227,6 +236,7 @@ class VisualPayload:
 @dataclass
 class FusionPayload:
     """Fusion engine event payloads."""
+
     presence_sync_ok: bool
     weighted_verdict: str
     lobe_contributions: dict[str, float]
@@ -236,6 +246,7 @@ class FusionPayload:
 # ──────────────────────────────────────────────────────────────────────────────
 # HELPER FUNCTIONS
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def make_event(
     session_id: str,

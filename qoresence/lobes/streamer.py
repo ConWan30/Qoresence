@@ -32,6 +32,7 @@ def _get_dshow_device_name(index: int) -> str | None:
     """Return DirectShow display name for a device index, if available."""
     try:
         from pygrabber.dshow_graph import FilterGraph
+
         names = FilterGraph().get_input_devices()
         if 0 <= index < len(names):
             return names[index]
@@ -47,6 +48,7 @@ def list_dshow_devices() -> list[tuple[int, str, bool]]:
     """
     try:
         from pygrabber.dshow_graph import FilterGraph
+
         names = FilterGraph().get_input_devices()
     except Exception as e:
         log.warning(f"Could not enumerate DShow devices: {e}")
@@ -64,10 +66,32 @@ def _is_allowed_capture_name(name: str | None) -> bool:
         return False
     n = name.lower()
     # Known disallowed words (laptop/personal cameras)
-    if any(bad in n for bad in ["720p hd camera", "hd camera", "webcam", "integrated", "laptop", "facetime", "built-in"]):
+    if any(
+        bad in n
+        for bad in [
+            "720p hd camera",
+            "hd camera",
+            "webcam",
+            "integrated",
+            "laptop",
+            "facetime",
+            "built-in",
+        ]
+    ):
         return any(good in n for good in ["usb3.0 video", "obs virtual"])
     # Known allowed sources
-    if any(good in n for good in ["usb3.0 video", "obs virtual", "capture", "hdmi", "elgato", "avermedia", "usb video"]):
+    if any(
+        good in n
+        for good in [
+            "usb3.0 video",
+            "obs virtual",
+            "capture",
+            "hdmi",
+            "elgato",
+            "avermedia",
+            "usb video",
+        ]
+    ):
         return True
     # Any other "camera" is treated as a personal camera
     if "camera" in n:
@@ -93,6 +117,7 @@ def _frame_contains_person(frame: np.ndarray, area_threshold: float = 0.25) -> b
 
         # Re-use the same EfficientDet-Lite0 model that motion_tracker downloads
         from qoresence.vision.motion_tracker import MotionTracker
+
         model_path = MotionTracker._ensure_mediapipe_model()
 
         options = ObjectDetectorOptions(
@@ -127,9 +152,11 @@ def _frame_contains_person(frame: np.ndarray, area_threshold: float = 0.25) -> b
 # ZONE DEFINITIONS
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ZoneSpec:
     """Zone specification for HUD monitoring."""
+
     zone_id: str
     # Normalized ROI: x, y, width, height in [0, 1]
     x: float
@@ -148,6 +175,7 @@ DEFAULT_ZONES = (
 # ──────────────────────────────────────────────────────────────────────────────
 # STREAMER RUNTIME
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class StreamerRuntime:
     """
@@ -227,17 +255,25 @@ class StreamerRuntime:
         self._running = True
         self._start_time = time.time()
         self._last_success_frame_time = self._start_time
-        self._thread = threading.Thread(target=self._run_loop, name="qoresence-streamer", daemon=True)
+        self._thread = threading.Thread(
+            target=self._run_loop, name="qoresence-streamer", daemon=True
+        )
         self._thread.start()
 
         # Watchdog heartbeat prevents fusion temporal_desync when cap.read() blocks.
         self._watchdog_running = True
-        self._watchdog_thread = threading.Thread(target=self._watchdog_loop, name="qoresence-streamer-watchdog", daemon=True)
+        self._watchdog_thread = threading.Thread(
+            target=self._watchdog_loop, name="qoresence-streamer-watchdog", daemon=True
+        )
         self._watchdog_thread.start()
 
-        source = self.config.url if self.config.source_kind == "network" else self.config.device_index
-        log.info(f"Streamer lobe started: source={source}, "
-                 f"source_kind={self.config.source_kind}, fps_target={self._effective_fps:.1f}")
+        source = (
+            self.config.url if self.config.source_kind == "network" else self.config.device_index
+        )
+        log.info(
+            f"Streamer lobe started: source={source}, "
+            f"source_kind={self.config.source_kind}, fps_target={self._effective_fps:.1f}"
+        )
         return True
 
     def stop(self) -> None:
@@ -334,8 +370,10 @@ class StreamerRuntime:
             if self.config.eye_check_required:
                 self._save_eye_check_snapshot(frame)
 
-            log.info(f"Capture opened: {frame.shape[1]}x{frame.shape[0]} @ "
-                     f"{self._cap.get(cv2.CAP_PROP_FPS):.1f} FPS (requested {self.config.fps_target})")
+            log.info(
+                f"Capture opened: {frame.shape[1]}x{frame.shape[0]} @ "
+                f"{self._cap.get(cv2.CAP_PROP_FPS):.1f} FPS (requested {self.config.fps_target})"
+            )
             return True
 
         except Exception as e:
@@ -476,11 +514,15 @@ class StreamerRuntime:
             payload={
                 "n": self._frames_processed,
                 "fps_meas": round(self._measure_actual_fps(), 2),
-                "mean_luma": round(float(np.mean(self._prev_gray)) if self._prev_gray is not None else 0, 2),
+                "mean_luma": round(
+                    float(np.mean(self._prev_gray)) if self._prev_gray is not None else 0, 2
+                ),
                 "motion": round(self._last_motion, 3),
                 "activity": self._activity,
                 "presence_sync_ok": self._check_presence(now)[0],
-                "last_controller_s_ago": round(self._check_presence(now)[1], 3) if self._check_presence(now)[1] is not None else None,
+                "last_controller_s_ago": round(self._check_presence(now)[1], 3)
+                if self._check_presence(now)[1] is not None
+                else None,
                 "degraded": True,
                 "fps_target": round(self._effective_fps, 1),
             },
@@ -507,7 +549,9 @@ class StreamerRuntime:
         # Motion (mean absolute difference)
         motion = 0.0
         if self._prev_gray is not None:
-            motion = float(np.mean(np.abs(gray.astype(np.float32) - self._prev_gray.astype(np.float32))))
+            motion = float(
+                np.mean(np.abs(gray.astype(np.float32) - self._prev_gray.astype(np.float32)))
+            )
         self._prev_gray = gray.copy()
         self._last_motion = motion
 
@@ -614,16 +658,20 @@ class StreamerRuntime:
         # Call presence callback for fusion engine
         if self._presence_callback:
             try:
-                self._presence_callback({
-                    "lobe": "streamer",
-                    "presence_sync_ok": presence_sync,
-                    "activity": self._activity,
-                    "motion": motion,
-                })
+                self._presence_callback(
+                    {
+                        "lobe": "streamer",
+                        "presence_sync_ok": presence_sync,
+                        "activity": self._activity,
+                        "motion": motion,
+                    }
+                )
             except Exception:
                 pass
 
-    def _emit_zone(self, zone_id: str, state: str, prev: str, delta: float, luma: float, now: float) -> None:
+    def _emit_zone(
+        self, zone_id: str, state: str, prev: str, delta: float, luma: float, now: float
+    ) -> None:
         """Emit zone state change event."""
         presence_sync, last_ago = self._check_presence(now)
 
@@ -653,8 +701,12 @@ class StreamerRuntime:
             event_type="frame_stats",
             payload={
                 "n": self._frames_processed,
-                "fps_meas": round(self._measure_actual_fps() or self._frames_processed / elapsed, 2),
-                "mean_luma": round(float(np.mean(self._prev_gray)) if self._prev_gray is not None else 0, 2),
+                "fps_meas": round(
+                    self._measure_actual_fps() or self._frames_processed / elapsed, 2
+                ),
+                "mean_luma": round(
+                    float(np.mean(self._prev_gray)) if self._prev_gray is not None else 0, 2
+                ),
                 "motion": round(self._last_motion, 3),
                 "activity": self._activity,
                 "presence_sync_ok": presence_sync,

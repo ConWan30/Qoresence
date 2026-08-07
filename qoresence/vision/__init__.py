@@ -27,6 +27,7 @@ __all__ = [
     "VLMOCRProvider",
     "EasyOCRProvider",
     "TesseractOCRProvider",
+    "create_ocr_provider",
     "MotionTracker",
     "MotionEvidence",
     "HUDDetector",

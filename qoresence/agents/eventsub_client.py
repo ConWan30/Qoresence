@@ -143,23 +143,43 @@ class TwitchEventSubClient:
 
         subs = []
         if self.follow_alerts:
-            subs.append(("channel.follow", "2", {
-                "broadcaster_user_id": broadcaster_id,
-                "moderator_user_id": self._bot_user_id,
-            }))
+            subs.append(
+                (
+                    "channel.follow",
+                    "2",
+                    {
+                        "broadcaster_user_id": broadcaster_id,
+                        "moderator_user_id": self._bot_user_id,
+                    },
+                )
+            )
         if self.sub_alerts:
-            subs.append(("channel.subscribe", "1", {
-                "broadcaster_user_id": broadcaster_id,
-            }))
+            subs.append(
+                (
+                    "channel.subscribe",
+                    "1",
+                    {
+                        "broadcaster_user_id": broadcaster_id,
+                    },
+                )
+            )
         if self.redemption_alerts:
-            subs.append(("channel.channel_points_custom_reward_redemption.add", "1", {
-                "broadcaster_user_id": broadcaster_id,
-            }))
+            subs.append(
+                (
+                    "channel.channel_points_custom_reward_redemption.add",
+                    "1",
+                    {
+                        "broadcaster_user_id": broadcaster_id,
+                    },
+                )
+            )
 
         for sub_type, version, condition in subs:
             if sub_type in self._subscribed_types:
                 continue
-            result = self.helix.create_eventsub_subscription(sub_type, version, condition, session_id)
+            result = self.helix.create_eventsub_subscription(
+                sub_type, version, condition, session_id
+            )
             if result:
                 self._subscribed_types.add(sub_type)
                 log.info(f"EventSub subscribed: {sub_type}")

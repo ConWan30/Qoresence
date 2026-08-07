@@ -1,16 +1,17 @@
 """Unit tests for ClipWorthinessModel + MomentScorer gating + LearningLogger opt-in."""
+
 from __future__ import annotations
 
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 import pytest
 
+from qoresence.agents.learning_loop import ClipWorthinessTrainer, LearningLogger
 from qoresence.agents.moment_scorer import ClipWorthinessModel, MomentScorer
-from qoresence.agents.situation_model import SituationState, ControllerSnapshot
-from qoresence.agents.learning_loop import LearningLogger, ClipWorthinessTrainer
+from qoresence.agents.situation_model import ControllerSnapshot, SituationState
 from qoresence.vision.visual_context import GameCategory
 
 
@@ -98,7 +99,16 @@ class TestClipWorthinessModel:
     def test_save_load_roundtrip(self):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "clip.json"
-            m = ClipWorthinessModel(model_path=p, weights={"wp_swing": 1.0, "red_zone": 2.0, "close_game": 3.0, "apm": 4.0, "bias": -1.0})
+            m = ClipWorthinessModel(
+                model_path=p,
+                weights={
+                    "wp_swing": 1.0,
+                    "red_zone": 2.0,
+                    "close_game": 3.0,
+                    "apm": 4.0,
+                    "bias": -1.0,
+                },
+            )
             m.save()
             assert p.is_file()
             data = json.loads(p.read_text())
@@ -161,7 +171,7 @@ class TestMomentScorerGating:
         r1 = sc._maybe_wp_clip(_football_state())
         assert r1 is None or isinstance(r1, tuple)
         # Change score to force swing: second compute should have swing
-        s2 = _football_state(home_score=28)
+        _ = _football_state(home_score=28)
         # Polluter: _maybe_wp_clip internally calls wp.compute which tracks prev
         # So sequence football -> football with different score should eventually yield swing
         sc2 = MomentScorer(wp_enabled=True, clip_model_path="/tmp/__nonexistent__.json")
@@ -179,17 +189,37 @@ class TestMomentScorerGating:
         assert sc._clip_gate(_shooter_state(field_position="opp 5"), wp_swing=0.5) is False
 
     def test_clip_gate_football_swing_threshold(self):
-        sc = MomentScorer(wp_enabled=True, clip_model_path="/tmp/__nonexistent__.json", wp_swing_threshold=0.12)
+        sc = MomentScorer(
+            wp_enabled=True, clip_model_path="/tmp/__nonexistent__.json", wp_swing_threshold=0.12
+        )
         # large swing should pass even if model score low
-        assert sc._clip_gate(_football_state(field_position="own 40", home_score=21, away_score=14, apm=0), wp_swing=0.5) is True
+        assert (
+            sc._clip_gate(
+                _football_state(field_position="own 40", home_score=21, away_score=14, apm=0),
+                wp_swing=0.5,
+            )
+            is True
+        )
         # tiny swing + not redzone + not close + low apm should fail (model ~0.31 <0.55 and swing<0.12)
         # use blowout (margin 20) not close, own 40 not redzone, apm 0, swing 0.03
-        assert sc._clip_gate(_football_state(field_position="own 40", home_score=35, away_score=14, apm=0), wp_swing=0.03) is False
+        assert (
+            sc._clip_gate(
+                _football_state(field_position="own 40", home_score=35, away_score=14, apm=0),
+                wp_swing=0.03,
+            )
+            is False
+        )
 
     def test_clip_gate_redzone_close_boosts_score(self):
         sc = MomentScorer(wp_enabled=True, clip_model_path="/tmp/__nonexistent__.json")
         # redzone + close game boosts model score above 0.55 even with modest swing
-        assert sc._clip_gate(_football_state(field_position="opp 10", home_score=21, away_score=17, apm=60), wp_swing=0.08) is True
+        assert (
+            sc._clip_gate(
+                _football_state(field_position="opp 10", home_score=21, away_score=17, apm=60),
+                wp_swing=0.08,
+            )
+            is True
+        )
 
     def test_score_gated_shooter_no_wp(self):
         sc = MomentScorer(wp_enabled=True, clip_model_path="/tmp/__nonexistent__.json")
@@ -197,7 +227,12 @@ class TestMomentScorerGating:
         s = _shooter_state()
         s.game_state = "gameplay"
         out = sc.score(s, event_type="visual_context", event_payload={"frame_hash": "abc123"})
-        wp_clips = [m for m in out if m.payload.get("wp_swing") is not None or (m.action == "clip" and "wp_swing" in m.reason)]
+        wp_clips = [
+            m
+            for m in out
+            if m.payload.get("wp_swing") is not None
+            or (m.action == "clip" and "wp_swing" in m.reason)
+        ]
         assert wp_clips == [], f"shooter must not produce WP clip, got {out}"
 
     def test_score_backward_compat_no_logger(self):
@@ -226,7 +261,12 @@ class TestLearningLogger:
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "learn.jsonl"
             lg = LearningLogger(path=p)
-            lg.log({"x": 1}, {"triggered": True, "payload": {"wp_swing": 0.2}}, frame_hash="deadbeef1234567890", wp_swing=0.2)
+            lg.log(
+                {"x": 1},
+                {"triggered": True, "payload": {"wp_swing": 0.2}},
+                frame_hash="deadbeef1234567890",
+                wp_swing=0.2,
+            )
             raw = p.read_text()
             assert "deadbeef1234567890" not in raw  # only first 16
             assert "deadbeef12345678" in raw
@@ -235,7 +275,9 @@ class TestLearningLogger:
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "learn.jsonl"
             lg = LearningLogger(path=p)
-            sc = MomentScorer(wp_enabled=True, clip_model_path="/tmp/__nonexistent__.json", learning_logger=lg)
+            sc = MomentScorer(
+                wp_enabled=True, clip_model_path="/tmp/__nonexistent__.json", learning_logger=lg
+            )
             # Prime WP then trigger swing
             s = _football_state()
             s.game_state = "gameplay"
@@ -245,14 +287,26 @@ class TestLearningLogger:
             # Need to force wp clip path: use generic score trigger (no visual_context)
             # Instead test direct log path exists
             mock_logger = Mock()
-            sc2 = MomentScorer(wp_enabled=True, clip_model_path="/tmp/__nonexistent__.json", learning_logger=mock_logger)
+            sc2 = MomentScorer(
+                wp_enabled=True,
+                clip_model_path="/tmp/__nonexistent__.json",
+                learning_logger=mock_logger,
+            )
             # monkey-patch _maybe_wp_clip to return a triggered moment
             from qoresence.agents.moment_scorer import ScoredMoment
 
-            m = ScoredMoment(triggered=True, weight=0.9, action="clip", message="clip", reason="test", cooldown_key="clip", payload={"wp_swing": 0.5})
+            m = ScoredMoment(
+                triggered=True,
+                weight=0.9,
+                action="clip",
+                message="clip",
+                reason="test",
+                cooldown_key="clip",
+                payload={"wp_swing": 0.5},
+            )
             sc2._maybe_wp_clip = Mock(return_value=(m, 0.5))  # type: ignore
             sc2._clip_gate = Mock(return_value=True)  # type: ignore
-            out = sc2.score(s, event_type="visual_context", event_payload={"frame_hash": "A" * 40})
+            _ = sc2.score(s, event_type="visual_context", event_payload={"frame_hash": "A" * 40})
             # scorer forwards raw hash; LearningLogger truncates to 16 internally
             assert mock_logger.log.called
             call_kwargs = mock_logger.log.call_args
@@ -268,7 +322,9 @@ class TestLearningLogger:
                 assert lg2.load_all()[0].frame_hash == "A" * 16
 
     def test_moment_scorer_no_logger_no_crash(self):
-        sc = MomentScorer(wp_enabled=True, clip_model_path="/tmp/__nonexistent__.json", learning_logger=None)
+        sc = MomentScorer(
+            wp_enabled=True, clip_model_path="/tmp/__nonexistent__.json", learning_logger=None
+        )
         s = _football_state()
         s.game_state = "gameplay"
         out = sc.score(s, event_type="visual_context", event_payload={"frame_hash": "abc"})
@@ -287,8 +343,19 @@ class TestLearningLogger:
             with pytest.raises(ValueError, match=">=10"):
                 tr.train_from_logger(lg)
             # 5 labeled -> still raise
-            for i in range(5):
-                lg.log({"field_position": "opp 10", "home_score": 21, "away_score": 14, "controller": {"apm_5s": 60}}, {"triggered": True}, label=1.0, frame_hash="ab", wp_swing=0.2)
+            for _ in range(5):
+                lg.log(
+                    {
+                        "field_position": "opp 10",
+                        "home_score": 21,
+                        "away_score": 14,
+                        "controller": {"apm_5s": 60},
+                    },
+                    {"triggered": True},
+                    label=1.0,
+                    frame_hash="ab",
+                    wp_swing=0.2,
+                )
             with pytest.raises(ValueError):
                 tr.train_from_logger(lg)
 
@@ -298,10 +365,28 @@ class TestLearningLogger:
             lg = LearningLogger(path=p)
             tr = ClipWorthinessTrainer(model_path=str(Path(td) / "out.json"))
             # mix of labels 0/1, varied features
-            positions = ["opp 5", "own 40", "opp 20", "midfield", "opp 2", "own 10", "opp 15", "own 30", "opp 8", "opp 12", "own 25", "midfield"]
+            positions = [
+                "opp 5",
+                "own 40",
+                "opp 20",
+                "midfield",
+                "opp 2",
+                "own 10",
+                "opp 15",
+                "own 30",
+                "opp 8",
+                "opp 12",
+                "own 25",
+                "midfield",
+            ]
             for i, pos in enumerate(positions):
                 lg.log(
-                    {"field_position": pos, "home_score": 21 if i % 2 == 0 else 28, "away_score": 14, "controller": {"apm_5s": 60 + i * 10}},
+                    {
+                        "field_position": pos,
+                        "home_score": 21 if i % 2 == 0 else 28,
+                        "away_score": 14,
+                        "controller": {"apm_5s": 60 + i * 10},
+                    },
                     {"triggered": True},
                     label=float(i % 2),
                     frame_hash=f"hash{i:02d}" + "x" * 20,
@@ -312,7 +397,7 @@ class TestLearningLogger:
             assert Path(tr.model_path).is_file()
 
     def test_clutchbot_opt_in_off_by_default(self):
-        from qoresence.core.unified_config import RetinaUnifiedConfig, ClutchBotConfig
+        from qoresence.core.unified_config import RetinaUnifiedConfig
 
         cfg = RetinaUnifiedConfig()
         # default learning off
@@ -322,19 +407,23 @@ class TestLearningLogger:
         from qoresence.core.event_bus import RetinaEventBus
 
         with tempfile.TemporaryDirectory() as td:
-            bus = RetinaEventBus(session_id="test_cb_off", jsonl_path=Path(td) / "e.jsonl", enable_ws=False)
+            bus = RetinaEventBus(
+                session_id="test_cb_off", jsonl_path=Path(td) / "e.jsonl", enable_ws=False
+            )
             bot = ClutchBotAgent(config=cfg.clutchbot, bus=bus, session_head_ns=123)
             assert bot._learning_logger is None  # type: ignore
 
     def test_clutchbot_opt_in_on_creates_logger(self):
-        from qoresence.core.unified_config import ClutchBotConfig
         from qoresence.agents.clutchbot import ClutchBotAgent
         from qoresence.core.event_bus import RetinaEventBus
+        from qoresence.core.unified_config import ClutchBotConfig
 
         with tempfile.TemporaryDirectory() as td:
             log_path = Path(td) / "learning.jsonl"
             cfg = ClutchBotConfig(learning_enabled=True, learning_log_path=str(log_path))
-            bus = RetinaEventBus(session_id="test_cb_on", jsonl_path=Path(td) / "e.jsonl", enable_ws=False)
+            bus = RetinaEventBus(
+                session_id="test_cb_on", jsonl_path=Path(td) / "e.jsonl", enable_ws=False
+            )
             bot = ClutchBotAgent(config=cfg, bus=bus, session_head_ns=123)
             assert bot._learning_logger is not None  # type: ignore
             assert bot._scorer._learning_logger is not None  # type: ignore

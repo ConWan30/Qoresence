@@ -10,9 +10,8 @@ import logging
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Callable, Optional
 
 import cv2
 import mss
@@ -20,10 +19,9 @@ import numpy as np
 
 from qoresence.core import (
     RetinaEventBus,
-    SourceLobe,
-    EventType,
-    clock_ns,
     ScreenConfig,
+    SourceLobe,
+    clock_ns,
 )
 
 log = logging.getLogger(__name__)
@@ -33,9 +31,11 @@ log = logging.getLogger(__name__)
 # DATA STRUCTURES
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ScreenRegion:
     """Screen region for capture/OCR."""
+
     left: int
     top: int
     width: int
@@ -49,10 +49,11 @@ class ScreenRegion:
 @dataclass
 class CouplingSample:
     """Single sample for coupling analysis."""
+
     controller_ts_ns: int
     screen_ts_ns: int
     controller_feature: np.ndarray  # e.g., trigger value, stick position
-    screen_feature: np.ndarray      # e.g., motion in region, color change
+    screen_feature: np.ndarray  # e.g., motion in region, color change
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -83,6 +84,7 @@ COD_HUD_REGIONS = {
 # SCREEN RUNTIME
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class ScreenRuntime:
     """
     Screen capture and analysis lobe.
@@ -98,7 +100,7 @@ class ScreenRuntime:
         config: ScreenConfig,
         bus: RetinaEventBus,
         session_head_ns: int,
-        controller_feature_provider: Optional[Callable[[], Optional[np.ndarray]]] = None,
+        controller_feature_provider: Callable[[], np.ndarray | None] | None = None,
     ):
         self.config = config
         self.bus = bus
@@ -109,7 +111,7 @@ class ScreenRuntime:
 
         # Capture backend
         self._use_dxgi = config.capture_method == "dxgi"
-        self._sct: Optional[mss.mss] = None
+        self._sct: mss.mss | None = None
         self._monitor_idx = config.monitor_index
 
         # HUD regions
@@ -120,11 +122,11 @@ class ScreenRuntime:
         self._coupling_window_s = 2.0
 
         # Frame differencing for motion
-        self._prev_frame: Optional[np.ndarray] = None
+        self._prev_frame: np.ndarray | None = None
 
         # State
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._frames_captured = 0
         self._start_time = 0.0
 
@@ -132,15 +134,16 @@ class ScreenRuntime:
         self._motion_threshold = 0.01
 
         # Current frame (for cross-lobe integration)
-        self._current_frame: Optional[np.ndarray] = None
+        self._current_frame: np.ndarray | None = None
 
         # Presence callback (for fusion engine)
-        self._presence_callback: Optional[callable] = None
+        self._presence_callback: callable | None = None
 
         # OCR (optional)
         self._tesseract_available = False
         try:
-            import pytesseract
+            import pytesseract  # noqa: F401
+
             self._tesseract_available = True
         except ImportError:
             pass
@@ -160,6 +163,7 @@ class ScreenRuntime:
                 # Try dxcam for DXGI (Windows only)
                 try:
                     import dxcam
+
                     self._camera = dxcam.create(output_idx=self._monitor_idx)
                     self._camera.start(target_fps=self.config.fps_target)
                     log.info(f"DXGI capture started on monitor {self._monitor_idx}")
@@ -185,7 +189,7 @@ class ScreenRuntime:
         self._running = False
         if self._thread:
             self._thread.join(timeout=2.0)
-        if self._use_dxgi and hasattr(self, '_camera'):
+        if self._use_dxgi and hasattr(self, "_camera"):
             try:
                 self._camera.stop()
             except Exception:
@@ -204,11 +208,11 @@ class ScreenRuntime:
         """Set callback for presence status updates (for fusion engine)."""
         self._presence_callback = callback
 
-    def get_current_frame(self) -> Optional[np.ndarray]:
+    def get_current_frame(self) -> np.ndarray | None:
         """Get the most recent captured frame (for cross-lobe integration)."""
         return self._current_frame
 
-    def set_controller_provider(self, provider: Callable[[], Optional[np.ndarray]]) -> None:
+    def set_controller_provider(self, provider: Callable[[], np.ndarray | None]) -> None:
         """Set controller feature provider for coupling analysis."""
         self._controller_provider = provider
 
@@ -243,10 +247,10 @@ class ScreenRuntime:
         # Session end
         self._emit_session_end()
 
-    def _capture_frame(self) -> Optional[np.ndarray]:
+    def _capture_frame(self) -> np.ndarray | None:
         """Capture single frame from screen."""
         try:
-            if self._use_dxgi and hasattr(self, '_camera'):
+            if self._use_dxgi and hasattr(self, "_camera"):
                 frame = self._camera.get_latest_frame()
                 if frame is not None:
                     # dxcam returns RGB, convert to BGR for OpenCV
@@ -331,7 +335,7 @@ class ScreenRuntime:
             rw = int(w_frac * w)
             rh = int(h_frac * h)
 
-            roi = frame[y:y+rh, x:x+rw]
+            roi = frame[y : y + rh, x : x + rw]
             if roi.size == 0:
                 continue
 
@@ -342,7 +346,8 @@ class ScreenRuntime:
             if self._tesseract_available:
                 try:
                     import pytesseract
-                    text = pytesseract.image_to_string(thresh, config='--psm 7').strip()
+
+                    text = pytesseract.image_to_string(thresh, config="--psm 7").strip()
                     if text:
                         results[name] = text
                 except Exception:
@@ -355,7 +360,7 @@ class ScreenRuntime:
 
         return results
 
-    def _simple_ocr(self, thresh: np.ndarray, region_name: str) -> Optional[str]:
+    def _simple_ocr(self, thresh: np.ndarray, region_name: str) -> str | None:
         """Simple template-based OCR fallback."""
         # Placeholder - real impl would use template matching
         return None
@@ -364,7 +369,7 @@ class ScreenRuntime:
     # COUPLING ANALYSIS
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _analyze_coupling(self, frame: np.ndarray, now_ns: int) -> Optional[float]:
+    def _analyze_coupling(self, frame: np.ndarray, now_ns: int) -> float | None:
         """Analyze controller-screen coupling."""
         if self._controller_provider is None:
             return None
@@ -379,12 +384,14 @@ class ScreenRuntime:
             return None
 
         # Add to buffer
-        self._coupling_buffer.append(CouplingSample(
-            controller_ts_ns=now_ns,  # Approximate
-            screen_ts_ns=now_ns,
-            controller_feature=controller_features,
-            screen_feature=screen_features,
-        ))
+        self._coupling_buffer.append(
+            CouplingSample(
+                controller_ts_ns=now_ns,  # Approximate
+                screen_ts_ns=now_ns,
+                controller_feature=controller_features,
+                screen_feature=screen_features,
+            )
+        )
 
         # Need enough samples
         if len(self._coupling_buffer) < 10:
@@ -401,7 +408,9 @@ class ScreenRuntime:
             screen_seq = screen_seq.reshape(len(screen_seq), -1)
 
         # Use first dimension for correlation
-        ctrl_1d = controller_seq[:, 0] if controller_seq.shape[1] > 0 else np.zeros(len(controller_seq))
+        ctrl_1d = (
+            controller_seq[:, 0] if controller_seq.shape[1] > 0 else np.zeros(len(controller_seq))
+        )
         scr_1d = screen_seq[:, 0] if screen_seq.shape[1] > 0 else np.zeros(len(screen_seq))
 
         # Cross-correlation
@@ -437,11 +446,11 @@ class ScreenRuntime:
 
         return float(best_corr)
 
-    def _extract_screen_features(self, frame: np.ndarray) -> Optional[np.ndarray]:
+    def _extract_screen_features(self, frame: np.ndarray) -> np.ndarray | None:
         """Extract features from screen for coupling."""
         # Simple: mean brightness change in center region
         h, w = frame.shape[:2]
-        center = frame[h//3:2*h//3, w//3:2*w//3]
+        center = frame[h // 3 : 2 * h // 3, w // 3 : 2 * w // 3]
         if center.size == 0:
             return None
 
@@ -494,10 +503,12 @@ class ScreenRuntime:
         # Call presence callback for fusion engine
         if self._presence_callback:
             try:
-                self._presence_callback({
-                    "lobe": "screen",
-                    "coupling_score": coupling,
-                })
+                self._presence_callback(
+                    {
+                        "lobe": "screen",
+                        "coupling_score": coupling,
+                    }
+                )
             except Exception:
                 pass
 
@@ -530,16 +541,19 @@ class ScreenRuntime:
 # HELPER: List monitors
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def list_monitors() -> list[dict]:
     """List available monitors for capture."""
     with mss.mss() as sct:
         monitors = []
         for i, mon in enumerate(sct.monitors[1:], 1):  # Skip index 0 (all monitors)
-            monitors.append({
-                "index": i - 1,
-                "left": mon["left"],
-                "top": mon["top"],
-                "width": mon["width"],
-                "height": mon["height"],
-            })
+            monitors.append(
+                {
+                    "index": i - 1,
+                    "left": mon["left"],
+                    "top": mon["top"],
+                    "width": mon["width"],
+                    "height": mon["height"],
+                }
+            )
         return monitors

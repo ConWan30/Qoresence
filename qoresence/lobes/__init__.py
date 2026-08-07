@@ -9,10 +9,20 @@ Exports:
 - visual: VisualRuntime, VisualConfig (from core), MockVLMClient
 """
 
-from .streamer import StreamerRuntime
 from .controller import ControllerRuntime, list_controllers
 from .outcome import OutcomeRuntime, OutcomeTrigger
 from .screen import ScreenRuntime, list_monitors
-from .visual import VisualRuntime, MockVLMClient
+from .streamer import StreamerRuntime
+from .visual import MockVLMClient, VisualRuntime
 
-__all__ = ["StreamerRuntime", "ControllerRuntime", "list_controllers", "OutcomeRuntime", "OutcomeTrigger", "ScreenRuntime", "list_monitors", "VisualRuntime", "MockVLMClient"]
+__all__ = [
+    "StreamerRuntime",
+    "ControllerRuntime",
+    "list_controllers",
+    "OutcomeRuntime",
+    "OutcomeTrigger",
+    "ScreenRuntime",
+    "list_monitors",
+    "VisualRuntime",
+    "MockVLMClient",
+]

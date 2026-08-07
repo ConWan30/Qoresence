@@ -9,30 +9,27 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from qoresence.core import RetinaUnifiedConfig, SessionAuthority, RetinaEventBus, SourceLobe
+from qoresence.core import RetinaEventBus, SessionAuthority
 from qoresence.trio import (
-    TrioRetinaConfig,
     EvmLogPayload,
+    TrioRetinaConfig,
+    TrioRetinaMetrics,
+    TrioRetinaValidator,
+    WasmResult,
+    WasmtimeRunner,
     build_evm_log_payload,
+    compute_events_root,
     compute_node_id,
     compute_payload_hash,
-    compute_events_root,
+    get_trio_metrics,
     mock_pq_commitment,
     mock_signature,
-    try_real_pq_commitment,
-    WasmtimeRunner,
-    WasmResult,
-    TrioRetinaValidator,
-    ValidationResult,
-    create_validator,
-    TrioRetinaMetrics,
-    get_trio_metrics,
-    instrument_validator,
     reset_trio_metrics,
+    try_real_pq_commitment,
 )
 
 
@@ -101,20 +98,22 @@ class TestEvmLogPayload:
 
     def test_payload_json_deserialization(self):
         """Payload should deserialize from JSON."""
-        json_str = json.dumps({
-            "device_id": "a" * 64,
-            "block_number": 12345,
-            "payload_hash": "b" * 64,
-            "signature": "c" * 64,
-            "pq_commitment": "d" * 64,
-            "retina_state_commitment": "e" * 64,
-            "retina_w3bstream_enforce": True,
-            "events_root": "f" * 64,
-            "retina_events_root_verify": False,
-            "node_id": "g" * 64,
-            "session_root": "h" * 64,
-            "node_session_verify": True,
-        })
+        json_str = json.dumps(
+            {
+                "device_id": "a" * 64,
+                "block_number": 12345,
+                "payload_hash": "b" * 64,
+                "signature": "c" * 64,
+                "pq_commitment": "d" * 64,
+                "retina_state_commitment": "e" * 64,
+                "retina_w3bstream_enforce": True,
+                "events_root": "f" * 64,
+                "retina_events_root_verify": False,
+                "node_id": "g" * 64,
+                "session_root": "h" * 64,
+                "node_session_verify": True,
+            }
+        )
         payload = EvmLogPayload.from_json(json_str)
         assert payload.device_id == "a" * 64
         assert payload.block_number == 12345
@@ -188,14 +187,14 @@ class TestPayloadBuilder:
         session = SessionAuthority.mint(session_id="test_session", device_id_hex="a" * 64)
         events = [{"event_id": "evt1", "type": "test"}]
         config = TrioRetinaConfig(enabled=True)
-        
+
         payload = build_evm_log_payload(
             session=session,
             events=events,
             config=config,
             first_session_id="first_session",
         )
-        
+
         assert isinstance(payload, EvmLogPayload)
         assert payload.device_id == session.device_id_hex
         assert payload.node_id != ""  # Should be computed
@@ -211,7 +210,7 @@ class TestWasmtimeRunner:
         runner = WasmtimeRunner(config)
         assert runner.config == config
 
-    @patch('qoresence.trio.wasm.WasmtimeRunner._run_cli', new_callable=AsyncMock)
+    @patch("qoresence.trio.wasm.WasmtimeRunner._run_cli", new_callable=AsyncMock)
     @pytest.mark.asyncio
     async def test_run_mock(self, mock_run_cli):
         """Test run with mocked CLI."""
@@ -221,10 +220,10 @@ class TestWasmtimeRunner:
             stderr="",
             duration_ms=10.0,
         )
-        
+
         config = TrioRetinaConfig(enabled=True)
         runner = WasmtimeRunner(config)
-        
+
         payload = EvmLogPayload(
             device_id="a" * 64,
             block_number=1,
@@ -232,7 +231,7 @@ class TestWasmtimeRunner:
             signature="c" * 64,
             pq_commitment="d" * 64,
         )
-        
+
         result = await runner.run(payload)
         assert result.exit_code == 0
         assert result.ok is True
@@ -246,13 +245,13 @@ class TestTrioRetinaValidator:
         config = TrioRetinaConfig(enabled=True)
         session = SessionAuthority.mint(session_id="test_session")
         bus = RetinaEventBus(session_id="test_session")
-        
+
         validator = TrioRetinaValidator(
             config=config,
             session=session,
             event_bus=bus,
         )
-        
+
         assert validator.config == config
         assert validator.session == session
         assert validator.event_bus == bus
@@ -261,12 +260,12 @@ class TestTrioRetinaValidator:
         """Initial stats should be zero."""
         config = TrioRetinaConfig(enabled=True)
         session = SessionAuthority.mint(session_id="test_session")
-        
+
         validator = TrioRetinaValidator(
             config=config,
             session=session,
         )
-        
+
         stats = validator.get_stats()
         assert stats["validations_total"] == 0
         assert stats["validations_ok"] == 0
@@ -280,13 +279,13 @@ class TestEventBusTrioIntegration:
         """Event bus should accept trio config."""
         config = TrioRetinaConfig(enabled=True)
         session = SessionAuthority.mint(session_id="test_session")
-        
+
         bus = RetinaEventBus(
             session_id="test_session",
             trio_config=config,
             session_identity=session,
         )
-        
+
         assert bus._trio_config == config
         assert bus._session_identity == session
 
@@ -310,8 +309,9 @@ class TestCliIntegration:
     def test_create_trio_config_from_args(self):
         """CLI args should create trio config."""
         import argparse
+
         from qoresence.trio import TrioRetinaConfig
-        
+
         # Mock args
         args = argparse.Namespace(
             trio=True,
@@ -342,7 +342,7 @@ class TestCliIntegration:
             health_check=False,
             dry_run=False,
         )
-        
+
         trio_config = TrioRetinaConfig(
             enabled=True,
             wasm_path=args.trio_wasm_path,
@@ -364,7 +364,7 @@ class TestWasmResult:
         """ok property should reflect exit code."""
         result_ok = WasmResult(exit_code=0, stdout="", stderr="", duration_ms=10)
         result_fail = WasmResult(exit_code=1, stdout="", stderr="", duration_ms=10)
-        
+
         assert result_ok.ok is True
         assert result_fail.ok is False
 

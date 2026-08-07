@@ -12,9 +12,8 @@ import logging
 import re
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Callable, Optional
 
 import cv2
 import numpy as np
@@ -23,13 +22,10 @@ import requests
 from qoresence.core import (
     RetinaEventBus,
     SourceLobe,
-    EventType,
-    clock_ns,
     VisualConfig,
+    clock_ns,
 )
 from qoresence.vision.visual_context import (
-    GameCategory,
-    GameState,
     VisualContext,
 )
 
@@ -42,9 +38,11 @@ log = logging.getLogger(__name__)
 # VisualContext is defined canonically in qoresence.vision.visual_context.
 # It is re-exported here for backward compatibility.
 
+
 @dataclass
 class CrossModalVerdict:
     """Cross-modal verification result."""
+
     verdict: str  # "confirmed" | "inconclusive" | "contradicted"
     confidence: float
     reasoning: str
@@ -55,12 +53,13 @@ class CrossModalVerdict:
 # VLM CLIENT
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class VLMClient:
     """Client for NVIDIA Nemotron or compatible VLM endpoint."""
 
     def __init__(self, config: VisualConfig):
         self.config = config
-        self.endpoint = config.model_endpoint.rstrip('/')
+        self.endpoint = config.model_endpoint.rstrip("/")
         self.model_name = config.model_name
         self.api_key = config.api_key
         self.max_dim = config.max_frame_dim
@@ -72,7 +71,9 @@ class VLMClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         self._session.headers.update(headers)
 
-    def analyze_frame_raw(self, frame: np.ndarray, prompt: str, timeout: float = 30.0, max_tokens: int = 300) -> Optional[str]:
+    def analyze_frame_raw(
+        self, frame: np.ndarray, prompt: str, timeout: float = 30.0, max_tokens: int = 300
+    ) -> str | None:
         """Send frame to VLM and return the raw response content."""
         try:
             # Resize frame
@@ -83,8 +84,8 @@ class VLMClient:
                 frame = cv2.resize(frame, (new_w, new_h))
 
             # Encode to base64
-            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-            b64 = base64.b64encode(buffer).decode('utf-8')
+            _, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            b64 = base64.b64encode(buffer).decode("utf-8")
 
             # Build request (OpenAI-compatible format)
             payload = {
@@ -94,8 +95,11 @@ class VLMClient:
                         "role": "user",
                         "content": [
                             {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
-                        ]
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                            },
+                        ],
                     }
                 ],
                 "max_tokens": max_tokens,
@@ -116,7 +120,7 @@ class VLMClient:
             log.warning(f"VLM request failed: {e}")
             return None
 
-    def analyze_frame(self, frame: np.ndarray, prompt: str) -> Optional[VisualContext]:
+    def analyze_frame(self, frame: np.ndarray, prompt: str) -> VisualContext | None:
         """Send frame to VLM for analysis and parse into VisualContext."""
         start = time.perf_counter()
 
@@ -143,45 +147,86 @@ class VLMClient:
         else:
             # No structured answer: detect negation first, then topic keywords
             content_lower = content.lower()
-            negation = any(phrase in content_lower for phrase in [
-                "does not show", "is not", "no ", "not a", "not show", "not visible",
-                "unable to", "can't", "cannot", "refuse", "not able", "i'm not able"
-            ])
+            negation = any(
+                phrase in content_lower
+                for phrase in [
+                    "does not show",
+                    "is not",
+                    "no ",
+                    "not a",
+                    "not show",
+                    "not visible",
+                    "unable to",
+                    "can't",
+                    "cannot",
+                    "refuse",
+                    "not able",
+                    "i'm not able",
+                ]
+            )
             if negation:
                 game_state = "unknown"
                 confidence = 0.3
-            elif any(kw in content_lower for kw in ["football", "ncaa", "college football", "touchdown", "quarterback", "field goal", "yard line"]):
+            elif any(
+                kw in content_lower
+                for kw in [
+                    "football",
+                    "ncaa",
+                    "college football",
+                    "touchdown",
+                    "quarterback",
+                    "field goal",
+                    "yard line",
+                ]
+            ):
                 game_state = "football"
                 confidence = 0.8
-            elif any(kw in content_lower for kw in ["call of duty", "warzone", "multiplayer", "shooter", "fps", "kill feed", "operator", "loadout"]):
+            elif any(
+                kw in content_lower
+                for kw in [
+                    "call of duty",
+                    "warzone",
+                    "multiplayer",
+                    "shooter",
+                    "fps",
+                    "kill feed",
+                    "operator",
+                    "loadout",
+                ]
+            ):
                 game_state = "shooter"
                 confidence = 0.8
-            elif any(kw in content_lower for kw in ["menu", "main menu", "settings", "lobby", "pause screen"]):
+            elif any(
+                kw in content_lower
+                for kw in ["menu", "main menu", "settings", "lobby", "pause screen"]
+            ):
                 game_state = "menu"
                 confidence = 0.6
             else:
                 game_state = "unknown"
                 confidence = 0.5
 
-        ctx = VisualContext.from_dict({
-            "game_state": game_state,
-            "confidence": confidence,
-        })
+        ctx = VisualContext.from_dict(
+            {
+                "game_state": game_state,
+                "confidence": confidence,
+            }
+        )
         ctx.details = details
         ctx.raw_response = content[:500]
         ctx.model = self.model_name
         ctx.latency_ms = latency_ms
         return ctx
 
-    def cross_modal_check(self, frame: np.ndarray, other_modalities: dict) -> Optional[CrossModalVerdict]:
+    def cross_modal_check(
+        self, frame: np.ndarray, other_modalities: dict
+    ) -> CrossModalVerdict | None:
         """Cross-modal verification against other lobe data."""
         start = time.perf_counter()
 
         try:
             # Build prompt with other modality context
-            modality_summary = "\n".join([
-                f"- {k}: {v}" for k, v in other_modalities.items()
-            ])
+            modality_summary = "\n".join([f"- {k}: {v}" for k, v in other_modalities.items()])
 
             prompt = f"""You are verifying consistency between visual observation and other sensor data.
 Other modalities:
@@ -192,8 +237,8 @@ VERDICT: confirmed|inconclusive|contradicted
 CONFIDENCE: 0.0-1.0
 REASONING: brief explanation"""
 
-            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-            b64 = base64.b64encode(buffer).decode('utf-8')
+            _, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            b64 = base64.b64encode(buffer).decode("utf-8")
 
             payload = {
                 "model": self.model_name,
@@ -202,8 +247,11 @@ REASONING: brief explanation"""
                         "role": "user",
                         "content": [
                             {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
-                        ]
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                            },
+                        ],
                     }
                 ],
                 "max_tokens": 200,
@@ -221,13 +269,15 @@ REASONING: brief explanation"""
             latency_ms = (time.perf_counter() - start) * 1000
             content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
-            return self._parse_cross_modal(content, latency_ms)
+            return self._parse_cross_modal(content, latency_ms, other_modalities)
 
         except Exception as e:
             log.warning(f"Cross-modal VLM request failed: {e}")
             return None
 
-    def _parse_cross_modal(self, content: str, latency_ms: float) -> CrossModalVerdict:
+    def _parse_cross_modal(
+        self, content: str, latency_ms: float, other_modalities: dict | None = None
+    ) -> CrossModalVerdict:
         """Parse cross-modal response."""
         verdict = "inconclusive"
         confidence = 0.5
@@ -245,13 +295,14 @@ REASONING: brief explanation"""
             verdict=verdict,
             confidence=confidence,
             reasoning=reasoning,
-            modalities_checked=list(other_modalities.keys()) if 'other_modalities' in locals() else [],
+            modalities_checked=list(other_modalities.keys()) if other_modalities else [],
         )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # VISUAL RUNTIME
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class VisualRuntime:
     """
@@ -268,8 +319,8 @@ class VisualRuntime:
         config: VisualConfig,
         bus: RetinaEventBus,
         session_head_ns: int,
-        frame_provider: Optional[Callable[[], Optional[np.ndarray]]] = None,
-        modality_provider: Optional[Callable[[], dict]] = None,
+        frame_provider: Callable[[], np.ndarray | None] | None = None,
+        modality_provider: Callable[[], dict] | None = None,
     ):
         self.config = config
         self.bus = bus
@@ -289,6 +340,7 @@ class VisualRuntime:
         if _prefer:
             try:
                 from qoresence.vision.local_vlm import LocalVLMClient as _LocalVLM
+
                 _local = _LocalVLM(model_path=_local_path)
                 if _local.is_available():
                     self._client = _local  # type: ignore[assignment]
@@ -300,7 +352,9 @@ class VisualRuntime:
                 else:
                     self._client = VLMClient(config)
                     self._client_kind = "cloud"
-                log.info(f"VisualRuntime using {self._client_kind} (prefer_local=True, path={_local_path or 'models/qoresence-vlm-distilled.onnx'})")
+                log.info(
+                    f"VisualRuntime using {self._client_kind} (prefer_local=True, path={_local_path or 'models/qoresence-vlm-distilled.onnx'})"
+                )
             except Exception as e:
                 log.warning(f"LocalVLM init failed ({e}), falling back to cloud VLM")
                 self._client = VLMClient(config)
@@ -315,14 +369,14 @@ class VisualRuntime:
 
         # State
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._frames_analyzed = 0
         self._start_time = 0.0
-        self._last_context: Optional[VisualContext] = None
-        self._last_verdict: Optional[CrossModalVerdict] = None
+        self._last_context: VisualContext | None = None
+        self._last_verdict: CrossModalVerdict | None = None
 
         # Presence callback (for fusion engine)
-        self._presence_callback: Optional[callable] = None
+        self._presence_callback: callable | None = None
 
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
@@ -342,7 +396,9 @@ class VisualRuntime:
         self._thread = threading.Thread(target=self._run_loop, name="qoresence-visual", daemon=True)
         self._thread.start()
 
-        log.info(f"Visual lobe started: model={self.config.model_name}, sample_rate={self.config.frame_sample_rate}")
+        log.info(
+            f"Visual lobe started: model={self.config.model_name}, sample_rate={self.config.frame_sample_rate}"
+        )
         return True
 
     def stop(self) -> None:
@@ -362,12 +418,12 @@ class VisualRuntime:
     def get_last_state(self) -> dict:
         """Get last visual state for cross-modal verification."""
         return {
-            'game_state': self._last_context.game_state.value if self._last_context else 'unknown',
-            'confidence': self._last_context.confidence if self._last_context else 0.0,
-            'last_verdict': self._last_verdict.verdict if self._last_verdict else 'inconclusive',
+            "game_state": self._last_context.game_state.value if self._last_context else "unknown",
+            "confidence": self._last_context.confidence if self._last_context else 0.0,
+            "last_verdict": self._last_verdict.verdict if self._last_verdict else "inconclusive",
         }
 
-    def set_frame_provider(self, provider: Callable[[], Optional[np.ndarray]]) -> None:
+    def set_frame_provider(self, provider: Callable[[], np.ndarray | None]) -> None:
         """Set frame provider (e.g., from streamer or screen lobe)."""
         self._frame_provider = provider
 
@@ -375,10 +431,10 @@ class VisualRuntime:
         """Set provider for other modality data (for cross-modal check)."""
         self._modality_provider = provider
 
-    def get_last_context(self) -> Optional[VisualContext]:
+    def get_last_context(self) -> VisualContext | None:
         return self._last_context
 
-    def get_last_verdict(self) -> Optional[CrossModalVerdict]:
+    def get_last_verdict(self) -> CrossModalVerdict | None:
         return self._last_verdict
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -412,7 +468,7 @@ class VisualRuntime:
         # Session end
         self._emit_session_end()
 
-    def _get_frame(self) -> Optional[np.ndarray]:
+    def _get_frame(self) -> np.ndarray | None:
         """Get frame from provider."""
         if self._frame_provider:
             try:
@@ -424,7 +480,9 @@ class VisualRuntime:
     def _analyze_frame(self, frame: np.ndarray) -> None:
         """Analyze single frame with VLM."""
         # 1. Game state classification
-        context = self._client.analyze_frame(frame, self._classify_prompt, game_profile=self.config.game_category)
+        context = self._client.analyze_frame(
+            frame, self._classify_prompt, game_profile=self.config.game_category
+        )
         if context and context.confidence >= self.config.min_confidence:
             self._last_context = context
             self._emit_visual_context(context)
@@ -509,11 +567,13 @@ Do not add any explanation."""
         # Call presence callback for fusion engine
         if self._presence_callback:
             try:
-                self._presence_callback({
-                    "lobe": "visual",
-                    "game_state": context.game_state.value,
-                    "confidence": context.confidence,
-                })
+                self._presence_callback(
+                    {
+                        "lobe": "visual",
+                        "game_state": context.game_state.value,
+                        "confidence": context.confidence,
+                    }
+                )
             except Exception:
                 pass
 
@@ -549,13 +609,14 @@ Do not add any explanation."""
 # MOCK VLM CLIENT (for testing without API)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class MockVLMClient:
     """Mock VLM client for testing without real API."""
 
     def __init__(self, config: VisualConfig):
         self.config = config
 
-    def analyze_frame(self, frame: np.ndarray, prompt: str) -> Optional[VisualContext]:
+    def analyze_frame(self, frame: np.ndarray, prompt: str) -> VisualContext | None:
         # Simple heuristic based on frame content
         h, w = frame.shape[:2]
         mean_brightness = np.mean(frame) / 255.0
@@ -574,16 +635,20 @@ class MockVLMClient:
             game_state = "unknown"
             confidence = 0.3
 
-        ctx = VisualContext.from_dict({
-            "game_state": game_state,
-            "confidence": confidence,
-        })
+        ctx = VisualContext.from_dict(
+            {
+                "game_state": game_state,
+                "confidence": confidence,
+            }
+        )
         ctx.details = {"mock": True, "green_ratio": green_ratio, "brightness": mean_brightness}
         ctx.model = "mock"
         ctx.latency_ms = 10.0
         return ctx
 
-    def cross_modal_check(self, frame: np.ndarray, other_modalities: dict) -> Optional[CrossModalVerdict]:
+    def cross_modal_check(
+        self, frame: np.ndarray, other_modalities: dict
+    ) -> CrossModalVerdict | None:
         # Simple mock: confirmed if outcome and controller both present
         has_outcome = "outcome" in str(other_modalities).lower()
         has_controller = "controller" in str(other_modalities).lower()

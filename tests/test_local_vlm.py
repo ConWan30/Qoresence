@@ -1,4 +1,5 @@
 """Unit tests for LocalVLMClient (heuristic + ONNX fallback)."""
+
 from __future__ import annotations
 
 import json
@@ -33,9 +34,9 @@ def _shooter_frame(h=90, w=160) -> np.ndarray:
     for y in range(0, h, 10):
         for x in range(0, w, 10):
             if (x // 10 + y // 10) % 2 == 0:
-                frame[y:y+5, x:x+5] = (120, 120, 120)
+                frame[y : y + 5, x : x + 5] = (120, 120, 120)
             else:
-                frame[y:y+5, x:x+5] = (30, 30, 30)
+                frame[y : y + 5, x : x + 5] = (30, 30, 30)
     # Add random lines
     for _ in range(8):
         x1, y1 = np.random.randint(0, w), np.random.randint(0, h)

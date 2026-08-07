@@ -9,20 +9,22 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 
-class SourceLobe(str, Enum):
+class SourceLobe(StrEnum):
     """Enumeration of all observation lobes."""
-    STREAMER = "streamer"      # UVC / OBS Virtual Cam
+
+    STREAMER = "streamer"  # UVC / OBS Virtual Cam
     CONTROLLER = "controller"  # Local HID
-    SCREEN = "screen"          # WGC / DXGI / mss
-    OUTCOME = "outcome"        # Game-specific events
-    VISUAL = "visual"          # VLM visual context
+    SCREEN = "screen"  # WGC / DXGI / mss
+    OUTCOME = "outcome"  # Game-specific events
+    VISUAL = "visual"  # VLM visual context
 
 
-class GameProfileId(str, Enum):
+class GameProfileId(StrEnum):
     """First-class game profiles (equal citizens)."""
+
     NCAA_FOOTBALL_27 = "ncaa_football_27"
     CALL_OF_DUTY = "call_of_duty"
 
@@ -30,6 +32,7 @@ class GameProfileId(str, Enum):
 @dataclass(frozen=True)
 class GameProfile:
     """Game-specific event vocabulary and semantics."""
+
     profile_id: GameProfileId
     display_name: str
     event_types: tuple[str, ...]  # canonical event type strings for this profile
@@ -120,13 +123,17 @@ GAME_PROFILE_ALIASES: dict[str, GameProfileId] = {
 
 def normalize_game_profile(profile_id: GameProfileId | str) -> GameProfileId:
     """Resolve a profile ID or alias to a canonical GameProfileId."""
-    value = profile_id.value if isinstance(profile_id, GameProfileId) else str(profile_id).lower().strip()
+    value = (
+        profile_id.value
+        if isinstance(profile_id, GameProfileId)
+        else str(profile_id).lower().strip()
+    )
     if value in GAME_PROFILE_ALIASES:
         return GAME_PROFILE_ALIASES[value]
     try:
         return GameProfileId(value)
-    except ValueError:
-        raise ValueError(f"Unknown game profile: {profile_id}")
+    except ValueError as _err:
+        raise ValueError(f"Unknown game profile: {profile_id}") from _err
 
 
 def get_game_profile(profile_id: GameProfileId | str) -> GameProfile:
@@ -144,9 +151,11 @@ def register_game_profile(profile: GameProfile) -> None:
 # LOBE-SPECIFIC CONFIGURATIONS
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class StreamerConfig:
     """Streamer lobe (UVC / OBS Virtual Cam / network stream) configuration."""
+
     enabled: bool = False
     device_index: int = 0
     device_name: str | None = None
@@ -178,6 +187,7 @@ class StreamerConfig:
 @dataclass(frozen=True)
 class ControllerConfig:
     """Controller lobe (local HID) configuration."""
+
     enabled: bool = False
     device_vid: int | None = None
     device_pid: int | None = None
@@ -190,6 +200,7 @@ class ControllerConfig:
 @dataclass(frozen=True)
 class ScreenConfig:
     """Screen lobe (WGC / DXGI / mss) configuration."""
+
     enabled: bool = False
     capture_method: str = "wgc"  # "wgc" | "dxgi" | "mss"
     monitor_index: int = 0
@@ -204,6 +215,7 @@ class ScreenConfig:
 @dataclass(frozen=True)
 class OutcomeConfig:
     """Outcome lobe (game-specific events) configuration."""
+
     enabled: bool = False
     game_profile: GameProfileId = GameProfileId.NCAA_FOOTBALL_27
     detection_method: str = "ocr"  # "ocr" | "memory" | "hybrid"
@@ -214,6 +226,7 @@ class OutcomeConfig:
 @dataclass(frozen=True)
 class VisualConfig:
     """Visual lobe (VLM) configuration."""
+
     enabled: bool = False
     model_endpoint: str = "https://integrate.api.nvidia.com/v1"
     model_name: str = "nvidia/nemotron-nano-12b-v2-vl"
@@ -230,6 +243,7 @@ class VisualConfig:
 @dataclass(frozen=True)
 class GameDetectionConfig:
     """Game auto-detection configuration (VLM + OCR fusion)."""
+
     enabled: bool = False
     confidence_threshold: float = 0.65
     stability_count: int = 2
@@ -243,36 +257,38 @@ class GameDetectionConfig:
 @dataclass(frozen=True)
 class TwitchConfig:
     """Twitch configuration for ClutchBot."""
+
     enabled: bool = False
-    channel: str = ""                      # Broadcaster channel name (no #)
-    bot_username: str = ""                 # Bot account username
-    oauth_token: str | None = None         # Bot OAuth token for IRC
-    token_file: str | None = None          # Plaintext file containing bot token
-    helix_token: str | None = None         # Helix access token (defaults to oauth_token)
-    helix_token_file: str | None = None    # Plaintext file containing Helix token
-    client_id: str | None = None           # Twitch application Client ID for Helix
-    client_secret: str | None = None       # Twitch application Client Secret (optional)
-    broadcaster_id: str | None = None      # Twitch broadcaster user ID
-    broadcaster_username: str | None = None# Broadcaster login name (used to lookup ID)
-    message_interval_s: float = 2.0        # Minimum seconds between sent IRC messages
-    enable_clips: bool = False             # Create clips on clutch moments
-    enable_predictions: bool = False       # Start channel-point predictions
-    enable_follow_alerts: bool = False     # EventSub follow alerts
-    enable_sub_alerts: bool = False        # EventSub subscription alerts
-    enable_redemption_alerts: bool = False # EventSub channel-point redemption alerts
+    channel: str = ""  # Broadcaster channel name (no #)
+    bot_username: str = ""  # Bot account username
+    oauth_token: str | None = None  # Bot OAuth token for IRC
+    token_file: str | None = None  # Plaintext file containing bot token
+    helix_token: str | None = None  # Helix access token (defaults to oauth_token)
+    helix_token_file: str | None = None  # Plaintext file containing Helix token
+    client_id: str | None = None  # Twitch application Client ID for Helix
+    client_secret: str | None = None  # Twitch application Client Secret (optional)
+    broadcaster_id: str | None = None  # Twitch broadcaster user ID
+    broadcaster_username: str | None = None  # Broadcaster login name (used to lookup ID)
+    message_interval_s: float = 2.0  # Minimum seconds between sent IRC messages
+    enable_clips: bool = False  # Create clips on clutch moments
+    enable_predictions: bool = False  # Start channel-point predictions
+    enable_follow_alerts: bool = False  # EventSub follow alerts
+    enable_sub_alerts: bool = False  # EventSub subscription alerts
+    enable_redemption_alerts: bool = False  # EventSub channel-point redemption alerts
 
 
 @dataclass(frozen=True)
 class ClutchBotConfig:
     """ClutchBot agent configuration."""
+
     enabled: bool = False
-    persona: str = "neutral"          # "neutral" | "hype" | path to persona file
+    persona: str = "neutral"  # "neutral" | "hype" | path to persona file
     controller_window_s: float = 5.0  # Rolling controller window for APM calc
     message_cooldown_s: float = 30.0  # Minimum seconds between any chat action
-    max_messages_per_min: int = 3     # Hard cap on chat messages per minute
-    enable_chat: bool = True          # Allow chat/greeting actions
-    clip_has_delay: bool = True       # Clip with delay to include the preceding action
-    memory_path: str | None = None # JSONL file for session memory
+    max_messages_per_min: int = 3  # Hard cap on chat messages per minute
+    enable_chat: bool = True  # Allow chat/greeting actions
+    clip_has_delay: bool = True  # Clip with delay to include the preceding action
+    memory_path: str | None = None  # JSONL file for session memory
     twitch: TwitchConfig = field(default_factory=TwitchConfig)
     learning_enabled: bool = False
     learning_log_path: str | None = None
@@ -291,6 +307,7 @@ class ClutchBotConfig:
 @dataclass(frozen=True)
 class FusionWeights:
     """Weights for the presence fusion engine (must sum to 1.0)."""
+
     streamer_presence_sync: float = 0.25
     controller_causal_density: float = 0.25
     screen_coupling_score: float = 0.20
@@ -312,6 +329,7 @@ class FusionWeights:
 # ──────────────────────────────────────────────────────────────────────────────
 # MAIN UNIFIED CONFIGURATION
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class RetinaUnifiedConfig:
@@ -547,7 +565,9 @@ class RetinaUnifiedConfig:
                 llm_enabled=_bool("QORESENCE_CLUTCHBOT_LLM_ENABLED", False),
                 llm_provider=_str("QORESENCE_CLUTCHBOT_LLM_PROVIDER", "quicksilver"),
                 llm_model=_str("QORESENCE_CLUTCHBOT_LLM_MODEL", "deepseek-v4-flash"),
-                llm_base_url=_str("QORESENCE_CLUTCHBOT_LLM_BASE_URL", "https://api.quicksilverpro.io/v1"),
+                llm_base_url=_str(
+                    "QORESENCE_CLUTCHBOT_LLM_BASE_URL", "https://api.quicksilverpro.io/v1"
+                ),
                 llm_api_key=_str("QORESENCE_CLUTCHBOT_LLM_API_KEY") or None,
                 llm_api_key_file=_str("QORESENCE_CLUTCHBOT_LLM_API_KEY_FILE") or None,
                 llm_fallback_model=_str("QORESENCE_CLUTCHBOT_LLM_FALLBACK", "gpt-4o-mini"),

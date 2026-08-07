@@ -1,7 +1,7 @@
 """Unit tests for FootballWinProbability + EP helpers."""
+
 from __future__ import annotations
 
-import math
 import pytest
 
 from qoresence.agents.win_probability import (
@@ -11,6 +11,7 @@ from qoresence.agents.win_probability import (
     _sigmoid,
     parse_field_position,
 )
+
 
 # ---------------------------------------------------------------------------
 # parse_field_position
@@ -87,14 +88,14 @@ class TestSigmoid:
 
 class TestFootballWinProbability:
     def _base_state(self, **overrides):
-        d = dict(
-            quarter=1,
-            clock_seconds=900,
-            down=1,
-            yards_to_go=10,
-            field_position="own 25",  # yds_to_opp 75
-            score_diff=0,
-        )
+        d = {
+            "quarter": 1,
+            "clock_seconds": 900,
+            "down": 1,
+            "yards_to_go": 10,
+            "field_position": "own 25",  # yds_to_opp 75
+            "score_diff": 0,
+        }
         d.update(overrides)
         return d
 
@@ -121,7 +122,6 @@ class TestFootballWinProbability:
         assert r["wp_swing"] == 0.0
 
     def test_leading_increases_wp(self):
-        wp = FootballWinProbability()
         r_trail = FootballWinProbability().compute(self._base_state(score_diff=-14))
         r_lead = FootballWinProbability().compute(self._base_state(score_diff=14))
         assert r_lead["win_prob"] > r_trail["win_prob"]
@@ -130,53 +130,105 @@ class TestFootballWinProbability:
 
     def test_ot_dominated_by_score(self):
         wp_ot = FootballWinProbability()
-        r = wp_ot.compute(self._base_state(quarter=5, clock_seconds=0, score_diff=3, field_position="opp 10"))
+        r = wp_ot.compute(
+            self._base_state(quarter=5, clock_seconds=0, score_diff=3, field_position="opp 10")
+        )
         assert r["is_ot"] is True
         assert r["win_prob"] > 0.7  # OT + FG lead + redzone should be favored
         # trailing in OT should be worse than tied
-        r_trail = FootballWinProbability().compute(self._base_state(quarter=5, clock_seconds=0, score_diff=-3))
+        r_trail = FootballWinProbability().compute(
+            self._base_state(quarter=5, clock_seconds=0, score_diff=-3)
+        )
         assert r["win_prob"] > r_trail["win_prob"]
 
     def test_down_distance_adjusts_ep(self):
         wp = FootballWinProbability()
         r_easy = wp.compute(self._base_state(down=1, yards_to_go=10, field_position="own 40"))
         # 3rd & 10 should lower EP vs 1st & 10
-        r_hard = FootballWinProbability().compute(self._base_state(down=3, yards_to_go=10, field_position="own 40"))
+        r_hard = FootballWinProbability().compute(
+            self._base_state(down=3, yards_to_go=10, field_position="own 40")
+        )
         assert r_hard["expected_points"] < r_easy["expected_points"]
         # 4th down even lower
-        r_4th = FootballWinProbability().compute(self._base_state(down=4, yards_to_go=1, field_position="opp 30"))
-        r_1st = FootballWinProbability().compute(self._base_state(down=1, yards_to_go=10, field_position="opp 30"))
+        r_4th = FootballWinProbability().compute(
+            self._base_state(down=4, yards_to_go=1, field_position="opp 30")
+        )
+        r_1st = FootballWinProbability().compute(
+            self._base_state(down=1, yards_to_go=10, field_position="opp 30")
+        )
         assert r_4th["expected_points"] < r_1st["expected_points"]
 
     def test_late_game_score_matters_more(self):
         # 14-pt lead early vs late: late should be higher WP
-        wp_early = FootballWinProbability().compute(dict(quarter=1, clock_seconds=900, score_diff=14, field_position="midfield"))
-        wp_late = FootballWinProbability().compute(dict(quarter=4, clock_seconds=120, score_diff=14, field_position="midfield"))
+        wp_early = FootballWinProbability().compute(
+            {"quarter": 1, "clock_seconds": 900, "score_diff": 14, "field_position": "midfield"}
+        )
+        wp_late = FootballWinProbability().compute(
+            {"quarter": 4, "clock_seconds": 120, "score_diff": 14, "field_position": "midfield"}
+        )
         assert wp_late["win_prob"] > wp_early["win_prob"]
 
     def test_end_of_half_dampening(self):
         # Q2 <120s and close game should slightly reduce score impact (more total_remaining dampening)
         # We test that code path doesn't crash and produces valid WP
         wp = FootballWinProbability()
-        r = wp.compute(dict(quarter=2, clock_seconds=60, score_diff=7, field_position="opp 20"))
+        r = wp.compute(
+            {"quarter": 2, "clock_seconds": 60, "score_diff": 7, "field_position": "opp 20"}
+        )
         assert 0.01 <= r["win_prob"] <= 0.99
 
     def test_coerce_alternate_keys(self):
         wp = FootballWinProbability()
         # home/away + possession
-        r = wp.compute(dict(home_score=21, away_score=14, possession="home", quarter=3, clock_seconds=600))
+        r = wp.compute(
+            {
+                "home_score": 21,
+                "away_score": 14,
+                "possession": "home",
+                "quarter": 3,
+                "clock_seconds": 600,
+            }
+        )
         assert r["score_diff"] == 7
-        r2 = wp.compute(dict(home_score=21, away_score=14, possession="away", quarter=3, clock_seconds=600))
+        r2 = wp.compute(
+            {
+                "home_score": 21,
+                "away_score": 14,
+                "possession": "away",
+                "quarter": 3,
+                "clock_seconds": 600,
+            }
+        )
         assert r2["score_diff"] == -7
 
     def test_five_scenarios_from_bench(self):
         """Mirror eval/wp_bench deterministic scenarios."""
         scenarios = [
-            {"quarter": 1, "clock_seconds": 900, "score_diff": 0, "field_position": "own 25"},  # blowout early neutral
-            {"quarter": 4, "clock_seconds": 90, "score_diff": 3, "field_position": "opp 8"},  # close late redzone
+            {
+                "quarter": 1,
+                "clock_seconds": 900,
+                "score_diff": 0,
+                "field_position": "own 25",
+            },  # blowout early neutral
+            {
+                "quarter": 4,
+                "clock_seconds": 90,
+                "score_diff": 3,
+                "field_position": "opp 8",
+            },  # close late redzone
             {"quarter": 5, "clock_seconds": 0, "score_diff": 0, "field_position": "opp 25"},  # OT
-            {"quarter": 2, "clock_seconds": 30, "score_diff": 7, "field_position": "midfield"},  # end-half
-            {"quarter": 4, "clock_seconds": 20, "score_diff": -3, "field_position": "opp 2"},  # 4th & inches goal line
+            {
+                "quarter": 2,
+                "clock_seconds": 30,
+                "score_diff": 7,
+                "field_position": "midfield",
+            },  # end-half
+            {
+                "quarter": 4,
+                "clock_seconds": 20,
+                "score_diff": -3,
+                "field_position": "opp 2",
+            },  # 4th & inches goal line
         ]
         for s in scenarios:
             r = FootballWinProbability().compute(s)
@@ -199,6 +251,7 @@ class TestFootballWinProbability:
             possession = None
             down = 1
             yards_to_go = 10
+
         wp = FootballWinProbability()
         r = wp.compute(Obj())
         assert 0.01 <= r["win_prob"] <= 0.99

@@ -141,7 +141,9 @@ class TestMomentScorer:
     def test_menu_state_is_ignored(self):
         scorer = MomentScorer()
         state = SituationState(game_state="menu")
-        moments = scorer.score(state, event_type="outcome_event", event_payload={"event_name": "score_changed"})
+        moments = scorer.score(
+            state, event_type="outcome_event", event_payload={"event_name": "score_changed"}
+        )
         assert not any(m.triggered for m in moments)
 
     def test_cooldown_prevents_spam(self):
@@ -387,11 +389,13 @@ class TestTwitchHelixClient:
             resp.status_code = 202
             resp.ok = True
             resp.json.return_value = {
-                "data": [{
-                    "id": "CuriousDeliciousApple123",
-                    "edit_url": "https://clips.twitch.tv/edit/CuriousDeliciousApple123",
-                    "created_at": "2026-08-06T00:00:00Z",
-                }]
+                "data": [
+                    {
+                        "id": "CuriousDeliciousApple123",
+                        "edit_url": "https://clips.twitch.tv/edit/CuriousDeliciousApple123",
+                        "created_at": "2026-08-06T00:00:00Z",
+                    }
+                ]
             }
             mock_post.return_value = resp
 
@@ -406,20 +410,25 @@ class TestTwitchHelixClient:
             access_token="test_token",
             broadcaster_id="12345",
         )
-        with patch.object(client._session, "post") as mock_post, patch.object(client._session, "patch") as mock_patch:
+        with (
+            patch.object(client._session, "post") as mock_post,
+            patch.object(client._session, "patch") as mock_patch,
+        ):
             post_resp = MagicMock()
             post_resp.status_code = 201
             post_resp.ok = True
             post_resp.json.return_value = {
-                "data": [{
-                    "id": "pred-1",
-                    "title": "Score on this drive?",
-                    "outcomes": [
-                        {"id": "out-yes", "title": "Yes"},
-                        {"id": "out-no", "title": "No"},
-                    ],
-                    "status": "ACTIVE",
-                }]
+                "data": [
+                    {
+                        "id": "pred-1",
+                        "title": "Score on this drive?",
+                        "outcomes": [
+                            {"id": "out-yes", "title": "Yes"},
+                            {"id": "out-no", "title": "No"},
+                        ],
+                        "status": "ACTIVE",
+                    }
+                ]
             }
             mock_post.return_value = post_resp
 

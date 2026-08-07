@@ -13,13 +13,17 @@ import asyncio
 import json
 import logging
 import threading
-import time
 from collections import deque
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
-import weakref
+from typing import TYPE_CHECKING, Any
 
 from .types import BaseEvent, SourceLobe, clock_ns
+
+if TYPE_CHECKING:
+    from ..trio.config import TrioRetinaConfig
+    from ..trio.validator import TrioRetinaValidator
+    from .session import SessionIdentity
 
 log = logging.getLogger(__name__)
 
@@ -40,18 +44,18 @@ class RetinaEventBus:
     def __init__(
         self,
         session_id: str,
-        jsonl_path: Optional[Path] = None,
+        jsonl_path: Path | None = None,
         ws_host: str = "127.0.0.1",
         ws_port: int = 8765,
         enable_ws: bool = True,
         max_ws_history: int = 256,
         # Trio-retina validation
-        trio_config: Optional["TrioRetinaConfig"] = None,
-        session_identity: Optional["SessionIdentity"] = None,
-        visual_oracle_root_provider: Optional[Callable[[], str]] = None,
-        posp_root_provider: Optional[Callable[[], str]] = None,
-        first_session_id: Optional[str] = None,
-        device_key: Optional[bytes] = None,
+        trio_config: TrioRetinaConfig | None = None,
+        session_identity: SessionIdentity | None = None,
+        visual_oracle_root_provider: Callable[[], str] | None = None,
+        posp_root_provider: Callable[[], str] | None = None,
+        first_session_id: str | None = None,
+        device_key: bytes | None = None,
     ):
         self.session_id = session_id
         self.jsonl_path = jsonl_path
@@ -67,9 +71,9 @@ class RetinaEventBus:
         # WebSocket state
         self._ws_clients: set = set()
         self._ws_history: deque = deque(maxlen=max_ws_history)
-        self._ws_loop: Optional[asyncio.AbstractEventLoop] = None
-        self._ws_server: Optional[asyncio.Server] = None
-        self._ws_task: Optional[asyncio.Task] = None
+        self._ws_loop: asyncio.AbstractEventLoop | None = None
+        self._ws_server: asyncio.Server | None = None
+        self._ws_task: asyncio.Task | None = None
 
         # JSONL writer
         self._jsonl_lock = threading.Lock()
@@ -81,7 +85,7 @@ class RetinaEventBus:
         self.events_rejected = 0
 
         # Trio-retina validator (optional)
-        self._trio_validator: Optional["TrioRetinaValidator"] = None
+        self._trio_validator: TrioRetinaValidator | None = None
         self._trio_config = trio_config
         self._session_identity = session_identity
         self._visual_oracle_root_provider = visual_oracle_root_provider
@@ -137,7 +141,7 @@ class RetinaEventBus:
     def init_trio_validator(self) -> bool:
         """
         Initialize trio-retina validator if configured.
-        
+
         Returns True if validator was created, False if not available or disabled.
         """
         try:
@@ -189,7 +193,7 @@ class RetinaEventBus:
             return self._trio_validator.get_stats()
         return {"enabled": False}
 
-    async def trigger_trio_validation(self) -> Optional[dict]:
+    async def trigger_trio_validation(self) -> dict | None:
         """Trigger immediate trio-retina validation of buffered events."""
         if self._trio_validator:
             result = await self._trio_validator.validate_now()
@@ -208,8 +212,8 @@ class RetinaEventBus:
         source_lobe: SourceLobe,
         event_type: str,
         payload: dict[str, Any],
-        clock_ns_override: Optional[int] = None,
-        session_head_ns: Optional[int] = None,
+        clock_ns_override: int | None = None,
+        session_head_ns: int | None = None,
     ) -> bool:
         """
         Emit a raw event (convenience method).
@@ -318,7 +322,7 @@ class RetinaEventBus:
                 pass  # Ignore incoming messages for now
         finally:
             self._ws_clients.discard(websocket)
-            log.info(f"WS client disconnected")
+            log.info("WS client disconnected")
 
     def start_ws(self) -> None:
         """Start WebSocket server in background thread."""
@@ -397,6 +401,7 @@ class RetinaEventBus:
 # MULTI-SESSION BUS MANAGER (for future multi-session support)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class EventBusManager:
     """
     Manages multiple RetinaEventBus instances (one per session).
@@ -409,7 +414,7 @@ class EventBusManager:
     def get_or_create(
         self,
         session_id: str,
-        jsonl_path: Optional[Path] = None,
+        jsonl_path: Path | None = None,
         ws_host: str = "127.0.0.1",
         ws_port: int = 8765,
         enable_ws: bool = True,
@@ -426,7 +431,7 @@ class EventBusManager:
                 self._buses[session_id] = bus
             return self._buses[session_id]
 
-    def get(self, session_id: str) -> Optional[RetinaEventBus]:
+    def get(self, session_id: str) -> RetinaEventBus | None:
         with self._lock:
             return self._buses.get(session_id)
 

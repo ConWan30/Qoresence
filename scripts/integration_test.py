@@ -52,6 +52,7 @@ from qoresence.lobes import (
 
 try:
     from qoresence.trio import TrioRetinaConfig
+
     TRIO_AVAILABLE = True
 except ImportError:
     TrioRetinaConfig = None  # type: ignore
@@ -64,20 +65,22 @@ log = logging.getLogger(__name__)
 # HARDWARE DETECTION
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def detect_dualshock_edge() -> dict | None:
     """Detect DualShock Edge controller via HID."""
     try:
         import hid
+
         devices = hid.enumerate()
         for d in devices:
-            if d['vendor_id'] == 0x054C and d['product_id'] == 0x0CE6:
+            if d["vendor_id"] == 0x054C and d["product_id"] == 0x0CE6:
                 return {
-                    'vendor_id': d['vendor_id'],
-                    'product_id': d['product_id'],
-                    'path': d['path'],
-                    'manufacturer': d.get('manufacturer_string', ''),
-                    'product': d.get('product_string', ''),
-                    'serial': d.get('serial_number', ''),
+                    "vendor_id": d["vendor_id"],
+                    "product_id": d["product_id"],
+                    "path": d["path"],
+                    "manufacturer": d.get("manufacturer_string", ""),
+                    "product": d.get("product_string", ""),
+                    "serial": d.get("serial_number", ""),
                 }
     except Exception as e:
         log.warning(f"HID enumeration failed: {e}")
@@ -88,6 +91,7 @@ def _get_dshow_device_name(index: int) -> str | None:
     """Return DirectShow display name for a device index, if available."""
     try:
         from pygrabber.dshow_graph import FilterGraph
+
         names = FilterGraph().get_input_devices()
         if 0 <= index < len(names):
             return names[index]
@@ -109,7 +113,9 @@ def detect_capture_devices() -> list[dict]:
             # Allowed sources:
             # - USB3.0 Video (capture card)
             # - OBS Virtual Camera
-            if os.environ.get("QORESENCE_PRIVACY_GUARD", "1") != "0" and not _is_allowed_capture_source(name):
+            if os.environ.get(
+                "QORESENCE_PRIVACY_GUARD", "1"
+            ) != "0" and not _is_allowed_capture_source(name):
                 log.debug(f"Skipping disallowed capture source: {name}")
                 continue
 
@@ -118,13 +124,15 @@ def detect_capture_devices() -> list[dict]:
                 ok, frame = cap.read()
                 if ok and frame is not None:
                     h, w = frame.shape[:2]
-                    devices.append({
-                        'index': i,
-                        'name': name,
-                        'width': w,
-                        'height': h,
-                        'backend': 'dshow',
-                    })
+                    devices.append(
+                        {
+                            "index": i,
+                            "name": name,
+                            "width": w,
+                            "height": h,
+                            "backend": "dshow",
+                        }
+                    )
                 cap.release()
     except Exception as e:
         log.warning(f"Capture device detection failed: {e}")
@@ -135,13 +143,27 @@ def _is_allowed_capture_source(name: str) -> bool:
     """Allow capture cards and OBS virtual camera; reject personal webcams."""
     n = name.lower()
     # Explicitly blocked
-    if any(bad in n for bad in ["720p hd camera", "hd camera", "webcam", "integrated", "laptop", "facetime", "camera"]):
+    if any(
+        bad in n
+        for bad in [
+            "720p hd camera",
+            "hd camera",
+            "webcam",
+            "integrated",
+            "laptop",
+            "facetime",
+            "camera",
+        ]
+    ):
         # Allow if it is the capture card or OBS
         if "usb3.0 video" in n or "obs virtual" in n:
             return True
         return False
     # Explicitly allowed
-    if any(good in n for good in ["usb3.0 video", "obs virtual", "capture", "hdmi", "elgato", "avermedia"]):
+    if any(
+        good in n
+        for good in ["usb3.0 video", "obs virtual", "capture", "hdmi", "elgato", "avermedia"]
+    ):
         return True
     # Default-deny unknown cameras
     if "camera" in n:
@@ -162,19 +184,25 @@ def detect_game_window() -> str | None:
     """Try to detect NCAA 27 or CoD game window."""
     try:
         import win32gui
+
         windows = []
+
         def enum_handler(hwnd, _):
             if win32gui.IsWindowVisible(hwnd):
                 title = win32gui.GetWindowText(hwnd)
                 if title:
                     windows.append(title)
+
         win32gui.EnumWindows(enum_handler, None)
 
         for title in windows:
             title_lower = title.lower()
-            if any(kw in title_lower for kw in ['ncaa', 'college football', 'football 27']):
+            if any(kw in title_lower for kw in ["ncaa", "college football", "football 27"]):
                 return f"NCAA 27: {title}"
-            if any(kw in title_lower for kw in ['call of duty', 'warzone', 'modern warfare', 'black ops']):
+            if any(
+                kw in title_lower
+                for kw in ["call of duty", "warzone", "modern warfare", "black ops"]
+            ):
                 return f"Call of Duty: {title}"
     except ImportError:
         log.warning("win32gui not available for window detection")
@@ -186,6 +214,7 @@ def detect_game_window() -> str | None:
 # ──────────────────────────────────────────────────────────────────────────────
 # INTEGRATION TEST APP
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class IntegrationTestApp:
     """Full pipeline integration test."""
@@ -232,10 +261,10 @@ class IntegrationTestApp:
         self._running = False
         self._start_time = 0.0
         self._stats = {
-            'events_received': 0,
-            'lobe_events': {},
-            'anomalies_detected': 0,
-            'presence_reports': 0,
+            "events_received": 0,
+            "lobe_events": {},
+            "anomalies_detected": 0,
+            "presence_reports": 0,
         }
 
     def initialize(self) -> bool:
@@ -293,6 +322,7 @@ class IntegrationTestApp:
             vlm_client = self.visual._client
         elif self.config.visual.api_key:
             from qoresence.lobes.visual import VLMClient
+
             vlm_client = VLMClient(self.config.visual)
         else:
             vlm_client = None
@@ -336,9 +366,11 @@ class IntegrationTestApp:
         """Connect lobe outputs to each other."""
         # Screen ← Controller (coupling)
         if self.screen and self.controller:
+
             def controller_provider():
                 stats = self.controller.get_stats()
-                return [stats.get('last_trigger', 0.0), stats.get('stick_motion', 0.0)]
+                return [stats.get("last_trigger", 0.0), stats.get("stick_motion", 0.0)]
+
             self.screen.set_controller_provider(controller_provider)
 
         # Visual ← Streamer/Screen (frames)
@@ -363,21 +395,25 @@ class IntegrationTestApp:
                 self.game_detector.set_frame_provider(self.screen.get_current_frame)
 
             if self.outcome:
+
                 def switch_profile(profile_id):
                     self.outcome.set_game_profile(profile_id)
+
                 self.game_detector.set_profile_switch_callback(switch_profile)
 
         # Visual ← Outcome/Controller/Screen (cross-modal)
         if self.visual:
+
             def modality_provider():
                 modalities = {}
                 if self.outcome:
-                    modalities['outcome'] = self.outcome.get_last_state()
+                    modalities["outcome"] = self.outcome.get_last_state()
                 if self.controller:
-                    modalities['controller'] = self.controller.get_stats()
+                    modalities["controller"] = self.controller.get_stats()
                 if self.screen:
-                    modalities['screen'] = {'coupling_score': 0.0}
+                    modalities["screen"] = {"coupling_score": 0.0}
                 return modalities
+
             self.visual.set_modality_provider(modality_provider)
 
         # Fusion ← All lobes (presence callbacks)
@@ -395,13 +431,13 @@ class IntegrationTestApp:
 
         # Subscribe to bus for stats
         def stats_callback(event):
-            self._stats['events_received'] += 1
+            self._stats["events_received"] += 1
             lobe = event.source_lobe.value
-            self._stats['lobe_events'][lobe] = self._stats['lobe_events'].get(lobe, 0) + 1
-            if event.type.value == 'presence_report':
-                self._stats['presence_reports'] += 1
-                if event.payload.get('anomalies'):
-                    self._stats['anomalies_detected'] += len(event.payload['anomalies'])
+            self._stats["lobe_events"][lobe] = self._stats["lobe_events"].get(lobe, 0) + 1
+            if event.type.value == "presence_report":
+                self._stats["presence_reports"] += 1
+                if event.payload.get("anomalies"):
+                    self._stats["anomalies_detected"] += len(event.payload["anomalies"])
 
         self.bus.subscribe(stats_callback)
 
@@ -471,7 +507,9 @@ class IntegrationTestApp:
         # Gracefully stop trio validator if running
         if self.bus._trio_validator and self.bus._ws_loop and self.bus._ws_loop.is_running():
             try:
-                fut = asyncio.run_coroutine_threadsafe(self.bus.stop_trio_validator(), self.bus._ws_loop)
+                fut = asyncio.run_coroutine_threadsafe(
+                    self.bus.stop_trio_validator(), self.bus._ws_loop
+                )
                 fut.result(timeout=5)
             except Exception as e:
                 log.warning(f"Trio validator stop timed out or failed: {e}")
@@ -483,7 +521,7 @@ class IntegrationTestApp:
     def run(self) -> dict:
         """Run the integration test for configured duration."""
         if not self.start():
-            return {'success': False, 'error': 'Failed to start'}
+            return {"success": False, "error": "Failed to start"}
 
         try:
             time.sleep(self.duration_s)
@@ -493,28 +531,29 @@ class IntegrationTestApp:
             self.stop()
 
         return {
-            'success': True,
-            'session_id': self.identity.session_id,
-            'duration_s': round(time.time() - self._start_time, 1),
-            'stats': self._stats,
-            'lobe_status': self._get_lobe_status(),
+            "success": True,
+            "session_id": self.identity.session_id,
+            "duration_s": round(time.time() - self._start_time, 1),
+            "stats": self._stats,
+            "lobe_status": self._get_lobe_status(),
         }
 
     def _get_lobe_status(self) -> dict:
         return {
-            'streamer': self.streamer.is_running() if self.streamer else 'disabled',
-            'controller': self.controller.is_running() if self.controller else 'disabled',
-            'screen': self.screen.is_running() if self.screen else 'disabled',
-            'outcome': self.outcome.is_running() if self.outcome else 'disabled',
-            'visual': self.visual.is_running() if self.visual else 'disabled',
-            'fusion': self.fusion.is_running() if self.fusion else 'disabled',
-            'clutchbot': self.clutchbot.is_running() if self.clutchbot else 'disabled',
+            "streamer": self.streamer.is_running() if self.streamer else "disabled",
+            "controller": self.controller.is_running() if self.controller else "disabled",
+            "screen": self.screen.is_running() if self.screen else "disabled",
+            "outcome": self.outcome.is_running() if self.outcome else "disabled",
+            "visual": self.visual.is_running() if self.visual else "disabled",
+            "fusion": self.fusion.is_running() if self.fusion else "disabled",
+            "clutchbot": self.clutchbot.is_running() if self.clutchbot else "disabled",
         }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # MAIN
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def setup_logging(level: str = "INFO") -> None:
     logging.basicConfig(
@@ -544,25 +583,29 @@ def create_test_config(args) -> RetinaUnifiedConfig:
     elif args.auto_detect:
         devices = detect_capture_devices()
         if devices:
-            streamer_device = devices[0]['index']
-            log.info(f"Auto-detected capture device: index {streamer_device} ({devices[0]['name']})")
+            streamer_device = devices[0]["index"]
+            log.info(
+                f"Auto-detected capture device: index {streamer_device} ({devices[0]['name']})"
+            )
         else:
-            raise SystemExit("PRIVACY GUARD: no allowed capture devices found. Check your capture card / OBS Virtual Camera.")
+            raise SystemExit(
+                "PRIVACY GUARD: no allowed capture devices found. Check your capture card / OBS Virtual Camera."
+            )
 
     controller_vid = args.controller_vid
     controller_pid = args.controller_pid
     if controller_vid is None and controller_pid is None and args.auto_detect:
         edge = detect_dualshock_edge()
         if edge:
-            controller_vid = edge['vendor_id']
-            controller_pid = edge['product_id']
+            controller_vid = edge["vendor_id"]
+            controller_pid = edge["product_id"]
             log.info(f"Auto-detected DualShock Edge: {edge}")
 
     screen_monitor = args.screen_monitor
     if screen_monitor is None and args.auto_detect:
         monitors = detect_monitors()
         if monitors:
-            screen_monitor = monitors[0]['index']
+            screen_monitor = monitors[0]["index"]
             log.info(f"Auto-detected monitor: index {screen_monitor}")
 
     # Detect game window for outcome profile
@@ -608,6 +651,7 @@ def create_test_config(args) -> RetinaUnifiedConfig:
     )
 
     from qoresence.core import GameProfileId
+
     outcome_config = OutcomeConfig(
         enabled=args.outcome,
         game_profile=GameProfileId(game_profile),
@@ -644,6 +688,7 @@ def create_test_config(args) -> RetinaUnifiedConfig:
     )
 
     from qoresence.core import ClutchBotConfig, TwitchConfig
+
     clutchbot_config = ClutchBotConfig(
         enabled=args.clutchbot,
         persona=args.clutchbot_persona,
@@ -701,9 +746,9 @@ def create_test_config(args) -> RetinaUnifiedConfig:
 
 def print_hardware_info() -> None:
     """Print detected hardware information."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("HARDWARE DETECTION")
-    print("="*60)
+    print("=" * 60)
 
     # Controllers
     print("\nControllers:")
@@ -719,7 +764,9 @@ def print_hardware_info() -> None:
     devices = detect_capture_devices()
     if devices:
         for d in devices:
-            print(f"  - Index {d['index']} ({d['name']}): {d['width']}x{d['height']} ({d['backend']})")
+            print(
+                f"  - Index {d['index']} ({d['name']}): {d['width']}x{d['height']} ({d['backend']})"
+            )
     else:
         print("  None detected")
 
@@ -740,7 +787,7 @@ def print_hardware_info() -> None:
     else:
         print("  None detected (or win32gui not available)")
 
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
 
 def main():
@@ -750,10 +797,10 @@ def main():
     )
 
     # Hardware detection
-    parser.add_argument("--detect-only", action="store_true",
-                        help="Only detect hardware and exit")
-    parser.add_argument("--auto-detect", action="store_true",
-                        help="Auto-detect hardware for config")
+    parser.add_argument("--detect-only", action="store_true", help="Only detect hardware and exit")
+    parser.add_argument(
+        "--auto-detect", action="store_true", help="Auto-detect hardware for config"
+    )
 
     # Session
     parser.add_argument("--session-id", help="Session ID")
@@ -765,8 +812,15 @@ def main():
     parser.add_argument("--streamer-device", type=int, help="Capture device index")
     parser.add_argument("--streamer-url", help="Network stream URL (rtmp://, http://, file, etc.)")
     parser.add_argument("--streamer-fps", type=float, default=15.0, help="Streamer FPS")
-    parser.add_argument("--streamer-source", choices=["uvc_card", "obs_virtual"], default="uvc_card")
-    parser.add_argument("--streamer-backend", choices=["auto", "dshow", "msmf"], default="dshow", help="Capture backend")
+    parser.add_argument(
+        "--streamer-source", choices=["uvc_card", "obs_virtual"], default="uvc_card"
+    )
+    parser.add_argument(
+        "--streamer-backend",
+        choices=["auto", "dshow", "msmf"],
+        default="dshow",
+        help="Capture backend",
+    )
 
     # Controller
     parser.add_argument("--controller", action="store_true", help="Enable controller lobe")
@@ -782,26 +836,65 @@ def main():
 
     # Outcome
     parser.add_argument("--outcome", action="store_true", help="Enable outcome lobe")
-    parser.add_argument("--game-profile", choices=["ncaa_football_27", "call_of_duty", "auto"], default="auto")
+    parser.add_argument(
+        "--game-profile", choices=["ncaa_football_27", "call_of_duty", "auto"], default="auto"
+    )
     parser.add_argument("--outcome-confidence", type=float, default=0.7)
     parser.add_argument("--outcome-interval", type=float, default=2.0)
 
     # Visual
     parser.add_argument("--visual", action="store_true", help="Enable visual lobe")
     parser.add_argument("--visual-api-key", help="VLM API key")
-    parser.add_argument("--visual-api-key-file", help="File containing VLM API key (format: label:key)")
-    parser.add_argument("--visual-model-name", default="meta/llama-3.2-11b-vision-instruct", help="VLM model name")
+    parser.add_argument(
+        "--visual-api-key-file", help="File containing VLM API key (format: label:key)"
+    )
+    parser.add_argument(
+        "--visual-model-name", default="meta/llama-3.2-11b-vision-instruct", help="VLM model name"
+    )
     parser.add_argument("--visual-sample-rate", type=int, default=30)
 
     # Game auto-detection
-    parser.add_argument("--auto-game-detect", action="store_true", help="Enable automatic game detection (VLM + OCR)")
-    parser.add_argument("--game-detect-threshold", type=float, default=0.65, help="Confidence threshold for game auto-detection")
-    parser.add_argument("--game-detect-stability", type=int, default=2, help="Consecutive detections required to emit game_detected")
-    parser.add_argument("--game-detect-poll", type=float, default=3.0, help="Seconds between game detection samples")
-    parser.add_argument("--game-detect-learning", action="store_true", help="Enable recursive learning for game detection")
-    parser.add_argument("--game-detect-learning-path", default="game_detection_learning.jsonl", help="Path to learning data file")
-    parser.add_argument("--ocr-provider", choices=["vlm", "easyocr", "tesseract"], default="easyocr", help="OCR engine used by game auto-detection")
-    parser.add_argument("--vision-model-dir", default="models", help="Directory for vision stack models (YOLOv8n, etc.)")
+    parser.add_argument(
+        "--auto-game-detect",
+        action="store_true",
+        help="Enable automatic game detection (VLM + OCR)",
+    )
+    parser.add_argument(
+        "--game-detect-threshold",
+        type=float,
+        default=0.65,
+        help="Confidence threshold for game auto-detection",
+    )
+    parser.add_argument(
+        "--game-detect-stability",
+        type=int,
+        default=2,
+        help="Consecutive detections required to emit game_detected",
+    )
+    parser.add_argument(
+        "--game-detect-poll", type=float, default=3.0, help="Seconds between game detection samples"
+    )
+    parser.add_argument(
+        "--game-detect-learning",
+        action="store_true",
+        help="Enable recursive learning for game detection",
+    )
+    parser.add_argument(
+        "--game-detect-learning-path",
+        default="game_detection_learning.jsonl",
+        help="Path to learning data file",
+    )
+    parser.add_argument(
+        "--ocr-provider",
+        choices=["vlm", "easyocr", "tesseract"],
+        default="easyocr",
+        help="OCR engine used by game auto-detection",
+    )
+    parser.add_argument(
+        "--vision-model-dir",
+        default="models",
+        help="Directory for vision stack models (YOLOv8n, etc.)",
+    )
 
     # ClutchBot (Twitch agent)
     parser.add_argument(
@@ -810,39 +903,120 @@ def main():
         help="ClutchBot streaming preset: enables outcome, visual, clutchbot, and WebSocket",
     )
     parser.add_argument("--clutchbot", action="store_true", help="Enable ClutchBot Twitch agent")
-    parser.add_argument("--clutchbot-channel", default="", help="Twitch channel for the bot to join (no #)")
+    parser.add_argument(
+        "--clutchbot-channel", default="", help="Twitch channel for the bot to join (no #)"
+    )
     parser.add_argument("--clutchbot-username", default="", help="Twitch bot username")
     parser.add_argument("--clutchbot-token", default=None, help="Twitch bot OAuth token")
-    parser.add_argument("--clutchbot-token-file", default=None, help="File containing the Twitch bot OAuth token")
-    parser.add_argument("--clutchbot-helix-token", default=None, help="Twitch Helix access token (for clips/predictions)")
-    parser.add_argument("--clutchbot-helix-token-file", default=None, help="File containing the Twitch Helix token")
+    parser.add_argument(
+        "--clutchbot-token-file", default=None, help="File containing the Twitch bot OAuth token"
+    )
+    parser.add_argument(
+        "--clutchbot-helix-token",
+        default=None,
+        help="Twitch Helix access token (for clips/predictions)",
+    )
+    parser.add_argument(
+        "--clutchbot-helix-token-file", default=None, help="File containing the Twitch Helix token"
+    )
     parser.add_argument("--clutchbot-client-id", default=None, help="Twitch application Client ID")
-    parser.add_argument("--clutchbot-client-secret", default=None, help="Twitch application Client Secret")
-    parser.add_argument("--clutchbot-broadcaster-id", default=None, help="Twitch broadcaster user ID")
-    parser.add_argument("--clutchbot-broadcaster-username", default=None, help="Twitch broadcaster login name")
-    parser.add_argument("--clutchbot-persona", default="neutral", help="ClutchBot persona (neutral | hype | path to file)")
-    parser.add_argument("--clutchbot-window-s", type=float, default=5.0, help="Controller APM rolling window (seconds)")
-    parser.add_argument("--clutchbot-cooldown", type=float, default=30.0, help="Minimum seconds between chat messages")
-    parser.add_argument("--clutchbot-max-msg", type=int, default=3, help="Max chat messages per minute")
-    parser.add_argument("--clutchbot-interval", type=float, default=2.0, help="Minimum seconds between sent IRC messages")
-    parser.add_argument("--clutchbot-memory", default=None, help="Path to ClutchBot session memory JSONL")
-    parser.add_argument("--clutchbot-enable-clips", action="store_true", help="Create clips on clutch moments")
-    parser.add_argument("--clutchbot-enable-predictions", action="store_true", help="Start channel-point predictions")
-    parser.add_argument("--clutchbot-enable-follow-alerts", action="store_true", help="EventSub follow alerts")
-    parser.add_argument("--clutchbot-enable-sub-alerts", action="store_true", help="EventSub subscription alerts")
-    parser.add_argument("--clutchbot-enable-redemption-alerts", action="store_true", help="EventSub redemption alerts")
+    parser.add_argument(
+        "--clutchbot-client-secret", default=None, help="Twitch application Client Secret"
+    )
+    parser.add_argument(
+        "--clutchbot-broadcaster-id", default=None, help="Twitch broadcaster user ID"
+    )
+    parser.add_argument(
+        "--clutchbot-broadcaster-username", default=None, help="Twitch broadcaster login name"
+    )
+    parser.add_argument(
+        "--clutchbot-persona",
+        default="neutral",
+        help="ClutchBot persona (neutral | hype | path to file)",
+    )
+    parser.add_argument(
+        "--clutchbot-window-s",
+        type=float,
+        default=5.0,
+        help="Controller APM rolling window (seconds)",
+    )
+    parser.add_argument(
+        "--clutchbot-cooldown",
+        type=float,
+        default=30.0,
+        help="Minimum seconds between chat messages",
+    )
+    parser.add_argument(
+        "--clutchbot-max-msg", type=int, default=3, help="Max chat messages per minute"
+    )
+    parser.add_argument(
+        "--clutchbot-interval",
+        type=float,
+        default=2.0,
+        help="Minimum seconds between sent IRC messages",
+    )
+    parser.add_argument(
+        "--clutchbot-memory", default=None, help="Path to ClutchBot session memory JSONL"
+    )
+    parser.add_argument(
+        "--clutchbot-enable-clips", action="store_true", help="Create clips on clutch moments"
+    )
+    parser.add_argument(
+        "--clutchbot-enable-predictions",
+        action="store_true",
+        help="Start channel-point predictions",
+    )
+    parser.add_argument(
+        "--clutchbot-enable-follow-alerts", action="store_true", help="EventSub follow alerts"
+    )
+    parser.add_argument(
+        "--clutchbot-enable-sub-alerts", action="store_true", help="EventSub subscription alerts"
+    )
+    parser.add_argument(
+        "--clutchbot-enable-redemption-alerts",
+        action="store_true",
+        help="EventSub redemption alerts",
+    )
 
     # Trio-retina (w3bstream validation)
-    parser.add_argument("--trio", action="store_true", help="Enable trio-retina w3bstream validation")
-    parser.add_argument("--trio-wasm-path", default="w3bstream_applet.wasm", help="Path to w3bstream applet WASM")
-    parser.add_argument("--trio-validate-on-ingest", action="store_true", help="Validate each event at ingestion")
-    parser.add_argument("--trio-validate-on-flush", action="store_true", help="Validate batched events periodically")
-    parser.add_argument("--trio-flush-interval", type=float, default=30.0, help="Batch flush interval (seconds)")
-    parser.add_argument("--trio-block-rpc", default="https://babel-api.testnet.iotex.io", help="IoTeX RPC for block number")
-    parser.add_argument("--trio-node-session-verify", action="store_true", help="Enable node/session verify")
-    parser.add_argument("--trio-events-root-verify", action="store_true", help="Verify events merkle root")
-    parser.add_argument("--trio-pq-commitment-source", default="mock", choices=["mock", "real"], help="PQ commitment source")
-    parser.add_argument("--trio-use-python-wasmtime", action="store_true", default=True, help="Use wasmtime Python bindings instead of CLI")
+    parser.add_argument(
+        "--trio", action="store_true", help="Enable trio-retina w3bstream validation"
+    )
+    parser.add_argument(
+        "--trio-wasm-path", default="w3bstream_applet.wasm", help="Path to w3bstream applet WASM"
+    )
+    parser.add_argument(
+        "--trio-validate-on-ingest", action="store_true", help="Validate each event at ingestion"
+    )
+    parser.add_argument(
+        "--trio-validate-on-flush", action="store_true", help="Validate batched events periodically"
+    )
+    parser.add_argument(
+        "--trio-flush-interval", type=float, default=30.0, help="Batch flush interval (seconds)"
+    )
+    parser.add_argument(
+        "--trio-block-rpc",
+        default="https://babel-api.testnet.iotex.io",
+        help="IoTeX RPC for block number",
+    )
+    parser.add_argument(
+        "--trio-node-session-verify", action="store_true", help="Enable node/session verify"
+    )
+    parser.add_argument(
+        "--trio-events-root-verify", action="store_true", help="Verify events merkle root"
+    )
+    parser.add_argument(
+        "--trio-pq-commitment-source",
+        default="mock",
+        choices=["mock", "real"],
+        help="PQ commitment source",
+    )
+    parser.add_argument(
+        "--trio-use-python-wasmtime",
+        action="store_true",
+        default=True,
+        help="Use wasmtime Python bindings instead of CLI",
+    )
 
     # Output
     parser.add_argument("--jsonl-path", help="JSONL output path")
@@ -852,7 +1026,9 @@ def main():
 
     # Test config
     parser.add_argument("--duration", type=float, default=30.0, help="Test duration (seconds)")
-    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
+    parser.add_argument(
+        "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
+    )
     parser.add_argument("--dry-run", action="store_true", help="Initialize but don't run")
 
     args = parser.parse_args()
@@ -902,24 +1078,38 @@ def main():
     print_hardware_info()
 
     # Print config summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("INTEGRATION TEST CONFIG")
-    print("="*60)
+    print("=" * 60)
     print(f"Session ID:     {config.session_id}")
     print(f"Session Head:   {config.session_head_ns}")
     print(f"Device ID:      {config.device_id_hex or '(auto)'}")
     print(f"JSONL Output:   {config.jsonl_path or '(none)'}")
-    print(f"WebSocket:      {'enabled' if config.enable_ws else 'disabled'} ({config.ws_host}:{config.ws_port})")
+    print(
+        f"WebSocket:      {'enabled' if config.enable_ws else 'disabled'} ({config.ws_host}:{config.ws_port})"
+    )
     print(f"Trio-retina:    {'enabled' if trio_config and trio_config.enabled else 'disabled'}")
     print(f"Duration:       {args.duration}s")
     print("\nLobes:")
-    print(f"  Streamer:     {'ON' if config.streamer.enabled else 'OFF'} (device={config.streamer.device_index}, fps={config.streamer.fps_target})")
-    print(f"  Controller:   {'ON' if config.controller.enabled else 'OFF'} (VID={config.controller.device_vid}, PID={config.controller.device_pid})")
-    print(f"  Screen:       {'ON' if config.screen.enabled else 'OFF'} (monitor={config.screen.monitor_index}, method={config.screen.capture_method})")
-    print(f"  Outcome:      {'ON' if config.outcome.enabled else 'OFF'} (profile={config.outcome.game_profile.value})")
-    print(f"  Visual:       {'ON' if config.visual.enabled else 'OFF'} (sample_rate={config.visual.frame_sample_rate})")
-    print(f"  ClutchBot:    {'ON' if config.clutchbot.enabled else 'OFF'} (channel={config.clutchbot.twitch.channel or 'none'})")
-    print("="*60 + "\n")
+    print(
+        f"  Streamer:     {'ON' if config.streamer.enabled else 'OFF'} (device={config.streamer.device_index}, fps={config.streamer.fps_target})"
+    )
+    print(
+        f"  Controller:   {'ON' if config.controller.enabled else 'OFF'} (VID={config.controller.device_vid}, PID={config.controller.device_pid})"
+    )
+    print(
+        f"  Screen:       {'ON' if config.screen.enabled else 'OFF'} (monitor={config.screen.monitor_index}, method={config.screen.capture_method})"
+    )
+    print(
+        f"  Outcome:      {'ON' if config.outcome.enabled else 'OFF'} (profile={config.outcome.game_profile.value})"
+    )
+    print(
+        f"  Visual:       {'ON' if config.visual.enabled else 'OFF'} (sample_rate={config.visual.frame_sample_rate})"
+    )
+    print(
+        f"  ClutchBot:    {'ON' if config.clutchbot.enabled else 'OFF'} (channel={config.clutchbot.twitch.channel or 'none'})"
+    )
+    print("=" * 60 + "\n")
 
     if args.dry_run:
         print("Dry run complete - config valid")
@@ -935,14 +1125,14 @@ def main():
     result = app.run()
 
     # Print results
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("INTEGRATION TEST RESULTS")
-    print("="*60)
+    print("=" * 60)
     print(f"Success:        {result['success']}")
-    if not result['success']:
-        error = result.get('error', 'Unknown failure')
+    if not result["success"]:
+        error = result.get("error", "Unknown failure")
         print(f"Error:          {error}")
-        print("="*60)
+        print("=" * 60)
         return 1
     print(f"Session ID:     {result['session_id']}")
     print(f"Duration:       {result['duration_s']}s")
@@ -950,12 +1140,12 @@ def main():
     print(f"Presence Reports: {result['stats']['presence_reports']}")
     print(f"Anomalies:      {result['stats']['anomalies_detected']}")
     print("\nLobe Events:")
-    for lobe, count in result['stats']['lobe_events'].items():
+    for lobe, count in result["stats"]["lobe_events"].items():
         print(f"  {lobe}: {count}")
     print("\nLobe Status:")
-    for lobe, status in result['lobe_status'].items():
+    for lobe, status in result["lobe_status"].items():
         print(f"  {lobe}: {status}")
-    print("="*60)
+    print("=" * 60)
 
     return 0
 

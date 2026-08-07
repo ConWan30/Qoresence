@@ -53,7 +53,9 @@ class FakeCapture:
         self._opened = False
 
 
-def _make_test_frames(count: int, base_luma: int = 40, motion_frames: list[int] = None) -> list[np.ndarray]:
+def _make_test_frames(
+    count: int, base_luma: int = 40, motion_frames: list[int] = None
+) -> list[np.ndarray]:
     """Create synthetic BGR frames for testing."""
     frames = []
     for i in range(count):
@@ -92,7 +94,7 @@ class TestStreamerRuntime:
             assert runtime.session_head_ns == identity.session_head_ns
             assert not runtime.is_running()
 
-    @patch('qoresence.lobes.streamer.cv2.VideoCapture')
+    @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_start_opens_capture(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -117,7 +119,7 @@ class TestStreamerRuntime:
 
             runtime.stop()
 
-    @patch('qoresence.lobes.streamer.cv2.VideoCapture')
+    @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_eye_check_snapshot_saved(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -149,7 +151,7 @@ class TestStreamerRuntime:
             snap_path = Path(td) / "eye_check.png"
             assert snap_path.exists(), "Eye-check snapshot not saved"
 
-    @patch('qoresence.lobes.streamer.cv2.VideoCapture')
+    @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_activity_detection_emits_events(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -171,7 +173,7 @@ class TestStreamerRuntime:
             frames = _make_test_frames(
                 6,
                 base_luma=40,
-                motion_frames=[2, 3]  # Frames 2,3 have high motion
+                motion_frames=[2, 3],  # Frames 2,3 have high motion
             )
             fake_cap = FakeCapture(frames)
             mock_cap_class.return_value = fake_cap
@@ -191,23 +193,23 @@ class TestStreamerRuntime:
             events = [json.loads(line) for line in lines]  # JSONL lines
 
             # Should have session_start, activity transitions, session_end
-            event_types = [e['type'] for e in events]
-            assert 'session_start' in event_types
-            assert 'session_end' in event_types
-            assert 'activity' in event_types
+            event_types = [e["type"] for e in events]
+            assert "session_start" in event_types
+            assert "session_end" in event_types
+            assert "activity" in event_types
 
             # Check activity events have required fields
-            activity_events = [e for e in events if e['type'] == 'activity']
+            activity_events = [e for e in events if e["type"] == "activity"]
             for ae in activity_events:
-                assert ae['session_id'] == 'activity_test'
-                assert ae['source_lobe'] == 'streamer'
-                assert 'clock_ns' in ae
-                assert 'session_head_ns' in ae
-                assert 'payload' in ae
-                assert 'level' in ae['payload']
-                assert 'presence_sync_ok' in ae['payload']
+                assert ae["session_id"] == "activity_test"
+                assert ae["source_lobe"] == "streamer"
+                assert "clock_ns" in ae
+                assert "session_head_ns" in ae
+                assert "payload" in ae
+                assert "level" in ae["payload"]
+                assert "presence_sync_ok" in ae["payload"]
 
-    @patch('qoresence.lobes.streamer.cv2.VideoCapture')
+    @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_zone_detection_emits_events(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -244,16 +246,16 @@ class TestStreamerRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines]
 
-            zone_events = [e for e in events if e['type'] == 'zone']
+            zone_events = [e for e in events if e["type"] == "zone"]
             assert len(zone_events) > 0, "No zone events emitted"
 
             for ze in zone_events:
-                assert ze['source_lobe'] == 'streamer'
-                assert 'zone_id' in ze['payload']
-                assert 'state' in ze['payload']
-                assert 'presence_sync_ok' in ze['payload']
+                assert ze["source_lobe"] == "streamer"
+                assert "zone_id" in ze["payload"]
+                assert "state" in ze["payload"]
+                assert "presence_sync_ok" in ze["payload"]
 
-    @patch('qoresence.lobes.streamer.cv2.VideoCapture')
+    @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_frame_stats_periodic(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -285,19 +287,19 @@ class TestStreamerRuntime:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines]
 
-            frame_stats = [e for e in events if e['type'] == 'frame_stats']
+            frame_stats = [e for e in events if e["type"] == "frame_stats"]
             assert len(frame_stats) >= 2, "Expected multiple frame_stats events"
 
             for fs in frame_stats:
-                assert 'n' in fs['payload']
-                assert 'fps_meas' in fs['payload']
-                assert 'presence_sync_ok' in fs['payload']
+                assert "n" in fs["payload"]
+                assert "fps_meas" in fs["payload"]
+                assert "presence_sync_ok" in fs["payload"]
 
 
 class TestPresenceSync:
     """Tests for presence synchronization via touch file."""
 
-    @patch('qoresence.lobes.streamer.cv2.VideoCapture')
+    @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_presence_sync_true_when_touch_recent(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -315,7 +317,7 @@ class TestPresenceSync:
                 eye_check_required=False,
             )
 
-            frames = _make_test_frames(10, motion_frames=[1,2,3])
+            frames = _make_test_frames(10, motion_frames=[1, 2, 3])
             fake_cap = FakeCapture(frames)
             mock_cap_class.return_value = fake_cap
 
@@ -336,21 +338,25 @@ class TestPresenceSync:
 
             # Check activity/frame_stats have presence_sync_ok = true
             for e in events:
-                if e['type'] in ('activity', 'frame_stats', 'zone'):
-                    assert e['payload']['presence_sync_ok'] is True, \
+                if e["type"] in ("activity", "frame_stats", "zone"):
+                    assert e["payload"]["presence_sync_ok"] is True, (
                         f"Expected presence_sync_ok=true for {e['type']}"
+                    )
 
-    @patch('qoresence.lobes.streamer.cv2.VideoCapture')
+    @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_presence_sync_false_when_touch_stale(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
-            bus = RetinaEventBus(session_id="presence_stale", jsonl_path=jsonl_path, enable_ws=False)
+            bus = RetinaEventBus(
+                session_id="presence_stale", jsonl_path=jsonl_path, enable_ws=False
+            )
             identity = SessionAuthority.mint(session_id="presence_stale")
 
             touch_file = Path(td) / "presence.touch"
             touch_file.write_text("touch")
             # Make it stale by setting mtime to 100 seconds ago
             import os
+
             stale_time = time.time() - 100
             os.utime(touch_file, (stale_time, stale_time))
 
@@ -362,7 +368,7 @@ class TestPresenceSync:
                 eye_check_required=False,
             )
 
-            frames = _make_test_frames(10, motion_frames=[1,2,3])
+            frames = _make_test_frames(10, motion_frames=[1, 2, 3])
             fake_cap = FakeCapture(frames)
             mock_cap_class.return_value = fake_cap
 
@@ -382,11 +388,12 @@ class TestPresenceSync:
             events = [json.loads(line) for line in lines]
 
             for e in events:
-                if e['type'] in ('activity', 'frame_stats', 'zone'):
-                    assert e['payload']['presence_sync_ok'] is False, \
+                if e["type"] in ("activity", "frame_stats", "zone"):
+                    assert e["payload"]["presence_sync_ok"] is False, (
                         f"Expected presence_sync_ok=false for {e['type']} (stale touch)"
+                    )
 
-    @patch('qoresence.lobes.streamer.cv2.VideoCapture')
+    @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_presence_sync_false_when_no_touch_file(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -401,7 +408,7 @@ class TestPresenceSync:
                 eye_check_required=False,
             )
 
-            frames = _make_test_frames(10, motion_frames=[1,2,3])
+            frames = _make_test_frames(10, motion_frames=[1, 2, 3])
             fake_cap = FakeCapture(frames)
             mock_cap_class.return_value = fake_cap
 
@@ -421,8 +428,8 @@ class TestPresenceSync:
             events = [json.loads(line) for line in lines]
 
             for e in events:
-                if e['type'] in ('activity', 'frame_stats', 'zone'):
-                    assert e['payload']['presence_sync_ok'] is False
+                if e["type"] in ("activity", "frame_stats", "zone"):
+                    assert e["payload"]["presence_sync_ok"] is False
 
 
 class TestZoneSpec:
@@ -430,6 +437,7 @@ class TestZoneSpec:
 
     def test_default_zones_defined(self):
         from qoresence.lobes.streamer import DEFAULT_ZONES
+
         assert len(DEFAULT_ZONES) == 2
         assert DEFAULT_ZONES[0].zone_id == "hud_scoreboard"
         assert DEFAULT_ZONES[1].zone_id == "hud_bottom"
@@ -460,7 +468,7 @@ class TestStreamerConfigDefaults:
 class TestStreamerHardening:
     """Tests for Phase 5 streamer hardening: watchdog heartbeat + FPS fallback."""
 
-    @patch('qoresence.lobes.streamer.cv2.VideoCapture')
+    @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_watchdog_emits_heartbeat_when_capture_stalls(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"

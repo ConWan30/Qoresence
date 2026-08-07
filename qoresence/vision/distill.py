@@ -15,6 +15,7 @@ Usage:
   python -m qoresence.vision.distill --train --student HuggingFaceTB/SmolVLM2-256M-Instruct --data data/distill/train.jsonl
   python -m qoresence.vision.distill --export --onnx models/qoresence-vlm-distilled.onnx
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,7 +31,7 @@ from typing import Any
 import cv2
 import numpy as np
 
-from qoresence.vision.visual_context import VisualContext, GameCategory, GameState, build_vlm_prompt
+from qoresence.vision.visual_context import GameCategory, GameState, VisualContext, build_vlm_prompt
 
 log = logging.getLogger(__name__)
 
@@ -63,10 +64,10 @@ def _synthetic_frame(category: str, variant: int = 0) -> np.ndarray:
         for y in range(0, h, 10):
             for x in range(0, w, 10):
                 v = 120 if (x // 10 + y // 10) % 2 == 0 else 30
-                frame[y:y+5, x:x+5] = (v, v, v)
+                frame[y : y + 5, x : x + 5] = (v, v, v)
         for _ in range(6):
-            x1, y1 = random.randint(0, w-1), random.randint(0, h-1)
-            x2, y2 = random.randint(0, w-1), random.randint(0, h-1)
+            x1, y1 = random.randint(0, w - 1), random.randint(0, h - 1)
+            x2, y2 = random.randint(0, w - 1), random.randint(0, h - 1)
             cv2.line(frame, (x1, y1), (x2, y2), (200, 200, 200), 1)
         return cv2.resize(frame, (1280, 720))
     if cat in ("menu", "dark", "unknown") and variant % 3 == 0:
@@ -131,6 +132,7 @@ def _label_with_mock(expected: dict) -> dict:
 
 def _label_with_local(frame: np.ndarray) -> dict:
     from qoresence.vision.local_vlm import LocalVLMClient
+
     c = LocalVLMClient()
     ctx = c.analyze_frame(frame)
     if ctx is None:
@@ -140,8 +142,9 @@ def _label_with_local(frame: np.ndarray) -> dict:
 
 def _label_with_nemotron(frame: np.ndarray, prompt: str) -> dict | None:
     try:
-        from qoresence.lobes.visual import VLMClient
         from qoresence.core.unified_config import VisualConfig
+        from qoresence.lobes.visual import VLMClient
+
         cfg = VisualConfig()
         client = VLMClient(cfg)
         # VLMClient.analyze_frame returns VisualContext directly
@@ -191,7 +194,13 @@ def prepare(
         for samp in samples:
             expected = samp.get("expected", samp)
             cat = str(expected.get("game_category", "unknown")).lower()
-            prompt = prompt_football if cat == "football" else prompt_shooter if cat == "shooter" else prompt_football
+            prompt = (
+                prompt_football
+                if cat == "football"
+                else prompt_shooter
+                if cat == "shooter"
+                else prompt_football
+            )
 
             for rep in range(expand):
                 if synthetic:
@@ -204,7 +213,9 @@ def prepare(
                     # real frame: expect samp has image_path
                     img_path = samp.get("image_path") or samp.get("frame_path")
                     if not img_path or not Path(img_path).exists():
-                        log.warning(f"skip {samp.get('frame_hash')}: no image_path and synthetic=False")
+                        log.warning(
+                            f"skip {samp.get('frame_hash')}: no image_path and synthetic=False"
+                        )
                         continue
                     frame = cv2.imread(str(img_path))
                     fh = samp.get("frame_hash", hashlib.sha256(frame.tobytes()).hexdigest()[:16])
@@ -243,14 +254,21 @@ def prepare(
                 out.write(json.dumps(rec) + "\n")
                 n += 1
 
-    log.info(f"prepare: {n} pairs -> {out_path} (teacher={teacher}, synthetic={synthetic}, expand={expand})")
+    log.info(
+        f"prepare: {n} pairs -> {out_path} (teacher={teacher}, synthetic={synthetic}, expand={expand})"
+    )
     return n
 
 
 # ---------------------------------------------------------------------------
 # Fine-tune (stub that runs if transformers is installed)
 # ---------------------------------------------------------------------------
-def train(student: str = STUDENT_DEFAULT, data: Path = DEFAULT_OUT, out_dir: Path = Path("models/smolvlm2-qoresence"), epochs: int = 3) -> bool:
+def train(
+    student: str = STUDENT_DEFAULT,
+    data: Path = DEFAULT_OUT,
+    out_dir: Path = Path("models/smolvlm2-qoresence"),
+    epochs: int = 3,
+) -> bool:
     """
     Fine-tune SmolVLM2 on train.jsonl.
 
@@ -259,9 +277,11 @@ def train(student: str = STUDENT_DEFAULT, data: Path = DEFAULT_OUT, out_dir: Pat
     """
     try:
         import torch  # noqa: F401
-        from transformers import TrainingArguments, Trainer  # noqa: F401
+        from transformers import Trainer, TrainingArguments  # noqa: F401
     except ImportError as e:
-        log.warning(f"train deps missing ({e}). Install: pip install \"transformers[torch]\" accelerate datasets peft")
+        log.warning(
+            f'train deps missing ({e}). Install: pip install "transformers[torch]" accelerate datasets peft'
+        )
         print("""
 [distill] train deps not installed — stub mode.
   pip install \"transformers[torch]\" optimum[onnxruntime] accelerate datasets peft
@@ -276,7 +296,7 @@ For now, synthetic train.jsonl is ready for when you install deps.
     # Full implementation is ~120 lines; stub keeps repo runnable without GPU.
     try:
         from datasets import load_dataset
-        from transformers import AutoProcessor, AutoModelForVision2Seq
+        from transformers import AutoModelForVision2Seq, AutoProcessor
 
         ds = load_dataset("json", data_files=str(data), split="train")
         log.info(f"loaded {len(ds)} samples")
@@ -287,7 +307,14 @@ For now, synthetic train.jsonl is ready for when you install deps.
         # LoRA optional
         try:
             from peft import LoraConfig, get_peft_model
-            lora = LoraConfig(r=8, lora_alpha=16, target_modules=["q_proj", "v_proj"], lora_dropout=0.05, bias="none")
+
+            lora = LoraConfig(
+                r=8,
+                lora_alpha=16,
+                target_modules=["q_proj", "v_proj"],
+                lora_dropout=0.05,
+                bias="none",
+            )
             model = get_peft_model(model, lora)
             log.info("LoRA enabled")
         except Exception:
@@ -296,23 +323,31 @@ For now, synthetic train.jsonl is ready for when you install deps.
         # Tokenization is model-specific; this is the generic shape:
         def _tok(batch):
             # processor handles image+text; for synthetic we skip image load and use dummy
-            texts = [p + "\n" + r for p, r in zip(batch["prompt"], batch["response"])]
-            enc = processor(text=texts, padding=True, truncation=True, max_length=512, return_tensors="pt")
+            texts = [p + "\n" + r for p, r in zip(batch["prompt"], batch["response"], strict=True)]
+            enc = processor(
+                text=texts, padding=True, truncation=True, max_length=512, return_tensors="pt"
+            )
             enc["labels"] = enc["input_ids"].clone()
             return enc
 
         # NOTE: vision inputs need real images; synthetic dummy path above is for CI.
         # Replace with actual image loading when you have real frames:
         #   from PIL import Image; Image.open(batch["image"])
-        log.warning("train scaffold: wire image loading for real frames before GPU run (see distill.py _tok)")
-        print(f"[distill] scaffold ready — {len(ds)} samples, student {student}. Wire _tok() image loading then run Trainer.")
+        log.warning(
+            "train scaffold: wire image loading for real frames before GPU run (see distill.py _tok)"
+        )
+        print(
+            f"[distill] scaffold ready — {len(ds)} samples, student {student}. Wire _tok() image loading then run Trainer."
+        )
         return False
     except Exception as e:
         log.error(f"train failed: {e}", exc_info=True)
         return False
 
 
-def export_onnx(onnx_path: Path = DEFAULT_ONNX, model_dir: Path = Path("models/smolvlm2-qoresence")) -> bool:
+def export_onnx(
+    onnx_path: Path = DEFAULT_ONNX, model_dir: Path = Path("models/smolvlm2-qoresence")
+) -> bool:
     """
     Export fine-tuned model to ONNX via optimum-cli.
     Falls back to telling user the command if optimum not installed.
@@ -321,7 +356,16 @@ def export_onnx(onnx_path: Path = DEFAULT_ONNX, model_dir: Path = Path("models/s
         log.warning(f"model_dir {model_dir} not found — train first or use mock heuristic")
         print(f"[distill] no model at {model_dir}. Run --train or keep heuristic LocalVLMClient.")
         return False
-    cmd = ["optimum-cli", "export", "onnx", "--model", str(model_dir), "--task", "image-text-to-text", str(onnx_path)]
+    cmd = [
+        "optimum-cli",
+        "export",
+        "onnx",
+        "--model",
+        str(model_dir),
+        "--task",
+        "image-text-to-text",
+        str(onnx_path),
+    ]
     log.info(f"export: {' '.join(cmd)}")
     try:
         subprocess.run(cmd, check=True)
@@ -329,7 +373,17 @@ def export_onnx(onnx_path: Path = DEFAULT_ONNX, model_dir: Path = Path("models/s
         q_path = onnx_path.with_suffix(".int8.onnx")
         try:
             subprocess.run(
-                [sys.executable, "-m", "onnxruntime.quantization.quantize_dynamic", "--input", str(onnx_path), "--output", str(q_path), "--weight_type", "QInt8"],
+                [
+                    sys.executable,
+                    "-m",
+                    "onnxruntime.quantization.quantize_dynamic",
+                    "--input",
+                    str(onnx_path),
+                    "--output",
+                    str(q_path),
+                    "--weight_type",
+                    "QInt8",
+                ],
                 check=True,
             )
             log.info(f"quantized -> {q_path}")
@@ -337,11 +391,14 @@ def export_onnx(onnx_path: Path = DEFAULT_ONNX, model_dir: Path = Path("models/s
             log.warning(f"quantize skip: {e}")
         # sanity check
         import onnxruntime as ort
+
         sess = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])
         log.info(f"ONNX OK: {onnx_path} inputs={[i.name for i in sess.get_inputs()]}")
         return True
     except FileNotFoundError:
-        print(f"[distill] optimum-cli not found. Install: pip install optimum[onnxruntime]\n  Then run: {' '.join(cmd)}")
+        print(
+            f"[distill] optimum-cli not found. Install: pip install optimum[onnxruntime]\n  Then run: {' '.join(cmd)}"
+        )
         return False
     except subprocess.CalledProcessError as e:
         log.error(f"export failed: {e}")
@@ -353,31 +410,54 @@ def main() -> None:
     ap.add_argument("--bench", type=Path, default=DEFAULT_BENCH, help="bench json")
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT, help="train.jsonl out")
     ap.add_argument("--teacher", choices=["mock", "local", "nemotron"], default="mock")
-    ap.add_argument("--synthetic", action="store_true", help="generate synthetic frames (no card needed)")
+    ap.add_argument(
+        "--synthetic", action="store_true", help="generate synthetic frames (no card needed)"
+    )
     ap.add_argument("--no-synthetic", dest="synthetic", action="store_false")
     ap.set_defaults(synthetic=True)
-    ap.add_argument("--expand", type=int, default=1, help="replicate each bench sample N times (e.g. 500 for 10k from 20)")
-    ap.add_argument("--image-dir", type=Path, default=None, help="optional: write synthetic PNGs to dir")
+    ap.add_argument(
+        "--expand",
+        type=int,
+        default=1,
+        help="replicate each bench sample N times (e.g. 500 for 10k from 20)",
+    )
+    ap.add_argument(
+        "--image-dir", type=Path, default=None, help="optional: write synthetic PNGs to dir"
+    )
     ap.add_argument("--train", action="store_true", help="fine-tune student after prepare")
     ap.add_argument("--student", default=STUDENT_DEFAULT)
     ap.add_argument("--epochs", type=int, default=3)
     ap.add_argument("--model-dir", type=Path, default=Path("models/smolvlm2-qoresence"))
     ap.add_argument("--export", action="store_true", help="export to ONNX")
     ap.add_argument("--onnx", type=Path, default=DEFAULT_ONNX)
-    ap.add_argument("--prepare", action="store_true", help="only prepare dataset (default if no --train/--export)")
+    ap.add_argument(
+        "--prepare",
+        action="store_true",
+        help="only prepare dataset (default if no --train/--export)",
+    )
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
     do_prepare = args.prepare or (not args.train and not args.export)
     if do_prepare:
-        n = prepare(bench_path=args.bench, out_path=args.out, teacher=args.teacher, synthetic=args.synthetic, expand=args.expand, image_dir=args.image_dir)
+        n = prepare(
+            bench_path=args.bench,
+            out_path=args.out,
+            teacher=args.teacher,
+            synthetic=args.synthetic,
+            expand=args.expand,
+            image_dir=args.image_dir,
+        )
         print(f"[distill] prepared {n} pairs -> {args.out}")
         # quick harness on synthetic
         try:
             from eval.harness import evaluate, mock_predict
+
             r = evaluate(mock_predict, str(args.bench))
-            print(f"[bench] mock: cat_acc={r.cat_acc:.2f} football_f1={r.football_f1:.2f} p50={r.latency_p50_ms:.1f}ms")
+            print(
+                f"[bench] mock: cat_acc={r.cat_acc:.2f} football_f1={r.football_f1:.2f} p50={r.latency_p50_ms:.1f}ms"
+            )
         except Exception:
             pass
 

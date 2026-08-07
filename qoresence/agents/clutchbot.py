@@ -28,11 +28,11 @@ from .action_executor import ActionExecutor, Backend
 from .eventsub_client import TwitchEventSubClient
 from .helix_client import TwitchHelixClient
 from .learning_loop import LearningLogger
+from .llm_client import LLMConfig, QuicksilverLLMClient
 from .moment_scorer import MomentScorer, ScoredMoment
 from .session_memory import SessionMemory
 from .situation_model import SituationModel
 from .twitch_client import TwitchIRCClient
-from .llm_client import LLMConfig, QuicksilverLLMClient
 
 log = logging.getLogger(__name__)
 
@@ -57,7 +57,9 @@ class ClutchBotAgent:
         if getattr(config, "learning_enabled", False):
             try:
                 _learning_logger = LearningLogger(path=getattr(config, "learning_log_path", None))
-                log.info(f"ClutchBot learning loop enabled -> {_learning_logger.path} (opt-in, frame_hash[:16] only)")
+                log.info(
+                    f"ClutchBot learning loop enabled -> {_learning_logger.path} (opt-in, frame_hash[:16] only)"
+                )
             except Exception as e:
                 log.warning(f"LearningLogger init failed: {e}")
                 _learning_logger = None
@@ -75,9 +77,13 @@ class ClutchBotAgent:
             _llm_cfg = LLMConfig.from_clutchbot(config)
             self._llm: QuicksilverLLMClient | None = QuicksilverLLMClient(_llm_cfg)
             if _llm_cfg.enabled and self._llm.is_available():
-                log.info(f"ClutchBot LLM enabled: {_llm_cfg.provider}/{_llm_cfg.model} @ {_llm_cfg.base_url}")
+                log.info(
+                    f"ClutchBot LLM enabled: {_llm_cfg.provider}/{_llm_cfg.model} @ {_llm_cfg.base_url}"
+                )
             elif _llm_cfg.enabled:
-                log.warning("ClutchBot LLM enabled but no API key — template fallback (set .secrets/quicksilver_clutchbot.key)")
+                log.warning(
+                    "ClutchBot LLM enabled but no API key — template fallback (set .secrets/quicksilver_clutchbot.key)"
+                )
             else:
                 log.debug("ClutchBot LLM disabled — template mode")
         except Exception as e:
@@ -167,7 +173,15 @@ class ClutchBotAgent:
             try:
                 for _lm in moments:
                     if _lm.triggered:
-                        self._learning_logger.log(state=self._situation.to_dict(), moment=_lm, label=None, frame_hash=str(event.payload.get("frame_hash", "")) if isinstance(event.payload, dict) else "", wp_swing=float(_lm.payload.get("wp_swing", 0.0) or 0.0))
+                        self._learning_logger.log(
+                            state=self._situation.to_dict(),
+                            moment=_lm,
+                            label=None,
+                            frame_hash=str(event.payload.get("frame_hash", ""))
+                            if isinstance(event.payload, dict)
+                            else "",
+                            wp_swing=float(_lm.payload.get("wp_swing", 0.0) or 0.0),
+                        )
             except Exception as e:
                 log.debug(f"LearningLogger log failed: {e}")
 
@@ -177,7 +191,12 @@ class ClutchBotAgent:
         for moment in moments:
             # LLM via Quicksilver Pro https://api.quicksilverpro.io/v1 (fallback to template)
             _llm = getattr(self, "_llm", None)
-            if _llm is not None and _llm.is_available() and moment.action == "chat" and moment.message:
+            if (
+                _llm is not None
+                and _llm.is_available()
+                and moment.action == "chat"
+                and moment.message
+            ):
                 try:
                     _enh = _llm.enhance_message(
                         situation=self._situation.to_dict(),
@@ -188,6 +207,7 @@ class ClutchBotAgent:
                     )
                     if _enh and len(_enh) > 4:
                         import dataclasses as _dc
+
                         moment = _dc.replace(moment, message=_enh)
                 except Exception as _e:
                     log.debug(f"LLM enhance failed: {_e}")
@@ -211,7 +231,12 @@ class ClutchBotAgent:
                 moment=moment,
                 situation=self._situation,
                 results=[
-                    {"backend": r.backend, "action": r.action, "success": r.success, "detail": r.detail}
+                    {
+                        "backend": r.backend,
+                        "action": r.action,
+                        "success": r.success,
+                        "detail": r.detail,
+                    }
                     for r in results
                 ],
             )
@@ -321,7 +346,11 @@ class ClutchBotAgent:
             )
 
             if tw.enable_clips:
-                backends.append(_TwitchClipBackend(self._helix_client, irc_client, has_delay=self.config.clip_has_delay))
+                backends.append(
+                    _TwitchClipBackend(
+                        self._helix_client, irc_client, has_delay=self.config.clip_has_delay
+                    )
+                )
 
             if tw.enable_predictions:
                 backends.append(_TwitchPredictionBackend(self._helix_client, irc_client))
@@ -409,7 +438,9 @@ class _TwitchChatBackend:
 class _TwitchClipBackend:
     """Creates Twitch clips and announces the public URL in chat."""
 
-    def __init__(self, helix: TwitchHelixClient, irc: TwitchIRCClient | None, has_delay: bool = True):
+    def __init__(
+        self, helix: TwitchHelixClient, irc: TwitchIRCClient | None, has_delay: bool = True
+    ):
         self.helix = helix
         self.irc = irc
         self.has_delay = has_delay

@@ -9,11 +9,11 @@ football/shooter field sets.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Optional
+from enum import StrEnum
+from typing import Any
 
 
-class GameState(str, Enum):
+class GameState(StrEnum):
     MENU = "menu"
     LOBBY = "lobby"
     LOADING = "loading"
@@ -26,7 +26,7 @@ class GameState(str, Enum):
     UNKNOWN = "unknown"
 
 
-class GameCategory(str, Enum):
+class GameCategory(StrEnum):
     FOOTBALL = "football"
     SHOOTER = "shooter"
     UNKNOWN = "unknown"
@@ -42,24 +42,24 @@ class VisualContext:
     confidence: float = 0.0
 
     # Football / NCAA
-    home_score: Optional[int] = None
-    away_score: Optional[int] = None
-    quarter: Optional[int] = None
-    down: Optional[int] = None
-    yards_to_go: Optional[int] = None
-    possession: Optional[str] = None  # "home" | "away" | team abbreviation
-    clock_seconds: Optional[int] = None
-    play_clock: Optional[int] = None
-    play_type: Optional[str] = None
-    field_position: Optional[str] = None
-    down_distance_text: Optional[str] = None
+    home_score: int | None = None
+    away_score: int | None = None
+    quarter: int | None = None
+    down: int | None = None
+    yards_to_go: int | None = None
+    possession: str | None = None  # "home" | "away" | team abbreviation
+    clock_seconds: int | None = None
+    play_clock: int | None = None
+    play_type: str | None = None
+    field_position: str | None = None
+    down_distance_text: str | None = None
 
     # Shooter / Call of Duty
-    health: Optional[int] = None
-    ammo: Optional[int] = None
-    score: Optional[int] = None
-    kills: Optional[int] = None
-    deaths: Optional[int] = None
+    health: int | None = None
+    ammo: int | None = None
+    score: int | None = None
+    kills: int | None = None
+    deaths: int | None = None
     round_info: str = ""
     enemies_visible: int = 0
     is_combat: bool = False
@@ -148,7 +148,7 @@ class VisualContext:
         return d
 
     @staticmethod
-    def from_dict(raw: dict[str, Any]) -> "VisualContext":
+    def from_dict(raw: dict[str, Any]) -> VisualContext:
         """Build a VisualContext from a parsed VLM JSON response.
 
         Accepts both flat VLM output (legacy/LLM prompt shape) and the nested
@@ -192,7 +192,10 @@ class VisualContext:
 
         # Football fields: support nested "football" block or flat top-level keys
         fb = raw.get("football")
-        if fb is None and (category == GameCategory.FOOTBALL or ctx.game_title.lower() in {"ncaa football 27", "ncaa"}):
+        if fb is None and (
+            category == GameCategory.FOOTBALL
+            or ctx.game_title.lower() in {"ncaa football 27", "ncaa"}
+        ):
             fb = raw
         else:
             fb = fb or {}
@@ -220,12 +223,26 @@ class VisualContext:
         ctx.ammo = _to_int(sh.get("ammo"))
         ctx.score = _to_int(sh.get("score"))
         # kills/deaths: new fields (also accept legacy flat score / details)
-        ctx.kills = _to_int(sh.get("kills")) if sh.get("kills") is not None else _to_int(raw.get("kills"))
-        ctx.deaths = _to_int(sh.get("deaths")) if sh.get("deaths") is not None else _to_int(raw.get("deaths"))
+        ctx.kills = (
+            _to_int(sh.get("kills")) if sh.get("kills") is not None else _to_int(raw.get("kills"))
+        )
+        ctx.deaths = (
+            _to_int(sh.get("deaths"))
+            if sh.get("deaths") is not None
+            else _to_int(raw.get("deaths"))
+        )
         # fallback: details.kills/deaths or score as kills
-        if ctx.kills is None and isinstance(ctx.details, dict) and ctx.details.get("kills") is not None:
+        if (
+            ctx.kills is None
+            and isinstance(ctx.details, dict)
+            and ctx.details.get("kills") is not None
+        ):
             ctx.kills = _to_int(ctx.details.get("kills"))
-        if ctx.deaths is None and isinstance(ctx.details, dict) and ctx.details.get("deaths") is not None:
+        if (
+            ctx.deaths is None
+            and isinstance(ctx.details, dict)
+            and ctx.details.get("deaths") is not None
+        ):
             ctx.deaths = _to_int(ctx.details.get("deaths"))
         ctx.round_info = str(sh.get("round_info", ""))
         ctx.enemies_visible = int(sh.get("enemies_visible", 0))
@@ -247,7 +264,7 @@ class VisualContext:
         return ctx
 
 
-def _to_int(v: Any) -> Optional[int]:
+def _to_int(v: Any) -> int | None:
     if v is None or v == "":
         return None
     try:
@@ -256,7 +273,7 @@ def _to_int(v: Any) -> Optional[int]:
         return None
 
 
-def _to_str(v: Any) -> Optional[str]:
+def _to_str(v: Any) -> str | None:
     if v is None:
         return None
     s = str(v).strip()
@@ -268,22 +285,22 @@ def build_football_prompt() -> str:
         "Analyze this NCAA College Football 27 gameplay frame. "
         "Read the scoreboard and HUD carefully. "
         "Respond ONLY with valid JSON, no other text.\n\n"
-        "{\"game_state\": \"menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown\", "
-        "\"game_title\": \"\", "
-        "\"game_category\": \"football\", "
-        "\"home_score\": null, "
-        "\"away_score\": null, "
-        "\"quarter\": null, "
-        "\"down\": null, "
-        "\"yards_to_go\": null, "
-        "\"possession\": null, "
-        "\"clock_seconds\": null, "
-        "\"play_clock\": null, "
-        "\"play_type\": null, "
-        "\"field_position\": null, "
-        "\"down_distance_text\": null, "
-        "\"quality\": {\"has_screen_tearing\": false, \"has_lag_indicator\": false, \"frame_quality\": \"ok\"}, "
-        "\"confidence\": 0.0}"
+        '{"game_state": "menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown", '
+        '"game_title": "", '
+        '"game_category": "football", '
+        '"home_score": null, '
+        '"away_score": null, '
+        '"quarter": null, '
+        '"down": null, '
+        '"yards_to_go": null, '
+        '"possession": null, '
+        '"clock_seconds": null, '
+        '"play_clock": null, '
+        '"play_type": null, '
+        '"field_position": null, '
+        '"down_distance_text": null, '
+        '"quality": {"has_screen_tearing": false, "has_lag_indicator": false, "frame_quality": "ok"}, '
+        '"confidence": 0.0}'
     )
 
 
@@ -292,13 +309,13 @@ def build_shooter_prompt() -> str:
         "Analyze this Call of Duty gameplay frame. "
         "Read the HUD carefully. "
         "Respond ONLY with valid JSON, no other text.\n\n"
-        "{\"game_state\": \"menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown\", "
-        "\"game_title\": \"\", "
-        "\"game_category\": \"shooter\", "
-        "\"shooter\": {\"health\": null, \"ammo\": null, \"score\": null, \"round_info\": \"\", "
-        "\"enemies_visible\": 0, \"is_combat\": false, \"is_moving\": false}, "
-        "\"quality\": {\"has_screen_tearing\": false, \"has_lag_indicator\": false, \"frame_quality\": \"ok\"}, "
-        "\"confidence\": 0.0}"
+        '{"game_state": "menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown", '
+        '"game_title": "", '
+        '"game_category": "shooter", '
+        '"shooter": {"health": null, "ammo": null, "score": null, "round_info": "", '
+        '"enemies_visible": 0, "is_combat": false, "is_moving": false}, '
+        '"quality": {"has_screen_tearing": false, "has_lag_indicator": false, "frame_quality": "ok"}, '
+        '"confidence": 0.0}'
     )
 
 

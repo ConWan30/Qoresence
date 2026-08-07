@@ -49,6 +49,7 @@ def _sigmoid(x: float | np.ndarray) -> float | np.ndarray:
 # COUPLING ANALYZER
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class CouplingAnalyzer:
     """
     Cross-correlation between controller trigger_onset timestamps and screen
@@ -278,9 +279,11 @@ class CouplingAnalyzer:
 # DATA STRUCTURES
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class LobeContribution:
     """Contribution from a single lobe to the fused verdict."""
+
     lobe: SourceLobe
     weight: float
     score: float  # 0.0 to 1.0
@@ -292,6 +295,7 @@ class LobeContribution:
 @dataclass
 class Anomaly:
     """Cross-lobe anomaly detection result."""
+
     type: str  # "temporal_desync" | "spatial_mismatch" | "missing_lobe" | "contradiction"
     severity: str  # "low" | "medium" | "high"
     description: str
@@ -303,6 +307,7 @@ class Anomaly:
 @dataclass
 class PresenceReport:
     """Fused presence report output."""
+
     session_id: str
     clock_ns: int
     session_head_ns: int
@@ -344,6 +349,7 @@ class PresenceReport:
 # VISUAL HYSTERESIS
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class VisualHysteresis:
     """Temporal majority smoothing for visual_context game_category/state.
 
@@ -371,7 +377,9 @@ class VisualHysteresis:
             return "unknown"
         return category
 
-    def update(self, raw_category: str | None, raw_state: str | None, confidence: float) -> tuple[str, str, float]:
+    def update(
+        self, raw_category: str | None, raw_state: str | None, confidence: float
+    ) -> tuple[str, str, float]:
         """Update with a fresh visual observation and return smoothed (category, state, confidence)."""
         category = str(raw_category).lower().strip() if raw_category else "unknown"
         state = str(raw_state).lower().strip() if raw_state else "unknown"
@@ -413,7 +421,9 @@ class VisualHysteresis:
         for s, conf in winner_entries:
             state_counts[s] = state_counts.get(s, 0) + 1
             state_confs[s] = state_confs.get(s, 0.0) + conf
-        majority_state = max(state_counts, key=lambda x: (state_counts[x], -state_confs.get(x, 0.0)))
+        majority_state = max(
+            state_counts, key=lambda x: (state_counts[x], -state_confs.get(x, 0.0))
+        )
         avg_conf = state_confs[majority_state] / max(state_counts[majority_state], 1)
 
         self._last_category = winner
@@ -429,6 +439,7 @@ class VisualHysteresis:
 # ──────────────────────────────────────────────────────────────────────────────
 # FUSION ENGINE
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class PresenceFusionEngine:
     """
@@ -484,7 +495,9 @@ class PresenceFusionEngine:
 
         # VisualContext smoothing (Phase 5): reuse hysteresis, profile-aware guard
         self._profile_category = getattr(config.active_game_profile, "category", "football")
-        self._visual_hysteresis = VisualHysteresis(window=5, min_agree=3, profile_category=self._profile_category)
+        self._visual_hysteresis = VisualHysteresis(
+            window=5, min_agree=3, profile_category=self._profile_category
+        )
 
         # Presence sync (from streamer)
         self._presence_sync_ok = False
@@ -554,7 +567,10 @@ class PresenceFusionEngine:
         p = Path(path) if path else DEFAULT_WEIGHTS_PATH
         p.parent.mkdir(parents=True, exist_ok=True)
         out = {lobe.value: round(float(w), 6) for lobe, w in self.weights.items()}
-        p.write_text(json.dumps({"weights": out, "note": "learned fusion weights"}, indent=2), encoding="utf-8")
+        p.write_text(
+            json.dumps({"weights": out, "note": "learned fusion weights"}, indent=2),
+            encoding="utf-8",
+        )
         log.info(f"Saved fusion weights to {p}")
         return p
 
@@ -606,7 +622,9 @@ class PresenceFusionEngine:
             elif "features" in item and isinstance(item["features"], (list, tuple)):
                 # assume ordered list
                 feats = list(item["features"])
-                scores = {k: float(feats[i]) if i < len(feats) else 0.0 for i, k in enumerate(lobe_keys)}
+                scores = {
+                    k: float(feats[i]) if i < len(feats) else 0.0 for i, k in enumerate(lobe_keys)
+                }
             else:
                 # flat dict with lobe keys
                 scores = {k: float(item.get(k, 0.0)) for k in lobe_keys}
@@ -769,7 +787,9 @@ class PresenceFusionEngine:
                 state["last_controller_s_ago"] = payload.get("last_controller_s_ago")
                 self._presence_sync_ok = payload.get("presence_sync_ok", False)
                 if payload.get("last_controller_s_ago") is not None:
-                    self._last_controller_sync_ns = event.clock_ns - int(payload["last_controller_s_ago"] * 1e9)
+                    self._last_controller_sync_ns = event.clock_ns - int(
+                        payload["last_controller_s_ago"] * 1e9
+                    )
 
             elif event.type == EventType.FRAME_STATS:
                 state["fps"] = payload.get("fps_meas", 0.0)
@@ -787,11 +807,13 @@ class PresenceFusionEngine:
 
         elif lobe == SourceLobe.CONTROLLER:
             if event.type == EventType.TRIGGER_ONSET:
-                state.setdefault("trigger_onsets", []).append({
-                    "trigger": payload.get("trigger"),
-                    "amplitude": payload.get("amplitude"),
-                    "ts": event.clock_ns,
-                })
+                state.setdefault("trigger_onsets", []).append(
+                    {
+                        "trigger": payload.get("trigger"),
+                        "amplitude": payload.get("amplitude"),
+                        "ts": event.clock_ns,
+                    }
+                )
                 state["causal_density"] = len(state["trigger_onsets"])
                 # feed coupling analyzer
                 self._coupling.add_controller_event(event.clock_ns)
@@ -804,19 +826,23 @@ class PresenceFusionEngine:
                 screen_state["decoupled_energy"] = coupling["decoupled_energy"]
 
             elif event.type == EventType.STICK_MOTION:
-                state.setdefault("stick_motions", []).append({
-                    "stick": payload.get("stick"),
-                    "x": payload.get("x"),
-                    "y": payload.get("y"),
-                    "ts": event.clock_ns,
-                })
+                state.setdefault("stick_motions", []).append(
+                    {
+                        "stick": payload.get("stick"),
+                        "x": payload.get("x"),
+                        "y": payload.get("y"),
+                        "ts": event.clock_ns,
+                    }
+                )
 
             elif event.type == EventType.TREMOR_SAMPLE:
-                state.setdefault("tremor_samples", []).append({
-                    "gyro": payload.get("gyro"),
-                    "accel": payload.get("accel"),
-                    "ts": event.clock_ns,
-                })
+                state.setdefault("tremor_samples", []).append(
+                    {
+                        "gyro": payload.get("gyro"),
+                        "accel": payload.get("accel"),
+                        "ts": event.clock_ns,
+                    }
+                )
 
             elif event.type == EventType.CONTROLLER_EVENT:
                 if "causal_parent_ns" in payload:
@@ -847,12 +873,14 @@ class PresenceFusionEngine:
 
         elif lobe == SourceLobe.OUTCOME:
             if event.type == EventType.OUTCOME_EVENT:
-                state.setdefault("outcome_events", []).append({
-                    "event_name": payload.get("event_name"),
-                    "confidence": payload.get("confidence"),
-                    "fields": payload.get("fields", {}),
-                    "ts": event.clock_ns,
-                })
+                state.setdefault("outcome_events", []).append(
+                    {
+                        "event_name": payload.get("event_name"),
+                        "confidence": payload.get("confidence"),
+                        "fields": payload.get("fields", {}),
+                        "ts": event.clock_ns,
+                    }
+                )
                 state["outcome_coherence"] = min(1.0, len(state["outcome_events"]) * 0.1)
 
         elif lobe == SourceLobe.VISUAL:
@@ -885,68 +913,80 @@ class PresenceFusionEngine:
             if weight > 0 and lobe in self._lobe_last_event_ns:
                 age_ns = now_ns - self._lobe_last_event_ns[lobe]
                 if age_ns > 5_000_000_000:  # 5 seconds
-                    active.append(Anomaly(
-                        type="temporal_desync",
-                        severity="medium" if age_ns < 30_000_000_000 else "high",
-                        description=f"Lobe {lobe.value} silent for {age_ns / 1e9:.1f}s",
-                        lobes_involved=[lobe],
-                        timestamp_ns=now_ns,
-                        details={"age_ns": age_ns, "weight": weight},
-                    ))
+                    active.append(
+                        Anomaly(
+                            type="temporal_desync",
+                            severity="medium" if age_ns < 30_000_000_000 else "high",
+                            description=f"Lobe {lobe.value} silent for {age_ns / 1e9:.1f}s",
+                            lobes_involved=[lobe],
+                            timestamp_ns=now_ns,
+                            details={"age_ns": age_ns, "weight": weight},
+                        )
+                    )
 
         # 2. Presence sync mismatch - streamer says synced but controller stale
-        if (SourceLobe.STREAMER in self._lobe_state and
-            SourceLobe.CONTROLLER in self._lobe_last_event_ns):
-
+        if (
+            SourceLobe.STREAMER in self._lobe_state
+            and SourceLobe.CONTROLLER in self._lobe_last_event_ns
+        ):
             streamer_state = self._lobe_state[SourceLobe.STREAMER]
             if streamer_state.get("presence_sync_ok") is True:
                 last_ctrl = self._lobe_last_event_ns[SourceLobe.CONTROLLER]
                 age_ns = now_ns - last_ctrl
                 if age_ns > 10_000_000_000:  # 10 seconds
-                    active.append(Anomaly(
-                        type="contradiction",
-                        severity="high",
-                        description="Streamer reports presence_sync but controller inactive >10s",
-                        lobes_involved=[SourceLobe.STREAMER, SourceLobe.CONTROLLER],
-                        timestamp_ns=now_ns,
-                        details={"controller_age_ns": age_ns},
-                    ))
+                    active.append(
+                        Anomaly(
+                            type="contradiction",
+                            severity="high",
+                            description="Streamer reports presence_sync but controller inactive >10s",
+                            lobes_involved=[SourceLobe.STREAMER, SourceLobe.CONTROLLER],
+                            timestamp_ns=now_ns,
+                            details={"controller_age_ns": age_ns},
+                        )
+                    )
 
         # 3. Missing enabled lobes
         if self.config.streamer.enabled and SourceLobe.STREAMER not in self._lobe_last_event_ns:
-            active.append(Anomaly(
-                type="missing_lobe",
-                severity="high",
-                description="Streamer lobe enabled but no events received",
-                lobes_involved=[SourceLobe.STREAMER],
-                timestamp_ns=now_ns,
-            ))
+            active.append(
+                Anomaly(
+                    type="missing_lobe",
+                    severity="high",
+                    description="Streamer lobe enabled but no events received",
+                    lobes_involved=[SourceLobe.STREAMER],
+                    timestamp_ns=now_ns,
+                )
+            )
 
         if self.config.controller.enabled and SourceLobe.CONTROLLER not in self._lobe_last_event_ns:
-            active.append(Anomaly(
-                type="missing_lobe",
-                severity="high",
-                description="Controller lobe enabled but no events received",
-                lobes_involved=[SourceLobe.CONTROLLER],
-                timestamp_ns=now_ns,
-            ))
+            active.append(
+                Anomaly(
+                    type="missing_lobe",
+                    severity="high",
+                    description="Controller lobe enabled but no events received",
+                    lobes_involved=[SourceLobe.CONTROLLER],
+                    timestamp_ns=now_ns,
+                )
+            )
 
         # 4. Outcome without controller (for games requiring input)
-        if (self.config.outcome.enabled and
-            self.config.controller.enabled and
-            SourceLobe.OUTCOME in self._lobe_state and
-            SourceLobe.CONTROLLER in self._lobe_last_event_ns):
-
+        if (
+            self.config.outcome.enabled
+            and self.config.controller.enabled
+            and SourceLobe.OUTCOME in self._lobe_state
+            and SourceLobe.CONTROLLER in self._lobe_last_event_ns
+        ):
             outcome_state = self._lobe_state[SourceLobe.OUTCOME]
             last_ctrl = self._lobe_last_event_ns[SourceLobe.CONTROLLER]
             if outcome_state.get("outcome_events") and (now_ns - last_ctrl) > 5_000_000_000:
-                active.append(Anomaly(
-                    type="spatial_mismatch",
-                    severity="medium",
-                    description="Outcome events detected but no recent controller input",
-                    lobes_involved=[SourceLobe.OUTCOME, SourceLobe.CONTROLLER],
-                    timestamp_ns=now_ns,
-                ))
+                active.append(
+                    Anomaly(
+                        type="spatial_mismatch",
+                        severity="medium",
+                        description="Outcome events detected but no recent controller input",
+                        lobes_involved=[SourceLobe.OUTCOME, SourceLobe.CONTROLLER],
+                        timestamp_ns=now_ns,
+                    )
+                )
 
         # Replace persistent list with currently active anomalies
         old_anomalies = self._anomalies
@@ -954,7 +994,7 @@ class PresenceFusionEngine:
 
         # Trim if too many
         if len(self._anomalies) > self._max_anomalies:
-            self._anomalies = self._anomalies[-self._max_anomalies:]
+            self._anomalies = self._anomalies[-self._max_anomalies :]
 
         # Log only newly active anomalies
         for anomaly in self._anomalies:
@@ -963,10 +1003,12 @@ class PresenceFusionEngine:
 
     def _anomaly_exists(self, new_anomaly: Anomaly, anomalies: list[Anomaly] | None = None) -> bool:
         """Check if a similar anomaly is already in the provided list (default: current list)."""
-        for existing in (anomalies if anomalies is not None else self._anomalies):
-            if (existing.type == new_anomaly.type and
-                existing.lobes_involved == new_anomaly.lobes_involved and
-                new_anomaly.timestamp_ns - existing.timestamp_ns < 10_000_000_000):
+        for existing in anomalies if anomalies is not None else self._anomalies:
+            if (
+                existing.type == new_anomaly.type
+                and existing.lobes_involved == new_anomaly.lobes_involved
+                and new_anomaly.timestamp_ns - existing.timestamp_ns < 10_000_000_000
+            ):
                 return True
         return False
 
@@ -981,8 +1023,7 @@ class PresenceFusionEngine:
         for lobe, weight in self.weights.items():
             if weight == 0:
                 contributions[lobe] = LobeContribution(
-                    lobe=lobe, weight=weight, score=0.0, confidence=0.0,
-                    last_event_ns=0, details={}
+                    lobe=lobe, weight=weight, score=0.0, confidence=0.0, last_event_ns=0, details={}
                 )
                 continue
 
@@ -1036,7 +1077,9 @@ class PresenceFusionEngine:
 
         return contributions
 
-    def _compute_weighted_verdict(self, contributions: dict[SourceLobe, LobeContribution]) -> tuple[str, float]:
+    def _compute_weighted_verdict(
+        self, contributions: dict[SourceLobe, LobeContribution]
+    ) -> tuple[str, float]:
         """Compute weighted verdict from lobe contributions with sigmoid calibration."""
         total_weight = 0.0
         weighted_sum = 0.0
@@ -1136,7 +1179,9 @@ class PresenceFusionEngine:
                 session_head_ns=self.session_head_ns,
                 presence_sync_ok=self._presence_sync_ok,
                 weighted_verdict=verdict,
-                lobe_contributions={lobe.value: round(c.score, 3) for lobe, c in contributions.items()},
+                lobe_contributions={
+                    lobe.value: round(c.score, 3) for lobe, c in contributions.items()
+                },
                 anomalies=list(self._anomalies),
                 confidence=round(confidence, 3),
                 fusion_weights={lobe.value: weight for lobe, weight in self.weights.items()},
@@ -1162,8 +1207,7 @@ class PresenceFusionEngine:
             return {
                 "event_counts": dict(self._lobe_event_counts),
                 "last_event_age_ns": {
-                    lobe.value: clock_ns() - ns
-                    for lobe, ns in self._lobe_last_event_ns.items()
+                    lobe.value: clock_ns() - ns for lobe, ns in self._lobe_last_event_ns.items()
                 },
                 "weights": {lobe.value: weight for lobe, weight in self.weights.items()},
             }
@@ -1172,6 +1216,7 @@ class PresenceFusionEngine:
 # ──────────────────────────────────────────────────────────────────────────────
 # CONVENIENCE FUNCTION
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def create_fusion_engine(
     config: RetinaUnifiedConfig,

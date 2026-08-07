@@ -7,12 +7,12 @@ from pathlib import Path
 import pytest
 
 from qoresence.core import (
+    EventType,
     GameProfileId,
     OutcomeConfig,
     RetinaEventBus,
     SessionAuthority,
     SourceLobe,
-    EventType,
 )
 from qoresence.lobes.outcome import OutcomeRuntime, OutcomeTrigger
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
@@ -132,8 +132,10 @@ class TestOutcomeRuntimeVLM:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
             score_events = [
-                e for e in events
-                if e["type"] == "outcome_event" and e["payload"].get("event_name") == "score_changed"
+                e
+                for e in events
+                if e["type"] == "outcome_event"
+                and e["payload"].get("event_name") == "score_changed"
             ]
             assert len(score_events) == 1
             assert score_events[0]["payload"]["fields"]["home_score"] == 7
@@ -193,7 +195,8 @@ class TestOutcomeRuntimeVLM:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
             first_downs = [
-                e for e in events
+                e
+                for e in events
                 if e["type"] == "outcome_event" and e["payload"].get("event_name") == "first_down"
             ]
             assert len(first_downs) == 1
@@ -251,8 +254,10 @@ class TestOutcomeRuntimeVLM:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
             quarters = [
-                e for e in events
-                if e["type"] == "outcome_event" and e["payload"].get("event_name") == "quarter_changed"
+                e
+                for e in events
+                if e["type"] == "outcome_event"
+                and e["payload"].get("event_name") == "quarter_changed"
             ]
             assert len(quarters) == 1
 
@@ -391,17 +396,17 @@ class TestOutcomeTrigger:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            outcome_events = [e for e in events if e['type'] == 'outcome_event']
+            outcome_events = [e for e in events if e["type"] == "outcome_event"]
             assert len(outcome_events) == 4
 
             for e in outcome_events:
-                assert e['session_id'] == 'trigger_test'
-                assert e['source_lobe'] == 'outcome'
-                assert 'clock_ns' in e
-                assert 'session_head_ns' in e
-                assert e['payload']['profile_id'] == 'ncaa_football_27'
-                assert 'event_name' in e['payload']
-                assert 'fields' in e['payload']
+                assert e["session_id"] == "trigger_test"
+                assert e["source_lobe"] == "outcome"
+                assert "clock_ns" in e
+                assert "session_head_ns" in e
+                assert e["payload"]["profile_id"] == "ncaa_football_27"
+                assert "event_name" in e["payload"]
+                assert "fields" in e["payload"]
 
     def test_trigger_emits_valid_cod_events(self):
         with tempfile.TemporaryDirectory() as td:
@@ -419,11 +424,11 @@ class TestOutcomeTrigger:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            outcome_events = [e for e in events if e['type'] == 'outcome_event']
+            outcome_events = [e for e in events if e["type"] == "outcome_event"]
             assert len(outcome_events) == 3
 
             for e in outcome_events:
-                assert e['payload']['profile_id'] == 'call_of_duty'
+                assert e["payload"]["profile_id"] == "call_of_duty"
 
     def test_trigger_rejects_invalid_event(self):
         with tempfile.TemporaryDirectory() as td:
@@ -450,8 +455,8 @@ class TestOutcomeTrigger:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            outcome_events = [e for e in events if e['type'] == 'outcome_event']
-            assert outcome_events[0]['payload']['confidence'] == 0.95
+            outcome_events = [e for e in events if e["type"] == "outcome_event"]
+            assert outcome_events[0]["payload"]["confidence"] == 0.95
 
 
 class TestOutcomeConfigDefaults:
@@ -471,15 +476,18 @@ class TestProfileRegistry:
 
     def test_ncaa_profile_registered(self):
         from qoresence.core import GAME_PROFILE_REGISTRY
+
         assert GameProfileId.NCAA_FOOTBALL_27 in GAME_PROFILE_REGISTRY
 
     def test_cod_profile_registered(self):
         from qoresence.core import GAME_PROFILE_REGISTRY
+
         assert GameProfileId.CALL_OF_DUTY in GAME_PROFILE_REGISTRY
 
     def test_profiles_equal_citizens(self):
         """Both profiles should have equal status in registry."""
         from qoresence.core import GAME_PROFILE_REGISTRY
+
         ncaa = GAME_PROFILE_REGISTRY[GameProfileId.NCAA_FOOTBALL_27]
         cod = GAME_PROFILE_REGISTRY[GameProfileId.CALL_OF_DUTY]
 

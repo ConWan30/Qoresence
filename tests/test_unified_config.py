@@ -9,18 +9,18 @@ from __future__ import annotations
 import pytest
 
 from qoresence.core.unified_config import (
-    RetinaUnifiedConfig,
-    StreamerConfig,
-    ControllerConfig,
-    ScreenConfig,
-    OutcomeConfig,
-    VisualConfig,
-    FusionWeights,
-    GameProfileId,
-    GameProfile,
-    NCAA_FOOTBALL_27_PROFILE,
     CALL_OF_DUTY_PROFILE,
     GAME_PROFILE_REGISTRY,
+    NCAA_FOOTBALL_27_PROFILE,
+    ControllerConfig,
+    FusionWeights,
+    GameProfile,
+    GameProfileId,
+    OutcomeConfig,
+    RetinaUnifiedConfig,
+    ScreenConfig,
+    StreamerConfig,
+    VisualConfig,
     get_game_profile,
     register_game_profile,
 )

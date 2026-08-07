@@ -91,13 +91,18 @@ class TestPresenceFusionEngine:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
-            presence_reports = [e for e in events if e['type'] == 'presence_report']
+            presence_reports = [e for e in events if e["type"] == "presence_report"]
             assert len(presence_reports) >= 1
 
-            report = presence_reports[0]['payload']
-            assert report['session_id'] == 'start_test'
-            assert report['presence_sync_ok'] is False  # No streamer events yet
-            assert report['weighted_verdict'] in ('present', 'likely_present', 'uncertain', 'absent')
+            report = presence_reports[0]["payload"]
+            assert report["session_id"] == "start_test"
+            assert report["presence_sync_ok"] is False  # No streamer events yet
+            assert report["weighted_verdict"] in (
+                "present",
+                "likely_present",
+                "uncertain",
+                "absent",
+            )
 
     def test_streamer_presence_sync_affects_verdict(self):
         with tempfile.TemporaryDirectory() as td:
@@ -138,7 +143,7 @@ class TestPresenceFusionEngine:
 
             report = engine.get_current_report()
             assert report.presence_sync_ok is True
-            assert report.lobe_contributions['streamer'] > 0.5
+            assert report.lobe_contributions["streamer"] > 0.5
 
             engine.stop()
 
@@ -182,7 +187,7 @@ class TestPresenceFusionEngine:
             time.sleep(0.01)
 
             report = engine.get_current_report()
-            assert report.lobe_contributions['controller'] > 0.2
+            assert report.lobe_contributions["controller"] > 0.2
 
             engine.stop()
 
@@ -226,7 +231,7 @@ class TestPresenceFusionEngine:
             time.sleep(0.01)
 
             report = engine.get_current_report()
-            assert report.lobe_contributions['outcome'] > 0.5
+            assert report.lobe_contributions["outcome"] > 0.5
 
             engine.stop()
 
@@ -331,7 +336,9 @@ class TestPresenceFusionEngine:
     def test_contradiction_anomaly_streamer_sync_but_controller_stale(self):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
-            bus = RetinaEventBus(session_id="contradict_test", jsonl_path=jsonl_path, enable_ws=False)
+            bus = RetinaEventBus(
+                session_id="contradict_test", jsonl_path=jsonl_path, enable_ws=False
+            )
             identity = SessionAuthority.mint(session_id="contradict_test")
 
             config = RetinaUnifiedConfig(
@@ -504,10 +511,10 @@ class TestPresenceFusionEngine:
             time.sleep(0.01)
             stats = engine.get_lobe_stats()
 
-            assert stats['event_counts']['streamer'] >= 1
-            assert stats['event_counts']['controller'] >= 1
-            assert 'last_event_age_ns' in stats
-            assert 'weights' in stats
+            assert stats["event_counts"]["streamer"] >= 1
+            assert stats["event_counts"]["controller"] >= 1
+            assert "last_event_age_ns" in stats
+            assert "weights" in stats
 
             engine.stop()
 
@@ -641,7 +648,7 @@ class TestFusionWeights:
 
             # Controller weight=0, so only streamer counts
             # With streamer idle and no presence_sync, should be low
-            assert report.lobe_contributions['controller'] == 0.0
+            assert report.lobe_contributions["controller"] == 0.0
 
             engine.stop()
 
@@ -651,6 +658,7 @@ class TestVisualHysteresis:
 
     def test_majority_required(self):
         from qoresence.fusion.presence import VisualHysteresis
+
         hysteresis = VisualHysteresis(window=5, min_agree=3, profile_category="football")
 
         # First two football frames do not yet win; output stays unknown
@@ -664,6 +672,7 @@ class TestVisualHysteresis:
 
     def test_single_menu_frame_does_not_flip(self):
         from qoresence.fusion.presence import VisualHysteresis
+
         hysteresis = VisualHysteresis(window=5, min_agree=3, profile_category="football")
 
         # Establish football gameplay
@@ -676,6 +685,7 @@ class TestVisualHysteresis:
 
     def test_football_profile_suppresses_shooter(self):
         from qoresence.fusion.presence import VisualHysteresis
+
         hysteresis = VisualHysteresis(window=5, min_agree=3, profile_category="football")
 
         # Three shooter frames in football profile are treated as unknown
@@ -686,6 +696,7 @@ class TestVisualHysteresis:
 
     def test_shooter_profile_suppresses_football(self):
         from qoresence.fusion.presence import VisualHysteresis
+
         hysteresis = VisualHysteresis(window=5, min_agree=3, profile_category="shooter")
 
         for _ in range(3):

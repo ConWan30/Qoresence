@@ -14,10 +14,8 @@ OT and end-of-half are handled as edge cases.
 
 from __future__ import annotations
 
-import json
 import math
 import re
-from pathlib import Path
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -316,7 +314,11 @@ class FootballWinProbability:
             wp_swing = win_prob - self._prev_win_prob
 
         self._prev_win_prob = win_prob
-        self._prev_state = dict(state) if isinstance(state, dict) else {"quarter": quarter, "clock_seconds": clock_seconds}
+        self._prev_state = (
+            dict(state)
+            if isinstance(state, dict)
+            else {"quarter": quarter, "clock_seconds": clock_seconds}
+        )
 
         return {
             "win_prob": win_prob,
@@ -338,7 +340,22 @@ class FootballWinProbability:
             return obj
         # Try dataclass / object attrs
         d: dict[str, Any] = {}
-        for key in ("quarter", "clock_seconds", "game_clock_seconds", "down", "yards_to_go", "field_position", "yardline", "yards_to_opp", "score_diff", "home_score", "away_score", "possession", "clock", "play_clock"):
+        for key in (
+            "quarter",
+            "clock_seconds",
+            "game_clock_seconds",
+            "down",
+            "yards_to_go",
+            "field_position",
+            "yardline",
+            "yards_to_opp",
+            "score_diff",
+            "home_score",
+            "away_score",
+            "possession",
+            "clock",
+            "play_clock",
+        ):
             if hasattr(obj, key):
                 try:
                     d[key] = getattr(obj, key)

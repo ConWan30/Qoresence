@@ -84,7 +84,9 @@ class TwitchHelixClient:
             log.error("Helix token does not have permission to read broadcaster user")
             return False
 
-        log.info(f"Helix client ready for broadcaster {user.get('display_name')} ({self.broadcaster_id})")
+        log.info(
+            f"Helix client ready for broadcaster {user.get('display_name')} ({self.broadcaster_id})"
+        )
         return True
 
     def stop(self) -> None:
@@ -277,9 +279,13 @@ class TwitchHelixClient:
             log.error(f"Helix GET failed: {e}")
             return None
 
-    def _post(self, url: str, params: dict[str, Any] | None = None, json: Any | None = None) -> dict[str, Any] | None:
+    def _post(
+        self, url: str, params: dict[str, Any] | None = None, json: Any | None = None
+    ) -> dict[str, Any] | None:
         try:
-            resp = self._session.post(url, headers=self._headers(), params=params, json=json, timeout=15)
+            resp = self._session.post(
+                url, headers=self._headers(), params=params, json=json, timeout=15
+            )
             return self._handle(resp)
         except requests.RequestException as e:
             log.error(f"Helix POST failed: {e}")

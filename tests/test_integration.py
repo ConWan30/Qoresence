@@ -6,10 +6,8 @@ Tests for the integration test script functionality.
 
 from __future__ import annotations
 
-import tempfile
 import time
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -20,43 +18,50 @@ class TestIntegrationTestScript:
     def test_script_imports(self):
         """Test that the integration test script can be imported."""
         import scripts.integration_test as integration_test
-        assert hasattr(integration_test, 'IntegrationTestApp')
-        assert hasattr(integration_test, 'detect_dualshock_edge')
-        assert hasattr(integration_test, 'detect_capture_devices')
-        assert hasattr(integration_test, 'detect_monitors')
-        assert hasattr(integration_test, 'detect_game_window')
-        assert hasattr(integration_test, 'create_test_config')
 
-    @patch('hid.enumerate')
+        assert hasattr(integration_test, "IntegrationTestApp")
+        assert hasattr(integration_test, "detect_dualshock_edge")
+        assert hasattr(integration_test, "detect_capture_devices")
+        assert hasattr(integration_test, "detect_monitors")
+        assert hasattr(integration_test, "detect_game_window")
+        assert hasattr(integration_test, "create_test_config")
+
+    @patch("hid.enumerate")
     def test_dualshock_edge_detection(self, mock_enumerate):
         """Test DualShock Edge detection."""
         import scripts.integration_test as integration_test
 
         # Mock HID device
         mock_enumerate.return_value = [
-            {'vendor_id': 0x054C, 'product_id': 0x0CE6, 'path': b'test_path',
-             'manufacturer_string': 'Sony', 'product_string': 'DualSense Edge', 'serial_number': '12345'},
-            {'vendor_id': 0x1234, 'product_id': 0x5678, 'path': b'other_path'},
+            {
+                "vendor_id": 0x054C,
+                "product_id": 0x0CE6,
+                "path": b"test_path",
+                "manufacturer_string": "Sony",
+                "product_string": "DualSense Edge",
+                "serial_number": "12345",
+            },
+            {"vendor_id": 0x1234, "product_id": 0x5678, "path": b"other_path"},
         ]
 
         result = integration_test.detect_dualshock_edge()
         assert result is not None
-        assert result['vendor_id'] == 0x054C
-        assert result['product_id'] == 0x0CE6
+        assert result["vendor_id"] == 0x054C
+        assert result["product_id"] == 0x0CE6
 
-    @patch('hid.enumerate')
+    @patch("hid.enumerate")
     def test_no_dualshock_edge(self, mock_enumerate):
         """Test when no DualShock Edge is found."""
         import scripts.integration_test as integration_test
 
         mock_enumerate.return_value = [
-            {'vendor_id': 0x1234, 'product_id': 0x5678, 'path': b'other_path'},
+            {"vendor_id": 0x1234, "product_id": 0x5678, "path": b"other_path"},
         ]
 
         result = integration_test.detect_dualshock_edge()
         assert result is None
 
-    @patch('cv2.VideoCapture')
+    @patch("cv2.VideoCapture")
     def test_capture_device_detection(self, mock_cv2_class):
         """Test capture device detection."""
         import scripts.integration_test as integration_test
@@ -68,29 +73,30 @@ class TestIntegrationTestScript:
 
         # Need to mock frame shape
         import numpy as np
+
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         mock_cap.read.return_value = (True, frame)
 
         devices = integration_test.detect_capture_devices()
         assert len(devices) >= 1
-        assert devices[0]['index'] == 0
-        assert devices[0]['width'] == 640
-        assert devices[0]['height'] == 480
+        assert devices[0]["index"] == 0
+        assert devices[0]["width"] == 640
+        assert devices[0]["height"] == 480
 
-    @patch('scripts.integration_test.list_monitors')
+    @patch("scripts.integration_test.list_monitors")
     def test_monitor_detection(self, mock_list_monitors):
         """Test monitor detection."""
         import scripts.integration_test as integration_test
 
         mock_list_monitors.return_value = [
-            {'index': 0, 'left': 0, 'top': 0, 'width': 1920, 'height': 1080},
-            {'index': 1, 'left': 1920, 'top': 0, 'width': 1920, 'height': 1080},
+            {"index": 0, "left": 0, "top": 0, "width": 1920, "height": 1080},
+            {"index": 1, "left": 1920, "top": 0, "width": 1920, "height": 1080},
         ]
 
         monitors = integration_test.detect_monitors()
         assert len(monitors) == 2
-        assert monitors[0]['index'] == 0
-        assert monitors[0]['width'] == 1920
+        assert monitors[0]["index"] == 0
+        assert monitors[0]["width"] == 1920
 
     def test_create_test_config(self):
         """Test config creation from args."""
@@ -150,7 +156,7 @@ class TestIntegrationTestScript:
     def test_integration_test_app_creation(self):
         """Test IntegrationTestApp can be created."""
         import scripts.integration_test as integration_test
-        from qoresence.core import RetinaUnifiedConfig, FusionWeights
+        from qoresence.core import FusionWeights, RetinaUnifiedConfig
 
         config = RetinaUnifiedConfig(
             session_id="test_session",
@@ -175,10 +181,12 @@ class TestIntegrationTestDryRun:
         config = RetinaUnifiedConfig(
             session_id="valid_session",
             session_head_ns=time.time_ns(),
-            streamer=__import__('qoresence.core', fromlist=['StreamerConfig']).StreamerConfig(enabled=True),
+            streamer=__import__("qoresence.core", fromlist=["StreamerConfig"]).StreamerConfig(
+                enabled=True
+            ),
         )
         # This should not raise
-        errors = config.validate()
+        _ = config.validate()
         # May have warnings but not errors for missing device_id
 
 

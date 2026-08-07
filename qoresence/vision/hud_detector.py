@@ -16,19 +16,21 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import cv2
 import numpy as np
 
 try:
     import onnxruntime as ort
+
     ONNX_AVAILABLE = True
 except ImportError:
     ONNX_AVAILABLE = False
 
 try:
     from ultralytics import YOLO
+
     ULTRALYTICS_AVAILABLE = True
 except ImportError:
     ULTRALYTICS_AVAILABLE = False
@@ -39,6 +41,7 @@ log = logging.getLogger(__name__)
 @dataclass
 class HUDRegion:
     """Detected region of interest in the frame."""
+
     label: str
     x1: int
     y1: int
@@ -61,7 +64,7 @@ class HUDDetector:
 
     def __init__(
         self,
-        model_dir: Optional[Path] = None,
+        model_dir: Path | None = None,
         input_size: tuple[int, int] = (384, 640),  # (height, width) as used by YOLO
         conf_threshold: float = 0.25,
         iou_threshold: float = 0.45,
@@ -75,8 +78,8 @@ class HUDDetector:
         self._iou_threshold = iou_threshold
         self._use_openvino = use_openvino
 
-        self._model_path: Optional[Path] = None
-        self._session: Optional[Any] = None
+        self._model_path: Path | None = None
+        self._session: Any | None = None
 
     def warmup(self) -> None:
         """Download and prepare the ONNX model."""
@@ -90,10 +93,12 @@ class HUDDetector:
         if self._use_openvino:
             try:
                 import openvino
+
                 openvino_dir = Path(openvino.__file__).parent
                 libs_dir = openvino_dir / "libs"
                 if libs_dir.exists():
                     import os
+
                     os.environ["PATH"] = str(libs_dir) + os.pathsep + os.environ.get("PATH", "")
             except Exception:
                 pass
@@ -219,14 +224,16 @@ class HUDDetector:
             box = (x1, y1, x2, y2)
             if all(self._iou(box, kept_box) < self._iou_threshold for kept_box in kept):
                 kept.append(box)
-                regions.append(HUDRegion(
-                    label=label,
-                    x1=max(0, x1),
-                    y1=max(0, y1),
-                    x2=orig_w + x2 if x2 <= 0 else min(orig_w, x2),  # clamp
-                    y2=orig_h + y2 if y2 <= 0 else min(orig_h, y2),
-                    confidence=conf,
-                ))
+                regions.append(
+                    HUDRegion(
+                        label=label,
+                        x1=max(0, x1),
+                        y1=max(0, y1),
+                        x2=orig_w + x2 if x2 <= 0 else min(orig_w, x2),  # clamp
+                        y2=orig_h + y2 if y2 <= 0 else min(orig_h, y2),
+                        confidence=conf,
+                    )
+                )
 
         # Fallback: if no COCO classes fit, propose edge-based rectangles for HUD zones
         if not regions:
@@ -261,20 +268,84 @@ class HUDDetector:
     @staticmethod
     def _coco_names() -> dict[int, str]:
         return {
-            0: "person", 1: "bicycle", 2: "car", 3: "motorcycle", 4: "airplane",
-            5: "bus", 6: "train", 7: "truck", 8: "boat", 9: "traffic light",
-            10: "fire hydrant", 11: "stop sign", 12: "parking meter", 13: "bench",
-            14: "bird", 15: "cat", 16: "dog", 17: "horse", 18: "sheep", 19: "cow",
-            20: "elephant", 21: "bear", 22: "zebra", 23: "giraffe", 24: "backpack",
-            25: "umbrella", 26: "handbag", 27: "tie", 28: "suitcase", 29: "frisbee",
-            30: "skis", 31: "snowboard", 32: "sports ball", 33: "kite", 34: "baseball bat",
-            35: "baseball glove", 36: "skateboard", 37: "surfboard", 38: "tennis racket",
-            39: "bottle", 40: "wine glass", 41: "cup", 42: "fork", 43: "knife",
-            44: "spoon", 45: "bowl", 46: "banana", 47: "apple", 48: "sandwich", 49: "orange",
-            50: "broccoli", 51: "carrot", 52: "hot dog", 53: "pizza", 54: "donut",
-            55: "cake", 56: "chair", 57: "couch", 58: "potted plant", 59: "bed",
-            60: "dining table", 61: "toilet", 62: "tv", 63: "laptop", 64: "mouse",
-            65: "remote", 66: "keyboard", 67: "cell phone", 68: "microwave", 69: "oven",
-            70: "toaster", 71: "sink", 72: "refrigerator", 73: "book", 74: "clock",
-            75: "vase", 76: "scissors", 77: "teddy bear", 78: "hair drier", 79: "toothbrush",
+            0: "person",
+            1: "bicycle",
+            2: "car",
+            3: "motorcycle",
+            4: "airplane",
+            5: "bus",
+            6: "train",
+            7: "truck",
+            8: "boat",
+            9: "traffic light",
+            10: "fire hydrant",
+            11: "stop sign",
+            12: "parking meter",
+            13: "bench",
+            14: "bird",
+            15: "cat",
+            16: "dog",
+            17: "horse",
+            18: "sheep",
+            19: "cow",
+            20: "elephant",
+            21: "bear",
+            22: "zebra",
+            23: "giraffe",
+            24: "backpack",
+            25: "umbrella",
+            26: "handbag",
+            27: "tie",
+            28: "suitcase",
+            29: "frisbee",
+            30: "skis",
+            31: "snowboard",
+            32: "sports ball",
+            33: "kite",
+            34: "baseball bat",
+            35: "baseball glove",
+            36: "skateboard",
+            37: "surfboard",
+            38: "tennis racket",
+            39: "bottle",
+            40: "wine glass",
+            41: "cup",
+            42: "fork",
+            43: "knife",
+            44: "spoon",
+            45: "bowl",
+            46: "banana",
+            47: "apple",
+            48: "sandwich",
+            49: "orange",
+            50: "broccoli",
+            51: "carrot",
+            52: "hot dog",
+            53: "pizza",
+            54: "donut",
+            55: "cake",
+            56: "chair",
+            57: "couch",
+            58: "potted plant",
+            59: "bed",
+            60: "dining table",
+            61: "toilet",
+            62: "tv",
+            63: "laptop",
+            64: "mouse",
+            65: "remote",
+            66: "keyboard",
+            67: "cell phone",
+            68: "microwave",
+            69: "oven",
+            70: "toaster",
+            71: "sink",
+            72: "refrigerator",
+            73: "book",
+            74: "clock",
+            75: "vase",
+            76: "scissors",
+            77: "teddy bear",
+            78: "hair drier",
+            79: "toothbrush",
         }
