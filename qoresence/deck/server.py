@@ -143,15 +143,28 @@ def _html(name: str) -> str:
     return f"<h1>{name} missing</h1>"
 
 
-def _placeholder_jpeg() -> bytes:
-    """Tiny dark JPEG so MJPEG clients stay connected while buffer is empty."""
-    import cv2
-    import numpy as np
+_PLACEHOLDER_JPEG: bytes | None = None
 
-    img = np.zeros((180, 320, 3), dtype=np.uint8)
-    img[:] = (18, 14, 10)
-    ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
-    return buf.tobytes() if ok else b""
+
+def _placeholder_jpeg() -> bytes:
+    """Tiny dark JPEG so MJPEG clients stay connected while buffer is empty.
+
+    Built once and cached — never re-run cv2 per connect.
+    """
+    global _PLACEHOLDER_JPEG
+    if _PLACEHOLDER_JPEG is not None:
+        return _PLACEHOLDER_JPEG
+    try:
+        import cv2
+        import numpy as np
+
+        img = np.zeros((180, 320, 3), dtype=np.uint8)
+        img[:] = (18, 14, 10)
+        ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+        _PLACEHOLDER_JPEG = buf.tobytes() if ok else b""
+    except Exception:
+        _PLACEHOLDER_JPEG = b""
+    return _PLACEHOLDER_JPEG
 
 
 def _clamp_live_fps(fps: float) -> float:
@@ -173,32 +186,64 @@ def _resolve_live_fps(query_fps: float | None = None) -> float:
         return _clamp_live_fps(DEFAULT_LIVE_FPS)
 
 
-def _mjpeg_generator(fps: float = DEFAULT_LIVE_FPS):  # type: ignore[no-untyped-def]
-    """Yield multipart MJPEG from clip_buffer at paced fps (default 30 = PS5/2)."""
-    import time as _time
+def _read_live_jpeg() -> bytes:
+    """In-memory read of latest HDMI JPEG (brief lock) — safe on event loop."""
+    try:
+        from qoresence.vision.clip_buffer import get_latest_frame, get_latest_jpeg
 
-    from qoresence.vision.clip_buffer import get_latest_frame, get_latest_jpeg
+        fr = get_latest_frame()
+        if fr is not None:
+            return fr[0]
+        jpg = get_latest_jpeg()
+        if jpg:
+            return jpg
+    except Exception:
+        pass
+    return _placeholder_jpeg()
+
+
+async def _mjpeg_stream(fps: float = DEFAULT_LIVE_FPS):  # type: ignore[no-untyped-def]
+    """Async multipart MJPEG — await sleep so LIVE does not block uvicorn workers."""
+    import time as _time
 
     fps = _clamp_live_fps(fps)
     boundary = b"frame"
     interval = 1.0 / fps
     dark = _placeholder_jpeg()
-    last_seq = -1
     while True:
         t0 = _time.monotonic()
-        jpg: bytes | None = None
         try:
-            fr = get_latest_frame()
-            if fr is not None:
-                jpg, seq = fr
-                # Prefer newest seq; still re-yield same frame if stalled so
-                # multipart stays alive (no busy loop — we always sleep).
-                if seq != last_seq:
-                    last_seq = seq
-            if not jpg:
-                jpg = get_latest_jpeg()
+            jpg = _read_live_jpeg() or dark
         except Exception:
-            jpg = None
+            jpg = dark
+        if not jpg:
+            jpg = dark
+        header = (
+            b"--" + boundary + b"\r\n"
+            b"Content-Type: image/jpeg\r\n"
+            b"Content-Length: " + str(len(jpg)).encode() + b"\r\n\r\n"
+        )
+        yield header + jpg + b"\r\n"
+        elapsed = _time.monotonic() - t0
+        remaining = interval - elapsed
+        if remaining > 0:
+            await asyncio.sleep(remaining)
+
+
+def _mjpeg_generator(fps: float = DEFAULT_LIVE_FPS):  # type: ignore[no-untyped-def]
+    """Sync MJPEG for stdlib fallback only (no event loop there)."""
+    import time as _time
+
+    fps = _clamp_live_fps(fps)
+    boundary = b"frame"
+    interval = 1.0 / fps
+    dark = _placeholder_jpeg()
+    while True:
+        t0 = _time.monotonic()
+        try:
+            jpg = _read_live_jpeg() or dark
+        except Exception:
+            jpg = dark
         if not jpg:
             jpg = dark
         header = (
@@ -244,7 +289,7 @@ def create_app():  # type: ignore[no-untyped-def]
             qfps = None
         fps = _resolve_live_fps(qfps)
         return StreamingResponse(
-            _mjpeg_generator(fps),
+            _mjpeg_stream(fps),
             media_type="multipart/x-mixed-replace; boundary=frame",
             headers={
                 "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -258,7 +303,8 @@ def create_app():  # type: ignore[no-untyped-def]
         try:
             from qoresence.vision.clip_buffer import get_clip_buffer
 
-            return JSONResponse({"ok": True, "buffer": get_clip_buffer().stats()})
+            stats = await asyncio.to_thread(get_clip_buffer().stats)
+            return JSONResponse({"ok": True, "buffer": stats})
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
@@ -322,21 +368,30 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.get("/api/clips")
     async def api_clips():  # type: ignore[no-untyped-def]
         try:
-            from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
 
-            root = pathlib.Path(DEFAULT_OUT_DIR)
-            items = []
-            if root.exists():
-                for p in sorted(root.glob("hdmi_clip_*.*"), key=lambda x: x.stat().st_mtime, reverse=True)[:40]:
-                    items.append(
-                        {
-                            "name": p.name,
-                            "path": str(p.resolve()),
-                            "url": f"/media/clips/{p.name}",
-                            "size_bytes": p.stat().st_size,
-                            "mtime": p.stat().st_mtime,
-                        }
-                    )
+            def _list_clips() -> list[dict[str, Any]]:
+                from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
+
+                root = pathlib.Path(DEFAULT_OUT_DIR)
+                items: list[dict[str, Any]] = []
+                if root.exists():
+                    for p in sorted(
+                        root.glob("hdmi_clip_*.*"),
+                        key=lambda x: x.stat().st_mtime,
+                        reverse=True,
+                    )[:40]:
+                        items.append(
+                            {
+                                "name": p.name,
+                                "path": str(p.resolve()),
+                                "url": f"/media/clips/{p.name}",
+                                "size_bytes": p.stat().st_size,
+                                "mtime": p.stat().st_mtime,
+                            }
+                        )
+                return items
+
+            items = await asyncio.to_thread(_list_clips)
             return JSONResponse({"ok": True, "clips": items})
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
@@ -491,8 +546,11 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
     import os
 
     os.chdir(root)
-    with socketserver.TCPServer((host, port), H) as httpd:
-        log.info("Retina Deck (stdlib) http://%s:%s", host, port)
+    # ThreadingTCPServer: each LIVE /video client gets its own thread so
+    # health/situation still respond under load (sync generator + sleep).
+    with socketserver.ThreadingTCPServer((host, port), H) as httpd:
+        httpd.daemon_threads = True
+        log.info("Retina Deck (stdlib ThreadingTCPServer) http://%s:%s", host, port)
         httpd.serve_forever()
 
 
