@@ -37,9 +37,9 @@ body{display:grid;grid-template-columns:1fr var(--rail-w);grid-template-rows:aut
 #cmd a{color:var(--gold); text-decoration:none; font:600 12px JetBrains Mono,monospace; opacity:.85}
 #cmd a:hover{opacity:1}
 
-/* ── Stage (video + clip strip) ── */
+/* ── Stage (video; clip library removed — reserved for future glass) ── */
 #stage{
-  display:grid; grid-template-rows:auto minmax(0,1fr) auto; min-width:0; min-height:0;
+  display:grid; grid-template-rows:auto minmax(0,1fr); min-width:0; min-height:0;
   background:radial-gradient(ellipse 70% 50% at 50% 35%,rgba(245,197,66,.05),transparent 55%), var(--bg);
 }
 #stageSub{
@@ -47,7 +47,7 @@ body{display:grid;grid-template-columns:1fr var(--rail-w);grid-template-rows:aut
   padding:10px 16px 6px; color:var(--muted); font:600 12px/1 JetBrains Mono,monospace;
 }
 #playerWrap{
-  position:relative; margin:0 16px; min-height:0; display:flex; align-items:center; justify-content:center;
+  position:relative; margin:0 16px 16px; min-height:0; display:flex; align-items:center; justify-content:center;
   background:#000; border-radius:16px; border:1px solid rgba(245,197,66,.2);
   box-shadow:0 20px 60px rgba(0,0,0,.5); overflow:hidden;
 }
@@ -63,32 +63,6 @@ body.mode-replay #player{display:block}
 #playerEmpty strong{color:var(--gold); font-size:16px}
 #playerWrap.has-video #playerEmpty{display:none}
 
-/* Clip strip — ABOVE the fold, large hit targets */
-#clipDock{
-  padding:12px 16px 16px; border-top:1px solid var(--line); background:rgba(14,19,27,.95);
-  min-height:140px; max-height:28vh; display:flex; flex-direction:column; gap:10px;
-}
-#clipDock header{display:flex; align-items:center; justify-content:space-between; gap:10px}
-#clipDock h2{font:800 12px/1 JetBrains Mono,monospace; letter-spacing:.1em; color:var(--gold); text-transform:uppercase}
-#clipCount{font:600 11px JetBrains Mono,monospace; color:var(--muted)}
-#clipGrid{
-  display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:10px;
-  overflow:auto; flex:1; min-height:88px; padding-bottom:4px;
-  scrollbar-width:thin; scrollbar-color:var(--gold) transparent;
-}
-.clipBtn{
-  appearance:none; border:2px solid rgba(245,197,66,.35); background:var(--card); color:var(--text);
-  border-radius:12px; padding:14px 12px; font:700 13px/1.25 Inter,sans-serif; cursor:pointer;
-  text-align:left; min-height:76px; transition:border-color .12s, transform .12s, background .12s;
-  display:flex; flex-direction:column; justify-content:center; gap:6px;
-}
-.clipBtn:hover{border-color:var(--gold); background:var(--gold-dim); transform:translateY(-1px)}
-.clipBtn.active{border-color:var(--gold); background:rgba(245,197,66,.22); box-shadow:0 0 0 1px var(--gold)}
-.clipBtn .playIcon{font-size:16px; color:var(--gold)}
-.clipBtn .name{font:800 13px/1.2 JetBrains Mono,monospace; word-break:break-all}
-.clipBtn .meta{font:600 11px/1.2 JetBrains Mono,monospace; color:var(--muted)}
-#clipEmpty{color:var(--muted); font:500 13px/1.4 Inter,sans-serif; padding:16px; grid-column:1/-1}
-
 /* ── Right rail ── */
 #rail{
   display:flex; flex-direction:column; gap:12px; padding:14px; background:var(--panel);
@@ -103,7 +77,7 @@ body.mode-replay #player{display:block}
 #bufFill{height:100%; width:0%; background:linear-gradient(90deg,#1A3A2A,var(--gold)); transition:width .3s}
 #bufLabel{font:600 11px JetBrains Mono,monospace; color:var(--muted); margin-top:6px}
 #feed{display:flex; flex-direction:column; gap:8px; max-height:220px; overflow:auto; min-height:48px}
-#feed.empty::before{content:"Moments appear on score changes · clips are playable ▶"; color:var(--muted); font:500 12px/1.4 Inter,sans-serif; padding:4px 0}
+#feed.empty::before{content:"Moments · score / fast path · playable clips ▶ appear here"; color:var(--muted); font:500 12px/1.4 Inter,sans-serif; padding:4px 0}
 .item{padding:12px; border-radius:12px; background:var(--gold-dim); border:1px solid rgba(245,197,66,.22); font:600 13px/1.35 Inter,sans-serif}
 .item.playable{cursor:pointer; display:flex; align-items:center; gap:12px}
 .item.playable:hover{border-color:var(--gold); background:rgba(245,197,66,.22)}
@@ -137,13 +111,11 @@ body.mode-replay #player{display:block}
   #cmd{grid-column:1}
   #stage{grid-row:2; min-height:50vh}
   #rail{grid-row:3; border-left:0; border-top:1px solid var(--line); max-height:42vh}
-  #clipDock{max-height:22vh}
   :root{--rail-w:100%}
 }
 @media (max-width:700px){
   #btnClip{min-width:100%; margin-left:0}
   #modeBar{order:2}
-  .clipBtn{min-height:64px}
 }
 </style>
 </head>
@@ -163,7 +135,7 @@ body.mode-replay #player{display:block}
 <main id="stage">
   <div id="stageSub">
     <span id="stageMeta">LIVE from capture card</span>
-    <span id="stageHint">Streamer console · clips play here</span>
+    <span id="stageHint">Streamer console · LIVE / REPLAY</span>
   </div>
   <div id="playerWrap">
     <div id="playerEmpty">
@@ -174,13 +146,7 @@ body.mode-replay #player{display:block}
     <img id="liveFeed" alt="LIVE HDMI" src="/video?fps=30" decoding="async" fetchpriority="high">
     <video id="player" controls playsinline></video>
   </div>
-  <section id="clipDock" aria-label="Clip library">
-    <header>
-      <h2>Clip library</h2>
-      <span id="clipCount">0 clips</span>
-    </header>
-    <div id="clipGrid"><div id="clipEmpty">No clips yet — hit <strong style="color:var(--gold)">Make HDMI Clip</strong> while LIVE.</div></div>
-  </section>
+  <!-- Clip library removed — stage free for future features -->
 </main>
 
 <aside id="rail">
@@ -206,7 +172,7 @@ body.mode-replay #player{display:block}
   </div>
   <div class="card" id="railFoundry">
     <h3>Foundry</h3>
-    <p class="hint">Same as top bar — exports last 30s from HDMI ring to <code>clips/</code>, then switches to REPLAY.</p>
+    <p class="hint">Top bar <strong>Make HDMI Clip</strong> exports last 30s to <code>clips/</code> and opens REPLAY. Playable clip moments also appear in the clutch feed.</p>
   </div>
   <div id="trail"><span id="t1">● waiting</span><span>30fps LIVE</span><span id="t3">local</span></div>
   <div id="links">
@@ -221,7 +187,6 @@ body.mode-replay #player{display:block}
 const strip=document.getElementById('strip'), lat=document.getElementById('lat'), feed=document.getElementById('feed');
 const t1=document.getElementById('t1'), player=document.getElementById('player'), liveFeed=document.getElementById('liveFeed');
 const playerWrap=document.getElementById('playerWrap'), stageMeta=document.getElementById('stageMeta');
-const clipGrid=document.getElementById('clipGrid'), clipCount=document.getElementById('clipCount');
 const btnLive=document.getElementById('btnLive'), btnReplay=document.getElementById('btnReplay'), btnClip=document.getElementById('btnClip');
 const statusDot=document.getElementById('statusDot'), statusText=document.getElementById('statusText');
 const bufFill=document.getElementById('bufFill'), bufLabel=document.getElementById('bufLabel');
@@ -292,7 +257,6 @@ function playClip(url, label){
   if(player.readyState>=2) go(); else player.oncanplay=()=>{player.oncanplay=null; go();};
   player.onerror=()=>{ stageMeta.textContent='Decode error — re-make clip (needs H.264)'; setStatus('bad','video error'); };
   stageMeta.textContent='REPLAY · '+(label||url.split('/').pop());
-  document.querySelectorAll('.clipBtn').forEach(b=>b.classList.toggle('active', (b.dataset.url||'')===url));
   t1.textContent='● REPLAY';
   setStatus('warn','Playing clip');
   loadChaptersForClip(url);
@@ -386,33 +350,6 @@ setInterval(()=>{fetch('/api/situation').then(r=>r.json()).then(j=>{ if(j) handl
 setInterval(refreshTimeline, 2500);
 refreshTimeline();
 
-function refreshClipLibrary(){
-  fetch('/api/clips').then(r=>r.json()).then(j=>{
-    if(!j||!j.ok) return;
-    const clips=j.clips||[];
-    clipCount.textContent=clips.length+' clip'+(clips.length===1?'':'s');
-    clipGrid.innerHTML='';
-    if(!clips.length){
-      clipGrid.innerHTML='<div id="clipEmpty">No clips yet — hit <strong style="color:var(--gold)">Make HDMI Clip</strong> in the top bar while LIVE.</div>';
-      return;
-    }
-    clips.forEach(c=>{
-      const b=document.createElement('button');
-      b.type='button';
-      b.className='clipBtn'+(activeUrl===c.url?' active':'');
-      b.dataset.url=c.url;
-      const kb=c.size_bytes>=1048576?(c.size_bytes/1048576).toFixed(1)+' MB':Math.round((c.size_bytes||0)/1024)+' KB';
-      const when=c.mtime?new Date(c.mtime*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
-      const short=(c.name||'').replace(/^hdmi_clip_/,'').replace(/\.(mp4|avi)$/i,'');
-      b.innerHTML='<span class="playIcon">▶ PLAY</span><span class="name">'+short+'</span><span class="meta">'+kb+' · '+when+'</span>';
-      b.onclick=()=>playClip(c.url, c.name);
-      clipGrid.appendChild(b);
-    });
-  }).catch(()=>{});
-}
-refreshClipLibrary();
-setInterval(refreshClipLibrary, 4000);
-
 function doClip(){
   btnClip.disabled=true;
   const prev=btnClip.textContent;
@@ -423,7 +360,6 @@ function doClip(){
       if(j&&j.ok&&j.clip){
         addMoment({title:'HDMI CLIP '+j.clip.duration_s+'s',reason:j.clip.path,url:j.clip.url,name:j.clip.name,clock:'now',action:'clip'});
         playClip(j.clip.url, j.clip.name);
-        refreshClipLibrary();
         setStatus('ok','Clip saved');
       } else {
         addMoment({title:'CLIP failed',reason:(j&&j.error)||'no buffer',clock:'now'});
