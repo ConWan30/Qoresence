@@ -28,8 +28,9 @@ from qoresence.fusion import PresenceFusionEngine, create_fusion_engine
 from qoresence.game_detection import GameAutoDetector
 
 try:
+    from qoresence.deck.server import DECK_HOST as _DECK_HOST
+    from qoresence.deck.server import DECK_PORT as _DECK_PORT
     from qoresence.deck.server import start_deck as _start_deck
-    from qoresence.deck.server import DECK_HOST as _DECK_HOST, DECK_PORT as _DECK_PORT
 
     _DECK_AVAILABLE = True
 except ImportError:
