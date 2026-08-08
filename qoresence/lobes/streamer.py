@@ -512,11 +512,19 @@ class StreamerRuntime:
                     self.config.device_index,
                     device_name,
                 )
+                log.info(
+                    "capture ownership: Pattern A (OBS owns card → Virtual Cam → Qoresence). "
+                    "Higher lag for monitor/OCR. See docs/CAPTURE_OWNERSHIP.md"
+                )
             elif not is_network:
                 log.info(
                     "streamer source: physical card idx=%s name=%r (sticky name for replug)",
                     self.config.device_index,
                     device_name,
+                )
+                log.info(
+                    "capture ownership: Pattern B (Qoresence owns card). "
+                    "OBS must not open this DShow device. See docs/CAPTURE_OWNERSHIP.md"
                 )
 
             if not is_network:

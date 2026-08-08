@@ -78,31 +78,58 @@ Docs for each: [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/R
 
 ---
 
+## Capture (choose one owner)
+
+**One physical HDMI/DShow device → one owner.** Full guide: [docs/CAPTURE_OWNERSHIP.md](docs/CAPTURE_OWNERSHIP.md)
+
+| Goal | Pattern |
+|------|---------|
+| Low-lag pilot / native monitor | **B** — Qoresence owns card |
+| OBS as broadcast director | **A** — OBS owns card → Virtual Cam |
+
+```powershell
+python -m qoresence.cli --streamer-list
+# Pattern B (recommended): free the physical card from OBS, then:
+python -m qoresence.cli --play --deck --monitor --streamer-fps 60
+# Pattern A: OBS Video Capture on card + Start Virtual Camera, then --streamer-device <VCAM>
+```
+
+---
+
 ## Quickstart (Windows-first pilot)
 
 ```powershell
 git clone https://github.com/ConWan30/Qoresence.git
 cd Qoresence
 pip install -e ".[monitor]"   # opencv for Retina Monitor
+python scripts/pilot_preflight.py
 
-# 1) Close OBS Video Capture on the physical card (no dual-open)
-# 2) List devices; pick physical HDMI card (e.g. USB3.0 Video = 0)
+# Pattern B: Close OBS Video Capture on the physical card (no dual-open)
 python -m qoresence.cli --streamer-list
-
-# 3) Play stack — Qoresence owns card
-python -m qoresence.cli --play --deck --monitor --controller --streamer-device 0 --streamer-fps 60
+python -m qoresence.cli --play --deck --monitor --streamer-fps 60
 
 # OBS (optional stream): Browser Source only → http://127.0.0.1:8765/overlay.html
 ```
 
 | URL | Glass |
 |-----|--------|
-| http://127.0.0.1:8765/deck.html | Ghost Theater / Rail |
+| http://127.0.0.1:8765/deck.html | Ghost Theater / Rail (LIVE @ 60 fps) |
 | http://127.0.0.1:8765/overlay.html | Clutch Lens (OBS Browser Source) |
-| http://127.0.0.1:8765/video | LIVE MJPEG (ops; not aim glass) |
+| http://127.0.0.1:8765/video | LIVE MJPEG |
 | http://127.0.0.1:8765/api/situation | Snapshot (+ `controller` when IVC on) |
 
-**Gameplay eye:** OBS Preview (physical card). **Not** Twitch delay. **Not** Deck LIVE as primary aim.
+### Verify live
+
+```powershell
+# within ~10s of start:
+(Invoke-RestMethod http://127.0.0.1:8765/health).state.video.has_frame
+# expect True
+# optional: (Invoke-RestMethod http://127.0.0.1:8765/health).state.situation
+```
+
+Hard-refresh Deck if the tab was open before restart. Session notes: [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md).
+
+**Gameplay eye:** TV / Retina Monitor (Pattern B) or OBS Preview (Pattern A). **Not** Twitch delay.
 
 ---
 
@@ -132,7 +159,7 @@ python -m qoresence.cli --play --deck --monitor --controller --streamer-device 0
 | `--deck` | off | Retina Deck HTTP/WS on `:8765` |
 | `--monitor` | off | Native FrameHub window |
 | `--controller` | off | DualSense HID + InputRing + IVC |
-| `--streamer-device N` | 0 | Physical card index (recommended); VCam only if OBS owns card |
+| `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |
 | `--clutchbot` / Twitch flags | off | IRC + Helix (see clutchbot setup) |
 
 ---
@@ -154,7 +181,9 @@ python -m qoresence.cli --play --deck --monitor --controller --streamer-device 0
 | Doc | Topic |
 |-----|--------|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Core design |
-| [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Capture ownership — Qoresence owns card (recommended) |
+| [docs/CAPTURE_OWNERSHIP.md](docs/CAPTURE_OWNERSHIP.md) | Pattern A (OBS) vs B (Qoresence owns card) |
+| [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Extended capture operator detail |
+| [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md) | CFB pilot runbook + notes |
 | [docs/RETINA_MONITOR.md](docs/RETINA_MONITOR.md) | Native monitor / FrameHub |
 | [docs/CONTROLLER_VIDEO_SYNC.md](docs/CONTROLLER_VIDEO_SYNC.md) | IVC + InputRing |
 | [docs/TWO_SPEED_CLUTCHBOT.md](docs/TWO_SPEED_CLUTCHBOT.md) | Fast video+input path; OCR confirm |
