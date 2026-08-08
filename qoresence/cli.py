@@ -560,7 +560,63 @@ class QoresenceApp:
             self.clutchbot.start()
 
         log.info("Qoresence started: session=%s", self.identity.session_id)
+        # Visible no-frame diagnostic (do not crash Deck if video is late/missing)
+        if self.config.streamer.enabled:
+            self._schedule_no_frame_watch()
         return True
+
+    def _schedule_no_frame_watch(self) -> None:
+        """After N seconds, log ERROR if streamer never produced a frame."""
+        import os
+        import threading
+
+        try:
+            wait_s = float(os.environ.get("QORESENCE_NO_FRAME_WAIT_S", "10") or 10)
+            wait_s = max(5.0, min(60.0, wait_s))
+        except Exception:
+            wait_s = 10.0
+
+        def _check() -> None:
+            try:
+                if not self._running:
+                    return
+                st = self.streamer
+                if st is None:
+                    return
+                # Prefer frames_processed / last success if available
+                frames = 0
+                idx = getattr(getattr(st, "config", None), "device_index", None)
+                name = getattr(st, "_bound_device_name", None) or getattr(
+                    st, "_preferred_device_name", None
+                )
+                try:
+                    frames = int(getattr(st, "_frames_processed", 0) or 0)
+                except Exception:
+                    frames = 0
+                has = frames > 0
+                if not has:
+                    try:
+                        fr = st.get_current_frame()
+                        has = fr is not None
+                    except Exception:
+                        has = False
+                if has:
+                    return
+                log.error(
+                    "NO FRAME after %.0fs — capture not flowing "
+                    "(device_index=%s name=%r frames_processed=%s). "
+                    "Run: python -m qoresence.cli --streamer-list. "
+                    "If OBS holds the physical card, free it (Pattern B) or use "
+                    "OBS Virtual Camera index (Pattern A). See docs/CAPTURE_OWNERSHIP.md",
+                    wait_s,
+                    idx,
+                    name,
+                    frames,
+                )
+            except Exception as e:
+                log.debug("no-frame watch: %s", e)
+
+        threading.Timer(wait_s, _check).start()
 
     def stop(self) -> None:
         """Stop all lobes gracefully."""
