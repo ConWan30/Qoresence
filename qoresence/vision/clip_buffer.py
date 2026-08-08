@@ -22,9 +22,9 @@ import numpy as np
 log = logging.getLogger(__name__)
 
 DEFAULT_SECONDS = 30.0
-# Half-sample of 60 Hz PS5 HDMI for smooth LIVE + bounded RAM (not full-rate JPEG).
-# Full 60 via get_clip_buffer(target_fps=60) or GET /video?fps=60.
-DEFAULT_FPS = 30.0
+# Full-rate ring when Qoresence owns the card (PS5 HDMI 60 Hz → Deck LIVE 60).
+# Lower with get_clip_buffer(target_fps=30) or GET /video?fps=30 if CPU/RAM tight.
+DEFAULT_FPS = 60.0
 # Smaller LIVE JPEGs = faster encode + less browser MJPEG buffer lag.
 DEFAULT_MAX_WIDTH = 640
 DEFAULT_JPEG_QUALITY = 55

@@ -23,8 +23,8 @@ log = logging.getLogger(__name__)
 DECK_HOST = "127.0.0.1"
 DECK_PORT = 8765
 WS_PATH = "/retina"
-# Ghost Theater LIVE default: half-rate of PS5 60 Hz (smooth, bounded CPU/RAM)
-DEFAULT_LIVE_FPS = 30.0
+# Ghost Theater LIVE default: full PS5 HDMI rate when Qoresence owns the card
+DEFAULT_LIVE_FPS = 60.0
 LIVE_FPS_MIN = 5.0
 LIVE_FPS_MAX = 60.0
 
@@ -390,7 +390,7 @@ def create_app():  # type: ignore[no-untyped-def]
     async def live_video(request: Request):  # type: ignore[no-untyped-def]
         """Continuous LIVE HDMI preview from clip_buffer JPEG ring (MJPEG).
 
-        Query: ?fps=30 (default) or ?fps=60 for full-rate preview (clamped 5–60).
+        Query: ?fps=60 (default full-rate) or ?fps=30 for lighter preview (clamped 5–60).
         """
         qfps = None
         try:
@@ -700,7 +700,7 @@ def start_deck(
         log.info("Retina Deck http://%s:%s  ws://%s:%s%s", host, port, host, port, WS_PATH)
         log.info(
             "Lens /overlay.html  Theater /deck.html  LIVE /video default %.0ffps "
-            "(PS5 60 Hz half-rate; override ?fps= up to 60)",
+            "(PS5 60 Hz full-rate LIVE default; override ?fps= for lighter)",
             DEFAULT_LIVE_FPS,
         )
         return t

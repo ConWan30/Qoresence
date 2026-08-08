@@ -943,7 +943,7 @@ def main():
         "--streamer-fps",
         type=float,
         default=30.0,
-        help="Streamer capture FPS (use 60 under --play for PS5 60 Hz so capture ≥ 30 fps LIVE ring)",
+        help="Streamer capture FPS (use 60 under --play for PS5 60 Hz so capture matches LIVE ring)",
     )
     parser.add_argument(
         "--streamer-device",
@@ -1251,7 +1251,7 @@ def main():
                     pass
             # HDMI / UVC capture card (PS5) — primary frame source for --play
             try:
-                # Capture at 60 Hz under --play so the 30 fps LIVE ring can half-sample.
+                # Capture at 60 Hz under --play so Deck LIVE / clip ring run full-rate.
                 # Override with --streamer-fps N if needed.
                 _sfps = float(getattr(args, "streamer_fps", 30.0) or 30.0)
                 _explicit_sfps = False
@@ -1305,7 +1305,7 @@ def main():
                 )
                 log.info(
                     "play frame source: streamer %s idx=%s (%sx%s @ %.0ffps) — HDMI/UVC auto-name; "
-                    "LIVE ring half-rates to 30; list: python -m qoresence.cli --streamer-list",
+                    "LIVE ring @ 60; list: python -m qoresence.cli --streamer-list",
                     getattr(args, "streamer_backend", "dshow"),
                     _dev,
                     getattr(args, "streamer_width", 1280),

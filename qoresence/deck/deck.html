@@ -138,7 +138,7 @@ body.mode-replay #player{display:block}
       Run <code style="color:var(--gold)">--play --deck --streamer-device 0</code>
       <span>LIVE = /video · REPLAY = saved MP4</span>
     </div>
-    <img id="liveFeed" alt="LIVE HDMI" src="/video?fps=30" decoding="async" fetchpriority="high">
+    <img id="liveFeed" alt="LIVE HDMI" src="/video?fps=60" decoding="async" fetchpriority="high">
     <video id="player" controls playsinline></video>
   </div>
   <!-- Clip library removed — stage free for future features -->
@@ -160,7 +160,7 @@ body.mode-replay #player{display:block}
     <h3>Clutch feed</h3>
     <div id="feed" class="empty"></div>
   </div>
-  <div id="trail"><span id="t1">● waiting</span><span>30fps LIVE</span><span id="t3">local</span></div>
+  <div id="trail"><span id="t1">● waiting</span><span>60fps LIVE</span><span id="t3">local</span></div>
   <div id="links">
     <a href="/video" target="_blank">/video raw</a>
     <a href="/api/clips" target="_blank">/api/clips</a>
@@ -191,7 +191,7 @@ function setMode(m){
   btnReplay.classList.toggle('active', mode==='replay');
   if(mode==='live'){
     try{player.pause()}catch(e){}
-    liveFeed.src='/video?fps=30&t='+Date.now();
+    liveFeed.src='/video?fps=60&t='+Date.now();
     stageMeta.textContent='LIVE · capture preview (not 1:1 TV latency)';
     t1.textContent='● LIVE';
     setStatus('ok','LIVE HDMI');
@@ -396,7 +396,7 @@ setInterval(()=>{fetch('/api/clip/status').then(r=>r.json()).then(j=>{
   }
 }).catch(()=>{});},1500);
 
-liveFeed.onerror=()=>{ if(mode==='live') setTimeout(()=>{ liveFeed.src='/video?fps=30&t='+Date.now(); }, 1200); };
+liveFeed.onerror=()=>{ if(mode==='live') setTimeout(()=>{ liveFeed.src='/video?fps=60&t='+Date.now(); }, 1200); };
 liveFeed.onload=()=>{ if(mode==='live') markHasVideo(true); };
 </script>
 </body></html>
