@@ -165,10 +165,14 @@ class ControllerRuntime:
         # Rolling buffer for causal correlation
         self._buffer = deque(maxlen=config.buffer_size)
 
-        # Trigger onset detection
+        # Trigger onset detection — debounce requires N consecutive readings
+        # above threshold to reject noise-induced phantom onsets
         self._prev_l2 = 0
         self._prev_r2 = 0
         self._trigger_threshold = 30  # ~12% press
+        self._l2_above_count = 0
+        self._r2_above_count = 0
+        self._trigger_debounce = 2  # consecutive readings needed
 
         # Stats
         self._reports_read = 0
@@ -436,50 +440,71 @@ class ControllerRuntime:
             return None
 
     def _decode_report(self, report: bytes) -> ControllerState:
-        """Decode DualSense/DualSense Edge input report."""
+        """Decode DualSense/DualSense Edge input report.
+
+        Handles both USB (report ID 0x01, 64 bytes) and Bluetooth
+        (report ID 0x31, 78 bytes) layouts. Applies stick center
+        calibration and trigger noise rejection to reduce phantom edges.
+        """
         state = ControllerState()
         state.device_ts = int(time.time() * 1_000_000)  # microseconds since epoch
+        state.host_ts_ns = clock_ns()
 
         if len(report) < 8:
             return state
 
-        # Standard DualSense report layout (64 bytes)
-        # Byte 0: Report ID (0x01)
-        # Buttons in bytes 1-2 (16 bits)
-        buttons_low = report[1] if len(report) > 1 else 0
-        buttons_high = report[2] if len(report) > 2 else 0
+        # Determine report layout from the first byte (report ID)
+        report_id = report[0]
+        # USB: 0x01 (64 bytes), Bluetooth: 0x31 (78 bytes)
+        # For Bluetooth, the HID header is 1 byte extra at the start
+        offset = 1 if report_id == 0x31 else 0
+
+        # Buttons in bytes 1-2 (USB) or 2-3 (BT, after 0x31 + 0x30 header)
+        btn_off = 1 + offset
+        buttons_low = report[btn_off] if len(report) > btn_off else 0
+        buttons_high = report[btn_off + 1] if len(report) > btn_off + 1 else 0
         state.buttons = buttons_low | (buttons_high << 8)
 
         # Triggers
-        state.l2 = report[3] if len(report) > 3 else 0
-        state.r2 = report[4] if len(report) > 4 else 0
+        trig_off = 3 + offset
+        state.l2 = report[trig_off] if len(report) > trig_off else 0
+        state.r2 = report[trig_off + 1] if len(report) > trig_off + 1 else 0
 
-        # Sticks (left: 5-6, right: 7-8)
-        state.lx = report[5] if len(report) > 5 else 128
-        state.ly = report[6] if len(report) > 6 else 128
-        state.rx = report[7] if len(report) > 7 else 128
-        state.ry = report[8] if len(report) > 8 else 128
+        # Sticks (left: 5-6, right: 7-8) — apply center deadzone
+        stick_off = 5 + offset
+        lx = report[stick_off] if len(report) > stick_off else 128
+        ly = report[stick_off + 1] if len(report) > stick_off + 1 else 128
+        rx = report[stick_off + 2] if len(report) > stick_off + 2 else 128
+        ry = report[stick_off + 3] if len(report) > stick_off + 3 else 128
+        # Clamp to center if within noise deadzone (reduces phantom stick events)
+        stick_dz = 8  # raw units around center 128
+        state.lx = 128 if abs(lx - 128) <= stick_dz else lx
+        state.ly = 128 if abs(ly - 128) <= stick_dz else ly
+        state.rx = 128 if abs(rx - 128) <= stick_dz else rx
+        state.ry = 128 if abs(ry - 128) <= stick_dz else ry
 
         # IMU data (if present in extended report)
-        # Gyro: bytes 13-18 (3x int16)
-        # Accel: bytes 19-24 (3x int16)
-        if len(report) >= 25:
+        # Gyro: bytes 13-18 (3x int16), Accel: bytes 19-24 (3x int16)
+        imu_off = 13 + offset
+        if len(report) >= imu_off + 12:
             import struct
 
-            state.gyro_x = struct.unpack_from("<h", report, 13)[0]
-            state.gyro_y = struct.unpack_from("<h", report, 15)[0]
-            state.gyro_z = struct.unpack_from("<h", report, 17)[0]
-            state.accel_x = struct.unpack_from("<h", report, 19)[0]
-            state.accel_y = struct.unpack_from("<h", report, 21)[0]
-            state.accel_z = struct.unpack_from("<h", report, 23)[0]
+            state.gyro_x = struct.unpack_from("<h", report, imu_off)[0]
+            state.gyro_y = struct.unpack_from("<h", report, imu_off + 2)[0]
+            state.gyro_z = struct.unpack_from("<h", report, imu_off + 4)[0]
+            state.accel_x = struct.unpack_from("<h", report, imu_off + 6)[0]
+            state.accel_y = struct.unpack_from("<h", report, imu_off + 8)[0]
+            state.accel_z = struct.unpack_from("<h", report, imu_off + 10)[0]
 
-        # Battery (byte 30)
-        if len(report) > 30:
-            state.battery = report[30]
+        # Battery (byte 30 + offset)
+        bat_off = 30 + offset
+        if len(report) > bat_off:
+            state.battery = report[bat_off]
 
-        # USB state (byte 31)
-        if len(report) > 31:
-            state.usb_state = report[31]
+        # USB state (byte 31 + offset)
+        usb_off = 31 + offset
+        if len(report) > usb_off:
+            state.usb_state = report[usb_off]
 
         return state
 
@@ -572,9 +597,20 @@ class ControllerRuntime:
             pass
 
     def _check_trigger_onsets(self, state: ControllerState, now_ns: int) -> None:
-        """Detect trigger press onsets (rising edge past threshold)."""
-        # L2
-        if self._prev_l2 <= self._trigger_threshold and state.l2 > self._trigger_threshold:
+        """Detect trigger press onsets (rising edge past threshold).
+
+        Uses a debounce counter to require N consecutive readings above
+        threshold before firing — rejects noise-induced phantom onsets.
+        """
+        # L2 — debounce: count consecutive readings above threshold
+        if state.l2 > self._trigger_threshold:
+            self._l2_above_count += 1
+        else:
+            self._l2_above_count = 0
+        if (
+            self._prev_l2 <= self._trigger_threshold
+            and self._l2_above_count >= self._trigger_debounce
+        ):
             causal_parent = self.find_causal_parent()
             amp = state.l2 / 255.0
             self.bus.emit_raw(
@@ -590,8 +626,15 @@ class ControllerRuntime:
                 session_head_ns=self.session_head_ns,
             )
             self._push_input_ring(kind="trigger", name="L2", value=amp, clock_ns=now_ns)
-        # R2
-        if self._prev_r2 <= self._trigger_threshold and state.r2 > self._trigger_threshold:
+        # R2 — debounce: count consecutive readings above threshold
+        if state.r2 > self._trigger_threshold:
+            self._r2_above_count += 1
+        else:
+            self._r2_above_count = 0
+        if (
+            self._prev_r2 <= self._trigger_threshold
+            and self._r2_above_count >= self._trigger_debounce
+        ):
             causal_parent = self.find_causal_parent()
             amp = state.r2 / 255.0
             self.bus.emit_raw(
@@ -617,7 +660,7 @@ class ControllerRuntime:
         Bus emit keeps prior behavior; InputRing only gets *edges* (enter
         deadzone-out) so IVC is not flooded at poll rate.
         """
-        deadzone = 15
+        deadzone = 20  # raw units around center 128 — tuned to reduce phantom edges
         for stick, x, y, px, py in [
             ("left", state.lx, state.ly, self._prev_state.lx, self._prev_state.ly),
             ("right", state.rx, state.ry, self._prev_state.rx, self._prev_state.ry),

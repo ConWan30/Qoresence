@@ -348,6 +348,11 @@ class StreamerRuntime:
         # Presence callback (for fusion engine)
         self._presence_callback: callable | None = None
 
+        # Pattern A detection (OBS Virtual Cam → higher lag)
+        self._is_pattern_a = False
+        self._pattern_a_lag_samples: deque[float] = deque(maxlen=30)
+        self._pattern_a_hint_logged = False
+
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
     # ──────────────────────────────────────────────────────────────────────────
@@ -519,6 +524,7 @@ class StreamerRuntime:
                 return False
 
             if not is_network and _is_obs_virtual_camera_name(device_name):
+                self._is_pattern_a = True
                 log.info(
                     "streamer source: OBS Virtual Camera (OBS owns physical card) idx=%s name=%r",
                     self.config.device_index,
@@ -783,6 +789,35 @@ class StreamerRuntime:
 
             # Process metrics
             self._process_frame(gray, now)
+
+            # Pattern A lag auto-tune: measure inter-frame delta and log hints
+            if self._is_pattern_a:
+                self._pattern_a_lag_samples.append(now)
+                if (
+                    not self._pattern_a_hint_logged
+                    and len(self._pattern_a_lag_samples) >= 20
+                ):
+                    samples = list(self._pattern_a_lag_samples)
+                    deltas = [samples[i] - samples[i - 1] for i in range(1, len(samples))]
+                    avg_delta = sum(deltas) / len(deltas) if deltas else 0
+                    expected = 1.0 / max(1.0, self._effective_fps)
+                    lag_ratio = avg_delta / expected if expected > 0 else 1.0
+                    if lag_ratio > 1.5:
+                        log.warning(
+                            "Pattern A lag hint: avg inter-frame %.0fms vs expected %.0fms "
+                            "(%.1fx slower). Consider Pattern B (Qoresence owns card) "
+                            "for lower latency. See docs/OBS_OWNS_CARD.md",
+                            avg_delta * 1000,
+                            expected * 1000,
+                            lag_ratio,
+                        )
+                    else:
+                        log.info(
+                            "Pattern A lag OK: avg inter-frame %.0fms vs expected %.0fms",
+                            avg_delta * 1000,
+                            expected * 1000,
+                        )
+                    self._pattern_a_hint_logged = True
 
             # Periodic frame_stats
             if now - last_stats >= self.config.stats_every_s:
