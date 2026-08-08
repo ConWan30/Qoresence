@@ -121,13 +121,18 @@ python -m qoresence.cli --play --deck --monitor --streamer-fps 60
 ### Verify live
 
 ```powershell
-# within ~10s of start:
-(Invoke-RestMethod http://127.0.0.1:8765/health).state.video.has_frame
-# expect True
-# optional: (Invoke-RestMethod http://127.0.0.1:8765/health).state.situation
+# within ~10s of start — use Write-Host so PowerShell always shows a labeled line:
+$h = Invoke-RestMethod http://127.0.0.1:8765/health
+Write-Host "has_frame=$($h.state.video.has_frame)  fps=$($h.state.video.target_fps)  score=$($h.state.situation.home_score)-$($h.state.situation.away_score)"
+# expect has_frame=True
+
+# open Deck (browser does not auto-open from CLI):
+Start-Process http://127.0.0.1:8765/deck.html
 ```
 
-Hard-refresh Deck if the tab was open before restart. Session notes: [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md).
+**Note:** `python -m qoresence.cli --play ...` keeps running in that window (log lines only). Deck is a **browser** URL — it does not pop up by itself. Hard-refresh if the tab was open before restart.
+
+Session notes: [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md).
 
 **Gameplay eye:** TV / Retina Monitor (Pattern B) or OBS Preview (Pattern A). **Not** Twitch delay.
 

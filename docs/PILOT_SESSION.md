@@ -29,14 +29,16 @@ Safe, repeatable operator checklist. Architecture is on `main`; this is how you 
    # optional A2A window later: add --a2a (and Quicksilver key under .secrets/)
    ```
 
-5. **Verify live**
+5. **Verify live** (in a **second** PowerShell window — leave `--play` running in the first)
 
    ```powershell
-   (Invoke-RestMethod http://127.0.0.1:8765/health).state.video.has_frame
-   # expect True within ~10s
+   $h = Invoke-RestMethod http://127.0.0.1:8765/health
+   Write-Host "has_frame=$($h.state.video.has_frame)  fps=$($h.state.video.target_fps)"
+   # expect has_frame=True within ~10s
+   Start-Process http://127.0.0.1:8765/deck.html
    ```
 
-   Deck: http://127.0.0.1:8765/deck.html (hard-refresh if tab was stale)
+   Deck does **not** open automatically from the CLI. Use the URL above (hard-refresh if the tab was stale).
 
 ---
 
