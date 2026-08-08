@@ -819,10 +819,24 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
 
     # Enable lobes based on flags
     if args.streamer:
+        _sd = int(getattr(args, "streamer_device", -1))
+        try:
+            from qoresence.lobes.streamer import resolve_capture_device
+
+            _r = resolve_capture_device(
+                None if _sd < 0 else _sd,
+                prefer_name="USB3.0 Video",
+                allow_obs_vcam=False,
+            )
+            if _r is not None:
+                _sd = _r[0]
+        except Exception:
+            pass
         config.streamer = replace(
             config.streamer,
             enabled=True,
-            device_index=getattr(args, "streamer_device", 0),
+            device_index=_sd,
+            device_name="USB3.0 Video",
             backend=getattr(args, "streamer_backend", "dshow"),
             width=getattr(args, "streamer_width", 1280),
             height=getattr(args, "streamer_height", 720),
@@ -934,9 +948,10 @@ def main():
     parser.add_argument(
         "--streamer-device",
         type=int,
-        default=0,
-        help="Streamer DShow device index — preferred: physical card (e.g. 0=USB3.0 Video). "
-        "Use OBS Virtual Camera index only if OBS owns the physical card (legacy).",
+        default=-1,
+        help="Streamer DShow device index. Default -1 = auto-pick physical card by name "
+        "(USB3.0 Video / HDMI) so unplug/replug index shifts still work. "
+        "Pass a fixed index only if needed; OBS Virtual Camera is legacy.",
     )
     parser.add_argument(
         "--streamer-backend",
@@ -1168,7 +1183,8 @@ def main():
             print(f"{idx:<6} {status:<8} {backend:<8} {name}{note}")  # noqa: T201
         print("")  # noqa: T201
         print(  # noqa: T201
-            "Recommended: Qoresence owns physical HDMI (--streamer-device <card index>). "
+            "Recommended: Qoresence owns physical HDMI. Default --streamer-device -1 auto-picks "
+            "USB3.0 Video by name (survives unplug/replug index changes). "
             "Close OBS Video Capture on that device first. See docs/OBS_OWNS_CARD.md"
         )
         sys.exit(0)
@@ -1250,12 +1266,37 @@ def main():
                     pass
                 if not _explicit_sfps:
                     _sfps = 60.0
+                _dev = int(getattr(args, "streamer_device", -1))
+                # Auto-resolve physical card when -1 or when index would hit a webcam
+                try:
+                    from qoresence.lobes.streamer import resolve_capture_device
+
+                    _resolved = resolve_capture_device(
+                        None if _dev < 0 else _dev,
+                        prefer_name="USB3.0 Video",
+                        allow_obs_vcam=False,
+                    )
+                    if _resolved is not None:
+                        _dev, _dev_name = _resolved
+                        log.info(
+                            "play capture auto-resolve: idx=%s name=%r (survives unplug/replug)",
+                            _dev,
+                            _dev_name,
+                        )
+                    elif _dev < 0:
+                        log.warning(
+                            "play capture: no physical card listed yet — will hotplug-rebind on plug"
+                        )
+                        _dev = -1
+                except Exception as _re:
+                    log.debug("capture resolve: %s", _re)
                 config = _rep_play(
                     config,
                     streamer=_rep_play(
                         config.streamer,
                         enabled=True,
-                        device_index=int(getattr(args, "streamer_device", 0) or 0),
+                        device_index=_dev,
+                        device_name="USB3.0 Video",
                         backend=str(getattr(args, "streamer_backend", "dshow") or "dshow"),
                         width=int(getattr(args, "streamer_width", 1280) or 1280),
                         height=int(getattr(args, "streamer_height", 720) or 720),
@@ -1263,10 +1304,10 @@ def main():
                     ),
                 )
                 log.info(
-                    "play frame source: streamer %s idx=%s (%sx%s @ %.0ffps) — HDMI/UVC; "
+                    "play frame source: streamer %s idx=%s (%sx%s @ %.0ffps) — HDMI/UVC auto-name; "
                     "LIVE ring half-rates to 30; list: python -m qoresence.cli --streamer-list",
                     getattr(args, "streamer_backend", "dshow"),
-                    getattr(args, "streamer_device", 0),
+                    _dev,
                     getattr(args, "streamer_width", 1280),
                     getattr(args, "streamer_height", 720),
                     _sfps,

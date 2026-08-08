@@ -68,6 +68,92 @@ def list_dshow_devices() -> list[tuple[int, str, bool, str]]:
     ]
 
 
+# Physical HDMI capture card name hints (order = preference)
+_PHYSICAL_CARD_HINTS = (
+    "usb3.0 video",
+    "usb 3.0 video",
+    "usb video",
+    "elgato",
+    "avermedia",
+    "capture",
+    "hdmi",
+    "game capture",
+    "live gamer",
+)
+
+
+def _is_physical_card_name(name: str | None) -> bool:
+    """True for real capture hardware (not webcam, not OBS VCam)."""
+    if not name or not _is_allowed_capture_name(name):
+        return False
+    if _is_obs_virtual_camera_name(name):
+        return False
+    n = name.lower()
+    if any(h in n for h in _PHYSICAL_CARD_HINTS):
+        return True
+    # Allowed non-camera device without "camera" in the name
+    return "camera" not in n
+
+
+def resolve_capture_device(
+    requested_index: int | None = None,
+    *,
+    prefer_name: str | None = None,
+    allow_obs_vcam: bool = False,
+) -> tuple[int, str] | None:
+    """Pick a capture device that survives unplug/replug index shifts.
+
+    Priority:
+      1. Exact ``prefer_name`` match (sticky name from last good open)
+      2. Physical card hints (USB3.0 Video, Elgato, …)
+      3. ``requested_index`` if still allowed / physical
+      4. OBS Virtual Camera only if ``allow_obs_vcam``
+
+    Returns ``(index, name)`` or None if nothing suitable is present.
+    """
+    devices = list_dshow_devices()
+    if not devices:
+        return None
+
+    # 1) Sticky preferred name (case-insensitive exact or contains)
+    if prefer_name:
+        pn = prefer_name.strip().lower()
+        for idx, name, allowed, _be in devices:
+            if not allowed:
+                continue
+            nl = name.lower()
+            if nl == pn or pn in nl or nl in pn:
+                return int(idx), name
+
+    # 2) Physical capture cards
+    physical = [
+        (int(idx), name)
+        for idx, name, allowed, _be in devices
+        if allowed and _is_physical_card_name(name)
+    ]
+    if physical:
+        # Prefer USB3.0 Video explicitly when multiple cards
+        for idx, name in physical:
+            if "usb3.0" in name.lower() or "usb 3.0" in name.lower():
+                return idx, name
+        return physical[0]
+
+    # 3) Requested index if still valid and allowed
+    if requested_index is not None and requested_index >= 0:
+        for idx, name, allowed, _be in devices:
+            if int(idx) == int(requested_index) and allowed:
+                if allow_obs_vcam or not _is_obs_virtual_camera_name(name):
+                    return int(idx), name
+
+    # 4) Optional VCam
+    if allow_obs_vcam:
+        for idx, name, allowed, _be in devices:
+            if allowed and _is_obs_virtual_camera_name(name):
+                return int(idx), name
+
+    return None
+
+
 def _is_allowed_capture_name(name: str | None) -> bool:
     """
     Allow only external capture cards and virtual OBS output.
@@ -216,6 +302,10 @@ class StreamerRuntime:
         self._cap: cv2.VideoCapture | None = None
         self._running = False
         self._thread: threading.Thread | None = None
+        # Sticky device name so unplug/replug rebinds even if DShow index shifts
+        self._preferred_device_name: str | None = getattr(config, "device_name", None)
+        self._bound_device_name: str | None = None
+        self._last_rebind_attempt = 0.0
 
         # Metrics state
         self._prev_gray: np.ndarray | None = None
@@ -255,14 +345,26 @@ class StreamerRuntime:
     # ──────────────────────────────────────────────────────────────────────────
 
     def start(self) -> bool:
-        """Open capture device and start background thread."""
+        """Open capture device and start background thread.
+
+        If the physical card is unplugged, still starts and hotplug-rebinds when
+        USB3.0 Video reappears (index may change).
+        """
         if self._running:
             log.warning("StreamerRuntime already running")
             return True
 
-        # Open capture device
-        if not self._open_capture():
-            return False
+        # Open capture device — tolerate missing card (wait for replug)
+        opened = self._open_capture()
+        if not opened:
+            is_network = self.config.source_kind == "network" and self.config.url
+            if is_network:
+                return False
+            log.warning(
+                "Capture card not open yet (unplugged or busy). "
+                "Streamer will hotplug-rebind when USB3.0 Video appears. "
+                "List: python -m qoresence.cli --streamer-list"
+            )
 
         self._running = True
         self._start_time = time.time()
@@ -284,7 +386,8 @@ class StreamerRuntime:
         )
         log.info(
             f"Streamer lobe started: source={source}, "
-            f"source_kind={self.config.source_kind}, fps_target={self._effective_fps:.1f}"
+            f"source_kind={self.config.source_kind}, fps_target={self._effective_fps:.1f}, "
+            f"opened={opened}, sticky_name={self._preferred_device_name!r}"
         )
         return True
 
@@ -316,8 +419,35 @@ class StreamerRuntime:
     # CAPTURE DEVICE
     # ──────────────────────────────────────────────────────────────────────────
 
+    def _resolve_device(self) -> tuple[int, str] | None:
+        """Resolve current DShow index by sticky name / physical card preference."""
+        allow_vcam = os.environ.get("QORESENCE_ALLOW_OBS_VCAM", "0").strip() in {
+            "1",
+            "true",
+            "yes",
+        }
+        prefer = self._preferred_device_name or getattr(self.config, "device_name", None)
+        # --streamer-device -1 means full auto; otherwise try requested then rebind
+        req = int(getattr(self.config, "device_index", 0) or 0)
+        if req < 0:
+            req = None
+        resolved = resolve_capture_device(
+            req,
+            prefer_name=prefer,
+            allow_obs_vcam=allow_vcam,
+        )
+        if resolved is None and req is not None:
+            # Explicit index pointed at webcam after unplug — fall back to any physical
+            resolved = resolve_capture_device(
+                None, prefer_name=prefer, allow_obs_vcam=allow_vcam
+            )
+        return resolved
+
     def _open_capture(self) -> bool:
-        """Open UVC device or network stream with backend selection."""
+        """Open UVC device or network stream with backend selection.
+
+        Re-resolves the physical card by name so unplug/replug index shifts work.
+        """
         backend = self.config.backend.lower()
         backend_flag = None
 
@@ -333,30 +463,58 @@ class StreamerRuntime:
             if is_network:
                 log.info(f"Opening network stream: {self.config.url}")
                 self._cap = cv2.VideoCapture(self.config.url)
-            elif backend_flag is not None:
-                self._cap = cv2.VideoCapture(self.config.device_index, backend_flag)
+                device_name = None
             else:
-                self._cap = cv2.VideoCapture(self.config.device_index)
-
-            device_name = None if is_network else _get_dshow_device_name(self.config.device_index)
+                resolved = self._resolve_device()
+                if resolved is None:
+                    log.error(
+                        "No capture card found (USB3.0 Video / HDMI unplugged?). "
+                        "Replug the card and restart, or wait for hotplug rebind. "
+                        "List: python -m qoresence.cli --streamer-list"
+                    )
+                    return False
+                idx, device_name = resolved
+                if idx != int(getattr(self.config, "device_index", -1) or -1):
+                    log.info(
+                        "Capture device rebound: idx %s → %s (%r)",
+                        getattr(self.config, "device_index", None),
+                        idx,
+                        device_name,
+                    )
+                # Update runtime config index (frozen dataclass → object setattr best-effort)
+                try:
+                    object.__setattr__(self.config, "device_index", idx)
+                except Exception:
+                    pass
+                self._bound_device_name = device_name
+                if _is_physical_card_name(device_name):
+                    self._preferred_device_name = device_name
+                if backend_flag is not None:
+                    self._cap = cv2.VideoCapture(idx, backend_flag)
+                else:
+                    self._cap = cv2.VideoCapture(idx)
 
             if not self._cap.isOpened():
-                source = self.config.url if is_network else self.config.device_index
+                source = self.config.url if is_network else (
+                    f"{self.config.device_index} ({device_name})"
+                )
                 log.error(f"Failed to open capture source {source}")
-                # Pattern A hint: physical card often busy when OBS owns it
                 if not is_network:
-                    looks_physical = not _is_obs_virtual_camera_name(device_name)
-                    if looks_physical or device_name is None:
-                        log.error(
-                            "Device busy or unavailable — if OBS has the physical card, "
-                            "Start Virtual Camera and pass --streamer-device <OBS Virtual Camera index>. "
-                            "See docs/OBS_OWNS_CARD.md"
-                        )
+                    log.error(
+                        "Device busy/unplugged — replug USB3.0 Video, or if OBS holds "
+                        "the card use Virtual Cam (legacy). See docs/OBS_OWNS_CARD.md"
+                    )
                 return False
 
             if not is_network and _is_obs_virtual_camera_name(device_name):
                 log.info(
                     "streamer source: OBS Virtual Camera (OBS owns physical card) idx=%s name=%r",
+                    self.config.device_index,
+                    device_name,
+                )
+            elif not is_network:
+                log.info(
+                    "streamer source: physical card idx=%s name=%r (sticky name for replug)",
                     self.config.device_index,
                     device_name,
                 )
@@ -373,10 +531,10 @@ class StreamerRuntime:
                 log.error("First frame read failed")
                 if not is_network and not _is_obs_virtual_camera_name(device_name):
                     log.error(
-                        "Device busy — if OBS has the card, Start Virtual Camera and pass "
-                        "--streamer-device <OBS Virtual Camera index>. See docs/OBS_OWNS_CARD.md"
+                        "Device busy or still enumerating after plug — will retry rebind."
                     )
                 self._cap.release()
+                self._cap = None
                 return False
 
             # Privacy / device-name guard for local capture devices
@@ -393,7 +551,12 @@ class StreamerRuntime:
                     return False
 
                 # Secondary person-area guard to catch mis-configured sources
-                if self.config.eye_check_required and _frame_contains_person(frame):
+                # Skip for known physical cards (logo faces on pause menus false-positive)
+                if (
+                    self.config.eye_check_required
+                    and not _is_physical_card_name(device_name)
+                    and _frame_contains_person(frame)
+                ):
                     log.error(
                         f"PRIVACY GUARD: first frame from {device_name} contains a person. "
                         "This is not a game feed. Capture refused."
@@ -416,12 +579,44 @@ class StreamerRuntime:
             log.error(f"Capture open failed: {e}")
             if not is_network:
                 log.error(
-                    "If OBS has the physical card, Start Virtual Camera and use "
-                    "--streamer-device <OBS Virtual Camera index>. See docs/OBS_OWNS_CARD.md"
+                    "Replug capture card or free it from OBS. "
+                    "List: python -m qoresence.cli --streamer-list"
                 )
             if self._cap:
                 self._cap.release()
+                self._cap = None
             return False
+
+    def _try_rebind_capture(self) -> bool:
+        """Hotplug: re-enumerate DShow and reopen preferred physical card."""
+        now = time.time()
+        if now - self._last_rebind_attempt < 3.0:
+            return False
+        self._last_rebind_attempt = now
+        if self.config.source_kind == "network" and self.config.url:
+            return False
+        resolved = self._resolve_device()
+        if resolved is None:
+            log.warning(
+                "Capture rebind: no physical card yet (unplugged). Waiting for USB3.0 Video…"
+            )
+            return False
+        idx, name = resolved
+        log.info("Capture rebind attempting idx=%s name=%r", idx, name)
+        try:
+            if self._cap is not None:
+                self._cap.release()
+                self._cap = None
+        except Exception:
+            self._cap = None
+        try:
+            object.__setattr__(self.config, "device_index", idx)
+        except Exception:
+            pass
+        ok = self._open_capture()
+        if ok:
+            log.info("Capture rebind OK — idx=%s name=%r", idx, name)
+        return ok
 
     def _save_eye_check_snapshot(self, frame: np.ndarray) -> None:
         """Save first frame for mandatory eye-check."""
@@ -465,7 +660,14 @@ class StreamerRuntime:
             if not ok or frame is None:
                 with self._lock:
                     self._consecutive_failures += 1
-                time.sleep(0.001)
+                    fails = self._consecutive_failures
+                # Hotplug: card unplugged or index shifted after replug
+                if fails >= 30 or self._cap is None:
+                    if self._try_rebind_capture():
+                        with self._lock:
+                            self._consecutive_failures = 0
+                        continue
+                time.sleep(0.05 if fails > 5 else 0.001)
                 continue
 
             with self._lock:
@@ -557,6 +759,12 @@ class StreamerRuntime:
                         f"{self._effective_fps:.1f} -> {new_fps:.1f}"
                     )
                     self._effective_fps = new_fps
+                # Longer stall (unplug) — kick rebind so replug picks new index
+                if stall_s > 4.0:
+                    try:
+                        self._try_rebind_capture()
+                    except Exception as e:
+                        log.debug("watchdog rebind: %s", e)
                     self._fps_changed = True
 
             time.sleep(1.0)
