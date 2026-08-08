@@ -598,11 +598,11 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/overlay.html")
     async def overlay():  # type: ignore[no-untyped-def]
-        return HTMLResponse(_html("overlay.html"))
+        return HTMLResponse(_html("overlay.html"), headers={"Cache-Control": "no-cache, must-revalidate"})
 
     @app.get("/deck.html")
     async def deck():  # type: ignore[no-untyped-def]
-        return HTMLResponse(_html("deck.html"))
+        return HTMLResponse(_html("deck.html"), headers={"Cache-Control": "no-cache, must-revalidate"})
 
     @app.get("/")
     async def index():  # type: ignore[no-untyped-def]
