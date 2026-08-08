@@ -853,6 +853,7 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             llm_enabled=config.clutchbot.llm_enabled or _P_cb(_llm_key).exists(),
             llm_api_key_file=config.clutchbot.llm_api_key_file
             or (_llm_key if _P_cb(_llm_key).exists() else None),
+            a2a_enabled=bool(getattr(args, "a2a", False) or config.clutchbot.a2a_enabled),
             twitch=TwitchConfig(
                 enabled=_tw_enabled or args.clutchbot_channel != "",
                 channel=args.clutchbot_channel,
@@ -1050,6 +1051,12 @@ def main():
         "--clutchbot-enable-redemption-alerts",
         action="store_true",
         help="EventSub redemption alerts",
+    )
+    parser.add_argument(
+        "--a2a",
+        action="store_true",
+        help="Enable A2A bus (Gemini scene ↔ DeepSeek chat via Quicksilver). "
+        "Also QORESENCE_A2A=1. Live agents: QORESENCE_A2A_GEMINI=1 QORESENCE_A2A_DEEPSEEK=1.",
     )
 
     # Trio-retina (w3bstream validation)
@@ -1338,12 +1345,17 @@ def main():
                             getattr(config.clutchbot, "llm_api_key_file", None)
                             or (_llm_key if _P_play(_llm_key).exists() else None)
                         ),
+                        a2a_enabled=bool(
+                            getattr(args, "a2a", False)
+                            or getattr(config.clutchbot, "a2a_enabled", False)
+                        ),
                     ),
                 )
                 log.info(
-                    "play ClutchBot: deck_feed=on twitch=%s llm=%s",
+                    "play ClutchBot: deck_feed=on twitch=%s llm=%s a2a=%s",
                     "on" if _tw_ok else "off (add channel+token for IRC)",
                     "on" if _llm_on else "off",
+                    "on" if getattr(args, "a2a", False) else "off",
                 )
             except Exception as _cb_e:
                 log.warning("play ClutchBot wiring partial: %s", _cb_e)

@@ -339,7 +339,14 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/health")
     async def health():  # type: ignore[no-untyped-def]
-        return JSONResponse({"ok": True, "clients": len(_ws_clients), "state": _state.snapshot()})
+        body: dict[str, Any] = {"ok": True, "clients": len(_ws_clients), "state": _state.snapshot()}
+        try:
+            from qoresence.a2a.orchestrator import get_a2a_orchestrator
+
+            body["a2a"] = get_a2a_orchestrator().stats()
+        except Exception:
+            body["a2a"] = {"enabled": False}
+        return JSONResponse(body)
 
     @app.get("/api/situation")
     async def api_situation():  # type: ignore[no-untyped-def]

@@ -228,8 +228,9 @@ class VisualConfig:
     """Visual lobe (VLM) configuration."""
 
     enabled: bool = False
-    model_endpoint: str = "https://integrate.api.nvidia.com/v1"
-    model_name: str = "nvidia/nemotron-nano-12b-v2-vl"
+    # Cloud VLM via Quicksilver Pro (OpenAI-compatible). LocalVLM remains default for --play.
+    model_endpoint: str = "https://api.quicksilverpro.io/v1"
+    model_name: str = "gemini-3.5-flash-lite"
     api_key: str | None = None
     frame_sample_rate: int = 30  # analyze every N frames
     max_frame_dim: int = 640
@@ -298,13 +299,15 @@ class ClutchBotConfig:
     # -- LLM via Quicksilver Pro (OpenAI-compatible https://api.quicksilverpro.io/v1)
     llm_enabled: bool = False
     llm_provider: str = "quicksilver"  # quicksilver | openai | anthropic | ollama
-    llm_model: str = "deepseek-v4-flash"
+    llm_model: str = "deepseek-v4-flash"  # chat agent (A2A DeepSeek side)
     llm_base_url: str = "https://api.quicksilverpro.io/v1"
     llm_api_key: str | None = None
     llm_api_key_file: str | None = None  # file containing key (never commit)
     llm_fallback_model: str = "gpt-4o-mini"
     llm_timeout_s: float = 6.0
     llm_max_tokens: int = 256
+    # -- A2A bus (Gemini scene ↔ DeepSeek chat); also QORESENCE_A2A=1
+    a2a_enabled: bool = False
 
 
 @dataclass(frozen=True)

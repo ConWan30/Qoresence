@@ -1,8 +1,11 @@
 ﻿"""
-Qoresence Visual Lobe â€” Phase 8
+Qoresence Visual Lobe
 
-VLM (Vision Language Model) integration for game-state classification
-and cross-modal verification. Uses NVIDIA Nemotron or compatible endpoint.
+VLM integration for game-state classification and cross-modal verification.
+
+Cloud path: Quicksilver Pro OpenAI-compatible vision (default gemini-3.5-flash-lite).
+Local path: LocalVLM (ONNX/heuristic) when prefer_local=True — default under --play.
+OCR scoreboard remains the score referee.
 """
 
 from __future__ import annotations
@@ -55,13 +58,30 @@ class CrossModalVerdict:
 
 
 class VLMClient:
-    """Client for NVIDIA Nemotron or compatible VLM endpoint."""
+    """Cloud VLM via Quicksilver Pro (or any OpenAI-compatible vision endpoint)."""
 
     def __init__(self, config: VisualConfig):
         self.config = config
         self.endpoint = config.model_endpoint.rstrip("/")
         self.model_name = config.model_name
         self.api_key = config.api_key
+        # Resolve Quicksilver key if not set on config
+        if not self.api_key:
+            try:
+                from qoresence.agents.llm_client import _resolve_api_key
+                import pathlib
+
+                key_file = None
+                for p in (
+                    ".secrets/quicksilver_clutchbot.key",
+                    ".secrets/quicksilver_vlm.key",
+                ):
+                    if pathlib.Path(p).exists():
+                        key_file = p
+                        break
+                self.api_key = _resolve_api_key(None, key_file)
+            except Exception:
+                pass
         self.max_dim = config.max_frame_dim
         self._session = requests.Session()
 

@@ -22,6 +22,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 | **FrameHub (no second capture)** | Streamer already holds BGR frames; monitor + IVC **subscribe** — never dual-open DShow |
 | **Input–Video Coupler (IVC)** | DualSense edges join `clock_ns` / `frame_seq` for co-occurrence *coupling* (observation only) |
 | **Two-speed ClutchBot** | `path=fast` video+input soft acts; OCR/outcome is `path=confirm` referee (never invents scores on fast) |
+| **A2A bus (optional)** | Gemini scene ↔ DeepSeek chat via Quicksilver; local policy veto; does not replace OCR |
 | **Local HDMI Foundry** | True capture-ring clips (`clips/*.mp4`) + optional `.buttons.json` sidecars — not Twitch Helix-only |
 | **Causal event bus** | Every event carries `session_id` + `clock_ns` + `source_lobe` |
 
@@ -174,6 +175,7 @@ python -m qoresence.cli --play --deck --monitor --controller --streamer-device <
 | [docs/TWO_SPEED_CLUTCHBOT.md](docs/TWO_SPEED_CLUTCHBOT.md) | Fast video+input path; OCR confirm |
 | [docs/PRIORITY_INTEGRATIONS.md](docs/PRIORITY_INTEGRATIONS.md) | Timeline · prediction lifecycle · clip chapters |
 | [docs/DRIVE_GRAPH.md](docs/DRIVE_GRAPH.md) | DriveGraph climax · fast↔confirm match · Why/chapters |
+| [docs/A2A_CLUTCHBOT.md](docs/A2A_CLUTCHBOT.md) | Gemini↔DeepSeek A2A bus · Quicksilver Pro |
 | [docs/RETINA_DECK_UIUX.md](docs/RETINA_DECK_UIUX.md) | Lens / Rail / Theater |
 | [docs/clutchbot_setup.md](docs/clutchbot_setup.md) | Twitch tokens & scopes |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases & versioning |

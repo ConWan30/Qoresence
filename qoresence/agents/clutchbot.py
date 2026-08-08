@@ -12,7 +12,7 @@ import logging
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any  # noqa: F401 used by A2A / backends
 
 from qoresence.core import (
     BaseEvent,
@@ -35,6 +35,13 @@ from .prediction_lifecycle import PredictionLifecycleManager, get_prediction_lif
 from .session_memory import SessionMemory
 from .situation_model import SituationModel
 from .twitch_client import TwitchIRCClient
+
+# Optional A2A (Gemini scene ↔ DeepSeek chat)
+try:
+    from qoresence.a2a.orchestrator import A2AOrchestrator, get_a2a_orchestrator
+except Exception:  # pragma: no cover
+    A2AOrchestrator = None  # type: ignore
+    get_a2a_orchestrator = None  # type: ignore
 
 log = logging.getLogger(__name__)
 
@@ -93,6 +100,7 @@ class ClutchBotAgent:
         # Two-speed: fast = video+input co-occurrence; confirm = OCR/outcome referee
         self._fast = FastMomentEngine()
         self._pred_life: PredictionLifecycleManager = get_prediction_lifecycle()
+        self._a2a: Any = None
         self._executor = ActionExecutor()
         self._memory = SessionMemory(
             output_path=Path(config.memory_path) if config.memory_path else None
@@ -145,13 +153,19 @@ class ClutchBotAgent:
             self._wire_prediction_lifecycle()
         except Exception as e:
             log.debug("prediction lifecycle wire skipped: %s", e)
+        # Optional A2A bus (Gemini ↔ DeepSeek) — sparse, background only
+        try:
+            self._wire_a2a()
+        except Exception as e:
+            log.debug("A2A wire skipped: %s", e)
         log.info(
             "ClutchBot started: persona=%s features=%s backends=%s max_chat_per_min=%s "
-            "two_speed=fast+confirm (OCR is referee, not starter)",
+            "two_speed=fast+confirm a2a=%s (OCR is referee, not starter)",
             self.config.persona,
             sorted(self._features),
             [b.name() for b in self._executor.backends],
             self.config.max_messages_per_min,
+            bool(self._a2a and getattr(self._a2a, "enabled", False)),
         )
         return True
 
@@ -242,6 +256,8 @@ class ClutchBotAgent:
                     allow_open = True
                 if allow_open:
                     self._pred_life.try_open(coupling=cval, clock_ns=event.clock_ns)
+            # Sparse A2A on drive pressure / high coupling (never on grab thread await)
+            self._maybe_a2a_trigger(coupling=cval, event=event)
         except Exception as e:
             log.debug("pred lifecycle tick: %s", e)
 
@@ -433,6 +449,102 @@ class ClutchBotAgent:
             )
         except Exception:
             return True
+
+    def _wire_a2a(self) -> None:
+        """Enable Gemini↔DeepSeek A2A when QORESENCE_A2A / config says so."""
+        import os
+
+        from qoresence.a2a.orchestrator import A2AOrchestrator
+
+        env_on = os.environ.get("QORESENCE_A2A", "0").strip() in {"1", "true", "yes"}
+        cfg_on = bool(getattr(self.config, "a2a_enabled", False))
+        if not (env_on or cfg_on):
+            self._a2a = None
+            return
+
+        def _on_commit(act) -> None:
+            # Map CommitAct → ScoredMoment-like dispatch on chat path
+            try:
+                from qoresence.agents.moment_scorer import ScoredMoment
+
+                moment = ScoredMoment(
+                    triggered=True,
+                    weight=0.55,
+                    action=str(getattr(act, "action", "chat") or "chat"),
+                    message=str(getattr(act, "text", "") or "")[:140],
+                    reason=str(getattr(act, "reason", "a2a_commit")),
+                    cooldown_key="a2a_chat",
+                    payload={
+                        "path": getattr(act, "path", "fast"),
+                        "factual": bool(getattr(act, "factual", False)),
+                        "source": "a2a",
+                        **(getattr(act, "payload", None) or {}),
+                    },
+                )
+                # Minimal synthetic event for dispatch
+                class _E:
+                    type = type("T", (), {"value": "a2a_commit"})()
+                    clock_ns = clock_ns()
+                    payload = {}
+
+                self._dispatch_moments([moment], _E(), path_label=str(moment.payload.get("path") or "fast"))
+            except Exception as e:
+                log.warning("A2A commit dispatch failed: %s", e)
+
+        self._a2a = A2AOrchestrator(
+            enabled=True,
+            on_commit=_on_commit,
+            persona=str(self.config.persona or "neutral"),
+        )
+        try:
+            self._a2a.bus.set_retina_mirror(self.bus, session_id=self.bus.session_id)
+        except Exception:
+            pass
+        log.info(
+            "A2A enabled (gemini_live=%s deepseek_live=%s)",
+            self._a2a.gemini.live,
+            self._a2a.deepseek.live,
+        )
+
+    def _maybe_a2a_trigger(self, *, coupling: float, event: BaseEvent) -> None:
+        if not self._a2a or not getattr(self._a2a, "enabled", False):
+            return
+        try:
+            phase = None
+            frame_seq = None
+            try:
+                from qoresence.agents.drive_graph import active_drive_graph
+
+                g = active_drive_graph()
+                if g is not None:
+                    phase = g.phase()
+            except Exception:
+                phase = None
+            try:
+                from qoresence.monitor.frame_hub import get_latest_stamp
+
+                st = get_latest_stamp()
+                if st.get("has_frame"):
+                    frame_seq = st.get("seq")
+            except Exception:
+                pass
+            jpeg = None
+            try:
+                from qoresence.vision.clip_buffer import get_latest_jpeg
+
+                jpeg = get_latest_jpeg()
+            except Exception:
+                jpeg = None
+            self._a2a.maybe_trigger_from_drive(
+                situation=self._situation.to_dict(),
+                coupling=coupling,
+                drive_phase=phase,
+                frame_seq=frame_seq,
+                jpeg_bytes=jpeg,
+                path="fast",
+            )
+        except Exception as e:
+            log.debug("A2A trigger skipped: %s", e)
 
     def _log_drive_graph_sample(self, event: BaseEvent) -> None:
         """Thin calibration: match_rate / climax / phase → learning log (non-blocking)."""
