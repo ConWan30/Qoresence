@@ -59,6 +59,6 @@ ClutchBot score_changed
 ## Operator
 
 ```powershell
-python -m qoresence.cli --play --deck --controller --streamer-device <OBS_VCAM> --streamer-fps 30
+python -m qoresence.cli --play --deck --controller --streamer-device 0 --streamer-fps 60
 # After fast arm + play: GET /api/timeline → drive_graph.phase / climax
 ```

@@ -60,11 +60,10 @@ Outcome + Visual (OCR/VLM) ──► MomentScorer.score(...)
 
 ```text
 # Confirm-only (prior behavior; no DualSense)
-python -m qoresence.cli --play --deck --streamer-device <OBS_VCAM>
+python -m qoresence.cli --play --deck --streamer-device 0 --streamer-fps 60
 
 # Two-speed: realtime pad heat + OCR confirm
-$env:QORESENCE_IVC_LAG_HI_MS = "200"   # Pattern A VCam
-python -m qoresence.cli --play --deck --controller --monitor --streamer-device <OBS_VCAM>
+python -m qoresence.cli --play --deck --controller --monitor --streamer-device 0 --streamer-fps 60
 ```
 
 Fast path **improves** with controller; without it, stack is confirm-only (no crash).

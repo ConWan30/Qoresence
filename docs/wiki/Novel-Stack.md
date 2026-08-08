@@ -14,13 +14,14 @@ What is distinctive about Qoresence (vs “another OBS plugin bot”).
 
 No duplicated situation engines per glass.
 
-## 2. Capture ownership (Pattern A)
+## 2. Capture ownership (Pattern B recommended)
 
 ```text
-PS5 → HDMI card → OBS (physical owner) → Virtual Camera → Qoresence streamer
+PS5 → HDMI card → Qoresence StreamerRuntime (physical owner)
+OBS (optional) → Browser Source Lens + game/display capture for RTMP
 ```
 
-Qoresence never needs to fight OBS for the card. Low-lag eye remains **OBS Preview**.
+**One DShow device, one owner.** Pattern A (OBS → Virtual Cam → Qoresence) remains documented as legacy.
 
 ## 3. FrameHub — zero second capture
 
@@ -36,7 +37,7 @@ Monitor and IVC **only read**. Closing monitor does not stop capture.
 HID edges → `InputRing` → IVC samples FrameHub stamp at 10–20 Hz →  
 inputs in lag band `[t_video − lag_hi, t_video − lag_lo]` → `coupling ∈ [0,1]` bus event.
 
-Default lag 20–120 ms; Pattern A VCam often needs ~200 ms hi (`QORESENCE_IVC_LAG_HI_MS`).
+Default lag 20–120 ms; legacy Pattern A VCam often needs ~200 ms hi (`QORESENCE_IVC_LAG_HI_MS`).
 
 ## 5. Local Foundry
 

@@ -6,11 +6,11 @@
 
 | Pattern | Physical card | Qoresence streamer | When |
 |---------|---------------|--------------------|------|
-| **A (recommended)** | OBS | OBS Virtual Camera index | Daily streaming |
-| **B (lab)** | Qoresence | Physical index | OBS must not open that device |
+| **B (recommended)** | **Qoresence** | Physical index (e.g. `USB3.0 Video` = 0) | Daily pilot going forward |
+| **A (legacy)** | OBS | OBS Virtual Camera index | Only if you need OBS Preview on the card |
 
 ## Why
 
-Dual-open causes black frames, thrash, and failed starts. OBS Preview is the low-lag eye on Pattern A; Qoresence is situation, clips, ClutchBot, IVC.
+Dual-open causes black frames, thrash, and failed starts. Qoresence owns the card for full-rate OCR, FrameHub, Monitor, and IVC. OBS (optional) uses Browser Source for Lens and game/display capture for RTMP — not the same DShow device.
 
 Full doc: [docs/OBS_OWNS_CARD.md](https://github.com/ConWan30/Qoresence/blob/main/docs/OBS_OWNS_CARD.md)

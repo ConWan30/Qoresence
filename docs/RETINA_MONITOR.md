@@ -6,9 +6,8 @@ Windows-first local window that blits **the same frames** Qoresence already hold
 
 ## Prerequisites
 
-**Phase 1 pilot must work first** (OBS owns card + Virtual Cam, or lab Pattern B).
-
-See [OBS_OWNS_CARD.md](OBS_OWNS_CARD.md).
+**Capture ownership:** prefer **Qoresence owns the physical card** (see [OBS_OWNS_CARD.md](OBS_OWNS_CARD.md)).  
+Do not dual-open the same DShow device with OBS.
 
 ---
 
@@ -37,11 +36,11 @@ StreamerRuntime ──push──► clip_buffer (Foundry / MJPEG / clips)
 ## Usage
 
 ```text
-# Pattern A (recommended) — OBS physical + Virtual Cam
-python -m qoresence.cli --play --deck --monitor --streamer-device <OBS_VCAM> --streamer-fps 30
-
-# Pattern B lab — Qoresence owns physical card (OBS must not open that device)
+# Recommended — Qoresence owns physical card (OBS must not open that device)
 python -m qoresence.cli --play --deck --monitor --streamer-device 0 --streamer-fps 60
+
+# Legacy — OBS physical + Virtual Cam
+python -m qoresence.cli --play --deck --monitor --streamer-device <OBS_VCAM> --streamer-fps 30
 ```
 
 Optional display width:
@@ -87,11 +86,11 @@ Prefer the in-process `--monitor` flag.
 | Black / “waiting for FrameHub” | Streamer not running or wrong device; check `--streamer-list` |
 | Window never opens | Install opencv; check log for monitor error |
 | Esc / close window | Stops **only** monitor |
-| Dual-open physical card | Use Pattern A Virtual Cam index |
+| Dual-open physical card | Close OBS Video Capture on that device; Pattern B owns physical index |
 
 ---
 
 ## Related
 
-- [OBS_OWNS_CARD.md](OBS_OWNS_CARD.md) — Phase 1 capture ownership  
-- [tools/obs/VIRTUAL_CAM.md](../tools/obs/VIRTUAL_CAM.md) — operator runbook  
+- [OBS_OWNS_CARD.md](OBS_OWNS_CARD.md) — capture ownership (Pattern B recommended)  
+- [tools/obs/VIRTUAL_CAM.md](../tools/obs/VIRTUAL_CAM.md) — legacy Pattern A only  

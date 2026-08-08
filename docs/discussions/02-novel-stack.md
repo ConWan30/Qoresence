@@ -1,5 +1,5 @@
 ---
-title: "Novel stack: FrameHub, IVC, OBS-owns-card, one brain N glasses"
+title: "Novel stack: FrameHub, IVC, Qoresence-owns-card, one brain N glasses"
 category: Announcements
 ---
 
@@ -7,8 +7,8 @@ category: Announcements
 
 ## Shipped on main
 
-### OBS owns the card (Pattern A)
-Physical HDMI stays in OBS. Qoresence opens **Virtual Camera** only.  
+### Qoresence owns the card (Pattern B recommended)
+Physical HDMI → Qoresence StreamerRuntime. OBS (optional) uses Browser Source for Lens + game/display capture — not dual-open DShow. Pattern A VCam is legacy.  
 Doc: `docs/OBS_OWNS_CARD.md`
 
 ### FrameHub + Retina Monitor
@@ -30,7 +30,7 @@ Most “game bots” either scrape cloud APIs or open the same capture card twic
 ## Try it
 
 ```text
-python -m qoresence.cli --play --deck --monitor --controller --streamer-device <OBS_VCAM> --streamer-fps 30
+python -m qoresence.cli --play --deck --monitor --controller --streamer-device 0 --streamer-fps 60
 ```
 
-Feedback on lag bands (VCam) and DualSense Edge decode noise is especially useful.
+Feedback on DualSense Edge decode noise and OCR scorebug stability is especially useful.

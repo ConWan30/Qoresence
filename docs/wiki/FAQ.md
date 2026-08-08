@@ -1,19 +1,19 @@
 # FAQ
 
 ### Black frames / failed open device 0
-OBS already owns the physical card. Use Virtual Cam index from `--streamer-list`.
+Something else already owns the physical card (usually OBS Video Capture). Close/disable that source, then restart Qoresence with `--streamer-device 0`. Only use OBS Virtual Camera if you intentionally run legacy Pattern A.
 
 ### Controller failed to start
 Pad must be PC-visible. Plug USB or use Remote Play. Log lists HID candidates. Video path continues without pad.
 
 ### Coupling always ~0
-No edges in lag band, or controller off. Press buttons; widen `QORESENCE_IVC_LAG_HI_MS` for VCam.
+No edges in lag band, or controller off. Press buttons; widen `QORESENCE_IVC_LAG_HI_MS` only if using Virtual Cam lag.
 
 ### Coupling always ~1 / noisy buttons
 DualSense Edge report layout may still chatter; pipeline is valid — decode harden is on roadmap.
 
 ### Deck LIVE lags behind TV
-Expected for MJPEG ops glass. Use OBS Preview for aim; Monitor for local blit; LIVE for “is path alive?”.
+Expected for MJPEG ops glass. Use Retina Monitor for local blit; LIVE for “is path alive?”.
 
 ### No buttons.json after clip
 No InputRing events in export window (controller off or silent pad).

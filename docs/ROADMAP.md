@@ -8,7 +8,7 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 ## Shipped milestones (2026)
 
 ### Capture ownership & Deck glass ✓
-- [x] Pattern A: OBS owns physical card → Virtual Cam → Qoresence (`docs/OBS_OWNS_CARD.md`)
+- [x] Pattern B (recommended): Qoresence owns physical card; Pattern A VCam legacy (`docs/OBS_OWNS_CARD.md`)
 - [x] Retina Deck: Lens `/overlay.html`, Theater `/deck.html`, LIVE `/video`
 - [x] Async MJPEG + latency-oriented LIVE path
 - [x] Local HDMI clip buffer (Foundry) + browser-safe H.264 remux
@@ -102,7 +102,7 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 | 0.2.0 | Outcome + visual lobes |
 | 0.3.0 | ClutchBot MVP |
 | 0.4.0 | Packaging + `--stream` / `--play` |
-| **0.5.0** | **Deck LIVE + OBS owns card + FrameHub monitor + IVC** ← current main |
+| **0.5.0** | **Deck LIVE + Qoresence owns card + FrameHub monitor + IVC** ← current main |
 | 0.6.0 | Profile expansion + Edge HID polish |
 | 1.0.0 | Stable ClutchBot + operator glass release |
 

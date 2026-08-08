@@ -31,7 +31,7 @@ $env:QORESENCE_A2A_DEEPSEEK = "1"         # live DeepSeek (else stub)
 # $env:QORESENCE_A2A_GEMINI_MODEL = "gemini-3.5-flash-lite"
 # $env:QORESENCE_A2A_DEEPSEEK_MODEL = "deepseek-v4-flash"
 
-python -m qoresence.cli --play --deck --controller --a2a --streamer-device <OBS_VCAM>
+python -m qoresence.cli --play --deck --controller --a2a --streamer-device 0 --streamer-fps 60
 ```
 
 Without API keys, **stubs** still run a full scene→chat→policy cycle (offline tests pass).

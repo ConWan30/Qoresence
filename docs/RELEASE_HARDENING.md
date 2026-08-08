@@ -59,5 +59,5 @@ Not a multi-hour live soak — a CI-safe regression soak.
 ```powershell
 python scripts/check_release_hardening.py
 python -m pytest tests/test_security_localhost.py tests/test_soak_synthetic.py tests/test_a2a_policy.py -q
-# manual: Pattern A OBS VCam, --play --deck, confirm scores stabilize, A2A optional
+# manual: Pattern B physical card, --play --deck, confirm scores stabilize, A2A optional
 ```

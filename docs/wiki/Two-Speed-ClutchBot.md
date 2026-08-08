@@ -8,5 +8,5 @@ ClutchBot evolved purpose: **act on video + controller in realtime**; **OCR conf
 Full doc: [docs/TWO_SPEED_CLUTCHBOT.md](https://github.com/ConWan30/Qoresence/blob/main/docs/TWO_SPEED_CLUTCHBOT.md)
 
 ```text
-python -m qoresence.cli --play --deck --controller --streamer-device <OBS_VCAM>
+python -m qoresence.cli --play --deck --controller --streamer-device 0 --streamer-fps 60
 ```

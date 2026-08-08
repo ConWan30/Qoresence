@@ -30,7 +30,7 @@ Qoresence is a **local, opt-in observation layer** that:
 ## Principles
 
 1. **All lobes default OFF** — operator enables deliberately  
-2. **One physical card → one owner** (usually OBS)  
+2. **One physical card → one owner** (recommended: Qoresence)  
 3. **Shared monotonic clock** joins modalities  
 4. **Co-occurrence language** for input↔video (`coupling`), not “proof”  
 

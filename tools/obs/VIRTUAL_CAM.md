@@ -1,8 +1,10 @@
-# OBS Virtual Camera → Qoresence (operator runbook)
+# OBS Virtual Camera → Qoresence (legacy Pattern A)
 
-**Full docs:** [docs/OBS_OWNS_CARD.md](../../docs/OBS_OWNS_CARD.md)
+**Recommended going forward:** Qoresence owns the physical card — see [docs/OBS_OWNS_CARD.md](../../docs/OBS_OWNS_CARD.md) and [README](../../README.md).
 
-## Rule
+Use this runbook **only** when you need OBS Preview as the exclusive low-lag eye on the physical card.
+
+## Rule (Pattern A)
 One physical card → **OBS only**. Qoresence uses **OBS Virtual Camera**.
 
 ## Steps
@@ -12,13 +14,14 @@ One physical card → **OBS only**. Qoresence uses **OBS Virtual Camera**.
    ```text
    python -m qoresence.cli --streamer-list
    ```
-4. Note index of **OBS Virtual Camera** (look for `[recommended when OBS owns card]`).
+4. Note index of **OBS Virtual Camera** (look for `[legacy — only if OBS owns physical card]`).
 5. Start Qoresence (replace `N`):
    ```text
    python -m qoresence.cli --play --deck --streamer-device N --streamer-fps 30
    ```
 6. Lens: Browser Source `http://127.0.0.1:8765/overlay.html` (not `file://`).
 7. Deck: `http://127.0.0.1:8765/deck.html` (ops / clips — not competitive eye).
+8. Optional: `$env:QORESENCE_IVC_LAG_HI_MS = "200"` for VCam lag.
 
 ## Verify
 ```powershell
@@ -27,10 +30,10 @@ One physical card → **OBS only**. Qoresence uses **OBS Virtual Camera**.
 ```
 
 ## If open fails
-- Device busy on physical index → use VCam index, not `0`.  
+- Device busy on physical index → use VCam index, not `0` (Pattern A only).  
 - VCam black → Start Virtual Camera in OBS.  
 - Privacy guard → wrong device (webcam).  
 
 ## Do not
 - Open USB3.0 in both OBS and Qoresence.  
-- Use Theater LIVE as your aim monitor (use OBS Preview).  
+- Use Theater LIVE as your aim monitor (use OBS Preview under Pattern A; Retina Monitor under Pattern B).  

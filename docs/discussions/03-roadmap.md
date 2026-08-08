@@ -5,7 +5,7 @@ category: Announcements
 
 # Roadmap snapshot
 
-**v0.5.x on main:** Deck LIVE polish · OBS owns card · FrameHub monitor · Input–Video Coupler · DualSense Edge open fix.
+**v0.5.x on main:** Deck LIVE polish · Qoresence owns card (Pattern B) · FrameHub monitor · Input–Video Coupler · DualSense Edge open fix.
 
 ### Next up
 - DualSense Edge HID report decode harden (less phantom edges)  

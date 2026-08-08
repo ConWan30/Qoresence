@@ -8,8 +8,8 @@
 |------|----------|
 | [What-is-Qoresence](What-is-Qoresence) | Mission, planes, non-goals |
 | [Novel-Stack](Novel-Stack) | Architecture that differentiates the project |
-| [Operator-Runbook](Operator-Runbook) | Daily Pattern A pilot commands |
-| [Capture-Ownership](Capture-Ownership) | OBS owns card vs lab Pattern B |
+| [Operator-Runbook](Operator-Runbook) | Daily Pattern B pilot (Qoresence owns card) |
+| [Capture-Ownership](Capture-Ownership) | Qoresence owns card (recommended) vs legacy VCam |
 | [Retina-Deck-and-Monitor](Retina-Deck-and-Monitor) | Glasses: Lens, Theater, LIVE, FrameHub monitor |
 | [Controller-Video-Sync](Controller-Video-Sync) | InputRing + IVC |
 | [Two-Speed-ClutchBot](Two-Speed-ClutchBot) | Fast video+input; OCR referee |

@@ -504,7 +504,7 @@ class QoresenceApp:
             try:
                 from qoresence.sync.ivc import start_ivc
 
-                # Pattern A (OBS VCam): allow wider lag band via env or default 120
+                # Physical card: default 120 ms. Legacy VCam: set QORESENCE_IVC_LAG_HI_MS=200
                 lag_hi = 120.0
                 try:
                     import os as _os_ivc
@@ -918,7 +918,8 @@ def main():
         "--streamer-device",
         type=int,
         default=0,
-        help="Streamer DShow/MSMF device index (0=USB3.0 Video, 1=720p HD Camera [blocked], 2=OBS Virtual Camera)",
+        help="Streamer DShow device index — preferred: physical card (e.g. 0=USB3.0 Video). "
+        "Use OBS Virtual Camera index only if OBS owns the physical card (legacy).",
     )
     parser.add_argument(
         "--streamer-backend",
@@ -1143,13 +1144,15 @@ def main():
                 backend = "dshow"
             status = "OK" if allowed else "BLOCKED"
             note = ""
-            if _is_obs_virtual_camera_name(name):
-                note = "  [recommended when OBS owns card]"
+            if allowed and not _is_obs_virtual_camera_name(name) and "camera" not in name.lower():
+                note = "  [recommended — Qoresence owns card]"
+            elif _is_obs_virtual_camera_name(name):
+                note = "  [legacy — only if OBS owns physical card]"
             print(f"{idx:<6} {status:<8} {backend:<8} {name}{note}")  # noqa: T201
         print("")  # noqa: T201
         print(  # noqa: T201
-            "Pattern A: OBS holds physical HDMI → Start Virtual Camera → "
-            "--streamer-device <OBS Virtual Camera index>. See docs/OBS_OWNS_CARD.md"
+            "Recommended: Qoresence owns physical HDMI (--streamer-device <card index>). "
+            "Close OBS Video Capture on that device first. See docs/OBS_OWNS_CARD.md"
         )
         sys.exit(0)
 

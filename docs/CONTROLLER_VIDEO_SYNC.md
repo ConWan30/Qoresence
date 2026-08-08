@@ -32,11 +32,11 @@ Input–Video Coupler (10–20 Hz)
 
 ## Prerequisites
 
-1. **Phase 1** capture ownership ([OBS_OWNS_CARD.md](OBS_OWNS_CARD.md)): usually OBS owns physical card → Virtual Cam → Qoresence.  
+1. **Capture ownership** ([OBS_OWNS_CARD.md](OBS_OWNS_CARD.md)): **recommended Pattern B** — Qoresence owns the physical card (`--streamer-device 0`). Pattern A (OBS → Virtual Cam) is legacy.  
 2. Pad must be **PC-visible** (USB cable, or PS Remote Play / similar so Windows sees DualSense HID).  
-3. Optional: Phase 2 Retina Monitor ([RETINA_MONITOR.md](RETINA_MONITOR.md)) for local HUD.
+3. Optional: Retina Monitor ([RETINA_MONITOR.md](RETINA_MONITOR.md)) for local HUD.
 
-Controller is **independent** of who owns the HDMI device. Virtual Cam adds display lag → widen IVC lag band if needed.
+Controller is **independent** of who owns the HDMI device. Direct card ownership usually keeps lag in the default band; Virtual Cam (legacy) needs a wider IVC lag band.
 
 ---
 
@@ -44,13 +44,13 @@ Controller is **independent** of who owns the HDMI device. Virtual Cam adds disp
 
 ```text
 # Play stack + DualSense coupling (default controller OFF without flag)
-python -m qoresence.cli --play --deck --controller --streamer-device <OBS_VCAM> --streamer-fps 30
+python -m qoresence.cli --play --deck --controller --streamer-device 0 --streamer-fps 60
 
 # + native monitor HUD (buttons + coupling)
-python -m qoresence.cli --play --deck --controller --monitor --streamer-device <OBS_VCAM>
+python -m qoresence.cli --play --deck --controller --monitor --streamer-device 0 --streamer-fps 60
 ```
 
-Wider lag for Pattern A VCam (optional):
+Wider lag only if using legacy Pattern A VCam:
 
 ```text
 $env:QORESENCE_IVC_LAG_HI_MS = "200"   # PowerShell; default 120, max 250

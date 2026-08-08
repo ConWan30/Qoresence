@@ -21,7 +21,7 @@ Start: `--play --deck` or `--deck` with lobes enabled.
 
 ```text
 pip install "qoresence[monitor]"
-python -m qoresence.cli --play --deck --monitor --streamer-device <VCAM>
+python -m qoresence.cli --play --deck --monitor --streamer-device 0 --streamer-fps 60
 ```
 
 Docs: [RETINA_MONITOR.md](https://github.com/ConWan30/Qoresence/blob/main/docs/RETINA_MONITOR.md)

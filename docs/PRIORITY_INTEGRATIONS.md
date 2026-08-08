@@ -23,8 +23,7 @@ FastMoment / MomentScorer execute
 ## Operator
 
 ```powershell
-$env:QORESENCE_IVC_LAG_HI_MS = "200"
-python -m qoresence.cli --play --deck --controller --monitor --streamer-device <OBS_VCAM> --streamer-fps 30
+python -m qoresence.cli --play --deck --controller --monitor --streamer-device 0 --streamer-fps 60
 ```
 
 - Deck **Why it fired** strip updates on fast/confirm moments  

@@ -18,7 +18,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 | Idea | Why it matters |
 |------|----------------|
 | **One brain → N glasses** | Situation + events once; Lens (OBS), Rail/Theater (Deck), Monitor, Twitch panel are *views* |
-| **OBS owns the card** | Physical HDMI has one owner; Qoresence consumes **OBS Virtual Camera** (Pattern A) |
+| **Qoresence owns the card** | Physical HDMI has one owner — Qoresence Streamer; OBS uses Browser Source for Lens only (no dual-open) |
 | **FrameHub (no second capture)** | Streamer already holds BGR frames; monitor + IVC **subscribe** — never dual-open DShow |
 | **Input–Video Coupler (IVC)** | DualSense edges join `clock_ns` / `frame_seq` for co-occurrence *coupling* (observation only) |
 | **Two-speed ClutchBot** | `path=fast` video+input soft acts; OCR/outcome is `path=confirm` referee (never invents scores on fast) |
@@ -33,36 +33,23 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 ## Architecture (novel stack)
 
 ```text
- PS5 / console HDMI
+ PS5 HDMI → capture card (physical DShow, e.g. USB3.0 Video)
         │
         ▼
- ┌──────────────────┐     Pattern A (recommended)
- │ OBS Video Capture│──── Start Virtual Camera
- │ (owns physical)  │
- └────────┬─────────┘
-          │ VCam DShow
-          ▼
  ┌────────────────────────────────────────────────────────────┐
- │              StreamerRuntime (UVC / OBS VCam)              │
- │  clip_buffer.push  ·  FrameHub.publish(frame, clock_ns)    │
+ │   StreamerRuntime OWNS card  (--streamer-device 0)          │
+ │   clip_buffer · FrameHub · OCR · Foundry                   │
  └───────┬──────────────────────────────┬─────────────────────┘
          │                              │
          ▼                              ▼
-  Foundry / MJPEG LIVE           Retina Monitor (OpenCV)
-  Deck /video                    FrameHub blit only
-         │
-         │   DualSense HID (optional --controller)
-         ▼
-  ControllerRuntime ──► InputRing ──► IVC (10–20 Hz)
-         │                 lag band 20–120/200 ms
-         ▼                      │
-  RetinaEventBus ◄──────────────┘  coupling_score
-  (JSONL + WebSocket)
-         │
-    ┌────┼────┬─────────────┐
-    ▼    ▼    ▼             ▼
- Situation  ClutchBot   Overlay    optional trio-retina
- Model      Deck feed   Lens       / fusion research
+  Deck LIVE / Retina Monitor     DualSense → InputRing → IVC
+         │                              │
+         └──────────┬───────────────────┘
+                    ▼
+             RetinaEventBus → Situation / ClutchBot / A2A
+                    │
+    OBS (optional stream): Browser Source ONLY
+    http://127.0.0.1:8765/overlay.html  — do NOT open the same physical card
 ```
 
 **Planes**
@@ -81,7 +68,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 
 | Commit / theme | What landed |
 |----------------|-------------|
-| **OBS owns card** | Pattern A docs + Virtual Cam pilot path |
+| **Capture ownership** | Qoresence owns physical card (Pattern B); Pattern A VCam still documented |
 | **Retina Deck LIVE** | Async MJPEG, lower lag, streamer console UX |
 | **FrameHub + Retina Monitor** | `--monitor` native OpenCV glass; no second capture |
 | **Input–Video Coupler** | InputRing + IVC; coupling bus events; clip `.buttons.json` |
@@ -98,16 +85,14 @@ git clone https://github.com/ConWan30/Qoresence.git
 cd Qoresence
 pip install -e ".[monitor]"   # opencv for Retina Monitor
 
-# 1) OBS: physical capture → Start Virtual Camera
-# 2) List devices; pick OBS Virtual Camera index
+# 1) Close OBS Video Capture on the physical card (no dual-open)
+# 2) List devices; pick physical HDMI card (e.g. USB3.0 Video = 0)
 python -m qoresence.cli --streamer-list
 
-# 3) Play stack — Deck theater + Lens overlay
-python -m qoresence.cli --play --deck --streamer-device <OBS_VCAM> --streamer-fps 30
+# 3) Play stack — Qoresence owns card
+python -m qoresence.cli --play --deck --monitor --controller --streamer-device 0 --streamer-fps 60
 
-# 4) Optional: native monitor + DualSense coupling
-$env:QORESENCE_IVC_LAG_HI_MS = "200"
-python -m qoresence.cli --play --deck --monitor --controller --streamer-device <OBS_VCAM> --streamer-fps 30
+# OBS (optional stream): Browser Source only → http://127.0.0.1:8765/overlay.html
 ```
 
 | URL | Glass |
@@ -147,7 +132,7 @@ python -m qoresence.cli --play --deck --monitor --controller --streamer-device <
 | `--deck` | off | Retina Deck HTTP/WS on `:8765` |
 | `--monitor` | off | Native FrameHub window |
 | `--controller` | off | DualSense HID + InputRing + IVC |
-| `--streamer-device N` | 0 | Prefer OBS VCam index under Pattern A |
+| `--streamer-device N` | 0 | Physical card index (recommended); VCam only if OBS owns card |
 | `--clutchbot` / Twitch flags | off | IRC + Helix (see clutchbot setup) |
 
 ---
@@ -169,7 +154,7 @@ python -m qoresence.cli --play --deck --monitor --controller --streamer-device <
 | Doc | Topic |
 |-----|--------|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Core design |
-| [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Capture ownership Pattern A/B |
+| [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Capture ownership — Qoresence owns card (recommended) |
 | [docs/RETINA_MONITOR.md](docs/RETINA_MONITOR.md) | Native monitor / FrameHub |
 | [docs/CONTROLLER_VIDEO_SYNC.md](docs/CONTROLLER_VIDEO_SYNC.md) | IVC + InputRing |
 | [docs/TWO_SPEED_CLUTCHBOT.md](docs/TWO_SPEED_CLUTCHBOT.md) | Fast video+input path; OCR confirm |

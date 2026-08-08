@@ -1,18 +1,18 @@
-# OBS owns the capture card — Qoresence via Virtual Camera
+# Capture card ownership — Qoresence first
 
-Pilot streamer model for Qoresence. **One physical DShow device has one owner.**
+**One physical DirectShow device has one owner.** Going forward the **recommended** pilot is **Qoresence owns the card**.
 
 ---
 
-## 1. Role split
+## 1. Role split (recommended)
 
 | Job | Owner | Notes |
 |-----|--------|--------|
-| **Low-lag eye on gameplay** | **OBS Preview / Program** | Physical HDMI Video Capture Device |
-| **Situation, clips, ClutchBot** | **Qoresence** | Streamer source = **OBS Virtual Camera** |
-| **On-stream HUD** | **Lens** Browser Source | `http://127.0.0.1:8765/overlay.html` (never `file://`) |
-| **Ghost Theater LIVE `/video`** | Deck ops glass | Health / context only — **not** the competitive view |
-| **Audience stream** | Twitch / RTMP from OBS | Never use Twitch delay as your personal monitor |
+| **Physical HDMI capture** | **Qoresence** StreamerRuntime | `--streamer-device` = physical card (e.g. `USB3.0 Video` index **0**) |
+| **Low-lag operator eye** | **Retina Monitor** (`--monitor`) and/or Deck LIVE | Native FrameHub blit; not Twitch delay |
+| **On-stream HUD** | **Lens** Browser Source in OBS | `http://127.0.0.1:8765/overlay.html` — **Browser only**, no Video Capture on the same card |
+| **Audience stream** | OBS (optional) | Window/Display/Game capture of the gameplay monitor, **or** NDI/other — **not** the same DShow device Qoresence holds |
+| **Situation, clips, ClutchBot** | Qoresence | True HDMI ring + OCR + agents |
 
 ---
 
@@ -22,125 +22,95 @@ Pilot streamer model for Qoresence. **One physical DShow device has one owner.**
 
 | Wrong | Result |
 |-------|--------|
-| OBS Video Capture = USB3.0 Video **and** `--streamer-device 0` | Device busy, black frames, thrash, failed start |
-| Two apps “sharing” the card | Unreliable DShow exclusive access |
+| OBS Video Capture = USB3.0 Video **and** `--streamer-device 0` | Device busy, black frames, thrash |
+| Habit of leaving OBS on the card while “testing” Qoresence | Silent failures |
 
 | Right | Result |
 |-------|--------|
-| OBS holds physical card → Virtual Cam → Qoresence | Stable pilot path |
-| Lab only: Qoresence holds physical; OBS does **not** open that device | Pattern B |
+| **Qoresence holds physical card** | Full-rate frames for OCR, Foundry, Monitor, IVC |
+| OBS uses Browser Source for Lens only | Overlay without fighting DShow |
+| (Legacy) OBS holds card → Virtual Cam → Qoresence | Pattern A — still supported, higher lag |
 
 ---
 
-## 3. Pattern A (recommended) — OBS owns card
+## 3. Pattern B (recommended) — Qoresence owns card
 
 ```text
 PS5 HDMI
   → capture card (physical DShow, e.g. USB3.0 Video)
-  → OBS Video Capture Device
-  → OBS Start Virtual Camera
-  → Qoresence StreamerRuntime (--streamer-device <OBS Virtual Camera index>)
-  → clip_buffer / Deck / ClutchBot / Lens
+  → Qoresence StreamerRuntime (--streamer-device 0)
+  → FrameHub / clip_buffer / OCR / Deck / ClutchBot / Monitor
 ```
 
-OBS Preview = real-time eye.  
-Qoresence = scores, moments, local HDMI-style clips from the **Virtual Cam** frames, overlays.
+**OBS setup when streaming:**
+
+1. **Remove or disable** any **Video Capture Device** source that points at the same physical card.  
+2. **Do not** Start Virtual Camera *from that card* if Qoresence already owns it.  
+3. Add **Browser Source** → `http://127.0.0.1:8765/overlay.html` for the Lens HUD.  
+4. Capture the stream with **Game Capture / Display Capture / Window Capture** of the PS5/TV path as you prefer — not dual-open of the card.
 
 ---
 
-## 4. Pattern B (lab only) — Qoresence owns card
+## 4. Pattern A (legacy) — OBS owns card
 
 ```text
-PS5 HDMI → card → Qoresence --streamer-device 0 (physical)
-OBS must NOT open that physical device (no dual-open).
+PS5 → card → OBS Video Capture → Virtual Camera → Qoresence --streamer-device <OBS_VCAM>
 ```
 
-Use only when you are not running OBS capture on the same card.  
-For daily streaming, prefer **Pattern A**.
+Use only if you need OBS Preview as the exclusive low-lag eye and accept Virtual Cam lag for Qoresence.  
+Widen IVC: `$env:QORESENCE_IVC_LAG_HI_MS = "200"`.
 
 ---
 
-## 5. Step-by-step — Pattern A
+## 5. Step-by-step — Pattern B (daily)
 
-1. **OBS**  
-   - Sources → **Video Capture Device** = physical HDMI card (e.g. `USB3.0 Video`).  
-   - Confirm Preview shows game (not webcam / black HDCP).
+1. **Close OBS capture of the physical card**  
+   - Delete/disable that Video Capture Device source, or exit OBS if unsure.
 
-2. **OBS → Tools → Start Virtual Camera**  
-   - Leave Virtual Camera running while Qoresence is live.
-
-3. **Lens (on-stream HUD)**  
-   - Browser Source URL: `http://127.0.0.1:8765/overlay.html`  
-   - 1920×1080, transparent, above game if stacking.  
-   - See [tools/obs/README.md](../tools/obs/README.md).
-
-4. **List devices**  
+2. **List devices**  
    ```text
    python -m qoresence.cli --streamer-list
    ```  
-   Find the row whose name is **OBS Virtual Camera** (annotated when present).
+   Use the **physical** row (e.g. `USB3.0 Video`), not `OBS Virtual Camera`, not webcam.
 
-5. **Start Qoresence** (example index `2` — use **your** list):  
+3. **Start Qoresence** (example — index **0** on this machine):  
    ```text
-   python -m qoresence.cli --play --deck --streamer-device 2 --streamer-fps 30
+   python -m qoresence.cli --play --deck --monitor --controller --streamer-device 0 --streamer-fps 60
    ```  
-   Do **not** point `--streamer-device` at the physical card index while OBS holds it.
+   (`--play` may raise FPS to 60 if you don’t pass `--streamer-fps`; explicit is fine.)
 
-6. **Deck** (ops, not competitive view):  
+4. **Optional stream**  
+   - OBS: Browser Source Lens URL only + display/game capture for RTMP.
+
+5. **Deck**  
    - http://127.0.0.1:8765/deck.html  
 
 ---
 
-## 6. Verify checklist
+## 6. Verify
 
 | Check | Expect |
 |--------|--------|
-| `(Invoke-RestMethod http://127.0.0.1:8765/health).state.video.has_frame` | `true` within ~10s |
-| `...health).clients` | ≥ 1 when Lens/Deck open |
-| Foundry **Make HDMI Clip** | MP4 under `clips/` + REPLAY works |
-| Lens pill | Updates when scorebug is readable |
-| OBS Preview | Still smooth (physical card) |
-
-Theater LIVE is **ops glass** (is HDMI path alive?). Do not use it as your aim/monitor.
+| Log `streamer source` | Physical name (e.g. USB3.0 Video), not OBS Virtual Camera |
+| `/health` → `video.has_frame` | `true` within ~10s |
+| Eye-check PNG | Game field, not black/webcam |
+| Dual-open | None — OBS not holding the same index |
 
 ---
 
-## 7. Failure matrix
+## 7. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---------|----------------|-----|
-| `Failed to open capture source 0` | OBS already owns physical card | Start Virtual Cam; use VCam index |
-| Black / frozen VCam | Virtual Camera not started | OBS → Start Virtual Camera |
-| Wrong device | Habit of `--streamer-device 0` | Re-run `--streamer-list` |
-| `PRIVACY GUARD` / person in frame | Webcam index or wrong source | Use VCam or allowed capture name only |
-| `has_frame: false` | Streamer not running / wrong index | Check list + VCam + logs |
-| Lens empty / `clients: 0` | `file://` or WS 403 / Deck down | HTTP overlay URL; restart `--play --deck` |
+| `Failed to open capture source 0` | OBS still owns card | Disable OBS Video Capture / close OBS |
+| Black / frozen | Wrong index or HDCP | `--streamer-list`; eye-check PNG |
+| Webcam privacy guard | Wrong device | Don’t use camera index |
+| Want OBS Preview lag feel | Pattern A | VCam index + stop Qoresence on physical |
 
 ---
 
-## 8. Phase 2 — Native Retina Monitor
+## 8. Related
 
-A **native Retina Monitor** blits the **same** frames Qoresence already holds (`FrameHub` ← streamer) with no JPEG browser path and **no second capture open**.
-
-```text
-python -m qoresence.cli --play --deck --monitor --streamer-device <OBS_VCAM> --streamer-fps 30
-```
-
-- Still one physical-card owner (usually OBS + VCam).  
-- Closing the monitor does not stop Deck/streamer.  
-- Full docs: **[RETINA_MONITOR.md](RETINA_MONITOR.md)**
-
----
-
-## 9. Controller sync (optional)
-
-DualSense HID → **InputRing** + **Input–Video Coupler** joins button edges to FrameHub `clock_ns` / `frame_seq`. **Default OFF** (`--controller`). Independent of who owns the HDMI card; VCam may need a wider lag band (`QORESENCE_IVC_LAG_HI_MS`).
-
-Full docs: **[CONTROLLER_VIDEO_SYNC.md](CONTROLLER_VIDEO_SYNC.md)**
-
----
-
-## Related
-
-- Operator runbook: [tools/obs/VIRTUAL_CAM.md](../tools/obs/VIRTUAL_CAM.md)  
-- Lens Browser Source: [tools/obs/README.md](../tools/obs/README.md)  
+- [RETINA_MONITOR.md](RETINA_MONITOR.md) — native glass on FrameHub  
+- [CONTROLLER_VIDEO_SYNC.md](CONTROLLER_VIDEO_SYNC.md) — IVC lag (physical can use default 120 ms)  
+- [tools/obs/README.md](../tools/obs/README.md) — Lens Browser Source only under Pattern B  
