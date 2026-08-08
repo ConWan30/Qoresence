@@ -2,7 +2,8 @@
 
 Optional **agent-to-agent** bus that enhances ClutchBot chat under **local policy**.
 
-Does **not** replace LocalVLM, scoreboard OCR, fast path, or DriveGraph. OCR remains the score referee.
+Does **not** replace LocalVLM, scoreboard OCR/VLM referee, fast path, or DriveGraph.  
+**OCR + scoreboard Gemini referee** remain the score source of truth.
 
 ---
 
@@ -12,51 +13,50 @@ Does **not** replace LocalVLM, scoreboard OCR, fast path, or DriveGraph. OCR rem
 |-------|------|-----------------|----------|
 | **Gemini** (scene) | Sparse scene / tension (soft language) | `gemini-3.5-flash-lite` | `https://api.quicksilverpro.io/v1` |
 | **DeepSeek** (chat) | Rewrite → Twitch-ready line | `deepseek-v4-flash` | same |
-| **Policy** (local) | Veto invented scores; cooldown | — | in-process |
+| **Policy** (local) | Veto invented scores; cooldown; near-dupe | — | in-process |
 
-Cloud **VLM** (when not `prefer_local`) also defaults to Quicksilver **gemini-3.5-flash-lite** instead of NVIDIA Nemotron. `--play` still prefers **LocalVLM + OCR**.
+**Scoreboard Gemini** (separate referee) runs at ~1.5s on gameplay (not 60 fps), faster on score/menu transitions. See `qoresence/vision/scoreboard_vlm.py`.
 
 ---
 
 ## Enable
 
 ```powershell
-# Secrets (never commit)
-# put key in .secrets/quicksilver_clutchbot.key
+$env:QORESENCE_A2A = "1"
+$env:QORESENCE_A2A_GEMINI = "1"
+$env:QORESENCE_A2A_DEEPSEEK = "1"
+# optional: $env:QORESENCE_SCOREBOARD_VLM_INTERVAL = "1.5"
 
-$env:QORESENCE_A2A = "1"                 # master switch (or --a2a)
-$env:QORESENCE_A2A_GEMINI = "1"           # live Gemini (else stub)
-$env:QORESENCE_A2A_DEEPSEEK = "1"         # live DeepSeek (else stub)
-# optional model overrides:
-# $env:QORESENCE_A2A_GEMINI_MODEL = "gemini-3.5-flash-lite"
-# $env:QORESENCE_A2A_DEEPSEEK_MODEL = "deepseek-v4-flash"
-
-python -m qoresence.cli --play --deck --controller --a2a --streamer-device 0 --streamer-fps 60
+python -m qoresence.cli --play --deck --monitor --streamer-fps 60 --a2a
 ```
-
-Without API keys, **stubs** still run a full scene→chat→policy cycle (offline tests pass).
 
 ---
 
-## Flow
+## Triggers (reason codes)
+
+| Reason | When | Typical interval |
+|--------|------|------------------|
+| `score_changed` | home/away pair changes | ≥ 8s |
+| `menu_exit` | menu/hub → gameplay | ≥ 12s |
+| `drive_pressure` | DriveGraph pressure/armed/open | ≥ 20s |
+| `coupling` | IVC coupling high (pad) | ≥ 25s |
+| `scene_tick` | gameplay ambient scene + JPEG | ≥ 45s |
+| `video_ambient` | legacy rare fallback | ≥ 90s |
+
+**No A2A on pure menu** (except `menu_exit` once you leave).
 
 ```text
-DriveGraph phase ∈ {pressure,armed,open} OR coupling high
-        │  (background thread — never on capture loop)
-        ▼
- GeminiSceneAgent.propose_scene  (+ optional JPEG)
-        ▼
- DeepSeekChatAgent.propose_chat
-        ▼
- A2APolicy.evaluate
-   soft: no score digits
-   confirm: digits must match OCR situation
-        ▼
- CommitAct → ClutchBot deck_feed / chat backends
- SessionTimeline: a2a_scene | a2a_veto | a2a_commit
+reason fires
+    │  background thread (never capture loop)
+    ▼
+ GeminiSceneAgent (+ optional JPEG)
+    ▼
+ DeepSeekChatAgent
+    ▼
+ A2APolicy (soft: no score digits; dupe/near-dupe; cooldown 45s)
+    ▼
+ CommitAct → DeckFeed only once
 ```
-
-Triggers are **sparse** (~20s min interval). Not every frame.
 
 ---
 
@@ -64,29 +64,12 @@ Triggers are **sparse** (~20s min interval). Not every frame.
 
 | Path | Rule |
 |------|------|
-| `fast` / soft | **No** scorelines like `21-17`; no inventing multi-digit board numbers |
+| `fast` / soft | **No** scorelines; no inventing multi-digit board numbers |
 | `confirm` | Scoreline digits must match local `home_score`/`away_score` |
-| Always | Cooldown + no duplicate text |
+| Always | 45s chat cooldown; exact + near-duplicate veto (~3 min window) |
 
 ---
 
 ## Health
 
-`GET /health` may include:
-
-```json
-"a2a": { "enabled": true, "gemini_live": false, "deepseek_live": true, "recent_commits": [...] }
-```
-
----
-
-## Files
-
-| Path | Role |
-|------|------|
-| `qoresence/a2a/types.py` | Messages |
-| `qoresence/a2a/bus.py` | In-process bus |
-| `qoresence/a2a/policy.py` | Veto / commit |
-| `qoresence/a2a/gemini_agent.py` | Scene (stub/live) |
-| `qoresence/a2a/deepseek_agent.py` | Chat (stub/live) |
-| `qoresence/a2a/orchestrator.py` | Cycle + ClutchBot hook |
+`GET /health` → `a2a`: `enabled`, `gemini_live`, `deepseek_live`, `last_reason`, `recent_commits`, `recent_vetos`.

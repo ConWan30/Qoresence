@@ -78,3 +78,49 @@ def test_disabled_orchestrator_no_auto_trigger():
 
     time.sleep(0.15)
     assert called == []
+
+
+def test_menu_suppresses_video_ambient():
+    orch = A2AOrchestrator(enabled=True, min_interval_s=0)
+    called = []
+    orch.on_commit = lambda c: called.append(c)
+    orch.gemini.live = False
+    orch.deepseek.live = False
+    orch.policy.chat_cooldown_s = 0
+    orch.maybe_trigger_from_drive(
+        situation={"game_category": "football", "game_state": "menu"},
+        reason="video_ambient",
+    )
+    import time
+
+    time.sleep(0.15)
+    assert called == []
+
+
+def test_score_changed_reason_triggers():
+    orch = A2AOrchestrator(enabled=True, min_interval_s=0)
+    called = []
+    orch.on_commit = lambda c: called.append(c)
+    orch.gemini.live = False
+    orch.deepseek.live = False
+    orch.policy.chat_cooldown_s = 0
+    orch.maybe_trigger_from_drive(
+        situation={"game_category": "football", "game_state": "gameplay", "home_score": 7, "away_score": 0},
+        reason="score_changed",
+    )
+    import time
+
+    time.sleep(0.25)
+    assert called, "score_changed should schedule a commit"
+
+
+def test_near_duplicate_policy():
+    p = A2APolicy(chat_cooldown_s=0)
+    t = "Big moment energy — stay with it on this drive."
+    r1 = p.evaluate(ChatProposal(text=t, path="fast", soft_only=True), situation={})
+    assert r1.__class__.__name__ == "CommitAct"
+    r2 = p.evaluate(
+        ChatProposal(text="Big moment energy — stay with it on this drive!!", path="fast", soft_only=True),
+        situation={},
+    )
+    assert r2.__class__.__name__ == "Veto"

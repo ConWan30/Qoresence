@@ -28,8 +28,12 @@ log = logging.getLogger(__name__)
 SCOREBOARD_MODEL = os.environ.get(
     "QORESENCE_SCOREBOARD_VLM_MODEL", "gemini-3.5-flash-lite"
 )
-# Min seconds between live VLM board calls
-_MIN_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_INTERVAL", "4.0"))
+# Smarter Gemini cadence (not every frame):
+# - gameplay: ~1.5–2 Hz board (default 0.6s min is too hot; use 1.5s)
+# - menu/hub: sparse
+# - force on score/menu transitions from caller
+_GAMEPLAY_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_INTERVAL", "1.5"))
+_MENU_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_MENU_INTERVAL", "8.0"))
 
 _PROMPT = """You are a football scoreboard OCR engine for EA College Football / NCAA.
 Look ONLY at the scoreboard or pause score plate. Return STRICT JSON, no markdown:
@@ -74,6 +78,8 @@ class ScoreboardVlmReferee:
         self._last_call = 0.0
         self._last: dict[str, Any] | None = None
         self._last_raw = ""
+        self._last_reason: str = "tick"
+        self._calls = 0
 
     def stats(self) -> dict[str, Any]:
         return {
@@ -81,22 +87,51 @@ class ScoreboardVlmReferee:
             "model": self.model,
             "has_result": self._last is not None,
             "last": self._last,
+            "last_reason": self._last_reason,
+            "calls": self._calls,
+            "gameplay_interval_s": _GAMEPLAY_INTERVAL_S,
+            "menu_interval_s": _MENU_INTERVAL_S,
         }
 
     def get_last(self) -> dict[str, Any] | None:
         with self._lock:
             return dict(self._last) if self._last else None
 
-    def schedule(self, frame: np.ndarray) -> None:
-        """Kick a background VLM read if due; never blocks."""
+    def schedule(
+        self,
+        frame: np.ndarray,
+        *,
+        force: bool = False,
+        reason: str = "tick",
+        game_state: str | None = None,
+    ) -> None:
+        """Kick a background VLM read if due; never blocks.
+
+        Cadence:
+          - force / score_changed / menu_exit → immediate (if not inflight)
+          - gameplay → ~1.5s (≈0.7 Hz board reads; not 60 fps)
+          - menu/hub → ~8s
+        """
         if not self.enabled or frame is None or getattr(frame, "size", 0) == 0:
             return
+        gst = (game_state or "").lower()
+        is_gameplay = gst in {"gameplay", "playing", "in_game", ""}
+        if force or reason in {"score_changed", "menu_exit", "first_lock"}:
+            interval = 0.0
+        elif is_gameplay:
+            interval = max(0.8, _GAMEPLAY_INTERVAL_S)
+        else:
+            interval = max(4.0, _MENU_INTERVAL_S)
+
         now = time.time()
         with self._lock:
-            if self._inflight or (now - self._last_call) < _MIN_INTERVAL_S:
+            if self._inflight:
+                return
+            if not force and (now - self._last_call) < interval:
                 return
             self._inflight = True
             self._last_call = now
+            self._last_reason = reason
         crop = self._crop(frame)
         if crop is None:
             with self._lock:
@@ -109,12 +144,14 @@ class ScoreboardVlmReferee:
                 if parsed:
                     with self._lock:
                         self._last = parsed
+                        self._calls += 1
                     log.info(
-                        "scoreboard VLM → %s-%s q=%s (paused=%s)",
+                        "scoreboard VLM → %s-%s q=%s (paused=%s reason=%s)",
                         parsed.get("home_score"),
                         parsed.get("away_score"),
                         parsed.get("quarter"),
                         parsed.get("paused"),
+                        reason,
                     )
             except Exception as e:
                 log.debug("scoreboard VLM failed: %s", e)

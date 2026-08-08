@@ -216,10 +216,10 @@ class ClutchBotAgent:
             # confirm types fire — avoid double-scoring confirm on pure HID.
             if event.type in _CONFIRM_TRIGGER_TYPES:
                 self._maybe_act_confirm(event)
-                # Video-only A2A: VISUAL_CONTEXT should wake agents without DualSense
-                if event.type == EventType.VISUAL_CONTEXT:
+                # Event-driven A2A (score / menu exit / sparse scene) — not every visual tick
+                if event.type in (EventType.VISUAL_CONTEXT, EventType.OUTCOME_EVENT):
                     try:
-                        self._maybe_a2a_trigger(coupling=0.0, event=event)
+                        self._maybe_a2a_from_situation(event=event, coupling=0.0)
                     except Exception as e:
                         log.debug("A2A visual trigger: %s", e)
 
@@ -263,7 +263,7 @@ class ClutchBotAgent:
                 if allow_open:
                     self._pred_life.try_open(coupling=cval, clock_ns=event.clock_ns)
             # Sparse A2A on drive pressure / high coupling (never on grab thread await)
-            self._maybe_a2a_trigger(coupling=cval, event=event)
+            self._maybe_a2a_from_situation(event=event, coupling=cval)
         except Exception as e:
             log.debug("pred lifecycle tick: %s", e)
 
@@ -528,12 +528,78 @@ class ClutchBotAgent:
             self._a2a.deepseek.live,
         )
 
-    def _maybe_a2a_trigger(self, *, coupling: float, event: BaseEvent) -> None:
+    def _maybe_a2a_from_situation(self, *, event: BaseEvent, coupling: float = 0.0) -> None:
+        """Event-driven A2A: score change, menu→gameplay, drive, coupling, rare ambient."""
         if not self._a2a or not getattr(self._a2a, "enabled", False):
             return
         try:
+            sit = self._situation.to_dict()
+            st = self._situation.state
+            prev = getattr(self, "_a2a_prev_snap", None) or {}
+            hs, aws = st.home_score, st.away_score
+            gst = str(getattr(st.game_state, "value", st.game_state) or "")
+            prev_hs, prev_aws = prev.get("home_score"), prev.get("away_score")
+            prev_gst = str(prev.get("game_state") or "")
+
+            reason: str | None = None
+            # 1) Scoreboard truth changed (OCR/VLM) — highest priority soft react
+            if (
+                hs is not None
+                and aws is not None
+                and prev_hs is not None
+                and prev_aws is not None
+                and (hs, aws) != (prev_hs, prev_aws)
+            ):
+                reason = "score_changed"
+            # 2) Menu/hub → gameplay
+            elif prev_gst.lower() in {"menu", "lobby", "hub", "paused"} and gst.lower() in {
+                "gameplay",
+                "playing",
+                "in_game",
+            }:
+                reason = "menu_exit"
+            else:
+                phase = None
+                try:
+                    from qoresence.agents.drive_graph import active_drive_graph
+
+                    g = active_drive_graph()
+                    if g is not None:
+                        phase = g.phase()
+                except Exception:
+                    phase = None
+                if phase in {"pressure", "armed", "open", "active"}:
+                    reason = "drive_pressure"
+                elif coupling >= 0.45:
+                    reason = "coupling"
+                elif gst.lower() in {"gameplay", "playing", "in_game"}:
+                    # Sparse scene tick (~45s) with image — not every visual event
+                    reason = "scene_tick"
+                # else: menu / unknown → no A2A
+
+            self._a2a_prev_snap = {
+                "home_score": hs,
+                "away_score": aws,
+                "game_state": gst,
+            }
+            if reason is None:
+                return
+
+            # Force scoreboard VLM on board-relevant events
+            if reason in {"score_changed", "menu_exit"}:
+                try:
+                    from qoresence.monitor.frame_hub import get_latest
+                    from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+
+                    fr = get_latest()
+                    if fr is not None:
+                        get_scoreboard_vlm().schedule(
+                            fr, force=True, reason=reason, game_state=gst
+                        )
+                except Exception:
+                    pass
+
             phase = None
-            frame_seq = None
             try:
                 from qoresence.agents.drive_graph import active_drive_graph
 
@@ -542,28 +608,33 @@ class ClutchBotAgent:
                     phase = g.phase()
             except Exception:
                 phase = None
+            frame_seq = None
             try:
                 from qoresence.monitor.frame_hub import get_latest_stamp
 
-                st = get_latest_stamp()
-                if st.get("has_frame"):
-                    frame_seq = st.get("seq")
+                stamp = get_latest_stamp()
+                if stamp.get("has_frame"):
+                    frame_seq = stamp.get("seq")
             except Exception:
                 pass
             jpeg = None
-            try:
-                from qoresence.vision.clip_buffer import get_latest_jpeg
+            # Attach JPEG for scene on meaningful reasons (not pure coupling spam)
+            if reason in {"score_changed", "menu_exit", "drive_pressure", "scene_tick"}:
+                try:
+                    from qoresence.vision.clip_buffer import get_latest_jpeg
 
-                jpeg = get_latest_jpeg()
-            except Exception:
-                jpeg = None
+                    jpeg = get_latest_jpeg()
+                except Exception:
+                    jpeg = None
+
             self._a2a.maybe_trigger_from_drive(
-                situation=self._situation.to_dict(),
+                situation=sit,
                 coupling=coupling,
                 drive_phase=phase,
                 frame_seq=frame_seq,
                 jpeg_bytes=jpeg,
-                path="fast",
+                path="fast" if reason != "score_changed" else "fast",
+                reason=reason,
             )
         except Exception as e:
             log.debug("A2A trigger skipped: %s", e)

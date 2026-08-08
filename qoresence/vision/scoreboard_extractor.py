@@ -290,11 +290,16 @@ class FootballScoreboardExtractor:
         if frame is None or getattr(frame, "size", 0) == 0:
             return ctx
 
-        # Always schedule sparse vision OCR (does not block)
+        # Smarter Gemini board cadence (does not block) — not every frame
         try:
             from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
 
-            get_scoreboard_vlm().schedule(frame)
+            gst = None
+            try:
+                gst = getattr(ctx.game_state, "value", None) or str(ctx.game_state or "")
+            except Exception:
+                gst = None
+            get_scoreboard_vlm().schedule(frame, game_state=gst, reason="tick")
         except Exception as e:
             log.debug("scoreboard VLM schedule: %s", e)
 
