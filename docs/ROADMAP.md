@@ -86,7 +86,13 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] DualSense Edge HID report decode harden (BT/USB, deadzone, debounce)
 - [x] Pattern A lag auto-tune hints from measured VCam age
 
-## Phase 7 — Research (optional)
+## Phase 7 — Trio-inspired architecture improvements
+- [x] Gap analysis: Trio principles mapped to Qoresence (docs/TRIO_GAP_ANALYSIS.md)
+- [x] Evidence chains (P4): structured citation for every A2A decision
+- [x] Router must-fire predicates (P2): typed predicate set + decision log
+- [x] Tool registry (P3): query-memory + zoom-redetect with depth bound
+
+## Phase 8 — Research (optional)
 - [ ] Fusion presence reports productization
 - [ ] Trio-retina WASM path hardening
 - [ ] DA / Merkle receipts (opt-in)
