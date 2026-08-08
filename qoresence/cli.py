@@ -1265,8 +1265,41 @@ def main():
         action="store_true",
         help="Show system tray icon with live status (score, sync). Default OFF.",
     )
+    parser.add_argument(
+        "--profiles-list",
+        action="store_true",
+        help="List all registered game profiles (built-in + community) and exit.",
+    )
 
     args = parser.parse_args()
+
+    # Load community game profiles from profiles/ directory
+    try:
+        from qoresence.profiles.sdk import load_community_profiles
+
+        _n = load_community_profiles()
+        if _n:
+            log.info("Loaded %d community game profile(s) from profiles/", _n)
+    except Exception as e:
+        log.debug("Community profiles load skipped: %s", e)
+
+    # List all profiles and exit
+    if getattr(args, "profiles_list", False):
+        from qoresence.profiles.sdk import list_profiles
+
+        profiles = list_profiles()
+        if not profiles:
+            print("No game profiles registered.")  # noqa: T201
+        else:
+            print(f"{'ID':<25} {'Name':<35} {'Cat':<10} {'Ev':<4} {'Fld':<4} {'Type'}")  # noqa: T201
+            print("-" * 90)  # noqa: T201
+            for p in profiles:
+                ptype = "community" if p["community"] else "built-in"
+                print(  # noqa: T201
+                    f"{p['profile_id']:<25} {p['display_name']:<35} {p['category']:<10} "
+                    f"{p['event_count']:<4} {p['field_count']:<4} {ptype}"
+                )
+        sys.exit(0)
 
     # Single-instance guard for play/deck — dual processes freeze DShow capture
     if getattr(args, "play", False) or getattr(args, "deck", False):

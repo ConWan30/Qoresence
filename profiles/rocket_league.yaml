@@ -1,0 +1,34 @@
+# Example community game profile for Rocket League
+# Place YAML files in profiles/ and they'll be auto-loaded at startup.
+#
+# Schema:
+#   profile_id:   unique string ID (required)
+#   display_name: human-readable name (defaults to profile_id)
+#   category:     "football" | "shooter" | "other" (defaults to "other")
+#   event_types:  list of event name strings (required, at least one)
+#   outcome_fields: list of field name strings
+#   aliases:      list of alternative names for CLI/VLM normalization
+
+profile_id: rocket_league
+display_name: Rocket League
+category: other
+event_types:
+  - goal
+  - save
+  - assist
+  - demo
+  - kickoff
+  - overtime
+  - match_start
+  - match_end
+outcome_fields:
+  - goals
+  - saves
+  - assists
+  - score
+  - shots
+  - team
+  - overtime
+aliases:
+  - rl
+  - rocketleague
