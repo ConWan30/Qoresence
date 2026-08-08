@@ -473,11 +473,17 @@ class ClutchBotAgent:
             try:
                 from qoresence.agents.moment_scorer import ScoredMoment
 
+                raw_text = getattr(act, "text", None)
+                if isinstance(raw_text, dict):
+                    raw_text = raw_text.get("text") or raw_text.get("message") or ""
+                text = str(raw_text or "").strip()[:140]
+                if not text:
+                    return
                 moment = ScoredMoment(
                     triggered=True,
                     weight=0.55,
                     action=str(getattr(act, "action", "chat") or "chat"),
-                    message=str(getattr(act, "text", "") or "")[:140],
+                    message=text,
                     reason=str(getattr(act, "reason", "a2a_commit")),
                     cooldown_key="a2a_chat",
                     payload={

@@ -49,18 +49,25 @@ class A2ABus:
                 cb(msg)
             except Exception as e:
                 log.debug("A2A subscriber error: %s", e)
-        # Optional mirror (best-effort)
-        if self._retina_bus is not None:
+        # Optional mirror — only commit_act reaches the deck feed as human text.
+        # Intermediate scene/chat proposals stay on the A2A bus only.
+        if self._retina_bus is not None and msg.kind == "commit_act":
             try:
                 from qoresence.core import SourceLobe
 
+                body = msg.body if isinstance(msg.body, dict) else {}
+                text = str(body.get("text") or body.get("message") or "").strip()
+                if not text:
+                    return
                 self._retina_bus.emit_raw(
                     source_lobe=SourceLobe.AGENT,
                     event_type="agent_action",
                     payload={
                         "agent_name": "a2a",
-                        "action": msg.kind,
-                        "message": str(msg.body)[:200],
+                        "action": "chat",
+                        "message": text[:200],
+                        "reason": str(body.get("reason") or "a2a_commit")[:120],
+                        "path": str(body.get("path") or "fast"),
                         "a2a": msg.to_dict(),
                     },
                     clock_ns_override=msg.clock_ns,

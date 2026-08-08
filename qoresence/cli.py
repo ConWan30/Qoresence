@@ -144,10 +144,31 @@ class QoresenceApp:
                                     _deck_update(s, latency_ms=lat)
                         # Direct moment / agent_action -> Deck Feed
                         if et_val == _ET.AGENT_ACTION.value:
-                            # payload contains action/message/reason
+                            # Skip intermediate A2A kinds mirrored as agent_action noise
+                            if payload.get("agent_name") == "a2a" and payload.get("action") not in (
+                                "chat",
+                                "clip",
+                                "commit_act",
+                            ):
+                                return
                             title = payload.get("message") or payload.get("action") or ""
+                            # Prefer clean chat text if message is a dict-like dump
+                            if isinstance(title, dict):
+                                title = title.get("text") or title.get("summary") or title.get("message") or ""
+                            title = str(title).strip()
+                            if title.startswith("{") and ("'text'" in title or '"text"' in title):
+                                # last-resort: do not push raw repr dumps
+                                return
                             if title:
-                                _deck_push({"title": str(title)[:80], "reason": payload.get("reason", ""), "clock": "now"})
+                                _deck_push(
+                                    {
+                                        "title": title[:80],
+                                        "reason": str(payload.get("reason") or "")[:160],
+                                        "clock": "now",
+                                        "action": str(payload.get("action") or "chat"),
+                                        "path": str(payload.get("path") or ""),
+                                    }
+                                )
                     except Exception:
                         pass
 
