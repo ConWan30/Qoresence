@@ -504,7 +504,7 @@ class VisualRuntime:
         """Analyze single frame with VLM."""
         # 1. Game state classification
         context = self._client.analyze_frame(
-            frame, self._classify_prompt, game_profile=self.config.game_category
+            frame, self._classify_prompt, game_profile=self.config.game_profile or self.config.game_category
         )
         if context and context.confidence >= self.config.min_confidence:
             self._last_context = context
