@@ -227,7 +227,26 @@ class A2AOrchestrator:
                 to_agent="deepseek",
             )
         )
-        self._timeline("a2a_scene", scene.summary, path="fast", payload={**scene.to_dict(), "reason": reason})
+
+        # Drive segment management: open on pressure/menu_exit, close on score
+        _open = reason in {"drive_pressure", "menu_exit"} or (
+            reason == "scene_tick" and drive_phase in {"pressure", "armed"}
+        )
+        _close = reason == "score_changed"
+        _drive_ctx = {
+            "reason": reason,
+            "drive_phase": drive_phase,
+            "game_title": sit.get("game_title"),
+        }
+        self._timeline(
+            "a2a_scene",
+            scene.summary,
+            path="fast",
+            payload={**scene.to_dict(), "reason": reason},
+            open_drive=_open,
+            close_drive=_close,
+            drive_context=_drive_ctx if _open else None,
+        )
 
         # Post-hoc menu guard: the visual classifier may say "gameplay" while
         # the Gemini agent can see a menu/pause/archive screen in the JPEG.
@@ -331,7 +350,16 @@ class A2AOrchestrator:
         return False
 
     @staticmethod
-    def _timeline(kind: str, message: str, *, path: str, payload: dict[str, Any]) -> None:
+    def _timeline(
+        kind: str,
+        message: str,
+        *,
+        path: str,
+        payload: dict[str, Any],
+        open_drive: bool = False,
+        close_drive: bool = False,
+        drive_context: dict[str, Any] | None = None,
+    ) -> None:
         try:
             from qoresence.agents.session_timeline import get_session_timeline
 
@@ -342,6 +370,9 @@ class A2AOrchestrator:
                 reason="a2a",
                 factual=path == "confirm",
                 payload=payload,
+                open_drive=open_drive,
+                close_drive=close_drive,
+                drive_context=drive_context,
             )
         except Exception:
             pass
@@ -356,6 +387,14 @@ def get_a2a_orchestrator(**kwargs: Any) -> A2AOrchestrator:
     with _orch_lock:
         if _orch is None:
             _orch = A2AOrchestrator(**kwargs)
+        elif kwargs:
+            # Update configurable fields on existing singleton
+            if "on_commit" in kwargs:
+                _orch.on_commit = kwargs["on_commit"]
+            if "persona" in kwargs:
+                _orch.deepseek.persona = kwargs["persona"]
+            if "enabled" in kwargs:
+                _orch.enabled = bool(kwargs["enabled"])
         return _orch
 
 

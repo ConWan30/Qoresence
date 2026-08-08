@@ -1,8 +1,10 @@
-"""Tests for pilot bug fixes: A2A menu guard, team context, game_profile wiring.
+"""Tests for pilot bug fixes: A2A menu guard, team context, game_profile wiring,
+DriveGraph drive building from A2A.
 
 Bug #1: A2A fires on menu screens — post-hoc guard in orchestrator
 Bug #2: A2A team name hallucinations — game_profile in Gemini prompt
 Bug #3: game_profile null in situation — wired from CLI through visual to situation
+DriveGraph: drives count=0 — A2A now opens/closes drives based on reason
 """
 
 from __future__ import annotations
@@ -205,3 +207,56 @@ def test_situation_model_sets_game_profile_from_visual_context():
     state = sm.to_dict()
     assert state["game_profile"] == "ncaa_football_27"
     assert state["game_title"] == "NCAA College Football 27"
+
+
+# ── DriveGraph: A2A opens/closes drives ──────────────────────────────────────
+
+
+def test_a2a_drive_pressure_opens_drive():
+    """A2A drive_pressure reason should open a drive segment in the timeline."""
+    from qoresence.agents.session_timeline import SessionTimeline
+
+    tl = SessionTimeline(capacity=100)
+    # Simulate A2A _timeline call with drive_pressure
+    tl.append(
+        kind="a2a_scene",
+        path="fast",
+        message="Red zone pressure building",
+        reason="a2a",
+        payload={"reason": "drive_pressure"},
+        open_drive=True,
+        drive_context={"reason": "drive_pressure", "drive_phase": "pressure"},
+    )
+    assert tl.active_drive() is not None
+    assert tl.drives() and len(tl.drives()) == 1
+
+
+def test_a2a_score_changed_closes_drive():
+    """A2A score_changed reason should close the active drive segment."""
+    from qoresence.agents.session_timeline import SessionTimeline
+
+    tl = SessionTimeline(capacity=100)
+    # Open a drive
+    tl.append(
+        kind="a2a_scene",
+        path="fast",
+        message="Pressure building",
+        reason="a2a",
+        payload={"reason": "drive_pressure"},
+        open_drive=True,
+        drive_context={"reason": "drive_pressure"},
+    )
+    assert tl.active_drive() is not None
+    # Close it with score_changed
+    tl.append(
+        kind="a2a_scene",
+        path="fast",
+        message="Score change!",
+        reason="a2a",
+        payload={"reason": "score_changed"},
+        close_drive=True,
+    )
+    assert tl.active_drive() is None
+    drives = tl.drives()
+    assert len(drives) == 1
+    assert drives[0].ended_ns is not None

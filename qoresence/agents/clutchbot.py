@@ -470,7 +470,7 @@ class ClutchBotAgent:
         """Enable Gemini↔DeepSeek A2A when QORESENCE_A2A / config says so."""
         import os
 
-        from qoresence.a2a.orchestrator import A2AOrchestrator
+        from qoresence.a2a.orchestrator import get_a2a_orchestrator
 
         env_on = os.environ.get("QORESENCE_A2A", "0").strip() in {"1", "true", "yes"}
         cfg_on = bool(getattr(self.config, "a2a_enabled", False))
@@ -513,7 +513,9 @@ class ClutchBotAgent:
             except Exception as e:
                 log.warning("A2A commit dispatch failed: %s", e)
 
-        self._a2a = A2AOrchestrator(
+        from qoresence.a2a.orchestrator import get_a2a_orchestrator
+
+        self._a2a = get_a2a_orchestrator(
             enabled=True,
             on_commit=_on_commit,
             persona=str(self.config.persona or "neutral"),
