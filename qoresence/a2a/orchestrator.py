@@ -33,6 +33,7 @@ from qoresence.a2a.router import (
     evaluate_must_fire,
     get_predicates_for_category,
 )
+from qoresence.a2a.tools import ToolRegistry, create_default_registry
 
 log = logging.getLogger(__name__)
 
@@ -95,6 +96,8 @@ class A2AOrchestrator:
         min_interval_s: float = 20.0,
         on_commit: Callable[[CommitAct], None] | None = None,
         persona: str = "neutral",
+        jsonl_path: str | None = None,
+        zoom_callback: Callable[[str, list[str]], dict[str, Any]] | None = None,
     ) -> None:
         env_on = os.environ.get("QORESENCE_A2A", "0").strip() in {"1", "true", "yes"}
         self.enabled = env_on if enabled is None else bool(enabled)
@@ -112,6 +115,11 @@ class A2AOrchestrator:
         self._recent_norms: list[tuple[float, str]] = []  # (ts, norm_text)
         self._inflight = False
         self._last_sit_key: tuple[Any, ...] | None = None
+        # Trio P3: Tool registry for bidirectional tier queries
+        self.tools: ToolRegistry = create_default_registry(
+            jsonl_path=jsonl_path,
+            zoom_callback=zoom_callback,
+        )
 
     def stats(self) -> dict[str, Any]:
         return {
@@ -122,6 +130,7 @@ class A2AOrchestrator:
             "bus": self.bus.stats(),
             "recent_commits": list(self._recent_commits[-8:]),
             "recent_vetos": list(self.policy.recent_vetos[-8:]),
+            "tools": self.tools.list_tools(),
         }
 
     def maybe_trigger_from_drive(
@@ -279,6 +288,8 @@ class A2AOrchestrator:
     ) -> CommitAct | Veto | None:
         """Synchronous cycle (tests / forced). Prefer maybe_trigger_from_drive live."""
         sit = situation or {}
+        # Reset tool depth counter for this cycle (Trio P3)
+        self.tools.reset_depth()
         # Attach trigger reason into scene context for agents
         sit = {**sit, "_a2a_reason": reason}
         scene = self.gemini.propose_scene(
