@@ -46,6 +46,8 @@ local = [
 ]
 game = [
     "easyocr>=1.7",
+    "paddlepaddle>=2.6",
+    "paddleocr>=2.7",
     "ultralytics>=8.0",
     "onnxruntime-openvino>=1.24.1",
     "openvino==2025.4.1",
@@ -79,6 +81,8 @@ all = [
     "requests>=2.31",
     "onnxruntime>=1.16",
     "easyocr>=1.7",
+    "paddlepaddle>=2.6",
+    "paddleocr>=2.7",
     "ultralytics>=8.0",
     "onnxruntime-openvino>=1.24.1",
     "openvino==2025.4.1",

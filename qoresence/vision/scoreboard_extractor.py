@@ -96,6 +96,7 @@ class _Token:
     x: float  # normalized center x (0..1)
     y: float  # normalized center y (0..1)
     conf: float
+    area: float = 0.0  # box area fraction (score digits >> badges)
 
 
 @dataclass
@@ -207,7 +208,10 @@ class _ScoreStabilizer:
         if (h >= 7 and 1 <= a <= 4) or (a >= 7 and 1 <= h <= 4):
             return True
         # Huge imbalance with tiny side (e.g. 28-1 mid-game OCR glitch)
-        if min(h, a) <= 3 and max(h, a) >= 14:
+        # Allow true 20-0 / 28-0 blowouts (zero is valid football)
+        if min(h, a) == 0 and max(h, a) <= 80:
+            return False
+        if min(h, a) <= 3 and min(h, a) > 0 and max(h, a) >= 14:
             return True
         return False
 
@@ -247,95 +251,119 @@ class _ScoreStabilizer:
 
 
 class FootballScoreboardExtractor:
-    """Extract football scoreboard fields from a BGR frame."""
+    """Extract football scoreboard fields from a BGR frame.
 
-    _reader: Any | None = None
+    Uses pluggable engines (PaddleOCR preferred for gaming HUDs, EasyOCR fallback).
+    Env: ``QORESENCE_SCOREBOARD_OCR=auto|paddle|easyocr|tesseract``.
+    """
+
     # Process-wide stabilizer so multi-instance extractors share consensus
     _stabilizer: _ScoreStabilizer | None = None
-    # Background EasyOCR warm-up — never block the visual loop on first load
-    _reader_loading: bool = False
-    _reader_failed: bool = False
-    _load_lock: Any | None = None
+    _engine_name: str | None = None
 
     def __init__(self) -> None:
-        self._easyocr_available = False
-        try:
-            import easyocr  # noqa: F401
-            import threading
-
-            self._easyocr_available = True
-            if FootballScoreboardExtractor._load_lock is None:
-                FootballScoreboardExtractor._load_lock = threading.Lock()
-        except Exception:
-            log.warning("easyocr not installed; scoreboard extraction disabled")
         if FootballScoreboardExtractor._stabilizer is None:
             FootballScoreboardExtractor._stabilizer = _ScoreStabilizer(window=6, need=2)
+        # Kick preferred engine warm-up without blocking
+        try:
+            from qoresence.vision.scoreboard_ocr_engine import get_scoreboard_engine
 
-    @classmethod
-    def _ensure_reader_async(cls) -> None:
-        """Kick off EasyOCR load on a daemon thread if not already started."""
-        if cls._reader is not None or cls._reader_failed or cls._reader_loading:
-            return
-        import threading
-
-        lock = cls._load_lock
-        if lock is None:
-            lock = threading.Lock()
-            cls._load_lock = lock
-        with lock:
-            if cls._reader is not None or cls._reader_failed or cls._reader_loading:
-                return
-            cls._reader_loading = True
-
-        def _load() -> None:
-            try:
-                import easyocr
-
-                log.info("Loading EasyOCR reader for scoreboard extraction (background)...")
-                cls._reader = easyocr.Reader(["en"], gpu=False, verbose=False)
-                log.info("EasyOCR reader ready for scoreboard extraction")
-            except Exception as e:
-                cls._reader_failed = True
-                log.warning("EasyOCR reader load failed: %s", e)
-            finally:
-                cls._reader_loading = False
-
-        threading.Thread(target=_load, name="easyocr-warmup", daemon=True).start()
-
-    @classmethod
-    def _get_reader(cls) -> Any | None:
-        """Return reader if ready; never block the visual thread on cold start."""
-        if cls._reader is not None:
-            return cls._reader
-        if cls._reader_failed:
-            return None
-        cls._ensure_reader_async()
-        return None  # still loading — skip this frame
+            eng = get_scoreboard_engine()
+            eng.start_warmup()
+            FootballScoreboardExtractor._engine_name = getattr(eng, "name", None)
+        except Exception as e:
+            log.debug("scoreboard engine init: %s", e)
 
     def extract(self, frame: np.ndarray, ctx: VisualContext | None = None) -> VisualContext:
         """Return a VisualContext populated with scoreboard fields.
 
-        If EasyOCR is still loading, returns ``ctx`` unchanged so visual_context
-        (and ClutchBot) keep flowing without multi-minute stalls.
+        Pipeline:
+        1) Schedule sparse Quicksilver Gemini board referee (non-blocking)
+        2) Local engine tokens (Paddle if healthy, else EasyOCR)
+        3) Prefer VLM result when present; large-digit pair over badge double-counts
+        4) Temporal stabilizer
         """
         if ctx is None:
             ctx = VisualContext()
-        if not self._easyocr_available or ctx.game_category != GameCategory.FOOTBALL:
+        if ctx.game_category != GameCategory.FOOTBALL:
             return ctx
-        if self._get_reader() is None:
+        if frame is None or getattr(frame, "size", 0) == 0:
             return ctx
+
+        # Always schedule sparse vision OCR (does not block)
+        try:
+            from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+
+            get_scoreboard_vlm().schedule(frame)
+        except Exception as e:
+            log.debug("scoreboard VLM schedule: %s", e)
 
         tokens = self._ocr_tokens(frame)
-        if not tokens:
-            return ctx
+        parsed: dict[str, Any] = {}
+        if tokens:
+            joined = " ".join(t.text for t in tokens).upper()
+            is_paused = any(
+                k in joined
+                for k in ("PAUSED", "RESUME", "INSTANT REPLAY", "RETURN TO HUB")
+            )
+            parsed = self._parse(tokens)
+            big = self._parse_large_score_pair(tokens)
+            if big is not None:
+                parsed["home_score"], parsed["away_score"] = big
+                if is_paused:
+                    log.debug(
+                        "scoreboard pause-menu large pair %s-%s", big[0], big[1]
+                    )
 
-        parsed = self._parse(tokens)
+        # Merge VLM referee (higher trust for gaming fonts)
+        vlm_scores = False
+        try:
+            from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+
+            vlm = get_scoreboard_vlm().get_last()
+        except Exception:
+            vlm = None
+        if vlm:
+            # Only merge when VLM actually read a board — never wipe a good
+            # lock with a later None-None (transition frames / blur).
+            vlm_has_board = (
+                vlm.get("home_score") is not None and vlm.get("away_score") is not None
+            )
+            for k in (
+                "home_score",
+                "away_score",
+                "quarter",
+                "down",
+                "yards_to_go",
+                "play_clock",
+                "clock_seconds",
+            ):
+                if vlm.get(k) is None:
+                    continue
+                if k in ("home_score", "away_score"):
+                    if vlm_has_board:
+                        parsed[k] = vlm[k]
+                elif parsed.get(k) is None:
+                    parsed[k] = vlm[k]
+            if vlm_has_board:
+                vlm_scores = True
+
+        if not parsed:
+            return ctx
 
         # Stabilize scores so one bad frame cannot flip 17-17 → 17-2
         raw_h, raw_a = parsed.get("home_score"), parsed.get("away_score")
         stab = FootballScoreboardExtractor._stabilizer
         if stab is not None and (raw_h is not None or raw_a is not None):
-            sh, sa = stab.update(raw_h, raw_a)
+            if vlm_scores and not _ScoreStabilizer._looks_suspicious_pair((raw_h, raw_a)):
+                # Vision referee is trusted — force lock after a single coherent pair
+                stab._stable = (int(raw_h), int(raw_a))  # type: ignore[attr-defined]
+                stab._recent.clear()
+                stab._recent.append((int(raw_h), int(raw_a)))
+                sh, sa = stab._stable
+                log.info("scoreboard VLM lock %s-%s", sh, sa)
+            else:
+                sh, sa = stab.update(raw_h, raw_a)
             if sh is not None:
                 parsed["home_score"] = sh
             else:
@@ -371,24 +399,63 @@ class FootballScoreboardExtractor:
             ctx.down_distance_text = parsed["down_distance_text"]
         return ctx
 
+    @staticmethod
+    def _parse_large_score_pair(tokens: list[_Token]) -> tuple[int, int] | None:
+        """Pick two largest pure digit boxes left/right — CFB pause menu 20 | 0."""
+        digitish: list[tuple[float, float, int, float]] = []  # (area, x, val, conf)
+        for t in tokens:
+            m = re.fullmatch(r"\d{1,2}", t.text.strip())
+            if not m:
+                continue
+            val = int(m.group(0))
+            if val > 99:
+                continue
+            # Prefer taller/wider boxes (score digits) over tiny badges
+            area = max(0.01, float(getattr(t, "area", 0.0) or 0.0))
+            if area < 0.002 and t.conf < 0.7:
+                continue
+            digitish.append((area, t.x, val, t.conf))
+        if len(digitish) < 2:
+            return None
+        # Top by area, then take leftmost and rightmost among top-4
+        digitish.sort(key=lambda z: (-z[0], -z[3]))
+        top = digitish[:4]
+        top.sort(key=lambda z: z[1])  # by x
+        left = top[0]
+        right = top[-1]
+        if abs(left[1] - right[1]) < 0.08:
+            return None
+        # Reject same-digit double-count when right is a badge (tiny area, same val)
+        if left[2] == right[2] and right[0] < left[0] * 0.35:
+            # look for a zero or smaller score on right among top
+            for cand in sorted(digitish, key=lambda z: z[1]):
+                if cand[1] > 0.5 and cand[2] != left[2]:
+                    return (left[2], cand[2])
+            # Prefer 0 if we only see one big score left of center
+            if left[1] < 0.55:
+                for cand in digitish:
+                    if cand[2] == 0 and cand[1] > left[1]:
+                        return (left[2], 0)
+        return (left[2], right[2])
+
     def _ocr_tokens(self, frame: np.ndarray) -> list[_Token]:
-        """OCR scoreboard regions and return tokens (multi-crop for CFB 27 HUD)."""
+        """OCR scoreboard regions via pluggable engine (multi-crop for CFB 27)."""
+        from qoresence.vision.scoreboard_ocr_engine import get_scoreboard_engine
+
         h, w = frame.shape[:2]
-        # CFB 27 scorebug is bottom-center; also try a slightly higher band.
-        # Fractions of full frame (x1,x2,y1,y2)
+        # Bottom scorebug + mid HUD + center pause-menu score plate
         crops_frac = (
             (0.22, 0.78, 0.80, 0.98),  # primary bottom scorebug
-            (0.28, 0.72, 0.74, 0.90),  # slightly higher (large-score layouts)
+            (0.28, 0.72, 0.74, 0.90),  # slightly higher
+            (0.30, 0.70, 0.18, 0.55),  # pause / big center scores
+            (0.18, 0.82, 0.12, 0.42),  # wider pause plate
         )
-        tokens: list[_Token] = []
-        try:
-            reader = self._get_reader()
-        except Exception as e:
-            log.debug(f"Scoreboard OCR reader failed: {e}")
-            return []
-        if reader is None:
+        eng = get_scoreboard_engine()
+        if not eng.is_ready():
+            eng.start_warmup()
             return []
 
+        tokens: list[_Token] = []
         for x1f, x2f, y1f, y2f in crops_frac:
             x1, x2 = int(w * x1f), int(w * x2f)
             y1, y2 = int(h * y1f), int(h * y2f)
@@ -397,54 +464,41 @@ class FootballScoreboardExtractor:
             crop = frame[y1:y2, x1:x2]
             if crop.size == 0:
                 continue
-            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-            # Dual threshold: white-on-dark + Otsu (handles red/glass HUDs better)
-            variants = []
-            _, b1 = cv2.threshold(gray, 170, 255, cv2.THRESH_BINARY)
-            variants.append(b1)
-            _, b2 = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            variants.append(b2)
-            # Also try inverted Otsu for dark text
-            variants.append(cv2.bitwise_not(b2))
+            # Run on color crop (Paddle) + high-contrast gray (helps both)
+            variants = [crop]
+            try:
+                gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+                _, b1 = cv2.threshold(gray, 170, 255, cv2.THRESH_BINARY)
+                variants.append(cv2.cvtColor(b1, cv2.COLOR_GRAY2BGR))
+            except Exception:
+                pass
 
-            for binary in variants:
-                scaled = cv2.resize(
-                    binary,
-                    (max(1, crop.shape[1] * 3), max(1, crop.shape[0] * 3)),
-                    interpolation=cv2.INTER_CUBIC,
-                )
+            for variant in variants:
                 try:
-                    results = reader.readtext(scaled, detail=1)
+                    boxes = eng.read_boxes(variant)
                 except Exception as e:
-                    log.debug(f"Scoreboard OCR failed: {e}")
+                    log.debug("scoreboard engine read failed: %s", e)
                     continue
-                for bbox, text, conf in results:
-                    if conf is not None and float(conf) < 0.25:
-                        continue
-                    xs = [p[0] for p in bbox]
-                    ys = [p[1] for p in bbox]
-                    # Map back to crop-normalized then full-frame-normalized x/y
-                    cx_c = (min(xs) + max(xs)) / 2 / scaled.shape[1]
-                    cy_c = (min(ys) + max(ys)) / 2 / scaled.shape[0]
-                    cx = x1f + cx_c * (x2f - x1f)
-                    cy = y1f + cy_c * (y2f - y1f)
-                    # Re-normalize to crop-local 0..1 for parse band logic:
-                    # keep crop-relative for _parse which expects band coords
+                for b in boxes:
+                    area = float(getattr(b, "w", 0.0) or 0.0) * float(
+                        getattr(b, "h", 0.0) or 0.0
+                    )
                     tokens.append(
                         _Token(
-                            text=str(text).strip(),
-                            x=float(cx_c),
-                            y=float(cy_c),
-                            conf=float(conf),
+                            text=str(b.text).strip(),
+                            x=float(b.x),
+                            y=float(b.y),
+                            conf=float(b.conf),
+                            area=area,
                         )
                     )
 
-        # Dedup similar text near same position
         tokens = self._dedupe_tokens(tokens)
         tokens.sort(key=lambda t: (round(t.y, 1), t.x))
         if tokens:
             log.debug(
-                "scoreboard tokens: %s",
+                "scoreboard tokens [%s]: %s",
+                getattr(eng, "name", "?"),
                 [(round(t.conf, 2), round(t.x, 2), t.text) for t in tokens[:16]],
             )
         return tokens

@@ -1,9 +1,12 @@
 """
 Pluggable OCR providers for the Qoresence Vision Stack.
 
-- VLMOCRProvider: uses a vision-language model (default, best for gaming UI).
-- EasyOCRProvider: local deep-learning OCR (auto-downloads models).
+- VLMOCRProvider: uses a vision-language model (cloud/local VLM).
+- PaddleOCRProvider: preferred local engine for gaming HUDs / scoreboards.
+- EasyOCRProvider: local deep-learning OCR fallback.
 - TesseractOCRProvider: classical local OCR (requires tesseract binary).
+
+Scoreboard path uses ``scoreboard_ocr_engine`` (Paddle first, EasyOCR fallback).
 """
 
 from __future__ import annotations
@@ -100,12 +103,39 @@ class VLMOCRProvider(BaseOCRProvider):
         )
 
 
+class PaddleOCRProvider(BaseOCRProvider):
+    """Local PaddleOCR — preferred for stylized game HUD digits."""
+
+    name = "paddle"
+
+    def __init__(self) -> None:
+        from qoresence.vision.scoreboard_ocr_engine import PaddleScoreboardEngine
+
+        self._eng = PaddleScoreboardEngine()
+
+    def warmup(self) -> None:
+        self._eng.start_warmup()
+
+    def read_text(self, frame: np.ndarray) -> OCRResult:
+        self.warmup()
+        boxes = self._eng.read_boxes(frame)
+        if not boxes:
+            return OCRResult(text="", confidence=0.0, provider=self.name)
+        parts = [b.text for b in boxes if b.text]
+        conf = sum(b.conf for b in boxes) / max(1, len(boxes))
+        return OCRResult(
+            text=", ".join(parts),
+            confidence=conf,
+            provider=self.name,
+            raw_details={"detections": len(parts)},
+        )
+
+
 class EasyOCRProvider(BaseOCRProvider):
     """
-    Local deep-learning OCR via EasyOCR.
+    Local deep-learning OCR via EasyOCR (fallback).
 
-    Auto-downloads English model on first use (~4 MB text detection +
-    ~20 MB recognition). Better than Tesseract on stylized game fonts.
+    Auto-downloads English model on first use. Prefer PaddleOCR for scoreboards.
     """
 
     name = "easyocr"
@@ -201,6 +231,8 @@ def create_ocr_provider(
         if vlm_client is None:
             raise ValueError("VLM OCR provider requires a VLMClient")
         return VLMOCRProvider(vlm_client)
+    if provider in ("paddle", "paddleocr"):
+        return PaddleOCRProvider()
     if provider == "easyocr":
         return EasyOCRProvider(**kwargs)
     if provider == "tesseract":

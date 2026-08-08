@@ -98,6 +98,17 @@ Widen IVC: `$env:QORESENCE_IVC_LAG_HI_MS = "200"`.
 
 ---
 
+## Scoreboard OCR (gaming)
+
+Default engine is **PaddleOCR** (better on stylized CFB HUD digits than EasyOCR). Fallback: EasyOCR.
+
+```powershell
+$env:QORESENCE_SCOREBOARD_OCR = "paddle"   # or auto | easyocr | tesseract
+pip install "paddlepaddle>=2.6" "paddleocr>=2.7"
+```
+
+---
+
 ## 7. Troubleshooting
 
 | Symptom | Likely cause | Fix |
