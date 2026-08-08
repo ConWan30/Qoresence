@@ -397,6 +397,16 @@ class ClutchBotAgent:
 
             if moment.action == "chat" and any(r.success for r in results):
                 self._record_chat_sent()
+                # Remember text for duplicate suppress
+                try:
+                    msg = (moment.message or "").strip().lower()
+                    msg = " ".join(msg.split())[:120]
+                    if msg:
+                        if not hasattr(self, "_recent_chat_texts"):
+                            self._recent_chat_texts = {}
+                        self._recent_chat_texts[msg] = time.time()
+                except Exception:
+                    pass
 
             # Lifecycle mirrors MomentScorer prediction actions when they fire
             if moment.action == "start_prediction":
@@ -679,7 +689,7 @@ class ClutchBotAgent:
             log.debug("timeline append skipped: %s", e)
 
     def _rate_limit_ok(self, moment: ScoredMoment) -> bool:
-        """Enforce action rate limits."""
+        """Enforce action rate limits + identical-chat suppress."""
         now = time.time()
 
         if moment.action == "chat":
@@ -691,6 +701,21 @@ class ClutchBotAgent:
             if self._messages_this_minute >= self.config.max_messages_per_min:
                 log.debug("ClutchBot hit per-minute message limit")
                 return False
+
+            # Identical (or near-identical) chat text — do not re-spam feed
+            msg = (moment.message or "").strip().lower()
+            msg = " ".join(msg.split())[:120]
+            if msg:
+                if not hasattr(self, "_recent_chat_texts"):
+                    self._recent_chat_texts: dict[str, float] = {}
+                # prune
+                self._recent_chat_texts = {
+                    k: t for k, t in self._recent_chat_texts.items() if now - t < 180.0
+                }
+                last_same = self._recent_chat_texts.get(msg, 0.0)
+                if now - last_same < 120.0:
+                    log.debug("ClutchBot suppress duplicate chat: %s", msg[:50])
+                    return False
 
         # Global cooldown per action type
         last = self._last_action_time.get(moment.action, 0.0)
@@ -714,7 +739,7 @@ class ClutchBotAgent:
         if action == "arm_prediction":
             return 60.0
         if action == "chat":
-            return base
+            return max(base, 45.0)  # never chat faster than 45s for feed hygiene
         if action == "clip":
             return max(60.0, base)
         if action == "start_prediction":

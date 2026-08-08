@@ -143,21 +143,17 @@ class QoresenceApp:
                                         pass
                                     _deck_update(s, latency_ms=lat)
                         # Direct moment / agent_action -> Deck Feed
+                        # Skip A2A + clutchbot agent_action mirrors — DeckFeed backend
+                        # already pushes scored chat once. Double-bridge caused spam.
                         if et_val == _ET.AGENT_ACTION.value:
-                            # Skip intermediate A2A kinds mirrored as agent_action noise
-                            if payload.get("agent_name") == "a2a" and payload.get("action") not in (
-                                "chat",
-                                "clip",
-                                "commit_act",
-                            ):
+                            agent = str(payload.get("agent_name") or "")
+                            if agent in ("a2a", "clutchbot"):
                                 return
                             title = payload.get("message") or payload.get("action") or ""
-                            # Prefer clean chat text if message is a dict-like dump
                             if isinstance(title, dict):
                                 title = title.get("text") or title.get("summary") or title.get("message") or ""
                             title = str(title).strip()
                             if title.startswith("{") and ("'text'" in title or '"text"' in title):
-                                # last-resort: do not push raw repr dumps
                                 return
                             if title:
                                 _deck_push(

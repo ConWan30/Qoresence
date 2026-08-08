@@ -90,7 +90,7 @@ class A2AOrchestrator:
         # Video-only uses a gentler min interval so we don't spam without pad heat
         interval = self.min_interval_s
         if video_ok and not phase_ok and not coup_ok and not force:
-            interval = max(self.min_interval_s, 35.0)
+            interval = max(self.min_interval_s, 75.0)
         now = time.time()
         with self._lock:
             if self._inflight:

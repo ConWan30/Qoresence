@@ -892,7 +892,8 @@ class MomentScorer:
         elif action in ("start_prediction", "resolve_prediction"):
             cooldown_s = 5.0
         elif cooldown_key in ("video_heartbeat", "score_first_lock"):
-            cooldown_s = 55.0 if cooldown_key == "video_heartbeat" else 120.0
+            # Video heartbeat is intentionally sparse — avoid feed spam
+            cooldown_s = 120.0 if cooldown_key == "video_heartbeat" else 120.0
 
         if now - last < cooldown_s:
             return ScoredMoment(

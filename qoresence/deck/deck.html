@@ -91,10 +91,6 @@ body.mode-replay #player{display:block}
 #links{display:flex; flex-wrap:wrap; gap:10px 14px; font:600 12px JetBrains Mono,monospace}
 #links a{color:var(--gold); text-decoration:none}
 #links a:hover{text-decoration:underline}
-#whyCard{display:none}
-#whyCard.show{display:block}
-#whyLine{font:700 12px/1.4 JetBrains Mono,monospace;color:var(--gold);word-break:break-word}
-#driveLine{font:600 11px/1.3 JetBrains Mono,monospace;color:var(--muted);margin-top:6px}
 #chaptersCard{display:none;margin-top:0}
 #chaptersCard.show{display:block}
 #chapterList{display:flex;flex-direction:column;gap:6px;max-height:140px;overflow:auto}
@@ -149,11 +145,6 @@ body.mode-replay #player{display:block}
 </main>
 
 <aside id="rail">
-  <div class="card" id="whyCard">
-    <h3>Why it fired</h3>
-    <div id="whyLine">—</div>
-    <div id="driveLine"></div>
-  </div>
   <div class="card">
     <h3>Situation</h3>
     <div id="strip" class="wait">Waiting for scoreboard…</div>
@@ -185,7 +176,6 @@ const playerWrap=document.getElementById('playerWrap'), stageMeta=document.getEl
 const btnLive=document.getElementById('btnLive'), btnReplay=document.getElementById('btnReplay'), btnClip=document.getElementById('btnClip');
 const statusDot=document.getElementById('statusDot'), statusText=document.getElementById('statusText');
 const bufFill=document.getElementById('bufFill'), bufLabel=document.getElementById('bufLabel');
-const whyCard=document.getElementById('whyCard'), whyLine=document.getElementById('whyLine'), driveLine=document.getElementById('driveLine');
 const chaptersCard=document.getElementById('chaptersCard'), chapterList=document.getElementById('chapterList');
 let activeUrl='', mode='live';
 
@@ -275,56 +265,42 @@ function loadChaptersForClip(url){
     });
   }).catch(()=>{ chaptersCard.classList.remove('show'); chapterList.innerHTML=''; });
 }
-function applyWhy(tl){
-  if(!tl){ whyCard.classList.remove('show'); return; }
-  // Prefer DriveGraph climax line when present
-  const g=tl.drive_graph;
-  let line=null;
-  if(g&&g.climax&&g.climax.best_label){
-    const sc=(g.climax.score!=null)?Number(g.climax.score).toFixed(2):'—';
-    line=(g.phase||'—')+' · climax '+sc+' · '+g.climax.best_label+' · path='+(g.climax.best_path||'—');
-  }
-  const w=tl.why_last;
-  if(!line&&w) line=w.line||(w.path+' · '+(w.message||w.kind||''));
-  if(!line){ whyCard.classList.remove('show'); return; }
-  whyLine.textContent=line;
-  let driveBits=[];
-  if(tl.active_drive&&tl.active_drive.drive_id){
-    driveBits.push('drive '+tl.active_drive.drive_id+' · '+(tl.active_drive.event_count||0)+' events');
-  }
-  if(g&&g.phase){
-    driveBits.push('phase '+g.phase+(g.match_rate!=null?' · match '+(Number(g.match_rate)*100).toFixed(0)+'%':''));
-  }
-  driveLine.textContent=driveBits.join(' · ');
-  whyCard.classList.add('show');
-}
 const FEED_MAX=20;
 const feedKeys=[]; // newest-first keys — de-dupe WS + poll
+const feedTitleAt={}; // normalized title → last shown ms (chat spam guard)
+const CHAT_TITLE_TTL_MS=120000; // suppress same chat line for 2 minutes
+function normTitle(t){
+  return String(t||'').toLowerCase().replace(/\s+/g,' ').replace(/[^\w\s\-']/g,'').trim().slice(0,100);
+}
 function momentKey(p){
   if(!p||typeof p!=='object') return '';
-  if(p.ts_ns!=null) return 'ts:'+p.ts_ns;
   const url=clipUrlFromPayload(p);
   if(url) return 'clip:'+url;
-  if(p.name) return 'name:'+p.name;
-  const title=String(p.title||'').trim().slice(0,80);
-  const reason=String(p.reason||'').trim().slice(0,80);
-  const action=String(p.action||'');
-  const path=String(p.path||p.moment_path||'');
-  // Collapse near-identical soft/confirm lines
-  return [action,path,title,reason].join('\u001f');
+  if(p.name && String(p.action||'')==='clip') return 'name:'+p.name;
+  // Chat / soft lines: key by title only so ts_ns / path variants cannot re-spam
+  const title=normTitle(p.title||p.message||'');
+  if(title) return 'chat:'+title;
+  if(p.ts_ns!=null) return 'ts:'+p.ts_ns;
+  return '';
 }
 function addMoment(p){
   if(!p) return false;
   const key=momentKey(p);
   if(!key) return false;
+  const title=String(p.title||p.message||'').trim();
+  const nt=normTitle(title);
+  const now=Date.now();
+  // Hard suppress identical chat lines for CHAT_TITLE_TTL_MS
+  if(nt && key.indexOf('chat:')===0){
+    const last=feedTitleAt[nt]||0;
+    if(now-last < CHAT_TITLE_TTL_MS) return false;
+    feedTitleAt[nt]=now;
+  }
   if(feedKeys.indexOf(key)>=0) return false;
-  // Also skip if same title as current head (rapid double-fire)
-  const title=String(p.title||'').trim();
+  // Same title as current head (any path/action)
   if(title && feed.firstElementChild){
     const head=feed.firstElementChild.getAttribute('data-title')||'';
-    if(head===title && feedKeys[0] && feedKeys[0].indexOf(title)>=0){
-      // allow if different action/path encoded in key already handled above
-    }
+    if(normTitle(head)===nt) return false;
   }
   feedKeys.unshift(key);
   while(feedKeys.length>FEED_MAX) feedKeys.pop();
@@ -338,7 +314,7 @@ function addMoment(p){
     d.innerHTML='<div class="play">▶</div><div class="body"><div class="t">'+(p.clock||'now')+' '+(p.title||'CLUTCH')+'</div><div class="r">'+(p.name||p.reason||url)+'</div></div>';
     d.onclick=()=>playClip(url, p.title||p.name);
   } else {
-    d.textContent=(p.clock||'now')+'  '+(p.title||'CLUTCH')+(p.reason?' · '+p.reason:'');
+    d.textContent=(p.clock||'now')+'  '+(p.title||'CLUTCH');
   }
   feed.prepend(d);
   while(feed.children.length>FEED_MAX) feed.removeChild(feed.lastChild);
@@ -360,12 +336,6 @@ function applySnap(snap,latMs){
   if(snap && Array.isArray(snap.moments) && snap.moments.length){
     snap.moments.forEach(function(m){ addMoment(m); });
   }
-  if(snap && snap.timeline) applyWhy(snap.timeline);
-}
-function refreshTimeline(){
-  fetch('/api/timeline').then(r=>r.json()).then(j=>{
-    if(j&&j.ok!==false) applyWhy(j);
-  }).catch(()=>{});
 }
 function handle(m){
   const snap=m.state||m.snapshot||(m.type==='snapshot'?m:null)||(m.situation?m:null);
@@ -387,8 +357,6 @@ function connect(){
 }
 connect();
 setInterval(()=>{fetch('/api/situation').then(r=>r.json()).then(j=>{ if(j) handle(j.type==='snapshot'?j:{state:j}); }).catch(()=>{});},2000);
-setInterval(refreshTimeline, 2500);
-refreshTimeline();
 
 function doClip(){
   btnClip.disabled=true;

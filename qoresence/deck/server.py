@@ -137,6 +137,15 @@ def update_situation(situation: dict[str, Any], latency_ms: float | None = None)
     _broadcast({"type": "situation", "payload": situation, "latency_ms": _state.latency_ms, "updated_ns": _state.updated_ns})
 
 
+def _norm_title(title: Any) -> str:
+    import re
+
+    t = str(title or "").lower().strip()
+    t = re.sub(r"\s+", " ", t)
+    t = re.sub(r"[^\w\s\-']", "", t)
+    return t[:100]
+
+
 def push_moment(moment: dict[str, Any]) -> None:
     # Only allow live-triggered moments (must have title)
     if not moment or not moment.get("title"):
@@ -144,21 +153,30 @@ def push_moment(moment: dict[str, Any]) -> None:
     import time as _t
 
     moment = dict(moment)
-    # Drop near-duplicate of the last entry (same title+action+path within 2s)
+    now_ns = _t.monotonic_ns()
+    title_n = _norm_title(moment.get("title"))
+    action = str(moment.get("action") or "chat")
+    # Chat spam guard: same normalized title within 90s (any path/source)
+    # Clips keep a short 2s window only.
     try:
+        window_ns = 90_000_000_000 if action != "clip" else 2_000_000_000
+        if title_n:
+            for prev in reversed(_state.moments[-12:]):
+                if _norm_title(prev.get("title")) != title_n:
+                    continue
+                if action == "clip" and str(prev.get("action") or "") != "clip":
+                    continue
+                last_ts = int(prev.get("ts_ns") or 0)
+                if last_ts and (now_ns - last_ts) < window_ns:
+                    return
         last = _state.last_moment
-        if last and str(last.get("title") or "") == str(moment.get("title") or ""):
-            if str(last.get("action") or "") == str(moment.get("action") or ""):
-                if str(last.get("path") or last.get("moment_path") or "") == str(
-                    moment.get("path") or moment.get("moment_path") or ""
-                ):
-                    last_ts = int(last.get("ts_ns") or 0)
-                    now_ns = _t.monotonic_ns()
-                    if last_ts and (now_ns - last_ts) < 2_000_000_000:
-                        return
+        if last and _norm_title(last.get("title")) == title_n:
+            last_ts = int(last.get("ts_ns") or 0)
+            if last_ts and (now_ns - last_ts) < window_ns:
+                return
     except Exception:
         pass
-    moment.setdefault("ts_ns", _t.monotonic_ns())
+    moment.setdefault("ts_ns", now_ns)
     _state.last_moment = moment
     _state.moments.append(moment)
     if len(_state.moments) > 100:
