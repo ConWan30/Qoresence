@@ -370,6 +370,12 @@ def create_app():  # type: ignore[no-untyped-def]
             body["latency"] = get_latency_stats().summary()
         except Exception:
             body["latency"] = {"enabled": False}
+        try:
+            from qoresence.deck.webrtc_hub import stats as webrtc_stats
+
+            body["webrtc"] = webrtc_stats()
+        except Exception:
+            body["webrtc"] = {"available": False}
         return JSONResponse(body)
 
     @app.get("/api/situation")
@@ -388,9 +394,10 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/video")
     async def live_video(request: Request):  # type: ignore[no-untyped-def]
-        """Continuous LIVE HDMI preview from clip_buffer JPEG ring (MJPEG).
+        """Continuous LIVE HDMI preview from clip_buffer JPEG ring (MJPEG fallback).
 
-        Query: ?fps=60 (default full-rate) or ?fps=30 for lighter preview (clamped 5–60).
+        Prefer WebRTC: POST /api/webrtc/offer (FrameHub track, no second capture).
+        Query: ?fps=60 (default) or ?fps=30 for lighter MJPEG (clamped 5–60).
         """
         qfps = None
         try:
@@ -409,6 +416,55 @@ def create_app():  # type: ignore[no-untyped-def]
                 "X-Qoresence-Live-Fps": f"{fps:g}",
             },
         )
+
+    @app.get("/api/webrtc/status")
+    async def api_webrtc_status():  # type: ignore[no-untyped-def]
+        try:
+            from qoresence.deck.webrtc_hub import stats as webrtc_stats
+
+            return JSONResponse({"ok": True, **webrtc_stats()})
+        except Exception as e:
+            return JSONResponse({"ok": False, "available": False, "error": str(e)})
+
+    @app.post("/api/webrtc/offer")
+    async def api_webrtc_offer(request: Request):  # type: ignore[no-untyped-def]
+        """Browser RTC offer → answer with FrameHub video track (novel wiring).
+
+        Body: {\"sdp\": \"...\", \"type\": \"offer\", \"fps\": 30, \"max_width\": 960}
+        No second DShow open — same FrameHub as Retina Monitor / IVC.
+        """
+        try:
+            from qoresence.deck.webrtc_hub import handle_offer, webrtc_available
+
+            if not webrtc_available():
+                return JSONResponse(
+                    {
+                        "ok": False,
+                        "error": "aiortc not installed — pip install aiortc av  (or pip install -e \".[webrtc]\")",
+                        "fallback": "/video?fps=60",
+                    },
+                    status_code=503,
+                )
+            body = await request.json()
+            if not isinstance(body, dict) or not body.get("sdp"):
+                return JSONResponse(
+                    {"ok": False, "error": "expected {sdp, type}"}, status_code=400
+                )
+            fps = float(body.get("fps") or 30)
+            max_w = int(body.get("max_width") or 960)
+            answer = await handle_offer(
+                str(body["sdp"]),
+                str(body.get("type") or "offer"),
+                target_fps=fps,
+                max_width=max_w,
+            )
+            return JSONResponse({"ok": True, **answer, "source": "frame_hub"})
+        except Exception as e:
+            log.exception("WebRTC offer failed")
+            return JSONResponse(
+                {"ok": False, "error": str(e), "fallback": "/video?fps=60"},
+                status_code=500,
+            )
 
     @app.get("/api/clip/status")
     async def api_clip_status():  # type: ignore[no-untyped-def]

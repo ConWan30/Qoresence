@@ -67,6 +67,11 @@ monitor = [
     "opencv-python>=4.8",
     "numpy>=1.24",
 ]
+webrtc = [
+    "aiortc>=1.9.0",
+    "av>=12.0.0",
+    "opencv-python>=4.8",
+]
 dev = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21",
@@ -88,6 +93,8 @@ all = [
     "openvino==2025.4.1",
     "mediapipe>=0.10",
     "pygrabber>=0.2",
+    "aiortc>=1.9.0",
+    "av>=12.0.0",
     "trio-retina>=0.3.0",
     "wasmtime>=16.0",
     "numpy>=1.24",

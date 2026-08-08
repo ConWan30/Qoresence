@@ -51,11 +51,14 @@ body{display:grid;grid-template-columns:1fr var(--rail-w);grid-template-rows:aut
   background:#000; border-radius:16px; border:1px solid rgba(245,197,66,.2);
   box-shadow:0 20px 60px rgba(0,0,0,.5); overflow:hidden;
 }
-#player,#liveFeed{
+#player,#liveFeed,#liveRtc{
   width:100%; height:100%; max-height:100%; object-fit:contain; background:#000; display:none;
 }
 body.mode-live #liveFeed{display:block}
+body.mode-live.webrtc-on #liveFeed{display:none}
+body.mode-live.webrtc-on #liveRtc{display:block}
 body.mode-replay #player{display:block}
+#liveRtc{background:#000}
 #playerEmpty{
   position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:8px; color:var(--muted); font:500 14px/1.5 Inter,sans-serif; text-align:center; padding:24px; pointer-events:none;
@@ -135,10 +138,11 @@ body.mode-replay #player{display:block}
   <div id="playerWrap">
     <div id="playerEmpty">
       <strong>Waiting for HDMI…</strong>
-      Run <code style="color:var(--gold)">--play --deck --streamer-device 0</code>
-      <span>LIVE = /video · REPLAY = saved MP4</span>
+      Run <code style="color:var(--gold)">--play --deck --streamer-fps 60</code>
+      <span>LIVE = WebRTC (FrameHub) · MJPEG fallback · REPLAY = MP4</span>
     </div>
-    <img id="liveFeed" alt="LIVE HDMI" src="/video?fps=60" decoding="async" fetchpriority="high">
+    <video id="liveRtc" autoplay playsinline muted></video>
+    <img id="liveFeed" alt="LIVE HDMI MJPEG" src="/video?fps=60" decoding="async" fetchpriority="high">
     <video id="player" controls playsinline></video>
   </div>
   <!-- Clip library removed — stage free for future features -->
@@ -160,9 +164,10 @@ body.mode-replay #player{display:block}
     <h3>Clutch feed</h3>
     <div id="feed" class="empty"></div>
   </div>
-  <div id="trail"><span id="t1">● waiting</span><span>60fps LIVE</span><span id="t3">local</span></div>
+  <div id="trail"><span id="t1">● waiting</span><span>LIVE WebRTC/MJPEG</span><span id="t3">local</span></div>
   <div id="links">
-    <a href="/video" target="_blank">/video raw</a>
+    <a href="/api/webrtc/status" target="_blank">/webrtc status</a>
+    <a href="/video" target="_blank">/video MJPEG</a>
     <a href="/api/clips" target="_blank">/api/clips</a>
     <a href="/api/situation" target="_blank">situation</a>
     <a href="/api/timeline" target="_blank">timeline</a>
@@ -172,16 +177,80 @@ body.mode-replay #player{display:block}
 <script>
 const strip=document.getElementById('strip'), lat=document.getElementById('lat'), feed=document.getElementById('feed');
 const t1=document.getElementById('t1'), player=document.getElementById('player'), liveFeed=document.getElementById('liveFeed');
+const liveRtc=document.getElementById('liveRtc');
 const playerWrap=document.getElementById('playerWrap'), stageMeta=document.getElementById('stageMeta');
 const btnLive=document.getElementById('btnLive'), btnReplay=document.getElementById('btnReplay'), btnClip=document.getElementById('btnClip');
 const statusDot=document.getElementById('statusDot'), statusText=document.getElementById('statusText');
 const bufFill=document.getElementById('bufFill'), bufLabel=document.getElementById('bufLabel');
 const chaptersCard=document.getElementById('chaptersCard'), chapterList=document.getElementById('chapterList');
-let activeUrl='', mode='live';
+let activeUrl='', mode='live', rtcPc=null, liveMode='mjpeg';
 
 function setStatus(kind, text){
   statusDot.className='dot'+(kind==='ok'?'':kind==='bad'?' bad':' warn');
   statusText.textContent=text;
+}
+function stopWebRtc(){
+  try{ if(rtcPc){ rtcPc.close(); } }catch(e){}
+  rtcPc=null;
+  try{ liveRtc.srcObject=null; }catch(e){}
+  document.body.classList.remove('webrtc-on');
+  liveMode='mjpeg';
+}
+async function startWebRtc(){
+  // Novel path: browser offer → server answer with FrameHub track (no second capture)
+  stopWebRtc();
+  try{
+    const st=await fetch('/api/webrtc/status').then(r=>r.json());
+    if(!st||!st.available){
+      console.info('WebRTC unavailable, MJPEG fallback', st&&st.note);
+      return false;
+    }
+    const pc=new RTCPeerConnection({iceServers:[]}); // localhost — no STUN
+    rtcPc=pc;
+    pc.ontrack=function(ev){
+      if(ev.streams&&ev.streams[0]){
+        liveRtc.srcObject=ev.streams[0];
+        document.body.classList.add('webrtc-on');
+        liveMode='webrtc';
+        markHasVideo(true);
+        stageMeta.textContent='LIVE · WebRTC (FrameHub · no second capture)';
+        t1.textContent='● LIVE WebRTC';
+        setStatus('ok','LIVE WebRTC');
+        try{ liveFeed.removeAttribute('src'); }catch(e){}
+      }
+    };
+    pc.onconnectionstatechange=function(){
+      if(pc.connectionState==='failed'||pc.connectionState==='disconnected'){
+        console.warn('WebRTC state', pc.connectionState, '→ MJPEG fallback');
+        fallbackMjpeg();
+      }
+    };
+    // recvonly transceiver so server can send video
+    pc.addTransceiver('video',{direction:'recvonly'});
+    const offer=await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    const ans=await fetch('/api/webrtc/offer',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sdp:pc.localDescription.sdp, type:pc.localDescription.type, fps:30, max_width:960})
+    }).then(r=>r.json());
+    if(!ans||!ans.ok||!ans.sdp){
+      console.warn('WebRTC offer failed', ans);
+      return false;
+    }
+    await pc.setRemoteDescription({type:ans.type||'answer', sdp:ans.sdp});
+    return true;
+  }catch(e){
+    console.warn('WebRTC start failed', e);
+    return false;
+  }
+}
+function fallbackMjpeg(){
+  stopWebRtc();
+  liveFeed.src='/video?fps=60&t='+Date.now();
+  stageMeta.textContent='LIVE · MJPEG fallback (not 1:1 TV latency)';
+  t1.textContent='● LIVE MJPEG';
+  setStatus('ok','LIVE MJPEG');
 }
 function setMode(m){
   mode=m==='replay'?'replay':'live';
@@ -191,11 +260,10 @@ function setMode(m){
   btnReplay.classList.toggle('active', mode==='replay');
   if(mode==='live'){
     try{player.pause()}catch(e){}
-    liveFeed.src='/video?fps=60&t='+Date.now();
-    stageMeta.textContent='LIVE · capture preview (not 1:1 TV latency)';
-    t1.textContent='● LIVE';
-    setStatus('ok','LIVE HDMI');
+    // Prefer WebRTC; fall back to MJPEG
+    startWebRtc().then(function(ok){ if(!ok) fallbackMjpeg(); });
   } else {
+    stopWebRtc();
     stageMeta.textContent=activeUrl?('REPLAY · '+(activeUrl.split('/').pop()||'')):'REPLAY · tap a clip below';
     setStatus('warn','REPLAY mode');
   }
@@ -396,7 +464,8 @@ setInterval(()=>{fetch('/api/clip/status').then(r=>r.json()).then(j=>{
   }
 }).catch(()=>{});},1500);
 
-liveFeed.onerror=()=>{ if(mode==='live') setTimeout(()=>{ liveFeed.src='/video?fps=60&t='+Date.now(); }, 1200); };
+liveFeed.onerror=()=>{ if(mode==='live'&&liveMode==='mjpeg') setTimeout(()=>{ liveFeed.src='/video?fps=60&t='+Date.now(); }, 1200); };
+liveRtc.onplaying=()=>markHasVideo(true);
 liveFeed.onload=()=>{ if(mode==='live') markHasVideo(true); };
 </script>
 </body></html>
