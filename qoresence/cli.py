@@ -11,9 +11,45 @@ import asyncio
 import logging
 import os
 import signal
+import socket
 import sys
 import time
 from pathlib import Path
+
+
+def _acquire_pilot_lock(port: int = 8765) -> bool:
+    """Prevent dual --play/--deck processes (second open freezes DShow card).
+
+    Tries to bind the Deck port exclusively. Returns False if already in use.
+    """
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
+        # Bind exclusive probe — if Deck is already up, fail fast
+        try:
+            sock.bind(("127.0.0.1", int(port)))
+            sock.close()
+        except OSError:
+            sock.close()
+            return False
+        # Also drop a PID lock file for operators
+        lock = Path("logs") / "qoresence_play.lock"
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        if lock.exists():
+            try:
+                old = int(lock.read_text(encoding="utf-8").strip().split()[0])
+                # stale if process gone
+                try:
+                    os.kill(old, 0)
+                    # process exists — still might be stale if different port; port check above is source of truth
+                except OSError:
+                    pass
+            except Exception:
+                pass
+        lock.write_text(f"{os.getpid()} port={port}\n", encoding="utf-8")
+        return True
+    except Exception:
+        return True  # never hard-block on lock IO errors
 
 from qoresence.agents import ClutchBotAgent
 from qoresence.core import (
@@ -1210,6 +1246,17 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Single-instance guard for play/deck — dual processes freeze DShow capture
+    if getattr(args, "play", False) or getattr(args, "deck", False):
+        if not _acquire_pilot_lock(int(getattr(args, "deck_port", 8765) or 8765)):
+            print(  # noqa: T201
+                "ERROR: Another Qoresence play/deck instance is already running "
+                f"(port {getattr(args, 'deck_port', 8765)} / lock file). "
+                "Stop the other window (Ctrl+C) first — dual open freezes the capture card.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
 
     if args.streamer_list:
         from qoresence.lobes.streamer import (

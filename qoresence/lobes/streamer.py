@@ -14,6 +14,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -737,17 +738,39 @@ class StreamerRuntime:
         self._emit_session_end()
 
     def _read_frame(self) -> tuple[bool, np.ndarray | None]:
-        """Read a frame from the capture device, retrying a few times on soft failures."""
+        """Read a frame with a hard timeout so DShow hangs cannot freeze LIVE forever."""
         if self._cap is None:
             return False, None
-        for _ in range(3):
+        # DShow cap.read() can block indefinitely when the device stalls; isolate it.
+        box: list[Any] = []
+
+        def _grab() -> None:
             try:
-                ok, frame = self._cap.read()
+                ok, frame = self._cap.read()  # type: ignore[union-attr]
+                box.append((bool(ok), frame))
+            except Exception as e:
+                box.append((False, None))
+                log.debug(f"Frame read exception: {e}")
+
+        for _ in range(2):
+            t = threading.Thread(target=_grab, name="dshow-grab", daemon=True)
+            t.start()
+            t.join(timeout=1.25)
+            if t.is_alive():
+                log.warning("Capture read timed out (>1.25s) — device may be frozen; will rebind")
+                # Drop hung cap so rebind can reopen; do not join forever
+                try:
+                    if self._cap is not None:
+                        self._cap.release()
+                except Exception:
+                    pass
+                self._cap = None
+                return False, None
+            if box:
+                ok, frame = box[-1]
                 if ok and frame is not None:
                     return True, frame
-            except Exception as e:
-                log.debug(f"Frame read exception: {e}")
-            time.sleep(0.001)
+            time.sleep(0.01)
         return False, None
 
     def _watchdog_loop(self) -> None:
