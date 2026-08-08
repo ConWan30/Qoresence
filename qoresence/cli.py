@@ -17,36 +17,42 @@ import time
 from pathlib import Path
 
 
+# Held open so a second --play cannot race before Deck binds
+_PILOT_LOCK_SOCK: socket.socket | None = None
+
+
 def _acquire_pilot_lock(port: int = 8765) -> bool:
     """Prevent dual --play/--deck processes (second open freezes DShow card).
 
-    Tries to bind the Deck port exclusively. Returns False if already in use.
+    Binds an exclusive probe socket on port+10000 (e.g. 18765) for process life,
+    and refuses if Deck port is already listening.
     """
+    global _PILOT_LOCK_SOCK
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
-        # Bind exclusive probe — if Deck is already up, fail fast
+        # If Deck already serving, refuse
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.settimeout(0.4)
         try:
-            sock.bind(("127.0.0.1", int(port)))
-            sock.close()
+            probe.connect(("127.0.0.1", int(port)))
+            probe.close()
+            return False  # something is listening on deck port
+        except OSError:
+            probe.close()
+
+        # Exclusive lock socket (survives until process exit)
+        lock_port = int(port) + 10000
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            # Windows: exclusive bind without reuse
+            sock.bind(("127.0.0.1", lock_port))
+            sock.listen(1)
         except OSError:
             sock.close()
             return False
-        # Also drop a PID lock file for operators
+        _PILOT_LOCK_SOCK = sock
         lock = Path("logs") / "qoresence_play.lock"
         lock.parent.mkdir(parents=True, exist_ok=True)
-        if lock.exists():
-            try:
-                old = int(lock.read_text(encoding="utf-8").strip().split()[0])
-                # stale if process gone
-                try:
-                    os.kill(old, 0)
-                    # process exists — still might be stale if different port; port check above is source of truth
-                except OSError:
-                    pass
-            except Exception:
-                pass
-        lock.write_text(f"{os.getpid()} port={port}\n", encoding="utf-8")
+        lock.write_text(f"{os.getpid()} deck={port} lock={lock_port}\n", encoding="utf-8")
         return True
     except Exception:
         return True  # never hard-block on lock IO errors
