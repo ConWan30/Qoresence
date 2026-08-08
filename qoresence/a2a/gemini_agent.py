@@ -18,6 +18,7 @@ from typing import Any
 
 from qoresence.a2a.types import SceneProposal
 from qoresence.a2a.tools import ToolRegistry
+from qoresence.a2a.tool_loop import run_tool_loop, parse_tool_calls, strip_tool_calls
 from qoresence.agents.llm_client import DEFAULT_BASE_URL, _resolve_api_key
 
 log = logging.getLogger(__name__)
@@ -173,6 +174,18 @@ class GeminiSceneAgent:
         )
         if tool_context:
             prompt += f"Recent events from memory: {tool_context}. "
+
+        # Trio P3: Add tool definitions to prompt so LLM can request tool calls
+        if self._tools:
+            tool_defs = self._tools.list_tools()
+            if tool_defs:
+                prompt += (
+                    "\nYou may request tool calls by including <tool_call>{\"name\":\"tool_name\",\"arguments\":{...}}</tool_call> "
+                    "in your response. Available tools: "
+                    + json.dumps(tool_defs, separators=(",", ":"))[:300]
+                    + " "
+                )
+
         prompt += "Reply JSON: {\"summary\":\"...\",\"tension\":0.0-1.0,\"tags\":[\"...\"]}"
 
         content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
@@ -199,6 +212,32 @@ class GeminiSceneAgent:
         if r.status_code != 200:
             raise RuntimeError(f"HTTP {r.status_code}: {r.text[:200]}")
         raw = r.json()["choices"][0]["message"]["content"]
+
+        # Trio P3: Run tool-call parse-execute loop
+        if self._tools and parse_tool_calls(raw):
+            def _llm_callback(tool_results_text: str) -> str:
+                """Follow-up LLM call with tool results."""
+                follow_up_prompt = prompt + "\n" + tool_results_text + "\nNow give your final answer."
+                follow_body = {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": [{"type": "text", "text": follow_up_prompt}]}],
+                    "max_tokens": 180,
+                    "temperature": 0.4,
+                }
+                if jpeg_bytes:
+                    b64 = base64.b64encode(jpeg_bytes).decode("ascii")
+                    follow_body["messages"][0]["content"].append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                    })
+                r2 = requests.post(url, headers=headers, json=follow_body, timeout=12)
+                if r2.status_code != 200:
+                    return ""
+                return r2.json()["choices"][0]["message"]["content"]
+
+            tool_output = run_tool_loop(raw, self._tools, max_rounds=3, llm_callback=_llm_callback)
+            raw = tool_output.final_response
+
         summary, tension, tags = self._parse_jsonish(raw)
         return SceneProposal(
             summary=summary[:200],

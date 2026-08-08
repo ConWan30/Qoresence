@@ -25,28 +25,51 @@ from qoresence.lobes.streamer import StreamerRuntime, ZoneSpec
 
 
 class FakeCapture:
-    """Fake cv2.VideoCapture for testing without hardware."""
+    """Fake cv2.VideoCapture for testing without hardware.
 
-    def __init__(self, frames: list[np.ndarray]):
+    Simulates real camera timing by spacing frame reads at the
+    requested FPS, so the grabber thread doesn't consume all
+    frames before the main loop can process them.
+    """
+
+    def __init__(self, frames: list[np.ndarray], fps: float = 30.0):
         self._frames = frames
         self._idx = 0
         self._opened = True
         self._props = {}
+        self._fps = fps
+        self._last_read_time = 0.0
+        self._frame_interval = 1.0 / fps if fps > 0 else 0.0
 
     def isOpened(self) -> bool:
         return self._opened
 
     def set(self, prop_id: int, value: float) -> None:
         self._props[prop_id] = value
+        # Track FPS changes from the streamer
+        if prop_id == 5:  # cv2.CAP_PROP_FPS
+            self._fps = max(1.0, value)
+            self._frame_interval = 1.0 / self._fps
 
     def get(self, prop_id: int) -> float:
         return self._props.get(prop_id, 0.0)
 
     def read(self) -> tuple[bool, np.ndarray | None]:
+        # Simulate camera timing — block until next frame interval
+        now = time.monotonic()
+        if self._last_read_time > 0:
+            elapsed = now - self._last_read_time
+            if elapsed < self._frame_interval:
+                time.sleep(self._frame_interval - elapsed)
+        self._last_read_time = time.monotonic()
+
         if self._idx < len(self._frames):
             frame = self._frames[self._idx]
             self._idx += 1
             return True, frame
+        # Loop frames to keep the stream alive
+        if self._frames:
+            return True, self._frames[-1]
         return False, None
 
     def release(self) -> None:

@@ -15,6 +15,7 @@ from typing import Any
 
 from qoresence.a2a.types import ChatProposal, SceneProposal
 from qoresence.a2a.tools import ToolRegistry
+from qoresence.a2a.tool_loop import run_tool_loop, parse_tool_calls
 from qoresence.agents.llm_client import (
     DEFAULT_BASE_URL,
     DEFAULT_MODEL,
@@ -140,6 +141,8 @@ class DeepSeekChatAgent:
         return ""
 
     def _live(self, scene: SceneProposal, situation: dict[str, Any], path: str) -> ChatProposal:
+        import json as _json
+
         soft = path != "confirm"
 
         # Trio P3: Pre-fetch recent events via query-memory tool
@@ -158,6 +161,17 @@ class DeepSeekChatAgent:
         )
         if memory_context:
             base += f" Recent events: {memory_context}."
+
+        # Trio P3: Add tool definitions to prompt
+        if self._tools:
+            tool_defs = self._tools.list_tools()
+            if tool_defs:
+                base += (
+                    "\nYou may request tool calls by including <tool_call>{\"name\":\"tool_name\",\"arguments\":{...}}</tool_call> "
+                    "in your response. Available tools: "
+                    + _json.dumps(tool_defs, separators=(",", ":"))[:300]
+                )
+
         text = self._client.enhance_message(
             situation=situation,
             event_type="a2a_scene",
@@ -165,6 +179,24 @@ class DeepSeekChatAgent:
             persona=self.persona,
             base_message=base,
         )
+        if not text:
+            return self._stub(scene, path)
+
+        # Trio P3: Run tool-call parse-execute loop if tool calls detected
+        if self._tools and parse_tool_calls(text):
+            def _llm_callback(tool_results_text: str) -> str:
+                follow_base = base + "\n" + tool_results_text + "\nNow give your final chat line."
+                return self._client.enhance_message(
+                    situation=situation,
+                    event_type="a2a_scene",
+                    event_payload={"scene": scene.to_dict()},
+                    persona=self.persona,
+                    base_message=follow_base,
+                ) or ""
+
+            tool_output = run_tool_loop(text, self._tools, max_rounds=3, llm_callback=_llm_callback)
+            text = tool_output.final_response
+
         if not text:
             return self._stub(scene, path)
         return ChatProposal(
