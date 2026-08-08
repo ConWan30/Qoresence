@@ -89,12 +89,18 @@ class TestGameProfiles:
             "down_advanced",
             "first_down",
             "score_changed",
+            "touchdown",
+            "field_goal",
+            "safety",
+            "two_point_conversion",
             "playclock_reset",
             "quarter_changed",
+            "two_minute_warning",
             "possession_changed",
             "timeout_called",
             "penalty",
             "turnover",
+            "red_zone_entry",
         }
         assert set(profile.event_types) == expected
 

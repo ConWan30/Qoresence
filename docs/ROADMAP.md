@@ -76,9 +76,9 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] Windows one-liner launcher (`qoresence.bat`)
 
 ## Phase 5 — Game profile expansion
-- [ ] Richer football event vocabulary
-- [ ] FPS profiles beyond CoD
-- [ ] Community game-profile SDK
+- [x] Richer football event vocabulary (touchdown, field_goal, safety, 2PC, red_zone, 2-min warning)
+- [x] FPS profiles beyond CoD (Valorant, Apex Legends, Fortnite)
+- [x] Community game-profile SDK (YAML + Python API, `--profiles-list`)
 
 ## Phase 6 — Operator glass polish
 - [x] Deck `controller` strip in Theater UI (APM, triggers, stick, sync)

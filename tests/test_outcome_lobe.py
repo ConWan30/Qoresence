@@ -440,7 +440,7 @@ class TestOutcomeTrigger:
 
             # Invalid event for NCAA
             assert trigger.emit("kill", {}) is False  # CoD event
-            assert trigger.emit("touchdown", {}) is False  # Not in NCAA event_types
+            assert trigger.emit("spike_plant", {}) is False  # Valorant event
 
     def test_trigger_confidence_parameter(self):
         with tempfile.TemporaryDirectory() as td:
