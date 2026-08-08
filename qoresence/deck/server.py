@@ -346,6 +346,12 @@ def create_app():  # type: ignore[no-untyped-def]
             body["a2a"] = get_a2a_orchestrator().stats()
         except Exception:
             body["a2a"] = {"enabled": False}
+        try:
+            from qoresence.observability import get_latency_stats
+
+            body["latency"] = get_latency_stats().summary()
+        except Exception:
+            body["latency"] = {"enabled": False}
         return JSONResponse(body)
 
     @app.get("/api/situation")

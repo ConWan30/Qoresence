@@ -55,94 +55,103 @@ class FastMomentEngine:
         features: set[str] | None = None,
     ) -> list[ScoredMoment]:
         """Return fast-path moments. Empty when coupling quiet or no context."""
-        features = features or {"chat", "clip"}
-        coup = self._resolve_coupling(coupling)
-        c = float(coup.get("coupling") or 0.0)
-        energy = float(coup.get("input_energy") or 0.0)
-        frame_seq = coup.get("frame_seq")
-        buttons = list(coup.get("buttons") or [])
+        t0 = time.perf_counter()
+        try:
+            features = features or {"chat", "clip"}
+            coup = self._resolve_coupling(coupling)
+            c = float(coup.get("coupling") or 0.0)
+            energy = float(coup.get("input_energy") or 0.0)
+            frame_seq = coup.get("frame_seq")
+            buttons = list(coup.get("buttons") or [])
 
-        # Graceful degrade: no controller / empty ring → stay quiet
-        if c < self.chat_coupling and energy <= 0.0:
-            return []
+            # Graceful degrade: no controller / empty ring → stay quiet
+            if c < self.chat_coupling and energy <= 0.0:
+                return []
 
-        if not self._has_live_context(situation):
-            return []
+            if not self._has_live_context(situation):
+                return []
 
-        red = self._is_red_zone(situation)
-        close = self._is_close(situation)
-        late = self._is_late(situation)
-        moments: list[ScoredMoment] = []
+            red = self._is_red_zone(situation)
+            close = self._is_close(situation)
+            late = self._is_late(situation)
+            moments: list[ScoredMoment] = []
 
-        # Soft chat — never include score digits
-        if "chat" in features and c >= self.chat_coupling:
-            key, msg = self._pick_soft_chat(red=red, close=close, late=late)
-            if msg and self._cooldown_ok(f"fast_chat:{key}", self.chat_cooldown_s):
-                msg = self._sanitize_soft(msg)
-                moments.append(
-                    ScoredMoment(
-                        triggered=True,
-                        weight=min(0.55 + 0.2 * c, 0.85),
-                        action="chat",
-                        message=msg,
-                        reason=f"fast path soft chat ({key})",
-                        cooldown_key=f"fast_{key}",
-                        payload={
-                            "path": "fast",
-                            "factual": False,
-                            "coupling": c,
-                            "input_energy": energy,
-                            "frame_seq": frame_seq,
-                            "buttons": buttons[:8],
-                        },
+            # Soft chat — never include score digits
+            if "chat" in features and c >= self.chat_coupling:
+                key, msg = self._pick_soft_chat(red=red, close=close, late=late)
+                if msg and self._cooldown_ok(f"fast_chat:{key}", self.chat_cooldown_s):
+                    msg = self._sanitize_soft(msg)
+                    moments.append(
+                        ScoredMoment(
+                            triggered=True,
+                            weight=min(0.55 + 0.2 * c, 0.85),
+                            action="chat",
+                            message=msg,
+                            reason=f"fast path soft chat ({key})",
+                            cooldown_key=f"fast_{key}",
+                            payload={
+                                "path": "fast",
+                                "factual": False,
+                                "coupling": c,
+                                "input_energy": energy,
+                                "frame_seq": frame_seq,
+                                "buttons": buttons[:8],
+                            },
+                        )
                     )
-                )
 
-        # Clip intent — local Foundry; does not invent facts
-        if "clip" in features and c >= self.clip_coupling and (red or (close and late)):
-            if self._cooldown_ok("fast_clip", self.clip_cooldown_s):
-                moments.append(
-                    ScoredMoment(
-                        triggered=True,
-                        weight=min(0.7 + 0.25 * c, 0.95),
-                        action="clip",
-                        message="",
-                        reason="fast path clip intent (video+input co-occurrence)",
-                        cooldown_key="fast_clip",
-                        payload={
-                            "path": "fast",
-                            "factual": False,
-                            "coupling": c,
-                            "frame_seq": frame_seq,
-                            "seconds": 8.0,
-                        },
+            # Clip intent — local Foundry; does not invent facts
+            if "clip" in features and c >= self.clip_coupling and (red or (close and late)):
+                if self._cooldown_ok("fast_clip", self.clip_cooldown_s):
+                    moments.append(
+                        ScoredMoment(
+                            triggered=True,
+                            weight=min(0.7 + 0.25 * c, 0.95),
+                            action="clip",
+                            message="",
+                            reason="fast path clip intent (video+input co-occurrence)",
+                            cooldown_key="fast_clip",
+                            payload={
+                                "path": "fast",
+                                "factual": False,
+                                "coupling": c,
+                                "frame_seq": frame_seq,
+                                "seconds": 8.0,
+                            },
+                        )
                     )
-                )
 
-        # Arm prediction latch — confirm path may start/resolve later
-        if "prediction" in features and c >= self.arm_coupling and red:
-            if self._cooldown_ok("fast_arm", self.arm_cooldown_s):
-                self._prediction_armed = True
-                self._armed_at = time.time()
-                moments.append(
-                    ScoredMoment(
-                        triggered=True,
-                        weight=0.5,
-                        action="arm_prediction",
-                        message="",
-                        reason="fast path armed prediction (await OCR confirm)",
-                        cooldown_key="fast_arm",
-                        payload={
-                            "path": "fast",
-                            "factual": False,
-                            "coupling": c,
-                            "frame_seq": frame_seq,
-                            "armed": True,
-                        },
+            # Arm prediction latch — confirm path may start/resolve later
+            if "prediction" in features and c >= self.arm_coupling and red:
+                if self._cooldown_ok("fast_arm", self.arm_cooldown_s):
+                    self._prediction_armed = True
+                    self._armed_at = time.time()
+                    moments.append(
+                        ScoredMoment(
+                            triggered=True,
+                            weight=0.5,
+                            action="arm_prediction",
+                            message="",
+                            reason="fast path armed prediction (await OCR confirm)",
+                            cooldown_key="fast_arm",
+                            payload={
+                                "path": "fast",
+                                "factual": False,
+                                "coupling": c,
+                                "frame_seq": frame_seq,
+                                "armed": True,
+                            },
+                        )
                     )
-                )
 
-        return moments
+            return moments
+        finally:
+            try:
+                from qoresence.observability import record_latency
+
+                record_latency("fast_moment", (time.perf_counter() - t0) * 1000.0)
+            except Exception:
+                pass
 
     def on_confirm_score(self) -> None:
         """Clear prediction arm latch when confirm path sees score change."""

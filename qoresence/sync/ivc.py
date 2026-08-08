@@ -102,6 +102,7 @@ class InputVideoCoupler:
                 self._stop.wait(timeout=sleep)
 
     def _sample(self) -> dict[str, Any] | None:
+        t_sample0 = time.perf_counter()
         from qoresence.monitor.frame_hub import get_frame_hub
         from qoresence.sync.input_ring import get_input_ring
 
@@ -161,6 +162,17 @@ class InputVideoCoupler:
                 )
             except Exception as e:
                 log.debug("IVC bus emit failed: %s", e)
+
+        try:
+            from qoresence.observability import record_latency
+
+            record_latency(
+                "ivc_tick",
+                (time.perf_counter() - t_sample0) * 1000.0,
+                frame_seq=seq,
+            )
+        except Exception:
+            pass
 
         return payload
 
