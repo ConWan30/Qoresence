@@ -64,6 +64,7 @@ class EventType(StrEnum):
     # Agent actions
     AGENT_ACTION = "agent_action"
     EVIDENCE_CHAIN = "evidence_chain"
+    ROUTER_DECISION = "router_decision"
 
     # Validation / anomalies
     ANOMALY = "anomaly"

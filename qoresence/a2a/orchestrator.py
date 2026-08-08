@@ -28,6 +28,11 @@ from qoresence.a2a.types import (
     SceneProposal,
     Veto,
 )
+from qoresence.a2a.router import (
+    build_router_decision,
+    evaluate_must_fire,
+    get_predicates_for_category,
+)
 
 log = logging.getLogger(__name__)
 
@@ -203,17 +208,46 @@ class A2AOrchestrator:
         }:
             interval = max(interval, float(self.min_interval_s) * 0.5)
 
+        # Trio P2: Evaluate must-fire predicates — bypass interval if any fire
+        must_fire, must_fire_pred = evaluate_must_fire(sit)
+        if must_fire:
+            interval = 0.0
+            log.debug("A2A must-fire predicate hit: %s", must_fire_pred)
+
         now = time.time()
+        last_age = now - self._last_trigger if self._last_trigger > 0 else 0.0
         with self._lock:
             if self._inflight:
+                # Emit router decision: suppressed by in-flight
+                decision = build_router_decision(
+                    fired=False, reason=reason, situation=sit,
+                    must_fire_hit=must_fire_pred,
+                    interval_s=interval, last_trigger_age_s=last_age,
+                )
+                self.bus.emit_router_decision(decision.to_dict())
                 return
-            if not force and (now - self._last_trigger) < interval:
+            if not force and not must_fire and (now - self._last_trigger) < interval:
+                # Emit router decision: suppressed by interval
+                decision = build_router_decision(
+                    fired=False, reason=reason, situation=sit,
+                    must_fire_hit=None,
+                    interval_s=interval, last_trigger_age_s=last_age,
+                )
+                self.bus.emit_router_decision(decision.to_dict())
                 return
             self._inflight = True
             self._last_trigger = now
             self._last_reason = reason
 
-        log.info("A2A trigger reason=%s interval=%.0fs path=%s", reason, interval, path)
+        # Emit router decision: fired
+        decision = build_router_decision(
+            fired=True, reason=reason, situation=sit,
+            must_fire_hit=must_fire_pred,
+            interval_s=interval, last_trigger_age_s=last_age,
+        )
+        self.bus.emit_router_decision(decision.to_dict())
+
+        log.info("A2A trigger reason=%s interval=%.0fs path=%s must_fire=%s", reason, interval, path, must_fire_pred or "-")
 
         def _run() -> None:
             try:

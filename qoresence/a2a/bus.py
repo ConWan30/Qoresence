@@ -92,6 +92,22 @@ class A2ABus:
         except Exception as e:
             log.debug("A2A evidence emit failed: %s", e)
 
+    def emit_router_decision(self, decision: dict[str, Any], clock_ns: int | None = None) -> None:
+        """Emit a router decision log to the RetinaEventBus (Trio P2)."""
+        if self._retina_bus is None:
+            return
+        try:
+            from qoresence.core import SourceLobe
+
+            self._retina_bus.emit_raw(
+                source_lobe=SourceLobe.AGENT,
+                event_type="router_decision",
+                payload=decision,
+                clock_ns_override=clock_ns,
+            )
+        except Exception as e:
+            log.debug("A2A router decision emit failed: %s", e)
+
     def recent(self, n: int = 20) -> list[A2AMessage]:
         with self._lock:
             items = list(self._recent)
