@@ -156,39 +156,25 @@ class LocalVLMClient:
                 # Ensure extractor path is open
                 ctx.game_category = GameCategory.FOOTBALL
             self._football_n += 1
-            # EasyOCR is heavy and can freeze the process if run on the visual
-            # loop. Prefer async scoreboard VLM; optional sync EasyOCR only when
-            # QORESENCE_EASY_OCR=1 (default off under live pilot).
-            import os as _os_ocr
-
-            easy_on = _os_ocr.environ.get("QORESENCE_EASY_OCR", "0").strip().lower() in {
-                "1",
-                "true",
-                "yes",
-            }
-            if easy_on and self._football_n % max(1, self._ocr_every_n) == 0:
-                before = (ctx.home_score, ctx.away_score)
-                ctx = extract_football_scoreboard(frame, ctx)
+            # Always run the scoreboard extractor: it schedules the async
+            # Gemini VLM referee AND merges get_last() + stabilizer into ctx.
+            # The heavy local OCR tokens are gated inside the extractor on
+            # QORESENCE_EASY_OCR (default off) so PaddleOCR/EasyOCR do not
+            # freeze the visual loop. Without this call the VLM result was
+            # scheduled but never merged → scores stayed null in production.
+            before = (ctx.home_score, ctx.away_score)
+            ctx = extract_football_scoreboard(frame, ctx)
+            if (ctx.home_score, ctx.away_score) != before:
+                log.info(
+                    "scoreboard → %s-%s (was %s-%s)",
+                    ctx.home_score,
+                    ctx.away_score,
+                    before[0],
+                    before[1],
+                )
+            if ctx.score_vlm_locked:
                 self._stats["ocr_calls"] = int(self._stats.get("ocr_calls", 0)) + 1
-                if (ctx.home_score, ctx.away_score) != before:
-                    log.info(
-                        "scoreboard OCR → %s-%s (was %s-%s)",
-                        ctx.home_score,
-                        ctx.away_score,
-                        before[0],
-                        before[1],
-                    )
             else:
-                # Still schedule async Gemini board referee (non-blocking)
-                try:
-                    from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
-
-                    gst = getattr(ctx.game_state, "value", None) or str(
-                        getattr(ctx, "game_state", "") or ""
-                    )
-                    get_scoreboard_vlm().schedule(frame, game_state=str(gst), reason="tick")
-                except Exception:
-                    pass
                 self._stats["ocr_skips"] = int(self._stats.get("ocr_skips", 0)) + 1
 
         ms = (time.perf_counter() - t0) * 1000

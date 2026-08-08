@@ -300,3 +300,32 @@ def test_score_vlm_locked_defaults_false_in_round_trip():
     )
     rt = VisualContext.from_dict(ctx.to_dict())
     assert rt.score_vlm_locked is False
+
+
+# ── VLM-only path (no OCR — the default production config) ────────────────────
+
+
+def test_vlm_only_merge_without_ocr(monkeypatch):
+    """When QORESENCE_EASY_OCR is off (default), VLM scores still merge.
+
+    This is the production bug: the extractor was never called when OCR was
+    off, so VLM results were scheduled but never merged into the context.
+    Now extract() always runs; only heavy OCR tokens are gated.
+    """
+    _reset_stabilizer()
+    monkeypatch.delenv("QORESENCE_EASY_OCR", raising=False)
+    # OCR engine would return tokens if called, but it must NOT be called
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
+        lambda: _FakeOcrEngine(_ocr_boxes_20_0()),
+    )
+    vlm = _FakeVlm({"home_score": 20, "away_score": 0, "quarter": 3})
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm
+    )
+    ext = FootballScoreboardExtractor()
+    ctx = ext.extract(_blank_frame(), _football_ctx())
+    # VLM must merge even though OCR is off
+    assert ctx.home_score == 20
+    assert ctx.away_score == 0
+    assert ctx.score_vlm_locked is True

@@ -303,7 +303,19 @@ class FootballScoreboardExtractor:
         except Exception as e:
             log.debug("scoreboard VLM schedule: %s", e)
 
-        tokens = self._ocr_tokens(frame)
+        # Local OCR tokens are heavy (PaddleOCR/EasyOCR can freeze the visual
+        # loop). Gate on QORESENCE_EASY_OCR=1 (default off) — the async VLM
+        # referee above is the primary score source; OCR is opt-in confirmation.
+        import os as _os_ocr
+
+        _ocr_on = _os_ocr.environ.get("QORESENCE_EASY_OCR", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        tokens: list[_Token] = []
+        if _ocr_on:
+            tokens = self._ocr_tokens(frame)
         parsed: dict[str, Any] = {}
         if tokens:
             joined = " ".join(t.text for t in tokens).upper()
