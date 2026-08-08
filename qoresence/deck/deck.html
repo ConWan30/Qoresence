@@ -232,7 +232,7 @@ async function startWebRtc(){
     const ans=await fetch('/api/webrtc/offer',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({sdp:pc.localDescription.sdp, type:pc.localDescription.type, fps:30, max_width:960})
+      body:JSON.stringify({sdp:pc.localDescription.sdp, type:pc.localDescription.type, fps:60, max_width:1280})
     }).then(r=>r.json());
     if(!ans||!ans.ok||!ans.sdp){
       console.warn('WebRTC offer failed', ans);

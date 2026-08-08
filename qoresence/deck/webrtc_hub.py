@@ -60,7 +60,7 @@ if _HAS_AIORTC:
 
         kind = "video"
 
-        def __init__(self, target_fps: float = 30.0, max_width: int = 960) -> None:
+        def __init__(self, target_fps: float = 60.0, max_width: int = 1280) -> None:
             super().__init__()
             self.target_fps = max(5.0, min(60.0, float(target_fps)))
             self.max_width = int(max_width)
@@ -69,13 +69,22 @@ if _HAS_AIORTC:
             self._last_seq = -1
             self._black: np.ndarray | None = None
             self._frames_sent = 0
+            self._interval = 1.0 / self.target_fps
+            self._last_send = 0.0
 
         async def recv(self) -> Any:
-            # Pace to target_fps; prefer a *new* FrameHub seq when available
-            await asyncio.sleep(1.0 / self.target_fps)
+            # Pull the latest FrameHub frame FIRST, then pace. This minimizes
+            # latency — the frame is as fresh as possible when we encode it.
             img = self._pull_bgr()
             if img is None:
                 img = self._placeholder()
+            # Pace to target_fps using a wall-clock latch (not a blind sleep)
+            now = time.monotonic()
+            elapsed = now - self._last_send
+            wait = self._interval - elapsed
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self._last_send = time.monotonic()
             # even dims for encoders
             h, w = img.shape[:2]
             if w % 2 or h % 2:
@@ -131,8 +140,8 @@ async def handle_offer(
     sdp: str,
     type_: str = "offer",
     *,
-    target_fps: float = 30.0,
-    max_width: int = 960,
+    target_fps: float = 60.0,
+    max_width: int = 1280,
 ) -> dict[str, str]:
     """Client offer → server answer with FrameHub video track."""
     if not _HAS_AIORTC:

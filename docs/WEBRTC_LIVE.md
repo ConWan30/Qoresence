@@ -51,7 +51,7 @@ One brain, **N glasses** — WebRTC is another glass, not a second capture pipel
 
 - Localhost only (`127.0.0.1`) — no STUN/TURN yet  
 - Video only (no game audio)  
-- Default encode ~30 fps / max width 960 for stability (capture still 60)  
+- Default encode ~60 fps / max width 1280 for low-lag LIVE (capture also 60)  
 - Requires `aiortc` + `av`  
 
 ---
