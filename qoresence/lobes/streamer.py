@@ -307,6 +307,13 @@ class StreamerRuntime:
         self._preferred_device_name: str | None = getattr(config, "device_name", None)
         self._bound_device_name: str | None = None
         self._last_rebind_attempt = 0.0
+        # Dedicated grabber — DShow read never blocks the process/LIVE path
+        self._grab_thread: threading.Thread | None = None
+        self._grab_stop = threading.Event()
+        self._grab_lock = threading.Lock()
+        self._grab_latest: np.ndarray | None = None
+        self._grab_ts: float = 0.0
+        self._grab_alive = False
 
         # Metrics state
         self._prev_gray: np.ndarray | None = None
@@ -396,12 +403,16 @@ class StreamerRuntime:
         """Stop capture thread, watchdog, and release device."""
         self._running = False
         self._watchdog_running = False
+        self._stop_grabber()
         if self._watchdog_thread:
             self._watchdog_thread.join(timeout=1.0)
         if self._thread:
             self._thread.join(timeout=2.0)
         if self._cap:
-            self._cap.release()
+            try:
+                self._cap.release()
+            except Exception:
+                pass
             self._cap = None
         log.info("Streamer lobe stopped")
 
@@ -582,6 +593,8 @@ class StreamerRuntime:
                 f"Capture opened: {frame.shape[1]}x{frame.shape[0]} @ "
                 f"{self._cap.get(cv2.CAP_PROP_FPS):.1f} FPS (requested {self.config.fps_target})"
             )
+            # Start isolated grabber so main/LIVE never blocks on DShow read
+            self._start_grabber()
             return True
 
         except Exception as e:
@@ -591,10 +604,64 @@ class StreamerRuntime:
                     "Replug capture card or free it from OBS. "
                     "List: python -m qoresence.cli --streamer-list"
                 )
+            self._stop_grabber()
             if self._cap:
-                self._cap.release()
+                try:
+                    self._cap.release()
+                except Exception:
+                    pass
                 self._cap = None
             return False
+
+    def _start_grabber(self) -> None:
+        """Background thread: only job is cap.read() → latest slot."""
+        self._stop_grabber()
+        self._grab_stop.clear()
+        self._grab_alive = True
+
+        def _loop() -> None:
+            fail = 0
+            while not self._grab_stop.is_set():
+                cap = self._cap
+                if cap is None:
+                    time.sleep(0.05)
+                    continue
+                try:
+                    ok, frame = cap.read()
+                    if ok and frame is not None:
+                        with self._grab_lock:
+                            # no copy here — consumer copies
+                            self._grab_latest = frame
+                            self._grab_ts = time.monotonic()
+                        fail = 0
+                    else:
+                        fail += 1
+                        if fail > 30:
+                            time.sleep(0.02)
+                        else:
+                            time.sleep(0.001)
+                except Exception as e:
+                    fail += 1
+                    log.debug("grabber read: %s", e)
+                    time.sleep(0.02)
+            self._grab_alive = False
+
+        self._grab_thread = threading.Thread(
+            target=_loop, name="qoresence-dshow-grab", daemon=True
+        )
+        self._grab_thread.start()
+        log.info("Capture grabber thread started (non-blocking LIVE path)")
+
+    def _stop_grabber(self) -> None:
+        self._grab_stop.set()
+        t = self._grab_thread
+        if t is not None and t.is_alive():
+            t.join(timeout=1.5)
+        self._grab_thread = None
+        with self._grab_lock:
+            self._grab_latest = None
+            self._grab_ts = 0.0
+        self._grab_alive = False
 
     def _try_rebind_capture(self) -> bool:
         """Hotplug: re-enumerate DShow and reopen preferred physical card."""
@@ -612,6 +679,7 @@ class StreamerRuntime:
             return False
         idx, name = resolved
         log.info("Capture rebind attempting idx=%s name=%r", idx, name)
+        self._stop_grabber()
         try:
             if self._cap is not None:
                 self._cap.release()
@@ -738,40 +806,23 @@ class StreamerRuntime:
         self._emit_session_end()
 
     def _read_frame(self) -> tuple[bool, np.ndarray | None]:
-        """Read a frame with a hard timeout so DShow hangs cannot freeze LIVE forever."""
-        if self._cap is None:
+        """Non-blocking: pull latest frame from grabber thread (never call cap.read here)."""
+        if self._cap is None and not self._grab_alive:
             return False, None
-        # DShow cap.read() can block indefinitely when the device stalls; isolate it.
-        box: list[Any] = []
-
-        def _grab() -> None:
-            try:
-                ok, frame = self._cap.read()  # type: ignore[union-attr]
-                box.append((bool(ok), frame))
-            except Exception as e:
-                box.append((False, None))
-                log.debug(f"Frame read exception: {e}")
-
-        for _ in range(2):
-            t = threading.Thread(target=_grab, name="dshow-grab", daemon=True)
-            t.start()
-            t.join(timeout=1.25)
-            if t.is_alive():
-                log.warning("Capture read timed out (>1.25s) — device may be frozen; will rebind")
-                # Drop hung cap so rebind can reopen; do not join forever
-                try:
-                    if self._cap is not None:
-                        self._cap.release()
-                except Exception:
-                    pass
-                self._cap = None
-                return False, None
-            if box:
-                ok, frame = box[-1]
-                if ok and frame is not None:
-                    return True, frame
-            time.sleep(0.01)
-        return False, None
+        with self._grab_lock:
+            frame = self._grab_latest
+            ts = self._grab_ts
+        if frame is None:
+            return False, None
+        # Stale slot → treat as failure so rebind can fire
+        age = time.monotonic() - ts if ts else 999.0
+        if age > 2.5:
+            log.warning("Grabber frame stale (%.1fs) — will rebind", age)
+            return False, None
+        try:
+            return True, np.ascontiguousarray(frame)
+        except Exception:
+            return False, None
 
     def _watchdog_loop(self) -> None:
         """Watchdog thread: emit heartbeat and degrade FPS if frames stall."""

@@ -27,7 +27,8 @@ DEFAULT_SECONDS = 30.0
 DEFAULT_FPS = 60.0
 # Smaller LIVE JPEGs = faster encode + less browser MJPEG buffer lag.
 DEFAULT_MAX_WIDTH = 640
-DEFAULT_JPEG_QUALITY = 55
+# Slightly lower quality keeps 60fps LIVE from saturating CPU (freeze root cause)
+DEFAULT_JPEG_QUALITY = 48
 DEFAULT_OUT_DIR = Path("clips")
 
 
