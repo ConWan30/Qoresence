@@ -66,8 +66,9 @@ OBS (optional stream): Browser Source for Lens only
 ```powershell
 # OBS: remove/disable Video Capture on USB3.0 Video
 python -m qoresence.cli --streamer-list
-python -m qoresence.cli --play --deck --monitor --streamer-fps 60 --a2a
+python -m qoresence.cli --play --deck --monitor --streamer-fps 60
 # --streamer-device -1 (default) auto-picks USB3.0 Video by name
+# optional A2A: add --a2a (see A2A_CLUTCHBOT.md — opt-in, not part of base pilot)
 ```
 
 Deck: http://127.0.0.1:8765/deck.html  

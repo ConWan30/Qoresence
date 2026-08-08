@@ -13,8 +13,8 @@ from qoresence.vision.clip_buffer import (
 )
 
 
-def test_default_fps_is_half_ps5_rate():
-    assert DEFAULT_FPS == 30.0
+def test_default_fps_matches_ps5_rate():
+    assert DEFAULT_FPS == 60.0
 
 
 def test_latest_jpeg_empty_is_none():
