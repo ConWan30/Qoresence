@@ -117,11 +117,14 @@ class SituationModel:
 
         if ctx.game_category and ctx.game_category.value == "football":
             # Scores: only apply if plausible (OCR often emits 17-2 for a real 17-17)
+            # VLM-locked scores bypass this gate — the scoreboard referee is the
+            # authority and may correct a prior bad OCR lock (e.g. 20-20 → 20-0).
             hs, aws = ctx.home_score, ctx.away_score
-            if hs is not None and not self._score_plausible(self._state.home_score, hs):
-                hs = None
-            if aws is not None and not self._score_plausible(self._state.away_score, aws):
-                aws = None
+            if not ctx.score_vlm_locked:
+                if hs is not None and not self._score_plausible(self._state.home_score, hs):
+                    hs = None
+                if aws is not None and not self._score_plausible(self._state.away_score, aws):
+                    aws = None
             self._apply_if_set(
                 home_score=hs,
                 away_score=aws,

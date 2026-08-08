@@ -70,6 +70,12 @@ class VisualContext:
     has_lag_indicator: bool = False
     frame_quality: str = "ok"  # ok|blurry|dark|overexposed
 
+    # Score provenance: True when the scoreboard VLM referee force-locked the
+    # score (overrides OCR). Downstream gates must trust VLM-locked scores even
+    # when they look like "drops" relative to a prior bad OCR lock (e.g. 20-20
+    # corrected to 20-0). See engineering invariants #4/#5.
+    score_vlm_locked: bool = False
+
     # Provenance
     raw_response: str = ""
     frame_hash: str = ""
@@ -145,6 +151,7 @@ class VisualContext:
         d["model"] = self.model
         d["latency_ms"] = self.latency_ms
         d["details"] = self.details
+        d["score_vlm_locked"] = self.score_vlm_locked
         return d
 
     @staticmethod
@@ -260,6 +267,7 @@ class VisualContext:
         ctx.model = str(raw.get("model", ""))
         ctx.latency_ms = float(raw.get("latency_ms", 0.0))
         ctx.details = raw.get("details") or {}
+        ctx.score_vlm_locked = bool(raw.get("score_vlm_locked", False))
 
         return ctx
 

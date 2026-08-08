@@ -354,6 +354,16 @@ class FootballScoreboardExtractor:
                 vlm_scores = True
 
         if not parsed:
+            # No OCR/VLM this frame — still publish a held stabilizer lock so a
+            # null VLM (transition / blur) does not wipe a good score lock
+            # (invariant #5). update(None, None) returns the held lock unchanged.
+            stab = FootballScoreboardExtractor._stabilizer
+            if stab is not None:
+                sh, sa = stab.update(None, None)
+                if sh is not None:
+                    ctx.home_score = sh
+                if sa is not None:
+                    ctx.away_score = sa
             return ctx
 
         # Stabilize scores so one bad frame cannot flip 17-17 → 17-2
@@ -366,6 +376,7 @@ class FootballScoreboardExtractor:
                 stab._recent.clear()
                 stab._recent.append((int(raw_h), int(raw_a)))
                 sh, sa = stab._stable
+                ctx.score_vlm_locked = True
                 log.info("scoreboard VLM lock %s-%s", sh, sa)
             else:
                 sh, sa = stab.update(raw_h, raw_a)
@@ -385,6 +396,15 @@ class FootballScoreboardExtractor:
                     sh,
                     sa,
                 )
+        elif stab is not None:
+            # No score candidates this frame (e.g. partial VLM with only
+            # quarter, OCR empty) — publish held lock so a null/partial VLM
+            # does not wipe a good score lock (invariant #5).
+            sh, sa = stab.update(None, None)
+            if sh is not None:
+                parsed["home_score"] = sh
+            if sa is not None:
+                parsed["away_score"] = sa
 
         if parsed.get("home_score") is not None:
             ctx.home_score = parsed["home_score"]
