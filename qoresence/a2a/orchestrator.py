@@ -65,18 +65,37 @@ class A2AOrchestrator:
         path: str = "fast",
         force: bool = False,
     ) -> None:
-        """Schedule a sparse A2A cycle on a background thread if pressure is high."""
+        """Schedule a sparse A2A cycle on a background thread if pressure is high.
+
+        Triggers when any of:
+        - drive phase in pressure/armed/open/active
+        - coupling ≥ threshold (controller path)
+        - live football gameplay (video-only — no DualSense required)
+        """
         if not self.enabled and not force:
             return
+        sit = situation or {}
         phase_ok = drive_phase in {"pressure", "armed", "open", "active"}
         coup_ok = (coupling or 0) >= self.coupling_threshold
-        if not force and not phase_ok and not coup_ok:
+        # Video-only: football gameplay without pad still wakes A2A (longer interval)
+        cat = str(sit.get("game_category") or "").lower()
+        gst = str(sit.get("game_state") or "").lower()
+        video_ok = cat in {"football", "ncaa_football", "ncaa"} and gst in {
+            "gameplay",
+            "playing",
+            "in_game",
+        }
+        if not force and not phase_ok and not coup_ok and not video_ok:
             return
+        # Video-only uses a gentler min interval so we don't spam without pad heat
+        interval = self.min_interval_s
+        if video_ok and not phase_ok and not coup_ok and not force:
+            interval = max(self.min_interval_s, 35.0)
         now = time.time()
         with self._lock:
             if self._inflight:
                 return
-            if not force and (now - self._last_trigger) < self.min_interval_s:
+            if not force and (now - self._last_trigger) < interval:
                 return
             self._inflight = True
             self._last_trigger = now

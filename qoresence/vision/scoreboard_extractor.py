@@ -252,32 +252,77 @@ class FootballScoreboardExtractor:
     _reader: Any | None = None
     # Process-wide stabilizer so multi-instance extractors share consensus
     _stabilizer: _ScoreStabilizer | None = None
+    # Background EasyOCR warm-up — never block the visual loop on first load
+    _reader_loading: bool = False
+    _reader_failed: bool = False
+    _load_lock: Any | None = None
 
     def __init__(self) -> None:
         self._easyocr_available = False
         try:
             import easyocr  # noqa: F401
+            import threading
 
             self._easyocr_available = True
+            if FootballScoreboardExtractor._load_lock is None:
+                FootballScoreboardExtractor._load_lock = threading.Lock()
         except Exception:
             log.warning("easyocr not installed; scoreboard extraction disabled")
         if FootballScoreboardExtractor._stabilizer is None:
             FootballScoreboardExtractor._stabilizer = _ScoreStabilizer(window=6, need=2)
 
     @classmethod
-    def _get_reader(cls) -> Any:
-        if cls._reader is None:
-            import easyocr
+    def _ensure_reader_async(cls) -> None:
+        """Kick off EasyOCR load on a daemon thread if not already started."""
+        if cls._reader is not None or cls._reader_failed or cls._reader_loading:
+            return
+        import threading
 
-            log.info("Loading EasyOCR reader for scoreboard extraction...")
-            cls._reader = easyocr.Reader(["en"], gpu=False, verbose=False)
-        return cls._reader
+        lock = cls._load_lock
+        if lock is None:
+            lock = threading.Lock()
+            cls._load_lock = lock
+        with lock:
+            if cls._reader is not None or cls._reader_failed or cls._reader_loading:
+                return
+            cls._reader_loading = True
+
+        def _load() -> None:
+            try:
+                import easyocr
+
+                log.info("Loading EasyOCR reader for scoreboard extraction (background)...")
+                cls._reader = easyocr.Reader(["en"], gpu=False, verbose=False)
+                log.info("EasyOCR reader ready for scoreboard extraction")
+            except Exception as e:
+                cls._reader_failed = True
+                log.warning("EasyOCR reader load failed: %s", e)
+            finally:
+                cls._reader_loading = False
+
+        threading.Thread(target=_load, name="easyocr-warmup", daemon=True).start()
+
+    @classmethod
+    def _get_reader(cls) -> Any | None:
+        """Return reader if ready; never block the visual thread on cold start."""
+        if cls._reader is not None:
+            return cls._reader
+        if cls._reader_failed:
+            return None
+        cls._ensure_reader_async()
+        return None  # still loading — skip this frame
 
     def extract(self, frame: np.ndarray, ctx: VisualContext | None = None) -> VisualContext:
-        """Return a VisualContext populated with scoreboard fields."""
+        """Return a VisualContext populated with scoreboard fields.
+
+        If EasyOCR is still loading, returns ``ctx`` unchanged so visual_context
+        (and ClutchBot) keep flowing without multi-minute stalls.
+        """
         if ctx is None:
             ctx = VisualContext()
         if not self._easyocr_available or ctx.game_category != GameCategory.FOOTBALL:
+            return ctx
+        if self._get_reader() is None:
             return ctx
 
         tokens = self._ocr_tokens(frame)
@@ -340,6 +385,8 @@ class FootballScoreboardExtractor:
             reader = self._get_reader()
         except Exception as e:
             log.debug(f"Scoreboard OCR reader failed: {e}")
+            return []
+        if reader is None:
             return []
 
         for x1f, x2f, y1f, y2f in crops_frac:

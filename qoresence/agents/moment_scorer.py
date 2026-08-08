@@ -707,8 +707,38 @@ class MomentScorer:
                     moments.extend(
                         self._score_score_changed(state, fields, active_prediction, features)
                     )
-            # else: first lock — no moment (avoid spam on session start)
+            else:
+                # First lock — one board-read so clutch feed is not silent without
+                # DualSense / score flips (factual OCR only, no invented numbers).
+                if "chat" in features:
+                    board = self._build_moment(
+                        weight=0.55,
+                        action="chat",
+                        message=self._score_message(state, home, away)
+                        or f"Scoreboard locked — {home}-{away}",
+                        reason="OCR scoreboard first lock",
+                        cooldown_key="score_first_lock",
+                        payload={"path": "confirm", "factual": True, "first_lock": True},
+                    )
+                    if board.triggered:
+                        moments.append(board)
             self._prev_home, self._prev_away = home, away
+
+        # Video-only heartbeat: live football without pad/OCR still gets sparse soft
+        # lines so Rail/Lens clutch feed is not empty during a quiet scoreboard.
+        if "chat" in features and self._is_football(state) and state.game_state == "gameplay":
+            soft = self._build_moment(
+                weight=0.42,
+                action="chat",
+                message=self._live_football_soft(state),
+                reason="live football video heartbeat",
+                cooldown_key="video_heartbeat",
+                payload={"path": "confirm", "factual": False, "video_only": True},
+            )
+            # Longer cooldown than default — override after build by not using 30s default
+            # _build_moment already applied 30s; we want ~55s — re-key if needed
+            if soft.triggered:
+                moments.append(soft)
 
         # Late/close drive worth narrating
         if quarter >= 4 and margin <= 8 and self._is_red_zone(state) and state.down == 1:
@@ -786,6 +816,19 @@ class MomentScorer:
             extra["apm"] = int(state.controller.apm_5s)
         return self._message("score_changed", state, **extra)
 
+    def _live_football_soft(self, state: SituationState) -> str:
+        """Soft video-only line — no invented score digits when board is unknown."""
+        if state.home_score is not None and state.away_score is not None:
+            q = state.quarter
+            if q:
+                return f"Live — board {state.home_score}-{state.away_score}, Q{q}."
+            return f"Live — board {state.home_score}-{state.away_score}."
+        if self._is_red_zone(state):
+            return "Red-zone look from the feed — pressure building."
+        if (state.quarter or 0) >= 4:
+            return "Fourth quarter energy on the feed."
+        return "Live football on the capture — ClutchBot watching."
+
     def _turnover_message(self, state: SituationState, fields: dict[str, Any]) -> str:
         return self._message("turnover", state)
 
@@ -848,6 +891,8 @@ class MomentScorer:
             cooldown_s = 60.0
         elif action in ("start_prediction", "resolve_prediction"):
             cooldown_s = 5.0
+        elif cooldown_key in ("video_heartbeat", "score_first_lock"):
+            cooldown_s = 55.0 if cooldown_key == "video_heartbeat" else 120.0
 
         if now - last < cooldown_s:
             return ScoredMoment(

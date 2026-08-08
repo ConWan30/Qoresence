@@ -216,6 +216,12 @@ class ClutchBotAgent:
             # confirm types fire — avoid double-scoring confirm on pure HID.
             if event.type in _CONFIRM_TRIGGER_TYPES:
                 self._maybe_act_confirm(event)
+                # Video-only A2A: VISUAL_CONTEXT should wake agents without DualSense
+                if event.type == EventType.VISUAL_CONTEXT:
+                    try:
+                        self._maybe_a2a_trigger(coupling=0.0, event=event)
+                    except Exception as e:
+                        log.debug("A2A visual trigger: %s", e)
 
     def _maybe_act_fast(self, event: BaseEvent) -> None:
         """Realtime path: coupling + last situation → soft chat / clip intent / arm."""
