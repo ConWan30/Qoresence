@@ -601,16 +601,16 @@ class ControllerRuntime:
 
         Uses a debounce counter to require N consecutive readings above
         threshold before firing — rejects noise-induced phantom onsets.
+        The onset fires when the debounce count reaches the threshold,
+        replacing the simple prev <= threshold check.
         """
         # L2 — debounce: count consecutive readings above threshold
         if state.l2 > self._trigger_threshold:
             self._l2_above_count += 1
         else:
             self._l2_above_count = 0
-        if (
-            self._prev_l2 <= self._trigger_threshold
-            and self._l2_above_count >= self._trigger_debounce
-        ):
+        # Fire when debounce count hits the threshold (first time only)
+        if self._l2_above_count == self._trigger_debounce:
             causal_parent = self.find_causal_parent()
             amp = state.l2 / 255.0
             self.bus.emit_raw(
@@ -631,10 +631,8 @@ class ControllerRuntime:
             self._r2_above_count += 1
         else:
             self._r2_above_count = 0
-        if (
-            self._prev_r2 <= self._trigger_threshold
-            and self._r2_above_count >= self._trigger_debounce
-        ):
+        # Fire when debounce count hits the threshold (first time only)
+        if self._r2_above_count == self._trigger_debounce:
             causal_parent = self.find_causal_parent()
             amp = state.r2 / 255.0
             self.bus.emit_raw(
