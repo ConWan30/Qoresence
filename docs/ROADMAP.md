@@ -72,8 +72,8 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 ## Phase 4 — Packaging & polish (partial)
 - [x] CLI entry + `--play` / `--stream` presets
 - [x] Game profile aliases, personas
-- [ ] System tray / status indicator
-- [ ] Windows installer / one-liner launcher
+- [x] System tray / status indicator (`--tray`, pystray)
+- [x] Windows one-liner launcher (`qoresence.bat`)
 
 ## Phase 5 — Game profile expansion
 - [ ] Richer football event vocabulary
@@ -81,10 +81,10 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [ ] Community game-profile SDK
 
 ## Phase 6 — Operator glass polish
-- [ ] Deck `controller` strip in Theater UI (beyond API field)
-- [ ] Monitor HUD layout presets
-- [ ] DualSense Edge HID report decode harden (reduce phantom edges)
-- [ ] Pattern A lag auto-tune hints from measured VCam age
+- [x] Deck `controller` strip in Theater UI (APM, triggers, stick, sync)
+- [x] Monitor HUD layout presets (`--monitor-preset`, `p` key cycle)
+- [x] DualSense Edge HID report decode harden (BT/USB, deadzone, debounce)
+- [x] Pattern A lag auto-tune hints from measured VCam age
 
 ## Phase 7 — Research (optional)
 - [ ] Fusion presence reports productization
@@ -103,7 +103,7 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 | 0.3.0 | ClutchBot MVP |
 | 0.4.0 | Packaging + `--stream` / `--play` |
 | **0.5.0** | **Deck LIVE + Qoresence owns card + FrameHub monitor + IVC** ← current main |
-| 0.6.0 | Profile expansion + Edge HID polish |
+| 0.6.0 | Profile expansion + Edge HID polish + operator glass (Phase 4/6 done) |
 | 1.0.0 | Stable ClutchBot + operator glass release |
 
 ---
