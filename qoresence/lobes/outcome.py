@@ -117,6 +117,9 @@ class OutcomeRuntime:
         self._possession: str | None = None
         self._field_position: str | None = None
         self._play_clock: int | None = None
+        self._game_clock_seconds: int | None = None
+        self._in_red_zone: bool = False
+        self._two_min_warn_emitted: set[int] = set()  # quarters where 2-min warning fired
 
         # Cached shooter state
         self._shooter_score: int | None = None
@@ -303,6 +306,8 @@ class OutcomeRuntime:
                     )
             if fields:
                 self._emit_outcome_event("score_changed", fields, ctx.confidence)
+                # Infer scoring type from delta
+                self._infer_score_type(fields, ctx)
 
         # Quarter change
         if ctx.quarter is not None and ctx.quarter != self._quarter:
@@ -377,6 +382,33 @@ class OutcomeRuntime:
                 ctx.confidence,
             )
 
+        # Red zone entry: ball crosses into opponent's 20-yard line
+        cur_yard = self._field_position_to_yard_line(ctx.field_position)
+        if cur_yard is not None and cur_yard >= 80 and not self._in_red_zone:
+            self._in_red_zone = True
+            self._emit_outcome_event(
+                "red_zone_entry",
+                {"field_position": ctx.field_position, "yard_line": cur_yard},
+                ctx.confidence,
+            )
+        elif cur_yard is not None and cur_yard < 80:
+            self._in_red_zone = False
+
+        # Two-minute warning: game clock crosses below 120s (2:00) in Q2/Q4
+        if (
+            ctx.clock_seconds is not None
+            and ctx.clock_seconds <= 120
+            and ctx.quarter is not None
+            and ctx.quarter in (2, 4)
+            and ctx.quarter not in self._two_min_warn_emitted
+        ):
+            self._two_min_warn_emitted.add(ctx.quarter)
+            self._emit_outcome_event(
+                "two_minute_warning",
+                {"quarter": ctx.quarter, "clock_seconds": ctx.clock_seconds},
+                ctx.confidence,
+            )
+
         # Sync state after change detection so we don't double-emit
         self._sync_football_state(ctx)
 
@@ -410,6 +442,74 @@ class OutcomeRuntime:
             return False
         return True
 
+    @staticmethod
+    def _infer_score_delta(prev: int | None, new: int | None) -> int:
+        """Return the score delta (0 if either is None)."""
+        if prev is None or new is None:
+            return 0
+        try:
+            return max(0, int(new) - int(prev))
+        except Exception:
+            return 0
+
+    def _infer_score_type(self, fields: dict[str, Any], ctx: VisualContext) -> None:
+        """Infer touchdown / field_goal / safety / two_point from score delta.
+
+        Football scoring:
+          6 = touchdown (no PAT)
+          7 = touchdown + PAT (most common)
+          8 = touchdown + 2-point conversion
+          3 = field goal
+          2 = safety or 2-point conversion (context-dependent)
+          1 = extra point only (rare, usually part of 7)
+        """
+        for side, prev_key, new_key in (
+            ("home", "prev_home_score", "home_score"),
+            ("away", "prev_away_score", "away_score"),
+        ):
+            if prev_key not in fields or new_key not in fields:
+                continue
+            delta = self._infer_score_delta(fields.get(prev_key), fields.get(new_key))
+            if delta <= 0:
+                continue
+            if delta == 8:
+                self._emit_outcome_event(
+                    "touchdown",
+                    {"side": side, "delta": delta, "pat_type": "two_point"},
+                    ctx.confidence,
+                )
+                self._emit_outcome_event(
+                    "two_point_conversion",
+                    {"side": side, "delta": delta},
+                    ctx.confidence,
+                )
+            elif delta == 7:
+                self._emit_outcome_event(
+                    "touchdown",
+                    {"side": side, "delta": delta, "pat_type": "kick"},
+                    ctx.confidence,
+                )
+            elif delta == 6:
+                self._emit_outcome_event(
+                    "touchdown",
+                    {"side": side, "delta": delta, "pat_type": "missed"},
+                    ctx.confidence,
+                )
+            elif delta == 3:
+                self._emit_outcome_event(
+                    "field_goal",
+                    {"side": side, "delta": delta},
+                    ctx.confidence,
+                )
+            elif delta == 2:
+                # Safety vs 2-point: if score just changed on this side, likely 2PC
+                # after a TD. Otherwise safety. We emit safety as the default.
+                self._emit_outcome_event(
+                    "safety",
+                    {"side": side, "delta": delta},
+                    ctx.confidence,
+                )
+
     def _sync_football_state(self, ctx: VisualContext) -> None:
         """Update cached football state (scores only when OCR change is plausible)."""
         if ctx.home_score is not None and self._score_change_ok(self._home_score, ctx.home_score):
@@ -423,6 +523,8 @@ class OutcomeRuntime:
         self._possession = ctx.possession
         self._field_position = ctx.field_position
         self._play_clock = ctx.play_clock
+        if ctx.clock_seconds is not None:
+            self._game_clock_seconds = ctx.clock_seconds
         self._prev_context = ctx
 
     @staticmethod
@@ -500,6 +602,9 @@ class OutcomeRuntime:
         self._possession = None
         self._field_position = None
         self._play_clock = None
+        self._game_clock_seconds = None
+        self._in_red_zone = False
+        self._two_min_warn_emitted.clear()
         self._shooter_score = None
         self._health = None
         self._ammo = None

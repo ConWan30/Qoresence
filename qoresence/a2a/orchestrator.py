@@ -25,6 +25,13 @@ log = logging.getLogger(__name__)
 # Per-reason min intervals (seconds) — ambient is longest
 _INTERVAL_BY_REASON: dict[str, float] = {
     "score_changed": 8.0,
+    "touchdown": 6.0,  # big play — fast A2A
+    "field_goal": 10.0,
+    "safety": 10.0,
+    "two_point_conversion": 8.0,
+    "turnover": 7.0,  # sudden momentum shift
+    "red_zone_entry": 12.0,
+    "two_minute_warning": 10.0,
     "menu_exit": 12.0,
     "drive_pressure": 20.0,
     "coupling": 25.0,
@@ -159,13 +166,32 @@ class A2AOrchestrator:
                 return
             if reason == "coupling" and not coup_ok:
                 return
-            if reason in {"score_changed", "menu_exit", "scene_tick"} and not is_football:
+            if reason in {
+                "score_changed",
+                "touchdown",
+                "field_goal",
+                "safety",
+                "two_point_conversion",
+                "turnover",
+                "red_zone_entry",
+                "two_minute_warning",
+                "menu_exit",
+                "scene_tick",
+            } and not is_football:
                 return
 
         interval = _INTERVAL_BY_REASON.get(reason, self.min_interval_s)
         interval = max(interval, 0.0 if force else min(self.min_interval_s, interval))
-        # Global floor unless force / score_changed
-        if not force and reason not in {"score_changed", "menu_exit"}:
+        # Global floor unless force / big-play events
+        if not force and reason not in {
+            "score_changed",
+            "touchdown",
+            "field_goal",
+            "safety",
+            "two_point_conversion",
+            "turnover",
+            "menu_exit",
+        }:
             interval = max(interval, float(self.min_interval_s) * 0.5)
 
         now = time.time()
@@ -228,11 +254,11 @@ class A2AOrchestrator:
             )
         )
 
-        # Drive segment management: open on pressure/menu_exit, close on score
-        _open = reason in {"drive_pressure", "menu_exit"} or (
+        # Drive segment management: open on pressure/menu_exit/red_zone, close on score
+        _open = reason in {"drive_pressure", "menu_exit", "red_zone_entry"} or (
             reason == "scene_tick" and drive_phase in {"pressure", "armed"}
         )
-        _close = reason == "score_changed"
+        _close = reason in {"score_changed", "touchdown", "field_goal", "safety", "turnover"}
         _drive_ctx = {
             "reason": reason,
             "drive_phase": drive_phase,
