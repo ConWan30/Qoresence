@@ -106,8 +106,13 @@ class A2AOrchestrator:
         self.on_commit = on_commit
         self.bus = A2ABus()
         self.policy = A2APolicy()
-        self.gemini = GeminiSceneAgent()
-        self.deepseek = DeepSeekChatAgent(persona=persona)
+        # Trio P3: Tool registry for bidirectional tier queries
+        self.tools: ToolRegistry = create_default_registry(
+            jsonl_path=jsonl_path,
+            zoom_callback=zoom_callback,
+        )
+        self.gemini = GeminiSceneAgent(tools=self.tools)
+        self.deepseek = DeepSeekChatAgent(persona=persona, tools=self.tools)
         self._lock = threading.Lock()
         self._last_trigger = 0.0
         self._last_reason: str | None = None
@@ -115,11 +120,6 @@ class A2AOrchestrator:
         self._recent_norms: list[tuple[float, str]] = []  # (ts, norm_text)
         self._inflight = False
         self._last_sit_key: tuple[Any, ...] | None = None
-        # Trio P3: Tool registry for bidirectional tier queries
-        self.tools: ToolRegistry = create_default_registry(
-            jsonl_path=jsonl_path,
-            zoom_callback=zoom_callback,
-        )
 
     def stats(self) -> dict[str, Any]:
         return {

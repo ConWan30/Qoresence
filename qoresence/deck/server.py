@@ -62,6 +62,7 @@ class DeckState:
     latency_ms: float = 1.12
     fps: int = 6
     updated_ns: int = 0  # monotonic ns of last live update — for staleness check
+    jsonl_path: str = "logs/events.jsonl"
 
     def snapshot(self) -> dict[str, Any]:
         video: dict[str, Any] = {
@@ -389,6 +390,55 @@ def create_app():  # type: ignore[no-untyped-def]
             from qoresence.agents.session_timeline import get_session_timeline
 
             return JSONResponse({"ok": True, **get_session_timeline().snapshot()})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/api/evidence")
+    async def api_evidence():  # type: ignore[no-untyped-def]
+        """Recent evidence chains and router decisions (Trio P4/P2).
+
+        Reads the JSONL event log and returns the last N evidence_chain
+        and router_decision events for the Deck UI evidence panel.
+        """
+        import json as _json
+        from pathlib import Path as _Path
+
+        try:
+            jsonl_path = _Path(_state.jsonl_path) if hasattr(_state, "jsonl_path") else _Path("logs/events.jsonl")
+            if not jsonl_path.exists():
+                return JSONResponse({"ok": True, "evidence": [], "router_decisions": [], "count": 0})
+
+            evidence_chains: list[dict] = []
+            router_decisions: list[dict] = []
+            lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
+
+            for line in reversed(lines):
+                if not line.strip():
+                    continue
+                try:
+                    ev = _json.loads(line)
+                except Exception:
+                    continue
+                et = ev.get("type", "")
+                if et == "evidence_chain" and len(evidence_chains) < 10:
+                    evidence_chains.append({
+                        "clock_ns": ev.get("clock_ns"),
+                        "payload": ev.get("payload"),
+                    })
+                elif et == "router_decision" and len(router_decisions) < 20:
+                    router_decisions.append({
+                        "clock_ns": ev.get("clock_ns"),
+                        "payload": ev.get("payload"),
+                    })
+                if len(evidence_chains) >= 10 and len(router_decisions) >= 20:
+                    break
+
+            return JSONResponse({
+                "ok": True,
+                "evidence": evidence_chains,
+                "router_decisions": router_decisions,
+                "count": len(evidence_chains),
+            })
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 

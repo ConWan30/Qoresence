@@ -126,6 +126,46 @@ class _OperatorQueryPredicate:
         return bool(situation.get("_force") or situation.get("force"))
 
 
+class _FourthDownPredicate:
+    """Fire on 4th down attempts — high-stakes conversion plays."""
+
+    name = "fourth_down"
+
+    def check(self, situation: dict[str, Any]) -> bool:
+        down = situation.get("down")
+        if down is None:
+            return False
+        try:
+            return int(down) == 4
+        except (TypeError, ValueError):
+            return False
+
+
+class _TwoPointConversionPredicate:
+    """Fire on two-point conversion attempts."""
+
+    name = "two_point_conversion"
+
+    def check(self, situation: dict[str, Any]) -> bool:
+        last_event = str(situation.get("last_outcome_event") or "").lower()
+        return last_event == "two_point_conversion"
+
+
+class _OvertimeStartPredicate:
+    """Fire when overtime starts (quarter 5 or 'OT')."""
+
+    name = "overtime_start"
+
+    def check(self, situation: dict[str, Any]) -> bool:
+        quarter = situation.get("quarter")
+        if quarter is None:
+            return False
+        try:
+            return int(quarter) >= 5
+        except (TypeError, ValueError):
+            return str(quarter).strip().upper() in {"OT", "OVERTIME"}
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # PREDICATE REGISTRY
 # ──────────────────────────────────────────────────────────────────────────────
@@ -136,6 +176,9 @@ _FOOTBALL_PREDICATES: list[MustFirePredicate] = [
     _BigPlayPredicate(),
     _TwoMinuteWarningPredicate(),
     _RedZonePredicate(),
+    _FourthDownPredicate(),
+    _TwoPointConversionPredicate(),
+    _OvertimeStartPredicate(),
     _OperatorQueryPredicate(),
 ]
 
@@ -149,6 +192,9 @@ _ALL_PREDICATES: list[MustFirePredicate] = [
     _TwoMinuteWarningPredicate(),
     _RedZonePredicate(),
     _ShooterKillStreakPredicate(),
+    _FourthDownPredicate(),
+    _TwoPointConversionPredicate(),
+    _OvertimeStartPredicate(),
     _OperatorQueryPredicate(),
 ]
 

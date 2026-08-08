@@ -21,6 +21,89 @@ from pathlib import Path
 _PILOT_LOCK_SOCK: socket.socket | None = None
 
 
+def _run_audit(jsonl_path: str, n: int = 10) -> None:
+    """Print the last N evidence chains and router decisions from the JSONL log.
+
+    This is the offline audit view for Trio P4 (evidence chains) and P2
+    (router decisions). It reads the JSONL event log and prints a
+    human-readable summary of recent A2A decisions.
+    """
+    import json
+
+    p = Path(jsonl_path)
+    if not p.exists():
+        print(f"Audit: log not found: {jsonl_path}")  # noqa: T201
+        return
+
+    lines = p.read_text(encoding="utf-8").strip().splitlines()
+    evidence_chains: list[dict] = []
+    router_decisions: list[dict] = []
+
+    for line in reversed(lines):
+        if not line.strip():
+            continue
+        try:
+            ev = json.loads(line)
+        except Exception:
+            continue
+        et = ev.get("type", "")
+        if et == "evidence_chain" and len(evidence_chains) < n:
+            evidence_chains.append(ev.get("payload") or {})
+        elif et == "router_decision" and len(router_decisions) < n * 2:
+            router_decisions.append(ev.get("payload") or {})
+        if len(evidence_chains) >= n and len(router_decisions) >= n * 2:
+            break
+
+    # Print evidence chains
+    if not evidence_chains and not router_decisions:
+        print("Audit: no evidence_chain or router_decision events found.")  # noqa: T201
+        return
+
+    print(f"\n{'='*80}")  # noqa: T201
+    print(f"AUDIT: {jsonl_path}")  # noqa: T201
+    print(f"{'='*80}\n")  # noqa: T201
+
+    if evidence_chains:
+        print(f"EVIDENCE CHAINS (last {len(evidence_chains)}):")  # noqa: T201
+        print("-" * 80)  # noqa: T201
+        for i, ec in enumerate(evidence_chains):
+            reason = ec.get("trigger_reason", "—")
+            conf = ec.get("confidence", 0.0)
+            drive = ec.get("drive_phase", "—")
+            coup = ec.get("coupling_score", "—")
+            scene_model = ec.get("scene_model", "—")
+            chat_model = ec.get("chat_model", "—")
+            events = [e.get("event_name") or e.get("event_type") for e in (ec.get("cited_events") or []) if e]
+            fields = [f"{f.get('field_name')}:{f.get('value')}" for f in (ec.get("cited_fields") or [])]
+            policy = ec.get("policy_refs") or []
+
+            print(f"\n  [{i + 1}] reason={reason}  confidence={conf}  drive={drive}  coupling={coup}")  # noqa: T201
+            print(f"      scene_model={scene_model}  chat_model={chat_model}")  # noqa: T201
+            if events:
+                print(f"      cited_events: {', '.join(events)}")  # noqa: T201
+            if fields:
+                print(f"      cited_fields: {', '.join(fields[:8])}")  # noqa: T201
+            if policy:
+                print(f"      policy_refs: {', '.join(policy)}")  # noqa: T201
+
+    if router_decisions:
+        print(f"\n\nROUTER DECISIONS (last {len(router_decisions)}):")  # noqa: T201
+        print("-" * 80)  # noqa: T201
+        fired = sum(1 for r in router_decisions if r.get("fired"))
+        suppressed = len(router_decisions) - fired
+        print(f"  Total: {len(router_decisions)}  Fired: {fired}  Suppressed: {suppressed}\n")  # noqa: T201
+        for i, r in enumerate(router_decisions[:n]):
+            fired_str = "FIRED" if r.get("fired") else "SUPP"
+            reason = r.get("reason", "—")
+            mf = r.get("must_fire_hit")
+            mf_str = f" [must-fire:{mf}]" if mf else ""
+            interval = r.get("interval_s", 0.0)
+            age = r.get("last_trigger_age_s", 0.0)
+            print(f"  [{i + 1:3d}] {fired_str:5s}  reason={reason:20s}  interval={interval:.1f}s  age={age:.1f}s{mf_str}")  # noqa: T201
+
+    print(f"\n{'='*80}\n")  # noqa: T201
+
+
 def _acquire_pilot_lock(port: int = 8765) -> bool:
     """Prevent dual --play/--deck processes (second open freezes DShow card).
 
@@ -1270,6 +1353,19 @@ def main():
         action="store_true",
         help="List all registered game profiles (built-in + community) and exit.",
     )
+    parser.add_argument(
+        "--audit",
+        nargs="?",
+        const="10",
+        type=int,
+        metavar="N",
+        help="Print the last N evidence chains and router decisions from the JSONL log, then exit.",
+    )
+    parser.add_argument(
+        "--audit-jsonl",
+        default=None,
+        help="Path to JSONL log for --audit (default: --jsonl-path or logs/events.jsonl).",
+    )
 
     args = parser.parse_args()
 
@@ -1299,6 +1395,16 @@ def main():
                     f"{p['profile_id']:<25} {p['display_name']:<35} {p['category']:<10} "
                     f"{p['event_count']:<4} {p['field_count']:<4} {ptype}"
                 )
+        sys.exit(0)
+
+    # Audit: print evidence chains and router decisions from JSONL log
+    if getattr(args, "audit", None) is not None:
+        _audit_path = (
+            getattr(args, "audit_jsonl", None)
+            or getattr(args, "jsonl_path", None)
+            or "logs/events.jsonl"
+        )
+        _run_audit(_audit_path, args.audit)
         sys.exit(0)
 
     # Single-instance guard for play/deck — dual processes freeze DShow capture
