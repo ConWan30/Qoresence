@@ -115,6 +115,19 @@ class LocalVLMClient:
         """Update the active game profile (e.g. 'ncaa_football_27')."""
         self.game_profile = game_profile
 
+    @staticmethod
+    def _profile_display_name(profile: str | object | None) -> str:
+        """Resolve a profile id to its human-readable display name."""
+        if profile is None:
+            return ""
+        try:
+            from qoresence.core.unified_config import get_game_profile, normalize_game_profile
+
+            canonical = normalize_game_profile(profile)
+            return get_game_profile(canonical).display_name
+        except Exception:
+            return str(profile) if profile else ""
+
     def warmup(self) -> None:
         if self._onnx_sess is None:
             return
@@ -142,6 +155,14 @@ class LocalVLMClient:
             self._history.append(raw)
 
         ctx = self._smooth()
+
+        # Populate game_title from the active profile so downstream agents
+        # (A2A Gemini, moment_scorer, deck) know what game is playing.
+        # Without this, game_title stays "" and A2A hallucinates team names.
+        if ctx is not None and not ctx.game_title:
+            ctx.game_title = self._profile_display_name(profile)
+        if ctx is not None and not ctx.game_profile and profile is not None:
+            ctx.game_profile = str(profile)
 
         # Scoreboard OCR when profile is football OR classifier says football.
         # Do not wait only on frame category — pause menus / red UI often

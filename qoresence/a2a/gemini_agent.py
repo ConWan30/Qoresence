@@ -114,8 +114,9 @@ class GeminiSceneAgent:
             "You are a sports scene agent for a local observation system. "
             "Describe the clutch *feel* in one short sentence. "
             "Do NOT invent or state numeric scores, quarters as digits for the board, or down numbers. "
+            "Do NOT invent team names — use only the teams from the context JSON, or say 'the offense'/'the defense' if no teams are listed. "
             "Use soft language only (pressure, red zone energy, late game heat). "
-            f"Local context JSON (may be partial): {json.dumps({k: sit.get(k) for k in ('game_state','field_position','game_title') if sit.get(k)}, separators=(',',':'))[:400]}. "
+            f"Local context JSON (may be partial): {json.dumps({k: sit.get(k) for k in ('game_state','field_position','game_title','game_profile','home_score','away_score','quarter') if sit.get(k) is not None}, separators=(',',':'))[:400]}. "
             f"drive_phase={drive_phase} coupling={coupling}. "
             "Reply JSON: {\"summary\":\"...\",\"tension\":0.0-1.0,\"tags\":[\"...\"]}"
         )

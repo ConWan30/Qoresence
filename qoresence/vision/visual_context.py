@@ -38,6 +38,7 @@ class VisualContext:
 
     game_state: GameState = GameState.UNKNOWN
     game_title: str = ""
+    game_profile: str = ""  # profile id, e.g. "ncaa_football_27"
     game_category: GameCategory = GameCategory.UNKNOWN
     confidence: float = 0.0
 
@@ -111,6 +112,7 @@ class VisualContext:
         d: dict[str, Any] = {
             "game_state": self.game_state.value,
             "game_title": self.game_title,
+            "game_profile": self.game_profile,
             "game_category": self.game_category.value,
             "confidence": self.confidence,
         }
@@ -194,6 +196,7 @@ class VisualContext:
             ctx.game_state = _state(raw_state) if raw_state else GameState.UNKNOWN
 
         ctx.game_title = str(raw.get("game_title", ""))
+        ctx.game_profile = str(raw.get("game_profile", ""))
         ctx.game_category = category
         ctx.confidence = float(raw.get("confidence", 0.0))
 
@@ -295,6 +298,7 @@ def build_football_prompt() -> str:
         "Respond ONLY with valid JSON, no other text.\n\n"
         '{"game_state": "menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown", '
         '"game_title": "", '
+        '"game_profile": "", '
         '"game_category": "football", '
         '"home_score": null, '
         '"away_score": null, '
@@ -319,6 +323,7 @@ def build_shooter_prompt() -> str:
         "Respond ONLY with valid JSON, no other text.\n\n"
         '{"game_state": "menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown", '
         '"game_title": "", '
+        '"game_profile": "", '
         '"game_category": "shooter", '
         '"shooter": {"health": null, "ammo": null, "score": null, "round_info": "", '
         '"enemies_visible": 0, "is_combat": false, "is_moving": false}, '

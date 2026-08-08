@@ -33,12 +33,34 @@ _INTERVAL_BY_REASON: dict[str, float] = {
     "force": 0.0,
 }
 
+# Keywords that indicate the Gemini agent saw a menu/pause/archive screen
+# even though the visual classifier said "gameplay". Used as a post-hoc
+# guard since the ONNX/heuristic classifier can misclassify menu UI.
+_MENU_KEYWORDS: tuple[str, ...] = (
+    "menu screen",
+    "pause menu",
+    "main menu",
+    "pause screen",
+    "program's archive",
+    "program archive",
+    "settings menu",
+    "loadout menu",
+    "lobby screen",
+    "hub screen",
+)
+
 
 def _norm_chat(text: str) -> str:
     t = (text or "").lower().strip()
     t = re.sub(r"\s+", " ", t)
     t = re.sub(r"[^\w\s\-']", "", t)
     return t[:100]
+
+
+def _scene_looks_like_menu(summary: str) -> bool:
+    """Check if the Gemini scene summary describes a menu/pause screen."""
+    s = (summary or "").lower()
+    return any(kw in s for kw in _MENU_KEYWORDS)
 
 
 class A2AOrchestrator:
@@ -206,6 +228,22 @@ class A2AOrchestrator:
             )
         )
         self._timeline("a2a_scene", scene.summary, path="fast", payload={**scene.to_dict(), "reason": reason})
+
+        # Post-hoc menu guard: the visual classifier may say "gameplay" while
+        # the Gemini agent can see a menu/pause/archive screen in the JPEG.
+        # Veto before DeepSeek wastes a call and before chat reaches the feed.
+        if reason not in {"menu_exit", "force", "score_changed"} and _scene_looks_like_menu(scene.summary):
+            veto = Veto(
+                reason="menu screen detected in scene summary",
+                rejected_text=(scene.summary or "")[:120],
+            )
+            self.policy.recent_vetos.append(veto.reason)
+            self.bus.publish(
+                A2AMessage(kind="veto", body=veto.to_dict(), from_agent="policy", to_agent="*")
+            )
+            self._timeline("a2a_veto", veto.reason, path="system", payload=veto.to_dict())
+            log.info("A2A veto (menu guard): %s (%s)", veto.reason, (veto.rejected_text or "")[:60])
+            return veto
 
         chat = self.deepseek.propose_chat(scene, situation=sit, path=path)
         self.bus.publish(

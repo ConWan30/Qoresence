@@ -113,6 +113,8 @@ class SituationModel:
             )
         if ctx.game_title:
             self._state.game_title = ctx.game_title
+        if ctx.game_profile:
+            self._state.game_profile = ctx.game_profile
         self._state.visual_confidence = ctx.confidence
 
         if ctx.game_category and ctx.game_category.value == "football":

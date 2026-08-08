@@ -361,7 +361,10 @@ class VisualRuntime:
             try:
                 from qoresence.vision.local_vlm import LocalVLMClient as _LocalVLM
 
-                _local = _LocalVLM(model_path=_local_path)
+                _local = _LocalVLM(
+                    model_path=_local_path,
+                    game_profile=getattr(config, "game_profile", None),
+                )
                 if _local.is_available():
                     self._client = _local  # type: ignore[assignment]
                     self._client_kind = "local:onnx"

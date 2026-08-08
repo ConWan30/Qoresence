@@ -866,6 +866,7 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             prefer_local=True,
             local_fallback=True,
             frame_sample_rate=args.visual_sample_rate,
+            game_profile=args.game_profile or config.visual.game_profile,
         )
         config.game_detection = replace(
             config.game_detection, enabled=getattr(args, "game_detect", True)
@@ -960,6 +961,7 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             prefer_local=True,
             local_fallback=True,
             frame_sample_rate=args.visual_sample_rate,
+            game_profile=getattr(args, "game_profile", None) or config.visual.game_profile,
             **_vlm_extra,
         )
 
@@ -1351,7 +1353,8 @@ def main():
                     pass
             # visual live — LOCAL ONNX/heuristic only, never mock/cloud fallback
             try:
-                config = _rep_play(config, visual=_rep_play(config.visual, enabled=True, prefer_local=True, local_fallback=True, frame_sample_rate=getattr(args, "visual_sample_rate", config.visual.frame_sample_rate)))
+                _gp = getattr(args, "game_profile", None) or getattr(config.outcome, "game_profile", None)
+                config = _rep_play(config, visual=_rep_play(config.visual, enabled=True, prefer_local=True, local_fallback=True, frame_sample_rate=getattr(args, "visual_sample_rate", config.visual.frame_sample_rate), game_profile=_gp))
             except Exception:
                 try:
                     object.__setattr__(config.visual, "enabled", True)
