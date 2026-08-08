@@ -310,6 +310,8 @@ class QoresenceApp:
                 config=self.config.streamer,
                 bus=self.bus,
                 session_head_ns=self.identity.session_head_ns,
+                presence_touch_file=Path(self.config.streamer.presence_touch_file) if getattr(self.config.streamer, "presence_touch_file", None) else None,
+                presence_timeout_s=float(getattr(self.config.streamer, "presence_timeout_s", 5.0)),
             )
             log.info("Streamer lobe initialized")
 
@@ -1252,6 +1254,12 @@ def main():
         default=1280,
         help="Retina Monitor max display width (default 1280)",
     )
+    parser.add_argument(
+        "--monitor-preset",
+        choices=["minimal", "situation", "full"],
+        default="full",
+        help="Retina Monitor HUD layout preset (default full). Cycle live with 'p' key.",
+    )
 
     args = parser.parse_args()
 
@@ -1429,6 +1437,25 @@ def main():
                     object.__setattr__(config.streamer, "enabled", True)
                 except Exception:
                     pass
+            # controller lobe — auto-enable in --play if a DualSense is detected
+            # so IVC / APM / trigger edges flow without requiring --controller
+            if not getattr(args, "controller", False):
+                try:
+                    from qoresence.lobes.controller import list_controllers
+
+                    _ctrls = list_controllers()
+                    if _ctrls:
+                        config = _rep_play(
+                            config,
+                            controller=_rep_play(
+                                config.controller,
+                                enabled=True,
+                                poll_rate_hz=float(getattr(args, "controller_rate", 1000.0)),
+                            ),
+                        )
+                        log.info("play auto-enabled controller (DualSense detected): %s", _ctrls[:2])
+                except Exception as _e:
+                    log.debug("play controller auto-enable skipped: %s", _e)
             # mss desktop only when user explicitly asked (--screen). Desktop frames
             # make LocalVLM guess football from wallpaper green while OCR crop is empty.
             if getattr(args, "screen", False):
@@ -1593,6 +1620,7 @@ def main():
                 max_width=int(getattr(args, "monitor_max_width", 1280) or 1280),
                 situation_url=f"http://127.0.0.1:{deck_port}/api/situation",
                 target_hz=30.0,
+                preset=str(getattr(args, "monitor_preset", "full") or "full"),
             )
             log.info(
                 "Retina Monitor on (FrameHub ← streamer; no second capture) thread=%s",

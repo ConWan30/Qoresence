@@ -20,6 +20,19 @@ log = logging.getLogger(__name__)
 
 WINDOW_TITLE = "Retina Monitor — local frames (not OBS Preview)"
 
+# HUD layout presets
+PRESETS = ("minimal", "situation", "full")
+_PRESET_LABELS = {"minimal": "MIN", "situation": "SIT", "full": "FULL"}
+
+
+def _next_preset(preset: str) -> str:
+    """Cycle to the next preset (used by keyboard shortcut)."""
+    try:
+        idx = PRESETS.index(preset)
+    except ValueError:
+        return "situation"
+    return PRESETS[(idx + 1) % len(PRESETS)]
+
 
 def _downscale(frame: np.ndarray, max_width: int) -> np.ndarray:
     if max_width <= 0 or frame.shape[1] <= max_width:
@@ -82,11 +95,11 @@ def _fmt_controller_hud() -> str:
         return ""
 
 
-def _draw_hud(frame: np.ndarray, text: str) -> np.ndarray:
+def _draw_hud(frame: np.ndarray, text: str, *, preset: str = "full", label: str = "") -> np.ndarray:
     import cv2
 
     out = frame
-    if not text:
+    if not text and preset == "minimal":
         return out
     h, w = out.shape[:2]
     bar_h = max(28, h // 18)
@@ -94,6 +107,22 @@ def _draw_hud(frame: np.ndarray, text: str) -> np.ndarray:
     overlay = out.copy()
     cv2.rectangle(overlay, (0, 0), (w, bar_h), (10, 14, 20), -1)
     out = cv2.addWeighted(overlay, 0.72, out, 0.28, 0)
+    # Preset badge (always shown when HUD is visible)
+    badge = _PRESET_LABELS.get(preset, preset.upper())
+    if label:
+        badge = f"{badge} · {label}"
+    cv2.putText(
+        out,
+        f"[{badge}]",
+        (w - 120, bar_h - 8),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        max(0.35, min(0.55, w / 1400)),
+        (180, 180, 180),
+        1,
+        cv2.LINE_AA,
+    )
+    if not text:
+        return out
     cv2.putText(
         out,
         text[:90],
@@ -114,8 +143,15 @@ def run_monitor(
     situation_url: str = "http://127.0.0.1:8765/api/situation",
     target_hz: float = 30.0,
     window_title: str = WINDOW_TITLE,
+    preset: str = "full",
 ) -> None:
-    """Blocking monitor loop (call from dedicated thread)."""
+    """Blocking monitor loop (call from dedicated thread).
+
+    HUD presets (cycle with 'p' key):
+      minimal   — frame only, no overlay bar
+      situation — frame + situation strip (score, quarter, down)
+      full      — situation + controller + frame age/seq (default)
+    """
     try:
         import cv2
     except ImportError as e:
@@ -132,11 +168,13 @@ def run_monitor(
     last_sit_poll = 0.0
     sit_text = "situation: —"
     last_seq = -1
+    current_preset = preset if preset in PRESETS else "full"
 
     log.info(
-        "Retina Monitor on (FrameHub ← streamer; no second capture) title=%r max_w=%s",
+        "Retina Monitor on (FrameHub ← streamer; no second capture) title=%r max_w=%s preset=%s",
         window_title,
         max_width,
+        current_preset,
     )
     cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
 
@@ -155,22 +193,32 @@ def run_monitor(
                     last_sit_poll = now
                 age_ms = int(age * 1000) if age is not None else 0
                 pad_hud = _fmt_controller_hud()
-                hud = f"{sit_text}   |   seq {seq}  age {age_ms}ms"
-                if pad_hud:
-                    hud = f"{hud}   |   {pad_hud}"
-                display = _draw_hud(display, hud)
+                # Build HUD text based on preset
+                if current_preset == "minimal":
+                    hud = ""
+                elif current_preset == "situation":
+                    hud = sit_text
+                else:  # full
+                    hud = f"{sit_text}   |   seq {seq}  age {age_ms}ms"
+                    if pad_hud:
+                        hud = f"{hud}   |   {pad_hud}"
+                display = _draw_hud(display, hud, preset=current_preset)
                 cv2.imshow(window_title, display)
             else:
                 # Placeholder so window is visible while waiting for streamer
                 blank = np.zeros((360, 640, 3), dtype=np.uint8)
                 blank[:] = (18, 14, 10)
-                blank = _draw_hud(blank, "waiting for FrameHub frames…")
+                if current_preset != "minimal":
+                    blank = _draw_hud(blank, "waiting for FrameHub frames…", preset=current_preset)
                 cv2.imshow(window_title, blank)
 
-            # Esc closes monitor only
+            # Esc closes monitor only; 'p' cycles HUD preset
             key = cv2.waitKey(max(1, int(interval * 1000))) & 0xFF
             if key == 27:  # Esc
                 break
+            if key in (ord('p'), ord('P')):
+                current_preset = _next_preset(current_preset)
+                log.info("Monitor HUD preset → %s", current_preset)
             # Detect user closed window (best-effort; some OpenCV builds differ)
             try:
                 prop = cv2.getWindowProperty(window_title, cv2.WND_PROP_VISIBLE)
@@ -199,6 +247,7 @@ def start_monitor_thread(
     max_width: int = 1280,
     situation_url: str = "http://127.0.0.1:8765/api/situation",
     target_hz: float = 30.0,
+    preset: str = "full",
 ) -> tuple[threading.Thread, threading.Event]:
     """Start monitor on a daemon thread. Returns (thread, stop_event)."""
     stop = threading.Event()
@@ -210,6 +259,7 @@ def start_monitor_thread(
                 max_width=max_width,
                 situation_url=situation_url,
                 target_hz=target_hz,
+                preset=preset,
             )
         except Exception as e:
             log.error("Retina Monitor failed: %s", e)

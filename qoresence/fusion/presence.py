@@ -795,6 +795,9 @@ class PresenceFusionEngine:
                 state["fps"] = payload.get("fps_meas", 0.0)
                 state["frames"] = payload.get("n", 0)
                 state["presence_sync_ok"] = payload.get("presence_sync_ok", False)
+                # FRAME_STATS fires frequently — keep the flag fresh so
+                # _emit_report doesn't stale to False between ACTIVITY transitions
+                self._presence_sync_ok = payload.get("presence_sync_ok", False)
 
             elif event.type == EventType.ZONE:
                 zone_id = payload.get("zone_id")

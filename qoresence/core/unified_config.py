@@ -171,7 +171,7 @@ class StreamerConfig:
     snapshot_path: str | None = None
     ws_port: int = 8765
     enable_ws: bool = True
-    presence_touch_file: str | None = None
+    presence_touch_file: str | None = "logs/controller_presence.touch"
     presence_timeout_s: float = 5.0
 
     # Activity detection thresholds

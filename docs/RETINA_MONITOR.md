@@ -49,6 +49,16 @@ Optional display width:
 --monitor-max-width 1280
 ```
 
+HUD layout presets (`--monitor-preset`):
+
+| Preset | Shows |
+|--------|-------|
+| `minimal` | Frame only — no overlay bar |
+| `situation` | Frame + situation strip (score, quarter, down) |
+| `full` | Situation + controller + frame age/seq (default) |
+
+Cycle presets live in the window with the **`p`** key.
+
 Dependency (OpenCV HighGUI):
 
 ```text
