@@ -265,7 +265,7 @@ class OutcomeRuntime:
         if self._profile.profile_id == GameProfileId.NCAA_FOOTBALL_27:
             if ctx.game_category == GameCategory.FOOTBALL:
                 self._process_football(ctx)
-        elif self._profile.profile_id == GameProfileId.CALL_OF_DUTY:
+        elif self._profile.category == "shooter":
             if ctx.game_category == GameCategory.SHOOTER:
                 self._process_shooter(ctx)
 

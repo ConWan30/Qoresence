@@ -27,6 +27,9 @@ class GameProfileId(StrEnum):
 
     NCAA_FOOTBALL_27 = "ncaa_football_27"
     CALL_OF_DUTY = "call_of_duty"
+    VALORANT = "valorant"
+    APEX_LEGENDS = "apex_legends"
+    FORTNITE = "fortnite"
 
 
 @dataclass(frozen=True)
@@ -107,10 +110,114 @@ CALL_OF_DUTY_PROFILE = GameProfile(
     category="shooter",
 )
 
+# ──────────────────────────────────────────────────────────────────────────────
+# FPS PROFILES: Valorant, Apex Legends, Fortnite
+# ──────────────────────────────────────────────────────────────────────────────
+
+VALORANT_PROFILE = GameProfile(
+    profile_id=GameProfileId.VALORANT,
+    display_name="Valorant",
+    event_types=(
+        "kill",
+        "death",
+        "assist",
+        "spike_plant",
+        "spike_defuse",
+        "spike_detonate",
+        "round_start",
+        "round_end",
+        "spike_carrier_kill",
+        "clutch",
+        "ace",
+        "match_start",
+        "match_end",
+    ),
+    outcome_fields=(
+        "kills",
+        "deaths",
+        "assists",
+        "score",
+        "rounds_won",
+        "rounds_lost",
+        "side",  # "attacker" | "defender"
+        "agent",
+        "spike_planted",
+        "credits",
+    ),
+    category="shooter",
+)
+
+APEX_LEGENDS_PROFILE = GameProfile(
+    profile_id=GameProfileId.APEX_LEGENDS,
+    display_name="Apex Legends",
+    event_types=(
+        "kill",
+        "death",
+        "knockdown",
+        "finisher",
+        "revive_ally",
+        "respawn_ally",
+        "ring_close",
+        "zone_damage",
+        "care_package",
+        "squad_wipe",
+        "champion",
+        "match_start",
+        "match_end",
+    ),
+    outcome_fields=(
+        "kills",
+        "deaths",
+        "damage",
+        "knockdowns",
+        "assists",
+        "squad_count",
+        "players_alive",
+        "ring_phase",
+        "legend",
+        "placement",
+    ),
+    category="shooter",
+)
+
+FORTNITE_PROFILE = GameProfile(
+    profile_id=GameProfileId.FORTNITE,
+    display_name="Fortnite",
+    event_types=(
+        "kill",
+        "death",
+        "elimination",
+        "knockdown",
+        "revive_ally",
+        "storm_close",
+        "storm_damage",
+        "supply_drop",
+        "chest_open",
+        "victory_royale",
+        "match_start",
+        "match_end",
+    ),
+    outcome_fields=(
+        "kills",
+        "deaths",
+        "eliminations",
+        "players_alive",
+        "players_left",
+        "storm_phase",
+        "placement",
+        "team_mode",  # "solo" | "duo" | "squad"
+        "materials",
+    ),
+    category="shooter",
+)
+
 # Registry of all known profiles (extensible)
 GAME_PROFILE_REGISTRY: dict[GameProfileId, GameProfile] = {
     NCAA_FOOTBALL_27_PROFILE.profile_id: NCAA_FOOTBALL_27_PROFILE,
     CALL_OF_DUTY_PROFILE.profile_id: CALL_OF_DUTY_PROFILE,
+    VALORANT_PROFILE.profile_id: VALORANT_PROFILE,
+    APEX_LEGENDS_PROFILE.profile_id: APEX_LEGENDS_PROFILE,
+    FORTNITE_PROFILE.profile_id: FORTNITE_PROFILE,
 }
 
 # Friendly / legacy aliases for CLI and VLM output normalization.
@@ -124,6 +231,15 @@ GAME_PROFILE_ALIASES: dict[str, GameProfileId] = {
     "call_of_duty": GameProfileId.CALL_OF_DUTY,
     "modern_warfare": GameProfileId.CALL_OF_DUTY,
     "warzone": GameProfileId.CALL_OF_DUTY,
+    "mw2": GameProfileId.CALL_OF_DUTY,
+    "mw3": GameProfileId.CALL_OF_DUTY,
+    "bo6": GameProfileId.CALL_OF_DUTY,
+    "valorant": GameProfileId.VALORANT,
+    "val": GameProfileId.VALORANT,
+    "apex": GameProfileId.APEX_LEGENDS,
+    "apex_legends": GameProfileId.APEX_LEGENDS,
+    "fortnite": GameProfileId.FORTNITE,
+    "fn": GameProfileId.FORTNITE,
 }
 
 
