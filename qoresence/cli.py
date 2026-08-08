@@ -1260,6 +1260,11 @@ def main():
         default="full",
         help="Retina Monitor HUD layout preset (default full). Cycle live with 'p' key.",
     )
+    parser.add_argument(
+        "--tray",
+        action="store_true",
+        help="Show system tray icon with live status (score, sync). Default OFF.",
+    )
 
     args = parser.parse_args()
 
@@ -1634,6 +1639,26 @@ def main():
                 e,
             )
 
+    # Optional system tray icon (default OFF)
+    _tray_stop = None
+    if getattr(args, "tray", False):
+        try:
+            from qoresence.ui.tray import start_tray
+
+            deck_port = int(getattr(args, "deck_port", 8765) or 8765)
+            _tray_t, _tray_stop = start_tray(
+                port=deck_port,
+                on_stop=app.signal_shutdown,
+            )
+            log.info("System tray icon started (port=%s)", deck_port)
+        except ImportError:
+            log.info(
+                "System tray requires pystray. "
+                "Install: pip install pystray. Continuing without tray."
+            )
+        except Exception as e:
+            log.debug("Tray failed to start: %s", e)
+
     # Signal handling
     def signal_handler(signum, frame):
         log.info("Received signal %s, shutting down...", signum)
@@ -1651,6 +1676,12 @@ def main():
     if _monitor_stop is not None:
         try:
             _monitor_stop.set()
+        except Exception:
+            pass
+
+    if _tray_stop is not None:
+        try:
+            _tray_stop.set()
         except Exception:
             pass
 
