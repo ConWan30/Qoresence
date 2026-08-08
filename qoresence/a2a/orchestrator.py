@@ -582,6 +582,15 @@ def get_a2a_orchestrator(**kwargs: Any) -> A2AOrchestrator:
                 _orch.deepseek.persona = kwargs["persona"]
             if "enabled" in kwargs:
                 _orch.enabled = bool(kwargs["enabled"])
+            # Rebuild tool registry if jsonl_path is provided and tools are missing
+            if "jsonl_path" in kwargs and kwargs["jsonl_path"]:
+                from qoresence.a2a.tools import create_default_registry
+                _orch.tools = create_default_registry(
+                    jsonl_path=kwargs["jsonl_path"],
+                    zoom_callback=kwargs.get("zoom_callback"),
+                )
+                _orch.gemini._tools = _orch.tools
+                _orch.deepseek._tools = _orch.tools
         return _orch
 
 

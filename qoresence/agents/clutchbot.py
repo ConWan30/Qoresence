@@ -515,10 +515,14 @@ class ClutchBotAgent:
 
         from qoresence.a2a.orchestrator import get_a2a_orchestrator
 
+        # Pass JSONL path so query-memory tool can access the event log
+        _jsonl = str(self.bus.jsonl_path) if getattr(self.bus, "jsonl_path", None) else None
+
         self._a2a = get_a2a_orchestrator(
             enabled=True,
             on_commit=_on_commit,
             persona=str(self.config.persona or "neutral"),
+            jsonl_path=_jsonl,
         )
         try:
             self._a2a.bus.set_retina_mirror(self.bus, session_id=self.bus.session_id)
