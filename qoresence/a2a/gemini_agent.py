@@ -36,9 +36,17 @@ class GeminiSceneAgent:
         self.live = env_live if live is None else bool(live)
         self.model = model or os.environ.get("QORESENCE_A2A_GEMINI_MODEL", GEMINI_MODEL)
         self.base_url = base_url.rstrip("/")
+        # Same default key path as DeepSeek / ClutchBot (Quicksilver Pro)
+        _default_key_file = (
+            ".secrets/quicksilver_clutchbot.key"
+            if __import__("pathlib").Path(".secrets/quicksilver_clutchbot.key").exists()
+            else None
+        )
         self._api_key = _resolve_api_key(
             api_key or os.environ.get("QUICKSILVER_API_KEY"),
-            api_key_file or os.environ.get("QUICKSILVER_API_KEY_FILE"),
+            api_key_file
+            or os.environ.get("QUICKSILVER_API_KEY_FILE")
+            or _default_key_file,
         )
         if self.live and not self._api_key:
             log.warning("A2A Gemini live but no API key — using stub")
