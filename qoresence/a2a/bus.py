@@ -68,12 +68,29 @@ class A2ABus:
                         "message": text[:200],
                         "reason": str(body.get("reason") or "a2a_commit")[:120],
                         "path": str(body.get("path") or "fast"),
+                        "evidence": body.get("evidence"),
                         "a2a": msg.to_dict(),
                     },
                     clock_ns_override=msg.clock_ns,
                 )
             except Exception:
                 pass
+
+    def emit_evidence(self, evidence: dict[str, Any], clock_ns: int | None = None) -> None:
+        """Emit an evidence chain event to the RetinaEventBus (Trio P4)."""
+        if self._retina_bus is None:
+            return
+        try:
+            from qoresence.core import SourceLobe
+
+            self._retina_bus.emit_raw(
+                source_lobe=SourceLobe.AGENT,
+                event_type="evidence_chain",
+                payload=evidence,
+                clock_ns_override=clock_ns,
+            )
+        except Exception as e:
+            log.debug("A2A evidence emit failed: %s", e)
 
     def recent(self, n: int = 20) -> list[A2AMessage]:
         with self._lock:

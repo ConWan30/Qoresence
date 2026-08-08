@@ -18,7 +18,16 @@ from qoresence.a2a.bus import A2ABus
 from qoresence.a2a.deepseek_agent import DeepSeekChatAgent
 from qoresence.a2a.gemini_agent import GeminiSceneAgent
 from qoresence.a2a.policy import A2APolicy
-from qoresence.a2a.types import A2AMessage, ChatProposal, CommitAct, SceneProposal, Veto
+from qoresence.a2a.types import (
+    A2AMessage,
+    ChatProposal,
+    CommitAct,
+    EvidenceChain,
+    EventRef,
+    FieldProvenance,
+    SceneProposal,
+    Veto,
+)
 
 log = logging.getLogger(__name__)
 
@@ -325,11 +334,24 @@ class A2AOrchestrator:
             log.info("A2A veto: %s (%s)", result.reason, (result.rejected_text or "")[:60])
             return result
 
-        # Tag commit with reason
+        # Tag commit with reason and evidence chain
+        evidence = self._build_evidence(
+            sit=sit,
+            scene=scene,
+            chat=chat,
+            coupling=coupling,
+            drive_phase=drive_phase,
+            reason=reason,
+            result=result,
+        )
         try:
             result.payload = {**(result.payload or {}), "a2a_reason": reason}
+            result.evidence = evidence.to_dict()
         except Exception:
             pass
+
+        # Emit evidence chain to RetinaEventBus (Trio P4)
+        self.bus.emit_evidence(evidence.to_dict())
 
         self.bus.publish(
             A2AMessage(
@@ -359,6 +381,100 @@ class A2AOrchestrator:
         now = time.time()
         self._recent_norms.append((now, n))
         self._recent_norms = [(t, s) for t, s in self._recent_norms if now - t < 300.0][-20:]
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # EVIDENCE CHAIN (Trio Principle 4)
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _build_evidence(
+        self,
+        *,
+        sit: dict[str, Any],
+        scene: SceneProposal,
+        chat: ChatProposal,
+        coupling: float | None,
+        drive_phase: str | None,
+        reason: str,
+        result: CommitAct,
+    ) -> EvidenceChain:
+        """Build a structured evidence chain for the decision.
+
+        Cites the outcome events, visual context fields, controller
+        signals, and coupling score that supported the commentary.
+        """
+        cited_events: list[EventRef] = []
+        cited_fields: list[FieldProvenance] = []
+
+        # Cite the last outcome event if present in situation
+        last_event = sit.get("last_outcome_event")
+        if last_event:
+            cited_events.append(EventRef(
+                event_type="outcome_event",
+                clock_ns=time.monotonic_ns(),
+                source_lobe="outcome",
+                event_name=str(last_event),
+                summary=f"Last outcome: {last_event}",
+            ))
+
+        # Cite key football fields from the situation
+        for fname in ("home_score", "away_score", "quarter", "down",
+                       "field_position", "possession", "game_clock_seconds"):
+            val = sit.get(fname)
+            if val is not None:
+                cited_fields.append(FieldProvenance(
+                    field_name=fname,
+                    value=val,
+                    source="vlm",
+                    confidence=float(sit.get("visual_confidence") or 0.0),
+                ))
+
+        # Cite key shooter fields
+        for fname in ("kills", "deaths", "score", "health", "ammo"):
+            val = sit.get(fname)
+            if val is not None:
+                cited_fields.append(FieldProvenance(
+                    field_name=fname,
+                    value=val,
+                    source="vlm",
+                    confidence=float(sit.get("visual_confidence") or 0.0),
+                ))
+
+        # Cite controller signals
+        apm = sit.get("controller_apm")
+        if apm is not None:
+            cited_fields.append(FieldProvenance(
+                field_name="controller_apm",
+                value=apm,
+                source="controller",
+                confidence=1.0,
+            ))
+
+        # Cite presence sync
+        presence = sit.get("presence_sync_ok")
+        if presence is not None:
+            cited_fields.append(FieldProvenance(
+                field_name="presence_sync_ok",
+                value=presence,
+                source="fusion",
+                confidence=1.0,
+            ))
+
+        # Overall confidence: blend visual confidence and scene tension
+        vis_conf = float(sit.get("visual_confidence") or 0.0)
+        tension = float(getattr(scene, "tension", 0.5) or 0.5)
+        overall = (vis_conf * 0.6 + tension * 0.4)
+
+        return EvidenceChain(
+            cited_events=cited_events,
+            cited_fields=cited_fields,
+            coupling_score=coupling,
+            drive_phase=drive_phase,
+            trigger_reason=reason,
+            scene_model=getattr(scene, "model", ""),
+            chat_model=getattr(chat, "model", ""),
+            confidence=round(overall, 3),
+            policy_refs=[result.reason] if result.reason else [],
+        )
 
     def _is_near_duplicate(self, text: str) -> bool:
         n = _norm_chat(text)

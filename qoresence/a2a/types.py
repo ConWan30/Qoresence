@@ -25,6 +25,73 @@ A2AKind = Literal[
 ]
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# EVIDENCE CHAIN (Trio Principle 4: Every decision carries its evidence)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+@dataclass
+class EventRef:
+    """A reference to a bus event by type, clock_ns, and source lobe."""
+
+    event_type: str
+    clock_ns: int
+    source_lobe: str
+    event_name: str | None = None  # for OUTCOME_EVENT, the specific event_name
+    summary: str = ""  # short human-readable description
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class FieldProvenance:
+    """Provenance for a single cited field value."""
+
+    field_name: str
+    value: Any
+    source: str  # "vlm" | "ocr" | "controller" | "fusion" | "outcome"
+    confidence: float = 0.0
+    frame_hash: str | None = None
+    model: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class EvidenceChain:
+    """Structured evidence chain accompanying a decision (Trio P4).
+
+    Every commit_act that reaches the deck feed or Twitch chat must
+    carry an evidence chain citing the specific events, fields, and
+    signals that supported the decision.
+    """
+
+    cited_events: list[EventRef] = field(default_factory=list)
+    cited_fields: list[FieldProvenance] = field(default_factory=list)
+    coupling_score: float | None = None
+    drive_phase: str | None = None
+    trigger_reason: str = ""
+    scene_model: str = ""
+    chat_model: str = ""
+    confidence: float = 0.0  # calibrated overall confidence (0..1)
+    policy_refs: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "cited_events": [e.to_dict() for e in self.cited_events],
+            "cited_fields": [f.to_dict() for f in self.cited_fields],
+            "coupling_score": self.coupling_score,
+            "drive_phase": self.drive_phase,
+            "trigger_reason": self.trigger_reason,
+            "scene_model": self.scene_model,
+            "chat_model": self.chat_model,
+            "confidence": self.confidence,
+            "policy_refs": self.policy_refs,
+        }
+
+
 @dataclass
 class SceneProposal:
     """Gemini (or stub): sparse scene description — no invented scores."""
@@ -90,6 +157,7 @@ class CommitAct:
     factual: bool = False
     reason: str = "a2a_commit"
     payload: dict[str, Any] = field(default_factory=dict)
+    evidence: dict[str, Any] | None = None  # EvidenceChain.to_dict()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
