@@ -176,6 +176,34 @@ Hard-refresh Deck if the tab was open before restart. Session notes: [docs/PILOT
 
 ---
 
+## Data & privacy
+
+| Path | Default |
+|------|---------|
+| **Frames / clips / timeline** | Local disk (`clips/`, `logs/`) — observation plane only |
+| **Twitch** | Only if you set channel + tokens (chat / predictions) |
+| **Quicksilver** | Optional: scoreboard VLM + A2A when enabled — **crops / metadata**, not continuous 60 fps upload by design |
+| **Deck bind** | `127.0.0.1` only (not `0.0.0.0`) |
+| **Claims** | No anti-cheat / legitimacy / “proof of humanity” |
+
+```text
+  HDMI card → Qoresence (local)
+       ├─ FrameHub / Monitor / Deck LIVE   (stay on machine)
+       ├─ clips/*.mp4 · logs/              (local)
+       └─ optional: Twitch IRC · Quicksilver VLM/A2A (opt-in)
+```
+
+---
+
+## Revoke / stop
+
+1. **Stop** the CLI (Ctrl+C)  
+2. **Twitch:** revoke the app token in your Twitch developer console if you used ClutchBot IRC  
+3. **Keys:** remove or ignore `.secrets/*` (gitignored)  
+4. **Artifacts (optional):** delete `clips/` and `logs/` if you do not want local session residue  
+
+---
+
 ## Documentation map
 
 | Doc | Topic |
