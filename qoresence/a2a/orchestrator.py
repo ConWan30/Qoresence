@@ -50,8 +50,8 @@ _INTERVAL_BY_REASON: dict[str, float] = {
     "menu_exit": 12.0,
     "drive_pressure": 20.0,
     "coupling": 25.0,
-    "scene_tick": 45.0,  # ~1–2/min ambient scene with image
-    "video_ambient": 90.0,  # rare video-only heartbeat
+    "scene_tick": 60.0,  # raised: only fires with pressure/coupling/climax
+    "video_ambient": 120.0,  # raised: idle heartbeat, very rare
     "force": 0.0,
 }
 
@@ -204,6 +204,15 @@ class A2AOrchestrator:
             } and not is_football:
                 return
 
+        # Trio P2: Evaluate must-fire predicates early so ambient gating can use them.
+        must_fire, must_fire_pred = evaluate_must_fire(sit)
+
+        # Sparse heartbeat reasons only fire when there is real pressure, coupling,
+        # or a high-climax must-fire predicate. No idle gameplay spam.
+        if not force and reason in {"scene_tick", "video_ambient"}:
+            if not (phase_ok or coup_ok or must_fire):
+                return
+
         interval = _INTERVAL_BY_REASON.get(reason, self.min_interval_s)
         interval = max(interval, 0.0 if force else min(self.min_interval_s, interval))
         # Global floor unless force / big-play events
@@ -218,8 +227,7 @@ class A2AOrchestrator:
         }:
             interval = max(interval, float(self.min_interval_s) * 0.5)
 
-        # Trio P2: Evaluate must-fire predicates — bypass interval if any fire
-        must_fire, must_fire_pred = evaluate_must_fire(sit)
+        # Must-fire predicates bypass interval
         if must_fire:
             interval = 0.0
             log.debug("A2A must-fire predicate hit: %s", must_fire_pred)

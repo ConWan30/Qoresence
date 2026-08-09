@@ -114,6 +114,87 @@ def test_score_changed_reason_triggers():
     assert called, "score_changed should schedule a commit"
 
 
+def test_scene_tick_suppressed_without_pressure():
+    """scene_tick should not fire on idle gameplay without drive phase/coupling/climax."""
+    orch = A2AOrchestrator(enabled=True, min_interval_s=0)
+    called = []
+    orch.on_commit = lambda c: called.append(c)
+    orch.gemini.live = False
+    orch.deepseek.live = False
+    orch.policy.chat_cooldown_s = 0
+    orch.maybe_trigger_from_drive(
+        situation={"game_category": "football", "game_state": "gameplay"},
+        reason="scene_tick",
+        coupling=0.1,
+        drive_phase=None,
+    )
+    import time
+
+    time.sleep(0.15)
+    assert called == [], "scene_tick should be gated on pressure/coupling/must-fire"
+
+
+def test_scene_tick_fires_with_pressure():
+    orch = A2AOrchestrator(enabled=True, min_interval_s=0)
+    called = []
+    orch.on_commit = lambda c: called.append(c)
+    orch.gemini.live = False
+    orch.deepseek.live = False
+    orch.policy.chat_cooldown_s = 0
+    orch.maybe_trigger_from_drive(
+        situation={"game_category": "football", "game_state": "gameplay"},
+        reason="scene_tick",
+        coupling=0.5,
+        drive_phase="pressure",
+    )
+    import time
+
+    time.sleep(0.25)
+    assert called, "scene_tick should fire when drive phase is pressure"
+
+
+def test_video_ambient_suppressed_without_pressure():
+    orch = A2AOrchestrator(enabled=True, min_interval_s=0)
+    called = []
+    orch.on_commit = lambda c: called.append(c)
+    orch.gemini.live = False
+    orch.deepseek.live = False
+    orch.policy.chat_cooldown_s = 0
+    orch.maybe_trigger_from_drive(
+        situation={"game_category": "football", "game_state": "gameplay"},
+        reason="video_ambient",
+        coupling=0.0,
+        drive_phase=None,
+    )
+    import time
+
+    time.sleep(0.15)
+    assert called == [], "video_ambient should be gated on pressure/coupling/must-fire"
+
+
+def test_video_ambient_fires_on_must_fire_climax():
+    orch = A2AOrchestrator(enabled=True, min_interval_s=0)
+    called = []
+    orch.on_commit = lambda c: called.append(c)
+    orch.gemini.live = False
+    orch.deepseek.live = False
+    orch.policy.chat_cooldown_s = 0
+    orch.maybe_trigger_from_drive(
+        situation={
+            "game_category": "football",
+            "game_state": "gameplay",
+            "last_outcome_event": "touchdown",
+        },
+        reason="video_ambient",
+        coupling=0.0,
+        drive_phase=None,
+    )
+    import time
+
+    time.sleep(0.25)
+    assert called, "video_ambient should fire when must-fire predicate (big play) is true"
+
+
 def test_near_duplicate_policy():
     p = A2APolicy(chat_cooldown_s=0)
     t = "Big moment energy — stay with it on this drive."
