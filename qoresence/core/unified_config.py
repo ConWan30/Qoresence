@@ -460,6 +460,24 @@ class FusionWeights:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+@dataclass(frozen=True)
+class AgentGlassConfig:
+    """Agent Glass observability bridge configuration."""
+
+    enabled: bool = False
+    host: str = "127.0.0.1"
+    port: int = 8765
+    max_clients: int = 8
+    max_eps_per_client: float = 20.0
+    max_history: int = 256
+    require_token: bool = False
+    token_file: str | None = ".secrets/agent_glass.token"
+    snapshot_hz: float = 5.0
+    allow_frame: bool = True
+    allow_clip: bool = True
+    cors_allow_all: bool = True
+
+
 @dataclass
 class StreamrConfig:
     """Streamr Network publisher configuration.
@@ -513,6 +531,7 @@ class RetinaUnifiedConfig:
     visual: VisualConfig = field(default_factory=VisualConfig)
     game_detection: GameDetectionConfig = field(default_factory=GameDetectionConfig)
     clutchbot: ClutchBotConfig = field(default_factory=ClutchBotConfig)
+    agent_glass: AgentGlassConfig = field(default_factory=AgentGlassConfig)
 
     # ── Network Publisher ────────────────────────────────────────────────────
     streamr: StreamrConfig = field(default_factory=StreamrConfig)
@@ -599,6 +618,14 @@ class RetinaUnifiedConfig:
         if self.outcome.enabled:
             if self.outcome.game_profile not in GAME_PROFILE_REGISTRY:
                 errors.append(f"Unknown game profile: {self.outcome.game_profile}")
+
+        # AgentGlass validation
+        if self.agent_glass.host != "127.0.0.1" and not self.agent_glass.require_token:
+            errors.append("agent_glass host must be 127.0.0.1 unless require_token=true")
+        if not (1 <= self.agent_glass.snapshot_hz <= 10):
+            errors.append("agent_glass snapshot_hz must be between 1 and 10")
+        if not (1 <= self.agent_glass.max_clients <= 32):
+            errors.append("agent_glass max_clients must be between 1 and 32")
 
         return errors
 
@@ -798,6 +825,19 @@ class RetinaUnifiedConfig:
                 deck_port=_int("QORESENCE_DECK_PORT", 8765),
                 llm_max_tokens=_int("QORESENCE_CLUTCHBOT_LLM_MAX_TOKENS", 256),
                 twitch=_twitch(),
+            ),
+            agent_glass=AgentGlassConfig(
+                enabled=_bool("QORESENCE_AGENT_GLASS_ENABLED"),
+                host=_str("QORESENCE_AGENT_GLASS_HOST", "127.0.0.1"),
+                port=_int("QORESENCE_AGENT_GLASS_PORT", 8765),
+                max_clients=_int("QORESENCE_AGENT_GLASS_MAX_CLIENTS", 8),
+                max_eps_per_client=_float("QORESENCE_AGENT_GLASS_MAX_EPS", 20.0),
+                max_history=_int("QORESENCE_AGENT_GLASS_MAX_HISTORY", 256),
+                require_token=_bool("QORESENCE_AGENT_GLASS_REQUIRE_TOKEN"),
+                token_file=_str("QORESENCE_AGENT_GLASS_TOKEN_FILE", ".secrets/agent_glass.token") or None,
+                snapshot_hz=_float("QORESENCE_AGENT_GLASS_SNAPSHOT_HZ", 5.0),
+                allow_frame=_bool("QORESENCE_AGENT_GLASS_ALLOW_FRAME", True),
+                allow_clip=_bool("QORESENCE_AGENT_GLASS_ALLOW_CLIP", True),
             ),
             jsonl_path=_str("QORESENCE_JSONL_PATH") or None,
             ws_host=_str("QORESENCE_WS_HOST", "127.0.0.1"),
