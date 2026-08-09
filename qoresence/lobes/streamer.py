@@ -551,8 +551,8 @@ class StreamerRuntime:
                 self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
                 self._cap.set(cv2.CAP_PROP_FPS, self.config.fps_target)
 
-            # Verify first frame
-            ok, frame = self._cap.read()
+            # Verify first frame (with timeout so a frozen device can’t block open)
+            ok, frame = self._timed_read(self._cap, timeout=2.0)
             if not ok or frame is None:
                 log.error("First frame read failed")
                 if not is_network and not _is_obs_virtual_camera_name(device_name):
@@ -599,8 +599,10 @@ class StreamerRuntime:
                 f"Capture opened: {frame.shape[1]}x{frame.shape[0]} @ "
                 f"{self._cap.get(cv2.CAP_PROP_FPS):.1f} FPS (requested {self.config.fps_target})"
             )
-            # Start isolated grabber so main/LIVE never blocks on DShow read
-            self._start_grabber()
+            # Use Grok timeout-based read in the main loop instead of a dedicated
+            # grabber thread — the grabber thread can hold a dead DShow filter and
+            # prevent rebind (commit 723e84f reintroduced this failure mode).
+            log.info("Capture opened (Grok timeout read, no grabber thread)")
             return True
 
         except Exception as e:
@@ -841,23 +843,49 @@ class StreamerRuntime:
         self._emit_session_end()
 
     def _read_frame(self) -> tuple[bool, np.ndarray | None]:
-        """Non-blocking: pull latest frame from grabber thread (never call cap.read here)."""
-        if self._cap is None and not self._grab_alive:
+        """Read a frame with a hard timeout so DShow hangs cannot freeze LIVE forever.
+
+        Original Grok fix (commit fb47f29): cap.read() runs in a short-lived
+        daemon thread with a 1.25s join. If it hangs, release the capture device
+        and set self._cap = None so the main loop will rebind.
+        """
+        if self._cap is None:
             return False, None
-        with self._grab_lock:
-            frame = self._grab_latest
-            ts = self._grab_ts
-        if frame is None:
-            return False, None
-        # Stale slot → treat as failure so rebind can fire
-        age = time.monotonic() - ts if ts else 999.0
-        if age > 2.5:
-            log.warning("Grabber frame stale (%.1fs) — will rebind", age)
-            return False, None
-        try:
+        ok, frame = self._timed_read(self._cap, timeout=1.25)
+        if ok and frame is not None:
             return True, np.ascontiguousarray(frame)
-        except Exception:
+        return False, None
+
+    def _timed_read(self, cap: Any, timeout: float = 1.25) -> tuple[bool, np.ndarray | None]:
+        """Run cap.read() in a daemon thread with a timeout."""
+        box: list[Any] = []
+
+        def _grab() -> None:
+            try:
+                ok, frame = cap.read()
+                box.append((bool(ok), frame))
+            except Exception:
+                box.append((False, None))
+
+        t = threading.Thread(target=_grab, name="dshow-grab", daemon=True)
+        t.start()
+        t.join(timeout=timeout)
+        if t.is_alive():
+            log.warning("cap.read() timed out (>%.2fs) — forcing rebind", timeout)
+            try:
+                cap.release()
+            except Exception:
+                pass
+            with self._lock:
+                self._cap = None
+                self._consecutive_failures = 99
             return False, None
+        if not box:
+            return False, None
+        ok, frame = box[-1]
+        if ok and frame is not None:
+            return True, np.ascontiguousarray(frame)
+        return False, None
 
     def _watchdog_loop(self) -> None:
         """Watchdog thread: emit heartbeat and degrade FPS if frames stall."""
