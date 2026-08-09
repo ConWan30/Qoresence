@@ -461,6 +461,36 @@ class FusionWeights:
 
 
 @dataclass
+class StreamrConfig:
+    """Streamr Network publisher configuration.
+
+    Qoresence can publish events, game state, and (later) compressed video
+    to a local Streamr node via HTTP/MQTT/WebSocket. The node then forwards
+    signed messages into the Streamr Network. See docs/STREAMR.md.
+
+    Reference:
+        https://docs.streamr.network/guides/use-any-language-or-device/
+        https://docs.streamr.network/usage/connect-apps-and-iot/streamr-node-interface/
+    """
+
+    enabled: bool = False
+    # Stream ID the node is authorized to publish to, e.g. "0x.../qoresence/football"
+    stream_id: str = ""
+    # Interface protocol to the local Streamr node
+    protocol: str = "http"  # "http" | "mqtt" | "websocket"
+    # Local Streamr node host/port
+    host: str = "127.0.0.1"
+    port: int = 7171  # default HTTP plugin; MQTT=1883, WebSocket=7170
+    api_key: str | None = None  # apiAuthentication key from Streamr node config
+    # Which events to publish. Empty list = disabled. ["*"] = all events.
+    event_types: list[str] = field(default_factory=list)
+    # Max events per second throttle (0 = no throttle)
+    max_eps: float = 0.0
+    # Connection timeout
+    timeout_s: float = 5.0
+
+
+@dataclass
 class RetinaUnifiedConfig:
     """
     Single source of truth for all Qoresence lobes.
@@ -483,6 +513,9 @@ class RetinaUnifiedConfig:
     visual: VisualConfig = field(default_factory=VisualConfig)
     game_detection: GameDetectionConfig = field(default_factory=GameDetectionConfig)
     clutchbot: ClutchBotConfig = field(default_factory=ClutchBotConfig)
+
+    # ── Network Publisher ────────────────────────────────────────────────────
+    streamr: StreamrConfig = field(default_factory=StreamrConfig)
 
     # ── Fusion Engine ────────────────────────────────────────────────────────
     fusion_weights: FusionWeights = field(default_factory=FusionWeights)

@@ -49,6 +49,8 @@ class RetinaEventBus:
         ws_port: int = 8765,
         enable_ws: bool = True,
         max_ws_history: int = 256,
+        # Streamr network publisher (optional)
+        streamr_publisher: Callable[[BaseEvent], None] | None = None,
         # Trio-retina validation
         trio_config: TrioRetinaConfig | None = None,
         session_identity: SessionIdentity | None = None,
@@ -63,6 +65,7 @@ class RetinaEventBus:
         self.ws_port = ws_port
         self.enable_ws = enable_ws
         self.max_ws_history = max_ws_history
+        self._streamr_publisher = streamr_publisher
 
         # Thread-safe subscribers
         self._subscribers: list[Callable[[BaseEvent], None]] = []
@@ -130,6 +133,13 @@ class RetinaEventBus:
         # Queue for WebSocket
         if self.enable_ws:
             self._queue_ws(event)
+
+        # Best-effort Streamr network publish
+        if self._streamr_publisher is not None:
+            try:
+                self._streamr_publisher(event)
+            except Exception as e:
+                log.debug("Streamr publisher error: %s", e)
 
         self.events_emitted += 1
         return True

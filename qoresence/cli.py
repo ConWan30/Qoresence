@@ -200,12 +200,19 @@ class QoresenceApp:
         )
 
         # Event bus with trio-retina validation
+        self.streamr_publisher = None
+        if config.streamr.enabled:
+            from qoresence.streamr.publisher import make_streamr_publisher_from_config
+
+            self.streamr_publisher = make_streamr_publisher_from_config(config.streamr)
+
         self.bus = RetinaEventBus(
             session_id=self.identity.session_id,
             jsonl_path=Path(config.jsonl_path) if config.jsonl_path else None,
             enable_ws=config.enable_ws,
             ws_host=config.ws_host,
             ws_port=config.ws_port,
+            streamr_publisher=self.streamr_publisher,
             # Trio-retina
             trio_config=self.trio_config,
             session_identity=self.identity,
@@ -791,6 +798,9 @@ class QoresenceApp:
         if self.streamer:
             self.streamer.stop()
 
+        if self.streamr_publisher:
+            self.streamr_publisher.stop()
+
         self.bus.close()
 
         elapsed = time.time() - self._start_time
@@ -1026,6 +1036,20 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             height=getattr(args, "streamer_height", 720),
             fps_target=args.streamer_fps,
         )
+    if args.streamr:
+        _event_types = [t.strip() for t in args.streamr_event_types.split(",") if t.strip()] if args.streamr_event_types else []
+        if args.streamr_stream_id:
+            config.streamr = replace(
+                config.streamr,
+                enabled=True,
+                stream_id=args.streamr_stream_id,
+                protocol=args.streamr_protocol,
+                host=args.streamr_host,
+                port=args.streamr_port,
+                api_key=args.streamr_api_key,
+                event_types=_event_types,
+                max_eps=args.streamr_max_eps,
+            )
     if args.controller:
         config.controller = replace(
             config.controller, enabled=True, poll_rate_hz=args.controller_rate
@@ -1146,6 +1170,27 @@ def main():
     )
     parser.add_argument("--streamer-width", type=int, default=1280, help="Capture width")
     parser.add_argument("--streamer-height", type=int, default=720, help="Capture height")
+
+    # Streamr Network publisher
+    parser.add_argument("--streamr", action="store_true", help="Publish events to a local Streamr node")
+    parser.add_argument("--streamr-stream-id", type=str, default="", help="Streamr stream ID, e.g. 0x.../qoresence/football")
+    parser.add_argument(
+        "--streamr-protocol",
+        choices=["http", "mqtt", "websocket"],
+        default="http",
+        help="Local Streamr node interface protocol",
+    )
+    parser.add_argument("--streamr-host", type=str, default="127.0.0.1", help="Local Streamr node host")
+    parser.add_argument("--streamr-port", type=int, default=7171, help="Local Streamr node port")
+    parser.add_argument("--streamr-api-key", type=str, default=None, help="Streamr node API key")
+    parser.add_argument(
+        "--streamr-event-types",
+        type=str,
+        default="",
+        help="Comma-separated event types to publish (e.g. 'presence_report,visual_context' or '*' for all)",
+    )
+    parser.add_argument("--streamr-max-eps", type=float, default=0.0, help="Max events per second throttle (0 = off)")
+
     parser.add_argument(
         "--controller",
         action="store_true",
