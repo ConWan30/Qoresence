@@ -114,6 +114,7 @@ class A2AOrchestrator:
         self.gemini = GeminiSceneAgent(tools=self.tools)
         self.deepseek = DeepSeekChatAgent(persona=persona, tools=self.tools)
         self._lock = threading.Lock()
+        self._tls = threading.local()
         self._last_trigger = 0.0
         self._last_reason: str | None = None
         self._recent_commits: list[dict[str, Any]] = []
@@ -225,38 +226,52 @@ class A2AOrchestrator:
 
         now = time.time()
         last_age = now - self._last_trigger if self._last_trigger > 0 else 0.0
-        with self._lock:
-            if self._inflight:
-                # Emit router decision: suppressed by in-flight
-                decision = build_router_decision(
-                    fired=False, reason=reason, situation=sit,
-                    must_fire_hit=must_fire_pred,
-                    interval_s=interval, last_trigger_age_s=last_age,
-                )
-                self.bus.emit_router_decision(decision.to_dict())
-                return
-            if not force and not must_fire and (now - self._last_trigger) < interval:
-                # Emit router decision: suppressed by interval
-                decision = build_router_decision(
-                    fired=False, reason=reason, situation=sit,
-                    must_fire_hit=None,
-                    interval_s=interval, last_trigger_age_s=last_age,
-                )
-                self.bus.emit_router_decision(decision.to_dict())
-                return
-            self._inflight = True
-            self._last_trigger = now
-            self._last_reason = reason
+        # ── LOCKING INVARIANT — DO NOT CHANGE (see AGENTS.md + tests/test_deadlock_regression.py)
+        # Re-entrancy guard: emitting router_decision fans out synchronously on
+        # this thread (bus → presence → clutchbot → back here). Without this,
+        # the nested call deadlocks on self._lock and froze the entire live
+        # pipeline (2026-08 incident: Deck stalled, looked like dead capture card).
+        # NEVER emit bus events while holding self._lock. NEVER remove this guard.
+        if getattr(self._tls, "in_trigger", False):
+            return
+        self._tls.in_trigger = True
+        try:
+            fired = False
+            with self._lock:
+                if self._inflight:
+                    # Suppressed by in-flight
+                    decision = build_router_decision(
+                        fired=False, reason=reason, situation=sit,
+                        must_fire_hit=must_fire_pred,
+                        interval_s=interval, last_trigger_age_s=last_age,
+                    )
+                elif not force and not must_fire and (now - self._last_trigger) < interval:
+                    # Suppressed by interval
+                    decision = build_router_decision(
+                        fired=False, reason=reason, situation=sit,
+                        must_fire_hit=None,
+                        interval_s=interval, last_trigger_age_s=last_age,
+                    )
+                else:
+                    self._inflight = True
+                    self._last_trigger = now
+                    self._last_reason = reason
+                    fired = True
+                    decision = build_router_decision(
+                        fired=True, reason=reason, situation=sit,
+                        must_fire_hit=must_fire_pred,
+                        interval_s=interval, last_trigger_age_s=last_age,
+                    )
 
-        # Emit router decision: fired
-        decision = build_router_decision(
-            fired=True, reason=reason, situation=sit,
-            must_fire_hit=must_fire_pred,
-            interval_s=interval, last_trigger_age_s=last_age,
-        )
-        self.bus.emit_router_decision(decision.to_dict())
+            # Emit OUTSIDE the lock — subscribers run synchronously on this thread.
+            # Moving this inside `with self._lock:` recreates the 2026-08 deadlock.
+            self.bus.emit_router_decision(decision.to_dict())
+            if not fired:
+                return
 
-        log.info("A2A trigger reason=%s interval=%.0fs path=%s must_fire=%s", reason, interval, path, must_fire_pred or "-")
+            log.info("A2A trigger reason=%s interval=%.0fs path=%s must_fire=%s", reason, interval, path, must_fire_pred or "-")
+        finally:
+            self._tls.in_trigger = False
 
         def _run() -> None:
             try:

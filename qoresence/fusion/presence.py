@@ -753,11 +753,11 @@ class PresenceFusionEngine:
 
     def _on_event(self, event) -> None:
         """Process incoming event from bus."""
-        with self._lock:
-            # Ignore our own presence_report emissions to prevent recursion
-            if event.type == "presence_report":
-                return
+        # Ignore our own presence_report emissions to prevent recursion
+        if event.type == "presence_report":
+            return
 
+        with self._lock:
             lobe = event.source_lobe
             now_ns = event.clock_ns
 
@@ -771,8 +771,12 @@ class PresenceFusionEngine:
             # Check for anomalies
             self._check_anomalies(now_ns)
 
-            # Emit updated report
-            self._emit_report()
+        # ── LOCKING INVARIANT — DO NOT CHANGE (see AGENTS.md + tests/test_deadlock_regression.py)
+        # Emit updated report OUTSIDE the lock — bus fan-out runs subscribers
+        # synchronously on this thread, and holding the lock here stalls every
+        # other lobe (streamer/watchdog/IVC) behind slow subscribers. Moving
+        # this back inside `with self._lock:` froze the live pipeline (2026-08).
+        self._emit_report()
 
     def _update_lobe_state(self, lobe: SourceLobe, event) -> None:
         """Update lobe state from event."""
@@ -1149,20 +1153,22 @@ class PresenceFusionEngine:
                 },
             )
 
-            # Emit to bus
-            self.bus.emit_raw(
-                source_lobe=SourceLobe.STREAMER,
-                event_type="presence_report",
-                payload=report.to_dict(),
-                clock_ns_override=now_ns,
-                session_head_ns=self.session_head_ns,
-            )
+        # ── LOCKING INVARIANT — DO NOT CHANGE (see AGENTS.md + tests/test_deadlock_regression.py)
+        # Emit to bus OUTSIDE the lock — subscribers run synchronously on this
+        # thread and can be slow (agents, IO); never stall other lobes on it.
+        self.bus.emit_raw(
+            source_lobe=SourceLobe.STREAMER,
+            event_type="presence_report",
+            payload=report.to_dict(),
+            clock_ns_override=now_ns,
+            session_head_ns=self.session_head_ns,
+        )
 
-            if self._report_callback:
-                try:
-                    self._report_callback(report)
-                except Exception as e:
-                    log.error(f"Report callback error: {e}")
+        if self._report_callback:
+            try:
+                self._report_callback(report)
+            except Exception as e:
+                log.error(f"Report callback error: {e}")
 
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC QUERY METHODS
