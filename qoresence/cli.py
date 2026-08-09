@@ -381,6 +381,34 @@ class QoresenceApp:
 
         # Agent runtimes
         self.clutchbot: ClutchBotAgent | None = None
+        self.agent_glass = None
+        # AgentGlass (glass D) — read-only spectator bridge, default OFF, no capture
+        try:
+            if getattr(self.config.agent_glass, "enabled", False):
+                from qoresence.agents.agent_glass import start_agent_glass
+
+                def _ag_situation_provider() -> dict:
+                    sm = getattr(self, "situation_model", None)
+                    if sm is None and getattr(self, "clutchbot", None) is not None:
+                        sm = getattr(self.clutchbot, "_situation", None)  # type: ignore[attr-defined]
+                    try:
+                        if sm is not None and hasattr(sm, "to_dict"):
+                            return sm.to_dict()  # type: ignore[union-attr]
+                        if isinstance(sm, dict):
+                            return sm
+                    except Exception:
+                        pass
+                    return {}
+
+                self.agent_glass = start_agent_glass(
+                    bus=self.bus,
+                    config=self.config.agent_glass,
+                    session_identity=self.identity,
+                    situation_provider=_ag_situation_provider,
+                )
+                log.info("AgentGlass enabled (port %s host %s)", getattr(self.config.agent_glass, "port", 8765), getattr(self.config.agent_glass, "host", "127.0.0.1"))
+        except Exception as e:
+            log.warning("AgentGlass init failed: %s", e)
 
         # Input–Video Coupler (only when controller enabled)
         self.ivc = None
@@ -798,6 +826,15 @@ class QoresenceApp:
         if self.streamer:
             self.streamer.stop()
 
+        if getattr(self, "agent_glass", None) is not None:
+            try:
+                from qoresence.agents.agent_glass import stop_agent_glass
+
+                stop_agent_glass()
+            except Exception:
+                pass
+            self.agent_glass = None
+
         if self.streamr_publisher:
             self.streamr_publisher.stop()
 
@@ -1084,6 +1121,25 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         _ch = (args.clutchbot_channel or "").strip()
         _tw_enabled = bool(_ch and (args.clutchbot_username or _ch) and (args.clutchbot_token or _tok_file))
         _llm_key = ".secrets/quicksilver_clutchbot.key"
+        # AgentGlass wiring — env is source of truth, CLI toggles on/off
+        try:
+            if getattr(args, "no_agent_glass", False):
+                config.agent_glass = replace(config.agent_glass, enabled=False)
+            elif getattr(args, "agent_glass", False):
+                _ag_updates = {"enabled": True}
+                if getattr(args, "agent_glass_token_file", None):
+                    _ag_updates["token_file"] = args.agent_glass_token_file
+                if getattr(args, "agent_glass_no_frame", False):
+                    _ag_updates["allow_frame"] = False
+                config.agent_glass = replace(config.agent_glass, **_ag_updates)
+            else:
+                # --agent-glass-token-file / --agent-glass-no-frame imply enabled if env already enabled
+                if getattr(args, "agent_glass_token_file", None):
+                    config.agent_glass = replace(config.agent_glass, token_file=args.agent_glass_token_file)
+                if getattr(args, "agent_glass_no_frame", False):
+                    config.agent_glass = replace(config.agent_glass, allow_frame=False)
+        except Exception:
+            pass
         config.clutchbot = replace(
             config.clutchbot,
             enabled=True,
@@ -1393,6 +1449,10 @@ def main():
         action="store_true",
         help="Show system tray icon with live status (score, sync). Default OFF.",
     )
+    parser.add_argument("--agent-glass", action="store_true", help="Enable AgentGlass spectator API (glass D, localhost-only, default OFF)")
+    parser.add_argument("--no-agent-glass", action="store_true", help="Disable AgentGlass even if env enabled")
+    parser.add_argument("--agent-glass-token-file", default=None, help="AgentGlass token file (default .secrets/agent_glass.token)")
+    parser.add_argument("--agent-glass-no-frame", action="store_true", help="Disable AgentGlass frame endpoint")
     parser.add_argument(
         "--profiles-list",
         action="store_true",

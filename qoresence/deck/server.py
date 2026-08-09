@@ -15,6 +15,7 @@ import json
 import logging
 import pathlib
 import threading
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -184,6 +185,80 @@ def push_moment(moment: dict[str, Any]) -> None:
         _state.moments = _state.moments[-100:]
     _broadcast({"type": "moment", "payload": moment})
 
+
+# ---------------------------------------------------------------------------
+# AgentGlass helpers (read-only snapshot for external agents — no capture)
+# ---------------------------------------------------------------------------
+
+_agent_frame_last: dict[str, float] = {}
+_agent_clip_last: float = 0.0
+_agent_eps: dict[str, list[float]] = {}
+_agent_lock = threading.Lock()
+
+def _agent_check_token(request: Any) -> bool:
+    try:
+        from qoresence.agents.agent_glass import get_agent_glass
+        g = get_agent_glass()
+        cfg = getattr(g, "config", None) if g else None
+        require = bool(getattr(cfg, "require_token", False)) if cfg else False
+        if not require:
+            return True
+        token_file = getattr(cfg, "token_file", ".secrets/agent_glass.token") if cfg else ".secrets/agent_glass.token"
+        auth = ""
+        try:
+            auth = request.headers.get("authorization", "") if hasattr(request, "headers") else ""
+        except Exception:
+            auth = ""
+        if not auth.lower().startswith("bearer "):
+            return False
+        token = auth[7:].strip()
+        try:
+            exp = pathlib.Path(token_file).read_text(encoding="utf-8").strip().split()[0]
+            return token == exp and len(token) >= 16
+        except Exception:
+            return False
+    except Exception:
+        return True
+
+def _agent_eps_ok(client_id: str, max_eps: float = 20.0) -> bool:
+    now = time.monotonic()
+    window = 1.0
+    with _agent_lock:
+        lst = _agent_eps.get(client_id)
+        if lst is None:
+            lst = []
+            _agent_eps[client_id] = lst
+        # prune
+        cutoff = now - window
+        while lst and lst[0] < cutoff:
+            lst.pop(0)
+        if len(lst) >= max_eps:
+            return False
+        lst.append(now)
+        return True
+
+def _agent_snapshot_payload() -> dict[str, Any]:
+    try:
+        from qoresence.agents.agent_glass import get_agent_glass
+        g = get_agent_glass()
+        if g is not None:
+            return g.snapshot()
+    except Exception:
+        pass
+    # fallback: minimal snapshot from DeckState + clip buffer
+    video: dict[str, Any] = {"has_frame": False}
+    try:
+        from qoresence.vision.clip_buffer import get_clip_buffer
+        video = get_clip_buffer().stats()
+    except Exception:
+        pass
+    coupling: dict[str, Any] = {}
+    try:
+        from qoresence.sync.ivc import get_last_coupling
+        coupling = get_last_coupling()
+    except Exception:
+        coupling = {"coupling": 0.0}
+    return {"ok": True, "enabled": True, "state": _state.snapshot(), "video": video, "coupling": coupling, "clock_ns": time.monotonic_ns()}
 
 def _broadcast(msg: dict[str, Any]) -> None:
     if _loop is None or not _ws_clients:
@@ -442,6 +517,150 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
+    @app.get("/api/agent/snapshot")
+    async def api_agent_snapshot(request: Request):  # type: ignore[no-untyped-def]
+        if not _agent_check_token(request):
+            return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+        cid = request.client.host if request.client else "unknown"
+        try:
+            from qoresence.agents.agent_glass import get_agent_glass
+            g = get_agent_glass()
+            max_eps = float(getattr(getattr(g, "config", None), "max_eps_per_client", 20.0) or 20.0) if g and getattr(g, "config", None) else 20.0
+        except Exception:
+            max_eps = 20.0
+        if not _agent_eps_ok(cid, max_eps):
+            return JSONResponse({"ok": False, "error": "rate_limited"}, status_code=429)
+        return JSONResponse(_agent_snapshot_payload(), headers={"Access-Control-Allow-Origin": "*"})
+    @app.get("/api/agent/events")
+    async def api_agent_events(request: Request):  # type: ignore[no-untyped-def]
+        if not _agent_check_token(request):
+            return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+        cid = request.client.host if request.client else "unknown"
+        try:
+            from qoresence.agents.agent_glass import get_agent_glass
+            g = get_agent_glass()
+            max_eps = float(getattr(getattr(g, "config", None), "max_eps_per_client", 20.0) or 20.0) if g and getattr(g, "config", None) else 20.0
+        except Exception:
+            max_eps = 20.0
+        if not _agent_eps_ok(cid, max_eps):
+            return JSONResponse({"ok": False, "error": "rate_limited"}, status_code=429)
+        try:
+            since = int(request.query_params.get("since", "0") or 0)
+        except Exception:
+            since = 0
+        types_raw = request.query_params.get("types")
+        types = [t.strip() for t in types_raw.split(",") if t.strip()] if types_raw else None
+        try:
+            limit = int(request.query_params.get("limit", "100") or 100)
+        except Exception:
+            limit = 100
+        try:
+            from qoresence.agents.agent_glass import get_agent_glass
+            g2 = get_agent_glass()
+            if g2 is not None:
+                return JSONResponse(g2.get_events(since=since, types=types, limit=limit), headers={"Access-Control-Allow-Origin": "*"})
+            return JSONResponse({"ok": True, "events": [], "next_seq": 0, "count": 0})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    @app.get("/api/agent/health")
+    async def api_agent_health(request: Request):  # type: ignore[no-untyped-def]
+        if not _agent_check_token(request):
+            return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+        try:
+            from qoresence.agents.agent_glass import get_agent_glass
+            g = get_agent_glass()
+            if g is not None:
+                return JSONResponse(g.health(), headers={"Access-Control-Allow-Origin": "*"})
+            return JSONResponse({"ok": True, "enabled": False, "running": False})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    @app.get("/api/agent/frame")
+    async def api_agent_frame(request: Request):  # type: ignore[no-untyped-def]
+        if not _agent_check_token(request):
+            return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+        try:
+            from qoresence.agents.agent_glass import get_agent_glass
+            g = get_agent_glass()
+            cfg = getattr(g, "config", None) if g else None
+            if cfg is not None and not bool(getattr(cfg, "allow_frame", True)):
+                return JSONResponse({"ok": False, "error": "frame_disabled"}, status_code=403)
+        except Exception:
+            pass
+        cid = request.client.host if request.client else "unknown"
+        now = time.monotonic()
+        with _agent_lock:
+            last = _agent_frame_last.get(cid, 0.0)
+            if now - last < 0.1:
+                return JSONResponse({"ok": False, "error": "frame_throttled"}, status_code=429)
+            _agent_frame_last[cid] = now
+        try:
+            from fastapi.responses import Response
+            from qoresence.vision.clip_buffer import get_latest_jpeg
+            jpg = get_latest_jpeg()
+            if not jpg:
+                jpg = _placeholder_jpeg()
+                if not jpg:
+                    return JSONResponse({"ok": False, "error": "no_frame"}, status_code=404)
+            return Response(content=jpg, media_type="image/jpeg", headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "no-cache"})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    @app.post("/api/agent/clip")
+    async def api_agent_clip(request: Request):  # type: ignore[no-untyped-def]
+        if not _agent_check_token(request):
+            return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+        try:
+            from qoresence.agents.agent_glass import get_agent_glass
+            g = get_agent_glass()
+            cfg = getattr(g, "config", None) if g else None
+            if cfg is not None and not bool(getattr(cfg, "allow_clip", True)):
+                return JSONResponse({"ok": False, "error": "clip_disabled"}, status_code=403)
+        except Exception:
+            pass
+        global _agent_clip_last
+        now = time.monotonic()
+        with _agent_lock:
+            if now - _agent_clip_last < 10.0:
+                return JSONResponse({"ok": False, "error": "clip_rate_limited", "retry_after_s": round(10.0 - (now - _agent_clip_last), 1)}, status_code=429)
+            _agent_clip_last = now
+        try:
+            body: dict = {}
+            try:
+                body = await request.json()
+            except Exception:
+                body = {}
+            seconds = float(body.get("seconds", 10.0) or 10.0)
+            seconds = max(2.0, min(30.0, seconds))
+            from qoresence.vision.clip_buffer import get_clip_buffer
+            cb = get_clip_buffer()
+            res = None
+            try:
+                res = cb.export_clip(seconds=seconds)  # type: ignore[attr-defined]
+            except TypeError:
+                try:
+                    res = cb.export(seconds=seconds)  # type: ignore[attr-defined]
+                except Exception:
+                    res = None
+            except Exception:
+                res = None
+            if res is None:
+                # fallback to module-level export_clip
+                try:
+                    from qoresence.vision.clip_buffer import export_clip
+                    res = export_clip(seconds=seconds)  # type: ignore[call-arg]
+                except Exception:
+                    res = None
+            if res is None:
+                return JSONResponse({"ok": False, "error": "clip_unavailable"}, status_code=503)
+            if isinstance(res, dict):
+                return JSONResponse({"ok": True, **res}, headers={"Access-Control-Allow-Origin": "*"})
+            try:
+                d = dict(res.__dict__)  # type: ignore[union-attr]
+                return JSONResponse({"ok": True, **d}, headers={"Access-Control-Allow-Origin": "*"})
+            except Exception:
+                return JSONResponse({"ok": True, "result": str(res)}, headers={"Access-Control-Allow-Origin": "*"})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
     @app.get("/video")
     async def live_video(request: Request):  # type: ignore[no-untyped-def]
         """Continuous LIVE HDMI preview from clip_buffer JPEG ring (MJPEG fallback).
@@ -680,6 +899,76 @@ def create_app():  # type: ignore[no-untyped-def]
             "</body>"
         )
 
+    @app.websocket("/agent/stream")
+    async def agent_ws(websocket: WebSocket):  # type: ignore[no-untyped-def]
+        # read-only agent feed: snapshot on connect, then push new events
+        import time as _t2
+        # token check via query ?token= or header — optional
+        try:
+            qp = websocket.query_params.get("token") if hasattr(websocket, "query_params") else None
+            auth = websocket.headers.get("authorization", "") if hasattr(websocket, "headers") else ""
+            bearer = (qp or auth.replace("Bearer ", "").replace("bearer ", "")).strip()
+            from qoresence.agents.agent_glass import get_agent_glass as _gag
+            g = _gag()
+            cfg = getattr(g, "config", None) if g else None
+            if cfg and bool(getattr(cfg, "require_token", False)):
+                exp = pathlib.Path(getattr(cfg, "token_file", ".secrets/agent_glass.token")).read_text(encoding="utf-8").strip().split()[0] if pathlib.Path(getattr(cfg, "token_file", ".secrets/agent_glass.token")).exists() else ""
+                if not bearer or bearer != exp:
+                    await websocket.close(code=1008)
+                    return
+        except Exception:
+            pass
+        await websocket.accept()
+        try:
+            await websocket.send_text(json.dumps(_agent_snapshot_payload()))
+        except Exception:
+            pass
+        # subscribe to bus and forward events (rate limited by bus)
+        queue: asyncio.Queue = asyncio.Queue(maxsize=256)
+        unsub = None
+        try:
+            from qoresence.agents.agent_glass import get_agent_glass
+            g = get_agent_glass()
+            bus = getattr(g, "bus", None) if g else None
+            if bus is not None and hasattr(bus, "subscribe"):
+                def _fwd(ev):  # type: ignore[no-untyped-def]
+                    try:
+                        d = ev.to_dict() if hasattr(ev, "to_dict") else dict(ev) if isinstance(ev, dict) else {"payload": getattr(ev, "payload", {})}
+                        queue.put_nowait(d)
+                    except Exception:
+                        pass
+                try:
+                    unsub = bus.subscribe(_fwd)
+                except Exception:
+                    unsub = None
+            # pump
+            while True:
+                try:
+                    ev = await asyncio.wait_for(queue.get(), timeout=1.0)
+                    await websocket.send_text(json.dumps(ev))
+                except asyncio.TimeoutError:
+                    # keepalive ping with snapshot at snapshot_hz
+                    try:
+                        await websocket.send_text(json.dumps({"type": "agent_keepalive", "payload": _agent_snapshot_payload(), "clock_ns": time.monotonic_ns()}))
+                    except Exception:
+                        break
+                except WebSocketDisconnect:
+                    break
+        except WebSocketDisconnect:
+            pass
+        except Exception:
+            pass
+        finally:
+            if callable(unsub):
+                try:
+                    unsub()
+                except Exception:
+                    pass
+            try:
+                await websocket.close()
+            except Exception:
+                pass
+
     @app.websocket(WS_PATH)
     async def retina_ws(websocket: WebSocket):  # type: ignore[no-untyped-def]
         # Param MUST type as module-global WebSocket (see import note above).
@@ -766,7 +1055,113 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 self.end_headers()
                 self.wfile.write(json.dumps(_state.snapshot()).encode())
                 return
+            if self.path.startswith("/api/agent/snapshot"):
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(_agent_snapshot_payload()).encode())
+                return
+            if self.path.startswith("/api/agent/health"):
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                try:
+                    from qoresence.agents.agent_glass import get_agent_glass
+                    g = get_agent_glass()
+                    payload = g.health() if g else {"ok": True, "enabled": False, "running": False}
+                except Exception as e:
+                    payload = {"ok": False, "error": str(e)}
+                self.wfile.write(json.dumps(payload).encode())
+                return
+            if self.path.startswith("/api/agent/events"):
+                from urllib.parse import parse_qs, urlparse as _urlparse
+                qs = parse_qs(_urlparse(self.path).query)
+                try:
+                    since = int((qs.get("since") or ["0"])[0])
+                except Exception:
+                    since = 0
+                try:
+                    limit = int((qs.get("limit") or ["100"])[0])
+                except Exception:
+                    limit = 100
+                types_raw = (qs.get("types") or [None])[0]
+                types = [t.strip() for t in types_raw.split(",") if t.strip()] if types_raw else None
+                try:
+                    from qoresence.agents.agent_glass import get_agent_glass
+                    g = get_agent_glass()
+                    payload = g.get_events(since=since, types=types, limit=limit) if g else {"ok": True, "events": [], "next_seq": 0, "count": 0}
+                except Exception as e:
+                    payload = {"ok": False, "error": str(e)}
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(payload).encode())
+                return
+            if self.path.startswith("/api/agent/frame"):
+                try:
+                    from qoresence.vision.clip_buffer import get_latest_jpeg
+                    jpg = get_latest_jpeg() or _placeholder_jpeg()
+                    if not jpg:
+                        self.send_response(404)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(b'{"ok": false, "error": "no_frame"}')
+                        return
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/jpeg")
+                    self.send_header("Cache-Control", "no-cache")
+                    self.end_headers()
+                    self.wfile.write(jpg)
+                    return
+                except Exception as e:
+                    self.send_response(500)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"ok": False, "error": str(e)}).encode())
+                    return
             return super().do_GET()
+        def do_POST(self):  # type: ignore[no-untyped-def]
+            if self.path.startswith("/api/agent/clip"):
+                length = int(self.headers.get("Content-Length", 0) or 0)
+                body_raw = self.rfile.read(length) if length else b"{}"
+                try:
+                    body = json.loads(body_raw.decode("utf-8") or "{}")
+                except Exception:
+                    body = {}
+                seconds = float(body.get("seconds", 10.0) or 10.0)
+                seconds = max(2.0, min(30.0, seconds))
+                try:
+                    from qoresence.vision.clip_buffer import export_clip
+                    res = export_clip(seconds=seconds)
+                    if res is None:
+                        self.send_response(503)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(b'{"ok": false, "error": "clip_unavailable"}')
+                        return
+                    payload = {"ok": True}
+                    if isinstance(res, dict):
+                        payload.update(res)
+                    else:
+                        try:
+                            payload.update(dict(res.__dict__))
+                        except Exception:
+                            payload["result"] = str(res)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(payload).encode())
+                    return
+                except Exception as e:
+                    self.send_response(500)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"ok": False, "error": str(e)}).encode())
+                    return
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok": false, "error": "not found"}')
 
         def end_headers(self):  # type: ignore[no-untyped-def]
             self.send_header("Access-Control-Allow-Origin", "*")

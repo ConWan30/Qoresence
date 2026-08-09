@@ -19,6 +19,8 @@ REM Enable A2A reasoning tier (Gemini scene + DeepSeek chat agents)
 set QORESENCE_A2A=1
 set QORESENCE_A2A_GEMINI=1
 set QORESENCE_A2A_DEEPSEEK=1
+REM AgentGlass spectator API — default OFF, enable with QORESENCE_AGENT_GLASS_ENABLED=1
+REM Example: set QORESENCE_AGENT_GLASS_ENABLED=1 & python -m qoresence.cli --play --deck --agent-glass
 
 REM If no args passed, use sensible defaults
 if "%~1"=="" (
