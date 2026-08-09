@@ -99,3 +99,12 @@ Healthy values:
 If `age_s` climbs above 5s and `frames` stops increasing while the process is
 still alive, use `py-spy` to capture thread stacks; the cause is almost always
 a lock-ordering / event-cascade deadlock, not the capture card.
+
+## Product Focus (NON-NEGOTIABLE)
+
+Qoresence is a local-first ops console for gamers. Do not promote Streamr,
+blockchain, DePIN, or other off-box distribution as part of the core product
+story. The Streamr integration in `qoresence/streamr/` is an **experimental,
+default-OFF research plugin**. It may only graduate from experimental after the
+local pilot (capture health, VLM score lock, clips, Twitch chat) is proven.
+

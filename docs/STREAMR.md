@@ -1,26 +1,28 @@
-# Streamr Network Integration
+# Streamr Network Integration (EXPERIMENTAL / OPTIONAL)
 
-Qoresence can publish live game events, game state, and A2A reasoning to the
-[Streamr Network](https://streamr.network) through a local Streamr node. This
-gives you encrypted, scalable, one-to-many distribution of your session data.
+**Status:** Research plugin. Not part of the Qoresence MVP or ClutchBot pilot.  
+**Default:** OFF.  
+**Use case:** Only consider this once local capture, score lock, clips, and Twitch chat usefulness are proven.
 
-## How it works
+Qoresence is a **local-first, gamer-facing ops console**. Its job is to lock scores, make clips, and help ClutchBot in chat. Streamr does none of that. It is just an extra distribution pipe. Running it leaks session metadata off-box, requires an Ethereum stack, and can confuse the product story.
 
-1. You run a local **Streamr node** with the HTTP, MQTT, or WebSocket plugin
-   enabled.
-2. You create a stream on Streamr (e.g. `0x.../qoresence/football`) and grant
-   the node permission to publish to it.
-3. Qoresence's `StreamrPublisher` connects to the local node and POSTs/PUBLISHes
-   JSON events as they happen on the `RetinaEventBus`.
-4. The node signs and forwards the data into the Streamr Network, where
-   subscribers anywhere in the world can consume it.
+Do **not** enable Streamr while you are still validating the local pilot.
 
-## Quick start
+## Why this is behind a flag
 
-### 1. Install and run a Streamr node
+| Qoresence core | Streamr adds |
+|----------------|--------------|
+| Local capture + VLM scoring | Off-box telemetry distribution |
+| ClutchBot on Twitch | A second audience on a DePIN bus |
+| Simple gamer setup | Node 20, `streamr-node`, private keys, stream grants |
+| Privacy-first session logs | Potentially public on-chain event stream |
+
+## If you still want to experiment
+
+### 1. Install and run a local Streamr node
 
 ```bash
-npm i -g @streamr/node
+npm install -g @streamr/node
 streamr-node-init
 # enable the http plugin (or mqtt / websocket)
 streamr-node
@@ -34,71 +36,53 @@ Default plugin ports:
 | MQTT       | 1883         |
 | WebSocket  | 7170         |
 
-The node's API key is in `~/.streamr/config/default.json` under
-`apiAuthentication.keys`.
+The node API key is in `%USERPROFILE%\.streamr\config\default.json` under `apiAuthentication.keys`.
 
-### 2. Create a stream and grant permissions
+### 2. Create a stream and grant your node permission
 
-```bash
-npm install -g @streamr/cli-tools
-# or use the SDK in a small script
+```powershell
+$env:USE_STREAMR_MAINNET="0"   # use Polygon Amoy testnet by default
+node scripts/create_streamr_stream.js "0xYOUR_PRIVATE_KEY" "0xYOUR_BROKER_NODE_ADDRESS" "qoresence/football"
 ```
 
-You need a small amount of `POL` on Polygon mainnet (or use Polygon Amoy
-testnet). Create a stream and grant the node address `PUBLISH` and `SUBSCRIBE`
-permissions.
+**Do not make the stream publicly subscribable.** Public subscribe can leak scores, game state, and timing. The helper script refuses public subscribe unless you set `I_KNOW_THIS_LEAKS_DATA=1`.
 
 ### 3. Start Qoresence with Streamr publishing
 
 ```powershell
-.\qoresence.bat --streamr `
+python -m qoresence.cli `
+  --streamr `
   --streamr-stream-id "0xYOUR_ADDRESS/qoresence/football" `
   --streamr-protocol http `
   --streamr-host 127.0.0.1 `
   --streamr-port 7171 `
   --streamr-api-key "YOUR_NODE_API_KEY" `
-  --streamr-event-types "*"
+  --streamr-event-types "presence_report,visual_context,outcome_event"
 ```
 
-You can also enable specific event types:
-
-```powershell
---streamr-event-types "presence_report,visual_context,outcome_event"
-```
+Avoid `--streamr-event-types "*"`. Publish only redacted game-state events, never HID, frames, or raw A2A prompts.
 
 ### 4. Verify
 
-Subscribe to the stream from another terminal:
-
 ```bash
-streamr stream subscribe 0xYOUR_ADDRESS/qoresence/football
+streamr stream subscribe "0xYOUR_ADDRESS/qoresence/football" --private-key YOUR_PRIVATE_KEY
 ```
 
-You should see Qoresence events flowing in real time.
+### 5. Confirm local health is unchanged
 
-## Configuration options
+```powershell
+curl http://127.0.0.1:8765/health
+```
 
-All options are also available in `qoresence/core/unified_config.py` as
-`StreamrConfig` and on the CLI.
+`video.age_s` must stay below 1.0s. If Streamr publishing lags the bus, disable it and move on.
 
-| CLI flag                  | Default           | Meaning                                      |
-|---------------------------|-------------------|----------------------------------------------|
-| `--streamr`               | off               | Enable Streamr publishing                    |
-| `--streamr-stream-id`     | `""`              | Streamr stream ID                            |
-| `--streamr-protocol`      | `http`            | `http`, `mqtt`, or `websocket`               |
-| `--streamr-host`          | `127.0.0.1`       | Local Streamr node host                      |
-| `--streamr-port`          | `7171`            | Plugin port                                  |
-| `--streamr-api-key`       | `None`            | Node API key (HTTP auth header)              |
-| `--streamr-event-types`   | `""`              | Comma-separated types, or `*` for all        |
-| `--streamr-max-eps`       | `0`               | Max events per second (0 = unlimited)        |
+## When this might graduate from experimental
 
-## Notes
+Only after the CFB pilot is boring:
 
-- Publishing is **best-effort and non-blocking**. If the node is down,
-  Qoresence keeps running and the streamer is not blocked.
-- Raw video is **not** published by default (too large for the event bus).
-  Event metadata, game state, and A2A reasoning are published.
-- Video distribution can be added later on top of Streamr's WebRTC / StreamrTV
-  layer once that SDK is available in Python or via a Node.js bridge.
-- The publisher runs in a background thread, so it never stalls the main
-  capture loop.
+- Publish **redacted** events only (`{game, home, away, quarter}`).
+- No public subscribe by default.
+- Docs clearly say it is not required for ClutchBot.
+- Separate from any anti-cheat / Truth-plane narrative.
+
+Until then, treat it as a sandbox feature and keep it out of the main story.

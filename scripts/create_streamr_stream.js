@@ -44,11 +44,20 @@ async function main() {
 
     // Optionally grant public subscribe so anyone can listen without a key.
     if (process.env.STREAMR_PUBLIC_SUBSCRIBE === "1") {
+      if (process.env.I_KNOW_THIS_LEAKS_DATA !== "1") {
+        console.error(
+          "Refusing public subscribe. It leaks scores, game state, and timing."
+        );
+        console.error(
+          "Set I_KNOW_THIS_LEAKS_DATA=1 if you really understand the risk."
+        );
+        process.exit(1);
+      }
       await stream.grantPermissions({
         userId: "0x0000000000000000000000000000000000000000",
         permissions: [StreamPermission.SUBSCRIBE],
       });
-      console.log("Granted public SUBSCRIBE");
+      console.log("Granted public SUBSCRIBE (DATA WILL BE PUBLIC)");
     }
   } catch (e) {
     console.error("Failed to create stream or set permissions:", e.message);
