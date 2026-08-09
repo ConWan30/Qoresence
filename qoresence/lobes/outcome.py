@@ -511,18 +511,23 @@ class OutcomeRuntime:
                 )
 
     def _sync_football_state(self, ctx: VisualContext) -> None:
-        """Update cached football state (scores only when OCR change is plausible)."""
+        """Update cached football state. Scores are gated; nulls never wipe."""
         if ctx.home_score is not None and self._score_change_ok(self._home_score, ctx.home_score):
             self._home_score = ctx.home_score
         if ctx.away_score is not None and self._score_change_ok(self._away_score, ctx.away_score):
             self._away_score = ctx.away_score
-        self._quarter = ctx.quarter if ctx.quarter is not None else self._quarter
-        self._down = ctx.down if ctx.down is not None else self._down
+        if ctx.quarter is not None:
+            self._quarter = ctx.quarter
+        if ctx.down is not None:
+            self._down = ctx.down
         if ctx.yards_to_go is not None:
             self._yards_to_go = ctx.yards_to_go
-        self._possession = ctx.possession
-        self._field_position = ctx.field_position
-        self._play_clock = ctx.play_clock
+        if ctx.possession is not None:
+            self._possession = ctx.possession
+        if ctx.field_position is not None:
+            self._field_position = ctx.field_position
+        if ctx.play_clock is not None:
+            self._play_clock = ctx.play_clock
         if ctx.clock_seconds is not None:
             self._game_clock_seconds = ctx.clock_seconds
         self._prev_context = ctx

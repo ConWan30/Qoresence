@@ -729,6 +729,8 @@ class RetinaUnifiedConfig:
                 device_name=_str("QORESENCE_STREAMER_DEVICE_NAME"),
                 source_kind=_str("QORESENCE_STREAMER_SOURCE_KIND", "uvc_card"),
                 fps_target=_float("QORESENCE_STREAMER_FPS", 15.0),
+                width=_int("QORESENCE_STREAMER_WIDTH") or 1280,
+                height=_int("QORESENCE_STREAMER_HEIGHT") or 720,
                 ws_port=_int("QORESENCE_STREAMER_WS_PORT", 8765),
                 enable_ws=_bool("QORESENCE_STREAMER_WS_ENABLED", True),
                 presence_touch_file=_str("QORESENCE_STREAMER_PRESENCE_TOUCH"),

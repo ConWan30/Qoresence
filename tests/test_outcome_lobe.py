@@ -459,6 +459,150 @@ class TestOutcomeTrigger:
             assert outcome_events[0]["payload"]["confidence"] == 0.95
 
 
+class TestScoreMergeInvariants:
+    """VLM lock > OCR; null/partial frames must not wipe cached state."""
+
+    def test_null_score_does_not_wipe_existing_score(self):
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="null_score", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="null_score")
+
+            config = OutcomeConfig(
+                enabled=True,
+                game_profile=GameProfileId.NCAA_FOOTBALL_27,
+                confidence_threshold=0.5,
+            )
+            runtime = OutcomeRuntime(config, bus, identity.session_head_ns)
+            runtime.start()
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.FUSION,
+                event_type=EventType.GAME_DETECTED,
+                payload={"profile_id": "ncaa_football_27", "confidence": 0.9},
+                session_head_ns=identity.session_head_ns,
+            )
+
+            ctx1 = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                home_score=17,
+                away_score=0,
+                quarter=2,
+                down=2,
+                yards_to_go=7,
+                possession="home",
+                field_position="home 35",
+                play_clock=25,
+                confidence=0.9,
+            )
+            ctx2 = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                home_score=None,  # partial / dirty frame
+                away_score=None,
+                quarter=None,
+                down=None,
+                possession=None,
+                field_position=None,
+                play_clock=None,
+                confidence=0.9,
+            )
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.VISUAL,
+                event_type=EventType.VISUAL_CONTEXT,
+                payload=ctx1.to_dict(),
+                session_head_ns=identity.session_head_ns,
+            )
+            bus.emit_raw(
+                source_lobe=SourceLobe.VISUAL,
+                event_type=EventType.VISUAL_CONTEXT,
+                payload=ctx2.to_dict(),
+                session_head_ns=identity.session_head_ns,
+            )
+
+            runtime.stop()
+
+            assert runtime._home_score == 17
+            assert runtime._away_score == 0
+            assert runtime._quarter == 2
+            assert runtime._down == 2
+            assert runtime._possession == "home"
+            assert runtime._field_position == "home 35"
+            assert runtime._play_clock == 25
+
+    def test_vlm_locked_score_overrides_bad_ocr(self):
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="vlm_lock", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="vlm_lock")
+
+            config = OutcomeConfig(
+                enabled=True,
+                game_profile=GameProfileId.NCAA_FOOTBALL_27,
+                confidence_threshold=0.5,
+            )
+            runtime = OutcomeRuntime(config, bus, identity.session_head_ns)
+            runtime.start()
+
+            bus.emit_raw(
+                source_lobe=SourceLobe.FUSION,
+                event_type=EventType.GAME_DETECTED,
+                payload={"profile_id": "ncaa_football_27", "confidence": 0.9},
+                session_head_ns=identity.session_head_ns,
+            )
+
+            # Initial plausible state
+            ctx1 = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                home_score=17,
+                away_score=17,
+                quarter=2,
+                confidence=0.9,
+            )
+            # A bad OCR-style single-frame drop 17 -> 2 should be rejected.
+            ctx_bad = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                home_score=2,
+                away_score=17,
+                quarter=2,
+                confidence=0.9,
+            )
+            # VLM then corrects cleanly.
+            ctx_vlm = VisualContext(
+                game_state=GameState.GAMEPLAY,
+                game_category=GameCategory.FOOTBALL,
+                home_score=17,
+                away_score=17,
+                quarter=2,
+                confidence=0.95,
+            )
+
+            for ctx in (ctx1, ctx_bad, ctx_vlm):
+                bus.emit_raw(
+                    source_lobe=SourceLobe.VISUAL,
+                    event_type=EventType.VISUAL_CONTEXT,
+                    payload=ctx.to_dict(),
+                    session_head_ns=identity.session_head_ns,
+                )
+
+            runtime.stop()
+
+            lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
+            events = [json.loads(line) for line in lines if line.strip()]
+            score_events = [
+                e
+                for e in events
+                if e["type"] == "outcome_event" and e["payload"].get("event_name") == "score_changed"
+            ]
+            assert len(score_events) == 0
+            assert runtime._home_score == 17
+            assert runtime._away_score == 17
+
+
 class TestOutcomeConfigDefaults:
     """Tests for OutcomeConfig defaults."""
 
