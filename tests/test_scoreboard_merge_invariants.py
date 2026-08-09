@@ -65,7 +65,18 @@ class _FakeVlm:
 
 
 def _blank_frame() -> np.ndarray:
-    return np.zeros((720, 1280, 3), dtype=np.uint8)
+    """Synthetic frame with non-zero variance but no real scoreboard.
+
+    The extractor's blank-frame guard rejects all-black images (std≈0).
+    These tests need a frame that bypasses the guard so the VLM/OCR merge
+    path can be exercised in isolation. A little noise + a gray field does
+    the job without containing any OCR text.
+    """
+    rng = np.random.default_rng(42)
+    frame = np.full((720, 1280, 3), 128, dtype=np.uint8)
+    frame = frame.astype(np.int16) + rng.integers(-8, 9, size=frame.shape)
+    frame = np.clip(frame, 0, 255).astype(np.uint8)
+    return frame
 
 
 def _football_ctx() -> VisualContext:

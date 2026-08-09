@@ -290,6 +290,18 @@ class FootballScoreboardExtractor:
         if frame is None or getattr(frame, "size", 0) == 0:
             return ctx
 
+        # Guard: blank / uniform frames have no scoreboard. Do not merge stale VLM
+        # or held stabilizer lock into an empty frame (prevents inventing 0-7 Q1).
+        try:
+            if len(frame.shape) == 3 and frame.shape[2] >= 3:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = frame
+            if gray.size > 0 and float(gray.std()) < 1.0:
+                return ctx
+        except Exception:
+            pass
+
         # Smarter Gemini board cadence (does not block) — not every frame
         try:
             from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
