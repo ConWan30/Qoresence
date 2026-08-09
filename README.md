@@ -73,8 +73,16 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 | **FrameHub + Retina Monitor** | `--monitor` native OpenCV glass; no second capture |
 | **Input–Video Coupler** | InputRing + IVC; coupling bus events; clip `.buttons.json` |
 | **DualSense Edge open** | Enumerate `0x0DF2` Edge; clip export 5-tuple fix |
+| **Deadlock hardening** | Re-entrancy guard in A2A + presence; AGENTS.md locking invariants; regression tests |
+| **Streamr integration** | Publish selected events to a local Streamr node via HTTP/MQTT/WebSocket |
+| **VLM score lock invariants** | Null/partial VLM does not wipe good OCR lock; VLM-locked scores override bad OCR |
+| **Clip Foundry export** | MP4 + chapter sidecar smoke test; Foundry export verified |
+| **A2A sparsity gating** | Ambient `scene_tick` / `video_ambient` require pressure, coupling, or high-climax must-fire |
+| **Blank-frame guard** | Scoreboard extractor rejects uniform/black frames to prevent invented scores |
+| **Health + A2A soak loggers** | `scripts/soak_logger.py` and `scripts/a2a_soak_logger.py` for long pilot validation |
+| **Twitch ClutchBot smoke test** | IRC token → chat + optional auto-clips confirmed working |
 
-Docs for each: [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md)
+Docs for each: [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [clutchbot_setup](docs/clutchbot_setup.md)
 
 ---
 
@@ -135,6 +143,46 @@ Start-Process http://127.0.0.1:8765/deck.html
 Session notes: [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md).
 
 **Gameplay eye:** TV / Retina Monitor (Pattern B) or OBS Preview (Pattern A). **Not** Twitch delay.
+
+---
+
+## Twitch ClutchBot (optional)
+
+ClutchBot can narrate clutch moments in your Twitch channel and create clips.
+
+### 1. Get a token
+1. Make a Twitch account for your bot.
+2. Log into the bot account and go to [Twitch Token Generator](https://twitchtokengenerator.com/).
+3. Authorize it and copy the token.
+4. Save it to `.secrets/twitch_oauth.txt` (gitignored):
+   ```text
+   oauth:abcdefghijklmnopqrstuvwxyz
+   ```
+
+For clips you also need the `clips:edit` scope; for predictions the broadcaster token is needed. See [docs/clutchbot_setup.md](docs/clutchbot_setup.md) for full scopes.
+
+### 2. Launch with ClutchBot
+
+```powershell
+.\qoresence.bat `
+  --play --deck --monitor --tray --a2a `
+  --clutchbot `
+  --clutchbot-channel <your_channel> `
+  --clutchbot-username <bot_username> `
+  --clutchbot-token-file .secrets\twitch_oauth.txt `
+  --clutchbot-enable-clips `
+  --streamer-fps 30
+```
+
+- `--clutchbot-channel` is the channel to join (streamer's login, no `#`).
+- `--clutchbot-username` is the bot's login.
+- `--clutchbot-enable-clips` triggers Twitch clips on clutch moments (channel must be live and token needs `clips:edit`).
+
+### 3. Verify
+1. Open `https://www.twitch.tv/<channel>/chat`.
+2. Play your game.
+3. On score changes, red-zone entries, turnovers, or high-coupling moments, the bot posts in chat.
+4. If clips are enabled and the channel is live, the bot also posts a clip link.
 
 ---
 
