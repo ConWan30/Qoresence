@@ -1,6 +1,6 @@
 # Qoresence Wiki
 
-**Local observation-plane engine** for streamers and gamers: HDMI/OBS frames + DualSense HID + situation model → Retina Deck, native monitor, Foundry clips, optional ClutchBot.
+**Local observation-plane engine** for streamers and gamers: HDMI/OBS frames + DualSense HID + situation model → Retina Deck, native monitor, Foundry clips, ClutchBot, and now **AgentGlass / MCP** for any AI agent.
 
 ## Start here
 
