@@ -106,6 +106,7 @@ test = [
     "hidapi>=0.14",
     "mss>=10.0",
     "requests>=2.31",
+    "websockets>=12.0",
 ]
 dev = [
     "pytest>=7.4",
