@@ -14,6 +14,7 @@
 | [Controller-Video-Sync](Controller-Video-Sync) | InputRing + IVC |
 | [Two-Speed-ClutchBot](Two-Speed-ClutchBot) | Fast video+input; OCR referee |
 | [Roadmap](Roadmap) | Shipped + next |
+| [MCP-Glass](MCP-Glass) | **New:** universal MCP adapter for any AI (Cursor/Claude) via AgentGlass |
 | [FAQ](FAQ) | Common failures |
 
 ## Repo links
