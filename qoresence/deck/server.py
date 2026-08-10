@@ -16,6 +16,7 @@ import logging
 import pathlib
 import threading
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -124,7 +125,13 @@ class DeckState:
 
 _state = DeckState()
 _ws_clients: set[Any] = set()
+_ws_queues: dict[Any, asyncio.Queue[str]] = {}
+_ws_client_count = 0
 _loop: asyncio.AbstractEventLoop | None = None
+_broadcast_lock = threading.Lock()
+_broadcast_pending: deque[dict[str, Any]] = deque(maxlen=64)
+_broadcast_scheduled = False
+_BROADCAST_QUEUE_SIZE = 32
 
 
 def update_situation(situation: dict[str, Any], latency_ms: float | None = None) -> None:
@@ -260,15 +267,88 @@ def _agent_snapshot_payload() -> dict[str, Any]:
         coupling = {"coupling": 0.0}
     return {"ok": True, "enabled": True, "state": _state.snapshot(), "video": video, "coupling": coupling, "clock_ns": time.monotonic_ns()}
 
-def _broadcast(msg: dict[str, Any]) -> None:
-    if _loop is None or not _ws_clients:
+def _enqueue_ws_message(queue: asyncio.Queue[str], data: str) -> None:
+    try:
+        queue.put_nowait(data)
         return
-    data = json.dumps(msg)
-    for ws in list(_ws_clients):
+    except asyncio.QueueFull:
+        pass
+    try:
+        queue.get_nowait()
+    except asyncio.QueueEmpty:
+        return
+    try:
+        queue.put_nowait(data)
+    except asyncio.QueueFull:
+        pass
+
+
+def _drain_broadcast() -> None:
+    global _broadcast_scheduled
+    with _broadcast_lock:
+        batch = list(_broadcast_pending)
+        _broadcast_pending.clear()
+        _broadcast_scheduled = False
+
+    if batch:
+        queues = list(_ws_queues.values())
+        for msg in batch:
+            data = json.dumps(msg, separators=(",", ":"))
+            for queue in queues:
+                _enqueue_ws_message(queue, data)
+
+    with _broadcast_lock:
+        if _broadcast_pending and not _broadcast_scheduled:
+            _broadcast_scheduled = True
+            reschedule = True
+        else:
+            reschedule = False
+    if reschedule:
+        loop = _loop
+        if loop is not None:
+            loop.call_soon(_drain_broadcast)
+
+
+async def _send_deck_queue(websocket: Any, queue: asyncio.Queue[str]) -> None:
+    while True:
+        data = await queue.get()
         try:
-            asyncio.run_coroutine_threadsafe(ws.send_text(data), _loop)
+            await websocket.send_text(data)
         except Exception:
-            pass
+            try:
+                await websocket.close()
+            except Exception:
+                pass
+            return
+
+
+def _broadcast(msg: dict[str, Any]) -> None:
+    global _broadcast_scheduled
+    loop = _loop
+    if loop is None:
+        return
+    with _broadcast_lock:
+        if msg.get("type") == "situation":
+            for index in range(len(_broadcast_pending) - 1, -1, -1):
+                if _broadcast_pending[index].get("type") == "situation":
+                    del _broadcast_pending[index]
+                    break
+        _broadcast_pending.append(dict(msg))
+        if _broadcast_scheduled:
+            return
+        _broadcast_scheduled = True
+    try:
+        loop.call_soon_threadsafe(_drain_broadcast)
+    except RuntimeError:
+        with _broadcast_lock:
+            _broadcast_scheduled = False
+
+
+def _fanout_stats() -> dict[str, int]:
+    with _broadcast_lock:
+        pending = len(_broadcast_pending)
+        clients = _ws_client_count
+    return {"clients": clients, "pending": pending, "capacity": _broadcast_pending.maxlen or 0}
 
 
 # ---------------------------------------------------------------------------
@@ -433,7 +513,7 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/health")
     async def health():  # type: ignore[no-untyped-def]
-        body: dict[str, Any] = {"ok": True, "clients": len(_ws_clients), "state": _state.snapshot()}
+        body: dict[str, Any] = {"ok": True, "clients": len(_ws_clients), "fanout": _fanout_stats(), "state": _state.snapshot()}
         try:
             from qoresence.a2a.orchestrator import get_a2a_orchestrator
 
@@ -1116,13 +1196,18 @@ def create_app():  # type: ignore[no-untyped-def]
     async def retina_ws(websocket: WebSocket):  # type: ignore[no-untyped-def]
         # Param MUST type as module-global WebSocket (see import note above).
         # OBS CEF Browser Source connects here; 403 = clients stays 0 (FIN_WAIT_2 thrash).
-        global _loop
+        global _loop, _ws_client_count
         await websocket.accept()
-        _ws_clients.add(websocket)
+        queue: asyncio.Queue[str] = asyncio.Queue(maxsize=_BROADCAST_QUEUE_SIZE)
+        with _broadcast_lock:
+            _ws_clients.add(websocket)
+            _ws_queues[websocket] = queue
+            _ws_client_count += 1
         _loop = asyncio.get_running_loop()
         log.info("Deck WS client connected (%d total)", len(_ws_clients))
-        await websocket.send_text(json.dumps(_state.snapshot()))
+        sender = asyncio.create_task(_send_deck_queue(websocket, queue))
         try:
+            queue.put_nowait(json.dumps(_state.snapshot(), separators=(",", ":")))
             while True:
                 # receive() accepts text + binary pings; receive_text() alone can
                 # disconnect OBS on non-text frames.
@@ -1134,7 +1219,15 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception:
             pass
         finally:
-            _ws_clients.discard(websocket)
+            sender.cancel()
+            try:
+                await sender
+            except asyncio.CancelledError:
+                pass
+            with _broadcast_lock:
+                _ws_clients.discard(websocket)
+                _ws_queues.pop(websocket, None)
+                _ws_client_count = max(0, _ws_client_count - 1)
             log.info("Deck WS client gone (%d total)", len(_ws_clients))
 
     return app
@@ -1334,7 +1427,13 @@ def start_deck(
         import uvicorn  # type: ignore[import-not-found]
 
         def _run():  # type: ignore[no-untyped-def]
-            global _loop
+            global _loop, _ws_client_count, _broadcast_scheduled
+            with _broadcast_lock:
+                _broadcast_pending.clear()
+                _broadcast_scheduled = False
+                _ws_client_count = 0
+                _ws_clients.clear()
+                _ws_queues.clear()
             _loop = asyncio.new_event_loop()
             asyncio.set_event_loop(_loop)
             uvicorn.run(app, host=host, port=port, log_level="warning")
