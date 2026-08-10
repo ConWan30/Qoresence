@@ -2,7 +2,7 @@
 
 **Local observation-plane engine for streamers and gamers.**
 
-Qoresence turns HDMI/OBS video, DualSense HID, and game situation into a **single causal event bus** — then surfaces it through Retina Deck, native Retina Monitor, local HDMI clips, and optional ClutchBot on Twitch.
+Qoresence turns HDMI/OBS video, DualSense HID, and game situation into a **single causal event bus** — then surfaces it through Retina Deck, native Retina Monitor, local HDMI clips, optional ClutchBot on Twitch, and now **AgentGlass / MCP** for any AI agent.
 
 It does **not** claim humanity, act as anti-cheat, or write to chain by default. Every lobe is **OFF** until you opt in.
 
@@ -46,7 +46,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
          │                              │
          └──────────┬───────────────────┘
                     ▼
-             RetinaEventBus → Situation / ClutchBot / A2A
+             RetinaEventBus → Situation / ClutchBot / A2A / AgentGlass / MCP
                     │
     OBS (optional stream): Browser Source ONLY
     http://127.0.0.1:8765/overlay.html  — do NOT open the same physical card
@@ -60,6 +60,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 | Situation | With `--play` | Score, down, clutch context |
 | Operator glass | `--deck` / `--monitor` | Theater, Lens, native monitor |
 | Social | `--clutchbot` | Chat, clips, predictions |
+| Spectator | `--agent-glass` | HTTP/WS API + MCP for AI agents |
 | Research | Off | Fusion, trio-retina / WASM |
 
 ---
@@ -99,7 +100,7 @@ Docs for each: [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/R
 ```powershell
 python -m qoresence.cli --streamer-list
 # Pattern B (recommended): free the physical card from OBS, then:
-python -m qoresence.cli --play --deck --monitor --streamer-fps 60
+python -m qoresence.cli --play --deck --monitor --agent-glass --streamer-fps 60
 # Pattern A: OBS Video Capture on card + Start Virtual Camera, then --streamer-device <VCAM>
 ```
 
@@ -126,6 +127,9 @@ python -m qoresence.cli --play --deck --monitor --streamer-fps 60
 | http://127.0.0.1:8765/overlay.html | Clutch Lens (OBS Browser Source) |
 | http://127.0.0.1:8765/video | LIVE MJPEG |
 | http://127.0.0.1:8765/api/situation | Snapshot (+ `controller` when IVC on) |
+| http://127.0.0.1:8765/api/agent/snapshot | AgentGlass: curated state + coupling |
+| http://127.0.0.1:8765/api/agent/events | AgentGlass: cursor-paginated events |
+| http://127.0.0.1:8765/agent/stream | AgentGlass: live WebSocket stream |
 
 ### Verify live
 
@@ -187,6 +191,33 @@ For clips you also need the `clips:edit` scope; for predictions the broadcaster 
 
 ---
 
+## AgentGlass + MCP (optional)
+
+Any MCP-compatible AI (Cursor, Claude, etc.) can query Qoresence over stdio.
+
+```powershell
+# run Qoresence with the spectator glass
+.\qoresence.bat --play --deck --agent-glass --streamer-fps 30
+
+# list tools
+qoresence-mcp --help-tools
+
+# add to Cursor / Claude Desktop mcp.json
+{
+  "mcpServers": {
+    "qoresence": {
+      "command": "python",
+      "args": ["-m", "qoresence.mcp.server"],
+      "env": { "QORESENCE_AGENT_GLASS_HOST": "127.0.0.1", "QORESENCE_AGENT_GLASS_PORT": "8765" }
+    }
+  }
+}
+```
+
+Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Summarize the last red-zone drive."*
+
+---
+
 ## Components
 
 ### Core · Lobes · Sync · Monitor · Deck · Agents
@@ -199,7 +230,7 @@ For clips you also need the `clips:edit` scope; for predictions the broadcaster 
 | `qoresence/monitor/` | **FrameHub**, OpenCV Retina Monitor |
 | `qoresence/vision/clip_buffer.py` | HDMI ring + Foundry export + buttons sidecar |
 | `qoresence/deck/` | FastAPI Deck, overlay, LIVE, clip API |
-| `qoresence/agents/` | SituationModel, MomentScorer, ClutchBot |
+| `qoresence/agents/` | SituationModel, MomentScorer, ClutchBot, **AgentGlass**, **MCP** |
 | `qoresence/fusion/` | Presence fusion (optional) |
 | `qoresence/trio/` | trio-retina WASM validation (optional) |
 
@@ -215,6 +246,7 @@ For clips you also need the `clips:edit` scope; for predictions the broadcaster 
 | `--controller` | off | DualSense HID + InputRing + IVC |
 | `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |
 | `--clutchbot` / Twitch flags | off | IRC + Helix (see clutchbot setup) |
+| `--agent-glass` | off | HTTP/WS spectator API (MCP-ready) |
 
 ---
 
@@ -272,6 +304,7 @@ For clips you also need the `clips:edit` scope; for predictions the broadcaster 
 | [docs/TWO_SPEED_CLUTCHBOT.md](docs/TWO_SPEED_CLUTCHBOT.md) | Fast video+input path; OCR confirm |
 | [docs/PRIORITY_INTEGRATIONS.md](docs/PRIORITY_INTEGRATIONS.md) | Timeline · prediction lifecycle · clip chapters |
 | [docs/DRIVE_GRAPH.md](docs/DRIVE_GRAPH.md) | DriveGraph climax · fast↔confirm match · Why/chapters |
+| [docs/AGENT_GLASS.md](docs/AGENT_GLASS.md) | AgentGlass / MCP spectator API |
 | [docs/A2A_CLUTCHBOT.md](docs/A2A_CLUTCHBOT.md) | Gemini↔DeepSeek A2A bus · Quicksilver Pro |
 | [docs/RELEASE_HARDENING.md](docs/RELEASE_HARDENING.md) | CI localhost · latency · soak preflight |
 | [docs/RETINA_DECK_UIUX.md](docs/RETINA_DECK_UIUX.md) | Lens / Rail / Theater |
@@ -279,6 +312,7 @@ For clips you also need the `clips:edit` scope; for predictions the broadcaster 
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases & versioning |
 | [docs/wiki/](docs/wiki/) | Wiki source (mirrors GitHub Wiki) |
 | [docs/index.html](docs/index.html) | GitHub Pages landing |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to set up, test, and open PRs |
 
 **Community:** [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Discussions](https://github.com/ConWan30/Qoresence/discussions) · [Pages](https://conwan30.github.io/Qoresence/)  
 *(If wiki/discussions/pages are first-time, enable once under Settings — see [docs/GITHUB_COMMUNITY.md](docs/GITHUB_COMMUNITY.md).)*
@@ -290,6 +324,9 @@ For clips you also need the `clips:edit` scope; for predictions the broadcaster 
 ```bash
 python -m pytest tests/ -q
 python -m pytest tests/test_frame_hub.py tests/test_input_ring.py tests/test_ivc.py -q
+
+# critical invariants: never break these
+python -m pytest tests/test_deadlock_regression.py tests/test_security_localhost.py tests/test_agent_glass.py tests/test_mcp.py -v
 ```
 
 ---
@@ -306,10 +343,12 @@ Qoresence/
 │   ├── monitor/          # FrameHub + Retina Monitor
 │   ├── vision/           # clip_buffer, OCR, VLM helpers
 │   ├── deck/             # Operator theater + Lens
-│   ├── agents/           # ClutchBot stack
+│   ├── agents/           # ClutchBot, AgentGlass, MCP
+│   ├── mcp/              # MCP server (FastMCP + stdio)
 │   ├── fusion/           # Optional presence fusion
 │   └── trio/             # Optional WASM path
 ├── tests/
+├── examples/             # AgentGlass / MCP examples
 └── tools/obs/            # Virtual cam & overlay notes
 ```
 

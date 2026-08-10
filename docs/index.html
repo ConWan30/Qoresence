@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Qoresence — Local observation-plane engine</title>
-  <meta name="description" content="HDMI/OBS + DualSense + Retina Deck + ClutchBot. FrameHub, Input-Video Coupler, gamer-owned causal presence. Lobes default OFF." />
+  <meta name="description" content="Qoresence: local-first PS5/HDMI ops console. Capture card is the brain; Deck, Monitor, Twitch, AgentGlass, and MCP are read-only glasses." />
   <style>
     :root {
       --bg: #0b0d10;
@@ -14,6 +14,7 @@
       --gold: #f5c542;
       --line: #243041;
       --accent: #3d9cf0;
+      --green: #7ee787;
     }
     * { box-sizing: border-box; }
     body {
@@ -75,6 +76,8 @@
     }
     .card h3 { margin: 0 0 0.4rem; font-size: 1.05rem; color: var(--gold); }
     .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+    .status { color: var(--green); font-size: 0.85rem; }
+    .exp { color: var(--muted); font-size: 0.85rem; font-style: italic; }
     pre {
       background: #0a0e14;
       border: 1px solid var(--line);
@@ -109,12 +112,12 @@
 </head>
 <body>
   <header>
-    <span class="badge">Observation plane · lobes default OFF</span>
+    <span class="badge">Observation plane · lobes default OFF · local-first</span>
     <h1>Qoresence</h1>
     <p class="lead">
-      Local game presence engine: HDMI / OBS Virtual Cam + DualSense HID + situation model,
-      rendered through Retina Deck, native FrameHub monitor, Foundry clips, and optional ClutchBot —
-      without dual-opening the capture card or claiming truth-plane legitimacy.
+      A local-first operations console for gamers and streamers. The capture card is the brain:
+      PS5 HDMI + DualSense HID + vision + situation model are turned into one causal timeline,
+      then exposed through read-only <strong>glasses</strong> — Deck, Monitor, ClutchBot, AgentGlass, and now MCP.
     </p>
     <div class="cta">
       <a class="btn primary" href="https://github.com/ConWan30/Qoresence">GitHub</a>
@@ -128,11 +131,11 @@
     <section class="grid">
       <div class="card">
         <h3>One brain → N glasses</h3>
-        <p>Event bus + situation once. Lens, Theater, Monitor, and Twitch panel are views — not duplicate engines.</p>
+        <p>Event bus + situation once. Lens, Theater, Monitor, Twitch, AgentGlass, and MCP are views — not duplicate engines.</p>
       </div>
       <div class="card">
-        <h3>OBS owns the card</h3>
-        <p>Physical HDMI stays with OBS. Qoresence consumes Virtual Camera. Preview remains the low-lag eye.</p>
+        <h3>Qoresence owns the card</h3>
+        <p>Pattern B: the physical HDMI capture card stays with Qoresence. OBS uses Browser Source only. No dual-open DShow.</p>
       </div>
       <div class="card">
         <h3>FrameHub · no second capture</h3>
@@ -142,19 +145,29 @@
         <h3>Input–Video Coupler</h3>
         <p>HID edges join frame <code>clock_ns</code> / <code>seq</code> for co-occurrence coupling — observation only.</p>
       </div>
+      <div class="card">
+        <h3>AgentGlass + MCP <span class="status">new</span></h3>
+        <p>Any AI agent (Cursor, Claude, etc.) can query the timeline over <code>127.0.0.1:8765</code> without opening the capture card.</p>
+      </div>
+      <div class="card">
+        <h3>Streamr <span class="exp">experimental</span></h3>
+        <p>Optional DePIN publishing. Default OFF; only considered after the local plane is proven stable.</p>
+      </div>
     </section>
 
     <h2>Pilot command</h2>
-    <pre>python -m qoresence.cli --play --deck --monitor --controller --streamer-device &lt;OBS_VCAM&gt; --streamer-fps 30</pre>
+    <pre>python -m qoresence.cli --play --deck --monitor --agent-glass --streamer-fps 30</pre>
 
     <h2>Docs</h2>
     <table>
       <thead><tr><th>Topic</th><th>Link</th></tr></thead>
       <tbody>
+        <tr><td>What is Qoresence?</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/wiki/What-is-Qoresence.md">What-is-Qoresence.md</a></td></tr>
         <tr><td>Architecture</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/ARCHITECTURE.md">ARCHITECTURE.md</a></td></tr>
-        <tr><td>Capture ownership</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/OBS_OWNS_CARD.md">OBS_OWNS_CARD.md</a></td></tr>
+        <tr><td>Capture ownership</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/CAPTURE_OWNERSHIP.md">CAPTURE_OWNERSHIP.md</a></td></tr>
         <tr><td>Retina Monitor</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/RETINA_MONITOR.md">RETINA_MONITOR.md</a></td></tr>
         <tr><td>Controller ↔ video</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/CONTROLLER_VIDEO_SYNC.md">CONTROLLER_VIDEO_SYNC.md</a></td></tr>
+        <tr><td>MCP / AgentGlass</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/AGENT_GLASS.md">AGENT_GLASS.md</a> · <a href="https://github.com/ConWan30/Qoresence/wiki/MCP-Glass">Wiki</a></td></tr>
         <tr><td>Wiki source (in-repo)</td><td><a href="https://github.com/ConWan30/Qoresence/tree/main/docs/wiki">docs/wiki/</a></td></tr>
         <tr><td>Roadmap</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/ROADMAP.md">ROADMAP.md</a></td></tr>
       </tbody>
@@ -163,7 +176,7 @@
     <h2>What it is not</h2>
     <p class="lead" style="margin-top:0">
       Not anti-cheat. Not a humanity claim. Not a second DShow open on the same physical card.
-      Twitch delay is never the master clock.
+      Twitch delay is never the master clock. Cloud is opt-in.
     </p>
   </main>
 

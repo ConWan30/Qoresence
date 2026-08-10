@@ -11,11 +11,13 @@
 | [Operator-Runbook](Operator-Runbook) | Daily Pattern B pilot (Qoresence owns card) |
 | [Capture-Ownership](Capture-Ownership) | Qoresence owns card (recommended) vs legacy VCam |
 | [Retina-Deck-and-Monitor](Retina-Deck-and-Monitor) | Glasses: Lens, Theater, LIVE, FrameHub monitor |
+| [Retina-Monitor](Retina-Monitor) | Native OpenCV monitor window |
 | [Controller-Video-Sync](Controller-Video-Sync) | InputRing + IVC |
 | [Two-Speed-ClutchBot](Two-Speed-ClutchBot) | Fast video+input; OCR referee |
-| [Roadmap](Roadmap) | Shipped + next |
-| [MCP-Glass](MCP-Glass) | **New:** universal MCP adapter for any AI (Cursor/Claude) via AgentGlass |
-| [FAQ](FAQ) | Common failures |
+| [A2A-ClutchBot](A2A-ClutchBot) | Gemini↔DeepSeek chat agent |
+| [Agent-Glass](Agent-Glass) | **Spectator API: HTTP/WS** |
+| [MCP-Glass](MCP-Glass) | **MCP adapter for Cursor/Claude** |
+| [Streamr](Streamr) | Experimental DePIN publishing |
 
 ## Repo links
 
