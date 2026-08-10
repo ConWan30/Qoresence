@@ -83,6 +83,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 | **Health + A2A soak loggers** | `scripts/soak_logger.py` and `scripts/a2a_soak_logger.py` for long pilot validation |
 | **Twitch ClutchBot smoke test** | IRC token → chat + optional auto-clips confirmed working |
 | **MCP universal glass** | `qoresence-mcp` exposes 6 AgentGlass tools over stdio for any Cursor/Claude agent |
+| **Foundry RAG + proactive glass** | `search_clips`/`get_drive_graph` searchable session memory (clips+chapters+DriveGraph+timeline fallback) + `subscribe_events`/`diagnose_freeze` on `127.0.0.1:8765` — software-only, no capture card |
 
 Docs for each: [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [clutchbot_setup](docs/clutchbot_setup.md)
 

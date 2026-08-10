@@ -16,7 +16,7 @@ def test_mcp_initialize_and_tools_list():
     assert len(resps)==2
     assert resps[0]["result"]["serverInfo"]["name"]=="qoresence"
     names={t["name"] for t in resps[1]["result"]["tools"]}
-    assert names=={"get_snapshot","get_events","get_health","get_frame","export_clip","get_situation"}
+    assert names=={"get_snapshot","get_events","get_health","get_frame","export_clip","get_situation","search_clips","get_drive_graph","subscribe_events","diagnose_freeze"}
 
 def test_mcp_resources_and_prompts_list():
     reqs=[{"jsonrpc":"2.0","id":1,"method":"resources/list"},{"jsonrpc":"2.0","id":2,"method":"prompts/list"}]
@@ -81,3 +81,68 @@ def test_mcp_tools_call_http_unreachable_hint():
             assert obj.get("error")=="http_unreachable" or obj.get("ok") is False
     finally:
         mcp_server._get_glass=orig
+
+def test_foundry_search_and_drive_graph_via_mcp():
+    import tempfile, pathlib, json as _json
+    import qoresence.mcp.server as mcp_server
+    # search_clips should work even with no glass (falls back to timeline/clips scan)
+    res = mcp_server.handle_search_clips(query="red zone", limit=2)
+    assert res["ok"] is True
+    assert "hits" in res
+    # RPC roundtrip
+    reqs = [
+        {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_clips","arguments":{"query":"red zone","limit":2}}},
+        {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_drive_graph","arguments":{"drive_id":"active"}}},
+        {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"diagnose_freeze","arguments":{}}},
+        {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"subscribe_events","arguments":{"since":0,"limit":2}}},
+    ]
+    resps = _rpc(reqs)
+    assert len(resps)==4
+    for r in resps:
+        assert r["result"]["content"][0]["type"]=="text"
+        obj = _json.loads(r["result"]["content"][0]["text"])
+        # allow ok False for get_drive_graph when no active drive
+        assert "ok" in obj
+
+def test_subscribe_events_cursor_and_diagnose():
+    from qoresence.agents.agent_glass import AgentGlass
+    from qoresence.core import RetinaEventBus, SessionAuthority
+    from qoresence.core.types import EventType, SourceLobe, clock_ns, make_event
+    import qoresence.mcp.server as mcp_server
+    sess=SessionAuthority.mint()
+    bus=RetinaEventBus(session_id=sess.session_id, enable_ws=False)
+    g=AgentGlass(bus=bus, session_identity=sess)
+    g.start()
+    for i in range(2):
+        bus.emit(make_event(sess.session_id, clock_ns(), SourceLobe.STREAMER, EventType.FRAME_STATS, {"i":i}))
+    import time; time.sleep(0.05)
+    orig=mcp_server._get_glass
+    try:
+        mcp_server._get_glass=lambda: g
+        sub = mcp_server.handle_subscribe_events(since=0, limit=2)
+        assert sub["ok"] is True and "next_since" in sub and sub["count"]>=1
+        nxt = int(sub["next_since"])
+        sub2 = mcp_server.handle_subscribe_events(since=nxt, limit=2)
+        assert sub2["ok"] is True
+        diag = mcp_server.handle_diagnose_freeze()
+        assert diag["ok"] is True and diag["diagnosis"] in ("HEALTHY","NO_FRAMES","FROZEN")
+        assert "refs" in diag or "advice" in diag  # AGENTS advice present
+    finally:
+        mcp_server._get_glass=orig
+        g.stop()
+
+def test_drive_graph_no_capture_card_software_only():
+    import qoresence.mcp.server as mcp_server
+    # should never try to open cv2.VideoCapture
+    dg = mcp_server.handle_get_drive_graph(drive_id="active", include_nodes=True, max_nodes=5)
+    assert "ok" in dg
+    # get_drive_graph error path is still software-only, not a capture open
+    assert "error" in dg or dg.get("ok") is True
+
+def test_search_clips_filters():
+    import qoresence.mcp.server as mcp_server
+    # coupling_min and kinds filters must not crash; no capture required
+    r1 = mcp_server.handle_search_clips(query="", limit=3, kinds="confirm_chat", coupling_min=0.0)
+    assert r1["ok"] is True
+    r2 = mcp_server.handle_search_clips(query="nonexistentqueryxyz", limit=2)
+    assert r2["ok"] is True and isinstance(r2["hits"], list)

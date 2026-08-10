@@ -574,6 +574,84 @@ def create_app():  # type: ignore[no-untyped-def]
             return JSONResponse({"ok": True, "enabled": False, "running": False})
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/api/agent/search")
+    async def api_agent_search(request: Request):  # type: ignore[no-untyped-def]
+        if not _agent_check_token(request):
+            return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+        q = request.query_params.get("query", "") or request.query_params.get("q", "") or ""
+        try:
+            limit = int(request.query_params.get("limit", "8") or 8)
+        except Exception:
+            limit = 8
+        kinds = request.query_params.get("kinds", "") or ""
+        try:
+            coupling_min = float(request.query_params.get("coupling_min", "0") or 0)
+        except Exception:
+            coupling_min = 0.0
+        drive_id = request.query_params.get("drive_id", "") or None
+        try:
+            since_clock_ns = int(request.query_params.get("since_clock_ns", "0") or 0)
+        except Exception:
+            since_clock_ns = 0
+        try:
+            from qoresence.foundry.index import search_clips as _sc
+            res = _sc(query=q, limit=limit, kinds=kinds, coupling_min=coupling_min, drive_id=drive_id, since_clock_ns=since_clock_ns)
+            return JSONResponse(res, headers={"Access-Control-Allow-Origin": "*"})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": "search_failed", "hint": str(e)}, status_code=500)
+    @app.get("/api/agent/graph")
+    async def api_agent_graph(request: Request):  # type: ignore[no-untyped-def]
+        if not _agent_check_token(request):
+            return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+        drive_id = request.query_params.get("drive_id", "") or request.query_params.get("id", "") or None
+        inc = (request.query_params.get("include_nodes", "1") or "1").lower() not in ("0", "false", "no")
+        try:
+            max_nodes = int(request.query_params.get("max_nodes", "40") or 40)
+        except Exception:
+            max_nodes = 40
+        try:
+            from qoresence.foundry.index import get_drive_graph as _gdg
+            res = _gdg(drive_id=drive_id, include_nodes=inc, max_nodes=max_nodes)
+            return JSONResponse(res, headers={"Access-Control-Allow-Origin": "*"})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": "drive_graph_failed", "hint": str(e)}, status_code=500)
+    @app.get("/api/agent/subscribe")
+    async def api_agent_subscribe(request: Request):  # type: ignore[no-untyped-def]
+        if not _agent_check_token(request):
+            return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+        try:
+            since = int(request.query_params.get("since", "0") or 0)
+        except Exception:
+            since = 0
+        types = request.query_params.get("types", "") or ""
+        try:
+            limit = int(request.query_params.get("limit", "20") or 20)
+        except Exception:
+            limit = 20
+        try:
+            from qoresence.agents.agent_glass import get_agent_glass
+            g2 = get_agent_glass()
+            if g2 is not None:
+                want = [x.strip() for x in types.split(",") if x.strip()] if types else None
+                ev = g2.get_events(since=since, types=want, limit=limit)
+                nxt = int(ev.get("next_seq") or since or 0)
+                ev["next_since"] = nxt
+                ev["poll_again_ms"] = 1000
+                return JSONResponse(ev, headers={"Access-Control-Allow-Origin": "*"})
+            return JSONResponse({"ok": True, "events": [], "next_seq": 0, "next_since": 0, "count": 0})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    @app.get("/api/agent/diagnose")
+    async def api_agent_diagnose(request: Request):  # type: ignore[no-untyped-def]
+        if not _agent_check_token(request):
+            return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+        try:
+            from qoresence.mcp.server import handle_diagnose_freeze
+            return JSONResponse(handle_diagnose_freeze(), headers={"Access-Control-Allow-Origin": "*"})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": "diagnose_failed", "hint": str(e)}, status_code=500)
+
     @app.get("/api/agent/frame")
     async def api_agent_frame(request: Request):  # type: ignore[no-untyped-def]
         if not _agent_check_token(request):

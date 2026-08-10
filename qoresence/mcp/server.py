@@ -209,12 +209,72 @@ def handle_get_situation() -> dict[str, Any]:
         pass
     return {"ok": True, "situation": snap.get("situation", {}), "coupling": snap.get("coupling", {}), "last_visual_context": last, "seq": snap.get("seq"), "clock_ns": snap.get("clock_ns")}
 
+def handle_search_clips(query: str = "", limit: int = 8, kinds: str = "", coupling_min: float = 0.0, drive_id: str | None = None, since_clock_ns: int = 0) -> dict[str, Any]:
+    try:
+        from qoresence.foundry.index import search_clips as _sc
+        return _sc(query=query or "", limit=int(limit), kinds=str(kinds or ""), coupling_min=float(coupling_min) if coupling_min else 0.0, drive_id=drive_id or None, since_clock_ns=int(since_clock_ns) if since_clock_ns else 0)
+    except Exception as e:
+        return {"ok": False, "error": "search_failed", "hint": str(e)}
+def handle_get_drive_graph(drive_id: str | None = None, include_nodes: bool = True, max_nodes: int = 40) -> dict[str, Any]:
+    try:
+        from qoresence.foundry.index import get_drive_graph as _gdg
+        return _gdg(drive_id=drive_id or None, include_nodes=bool(include_nodes), max_nodes=int(max_nodes))
+    except Exception as e:
+        return {"ok": False, "error": "drive_graph_failed", "hint": str(e)}
+def handle_subscribe_events(since: int = 0, types: str = "", limit: int = 20, poll_ms: int = 1000) -> dict[str, Any]:
+    try:
+        poll_ms = max(0, min(5000, int(poll_ms)))
+        if poll_ms:
+            import time as _t
+            _t.sleep(min(0.5, poll_ms / 1000.0))
+        ev = handle_get_events(since=int(since), types=str(types or ""), limit=int(limit))
+        if not ev.get("ok"):
+            return ev
+        nxt = int(ev.get("next_seq") or int(since) or 0)
+        return {"ok": True, "events": ev.get("events") or [], "count": ev.get("count") or 0, "next_since": nxt, "next_seq": nxt, "poll_again_ms": 1000, "hint": "call subscribe_events again with since=next_since for live tail"}
+    except Exception as e:
+        return {"ok": False, "error": "subscribe_failed", "hint": str(e)}
+def handle_diagnose_freeze() -> dict[str, Any]:
+    try:
+        snap = handle_get_snapshot()
+        health = handle_get_health()
+        video = {}; coupling = {}; bus = {}; seq = 0
+        if isinstance(snap, dict) and snap.get("ok"):
+            video = snap.get("video") or {}; coupling = snap.get("coupling") or {}; bus = snap.get("bus") or {}; seq = int(snap.get("seq") or 0)
+        elif isinstance(health, dict):
+            video = health.get("video") or {}; coupling = health.get("coupling") or {}; seq = int(health.get("seq") or 0)
+        age_s = video.get("age_s")
+        try: age_f = float(age_s) if age_s is not None else None
+        except Exception: age_f = None
+        frames = video.get("frames") or video.get("pushes") or 0
+        has_frame = bool(video.get("has_frame"))
+        frozen = False; reasons = []; advice = []
+        if age_f is not None and age_f > 5.0:
+            frozen = True
+            reasons.append(f"video.age_s={age_f:.1f}s > 5s - frames stalled")
+            advice.append("not the capture card - capture thread likely deadlocked; run py-spy dump --pid <pid>, see AGENTS.md R1/R3/R4")
+        if not has_frame and (not frames or int(frames) == 0):
+            reasons.append("no frames yet (has_frame=false, frames=0) - is streamer running? (--play --deck --monitor)")
+        if seq == 0:
+            reasons.append("glass seq=0 - RetinaEventBus not flowing")
+        if not frozen and age_f is not None and age_f < 1.0 and has_frame:
+            reasons.append(f"healthy: age_s={age_f:.2f}s, frames={frames}")
+        diagnosis = "FROZEN" if frozen else ("NO_FRAMES" if not has_frame else "HEALTHY")
+        return {"ok": True, "diagnosis": diagnosis, "frozen": frozen, "healthy": not frozen and has_frame, "video": video, "coupling": coupling, "bus": bus, "seq": seq, "age_s": age_f, "has_frame": has_frame, "reasons": reasons, "advice": advice or ["if degraded, lower --streamer-width/height or --streamer-fps 30"], "refs": ["AGENTS.md R1/R3/R4", "docs/AGENT_GLASS.md#threading-invariant"]}
+    except Exception as e:
+        return {"ok": False, "error": "diagnose_failed", "hint": str(e)}
+
+
 TOOL_DEFS = [
     {"name": "get_snapshot", "description": "Curated PS5 HDMI + input + game-state + coupling + video health. No capture.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "get_events", "description": "Cursor-paginated RetinaEventBus. since is _agent_seq, types csv, limit 1..500.", "inputSchema": {"type": "object", "properties": {"since": {"type": "integer", "minimum": 0, "default": 0}, "types": {"type": "string", "default": ""}, "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 20}}, "additionalProperties": False}},
     {"name": "get_health", "description": "Fast liveness: running, seq, video {age_s,frames}, coupling.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "get_frame", "description": "Latest JPEG as base64 data uri. Throttled 10fps/client.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "export_clip", "description": "Export local HDMI ring to MP4+sidecar. seconds 1..30. Throttled 1 per 10s.", "inputSchema": {"type": "object", "properties": {"seconds": {"type": "integer", "minimum": 1, "maximum": 30, "default": 15}}, "additionalProperties": False}},
+    {"name": "search_clips", "description": "Foundry RAG: keyword search over clips chapters+buttons+graph+timeline. query free text, limit 1..20, kinds csv, coupling_min 0..1, drive_id.", "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "default": ""}, "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8}, "kinds": {"type": "string", "default": ""}, "coupling_min": {"type": "number", "minimum": 0, "maximum": 1, "default": 0}, "drive_id": {"type": "string", "default": ""}, "since_clock_ns": {"type": "integer", "minimum": 0, "default": 0}}, "additionalProperties": False}},
+    {"name": "get_drive_graph", "description": "DriveGraph for active or drive_id: phase/climax/nodes/ranking + why_line. Software-only.", "inputSchema": {"type": "object", "properties": {"drive_id": {"type": "string", "default": ""}, "include_nodes": {"type": "boolean", "default": True}, "max_nodes": {"type": "integer", "minimum": 1, "maximum": 200, "default": 40}}, "additionalProperties": False}},
+    {"name": "subscribe_events", "description": "Proactive glass: poll RetinaEventBus since=_agent_seq, types csv, limit 1..500. Returns next_since for live tail.", "inputSchema": {"type": "object", "properties": {"since": {"type": "integer", "minimum": 0, "default": 0}, "types": {"type": "string", "default": ""}, "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 20}, "poll_ms": {"type": "integer", "minimum": 0, "maximum": 5000, "default": 0}}, "additionalProperties": False}},
+    {"name": "diagnose_freeze", "description": "Software-only freeze triage: checks video.age_s/frames, glass seq, bus; returns diagnosis FROZEN/HEALTHY/NO_FRAMES.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "get_situation", "description": "Merged situation+coupling+last visual_context.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
 ]
 RESOURCE_DEFS = [
@@ -231,6 +291,10 @@ HANDLERS = {
     "get_health": lambda a: handle_get_health(),
     "get_frame": lambda a: handle_get_frame(),
     "export_clip": lambda a: handle_export_clip(seconds=int(a.get("seconds", 15))),
+    "search_clips": lambda a: handle_search_clips(query=str(a.get("query","")), limit=int(a.get("limit",8)), kinds=str(a.get("kinds","")), coupling_min=float(a.get("coupling_min",0) or 0), drive_id=(str(a.get("drive_id","")).strip() or None), since_clock_ns=int(a.get("since_clock_ns",0) or 0)),
+    "get_drive_graph": lambda a: handle_get_drive_graph(drive_id=(str(a.get("drive_id","")).strip() or None), include_nodes=bool(a.get("include_nodes", True)), max_nodes=int(a.get("max_nodes", 40))),
+    "subscribe_events": lambda a: handle_subscribe_events(since=int(a.get("since",0)), types=str(a.get("types","")), limit=int(a.get("limit",20)), poll_ms=int(a.get("poll_ms",0))),
+    "diagnose_freeze": lambda a: handle_diagnose_freeze(),
     "get_situation": lambda a: handle_get_situation(),
 }
 
@@ -257,6 +321,19 @@ if HAS_MCP:
     @mcp.tool()  # type: ignore
     def export_clip(seconds: int = 15) -> dict:  # type: ignore
         return handle_export_clip(seconds=seconds)
+
+    @mcp.tool()  # type: ignore
+    def search_clips(query: str = "", limit: int = 8, kinds: str = "", coupling_min: float = 0.0, drive_id: str = "", since_clock_ns: int = 0) -> dict:  # type: ignore
+        return handle_search_clips(query=query, limit=limit, kinds=kinds, coupling_min=coupling_min, drive_id=drive_id or None, since_clock_ns=since_clock_ns)
+    @mcp.tool()  # type: ignore
+    def get_drive_graph(drive_id: str = "", include_nodes: bool = True, max_nodes: int = 40) -> dict:  # type: ignore
+        return handle_get_drive_graph(drive_id=drive_id or None, include_nodes=include_nodes, max_nodes=max_nodes)
+    @mcp.tool()  # type: ignore
+    def subscribe_events(since: int = 0, types: str = "", limit: int = 20, poll_ms: int = 0) -> dict:  # type: ignore
+        return handle_subscribe_events(since=since, types=types, limit=limit, poll_ms=poll_ms)
+    @mcp.tool()  # type: ignore
+    def diagnose_freeze() -> dict:  # type: ignore
+        return handle_diagnose_freeze()
 
     @mcp.tool()  # type: ignore
     def get_situation() -> dict:  # type: ignore

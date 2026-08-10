@@ -34,7 +34,7 @@ PS5 HDMI → Qoresence Streamer (owns card) → FrameHub / ClipBuffer / IVC / A2
 
 `mcp` reuses Glass D — no new port, no second capture open, no `0.0.0.0`.
 
-## 6 tools
+## 10 tools (6 glass + 4 foundry/proactive)
 
 | tool | what it does | throttle / error |
 |------|--------------|------------------|
@@ -44,8 +44,20 @@ PS5 HDMI → Qoresence Streamer (owns card) → FrameHub / ClipBuffer / IVC / A2
 | `get_frame` | latest JPEG as `data:image/jpeg;base64,...` from `ClipBuffer` | **10 fps/client** → `429 frame_throttled` |
 | `export_clip` | local `clips/*.mp4` + chapter/`.buttons.json` sidecars (`seconds` 1..30) | **1 per 10 s global** → `429 clip_rate_limited` |
 | `get_situation` | merged `situation + coupling + last visual_context` | — |
+| `search_clips` | Foundry RAG: keyword search over `clips/*.chapters.json` + buttons + graph + timeline fallback (`query`, `limit` 1..20, `kinds` csv, `coupling_min`, `drive_id`) | — |
+| `get_drive_graph` | DriveGraph for `active` or `drive_id` → `phase/climax/match_rate/nodes/why_line` | — |
+| `subscribe_events` | Proactive glass: poll since cursor, returns `next_since + poll_again_ms` for live tail | `max_eps_per_client` |
+| `diagnose_freeze` | Software-only triage: `video.age_s/frames/has_frame/seq` → `FROZEN/HEALTHY/NO_FRAMES` | — |
 
 Resources: `qoresence://snapshot`, `qoresence://events?since=&types=&limit=` · Prompts: `coach_clutch`, `debug_freeze`.
+
+### Foundry RAG (`qoresence/foundry/index.py` — no new deps)
+
+Scans `clips/*.mp4` + sidecars (`*.chapters.json`, `*.buttons.json`, `graph_summary.climax`), scores by keyword overlap + confirm/fast boost + coupling + recency; falls back to `SessionTimeline.recent(80)` when no clips on disk so tests/offline still answerable. Embeddings behind `QORESENCE_FOUNDRY_EMBED` later. Filters: `kinds` csv, `coupling_min 0..1`, `drive_id`, `since_clock_ns`.
+
+### Proactive glass
+
+`subscribe_events` is a polling tail over the same `RetinaEventBus` cursor (`since=_agent_seq`, returns `next_since`) — true push via `WS /agent/stream` if the client supports WS. `diagnose_freeze` is software-only: reads `snapshot().video` + `health()` and applies `age_s>5s` / `frames==0` from `AGENTS.md` R1/R3/R4 — never opens capture.
 
 ## Transports
 
