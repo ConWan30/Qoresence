@@ -10,21 +10,15 @@ from __future__ import annotations
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
 
 from qoresence.a2a.orchestrator import A2AOrchestrator, reset_a2a_orchestrator
 from qoresence.a2a.types import (
-    ChatProposal,
     CommitAct,
-    EvidenceChain,
     EventRef,
+    EvidenceChain,
     FieldProvenance,
-    SceneProposal,
 )
-from qoresence.core import EventType, RetinaEventBus, SourceLobe
-
+from qoresence.core import RetinaEventBus
 
 # ── EvidenceChain dataclass ──────────────────────────────────────────────────
 
@@ -82,9 +76,7 @@ def test_evidence_chain_built_on_commit():
     """A committed A2A cycle should produce an evidence chain."""
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = Path(td) / "events.jsonl"
-        retina_bus = RetinaEventBus(
-            session_id="ev_test", jsonl_path=jsonl_path, enable_ws=False
-        )
+        retina_bus = RetinaEventBus(session_id="ev_test", jsonl_path=jsonl_path, enable_ws=False)
 
         orch = A2AOrchestrator(enabled=True, min_interval_s=0.0)
         orch.bus.set_retina_mirror(retina_bus, session_id="ev_test")
@@ -152,9 +144,7 @@ def test_evidence_chain_emitted_to_retina_bus():
     """An EVIDENCE_CHAIN event should be emitted to the RetinaEventBus."""
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = Path(td) / "events.jsonl"
-        retina_bus = RetinaEventBus(
-            session_id="ev_emit", jsonl_path=jsonl_path, enable_ws=False
-        )
+        retina_bus = RetinaEventBus(session_id="ev_emit", jsonl_path=jsonl_path, enable_ws=False)
 
         orch = A2AOrchestrator(enabled=True, min_interval_s=0.0)
         orch.bus.set_retina_mirror(retina_bus, session_id="ev_emit")
