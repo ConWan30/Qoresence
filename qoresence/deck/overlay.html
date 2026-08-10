@@ -2,16 +2,23 @@
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Retina Lens — LIVE</title>
 <style>
+:root{--ink:#080B10;--paper:#EEF5F4;--muted:#91A1AD;--dim:#60707D;--lime:#C8F26A;--cyan:#68D9E8;--amber:#F6BD62;--rose:#FF7D91}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font-family:Inter,JetBrains Mono,system-ui,sans-serif}
-#ribbon{position:absolute;top:0;left:0;height:4px;width:100%;background:linear-gradient(90deg,#1A3A2A 0%,#F5C542 100%);opacity:0.08;transition:opacity .8s}
-#pill{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);background:rgba(10,14,20,.72);backdrop-filter:blur(12px);border:1px solid rgba(232,237,240,.18);border-radius:999px;padding:10px 22px;color:#E8EDF0;font:600 13px/1 JetBrains Mono,monospace;letter-spacing:.04em;opacity:0;transition:opacity .8s;white-space:nowrap}
+#ribbon{position:absolute;top:0;left:0;height:3px;width:100%;background:linear-gradient(90deg,#17332B 0%,var(--cyan) 42%,var(--lime) 100%);opacity:.12;transition:opacity .8s;box-shadow:0 0 18px rgba(104,217,232,.35)}
+#pill{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:rgba(8,11,16,.78);backdrop-filter:blur(16px);border:1px solid rgba(200,242,106,.38);border-radius:999px;padding:11px 22px;color:var(--paper);font:700 13px/1 JetBrains Mono,monospace;letter-spacing:.04em;box-shadow:0 14px 38px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.06);opacity:0;transition:opacity .8s;white-space:nowrap}
+#pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 13px var(--lime)}
 #pill.show{opacity:1}#pill.hide{opacity:0}
-#spark{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%) scale(.92);font:800 88px/1 Inter,sans-serif;letter-spacing:-.03em;color:#F5C542;text-shadow:0 8px 32px rgba(245,197,66,.45);opacity:0;transition:all .55s cubic-bezier(.34,1.56,.64,1)}
+#spark{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%) scale(.88);font:800 82px/.98 Inter,sans-serif;letter-spacing:-.065em;color:var(--lime);text-align:center;text-shadow:0 10px 42px rgba(200,242,106,.28);opacity:0;transition:all .55s cubic-bezier(.34,1.56,.64,1);filter:saturate(1.05)}
 #spark.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
-#eye{position:absolute;right:22px;top:16px;font:500 11px/1 JetBrains Mono,monospace;color:rgba(232,237,240,.55);background:rgba(10,14,20,.55);padding:6px 10px;border-radius:8px}
-#eye strong{color:#F5C542}
-#wait{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#E8EDF0;font:700 18px/1 Inter,sans-serif;background:rgba(245,197,66,.96);padding:16px 22px;border-radius:12px;border:2px solid #0A0E14;box-shadow:0 10px 30px rgba(0,0,0,.4);z-index:9} #wait.connected{background:rgba(10,14,20,.82);color:#E8EDF0;border-color:rgba(232,237,240,.18);font-weight:500;font-size:14px}
+#eye{position:absolute;right:22px;top:16px;padding:8px 11px;border:1px solid rgba(190,214,232,.2);border-radius:10px;background:rgba(8,11,16,.72);backdrop-filter:blur(13px);color:var(--muted);font:700 10px/1 JetBrains Mono,monospace;letter-spacing:.05em;box-shadow:0 10px 24px rgba(0,0,0,.2)}
+#eye strong{color:var(--lime);font-weight:800}
+#wait{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(570px,80vw);padding:18px 23px;color:var(--paper);font:700 15px/1.45 Inter,sans-serif;text-align:center;background:rgba(8,11,16,.86);backdrop-filter:blur(17px);border:1px solid rgba(104,217,232,.35);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.06);z-index:9}
+#wait::before{content:"RETINA LENS / ";color:var(--cyan);font:800 9px/1 JetBrains Mono,monospace;letter-spacing:.14em;margin-right:8px}
+#wait.connected{background:rgba(8,11,16,.78);color:var(--muted);border-color:rgba(200,242,106,.28);font-weight:500;font-size:14px}
+#wait.connected::before{color:var(--lime)}
+@media(max-width:900px){#eye{right:12px;top:12px}#pill{bottom:5%;max-width:88vw;overflow:hidden;text-overflow:ellipsis;font-size:11px}#spark{font-size:56px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.001ms!important}}
 </style></head><body>
 <div id="ribbon"></div><div id="pill" class="hide">Waiting for game — run --play</div><div id="spark"></div><div id="eye">● <strong>waiting</strong> — no game</div><div id="wait">OBS URL must be http://127.0.0.1:8765/overlay.html (not file://) · then: python -m qoresence.cli --play</div>
 <script>

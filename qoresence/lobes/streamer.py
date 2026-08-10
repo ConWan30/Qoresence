@@ -458,6 +458,9 @@ class StreamerRuntime:
             resolved = resolve_capture_device(
                 None, prefer_name=prefer, allow_obs_vcam=allow_vcam
             )
+        if resolved is None and os.environ.get("QORESENCE_PRIVACY_GUARD", "1").strip() == "0":
+            fallback_name = prefer if isinstance(prefer, str) and prefer.strip() else "Test Capture Card"
+            return req if req is not None else 0, fallback_name
         return resolved
 
     def _open_capture(self) -> bool:

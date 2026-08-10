@@ -108,12 +108,26 @@ python -m qoresence.cli --play --deck --monitor --agent-glass --streamer-fps 60
 
 ---
 
+## Download and install (Windows)
+
+The recommended user path is the versioned **Windows starter package** published on GitHub Releases. It includes the source, local installer, Deck/AgentGlass/MCP stack, pilot docs, and a launcher. Python 3.11+ is required; the installer creates a local `.venv` and does not include capture-card drivers or secrets.
+
+- [Download the latest Windows package](https://github.com/ConWan30/Qoresence/releases/latest)
+- [Windows installation guide](https://conwan30.github.io/Qoresence/install.html)
+- Verify the SHA-256 file beside the ZIP when downloading a release.
+
+```powershell
+# From the extracted Qoresence folder
+powershell -ExecutionPolicy Bypass -File .\Install-Qoresence.ps1
+.\Start-Qoresence.bat
+```
+
 ## Quickstart (Windows-first pilot)
 
 ```powershell
 git clone https://github.com/ConWan30/Qoresence.git
 cd Qoresence
-pip install -e ".[monitor]"   # opencv for Retina Monitor
+pip install -e ".[pilot]"   # capture, Deck, Monitor, AgentGlass/MCP, Windows discovery
 python scripts/pilot_preflight.py
 
 # Pattern B: Close OBS Video Capture on the physical card (no dual-open)

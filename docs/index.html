@@ -1,191 +1,327 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Qoresence — Local observation-plane engine</title>
-  <meta name="description" content="Qoresence: local-first PS5/HDMI ops console. Capture card is the brain; Deck, Monitor, Twitch, AgentGlass, MCP, and Foundry RAG are read-only glasses." />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b10">
+  <meta name="description" content="Qoresence is a local-first gaming operations console: capture, controller, situation, clips, Deck, AgentGlass and MCP in one causal session plane.">
+  <title>Qoresence — See the session</title>
   <style>
     :root {
-      --bg: #0b0d10;
-      --panel: #12161c;
-      --text: #e8edf4;
-      --muted: #8b97a8;
-      --gold: #f5c542;
-      --line: #243041;
-      --accent: #3d9cf0;
-      --green: #7ee787;
+      --ink: #080b10;
+      --ink-2: #0d1219;
+      --panel: rgba(18, 25, 35, .78);
+      --panel-solid: #111923;
+      --panel-bright: #172332;
+      --line: rgba(190, 214, 232, .14);
+      --line-bright: rgba(190, 214, 232, .28);
+      --paper: #eef5f4;
+      --muted: #91a1ad;
+      --dim: #60707d;
+      --lime: #c8f26a;
+      --cyan: #68d9e8;
+      --amber: #f6bd62;
+      --rose: #ff7d91;
+      --max: 1240px;
+      --radius: 22px;
     }
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      font-family: "Segoe UI", system-ui, sans-serif;
-      background: radial-gradient(1200px 600px at 10% -10%, #1a2433 0%, var(--bg) 55%);
-      color: var(--text);
+      color: var(--paper);
+      background:
+        radial-gradient(900px 520px at 82% -8%, rgba(104, 217, 232, .13), transparent 65%),
+        radial-gradient(760px 560px at -12% 18%, rgba(200, 242, 106, .09), transparent 64%),
+        var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       line-height: 1.55;
+      overflow-x: hidden;
     }
-    a { color: var(--gold); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    header {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 3rem 1.25rem 1.5rem;
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: .32;
+      background-image: linear-gradient(rgba(190,214,232,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(190,214,232,.045) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(to bottom, black, transparent 82%);
     }
-    .badge {
-      display: inline-block;
-      font-size: 0.75rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--gold);
-      border: 1px solid #5c4a1a;
-      background: #1c1608;
-      padding: 0.25rem 0.6rem;
-      border-radius: 999px;
+    a { color: inherit; }
+    .wrap { width: min(var(--max), calc(100% - 40px)); margin: 0 auto; }
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid rgba(190,214,232,.1);
+      background: rgba(8,11,16,.78);
+      backdrop-filter: blur(18px);
     }
-    h1 {
-      font-size: clamp(2rem, 5vw, 2.75rem);
-      margin: 0.75rem 0 0.5rem;
-      letter-spacing: -0.02em;
+    .nav {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
     }
-    .lead { color: var(--muted); font-size: 1.1rem; max-width: 42rem; }
-    .cta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
-    .btn {
-      display: inline-block;
-      padding: 0.65rem 1rem;
-      border-radius: 8px;
-      font-weight: 600;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      color: var(--text);
-      text-decoration: none;
-    }
-    .btn.primary { background: var(--gold); color: #1a1400; border-color: #c9a020; }
-    .btn:hover { text-decoration: none; filter: brightness(1.08); }
-    main { max-width: 960px; margin: 0 auto; padding: 0 1.25rem 4rem; }
-    .grid {
+    .wordmark { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; }
+    .mark {
+      width: 34px;
+      height: 34px;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 1rem;
-      margin: 2rem 0;
-    }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 1.1rem 1.15rem;
-    }
-    .card h3 { margin: 0 0 0.4rem; font-size: 1.05rem; color: var(--gold); }
-    .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
-    .status { color: var(--green); font-size: 0.85rem; }
-    .exp { color: var(--muted); font-size: 0.85rem; font-style: italic; }
-    pre {
-      background: #0a0e14;
-      border: 1px solid var(--line);
+      place-items: center;
+      border: 1px solid rgba(200,242,106,.55);
       border-radius: 10px;
-      padding: 1rem 1.1rem;
-      overflow-x: auto;
-      font-size: 0.85rem;
-      color: #c9d4e3;
+      color: var(--lime);
+      box-shadow: 0 0 28px rgba(200,242,106,.12), inset 0 0 20px rgba(200,242,106,.08);
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.95rem;
-      margin: 1rem 0 2rem;
+    .mark svg { width: 23px; height: 23px; }
+    .wordmark strong { font: 800 14px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .14em; text-transform: uppercase; }
+    .wordmark small { display: block; margin-top: 4px; color: var(--dim); font: 600 9px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; }
+    .nav-links { display: flex; align-items: center; gap: 26px; }
+    .nav-links a { color: var(--muted); font: 700 11px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
+    .nav-links a:hover { color: var(--paper); }
+    .nav-cta { padding: 11px 15px; border: 1px solid rgba(200,242,106,.45); border-radius: 10px; color: var(--lime) !important; background: rgba(200,242,106,.08); }
+    .menu-toggle { display: none; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; color: var(--paper); background: transparent; font: 700 11px/1 "SFMono-Regular", Consolas, monospace; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1.03fr) minmax(420px, .97fr); gap: clamp(38px, 6vw, 92px); align-items: center; padding: clamp(72px, 10vw, 140px) 0 108px; }
+    .eyebrow, .kicker { display: flex; align-items: center; gap: 9px; color: var(--lime); font: 800 11px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .14em; text-transform: uppercase; }
+    .eyebrow i, .live-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 5px rgba(200,242,106,.1), 0 0 18px var(--lime); }
+    h1 { max-width: 700px; margin: 22px 0 22px; font-size: clamp(3.4rem, 7.1vw, 6.6rem); line-height: .94; letter-spacing: -.075em; font-weight: 760; }
+    h1 em { color: var(--lime); font-style: normal; }
+    .hero-copy > p { max-width: 610px; margin: 0; color: var(--muted); font-size: clamp(1.02rem, 1.5vw, 1.2rem); }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 18px; border: 1px solid var(--line-bright); border-radius: 12px; background: rgba(255,255,255,.035); color: var(--paper); font: 800 11px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; transition: transform .2s ease, border-color .2s ease, background .2s ease; }
+    .button:hover { border-color: var(--lime); background: rgba(200,242,106,.09); transform: translateY(-2px); text-decoration: none; }
+    .button.primary { color: var(--ink); border-color: var(--lime); background: var(--lime); box-shadow: 0 12px 34px rgba(200,242,106,.14); }
+    .button.primary:hover { background: #d8ff82; }
+    .hero-note { margin-top: 18px; color: var(--dim); font: 600 11px/1.5 "SFMono-Regular", Consolas, monospace; }
+    .hero-note span { color: var(--cyan); }
+    .metrics { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 54px; }
+    .metric { min-width: 105px; }
+    .metric b { display: block; color: var(--paper); font: 750 25px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: -.06em; }
+    .metric span { display: block; margin-top: 7px; color: var(--dim); font: 700 9px/1.2 "SFMono-Regular", Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
+    .signal-board { position: relative; min-height: 560px; padding: 18px; border: 1px solid var(--line-bright); border-radius: 28px; background: linear-gradient(145deg, rgba(22,34,47,.84), rgba(10,14,20,.88)); box-shadow: 0 32px 90px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06); overflow: hidden; }
+    .signal-board::before { content: ""; position: absolute; width: 260px; height: 260px; top: -130px; right: -80px; border-radius: 50%; background: rgba(104,217,232,.17); filter: blur(55px); }
+    .signal-board::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 0 46%, rgba(255,255,255,.035) 50%, transparent 54%); transform: translateX(-110%); animation: scan 8s ease-in-out infinite; }
+    .board-top, .board-bottom { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; color: var(--dim); font: 700 10px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
+    .board-top strong { color: var(--paper); font-weight: 800; }
+    .live-label { display: inline-flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid rgba(200,242,106,.25); border-radius: 999px; color: var(--lime); background: rgba(200,242,106,.07); }
+    .board-main { position: relative; z-index: 1; display: grid; place-items: center; min-height: 370px; }
+    .orb { position: relative; width: min(290px, 72vw); aspect-ratio: 1; display: grid; place-items: center; }
+    .orb::before, .orb::after { content: ""; position: absolute; inset: 8%; border: 1px solid rgba(104,217,232,.28); border-radius: 50%; }
+    .orb::after { inset: 18%; border-color: rgba(200,242,106,.35); transform: rotate(55deg) scaleX(1.35); }
+    .orb-ring { position: absolute; inset: 0; border: 1px dashed rgba(190,214,232,.23); border-radius: 50%; animation: spin 18s linear infinite; }
+    .orb-ring::before, .orb-ring::after { content: ""; position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 18px var(--cyan); }
+    .orb-ring::before { top: 16%; left: 13%; }
+    .orb-ring::after { right: 9%; bottom: 24%; background: var(--lime); box-shadow: 0 0 18px var(--lime); }
+    .orb-core { position: relative; width: 42%; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid rgba(200,242,106,.7); border-radius: 50%; background: radial-gradient(circle at 35% 25%, rgba(200,242,106,.45), rgba(25,43,42,.9) 52%, rgba(8,11,16,.95)); box-shadow: 0 0 55px rgba(200,242,106,.2), inset 0 0 35px rgba(104,217,232,.12); }
+    .orb-core::before { content: ""; position: absolute; inset: 17%; border: 1px solid rgba(238,245,244,.45); border-radius: 50%; }
+    .orb-core span { position: relative; z-index: 1; color: var(--paper); font: 800 10px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .12em; }
+    .board-readouts { position: absolute; inset: 0; pointer-events: none; font: 700 9px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
+    .readout { position: absolute; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); background: rgba(8,11,16,.6); }
+    .readout b { display: block; margin-top: 4px; color: var(--paper); font-size: 11px; }
+    .r1 { top: 17%; left: 4%; } .r2 { top: 31%; right: 1%; } .r3 { bottom: 20%; left: 0; } .r4 { bottom: 12%; right: 5%; }
+    .wave { display: flex; align-items: end; gap: 4px; height: 43px; margin-top: 3px; }
+    .wave i { width: 4px; height: 35%; border-radius: 4px; background: var(--cyan); opacity: .8; animation: pulse 1.4s ease-in-out infinite alternate; }
+    .wave i:nth-child(2n) { background: var(--lime); animation-delay: -.4s; } .wave i:nth-child(3n) { animation-delay: -.9s; } .wave i:nth-child(4n) { height: 65%; }
+    .board-bottom { padding: 12px 2px 0; border-top: 1px solid var(--line); }
+    .board-bottom strong { color: var(--lime); }
+    .section { padding: 106px 0; border-top: 1px solid rgba(190,214,232,.1); }
+    .section-head { display: flex; justify-content: space-between; gap: 30px; align-items: end; margin-bottom: 38px; }
+    .section-head h2 { max-width: 650px; margin: 12px 0 0; font-size: clamp(2.2rem, 4vw, 4.2rem); line-height: .98; letter-spacing: -.065em; font-weight: 730; }
+    .section-head > p { max-width: 350px; margin: 0; color: var(--muted); font-size: .98rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .glass-card { position: relative; min-height: 225px; padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(145deg, rgba(23,35,50,.68), rgba(12,17,24,.78)); overflow: hidden; }
+    .glass-card::after { content: ""; position: absolute; width: 130px; height: 130px; right: -55px; bottom: -70px; border-radius: 50%; background: var(--glow, rgba(104,217,232,.13)); filter: blur(28px); }
+    .glass-card:hover { border-color: var(--line-bright); }
+    .card-index { color: var(--dim); font: 700 10px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .1em; }
+    .glass-card h3 { margin: 47px 0 9px; color: var(--paper); font-size: 1.35rem; letter-spacing: -.035em; }
+    .glass-card p { position: relative; z-index: 1; margin: 0; color: var(--muted); font-size: .94rem; }
+    .architecture { display: grid; grid-template-columns: .8fr 1.2fr; gap: 14px; }
+    .flow-panel { padding: 30px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+    .flow-panel h3 { margin: 0 0 26px; font-size: 1.25rem; letter-spacing: -.03em; }
+    .flow-list { display: grid; gap: 12px; }
+    .flow-step { display: grid; grid-template-columns: 38px 1fr auto; gap: 14px; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--line); }
+    .flow-step:last-child { border-bottom: 0; }
+    .flow-step .num { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid rgba(104,217,232,.4); border-radius: 9px; color: var(--cyan); font: 800 11px/1 "SFMono-Regular", Consolas, monospace; }
+    .flow-step b { display: block; font-size: .98rem; } .flow-step span { display: block; margin-top: 2px; color: var(--muted); font-size: .82rem; }
+    .flow-step code { color: var(--lime); font: 700 10px/1 "SFMono-Regular", Consolas, monospace; }
+    .principle { display: flex; min-height: 100%; flex-direction: column; justify-content: space-between; padding: 30px; border: 1px solid rgba(200,242,106,.28); border-radius: var(--radius); background: linear-gradient(150deg, rgba(200,242,106,.11), rgba(104,217,232,.04) 48%, rgba(13,18,25,.8)); }
+    .principle blockquote { margin: 0; max-width: 480px; color: var(--paper); font-size: clamp(1.65rem, 3vw, 2.8rem); line-height: 1.03; letter-spacing: -.06em; }
+    .principle blockquote em { color: var(--lime); font-style: normal; }
+    .principle footer { margin-top: 30px; color: var(--dim); font: 700 10px/1.4 "SFMono-Regular", Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
+    .download { display: grid; grid-template-columns: 1fr auto; gap: 34px; align-items: center; padding: clamp(25px, 5vw, 54px); border: 1px solid rgba(104,217,232,.3); border-radius: 28px; background: radial-gradient(600px 180px at 90% 20%, rgba(104,217,232,.12), transparent 70%), linear-gradient(120deg, rgba(23,35,50,.86), rgba(13,18,25,.9)); }
+    .download h2 { margin: 12px 0 9px; font-size: clamp(2rem, 4vw, 3.6rem); line-height: 1; letter-spacing: -.065em; }
+    .download p { max-width: 610px; margin: 0; color: var(--muted); }
+    .download-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .tag { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; color: var(--dim); background: rgba(8,11,16,.36); font: 700 9px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
+    .health-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .health { padding: 19px; border: 1px solid var(--line); border-radius: 15px; background: rgba(18,25,35,.55); }
+    .health strong { display: block; color: var(--lime); font: 800 12px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
+    .health span { display: block; margin-top: 10px; color: var(--muted); font-size: .88rem; }
+    footer.site-footer { padding: 33px 0 55px; color: var(--dim); font: 600 11px/1.6 "SFMono-Regular", Consolas, monospace; }
+    footer.site-footer .footer-row { display: flex; justify-content: space-between; gap: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+    footer.site-footer a { color: var(--muted); text-decoration: none; } footer.site-footer a:hover { color: var(--lime); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes scan { 0%, 35% { transform: translateX(-110%); } 70%, 100% { transform: translateX(110%); } }
+    @keyframes pulse { from { transform: scaleY(.35); opacity: .4; } to { transform: scaleY(1); opacity: .95; } }
+    @media (max-width: 920px) {
+      .hero { grid-template-columns: 1fr; padding-top: 78px; }
+      .signal-board { min-height: 480px; }
+      .architecture { grid-template-columns: 1fr; }
+      .health-grid { grid-template-columns: repeat(2, 1fr); }
     }
-    th, td {
-      border-bottom: 1px solid var(--line);
-      text-align: left;
-      padding: 0.55rem 0.4rem;
-      vertical-align: top;
+    @media (max-width: 680px) {
+      .wrap { width: min(var(--max), calc(100% - 28px)); }
+      .nav { min-height: 68px; }
+      .nav-links { display: none; position: absolute; top: 68px; left: 14px; right: 14px; padding: 14px; flex-direction: column; align-items: stretch; border: 1px solid var(--line-bright); border-radius: 14px; background: rgba(13,18,25,.98); }
+      .nav-links.open { display: flex; } .nav-links a { padding: 12px; } .menu-toggle { display: block; }
+      h1 { font-size: clamp(3.2rem, 17vw, 5.2rem); }
+      .hero { padding-bottom: 72px; } .signal-board { min-height: 420px; padding: 14px; } .board-main { min-height: 290px; } .r1 { left: 0; } .r2 { right: -2px; }
+      .section { padding: 76px 0; } .section-head { display: block; } .section-head > p { margin-top: 18px; }
+      .grid-3, .health-grid { grid-template-columns: 1fr; } .download { grid-template-columns: 1fr; } .download .button { width: 100%; }
+      footer.site-footer .footer-row { display: block; } footer.site-footer .footer-row div + div { margin-top: 12px; }
     }
-    th { color: var(--muted); font-weight: 600; }
-    footer {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 1rem 1.25rem 3rem;
-      color: var(--muted);
-      font-size: 0.9rem;
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
     }
-    code { font-family: ui-monospace, Consolas, monospace; font-size: 0.9em; }
   </style>
 </head>
 <body>
-  <header>
-    <span class="badge">Observation plane · lobes default OFF · local-first</span>
-    <h1>Qoresence</h1>
-    <p class="lead">
-      A local-first operations console for gamers and streamers. The capture card is the brain:
-      PS5 HDMI + DualSense HID + vision + situation model are turned into one causal timeline,
-      then exposed through read-only <strong>glasses</strong> — Deck, Monitor, ClutchBot, AgentGlass, MCP, and Foundry RAG.
-    </p>
-    <div class="cta">
-      <a class="btn primary" href="https://github.com/ConWan30/Qoresence">GitHub</a>
-      <a class="btn" href="https://github.com/ConWan30/Qoresence/wiki">Wiki</a>
-      <a class="btn" href="https://github.com/ConWan30/Qoresence/discussions">Discussions</a>
-      <a class="btn" href="https://github.com/ConWan30/Qoresence/blob/main/docs/ROADMAP.md">Roadmap</a>
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="wordmark" href="#top" aria-label="Qoresence home">
+        <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.2a8.8 8.8 0 1 0 6.24 15.04L21 21" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 7.2a4.8 4.8 0 1 0 3.4 8.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+        <span><strong>Qoresence</strong><small>local session plane</small></span>
+      </a>
+      <button class="menu-toggle" type="button" data-menu aria-expanded="false">MENU</button>
+      <nav class="nav-links" data-nav aria-label="Primary navigation">
+        <a href="#surface">Surface</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#proof">Pilot gates</a>
+        <a href="./install.html">Install</a>
+        <a class="nav-cta" href="https://github.com/ConWan30/Qoresence/releases/latest">Download</a>
+      </nav>
     </div>
   </header>
 
-  <main>
-    <section class="grid">
-      <div class="card">
-        <h3>One brain → N glasses</h3>
-        <p>Event bus + situation once. Lens, Theater, Monitor, Twitch, AgentGlass, and MCP are views — not duplicate engines.</p>
+  <main id="top">
+    <section class="wrap hero">
+      <div class="hero-copy">
+        <div class="eyebrow"><i></i> Local-first / Windows pilot</div>
+        <h1>See the session<br><em>while it is happening.</em></h1>
+        <p>Qoresence turns HDMI video, controller input, vision and game context into one causal timeline. Deck, clips, Monitor, Twitch and AI agents read the same session — without opening the capture device twice.</p>
+        <div class="actions">
+          <a class="button primary" href="./install.html">Get the Windows package <span aria-hidden="true">↗</span></a>
+          <a class="button" href="https://github.com/ConWan30/Qoresence">Inspect the source</a>
+        </div>
+        <div class="hero-note"><span>10 MCP tools</span> · AgentGlass spectator API · hardware stays local</div>
+        <div class="metrics" aria-label="Qoresence highlights">
+          <div class="metric"><b>01</b><span>causal plane</span></div>
+          <div class="metric"><b>N</b><span>read-only glasses</span></div>
+          <div class="metric"><b>127.0.0.1</b><span>local boundary</span></div>
+        </div>
       </div>
-      <div class="card">
-        <h3>Qoresence owns the card</h3>
-        <p>Pattern B: the physical HDMI capture card stays with Qoresence. OBS uses Browser Source only. No dual-open DShow.</p>
-      </div>
-      <div class="card">
-        <h3>FrameHub · no second capture</h3>
-        <p>Streamer publishes BGR frames it already holds. Monitor and IVC subscribe only.</p>
-      </div>
-      <div class="card">
-        <h3>Input–Video Coupler</h3>
-        <p>HID edges join frame <code>clock_ns</code> / <code>seq</code> for co-occurrence coupling — observation only.</p>
-      </div>
-      <div class="card">
-        <h3>AgentGlass + MCP <span class="status">new</span></h3>
-        <p>Any AI agent (Cursor, Claude, etc.) can query the timeline over <code>127.0.0.1:8765</code> without opening the capture card.</p>
-      </div>
-      <div class="card">
-        <h3>Foundry RAG <span class="status">new</span></h3>
-        <p>Search past clips by chapter, buttons, DriveGraph, and timeline — no capture needed. Ask "show me red-zone pressure."</p>
-      </div>
-      <div class="card">
-        <h3>Streamr <span class="exp">experimental</span></h3>
-        <p>Optional DePIN publishing. Default OFF; only considered after the local plane is proven stable.</p>
+      <div class="signal-board" aria-label="Illustration of the Qoresence local session surface">
+        <div class="board-top"><strong>RETINA / LIVE SURFACE</strong><span class="live-label"><i class="live-dot"></i> LOCAL</span></div>
+        <div class="board-main">
+          <div class="orb">
+            <div class="orb-ring"></div>
+            <div class="orb-core"><span>ONE BRAIN</span></div>
+            <div class="board-readouts">
+              <div class="readout r1">capture<b>FrameHub</b></div>
+              <div class="readout r2">input<b>DualSense</b></div>
+              <div class="readout r3">evidence<b>Foundry</b></div>
+              <div class="readout r4">glass<b>MCP / 10</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="board-bottom"><span>session / <strong>armed</strong></span><span class="wave" aria-label="animated local signal"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>clock / monotonic</span></div>
       </div>
     </section>
 
-    <h2>Pilot command</h2>
-    <pre>python -m qoresence.cli --play --deck --monitor --agent-glass --streamer-fps 30</pre>
+    <section class="section" id="surface">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">The surface</div><h2>One session.<br>Many useful views.</h2></div>
+          <p>Qoresence is not another dashboard glued onto a capture card. It is a local event plane with purpose-built glasses for operators, viewers and agents.</p>
+        </div>
+        <div class="grid-3">
+          <article class="glass-card" style="--glow:rgba(104,217,232,.18)"><span class="card-index">GLASS / 01</span><h3>Deck</h3><p>Live theater, rail and OBS browser source from the same frames the streamer already owns.</p></article>
+          <article class="glass-card" style="--glow:rgba(200,242,106,.18)"><span class="card-index">GLASS / 02</span><h3>Situation</h3><p>Scores, down, clock, pressure and moments — with blank-frame guards that prefer uncertainty over invented facts.</p></article>
+          <article class="glass-card" style="--glow:rgba(246,189,98,.18)"><span class="card-index">GLASS / 03</span><h3>Foundry</h3><p>Local MP4 clips, chapter sidecars and drive memory become searchable session evidence after the match.</p></article>
+          <article class="glass-card" style="--glow:rgba(255,125,145,.16)"><span class="card-index">GLASS / 04</span><h3>ClutchBot</h3><p>Fast video-plus-input energy can meet slower OCR confirmation before chat gets a factual call.</p></article>
+          <article class="glass-card" style="--glow:rgba(104,217,232,.18)"><span class="card-index">GLASS / 05</span><h3>AgentGlass</h3><p>A read-only spectator boundary for external agents. No second capture, no hidden write path, localhost by default.</p></article>
+          <article class="glass-card" style="--glow:rgba(200,242,106,.18)"><span class="card-index">GLASS / 06</span><h3>MCP</h3><p>Snapshot, events, health, frame, clips, situation, search, graph, subscribe and freeze diagnosis over stdio.</p></article>
+        </div>
+      </div>
+    </section>
 
-    <h2>Docs</h2>
-    <table>
-      <thead><tr><th>Topic</th><th>Link</th></tr></thead>
-      <tbody>
-        <tr><td>What is Qoresence?</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/wiki/What-is-Qoresence.md">What-is-Qoresence.md</a></td></tr>
-        <tr><td>Architecture</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/ARCHITECTURE.md">ARCHITECTURE.md</a></td></tr>
-        <tr><td>Capture ownership</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/CAPTURE_OWNERSHIP.md">CAPTURE_OWNERSHIP.md</a></td></tr>
-        <tr><td>Retina Monitor</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/RETINA_MONITOR.md">RETINA_MONITOR.md</a></td></tr>
-        <tr><td>Controller ↔ video</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/CONTROLLER_VIDEO_SYNC.md">CONTROLLER_VIDEO_SYNC.md</a></td></tr>
-        <tr><td>MCP / AgentGlass</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/AGENT_GLASS.md">AGENT_GLASS.md</a> · <a href="https://github.com/ConWan30/Qoresence/wiki/MCP-Glass">Wiki</a></td></tr>
-        <tr><td>Wiki source (in-repo)</td><td><a href="https://github.com/ConWan30/Qoresence/tree/main/docs/wiki">docs/wiki/</a></td></tr>
-        <tr><td>Roadmap</td><td><a href="https://github.com/ConWan30/Qoresence/blob/main/docs/ROADMAP.md">ROADMAP.md</a></td></tr>
-      </tbody>
-    </table>
+    <section class="section" id="architecture">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">The architecture</div><h2>Capture once.<br>Subscribe everywhere.</h2></div>
+          <p>The hard rule is simple: one physical device, one owner. Every other surface consumes the causal bus or FrameHub.</p>
+        </div>
+        <div class="architecture">
+          <div class="flow-panel">
+            <h3>From signal to session memory</h3>
+            <div class="flow-list">
+              <div class="flow-step"><span class="num">01</span><div><b>HDMI / HID</b><span>Video and controller enter locally.</span></div><code>INPUT</code></div>
+              <div class="flow-step"><span class="num">02</span><div><b>FrameHub + IVC</b><span>Frames and input share clock context.</span></div><code>COUPLE</code></div>
+              <div class="flow-step"><span class="num">03</span><div><b>RetinaEventBus</b><span>Situation, presence and moments fan out.</span></div><code>CAUSAL</code></div>
+              <div class="flow-step"><span class="num">04</span><div><b>Glasses</b><span>Deck, clips, Twitch, AgentGlass and MCP read.</span></div><code>VIEW</code></div>
+            </div>
+          </div>
+          <div class="principle"><blockquote>“The capture card is the <em>brain</em>. Everything else is a glass.”</blockquote><footer>Local-first design principle / no dual-open DShow</footer></div>
+        </div>
+      </div>
+    </section>
 
-    <h2>What it is not</h2>
-    <p class="lead" style="margin-top:0">
-      Not anti-cheat. Not a humanity claim. Not a second DShow open on the same physical card.
-      Twitch delay is never the master clock. Cloud is opt-in.
-    </p>
+    <section class="section" id="install">
+      <div class="wrap">
+        <div class="download">
+          <div><div class="kicker">Ready when you are</div><h2>Install the local plane.</h2><p>Download the Windows starter package, run the installer once, then launch the pilot. Python 3.11+ is required; capture hardware is optional for setup and required for live frames.</p><div class="download-meta"><span class="tag">Windows 10 / 11</span><span class="tag">Python 3.11+</span><span class="tag">No cloud required</span></div></div>
+          <div class="actions"><a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Windows package <span aria-hidden="true">↓</span></a><a class="button" href="./install.html">Installation guide</a></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="proof">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Pilot gates</div><h2>Make reliability<br>visible.</h2></div>
+          <p>The product earns trust through observable health, not a marketing promise. These are the checks to run before a real session.</p>
+        </div>
+        <div class="health-grid">
+          <div class="health"><strong>Capture</strong><span><code>age_s &lt; 1</code><br>frames and pushes climb</span></div>
+          <div class="health"><strong>Glass</strong><span><code>running: true</code><br>sequence keeps advancing</span></div>
+          <div class="health"><strong>Agent</strong><span><code>get_health</code><br>10 MCP tools respond locally</span></div>
+          <div class="health"><strong>Evidence</strong><span><code>HEALTHY</code><br>diagnose never self-hangs</span></div>
+        </div>
+        <div class="actions" style="margin-top:28px"><a class="button" href="https://github.com/ConWan30/Qoresence/blob/main/docs/PILOT_CHECKLIST.md">Open pilot checklist</a><a class="button" href="https://github.com/ConWan30/Qoresence/wiki/MCP-Glass">Read MCP Glass</a></div>
+      </div>
+    </section>
   </main>
 
-  <footer>
-    ConWan30/Qoresence · GitHub Pages from <code>/docs</code> · enable Pages under repo Settings if this is the first deploy.
+  <footer class="site-footer">
+    <div class="wrap footer-row"><div>Qoresence / local observation plane / pre-1.0 pilot</div><div><a href="https://github.com/ConWan30/Qoresence">GitHub</a> · <a href="https://github.com/ConWan30/Qoresence/releases">Releases</a> · <a href="./install.html">Install</a></div></div>
   </footer>
+  <script>
+    const menu = document.querySelector('[data-menu]');
+    const nav = document.querySelector('[data-nav]');
+    if (menu && nav) {
+      menu.addEventListener('click', () => {
+        const open = nav.classList.toggle('open');
+        menu.setAttribute('aria-expanded', String(open));
+      });
+      nav.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => {
+        nav.classList.remove('open');
+        menu.setAttribute('aria-expanded', 'false');
+      }));
+    }
+  </script>
 </body>
 </html>
