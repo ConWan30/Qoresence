@@ -1,38 +1,30 @@
-# Publish docs/wiki/*.md to GitHub Wiki (requires Wiki enabled on the repo).
-# Usage: .\scripts\publish_wiki.ps1
+# Publishes docs/wiki/ to the GitHub Wiki for this repo.
+# Requires the wiki to have at least one page already (GitHub limitation).
+param(
+    [string]$Repo = "ConWan30/Qoresence",
+    [string]$WikiDir = "C:\Users\Contr\Qoresence.wiki"
+)
 
 $ErrorActionPreference = "Stop"
-$root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$wikiSrc = Join-Path $root "docs\wiki"
-$tmp = Join-Path $env:TEMP "Qoresence.wiki-publish"
 
-if (-not (Test-Path $wikiSrc)) {
-    Write-Error "Missing $wikiSrc"
+# Ensure wiki clone exists
+if (-Not (Test-Path "$WikiDir\.git")) {
+    if (Test-Path $WikiDir) { Remove-Item -Recurse -Force $WikiDir }
+    git clone "https://github.com/$Repo.wiki.git" $WikiDir
 }
 
-if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+# Pull latest
+cd $WikiDir
+git pull origin master 2>$null
 
-Write-Host "Cloning wiki..."
-git clone "https://github.com/ConWan30/Qoresence.wiki.git" $tmp
-if ($LASTEXITCODE -ne 0) {
-    Write-Host ""
-    Write-Host "Wiki clone failed. Enable Wiki in GitHub Settings -> Features, then re-run."
-    Write-Host "https://github.com/ConWan30/Qoresence/settings"
-    exit 1
-}
+# Copy source wiki pages
+cp "C:\Users\Contr\Qoresence\docs\wiki\*" . -Recurse -Force
 
-Copy-Item (Join-Path $wikiSrc "*.md") $tmp -Force
-Push-Location $tmp
-try {
-    git add -A
-    $status = git status --porcelain
-    if (-not $status) {
-        Write-Host "Wiki already up to date."
-        exit 0
-    }
-    git commit -m "docs(wiki): sync from docs/wiki - novel stack, runbook, roadmap"
-    git push origin HEAD
-    Write-Host "Wiki published: https://github.com/ConWan30/Qoresence/wiki"
-} finally {
-    Pop-Location
+# Commit and push
+git add .
+if ($?) {
+    $msg = "Sync wiki from docs/wiki @ $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    git commit -m "$msg" 2>$null
+    git push origin master
+    Write-Host "Wiki synced to https://github.com/$Repo/wiki"
 }
