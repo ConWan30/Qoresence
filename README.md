@@ -343,6 +343,7 @@ Qoresence/
 │   ├── sync/             # InputRing + IVC
 │   ├── monitor/          # FrameHub + Retina Monitor
 │   ├── vision/           # clip_buffer, OCR, VLM helpers
+│   ├── foundry/          # Clip ring + RAG search + DriveGraph
 │   ├── deck/             # Operator theater + Lens
 │   ├── agents/           # ClutchBot, AgentGlass, MCP
 │   ├── mcp/              # MCP server (FastMCP + stdio)

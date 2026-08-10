@@ -15,16 +15,17 @@ if (-Not (Test-Path "$WikiDir\.git")) {
 
 # Pull latest
 cd $WikiDir
-git pull origin master 2>$null
+$ErrorActionPreference = "Continue"
+git pull --quiet origin master 2>&1 | Out-Null
+$ErrorActionPreference = "Stop"
 
 # Copy source wiki pages
 cp "C:\Users\Contr\Qoresence\docs\wiki\*" . -Recurse -Force
 
 # Commit and push
+$ErrorActionPreference = "Continue"
 git add .
-if ($?) {
-    $msg = "Sync wiki from docs/wiki @ $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-    git commit -m "$msg" 2>$null
-    git push origin master
-    Write-Host "Wiki synced to https://github.com/$Repo/wiki"
-}
+$msg = "Sync wiki from docs/wiki @ $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+git commit -m "$msg" 2>&1 | Out-Null
+$ErrorActionPreference = "Stop"
+git push origin master
