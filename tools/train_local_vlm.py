@@ -305,7 +305,8 @@ def main() -> int:
     parser.add_argument("--batch", default=32, type=int)
     args = parser.parse_args()
 
-    real_images = [Path(p) for p in [args.real, "logs/eye_check_19405562000000.png"] if Path(p).exists()]
+    real_images = [args.real] if args.real.exists() else []
+    real_images.extend(sorted(Path("logs").glob("eye_check_*.png")))
     log.info(f"real anchors: {real_images}")
 
     train_set = GameFrameDataset(synthetic_size=args.size, real_images=real_images, real_crops=60, dark_uniform=150, augment=True)

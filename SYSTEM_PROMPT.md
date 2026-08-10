@@ -7,31 +7,29 @@
 ## PROMPT — Paste this into Devin.AI
 
 ```
-You are continuing Qoresence (ClutchBot) — repo at C:/Users/Contr/qoresence, branch main.
+You are continuing Qoresence (ClutchBot) in the current cloned workspace, branch main.
 
 ## CONTEXT — READ FIRST
 - Project: Qoresence = local capture -> situation -> stream pipeline (RetinaEventBus). Lobes in qoresence/lobes/ (streamer, screen, visual, controller, outcome, fusion), vision in qoresence/vision/, config single-source in qoresence/core/unified_config.py. Docs: docs/ROADMAP.md (Phases 0-4 done), docs/ARCHITECTURE.md.
-- Today 2026-08-06: Fixed capture source bug. Old path used mss screen grab on primary monitor -> dark frame mean 39 green 0.00 -> 6116 lines all visual_context=shooter. New path is direct UVC via qoresence/lobes/streamer.py StreamerRuntime on [0] 'USB3.0 Video' (HDMI capture card) with CAP_DSHOW 1280x720@30. OBS Virtual Camera is [2] fallback. [1] '720p HD Camera' is USER ROOM — BLOCKED by _is_allowed_capture_name() + _frame_contains_person() (MediaPipe >25% = BLOCK). Mandatory eye-check saves logs/eye_check_<ns>.png + logs `EYE-CHECK REQUIRED: Verify ... shows GAME, not webcam/black HDCP` — human must verify FIELD not room before continuing.
-- Commits: 0b7e228 (cli --streamer-device/backend/width/height + heuristic green 0.18→0.06 edge 0.04→0.02) -> 5112e31 (never hallucinate SHOOTER in football: edge>0.06 green<0.08 now -> UNKNOWN 0.38 or MENU/dark luma<35, not SHOOTER 0.62). Pushed to origin/main.
-- Session artifact 2026-08-06 15:37-15:49: PID 21492 --streamer --streamer-device 0 --streamer-backend dshow --game-profile ncaa_football_27 --visual --visual-prefer-local --visual-sample-rate 6. Eye-check eye_check_19405562000000.png 1.84MB green 0.39 person=False -> FOOTBALL (verified FIELD by user 15:41). JSONL logs/session_real_2026-08-06.jsonl 14038 lines (140% of 10k) 9.09MB visual total 4273 {shooter:2452 football:1821} last 500 {football:128 shooter:84} — but session is 100% NCAA Football 27, so 2452 shooter are FALSE (playcall/replay/zoom menu frames). CLEAN file exists as logs/session_2026-08-06_direct_usb0_CLEAN.jsonl (needs verification — see Phase 1). Stopped clean PID 21492 dead 15:49. Artifacts in logs/ are gitignored (.gitignore:29).
-- Privacy: .gitignore:29 = logs/ + eye_check_*.png. git ls-files *.png/*.jpg = EMPTY, git log --all -- *.png = EMPTY. NEVER commit logs/, *.png, *.jpg, *.jsonl. 0 images ever pushed — keep it that way.
-- Tech: Python 3.11 (uv), opencv DSHOW/MSMF, onnxruntime CPU, mediapipe, mss, pygrabber. Model tried models/qoresence-vlm-distilled.onnx (missing) -> fallback local:heuristic in qoresence/vision/local_vlm.py. Tests: tests/test_local_vlm.py tests/test_visual_lobe.py.
+- Capture safety: use only an explicitly allowlisted capture source. Webcam/person-frame protection and the mandatory operator eye-check must remain enabled. Never use a laptop webcam for gameplay capture, and never commit live capture artifacts.
+- Privacy: runtime logs, clips, sessions, eye-check images, models, and secrets are gitignored. The only tracked images are intentionally curated public website screenshots under docs/assets. Never commit camera frames, room images, logs, or JSONL.
+- Tech: Python 3.11 (uv), opencv DSHOW/MSMF, onnxruntime CPU, mediapipe, mss, pygrabber. A missing local model may use the documented local heuristic fallback. Tests: tests/test_local_vlm.py tests/test_visual_lobe.py.
 
 ## CONSTRAINTS
 1. Sequential only — do not start Phase N+1 until Phase N passes its Acceptance Criteria + git commit + push.
-2. Privacy guard must stay ON — no capture from 720p HD Camera, no person frame allowed, eye-check REQUIRED for any live capture.
+2. Privacy guard must stay ON — no capture from a laptop webcam, no person frame allowed, eye-check REQUIRED for any live capture.
 3. Never add logs/ or images to git. Verify with `git check-ignore -v` before any commit.
 4. Windows paths but write OS-agnostic code where possible (CAP_DSHOW fallback to MSMF).
 
 ## PHASES — EXECUTE IN ORDER
 
-### PHASE 1: Data Hygiene + Verification (do this first, 15 min)
+### PHASE 1: Data Hygiene + Verification (do this first)
 Tasks:
-- Verify logs/session_real_2026-08-06.jsonl (14038 lines) vs logs/session_2026-08-06_direct_usb0_CLEAN.jsonl. If CLEAN missing or still has shooter>0, recreate it: map every visual_context where game_category=="shooter" (case-insensitive) -> game_category="unknown", game_state gameplay->unknown, confidence 0.62->0.38, add _cleaned_from="shooter". Keep SRC untouched, DST is trainable set. Report BEFORE/AFTER counters.
-- Validate JSONL: each line valid JSON, types present, visual_context has confidence/latency/model.
-- Archive: delete temp previews logs/preflight_*.jpg logs/preflight_direct.jpg (keep 1 eye_check as proof if needed, but it's gitignored). Run `git status -s` — should be clean.
-- Commit if you regenerated CLEAN: `chore(data): clean 2026-08-06 session 2452 shooter->unknown` (no logs in commit — this is docs only, file stays gitignored; just commit the _clean.py script removal or a README note if needed. If nothing to commit, just report).
-Acceptance: python shows AFTER {football:~1821 unknown:~2452 shooter:0}, both files gitignored, working tree clean.
+- Validate any local session JSONL used for evaluation; keep raw and derived artifacts outside Git.
+- Confirm each line is valid JSON and contains the required event fields.
+- Remove temporary local previews only when the operator approves; keep runtime artifacts gitignored.
+- Run `git status -s` and `git check-ignore -v` before every commit.
+Acceptance: validation passes, runtime artifacts remain outside Git, and the working tree contains no private capture data.
 
 ### PHASE 2: Visual Heuristic Hardening
 File: qoresence/vision/local_vlm.py
@@ -82,18 +80,16 @@ Start with PHASE 1 now. Ask for human eye-check verification before any live cap
 
 1. Open Devin.AI -> New Session -> paste entire `PROMPT` block above.
 2. Devin will clone `origin/main` at `5112e31` and start Phase 1. It will **not** push images because `logs/` is gitignored — verify its first `git status -s` is clean.
-3. If Devin needs a new live capture, it must: use `--streamer-device 0 --streamer-backend dshow`, show you `logs/eye_check_*.png`, and wait for you to confirm `FIELD` before continuing. Revoke if it tries `720p HD Camera`.
+3. If Devin needs a new live capture, it must use an explicitly approved capture source, show you an eye-check image, and wait for you to confirm `FIELD` before continuing. Revoke if it tries to open a laptop webcam.
 4. Expect one commit+push per phase. Review `git log --oneline`.
 
 ## Local artifacts (gitignored, never pushed)
 
-- `logs/session_real_2026-08-06.jsonl` — 14038 lines RAW (polluted, keep for audit)
-- `logs/session_2026-08-06_direct_usb0_CLEAN.jsonl` — same lines, shooter→unknown
-- `logs/eye_check_19405562000000.png` / `logs/eye_verify.jpg` — field proof 15:41
-- `logs/capture.err` — contains 2× `temporal_desync 5.0s` to fix in Phase 5
+- `logs/*.jsonl` — runtime event history
+- `logs/eye_check_*.png` — operator-only capture checks
+- `logs/capture.err` — local diagnostics
+- `clips/` and `sessions/` — local session data
 
 ## Privacy guarantee (enforced)
 
-`.gitignore:29` = `logs/` + `eye_check_*.png` + `*.db` + `sessions/` + `models/*.onnx` (check actual file). Verified: `git ls-files | grep -E '\.(png|jpg)$'` = empty, `git log --all --name-only | grep -E 'eye_check|preflight'` = empty. The user's room (`720p HD Camera` idx1) is blocked by `qoresence/lobes/streamer.py:_is_allowed_capture_name()` and `_frame_contains_person()` — Devin must not disable these.
-
-— Generated 2026-08-06 16:07 from live session 15:37-15:49 direct USB3.0 Video prove-out.
+Runtime logs, clips, sessions, eye-check images, model files, and secrets are ignored by Git. Verify with `git check-ignore -v` before committing. Only intentionally curated public website screenshots under `docs/assets/` may be tracked. The capture allowlist and person-frame guard must remain enabled; never disable them or commit live camera frames.

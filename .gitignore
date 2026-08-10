@@ -68,3 +68,4 @@ data/
 *.key.*
 .secrets/
 .secrets/**
+.playwright-mcp/

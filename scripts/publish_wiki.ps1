@@ -2,7 +2,7 @@
 # Requires the wiki to have at least one page already (GitHub limitation).
 param(
     [string]$Repo = "ConWan30/Qoresence",
-    [string]$WikiDir = "C:\Users\Contr\Qoresence.wiki"
+    [string]$WikiDir = "..\Qoresence.wiki"
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,7 +20,8 @@ git pull --quiet origin master 2>&1 | Out-Null
 $ErrorActionPreference = "Stop"
 
 # Copy source wiki pages
-cp "C:\Users\Contr\Qoresence\docs\wiki\*" . -Recurse -Force
+$SourceWiki = Join-Path (Split-Path -Parent $PSScriptRoot) "docs\wiki"
+Copy-Item (Join-Path $SourceWiki "*") . -Recurse -Force
 
 # Commit and push
 $ErrorActionPreference = "Continue"

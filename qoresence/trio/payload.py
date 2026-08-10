@@ -186,7 +186,7 @@ def try_real_pq_commitment(
                 / "vapi-pebble-prototype"
                 / "bridge"
                 / "zk_artifacts",
-                Path("C:/Users/Contr/vapi-pebble-prototype/bridge/zk_artifacts"),
+                Path.home() / "vapi-pebble-prototype" / "bridge" / "zk_artifacts",
                 Path("/home/user/vapi-pebble-prototype/bridge/zk_artifacts"),
                 Path.cwd() / "vapi-pebble-prototype" / "bridge" / "zk_artifacts",
             ]
