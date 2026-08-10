@@ -7,7 +7,7 @@ Qoresence turns HDMI/OBS video, DualSense HID, and game situation into a **singl
 It does **not** claim humanity, act as anti-cheat, or write to chain by default. Every lobe is **OFF** until you opt in.
 
 [![GitHub](https://img.shields.io/badge/github-ConWan30%2FQoresence-181717?logo=github)](https://github.com/ConWan30/Qoresence)
-[![Docs](https://img.shields.io/badge/docs-site-blue)](https://conwan30.github.io/Qoresence/)
+[![Website](https://img.shields.io/badge/website-GitHub%20Pages-blue)](https://conwan30.github.io/Qoresence/)
 [![Wiki](https://img.shields.io/badge/wiki-operator%20glass-informational)](https://github.com/ConWan30/Qoresence/wiki)
 [![Python](https://img.shields.io/badge/python-3.11%2B-yellow)](https://www.python.org/)
 
