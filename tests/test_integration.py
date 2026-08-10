@@ -6,7 +6,9 @@ Tests for the integration test script functionality.
 
 from __future__ import annotations
 
+import sys
 import time
+import types
 from unittest.mock import Mock, patch
 
 import pytest
@@ -76,8 +78,17 @@ class TestIntegrationTestScript:
 
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         mock_cap.read.return_value = (True, frame)
-
-        devices = integration_test.detect_capture_devices()
+        fake_dshow = types.ModuleType("pygrabber.dshow_graph")
+        fake_dshow.FilterGraph = Mock(
+            return_value=Mock(get_input_devices=Mock(return_value=["USB3.0 Video"]))
+        )
+        fake_pygrabber = types.ModuleType("pygrabber")
+        fake_pygrabber.dshow_graph = fake_dshow
+        with patch.dict(
+            sys.modules,
+            {"pygrabber": fake_pygrabber, "pygrabber.dshow_graph": fake_dshow},
+        ):
+            devices = integration_test.detect_capture_devices()
         assert len(devices) >= 1
         assert devices[0]["index"] == 0
         assert devices[0]["width"] == 640
