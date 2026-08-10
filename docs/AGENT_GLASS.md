@@ -76,6 +76,57 @@ python examples/agent_watch.py --types presence_report,visual_context
 python examples/agent_watch.py --ws   # needs `pip install websockets`
 ```
 
+## MCP — universal glass (stdio + SSE via AgentGlass)
+
+Glass D is reused as **N glasses** via `qoresence/mcp` — 6 tools wrapping `AgentGlass` HTTP/in-process on `127.0.0.1:8765` without opening capture.
+
+| tool | what it does | throttle |
+|------|-------------|----------|
+| `get_snapshot` | curated PS5 HDMI + input + game-state + coupling + video health | `max_eps_per_client` |
+| `get_events` | cursor-paginated `RetinaEventBus` (`since=_agent_seq`, `types` csv, `limit` 1..500) | `max_eps_per_client` |
+| `get_health` | fast liveness (`running`, `seq`, `video{age_s,frames}`, `coupling`) | — |
+| `get_frame` | latest JPEG as `data:image/jpeg;base64,...` from `ClipBuffer` | **10 fps/client** (`429 frame_throttled`) |
+| `export_clip` | local `clips/*.mp4` + chapter/`.buttons.json` sidecars (`seconds` 1..30) | **1 per 10 s global** (`429 clip_rate_limited`) |
+| `get_situation` | merged `situation + coupling + last visual_context` | — |
+
+**Transports**
+
+- **stdio (default):** `python -m qoresence.mcp.server` — stdlib JSON-RPC fallback, no `mcp` SDK required. Works in-process (`_get_glass()`) or via HTTP fallback to `127.0.0.1:8765` (reads `.secrets/agent_glass.token`, env `QORESENCE_AGENT_GLASS_TOKEN`).
+- **FastMCP SSE:** `QORESENCE_MCP_USE_FASTMCP=1 python -m qoresence.mcp.server` when `pip install mcp` is present.
+
+```powershell
+# install MCP optional
+pip install -e ".[mcp]"   # -> mcp>=1.0
+
+# run Deck with Glass D
+python -m qoresence.cli --play --deck --agent-glass
+
+# stdio smoke (no Deck): expect http_unreachable hint
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python -m qoresence.mcp.server
+
+# in-process (tests seed AgentGlass): python -m pytest tests/test_mcp.py -v
+```
+
+**Client configs**
+
+Cursor / Claude Desktop (`mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "qoresence": {
+      "command": "python",
+      "args": ["-m", "qoresence.mcp.server"],
+      "env": { "QORESENCE_AGENT_GLASS_HOST": "127.0.0.1", "QORESENCE_AGENT_GLASS_PORT": "8765" }
+    }
+  }
+}
+```
+
+Resources: `qoresence://snapshot`, `qoresence://events?since=&types=&limit=` · Prompts: `coach_clutch`, `debug_freeze`.
+
+**Security:** no new port, never binds `0.0.0.0`, never opens capture, respects `allow_frame`/`allow_clip` via Deck and falls back to in-process `ClipBuffer` only when `http_unreachable`.
+
 ## Threading invariant
 
 Per `AGENTS.md` R1/R3/R4: AgentGlass never emits while holding `_lock` (append-only `_on_event` under `RLock`, fanout via bus subscribe callback outside lock). Presence reports emitted outside presence `RLock` so slow agent subscribers never block streamer/watchdog/IVC.

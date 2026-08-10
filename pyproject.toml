@@ -68,6 +68,9 @@ monitor = [
     "opencv-python>=4.8",
     "numpy>=1.24",
 ]
+mcp = [
+    "mcp>=1.0",
+]
 tray = [
     "pystray>=0.19",
     "Pillow>=10.0",
@@ -111,6 +114,7 @@ include = ["qoresence*"]
 
 [project.scripts]
 qoresence = "qoresence.cli:main"
+qoresence-mcp = "qoresence.mcp.server:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"

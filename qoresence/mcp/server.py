@@ -1,0 +1,376 @@
+"""Qoresence MCP — Glass D (stdio fallback)."""
+from __future__ import annotations
+import base64, json, logging, os, sys, time, urllib.error, urllib.request
+from pathlib import Path
+from typing import Any
+log = logging.getLogger(__name__)
+SERVER_NAME = "qoresence"
+SERVER_VERSION = "0.1.0-dev"
+DEFAULT_HOST = "127.0.0.1"
+DEFAULT_PORT = 8765
+DEFAULT_TOKEN_FILE = ".secrets/agent_glass.token"
+try:
+    from mcp.server.fastmcp import FastMCP  # type: ignore
+    HAS_MCP = True
+except ImportError:
+    FastMCP = None  # type: ignore
+    HAS_MCP = False
+
+def _read_token(tf: str | None = None) -> str | None:
+    for p in [tf, os.getenv("MCP_TOKEN_FILE"), os.getenv("QORESENCE_AGENT_GLASS_TOKEN_FILE"), DEFAULT_TOKEN_FILE]:
+        if not p:
+            continue
+        try:
+            fp = Path(p)
+            if fp.exists():
+                t = fp.read_text(encoding="utf-8").strip()
+                if t:
+                    return t
+        except Exception:
+            continue
+    tok = os.getenv("QORESENCE_AGENT_GLASS_TOKEN") or os.getenv("MCP_TOKEN")
+    return tok.strip() if tok and tok.strip() else None
+
+def _resolve_base() -> tuple[str, int]:
+    h = os.getenv("QORESENCE_AGENT_GLASS_HOST") or os.getenv("QORESENCE_HOST") or DEFAULT_HOST
+    ps = os.getenv("QORESENCE_AGENT_GLASS_PORT") or os.getenv("QORESENCE_PORT") or str(DEFAULT_PORT)
+    try:
+        port = int(ps)
+    except Exception:
+        port = DEFAULT_PORT
+    if h == "0.0.0.0":
+        h = DEFAULT_HOST
+    return h, port
+
+def _get_glass():
+    try:
+        from qoresence.agents.agent_glass import get_agent_glass
+        return get_agent_glass()
+    except Exception:
+        return None
+
+def _http_get(path: str, token: str | None = None) -> dict[str, Any]:
+    h, port = _resolve_base()
+    url = f"http://{h}:{port}{path}"
+    if token is None:
+        token = _read_token()
+    req = urllib.request.Request(url)
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=2) as r:
+            b = r.read()
+            ct = r.headers.get("Content-Type", "")
+            if "application/json" in ct or b[:1] in (b"{", b"["):
+                return json.loads(b.decode("utf-8"))
+            return {"ok": True, "raw": base64.b64encode(b).decode()}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        try:
+            j = json.loads(body)
+        except Exception:
+            j = {"ok": False, "error": f"http_{e.code}", "body": body[:500]}
+        j.setdefault("ok", False)
+        j.setdefault("error", f"http_{e.code}")
+        return j
+    except Exception as e:
+        return {"ok": False, "error": "http_unreachable", "hint": f"is Qoresence running with --agent-glass? ({e})"}
+
+def _http_get_bytes(path: str, token: str | None = None):
+    h, port = _resolve_base()
+    url = f"http://{h}:{port}{path}"
+    if token is None:
+        token = _read_token()
+    req = urllib.request.Request(url)
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=2) as r:
+            return r.read()
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        try:
+            return json.loads(body)
+        except Exception:
+            return {"ok": False, "error": f"http_{e.code}", "body": body[:500]}
+    except Exception as e:
+        return {"ok": False, "error": "http_unreachable", "hint": str(e)}
+
+def _http_post(path: str, payload: dict[str, Any], token: str | None = None) -> dict[str, Any]:
+    h, port = _resolve_base()
+    url = f"http://{h}:{port}{path}"
+    if token is None:
+        token = _read_token()
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Content-Type", "application/json")
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=2) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        try:
+            j = json.loads(body)
+        except Exception:
+            j = {"ok": False, "error": f"http_{e.code}", "body": body[:500]}
+        j.setdefault("ok", False)
+        return j
+    except Exception as e:
+        return {"ok": False, "error": "http_unreachable", "hint": str(e)}
+def handle_get_snapshot() -> dict[str, Any]:
+    g = _get_glass()
+    if g is not None:
+        try:
+            return g.snapshot()
+        except Exception as e:
+            return {"ok": False, "error": "snapshot_failed", "hint": str(e)}
+    r = _http_get("/api/agent/snapshot")
+    if not r.get("ok") and r.get("error") == "http_unreachable":
+        r["hint"] = "is Qoresence running with --agent-glass? (--agent-glass enables 127.0.0.1:8765)"
+    return r
+
+def handle_get_events(since: int = 0, types: str = "", limit: int = 20) -> dict[str, Any]:
+    limit = max(1, min(500, int(limit)))
+    since = max(0, int(since))
+    csv = types.strip() if isinstance(types, str) else ""
+    g = _get_glass()
+    if g is not None:
+        try:
+            tl = [t.strip() for t in csv.split(",") if t.strip()] if csv else None
+            return g.get_events(since=since, types=tl, limit=limit)
+        except Exception as e:
+            return {"ok": False, "error": "get_events_failed", "hint": str(e)}
+    qs = f"?since={since}&limit={limit}"
+    if csv:
+        import urllib.parse as _up  # local import
+        qs += "&types=" + _up.quote(csv)
+    return _http_get(f"/api/agent/events{qs}")
+
+def handle_get_health() -> dict[str, Any]:
+    g = _get_glass()
+    if g is not None:
+        try:
+            return g.health()
+        except Exception as e:
+            return {"ok": False, "error": "health_failed", "hint": str(e)}
+    return _http_get("/api/agent/health")
+
+def handle_get_frame() -> dict[str, Any]:
+    g = _get_glass()
+    if g is not None:
+        try:
+            from qoresence.vision.clip_buffer import get_clip_buffer
+            cb = get_clip_buffer()
+            fn = getattr(cb, "latest_jpeg", None) or getattr(cb, "get_latest_jpeg", None)
+            jpeg = fn() if callable(fn) else None
+            if jpeg:
+                return {"ok": True, "image": "data:image/jpeg;base64," + base64.b64encode(jpeg).decode(), "bytes": len(jpeg), "clock_ns": time.monotonic_ns()}
+        except Exception:
+            pass
+    raw = _http_get_bytes("/api/agent/frame")
+    if isinstance(raw, dict):
+        return raw
+    return {"ok": True, "image": "data:image/jpeg;base64," + base64.b64encode(raw).decode(), "bytes": len(raw), "clock_ns": time.monotonic_ns()}
+
+def handle_export_clip(seconds: int = 15) -> dict[str, Any]:
+    seconds = max(1, min(30, int(seconds)))
+    hr = _http_post("/api/agent/clip", {"seconds": seconds})
+    if hr.get("ok"):
+        return hr
+    if hr.get("error") == "http_unreachable":
+        try:
+            from qoresence.vision.clip_buffer import get_clip_buffer
+            cb = get_clip_buffer()
+            fn = getattr(cb, "export", None) or getattr(cb, "export_clip", None)
+            if fn is None:
+                return {"ok": False, "error": "clip_failed", "hint": "no export method on ClipBuffer", "http_hint": hr.get("hint")}
+            res = fn(seconds=seconds) if "seconds" in fn.__code__.co_varnames else fn(path=None, seconds=seconds)
+            if res is None:
+                return {"ok": False, "error": "clip_no_frames", "hint": "ring empty (is streamer running?)", "http_hint": hr.get("hint")}
+            if hasattr(res, "path"):
+                return {"ok": True, "path": str(res.path), "frames": res.frames, "duration_s": res.duration_s, "seconds": seconds}
+            return {"ok": True, "result": str(res)}
+        except Exception as e:
+            return {"ok": False, "error": "clip_failed", "hint": str(e), "http_hint": hr.get("hint")}
+    return hr
+
+def handle_get_situation() -> dict[str, Any]:
+    snap = handle_get_snapshot()
+    if not snap.get("ok"):
+        return snap
+    last = None
+    try:
+        ev = handle_get_events(since=0, types="visual_context", limit=1)
+        if ev.get("ok") and ev.get("events"):
+            last = ev["events"][-1]
+    except Exception:
+        pass
+    return {"ok": True, "situation": snap.get("situation", {}), "coupling": snap.get("coupling", {}), "last_visual_context": last, "seq": snap.get("seq"), "clock_ns": snap.get("clock_ns")}
+
+TOOL_DEFS = [
+    {"name": "get_snapshot", "description": "Curated PS5 HDMI + input + game-state + coupling + video health. No capture.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+    {"name": "get_events", "description": "Cursor-paginated RetinaEventBus. since is _agent_seq, types csv, limit 1..500.", "inputSchema": {"type": "object", "properties": {"since": {"type": "integer", "minimum": 0, "default": 0}, "types": {"type": "string", "default": ""}, "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 20}}, "additionalProperties": False}},
+    {"name": "get_health", "description": "Fast liveness: running, seq, video {age_s,frames}, coupling.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+    {"name": "get_frame", "description": "Latest JPEG as base64 data uri. Throttled 10fps/client.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+    {"name": "export_clip", "description": "Export local HDMI ring to MP4+sidecar. seconds 1..30. Throttled 1 per 10s.", "inputSchema": {"type": "object", "properties": {"seconds": {"type": "integer", "minimum": 1, "maximum": 30, "default": 15}}, "additionalProperties": False}},
+    {"name": "get_situation", "description": "Merged situation+coupling+last visual_context.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+]
+RESOURCE_DEFS = [
+    {"uri": "qoresence://snapshot", "name": "snapshot", "mimeType": "application/json", "description": "Live snapshot"},
+    {"uri": "qoresence://events", "name": "events", "mimeType": "application/json", "description": "Event log"},
+]
+PROMPT_DEFS = [
+    {"name": "coach_clutch", "description": "Clutch coach prompt", "arguments": []},
+    {"name": "debug_freeze", "description": "Freeze checklist", "arguments": []},
+]
+HANDLERS = {
+    "get_snapshot": lambda a: handle_get_snapshot(),
+    "get_events": lambda a: handle_get_events(since=int(a.get("since", 0)), types=str(a.get("types", "")), limit=int(a.get("limit", 20))),
+    "get_health": lambda a: handle_get_health(),
+    "get_frame": lambda a: handle_get_frame(),
+    "export_clip": lambda a: handle_export_clip(seconds=int(a.get("seconds", 15))),
+    "get_situation": lambda a: handle_get_situation(),
+}
+
+mcp = None
+if HAS_MCP:
+    mcp = FastMCP(SERVER_NAME)  # type: ignore
+
+    @mcp.tool()  # type: ignore
+    def get_snapshot() -> dict:  # type: ignore
+        return handle_get_snapshot()
+
+    @mcp.tool()  # type: ignore
+    def get_events(since: int = 0, types: str = "", limit: int = 20) -> dict:  # type: ignore
+        return handle_get_events(since=since, types=types, limit=limit)
+
+    @mcp.tool()  # type: ignore
+    def get_health() -> dict:  # type: ignore
+        return handle_get_health()
+
+    @mcp.tool()  # type: ignore
+    def get_frame() -> dict:  # type: ignore
+        return handle_get_frame()
+
+    @mcp.tool()  # type: ignore
+    def export_clip(seconds: int = 15) -> dict:  # type: ignore
+        return handle_export_clip(seconds=seconds)
+
+    @mcp.tool()  # type: ignore
+    def get_situation() -> dict:  # type: ignore
+        return handle_get_situation()
+
+
+def _rpc_result(req_id: Any, result: Any) -> dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": req_id, "result": result}
+
+
+def _rpc_error(req_id: Any, code: int, message: str, data: Any = None) -> dict[str, Any]:
+    err: dict[str, Any] = {"code": code, "message": message}
+    if data is not None:
+        err["data"] = data
+    return {"jsonrpc": "2.0", "id": req_id, "error": err}
+
+
+def _handle_request(msg: dict[str, Any]) -> dict[str, Any] | None:
+    method = msg.get("method")
+    req_id = msg.get("id")
+    params = msg.get("params") or {}
+    is_notif = "id" not in msg
+    if method == "initialize":
+        return _rpc_result(req_id, {"protocolVersion": "2024-11-05", "capabilities": {"tools": {"listChanged": False}, "resources": {}, "prompts": {}}, "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION}})
+    if method in ("notifications/initialized", "notifications/cancelled"):
+        return None
+    if method == "tools/list":
+        return _rpc_result(req_id, {"tools": TOOL_DEFS})
+    if method == "resources/list":
+        return _rpc_result(req_id, {"resources": RESOURCE_DEFS})
+    if method == "prompts/list":
+        return _rpc_result(req_id, {"prompts": PROMPT_DEFS})
+    if method == "tools/call":
+        name = params.get("name")
+        args = params.get("arguments") or {}
+        h = HANDLERS.get(name)
+        if not h:
+            return _rpc_error(req_id, -32601, f"unknown tool: {name}")
+        try:
+            result = h(args)
+            text = json.dumps(result, indent=2, default=str)
+            return _rpc_result(req_id, {"content": [{"type": "text", "text": text}]})
+        except Exception as e:
+            log.exception("tools/call %s failed", name)
+            return _rpc_error(req_id, -32603, f"tool {name} failed: {e}")
+    if method == "resources/read":
+        uri = params.get("uri", "")
+        if uri == "qoresence://snapshot":
+            snap = handle_get_snapshot()
+            return _rpc_result(req_id, {"contents": [{"uri": uri, "mimeType": "application/json", "text": json.dumps(snap, indent=2, default=str)}]})
+        if uri.startswith("qoresence://events"):
+            import urllib.parse as _up
+            parsed = _up.urlparse(uri)
+            qs = _up.parse_qs(parsed.query)
+            since = int(qs.get("since", ["0"])[0])
+            types = qs.get("types", [""])[0]
+            limit = int(qs.get("limit", ["20"])[0])
+            ev = handle_get_events(since=since, types=types, limit=limit)
+            return _rpc_result(req_id, {"contents": [{"uri": uri, "mimeType": "application/json", "text": json.dumps(ev, indent=2, default=str)}]})
+        return _rpc_error(req_id, -32602, f"unknown resource: {uri}")
+    if method == "prompts/get":
+        name = params.get("name")
+        if name == "coach_clutch":
+            return _rpc_result(req_id, {"description": "Clutch coach", "messages": [{"role": "user", "content": {"type": "text", "text": "You are Qoresence clutch coach. Call get_snapshot then get_events(types=presence_report) then export_clip if clutch. Cite clock_ns."}}]})
+        if name == "debug_freeze":
+            return _rpc_result(req_id, {"description": "Freeze checklist", "messages": [{"role": "user", "content": {"type": "text", "text": "If video.age_s>5s and frames stalled, run py-spy — not capture card. Check AGENTS.md R1/R3/R4."}}]})
+        return _rpc_error(req_id, -32602, f"unknown prompt: {name}")
+    if method == "ping":
+        return _rpc_result(req_id, {})
+    if is_notif:
+        return None
+    return _rpc_error(req_id, -32601, f"Method not found: {method}")
+
+
+def _serve_stdio() -> None:
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            msg = json.loads(line)
+        except Exception:
+            continue
+        if isinstance(msg, list):
+            rs = []
+            for m in msg:
+                r = _handle_request(m)
+                if r is not None:
+                    rs.append(r)
+            if rs:
+                sys.stdout.write(json.dumps(rs) + "\n")
+                sys.stdout.flush()
+        else:
+            resp = _handle_request(msg)
+            if resp is not None:
+                sys.stdout.write(json.dumps(resp) + "\n")
+                sys.stdout.flush()
+
+
+def main() -> None:
+    import argparse
+    p = argparse.ArgumentParser(description="Qoresence MCP server (Glass D)")
+    p.add_argument("--help-tools", action="store_true", help="list tools and exit")
+    args = p.parse_args()
+    if args.help_tools:
+        print(json.dumps(TOOL_DEFS, indent=2))
+        return
+    if HAS_MCP and os.getenv("QORESENCE_MCP_USE_FASTMCP") == "1":
+        assert mcp is not None
+        mcp.run()  # type: ignore
+    else:
+        _serve_stdio()
+
+
+if __name__ == "__main__":
+    main()
+
