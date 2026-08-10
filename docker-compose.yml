@@ -5,8 +5,6 @@
 #   docker-compose run qoresence --help # Run CLI commands
 #   docker-compose exec qoresence bash  # Interactive shell
 
-version: '3.8'
-
 services:
   qoresence:
     build:
@@ -15,7 +13,7 @@ services:
       target: runtime
     image: qoresence:latest
     container_name: qoresence
-    restart: unless-stopped
+    restart: "no"
     environment:
       # Session identity (required)
       - QORESENCE_SESSION_ID=${QORESENCE_SESSION_ID:-qoresence_$(date +%s)}
@@ -62,7 +60,7 @@ services:
 
       # Output
       - QORESENCE_JSONL_PATH=${QORESENCE_JSONL_PATH:-/app/logs/events.jsonl}
-      - QORESENCE_WS_HOST=${QORESENCE_WS_HOST:-0.0.0.0}
+      - QORESENCE_WS_HOST=${QORESENCE_WS_HOST:-127.0.0.1}
       - QORESENCE_WS_PORT=${QORESENCE_WS_PORT:-8765}
       - QORESENCE_WS_ENABLED=${QORESENCE_WS_ENABLED:-1}
 
@@ -80,7 +78,7 @@ services:
       # USB HID device access for controller
       - /dev/hidraw0:/dev/hidraw0
     ports:
-      - "8765:8765"  # WebSocket for OBS overlay
+      - "127.0.0.1:8765:8765"  # WebSocket for OBS overlay
     # For GPU acceleration (optional)
     # deploy:
     #   resources:

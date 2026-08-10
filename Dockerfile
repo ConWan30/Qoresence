@@ -24,6 +24,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 COPY pyproject.toml .
 COPY qoresence/ ./qoresence/
 COPY tools/ ./tools/
+COPY w3bstream_applet.wasm /app/w3bstream_applet.wasm
 
 # Install in development mode with trio extras
 RUN pip install --no-cache-dir -e .[trio]
@@ -44,7 +45,7 @@ WORKDIR /app
 
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
@@ -78,13 +79,8 @@ COPY --from=builder /usr/bin/npx /usr/bin/npx
 COPY --from=builder /app/qoresence /app/qoresence
 COPY --from=builder /app/tools /app/tools
 
-# Copy WASM applet if available (from vapi-pebble-prototype)
 COPY --from=builder /app/w3bstream_applet.wasm /app/w3bstream_applet.wasm
-
-# Copy ZKSepProof artifacts for real PQ commitment
-COPY vapi-pebble-prototype/bridge/zk_artifacts/ZKSepProof.wasm /app/zk_artifacts/ZKSepProof.wasm
-COPY vapi-pebble-prototype/bridge/zk_artifacts/ZKSepProof_final.zkey /app/zk_artifacts/ZKSepProof_final.zkey
-COPY vapi-pebble-prototype/bridge/zk_artifacts/ZKSepProof_verification_key.json /app/zk_artifacts/ZKSepProof_verification_key.json
+RUN mkdir -p /app/zk_artifacts
 
 # Create non-root user
 RUN useradd --no-create-home --shell /bin/bash qoresence \
@@ -101,10 +97,6 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Expose WebSocket port
 EXPOSE 8765
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import qoresence.cli; print('OK')" || exit 1
 
 # Default command
 ENTRYPOINT ["qoresence"]
