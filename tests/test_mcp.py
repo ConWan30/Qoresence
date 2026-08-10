@@ -67,20 +67,26 @@ def test_mcp_notifications_and_resources_read():
 
 def test_mcp_tools_call_http_unreachable_hint():
     import qoresence.mcp.server as mcp_server
-    orig=mcp_server._get_glass
+    orig_glass = mcp_server._get_glass
+    orig_http = mcp_server._http_get
     try:
-        mcp_server._get_glass=lambda: None
-        health=mcp_server.handle_get_health()
-        assert health.get("error")=="http_unreachable"
-        assert "agent-glass" in health.get("hint","").lower() or "refused" in health.get("hint","").lower()
-        reqs=[{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_health","arguments":{}}},{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_snapshot","arguments":{}}}]
-        resps=_rpc(reqs)
-        for r in resps:
-            txt=r["result"]["content"][0]["text"]
-            obj=json.loads(txt)
-            assert obj.get("error")=="http_unreachable" or obj.get("ok") is False
+        # Force both in-process glass and HTTP offline so this is stable
+        # even when a live Deck is bound on :8765 during local pilots.
+        mcp_server._get_glass = lambda: None
+        mcp_server._http_get = lambda path, token=None: {
+            "ok": False,
+            "error": "http_unreachable",
+            "hint": f"is Qoresence running with --agent-glass? (forced offline for {path})",
+        }
+        health = mcp_server.handle_get_health()
+        assert health.get("error") == "http_unreachable"
+        assert "agent-glass" in health.get("hint", "").lower() or "refused" in health.get("hint", "").lower()
+        snap = mcp_server.handle_get_snapshot()
+        assert snap.get("error") == "http_unreachable"
+        assert "agent-glass" in snap.get("hint", "").lower()
     finally:
-        mcp_server._get_glass=orig
+        mcp_server._get_glass = orig_glass
+        mcp_server._http_get = orig_http
 
 def test_foundry_search_and_drive_graph_via_mcp():
     import tempfile, pathlib, json as _json

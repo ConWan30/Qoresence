@@ -646,9 +646,74 @@ def create_app():  # type: ignore[no-untyped-def]
     async def api_agent_diagnose(request: Request):  # type: ignore[no-untyped-def]
         if not _agent_check_token(request):
             return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+        # Build diagnose in-process from glass / deck state. Do NOT call
+        # mcp.handle_diagnose_freeze here — that path HTTP-falls-back to this
+        # same server and can self-deadlock the uvicorn event loop.
         try:
-            from qoresence.mcp.server import handle_diagnose_freeze
-            return JSONResponse(handle_diagnose_freeze(), headers={"Access-Control-Allow-Origin": "*"})
+            snap = _agent_snapshot_payload()
+            video = {}
+            coupling = {}
+            bus = {}
+            seq = 0
+            if isinstance(snap, dict) and snap.get("ok"):
+                video = snap.get("video") or {}
+                coupling = snap.get("coupling") or {}
+                bus = snap.get("bus") or {}
+                try:
+                    seq = int(snap.get("seq") or 0)
+                except Exception:
+                    seq = 0
+                if not video and isinstance(snap.get("state"), dict):
+                    video = (snap.get("state") or {}).get("video") or video
+            age_s = video.get("age_s") if isinstance(video, dict) else None
+            try:
+                age_f = float(age_s) if age_s is not None else None
+            except Exception:
+                age_f = None
+            frames = 0
+            has_frame = False
+            if isinstance(video, dict):
+                frames = video.get("frames") or video.get("pushes") or 0
+                has_frame = bool(video.get("has_frame"))
+            frozen = False
+            reasons: list[str] = []
+            advice: list[str] = []
+            if age_f is not None and age_f > 5.0:
+                frozen = True
+                reasons.append(f"video.age_s={age_f:.1f}s > 5s - frames stalled")
+                advice.append(
+                    "not the capture card - capture thread likely deadlocked; "
+                    "run py-spy dump --pid <pid>, see AGENTS.md R1/R3/R4"
+                )
+            if not has_frame and (not frames or int(frames) == 0):
+                reasons.append(
+                    "no frames yet (has_frame=false, frames=0) - is streamer running? "
+                    "(--play --deck --monitor)"
+                )
+            if seq == 0:
+                reasons.append("glass seq=0 - RetinaEventBus not flowing (enable --agent-glass)")
+            if not frozen and age_f is not None and age_f < 1.0 and has_frame:
+                reasons.append(f"healthy: age_s={age_f:.2f}s, frames={frames}")
+            diagnosis = "FROZEN" if frozen else ("NO_FRAMES" if not has_frame else "HEALTHY")
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "diagnosis": diagnosis,
+                    "frozen": frozen,
+                    "healthy": (not frozen and bool(has_frame)),
+                    "video": video,
+                    "coupling": coupling,
+                    "bus": bus,
+                    "seq": seq,
+                    "age_s": age_f,
+                    "has_frame": has_frame,
+                    "reasons": reasons,
+                    "advice": advice
+                    or ["if degraded, lower --streamer-width/height or --streamer-fps 30"],
+                    "refs": ["AGENTS.md R1/R3/R4", "docs/AGENT_GLASS.md#threading-invariant"],
+                },
+                headers={"Access-Control-Allow-Origin": "*"},
+            )
         except Exception as e:
             return JSONResponse({"ok": False, "error": "diagnose_failed", "hint": str(e)}, status_code=500)
 

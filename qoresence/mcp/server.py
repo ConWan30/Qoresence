@@ -9,12 +9,64 @@ SERVER_VERSION = "0.1.0-dev"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 DEFAULT_TOKEN_FILE = ".secrets/agent_glass.token"
-try:
-    from mcp.server.fastmcp import FastMCP  # type: ignore
-    HAS_MCP = True
-except ImportError:
-    FastMCP = None  # type: ignore
-    HAS_MCP = False
+
+# Lazy FastMCP handle — never imported unless QORESENCE_MCP_USE_FASTMCP=1
+_mcp_fastmcp: Any = None
+
+
+def _get_fastmcp():
+    """Return a configured FastMCP instance, lazily loaded."""
+    global _mcp_fastmcp
+    if _mcp_fastmcp is not None:
+        return _mcp_fastmcp
+    try:
+        from mcp.server.fastmcp import FastMCP  # type: ignore
+    except ImportError:
+        return None
+    mcp = FastMCP(SERVER_NAME)  # type: ignore
+
+    @mcp.tool()  # type: ignore
+    def get_snapshot() -> dict:  # type: ignore
+        return handle_get_snapshot()
+
+    @mcp.tool()  # type: ignore
+    def get_events(since: int = 0, types: str = "", limit: int = 20) -> dict:  # type: ignore
+        return handle_get_events(since=since, types=types, limit=limit)
+
+    @mcp.tool()  # type: ignore
+    def get_health() -> dict:  # type: ignore
+        return handle_get_health()
+
+    @mcp.tool()  # type: ignore
+    def get_frame() -> dict:  # type: ignore
+        return handle_get_frame()
+
+    @mcp.tool()  # type: ignore
+    def export_clip(seconds: int = 15) -> dict:  # type: ignore
+        return handle_export_clip(seconds=seconds)
+
+    @mcp.tool()  # type: ignore
+    def search_clips(query: str = "", limit: int = 8, kinds: str = "", coupling_min: float = 0.0, drive_id: str = "", since_clock_ns: int = 0) -> dict:  # type: ignore
+        return handle_search_clips(query=query, limit=limit, kinds=kinds, coupling_min=coupling_min, drive_id=drive_id or None, since_clock_ns=since_clock_ns)
+
+    @mcp.tool()  # type: ignore
+    def get_drive_graph(drive_id: str = "", include_nodes: bool = True, max_nodes: int = 40) -> dict:  # type: ignore
+        return handle_get_drive_graph(drive_id=drive_id or None, include_nodes=include_nodes, max_nodes=max_nodes)
+
+    @mcp.tool()  # type: ignore
+    def subscribe_events(since: int = 0, types: str = "", limit: int = 20, poll_ms: int = 0) -> dict:  # type: ignore
+        return handle_subscribe_events(since=since, types=types, limit=limit, poll_ms=poll_ms)
+
+    @mcp.tool()  # type: ignore
+    def diagnose_freeze() -> dict:  # type: ignore
+        return handle_diagnose_freeze()
+
+    @mcp.tool()  # type: ignore
+    def get_situation() -> dict:  # type: ignore
+        return handle_get_situation()
+
+    _mcp_fastmcp = mcp
+    return mcp
 
 def _read_token(tf: str | None = None) -> str | None:
     for p in [tf, os.getenv("MCP_TOKEN_FILE"), os.getenv("QORESENCE_AGENT_GLASS_TOKEN_FILE"), DEFAULT_TOKEN_FILE]:
@@ -155,7 +207,10 @@ def handle_get_health() -> dict[str, Any]:
             return g.health()
         except Exception as e:
             return {"ok": False, "error": "health_failed", "hint": str(e)}
-    return _http_get("/api/agent/health")
+    r = _http_get("/api/agent/health")
+    if not r.get("ok") and r.get("error") == "http_unreachable":
+        r["hint"] = "is Qoresence running with --agent-glass? (--agent-glass enables 127.0.0.1:8765)"
+    return r
 
 def handle_get_frame() -> dict[str, Any]:
     g = _get_glass()
@@ -298,47 +353,6 @@ HANDLERS = {
     "get_situation": lambda a: handle_get_situation(),
 }
 
-mcp = None
-if HAS_MCP:
-    mcp = FastMCP(SERVER_NAME)  # type: ignore
-
-    @mcp.tool()  # type: ignore
-    def get_snapshot() -> dict:  # type: ignore
-        return handle_get_snapshot()
-
-    @mcp.tool()  # type: ignore
-    def get_events(since: int = 0, types: str = "", limit: int = 20) -> dict:  # type: ignore
-        return handle_get_events(since=since, types=types, limit=limit)
-
-    @mcp.tool()  # type: ignore
-    def get_health() -> dict:  # type: ignore
-        return handle_get_health()
-
-    @mcp.tool()  # type: ignore
-    def get_frame() -> dict:  # type: ignore
-        return handle_get_frame()
-
-    @mcp.tool()  # type: ignore
-    def export_clip(seconds: int = 15) -> dict:  # type: ignore
-        return handle_export_clip(seconds=seconds)
-
-    @mcp.tool()  # type: ignore
-    def search_clips(query: str = "", limit: int = 8, kinds: str = "", coupling_min: float = 0.0, drive_id: str = "", since_clock_ns: int = 0) -> dict:  # type: ignore
-        return handle_search_clips(query=query, limit=limit, kinds=kinds, coupling_min=coupling_min, drive_id=drive_id or None, since_clock_ns=since_clock_ns)
-    @mcp.tool()  # type: ignore
-    def get_drive_graph(drive_id: str = "", include_nodes: bool = True, max_nodes: int = 40) -> dict:  # type: ignore
-        return handle_get_drive_graph(drive_id=drive_id or None, include_nodes=include_nodes, max_nodes=max_nodes)
-    @mcp.tool()  # type: ignore
-    def subscribe_events(since: int = 0, types: str = "", limit: int = 20, poll_ms: int = 0) -> dict:  # type: ignore
-        return handle_subscribe_events(since=since, types=types, limit=limit, poll_ms=poll_ms)
-    @mcp.tool()  # type: ignore
-    def diagnose_freeze() -> dict:  # type: ignore
-        return handle_diagnose_freeze()
-
-    @mcp.tool()  # type: ignore
-    def get_situation() -> dict:  # type: ignore
-        return handle_get_situation()
-
 
 def _rpc_result(req_id: Any, result: Any) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": req_id, "result": result}
@@ -441,11 +455,13 @@ def main() -> None:
     if args.help_tools:
         print(json.dumps(TOOL_DEFS, indent=2))
         return
-    if HAS_MCP and os.getenv("QORESENCE_MCP_USE_FASTMCP") == "1":
-        assert mcp is not None
-        mcp.run()  # type: ignore
-    else:
-        _serve_stdio()
+    if os.getenv("QORESENCE_MCP_USE_FASTMCP") == "1":
+        fastmcp = _get_fastmcp()
+        if fastmcp is not None:
+            fastmcp.run()  # type: ignore
+            return
+        log.warning("QORESENCE_MCP_USE_FASTMCP=1 but mcp package not installed; falling back to stdio")
+    _serve_stdio()
 
 
 if __name__ == "__main__":

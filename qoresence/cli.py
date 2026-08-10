@@ -1111,6 +1111,27 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             **_vlm_extra,
         )
 
+    # AgentGlass wiring — independent of ClutchBot / --stream.
+    # Must apply for --play --deck --agent-glass (and env) or glass stays disabled.
+    try:
+        if getattr(args, "no_agent_glass", False):
+            config.agent_glass = replace(config.agent_glass, enabled=False)
+        elif getattr(args, "agent_glass", False):
+            _ag_updates = {"enabled": True}
+            if getattr(args, "agent_glass_token_file", None):
+                _ag_updates["token_file"] = args.agent_glass_token_file
+            if getattr(args, "agent_glass_no_frame", False):
+                _ag_updates["allow_frame"] = False
+            config.agent_glass = replace(config.agent_glass, **_ag_updates)
+        else:
+            # --agent-glass-token-file / --agent-glass-no-frame keep env as source of truth
+            if getattr(args, "agent_glass_token_file", None):
+                config.agent_glass = replace(config.agent_glass, token_file=args.agent_glass_token_file)
+            if getattr(args, "agent_glass_no_frame", False):
+                config.agent_glass = replace(config.agent_glass, allow_frame=False)
+    except Exception:
+        pass
+
     # ClutchBot agent (explicit or via --stream preset)
     if args.clutchbot or args.stream:
         from pathlib import Path as _P_cb
@@ -1121,25 +1142,6 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         _ch = (args.clutchbot_channel or "").strip()
         _tw_enabled = bool(_ch and (args.clutchbot_username or _ch) and (args.clutchbot_token or _tok_file))
         _llm_key = ".secrets/quicksilver_clutchbot.key"
-        # AgentGlass wiring — env is source of truth, CLI toggles on/off
-        try:
-            if getattr(args, "no_agent_glass", False):
-                config.agent_glass = replace(config.agent_glass, enabled=False)
-            elif getattr(args, "agent_glass", False):
-                _ag_updates = {"enabled": True}
-                if getattr(args, "agent_glass_token_file", None):
-                    _ag_updates["token_file"] = args.agent_glass_token_file
-                if getattr(args, "agent_glass_no_frame", False):
-                    _ag_updates["allow_frame"] = False
-                config.agent_glass = replace(config.agent_glass, **_ag_updates)
-            else:
-                # --agent-glass-token-file / --agent-glass-no-frame imply enabled if env already enabled
-                if getattr(args, "agent_glass_token_file", None):
-                    config.agent_glass = replace(config.agent_glass, token_file=args.agent_glass_token_file)
-                if getattr(args, "agent_glass_no_frame", False):
-                    config.agent_glass = replace(config.agent_glass, allow_frame=False)
-        except Exception:
-            pass
         config.clutchbot = replace(
             config.clutchbot,
             enabled=True,
