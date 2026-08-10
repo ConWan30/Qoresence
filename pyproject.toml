@@ -64,6 +64,11 @@ twitch = [
     "requests>=2.31",
     "websockets>=12.0",
 ]
+streamr = [
+    "paho-mqtt>=1.6",
+    "requests>=2.31",
+    "websockets>=12.0",
+]
 monitor = [
     "opencv-python>=4.8",
     "numpy>=1.24",
@@ -107,6 +112,7 @@ test = [
     "mss>=10.0",
     "requests>=2.31",
     "websockets>=12.0",
+    "paho-mqtt>=1.6",
 ]
 dev = [
     "pytest>=7.4",
