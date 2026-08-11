@@ -26,13 +26,18 @@ COPY qoresence/ ./qoresence/
 COPY tools/ ./tools/
 COPY w3bstream_applet.wasm /app/w3bstream_applet.wasm
 
-# Install in development mode with trio extras
+# Install base package and runtime extras needed for the CLI entry point
 RUN pip install --no-cache-dir -e .[trio]
+RUN pip install --no-cache-dir \
+    "requests>=2.31" \
+    "websockets>=12.0" \
+    "paho-mqtt>=1.6" \
+    "opencv-python-headless>=4.8" \
+    "mss>=10.0" \
+    "hidapi>=0.14" \
+    "onnxruntime>=1.16"
 
-# Install wasmtime for trio-retina WASM execution
-RUN curl -fsSL https://wasmtime.dev/install.sh | bash -s -- --version 16.0.0
-ENV PATH="/root/.wasmtime/bin:${PATH}"
-
+# wasmtime is provided by the pip package (wasmtime>=16.0); no standalone CLI needed
 # Install snarkjs globally for ZKSepProof
 RUN npm install -g snarkjs
 
@@ -59,17 +64,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install wasmtime
-RUN curl -fsSL https://wasmtime.dev/install.sh | bash -s -- --version 16.0.0
-ENV PATH="/root/.wasmtime/bin:${PATH}"
-
+# wasmtime is provided by the pip package (wasmtime>=16.0); no standalone CLI needed
 # Install snarkjs globally for ZKSepProof
 RUN npm install -g snarkjs
 
 # Copy installed packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /root/.wasmtime /root/.wasmtime
 COPY --from=builder /usr/lib/node_modules /usr/lib/node_modules
 COPY --from=builder /usr/bin/node /usr/bin/node
 COPY --from=builder /usr/bin/npm /usr/bin/npm
@@ -93,6 +94,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     QORESENCE_LOG_LEVEL=INFO \
     QORESENCE_TRIO_WASM_PATH=/app/w3bstream_applet.wasm \
+    QORESENCE_TRIO_USE_PYTHON_WASMTIME=1 \
     VAPI_ZK_ARTIFACTS_DIR=/app/zk_artifacts
 
 # Expose WebSocket port
