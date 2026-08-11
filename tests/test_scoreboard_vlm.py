@@ -26,11 +26,12 @@ def test_vlm_parse_rejects_out_of_range():
 
 
 def test_large_score_pair_prefers_zero_over_badge_double():
-    # Giant 20 left, giant 0 right, tiny badge 20 far right (classic CFB pause glitch)
+    # Giant away 20 left, giant home 0 right, tiny badge 20 far right (classic CFB pause glitch)
     tokens = [
         _Token(text="20", x=0.35, y=0.4, conf=0.95, area=0.08),
         _Token(text="0", x=0.55, y=0.4, conf=0.93, area=0.06),
         _Token(text="20", x=0.88, y=0.2, conf=0.7, area=0.005),
     ]
     pair = FootballScoreboardExtractor._parse_large_score_pair(tokens)
-    assert pair == (20, 0)
+    # left-of-center is away, right-of-center is home
+    assert pair == (0, 20)

@@ -73,8 +73,9 @@ def test_extractor_parses_eye_verify():
     if result.home_score is None and result.away_score is None:
         pytest.skip("eye_verify frame has no scoreboard fields")
 
-    assert result.home_score == 0
-    assert result.away_score == 7
+    # left-of-center is away, right-of-center is home
+    assert result.home_score == 7
+    assert result.away_score == 0
     assert result.quarter == 1
     assert result.clock_seconds == 101  # 1:41
     assert result.down == 1
