@@ -44,9 +44,9 @@ def test_find_score_pair_text():
     from qoresence.vision.scoreboard_extractor import _Cluster
 
     clusters = [
-        _Cluster(text="HOME", x=0.2, y=0.4, conf=0.9),
+        _Cluster(text="AWAY", x=0.2, y=0.4, conf=0.9),
         _Cluster(text="17-17", x=0.5, y=0.4, conf=0.95),
-        _Cluster(text="AWAY", x=0.8, y=0.4, conf=0.9),
+        _Cluster(text="HOME", x=0.8, y=0.4, conf=0.9),
     ]
     pair = FootballScoreboardExtractor._find_score_pair_text(clusters)
     assert pair == (17, 17)
@@ -58,17 +58,17 @@ def test_parse_int_pure_digits_unchanged():
 
 
 def test_parse_prefers_multi_digit_pair_31_38():
-    """Synthetic clusters: left 31, right 38, center noise 2 (quarter)."""
+    """Synthetic clusters: away 31 (left), home 38 (right), center noise 2 (quarter)."""
     from qoresence.vision.scoreboard_extractor import _Token
 
     tokens = [
         _Token(text="31", x=0.22, y=0.45, conf=0.95),
         _Token(text="2", x=0.50, y=0.45, conf=0.90),  # quarter leak
         _Token(text="38", x=0.78, y=0.45, conf=0.94),
-        _Token(text="HOME", x=0.15, y=0.45, conf=0.8),
-        _Token(text="AWAY", x=0.85, y=0.45, conf=0.8),
+        _Token(text="AWAY", x=0.15, y=0.45, conf=0.8),
+        _Token(text="HOME", x=0.85, y=0.45, conf=0.8),
     ]
     ext = FootballScoreboardExtractor()
     parsed = ext._parse(tokens)
-    assert parsed.get("home_score") == 31
-    assert parsed.get("away_score") == 38
+    assert parsed.get("home_score") == 38
+    assert parsed.get("away_score") == 31

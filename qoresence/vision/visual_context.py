@@ -295,6 +295,8 @@ def build_football_prompt() -> str:
     return (
         "Analyze this NCAA College Football 27 gameplay frame. "
         "Read the scoreboard and HUD carefully. "
+        "In the scoreboard, the left score is the AWAY team and the right score is the HOME team. "
+        "Possession should be 'home' when the right-side team has the ball, 'away' when the left-side team has it. "
         "Respond ONLY with valid JSON, no other text.\n\n"
         '{"game_state": "menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown", '
         '"game_title": "", '

@@ -471,13 +471,13 @@ class FootballScoreboardExtractor:
             # look for a zero or smaller score on right among top
             for cand in sorted(digitish, key=lambda z: z[1]):
                 if cand[1] > 0.5 and cand[2] != left[2]:
-                    return (left[2], cand[2])
+                    return (cand[2], left[2])
             # Prefer 0 if we only see one big score left of center
             if left[1] < 0.55:
                 for cand in digitish:
                     if cand[2] == 0 and cand[1] > left[1]:
-                        return (left[2], 0)
-        return (left[2], right[2])
+                        return (0, left[2])
+        return (right[2], left[2])
 
     def _ocr_tokens(self, frame: np.ndarray) -> list[_Token]:
         """OCR scoreboard regions via pluggable engine (multi-crop for CFB 27)."""
@@ -664,7 +664,7 @@ class FootballScoreboardExtractor:
             parsed["away_score"] = pair[1]
             return parsed
 
-        # Scores: left-of-center (home) and right-of-center (away).
+        # Scores: left-of-center (away) and right-of-center (home).
         # Use team positions to anchor.
         left_team = min((c for c in team_clusters), key=lambda c: c.x, default=None)
         right_team = max((c for c in team_clusters), key=lambda c: c.x, default=None)
@@ -764,25 +764,25 @@ class FootballScoreboardExtractor:
             and not (0.40 <= c.x <= 0.60 and _normalize_clock(c.text))
         ]
         if multi_left and multi_right:
-            home_score = _best_score(multi_left, prefer_right=False)
-            away_score = _best_score(multi_right, prefer_right=True)
+            away_score = _best_score(multi_left, prefer_right=False)
+            home_score = _best_score(multi_right, prefer_right=True)
 
-        # Team-anchored fallback
-        if home_score is None and left_team:
+        # Team-anchored fallback (left-of-center is away, right-of-center is home)
+        if away_score is None and left_team:
             left_candidates = [c for c in candidates if left_team.x < c.x < 0.48]
-            home_score = _best_score(left_candidates, prefer_right=False)
+            away_score = _best_score(left_candidates, prefer_right=False)
 
-        if away_score is None and right_team:
+        if home_score is None and right_team:
             right_candidates = [c for c in candidates if 0.52 < c.x < right_team.x]
-            away_score = _best_score(right_candidates, prefer_right=True)
+            home_score = _best_score(right_candidates, prefer_right=True)
 
         # Fallback to leftmost/rightmost remaining candidates in the team row.
-        if home_score is None and candidates:
-            left_pool = [c for c in candidates if c.x < 0.48]
-            home_score = _best_score(left_pool, prefer_right=False)
         if away_score is None and candidates:
+            left_pool = [c for c in candidates if c.x < 0.48]
+            away_score = _best_score(left_pool, prefer_right=False)
+        if home_score is None and candidates:
             right_pool = [c for c in candidates if c.x > 0.52]
-            away_score = _best_score(right_pool, prefer_right=True)
+            home_score = _best_score(right_pool, prefer_right=True)
 
         # Hard-reject asymmetric garbage at parse time (before stabilizer lock-in)
         if home_score is not None and away_score is not None:
@@ -819,7 +819,8 @@ class FootballScoreboardExtractor:
                 if 0 <= a <= 99 and 0 <= b <= 99:
                     if _ScoreStabilizer._looks_suspicious_pair((a, b)):
                         continue
-                    return a, b
+                    # left-of-center is away, right-of-center is home
+                    return b, a
         # Prefer left-half + right-half multi-digit pair (true scorebug), not
         # adjacent (31, 2) where 2 is quarter in the center.
         nums: list[tuple[int, float, float]] = []
@@ -834,7 +835,8 @@ class FootballScoreboardExtractor:
             # Highest value confidence proxy: prefer >=10, then rightmost/leftmost
             lh = max(left, key=lambda n: (n[0] >= 10, n[0], -abs(n[1] - 0.25)))
             rh = max(right, key=lambda n: (n[0] >= 10, n[0], -abs(n[1] - 0.75)))
-            pair = (lh[0], rh[0])
+            # left-of-center is away, right-of-center is home
+            pair = (rh[0], lh[0])
             if not _ScoreStabilizer._looks_suspicious_pair(pair):
                 return pair
         return None
