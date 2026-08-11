@@ -75,7 +75,7 @@ class MotionTracker:
         self._object_vel: deque[float] = deque(maxlen=history)
 
         # MediaPipe object detector lazy init
-        self._object_detector: Any | None = None  # type: ignore
+        self._object_detector: Any | None = None
         self._max_detections = max_mediapipe_detections
 
     def _ensure_detector(self) -> None:

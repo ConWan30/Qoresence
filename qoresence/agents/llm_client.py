@@ -20,7 +20,7 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 try:
-    import requests  # type: ignore
+    import requests
 
     HAS_REQUESTS = True
 except ImportError:

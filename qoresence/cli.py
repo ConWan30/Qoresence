@@ -342,13 +342,13 @@ class QoresenceApp:
                         try:
                             sm = getattr(self, "situation_model", None)
                             if sm is None and getattr(self, "clutchbot", None) is not None:
-                                sm = getattr(self.clutchbot, "_situation", None)  # type: ignore[attr-defined]
+                                sm = getattr(self.clutchbot, "_situation", None)
                                 if sm is not None:
                                     # cache for next iteration
                                     try:
-                                        object.__setattr__(self, "situation_model", sm)  # type: ignore[attr-defined]
+                                        object.__setattr__(self, "situation_model", sm)
                                     except Exception:
-                                        self.situation_model = sm  # type: ignore[attr-defined]
+                                        self.situation_model = sm
                             if sm is not None and hasattr(sm, "to_dict"):
                                 s = sm.to_dict()
                                 # Include game_state/category so Lens can leave the
@@ -404,10 +404,10 @@ class QoresenceApp:
                 def _ag_situation_provider() -> dict:
                     sm = getattr(self, "situation_model", None)
                     if sm is None and getattr(self, "clutchbot", None) is not None:
-                        sm = getattr(self.clutchbot, "_situation", None)  # type: ignore[attr-defined]
+                        sm = getattr(self.clutchbot, "_situation", None)
                     try:
                         if sm is not None and hasattr(sm, "to_dict"):
-                            return sm.to_dict()  # type: ignore[union-attr]
+                            return sm.to_dict()
                         if isinstance(sm, dict):
                             return sm
                     except Exception:

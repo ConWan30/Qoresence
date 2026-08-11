@@ -157,7 +157,7 @@ def load_community_profiles(profiles_dir: Path | str | None = None) -> int:
         GAME_PROFILE_REGISTRY[pid] = profile
         # Register aliases
         for alias in aliases:
-            GAME_PROFILE_ALIASES[alias] = pid  # type: ignore[assignment]
+            GAME_PROFILE_ALIASES[alias] = pid
         log.info(
             "community profile loaded: %s (%s) from %s — %d events, %d fields, %d aliases",
             profile.profile_id,

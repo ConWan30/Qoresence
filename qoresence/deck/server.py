@@ -977,7 +977,7 @@ def create_app():  # type: ignore[no-untyped-def]
                 res = cb.export_clip(seconds=seconds)  # type: ignore[attr-defined]
             except TypeError:
                 try:
-                    res = cb.export(seconds=seconds)  # type: ignore[attr-defined]
+                    res = cb.export(seconds=seconds)
                 except Exception:
                     res = None
             except Exception:
@@ -987,7 +987,7 @@ def create_app():  # type: ignore[no-untyped-def]
                 try:
                     from qoresence.vision.clip_buffer import export_clip
 
-                    res = export_clip(seconds=seconds)  # type: ignore[call-arg]
+                    res = export_clip(seconds=seconds)
                 except Exception:
                     res = None
             if res is None:
@@ -997,7 +997,7 @@ def create_app():  # type: ignore[no-untyped-def]
                     {"ok": True, **res}, headers={"Access-Control-Allow-Origin": "*"}
                 )
             try:
-                d = dict(res.__dict__)  # type: ignore[union-attr]
+                d = dict(res.__dict__)
                 return JSONResponse({"ok": True, **d}, headers={"Access-Control-Allow-Origin": "*"})
             except Exception:
                 return JSONResponse(
@@ -1589,7 +1589,7 @@ def start_deck(
 ) -> threading.Thread | None:
     app = create_app()
     if app is not None:
-        import uvicorn  # type: ignore[import-not-found]
+        import uvicorn
 
         def _run():  # type: ignore[no-untyped-def]
             global _loop, _ws_client_count, _broadcast_scheduled

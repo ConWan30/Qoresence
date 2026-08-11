@@ -145,7 +145,7 @@ class EasyOCRProvider(BaseOCRProvider):
     def __init__(self, languages: tuple[str, ...] = ("en",), gpu: bool = False):
         self._languages = languages
         self._gpu = gpu
-        self._reader: Any | None = None  # type: ignore
+        self._reader: Any | None = None
 
     def warmup(self) -> None:
         with self._shared_lock:

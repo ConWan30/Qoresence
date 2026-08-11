@@ -263,7 +263,7 @@ class GameAutoDetector:
                 from qoresence.vision.local_vlm import LocalVLMClient as _LC
 
                 _local_path = _os.environ.get("QORESENCE_VISUAL_LOCAL_MODEL") or None
-                self._vlm_client = _LC(model_path=_local_path)  # type: ignore[assignment]
+                self._vlm_client = _LC(model_path=_local_path)
                 log.info(
                     f"GameAutoDetector using LocalVLMClient (prefer_local env, path={_local_path or 'models/qoresence-vlm-distilled.onnx'})"
                 )

@@ -369,11 +369,11 @@ class VisualRuntime:
                     game_profile=getattr(config, "game_profile", None),
                 )
                 if _local.is_available():
-                    self._client = _local  # type: ignore[assignment]
+                    self._client = _local
                     self._client_kind = "local:onnx"
                 elif _fallback:
                     # heuristic is always available â€” still local
-                    self._client = _local  # type: ignore[assignment]
+                    self._client = _local
                     self._client_kind = "local:heuristic"
                 else:
                     self._client = VLMClient(config)
