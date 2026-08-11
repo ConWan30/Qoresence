@@ -238,7 +238,6 @@ class HdmiClipBuffer:
             for entry in snapshot:
                 # (ts, jpeg, w, h[, seq])
                 jpg = entry[1]
-                fw, fh = int(entry[2]), int(entry[3])
                 arr = np.frombuffer(jpg, dtype=np.uint8)
                 img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
                 if img is None:
@@ -359,9 +358,7 @@ def get_clip_buffer(
     global _buffer
     with _buffer_lock:
         if _buffer is None:
-            _buffer = HdmiClipBuffer(
-                seconds=seconds, target_fps=target_fps, max_width=max_width
-            )
+            _buffer = HdmiClipBuffer(seconds=seconds, target_fps=target_fps, max_width=max_width)
             log.info(
                 "HDMI ClipBuffer ready: %ss @ %.0ffps max_w=%d -> %s",
                 seconds,
@@ -386,7 +383,9 @@ def get_latest_frame() -> tuple[bytes, int] | None:
     return get_clip_buffer().latest_frame()
 
 
-def export_clip(seconds: float | None = None, path: str | Path | None = None) -> ClipExportResult | None:
+def export_clip(
+    seconds: float | None = None, path: str | Path | None = None
+) -> ClipExportResult | None:
     return get_clip_buffer().export(path=path, seconds=seconds)
 
 
