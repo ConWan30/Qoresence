@@ -699,33 +699,30 @@ class RetinaUnifiedConfig:
             from pathlib import Path as _P
 
             channel = (
-                _str("QORESENCE_TWITCH_CHANNEL")
-                or _str("QORESENCE_CLUTCHBOT_CHANNEL")
+                _str("QORESENCE_TWITCH_CHANNEL") or _str("QORESENCE_CLUTCHBOT_CHANNEL")
             ).strip()
             bot = (
-                _str("QORESENCE_TWITCH_BOT_USERNAME")
-                or _str("QORESENCE_CLUTCHBOT_USERNAME")
+                _str("QORESENCE_TWITCH_BOT_USERNAME") or _str("QORESENCE_CLUTCHBOT_USERNAME")
             ).strip()
             token = (
-                _str("QORESENCE_TWITCH_OAUTH_TOKEN")
-                or _str("QORESENCE_CLUTCHBOT_TOKEN")
+                _str("QORESENCE_TWITCH_OAUTH_TOKEN") or _str("QORESENCE_CLUTCHBOT_TOKEN")
             ).strip() or None
             token_file = (
-                _str("QORESENCE_TWITCH_TOKEN_FILE")
-                or _str("QORESENCE_CLUTCHBOT_TOKEN_FILE")
+                _str("QORESENCE_TWITCH_TOKEN_FILE") or _str("QORESENCE_CLUTCHBOT_TOKEN_FILE")
             ).strip() or None
             if not token_file and _P(".secrets/twitch_oauth.txt").exists():
                 token_file = ".secrets/twitch_oauth.txt"
             client_id = (
-                _str("QORESENCE_TWITCH_CLIENT_ID")
-                or _str("QORESENCE_CLUTCHBOT_CLIENT_ID")
+                _str("QORESENCE_TWITCH_CLIENT_ID") or _str("QORESENCE_CLUTCHBOT_CLIENT_ID")
             ).strip() or None
             broadcaster = (
                 _str("QORESENCE_TWITCH_BROADCASTER")
                 or _str("QORESENCE_CLUTCHBOT_BROADCASTER_USERNAME")
                 or channel
             ).strip() or None
-            has_creds = bool(channel and bot and (token or (token_file and _P(token_file).exists())))
+            has_creds = bool(
+                channel and bot and (token or (token_file and _P(token_file).exists()))
+            )
             return TwitchConfig(
                 enabled=has_creds or _bool("QORESENCE_TWITCH_ENABLED"),
                 channel=channel,
@@ -834,7 +831,8 @@ class RetinaUnifiedConfig:
                 max_eps_per_client=_float("QORESENCE_AGENT_GLASS_MAX_EPS", 20.0),
                 max_history=_int("QORESENCE_AGENT_GLASS_MAX_HISTORY", 256),
                 require_token=_bool("QORESENCE_AGENT_GLASS_REQUIRE_TOKEN"),
-                token_file=_str("QORESENCE_AGENT_GLASS_TOKEN_FILE", ".secrets/agent_glass.token") or None,
+                token_file=_str("QORESENCE_AGENT_GLASS_TOKEN_FILE", ".secrets/agent_glass.token")
+                or None,
                 snapshot_hz=_float("QORESENCE_AGENT_GLASS_SNAPSHOT_HZ", 5.0),
                 allow_frame=_bool("QORESENCE_AGENT_GLASS_ALLOW_FRAME", True),
                 allow_clip=_bool("QORESENCE_AGENT_GLASS_ALLOW_CLIP", True),

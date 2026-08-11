@@ -9,7 +9,6 @@ DriveGraph: drives count=0 — A2A now opens/closes drives based on reason
 
 from __future__ import annotations
 
-import json
 from unittest.mock import patch
 
 import numpy as np
@@ -24,7 +23,6 @@ from qoresence.agents.situation_model import SituationModel
 from qoresence.core.types import EventType
 from qoresence.vision.local_vlm import LocalVLMClient
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
-
 
 # ── Bug #1: A2A menu guard ───────────────────────────────────────────────────
 
@@ -118,7 +116,9 @@ def test_gemini_prompt_includes_game_profile():
         status_code = 200
 
         def json(self):
-            return {"choices": [{"message": {"content": '{"summary":"test","tension":0.5,"tags":[]}'}}]}
+            return {
+                "choices": [{"message": {"content": '{"summary":"test","tension":0.5,"tags":[]}'}}]
+            }
 
         @property
         def text(self):

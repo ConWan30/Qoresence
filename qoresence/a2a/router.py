@@ -72,10 +72,16 @@ class _BigPlayPredicate:
 
     name = "big_play"
 
-    BIG_PLAY_EVENTS: frozenset[str] = frozenset({
-        "touchdown", "field_goal", "safety", "two_point_conversion",
-        "turnover", "score_changed",
-    })
+    BIG_PLAY_EVENTS: frozenset[str] = frozenset(
+        {
+            "touchdown",
+            "field_goal",
+            "safety",
+            "two_point_conversion",
+            "turnover",
+            "score_changed",
+        }
+    )
 
     def check(self, situation: dict[str, Any]) -> bool:
         last_event = str(situation.get("last_outcome_event") or "").lower()

@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 import urllib.error
 import urllib.request
 from typing import Any

@@ -1,7 +1,7 @@
 import json
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 HOST = "127.0.0.1"
@@ -13,7 +13,7 @@ STALL_PUSH_WINDOW = 30  # pushes must increase within this many seconds
 
 LOG_DIR = Path("logs/pilot")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
-STAMP = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+STAMP = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 LOG_PATH = LOG_DIR / f"soak_{STAMP}.jsonl"
 
 
@@ -35,7 +35,7 @@ def main() -> None:
             situation = get_json(f"http://{HOST}:{PORT}/api/situation")
         except Exception as e:
             record = {
-                "ts": datetime.now(timezone.utc).isoformat(),
+                "ts": datetime.now(UTC).isoformat(),
                 "sample": sample_n,
                 "error": str(e),
             }
@@ -73,7 +73,7 @@ def main() -> None:
 
         sit = situation.get("situation", {})
         record = {
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
             "sample": sample_n,
             "age_s": age,
             "has_frame": has_frame,

@@ -13,12 +13,11 @@ import base64
 import json
 import logging
 import os
-import re
 from typing import Any
 
-from qoresence.a2a.types import SceneProposal
+from qoresence.a2a.tool_loop import parse_tool_calls, run_tool_loop
 from qoresence.a2a.tools import ToolRegistry
-from qoresence.a2a.tool_loop import run_tool_loop, parse_tool_calls, strip_tool_calls
+from qoresence.a2a.types import SceneProposal
 from qoresence.agents.llm_client import DEFAULT_BASE_URL, _resolve_api_key
 
 log = logging.getLogger(__name__)
@@ -56,9 +55,7 @@ class GeminiSceneAgent:
         )
         self._api_key = _resolve_api_key(
             api_key or os.environ.get("QUICKSILVER_API_KEY"),
-            api_key_file
-            or os.environ.get("QUICKSILVER_API_KEY_FILE")
-            or _default_key_file,
+            api_key_file or os.environ.get("QUICKSILVER_API_KEY_FILE") or _default_key_file,
         )
         if self.live and not self._api_key:
             log.warning("A2A Gemini live but no API key — using stub")
@@ -169,7 +166,7 @@ class GeminiSceneAgent:
             "Do NOT invent or state numeric scores, quarters as digits for the board, or down numbers. "
             "Do NOT invent team names — use only the teams from the context JSON, or say 'the offense'/'the defense' if no teams are listed. "
             "Use soft language only (pressure, red zone energy, late game heat). "
-            f"Local context JSON (may be partial): {json.dumps({k: sit.get(k) for k in ('game_state','field_position','game_title','game_profile','home_score','away_score','quarter') if sit.get(k) is not None}, separators=(',',':'))[:400]}. "
+            f"Local context JSON (may be partial): {json.dumps({k: sit.get(k) for k in ('game_state', 'field_position', 'game_title', 'game_profile', 'home_score', 'away_score', 'quarter') if sit.get(k) is not None}, separators=(',', ':'))[:400]}. "
             f"drive_phase={drive_phase} coupling={coupling}. "
         )
         if tool_context:
@@ -180,13 +177,13 @@ class GeminiSceneAgent:
             tool_defs = self._tools.list_tools()
             if tool_defs:
                 prompt += (
-                    "\nYou may request tool calls by including <tool_call>{\"name\":\"tool_name\",\"arguments\":{...}}</tool_call> "
+                    '\nYou may request tool calls by including <tool_call>{"name":"tool_name","arguments":{...}}</tool_call> '
                     "in your response. Available tools: "
                     + json.dumps(tool_defs, separators=(",", ":"))[:300]
                     + " "
                 )
 
-        prompt += "Reply JSON: {\"summary\":\"...\",\"tension\":0.0-1.0,\"tags\":[\"...\"]}"
+        prompt += 'Reply JSON: {"summary":"...","tension":0.0-1.0,"tags":["..."]}'
 
         content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
         if jpeg_bytes:
@@ -215,21 +212,28 @@ class GeminiSceneAgent:
 
         # Trio P3: Run tool-call parse-execute loop
         if self._tools and parse_tool_calls(raw):
+
             def _llm_callback(tool_results_text: str) -> str:
                 """Follow-up LLM call with tool results."""
-                follow_up_prompt = prompt + "\n" + tool_results_text + "\nNow give your final answer."
+                follow_up_prompt = (
+                    prompt + "\n" + tool_results_text + "\nNow give your final answer."
+                )
                 follow_body = {
                     "model": self.model,
-                    "messages": [{"role": "user", "content": [{"type": "text", "text": follow_up_prompt}]}],
+                    "messages": [
+                        {"role": "user", "content": [{"type": "text", "text": follow_up_prompt}]}
+                    ],
                     "max_tokens": 180,
                     "temperature": 0.4,
                 }
                 if jpeg_bytes:
                     b64 = base64.b64encode(jpeg_bytes).decode("ascii")
-                    follow_body["messages"][0]["content"].append({
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
-                    })
+                    follow_body["messages"][0]["content"].append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                        }
+                    )
                 r2 = requests.post(url, headers=headers, json=follow_body, timeout=12)
                 if r2.status_code != 200:
                     return ""

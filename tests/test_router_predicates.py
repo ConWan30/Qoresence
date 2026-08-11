@@ -6,18 +6,13 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from qoresence.a2a.orchestrator import A2AOrchestrator, reset_a2a_orchestrator
 from qoresence.a2a.router import (
-    RouterDecision,
     build_router_decision,
     evaluate_must_fire,
     get_predicates_for_category,
 )
-from qoresence.a2a.types import CommitAct
 from qoresence.core import RetinaEventBus
-
 
 # ── Predicate evaluation ─────────────────────────────────────────────────────
 
@@ -189,6 +184,7 @@ def test_router_decision_emitted_on_fire():
 
         # Wait briefly for async cycle
         import time as _t
+
         _t.sleep(0.5)
 
         lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
@@ -228,6 +224,7 @@ def test_must_fire_bypasses_interval():
         )
 
         import time as _t
+
         _t.sleep(0.5)
 
         lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()

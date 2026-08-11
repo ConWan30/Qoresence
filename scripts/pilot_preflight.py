@@ -24,7 +24,7 @@ def main() -> int:
         import qoresence  # noqa: F401
     except ImportError as e:
         print(f"FAIL: cannot import qoresence ({e})")
-        print("  hint: cd repo root; pip install -e \".[monitor]\"")
+        print('  hint: cd repo root; pip install -e ".[monitor]"')
         return 1
     print("  import qoresence: OK")
 
@@ -32,7 +32,7 @@ def main() -> int:
     if not deck_server.is_file():
         print(f"FAIL: missing {deck_server}")
         return 1
-    print(f"  deck server file: OK")
+    print("  deck server file: OK")
 
     try:
         from qoresence.deck.server import DECK_HOST
@@ -52,7 +52,7 @@ def main() -> int:
     print("  python -m qoresence.cli --play --deck --monitor --streamer-fps 60")
     print("  # leave that window running; in a NEW PowerShell:")
     print("  #   $h = Invoke-RestMethod http://127.0.0.1:8765/health")
-    print("  #   Write-Host \"has_frame=$($h.state.video.has_frame)\"")
+    print('  #   Write-Host "has_frame=$($h.state.video.has_frame)"')
     print("  #   Start-Process http://127.0.0.1:8765/deck.html")
     print("  # Deck is a browser page — CLI does not open it for you.")
     print("  docs: docs/CAPTURE_OWNERSHIP.md · docs/PILOT_SESSION.md")

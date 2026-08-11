@@ -21,7 +21,6 @@ import threading
 import time
 import urllib.parse
 import urllib.request
-from collections.abc import Callable
 from typing import Any
 
 import paho.mqtt.client as mqtt
@@ -146,9 +145,7 @@ class StreamrPublisher:
             except Exception as e:
                 log.debug("Streamr publish batch failed: %s", e)
 
-    def _publish_http_batch(
-        self, items: list[tuple[float, str, str]]
-    ) -> None:
+    def _publish_http_batch(self, items: list[tuple[float, str, str]]) -> None:
         encoded = urllib.parse.quote(self._stream_id, safe="")
         url = f"{self._base_url}/streams/{encoded}"
         headers = {"Content-Type": "application/json"}
@@ -165,9 +162,7 @@ class StreamrPublisher:
                 if resp.status >= 300:
                     log.debug("Streamr HTTP error: %s", resp.status)
 
-    def _publish_mqtt_batch(
-        self, items: list[tuple[float, str, str]]
-    ) -> None:
+    def _publish_mqtt_batch(self, items: list[tuple[float, str, str]]) -> None:
         if self._mqtt is None:
             self._mqtt = mqtt.Client(
                 callback_api_version=mqtt.CallbackAPIVersion.VERSION2,

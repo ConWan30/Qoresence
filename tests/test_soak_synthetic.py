@@ -76,7 +76,7 @@ def test_a2a_stub_soak_under_policy():
     orch.gemini.live = False
     orch.deepseek.live = False
     orch.policy.chat_cooldown_s = 0
-    for i in range(15):
+    for _i in range(15):
         r = orch.run_cycle(
             situation={"home_score": 31, "away_score": 38, "game_state": "gameplay"},
             coupling=0.6,

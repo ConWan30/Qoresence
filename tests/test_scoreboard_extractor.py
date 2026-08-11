@@ -49,8 +49,15 @@ def test_extractor_parses_eye_verify():
     # from a clean state and not inherit a previous frame's scoreboard.
     get_scoreboard_vlm()._last = None
 
-    has_vlm_key = Path(".secrets/quicksilver_clutchbot.key").exists() or os.environ.get("QUICKSILVER_API_KEY")
-    ocr_enabled = os.environ.get("QORESENCE_EASY_OCR", "").strip().lower() in {"1", "true", "yes", "on"}
+    has_vlm_key = Path(".secrets/quicksilver_clutchbot.key").exists() or os.environ.get(
+        "QUICKSILVER_API_KEY"
+    )
+    ocr_enabled = os.environ.get("QORESENCE_EASY_OCR", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     if not has_vlm_key and not ocr_enabled:
         pytest.skip("scoreboard reader not available: no VLM key and OCR disabled")
 

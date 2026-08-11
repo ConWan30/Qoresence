@@ -11,10 +11,11 @@ import os
 import threading
 import time
 from collections import defaultdict, deque
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -91,11 +92,11 @@ class LatencyStats:
                     continue
                 n = len(vals)
 
-                def _pct(p: float) -> float:
-                    if n == 1:
-                        return vals[0]
-                    idx = min(n - 1, max(0, int(round((p / 100.0) * (n - 1)))))
-                    return vals[idx]
+                def _pct(p: float, *, _n: int = n, _vals: list[float] = vals) -> float:
+                    if _n == 1:
+                        return _vals[0]
+                    idx = min(_n - 1, max(0, int(round((p / 100.0) * (_n - 1)))))
+                    return _vals[idx]
 
                 out["names"][name] = {
                     "count": int(self._counts.get(name, n)),

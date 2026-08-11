@@ -1,7 +1,7 @@
 import json
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 HOST = "127.0.0.1"
@@ -10,7 +10,7 @@ INTERVAL_S = 30
 
 LOG_DIR = Path("logs/pilot")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
-STAMP = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+STAMP = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 LOG_PATH = LOG_DIR / f"a2a_soak_{STAMP}.jsonl"
 
 
@@ -45,7 +45,7 @@ def main():
         prev_bus = bus
 
         record = {
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
             "sample": sample,
             "enabled": a2a.get("enabled"),
             "last_reason": a2a.get("last_reason"),

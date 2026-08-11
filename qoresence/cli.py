@@ -16,7 +16,6 @@ import sys
 import time
 from pathlib import Path
 
-
 # Held open so a second --play cannot race before Deck binds
 _PILOT_LOCK_SOCK: socket.socket | None = None
 
@@ -59,9 +58,9 @@ def _run_audit(jsonl_path: str, n: int = 10) -> None:
         print("Audit: no evidence_chain or router_decision events found.")  # noqa: T201
         return
 
-    print(f"\n{'='*80}")  # noqa: T201
+    print(f"\n{'=' * 80}")  # noqa: T201
     print(f"AUDIT: {jsonl_path}")  # noqa: T201
-    print(f"{'='*80}\n")  # noqa: T201
+    print(f"{'=' * 80}\n")  # noqa: T201
 
     if evidence_chains:
         print(f"EVIDENCE CHAINS (last {len(evidence_chains)}):")  # noqa: T201
@@ -73,11 +72,19 @@ def _run_audit(jsonl_path: str, n: int = 10) -> None:
             coup = ec.get("coupling_score", "—")
             scene_model = ec.get("scene_model", "—")
             chat_model = ec.get("chat_model", "—")
-            events = [e.get("event_name") or e.get("event_type") for e in (ec.get("cited_events") or []) if e]
-            fields = [f"{f.get('field_name')}:{f.get('value')}" for f in (ec.get("cited_fields") or [])]
+            events = [
+                e.get("event_name") or e.get("event_type")
+                for e in (ec.get("cited_events") or [])
+                if e
+            ]
+            fields = [
+                f"{f.get('field_name')}:{f.get('value')}" for f in (ec.get("cited_fields") or [])
+            ]
             policy = ec.get("policy_refs") or []
 
-            print(f"\n  [{i + 1}] reason={reason}  confidence={conf}  drive={drive}  coupling={coup}")  # noqa: T201
+            print(  # noqa: T201
+                f"\n  [{i + 1}] reason={reason}  confidence={conf}  drive={drive}  coupling={coup}"
+            )
             print(f"      scene_model={scene_model}  chat_model={chat_model}")  # noqa: T201
             if events:
                 print(f"      cited_events: {', '.join(events)}")  # noqa: T201
@@ -99,9 +106,11 @@ def _run_audit(jsonl_path: str, n: int = 10) -> None:
             mf_str = f" [must-fire:{mf}]" if mf else ""
             interval = r.get("interval_s", 0.0)
             age = r.get("last_trigger_age_s", 0.0)
-            print(f"  [{i + 1:3d}] {fired_str:5s}  reason={reason:20s}  interval={interval:.1f}s  age={age:.1f}s{mf_str}")  # noqa: T201
+            print(  # noqa: T201
+                f"  [{i + 1:3d}] {fired_str:5s}  reason={reason:20s}  interval={interval:.1f}s  age={age:.1f}s{mf_str}"
+            )
 
-    print(f"\n{'='*80}\n")  # noqa: T201
+    print(f"\n{'=' * 80}\n")  # noqa: T201
 
 
 def _acquire_pilot_lock(port: int = 8765) -> bool:
@@ -140,21 +149,22 @@ def _acquire_pilot_lock(port: int = 8765) -> bool:
     except Exception:
         return True  # never hard-block on lock IO errors
 
-from qoresence.agents import ClutchBotAgent
-from qoresence.core import (
+
+from qoresence.agents import ClutchBotAgent  # noqa: E402
+from qoresence.core import (  # noqa: E402
     RetinaEventBus,
     RetinaUnifiedConfig,
     SessionAuthority,
     TwitchConfig,
     clock_ns,
 )
-from qoresence.fusion import PresenceFusionEngine, create_fusion_engine
-from qoresence.game_detection import GameAutoDetector
+from qoresence.fusion import PresenceFusionEngine, create_fusion_engine  # noqa: E402
+from qoresence.game_detection import GameAutoDetector  # noqa: E402
 
 try:
-    from qoresence.deck.server import DECK_HOST as _DECK_HOST
-    from qoresence.deck.server import DECK_PORT as _DECK_PORT
-    from qoresence.deck.server import start_deck as _start_deck
+    from qoresence.deck.server import DECK_HOST as _DECK_HOST  # noqa: E402
+    from qoresence.deck.server import DECK_PORT as _DECK_PORT  # noqa: E402
+    from qoresence.deck.server import start_deck as _start_deck  # noqa: E402
 
     _DECK_AVAILABLE = True
 except ImportError:
@@ -162,7 +172,7 @@ except ImportError:
     _DECK_HOST = "127.0.0.1"
     _DECK_PORT = 8765
     _DECK_AVAILABLE = False
-from qoresence.lobes import (
+from qoresence.lobes import (  # noqa: E402
     ControllerRuntime,
     OutcomeRuntime,
     ScreenRuntime,
@@ -224,7 +234,6 @@ class QoresenceApp:
         # DECK_BRIDGE_MARKER: RetinaEventBus -> Deck ws live (LIVE FEED ONLY - no mock)
         try:
             from qoresence.core import EventType as _ET  # local import to avoid cycle
-
             from qoresence.deck.server import push_moment as _deck_push
             from qoresence.deck.server import update_situation as _deck_update
 
@@ -283,7 +292,12 @@ class QoresenceApp:
                                 return
                             title = payload.get("message") or payload.get("action") or ""
                             if isinstance(title, dict):
-                                title = title.get("text") or title.get("summary") or title.get("message") or ""
+                                title = (
+                                    title.get("text")
+                                    or title.get("summary")
+                                    or title.get("message")
+                                    or ""
+                                )
                             title = str(title).strip()
                             if title.startswith("{") and ("'text'" in title or '"text"' in title):
                                 return
@@ -406,7 +420,11 @@ class QoresenceApp:
                     session_identity=self.identity,
                     situation_provider=_ag_situation_provider,
                 )
-                log.info("AgentGlass enabled (port %s host %s)", getattr(self.config.agent_glass, "port", 8765), getattr(self.config.agent_glass, "host", "127.0.0.1"))
+                log.info(
+                    "AgentGlass enabled (port %s host %s)",
+                    getattr(self.config.agent_glass, "port", 8765),
+                    getattr(self.config.agent_glass, "host", "127.0.0.1"),
+                )
         except Exception as e:
             log.warning("AgentGlass init failed: %s", e)
 
@@ -428,7 +446,9 @@ class QoresenceApp:
                 config=self.config.streamer,
                 bus=self.bus,
                 session_head_ns=self.identity.session_head_ns,
-                presence_touch_file=Path(self.config.streamer.presence_touch_file) if getattr(self.config.streamer, "presence_touch_file", None) else None,
+                presence_touch_file=Path(self.config.streamer.presence_touch_file)
+                if getattr(self.config.streamer, "presence_touch_file", None)
+                else None,
                 presence_timeout_s=float(getattr(self.config.streamer, "presence_timeout_s", 5.0)),
             )
             log.info("Streamer lobe initialized")
@@ -669,7 +689,7 @@ class QoresenceApp:
                     else "none listed — plug DualSense USB / Remote Play"
                 )
             except Exception:
-                hint = "check USB / Remote Play; python -c \"from qoresence.lobes.controller import list_controllers; print(list_controllers())\""
+                hint = 'check USB / Remote Play; python -c "from qoresence.lobes.controller import list_controllers; print(list_controllers())"'
             log.warning(
                 "Controller failed to start (HID busy/permissions/missing) — "
                 "continuing without controller; video path unchanged. Devices: %s",
@@ -1074,7 +1094,11 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             fps_target=args.streamer_fps,
         )
     if args.streamr:
-        _event_types = [t.strip() for t in args.streamr_event_types.split(",") if t.strip()] if args.streamr_event_types else []
+        _event_types = (
+            [t.strip() for t in args.streamr_event_types.split(",") if t.strip()]
+            if args.streamr_event_types
+            else []
+        )
         if args.streamr_stream_id:
             config.streamr = replace(
                 config.streamr,
@@ -1126,7 +1150,9 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         else:
             # --agent-glass-token-file / --agent-glass-no-frame keep env as source of truth
             if getattr(args, "agent_glass_token_file", None):
-                config.agent_glass = replace(config.agent_glass, token_file=args.agent_glass_token_file)
+                config.agent_glass = replace(
+                    config.agent_glass, token_file=args.agent_glass_token_file
+                )
             if getattr(args, "agent_glass_no_frame", False):
                 config.agent_glass = replace(config.agent_glass, allow_frame=False)
     except Exception:
@@ -1140,7 +1166,9 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         if not _tok_file and _P_cb(".secrets/twitch_oauth.txt").exists():
             _tok_file = ".secrets/twitch_oauth.txt"
         _ch = (args.clutchbot_channel or "").strip()
-        _tw_enabled = bool(_ch and (args.clutchbot_username or _ch) and (args.clutchbot_token or _tok_file))
+        _tw_enabled = bool(
+            _ch and (args.clutchbot_username or _ch) and (args.clutchbot_token or _tok_file)
+        )
         _llm_key = ".secrets/quicksilver_clutchbot.key"
         config.clutchbot = replace(
             config.clutchbot,
@@ -1163,7 +1191,9 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
                 client_id=args.clutchbot_client_id,
                 client_secret=args.clutchbot_client_secret,
                 broadcaster_id=args.clutchbot_broadcaster_id,
-                broadcaster_username=args.clutchbot_broadcaster_username or args.clutchbot_channel or None,
+                broadcaster_username=args.clutchbot_broadcaster_username
+                or args.clutchbot_channel
+                or None,
                 message_interval_s=args.clutchbot_interval,
                 enable_clips=args.clutchbot_enable_clips,
                 enable_predictions=args.clutchbot_enable_predictions,
@@ -1230,15 +1260,24 @@ def main():
     parser.add_argument("--streamer-height", type=int, default=720, help="Capture height")
 
     # Streamr Network publisher
-    parser.add_argument("--streamr", action="store_true", help="Publish events to a local Streamr node")
-    parser.add_argument("--streamr-stream-id", type=str, default="", help="Streamr stream ID, e.g. 0x.../qoresence/football")
+    parser.add_argument(
+        "--streamr", action="store_true", help="Publish events to a local Streamr node"
+    )
+    parser.add_argument(
+        "--streamr-stream-id",
+        type=str,
+        default="",
+        help="Streamr stream ID, e.g. 0x.../qoresence/football",
+    )
     parser.add_argument(
         "--streamr-protocol",
         choices=["http", "mqtt", "websocket"],
         default="http",
         help="Local Streamr node interface protocol",
     )
-    parser.add_argument("--streamr-host", type=str, default="127.0.0.1", help="Local Streamr node host")
+    parser.add_argument(
+        "--streamr-host", type=str, default="127.0.0.1", help="Local Streamr node host"
+    )
     parser.add_argument("--streamr-port", type=int, default=7171, help="Local Streamr node port")
     parser.add_argument("--streamr-api-key", type=str, default=None, help="Streamr node API key")
     parser.add_argument(
@@ -1247,7 +1286,12 @@ def main():
         default="",
         help="Comma-separated event types to publish (e.g. 'presence_report,visual_context' or '*' for all)",
     )
-    parser.add_argument("--streamr-max-eps", type=float, default=0.0, help="Max events per second throttle (0 = off)")
+    parser.add_argument(
+        "--streamr-max-eps",
+        type=float,
+        default=0.0,
+        help="Max events per second throttle (0 = off)",
+    )
 
     parser.add_argument(
         "--controller",
@@ -1451,10 +1495,22 @@ def main():
         action="store_true",
         help="Show system tray icon with live status (score, sync). Default OFF.",
     )
-    parser.add_argument("--agent-glass", action="store_true", help="Enable AgentGlass spectator API (glass D, localhost-only, default OFF)")
-    parser.add_argument("--no-agent-glass", action="store_true", help="Disable AgentGlass even if env enabled")
-    parser.add_argument("--agent-glass-token-file", default=None, help="AgentGlass token file (default .secrets/agent_glass.token)")
-    parser.add_argument("--agent-glass-no-frame", action="store_true", help="Disable AgentGlass frame endpoint")
+    parser.add_argument(
+        "--agent-glass",
+        action="store_true",
+        help="Enable AgentGlass spectator API (glass D, localhost-only, default OFF)",
+    )
+    parser.add_argument(
+        "--no-agent-glass", action="store_true", help="Disable AgentGlass even if env enabled"
+    )
+    parser.add_argument(
+        "--agent-glass-token-file",
+        default=None,
+        help="AgentGlass token file (default .secrets/agent_glass.token)",
+    )
+    parser.add_argument(
+        "--agent-glass-no-frame", action="store_true", help="Disable AgentGlass frame endpoint"
+    )
     parser.add_argument(
         "--profiles-list",
         action="store_true",
@@ -1598,6 +1654,7 @@ def main():
             object.__setattr__(config, "deck_port", int(getattr(args, "deck_port", 8765)))
             # force live capture stack
             from dataclasses import replace as _rep_play
+
             try:
                 config = _rep_play(config, enable_ws=True)
             except Exception:
@@ -1607,13 +1664,34 @@ def main():
                 object.__setattr__(config.outcome, "enabled", True)
             except Exception:
                 try:
-                    config = _rep_play(config, outcome=_rep_play(config.outcome, enabled=True, game_profile=getattr(args, "game_profile", config.outcome.game_profile)))
+                    config = _rep_play(
+                        config,
+                        outcome=_rep_play(
+                            config.outcome,
+                            enabled=True,
+                            game_profile=getattr(args, "game_profile", config.outcome.game_profile),
+                        ),
+                    )
                 except Exception:
                     pass
             # visual live — LOCAL ONNX/heuristic only, never mock/cloud fallback
             try:
-                _gp = getattr(args, "game_profile", None) or getattr(config.outcome, "game_profile", None)
-                config = _rep_play(config, visual=_rep_play(config.visual, enabled=True, prefer_local=True, local_fallback=True, frame_sample_rate=getattr(args, "visual_sample_rate", config.visual.frame_sample_rate), game_profile=_gp))
+                _gp = getattr(args, "game_profile", None) or getattr(
+                    config.outcome, "game_profile", None
+                )
+                config = _rep_play(
+                    config,
+                    visual=_rep_play(
+                        config.visual,
+                        enabled=True,
+                        prefer_local=True,
+                        local_fallback=True,
+                        frame_sample_rate=getattr(
+                            args, "visual_sample_rate", config.visual.frame_sample_rate
+                        ),
+                        game_profile=_gp,
+                    ),
+                )
             except Exception:
                 try:
                     object.__setattr__(config.visual, "enabled", True)
@@ -1704,7 +1782,9 @@ def main():
                                 poll_rate_hz=float(getattr(args, "controller_rate", 1000.0)),
                             ),
                         )
-                        log.info("play auto-enabled controller (DualSense detected): %s", _ctrls[:2])
+                        log.info(
+                            "play auto-enabled controller (DualSense detected): %s", _ctrls[:2]
+                        )
                 except Exception as _e:
                     log.debug("play controller auto-enable skipped: %s", _e)
             # mss desktop only when user explicitly asked (--screen). Desktop frames
@@ -1719,7 +1799,9 @@ def main():
                             fps_target=min(float(getattr(args, "screen_fps", 5.0) or 5.0), 6.0),
                         ),
                     )
-                    log.info("play also enabled --screen (mss monitor); visual still prefers streamer if both run")
+                    log.info(
+                        "play also enabled --screen (mss monitor); visual still prefers streamer if both run"
+                    )
                 except Exception:
                     try:
                         object.__setattr__(config.screen, "enabled", True)
@@ -1745,11 +1827,14 @@ def main():
                         or _os_tw.environ.get("QORESENCE_CLUTCHBOT_CHANNEL")
                         or ""
                     ).strip()
-                    _user = _user or (
-                        _os_tw.environ.get("QORESENCE_TWITCH_BOT_USERNAME")
-                        or _os_tw.environ.get("QORESENCE_CLUTCHBOT_USERNAME")
-                        or _ch
-                    ).strip()
+                    _user = (
+                        _user
+                        or (
+                            _os_tw.environ.get("QORESENCE_TWITCH_BOT_USERNAME")
+                            or _os_tw.environ.get("QORESENCE_CLUTCHBOT_USERNAME")
+                            or _ch
+                        ).strip()
+                    )
                     _tok = _tok or _os_tw.environ.get("QORESENCE_TWITCH_OAUTH_TOKEN")
                     _tok_file = _tok_file or _os_tw.environ.get("QORESENCE_TWITCH_TOKEN_FILE")
                 _tw_ok = bool(_ch and (_user or _ch) and (_tok or _tok_file))
@@ -1770,7 +1855,9 @@ def main():
                     message_interval_s=float(getattr(args, "clutchbot_interval", 2.0) or 2.0),
                     enable_clips=bool(getattr(args, "clutchbot_enable_clips", False)),
                     enable_predictions=bool(getattr(args, "clutchbot_enable_predictions", False)),
-                    enable_follow_alerts=bool(getattr(args, "clutchbot_enable_follow_alerts", False)),
+                    enable_follow_alerts=bool(
+                        getattr(args, "clutchbot_enable_follow_alerts", False)
+                    ),
                     enable_sub_alerts=bool(getattr(args, "clutchbot_enable_sub_alerts", False)),
                     enable_redemption_alerts=bool(
                         getattr(args, "clutchbot_enable_redemption_alerts", False)
@@ -1791,7 +1878,8 @@ def main():
                         deck_enabled=True,
                         deck_host=getattr(args, "deck_host", "127.0.0.1"),
                         deck_port=int(getattr(args, "deck_port", 8765) or 8765),
-                        llm_enabled=_llm_on or bool(getattr(config.clutchbot, "llm_enabled", False)),
+                        llm_enabled=_llm_on
+                        or bool(getattr(config.clutchbot, "llm_enabled", False)),
                         llm_api_key_file=(
                             getattr(config.clutchbot, "llm_api_key_file", None)
                             or (_llm_key if _P_play(_llm_key).exists() else None)

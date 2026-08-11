@@ -39,17 +39,12 @@ from __future__ import annotations
 import json
 import logging
 import math
-import os
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from qoresence.a2a.router import (
-    RouterDecision,
-    evaluate_must_fire,
-    get_predicates_for_category,
-)
+from qoresence.a2a.router import evaluate_must_fire
 
 log = logging.getLogger(__name__)
 
@@ -119,10 +114,21 @@ class FeatureExtractor:
 
         is_pressure = 1.0 if drive_phase == "pressure" else 0.0
         is_armed = 1.0 if drive_phase == "armed" else 0.0
-        is_big_play = 1.0 if last_event in {
-            "touchdown", "field_goal", "safety", "turnover", "score_changed",
-            "two_point_conversion", "red_zone_entry", "two_minute_warning",
-        } else 0.0
+        is_big_play = (
+            1.0
+            if last_event
+            in {
+                "touchdown",
+                "field_goal",
+                "safety",
+                "turnover",
+                "score_changed",
+                "two_point_conversion",
+                "red_zone_entry",
+                "two_minute_warning",
+            }
+            else 0.0
+        )
 
         # Time since last evidence chain
         now = time.time()
@@ -185,7 +191,7 @@ class UtilityModel:
         confidence: 0..1, based on number of training samples
         """
         z = self.bias
-        for w, f in zip(self.weights, features):
+        for w, f in zip(self.weights, features, strict=False):
             z += w * f
         utility = 1.0 / (1.0 + math.exp(-z))
         # Confidence grows with samples, capped at 0.9
@@ -221,9 +227,9 @@ class UtilityModel:
             grad_b = 0.0
             total_loss = 0.0
 
-            for features, label in zip(features_list, labels):
+            for features, label in zip(features_list, labels, strict=False):
                 z = self.bias
-                for w, f in zip(self.weights, features):
+                for w, f in zip(self.weights, features, strict=False):
                     z += w * f
                 pred = 1.0 / (1.0 + math.exp(-max(-20, min(20, z))))
                 # Label: +1 → target=1, -1 → target=0, 0 → target=0.5
@@ -458,7 +464,9 @@ class LearnedRouter:
                 "visual_confidence": ec.get("confidence"),
                 "coupling": ec.get("coupling_score"),
                 "drive_phase": ec.get("drive_phase"),
-                "last_outcome_event": (ec.get("cited_events") or [{}])[0].get("event_name") if ec.get("cited_events") else None,
+                "last_outcome_event": (ec.get("cited_events") or [{}])[0].get("event_name")
+                if ec.get("cited_events")
+                else None,
                 "game_state": "gameplay",
                 "game_category": "football",  # inferred from cited fields
             }

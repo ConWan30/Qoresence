@@ -10,14 +10,11 @@ from qoresence.core.unified_config import (
     APEX_LEGENDS_PROFILE,
     CALL_OF_DUTY_PROFILE,
     FORTNITE_PROFILE,
-    GAME_PROFILE_ALIASES,
     GAME_PROFILE_REGISTRY,
-    GameProfileId,
-    NCAA_FOOTBALL_27_PROFILE,
     VALORANT_PROFILE,
+    GameProfileId,
     normalize_game_profile,
 )
-
 
 # ── Profile registration ─────────────────────────────────────────────────────
 
@@ -45,8 +42,13 @@ def test_fortnite_profile_registered():
 
 def test_all_profiles_in_registry():
     assert len(GAME_PROFILE_REGISTRY) >= 5
-    for pid in (GameProfileId.NCAA_FOOTBALL_27, GameProfileId.CALL_OF_DUTY,
-                GameProfileId.VALORANT, GameProfileId.APEX_LEGENDS, GameProfileId.FORTNITE):
+    for pid in (
+        GameProfileId.NCAA_FOOTBALL_27,
+        GameProfileId.CALL_OF_DUTY,
+        GameProfileId.VALORANT,
+        GameProfileId.APEX_LEGENDS,
+        GameProfileId.FORTNITE,
+    ):
         assert pid in GAME_PROFILE_REGISTRY
 
 

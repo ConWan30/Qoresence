@@ -6,7 +6,7 @@ import json
 import time
 from pathlib import Path
 
-from qoresence.agents.session_timeline import SessionTimeline, reset_session_timeline
+from qoresence.agents.session_timeline import reset_session_timeline
 from qoresence.vision.clip_chapters import (
     build_chapters_for_window,
     chapters_after_export,
@@ -17,18 +17,30 @@ from qoresence.vision.clip_chapters import (
 def test_chapters_ordered_by_t_s():
     end = time.monotonic_ns()
     events = [
-        type("E", (), {"to_dict": lambda self: {
-            "clock_ns": end - int(2e9),
-            "kind": "fast_chat",
-            "message": "late",
-            "path": "fast",
-        }})(),
-        type("E", (), {"to_dict": lambda self: {
-            "clock_ns": end - int(4e9),
-            "kind": "arm",
-            "message": "early",
-            "path": "fast",
-        }})(),
+        type(
+            "E",
+            (),
+            {
+                "to_dict": lambda self: {
+                    "clock_ns": end - int(2e9),
+                    "kind": "fast_chat",
+                    "message": "late",
+                    "path": "fast",
+                }
+            },
+        )(),
+        type(
+            "E",
+            (),
+            {
+                "to_dict": lambda self: {
+                    "clock_ns": end - int(4e9),
+                    "kind": "arm",
+                    "message": "early",
+                    "path": "fast",
+                }
+            },
+        )(),
     ]
     # Fix lambdas - use simple dicts instead
     events = [

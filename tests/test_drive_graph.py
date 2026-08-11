@@ -65,10 +65,7 @@ def test_match_fast_confirm_pairs():
 
 
 def test_ranked_chapter_nodes_sorted_limited():
-    events = [
-        _ev(i * 1000, "fast_chat", "fast", f"e{i}", 0.5)
-        for i in range(12)
-    ]
+    events = [_ev(i * 1000, "fast_chat", "fast", f"e{i}", 0.5) for i in range(12)]
     events.append(_ev(50_000, "prediction_resolve", "confirm", "end"))
     g = DriveGraph.from_events("c", events)
     ranked = g.ranked_chapter_nodes(k=5)
@@ -105,7 +102,6 @@ def test_from_timeline_drive_and_active_helper():
     assert g is not None
     assert g.phase() in ("resolved", "active", "armed")
     # active is closed; helper uses last drive
-    from qoresence.agents.session_timeline import get_session_timeline
 
     # bind singleton for helper
     import qoresence.agents.session_timeline as st

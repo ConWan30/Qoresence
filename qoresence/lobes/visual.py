@@ -1,4 +1,4 @@
-﻿"""
+"""
 Qoresence Visual Lobe
 
 VLM integration for game-state classification and cross-modal verification.
@@ -68,8 +68,9 @@ class VLMClient:
         # Resolve Quicksilver key if not set on config
         if not self.api_key:
             try:
-                from qoresence.agents.llm_client import _resolve_api_key
                 import pathlib
+
+                from qoresence.agents.llm_client import _resolve_api_key
 
                 key_file = None
                 for p in (
@@ -140,7 +141,9 @@ class VLMClient:
             log.warning(f"VLM request failed: {e}")
             return None
 
-    def analyze_frame(self, frame: np.ndarray, prompt: str, game_profile=None) -> VisualContext | None:
+    def analyze_frame(
+        self, frame: np.ndarray, prompt: str, game_profile=None
+    ) -> VisualContext | None:
         """Send frame to VLM for analysis and parse into VisualContext."""
         start = time.perf_counter()
 
@@ -504,7 +507,9 @@ class VisualRuntime:
         """Analyze single frame with VLM."""
         # 1. Game state classification
         context = self._client.analyze_frame(
-            frame, self._classify_prompt, game_profile=self.config.game_profile or self.config.game_category
+            frame,
+            self._classify_prompt,
+            game_profile=self.config.game_profile or self.config.game_category,
         )
         if context and context.confidence >= self.config.min_confidence:
             self._last_context = context
@@ -639,7 +644,9 @@ class MockVLMClient:
     def __init__(self, config: VisualConfig):
         self.config = config
 
-    def analyze_frame(self, frame: np.ndarray, prompt: str, game_profile=None) -> VisualContext | None:
+    def analyze_frame(
+        self, frame: np.ndarray, prompt: str, game_profile=None
+    ) -> VisualContext | None:
         # Simple heuristic based on frame content
         h, w = frame.shape[:2]
         mean_brightness = np.mean(frame) / 255.0

@@ -7,18 +7,14 @@ import tempfile
 import time
 from pathlib import Path
 
-import pytest
-
 from qoresence.a2a.orchestrator import A2AOrchestrator, reset_a2a_orchestrator
 from qoresence.a2a.tools import (
-    MAX_TOOL_DEPTH,
     ToolDef,
     ToolRegistry,
     create_default_registry,
     make_query_memory_tool,
     make_zoom_redetect_tool,
 )
-
 
 # ── ToolRegistry basics ──────────────────────────────────────────────────────
 
@@ -45,18 +41,22 @@ def test_registry_register_and_get():
 def test_registry_list_tools():
     """list_tools should return tool definitions without handlers."""
     reg = ToolRegistry()
-    reg.register(ToolDef(
-        name="tool_a",
-        description="Tool A",
-        parameters={"type": "object"},
-        handler=lambda **kw: {"a": 1},
-    ))
-    reg.register(ToolDef(
-        name="tool_b",
-        description="Tool B",
-        parameters={"type": "object"},
-        handler=lambda **kw: {"b": 2},
-    ))
+    reg.register(
+        ToolDef(
+            name="tool_a",
+            description="Tool A",
+            parameters={"type": "object"},
+            handler=lambda **kw: {"a": 1},
+        )
+    )
+    reg.register(
+        ToolDef(
+            name="tool_b",
+            description="Tool B",
+            parameters={"type": "object"},
+            handler=lambda **kw: {"b": 2},
+        )
+    )
 
     tools = reg.list_tools()
     assert len(tools) == 2
@@ -74,12 +74,17 @@ def test_registry_call_executes_handler():
     def handler(x: int = 0, y: int = 0):
         return {"sum": x + y}
 
-    reg.register(ToolDef(
-        name="add",
-        description="Add two numbers",
-        parameters={"type": "object", "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}}},
-        handler=handler,
-    ))
+    reg.register(
+        ToolDef(
+            name="add",
+            description="Add two numbers",
+            parameters={
+                "type": "object",
+                "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}},
+            },
+            handler=handler,
+        )
+    )
 
     result = reg.call("add", x=3, y=4)
     assert result == {"sum": 7}
@@ -97,12 +102,14 @@ def test_registry_call_unknown_tool():
 def test_registry_depth_bound():
     """Tool calls should be limited by MAX_TOOL_DEPTH."""
     reg = ToolRegistry(max_depth=2)
-    reg.register(ToolDef(
-        name="echo",
-        description="Echo",
-        parameters={"type": "object"},
-        handler=lambda **kw: {"ok": True},
-    ))
+    reg.register(
+        ToolDef(
+            name="echo",
+            description="Echo",
+            parameters={"type": "object"},
+            handler=lambda **kw: {"ok": True},
+        )
+    )
 
     assert reg.call("echo") == {"ok": True}
     assert reg.call("echo") == {"ok": True}
@@ -115,12 +122,14 @@ def test_registry_depth_bound():
 def test_registry_reset_depth():
     """reset_depth should allow new calls after a cycle."""
     reg = ToolRegistry(max_depth=1)
-    reg.register(ToolDef(
-        name="echo",
-        description="Echo",
-        parameters={"type": "object"},
-        handler=lambda **kw: {"ok": True},
-    ))
+    reg.register(
+        ToolDef(
+            name="echo",
+            description="Echo",
+            parameters={"type": "object"},
+            handler=lambda **kw: {"ok": True},
+        )
+    )
 
     reg.call("echo")
     assert reg.call("echo")["error"] == "depth_bound_exceeded"
@@ -136,12 +145,14 @@ def test_registry_handler_exception_returns_error():
     def bad_handler(**kw):
         raise ValueError("boom")
 
-    reg.register(ToolDef(
-        name="bad",
-        description="Bad tool",
-        parameters={"type": "object"},
-        handler=bad_handler,
-    ))
+    reg.register(
+        ToolDef(
+            name="bad",
+            description="Bad tool",
+            parameters={"type": "object"},
+            handler=bad_handler,
+        )
+    )
 
     result = reg.call("bad")
     assert result["error"] == "tool_execution_failed"
@@ -158,12 +169,27 @@ def test_query_memory_searches_jsonl():
         # Write some test events
         now = time.time()
         events = [
-            {"type": "outcome_event", "clock_ns": 1, "ts_ns": int(now * 1e9),
-             "source_lobe": "outcome", "payload": {"event_name": "touchdown", "side": "home"}},
-            {"type": "outcome_event", "clock_ns": 2, "ts_ns": int(now * 1e9),
-             "source_lobe": "outcome", "payload": {"event_name": "field_goal", "side": "away"}},
-            {"type": "visual_context", "clock_ns": 3, "ts_ns": int(now * 1e9),
-             "source_lobe": "visual", "payload": {"game_state": "gameplay"}},
+            {
+                "type": "outcome_event",
+                "clock_ns": 1,
+                "ts_ns": int(now * 1e9),
+                "source_lobe": "outcome",
+                "payload": {"event_name": "touchdown", "side": "home"},
+            },
+            {
+                "type": "outcome_event",
+                "clock_ns": 2,
+                "ts_ns": int(now * 1e9),
+                "source_lobe": "outcome",
+                "payload": {"event_name": "field_goal", "side": "away"},
+            },
+            {
+                "type": "visual_context",
+                "clock_ns": 3,
+                "ts_ns": int(now * 1e9),
+                "source_lobe": "visual",
+                "payload": {"game_state": "gameplay"},
+            },
         ]
         with open(jsonl_path, "w", encoding="utf-8") as f:
             for ev in events:
@@ -182,10 +208,20 @@ def test_query_memory_filter_by_event_name():
         jsonl_path = Path(td) / "events.jsonl"
         now = time.time()
         events = [
-            {"type": "outcome_event", "clock_ns": 1, "ts_ns": int(now * 1e9),
-             "source_lobe": "outcome", "payload": {"event_name": "touchdown"}},
-            {"type": "outcome_event", "clock_ns": 2, "ts_ns": int(now * 1e9),
-             "source_lobe": "outcome", "payload": {"event_name": "field_goal"}},
+            {
+                "type": "outcome_event",
+                "clock_ns": 1,
+                "ts_ns": int(now * 1e9),
+                "source_lobe": "outcome",
+                "payload": {"event_name": "touchdown"},
+            },
+            {
+                "type": "outcome_event",
+                "clock_ns": 2,
+                "ts_ns": int(now * 1e9),
+                "source_lobe": "outcome",
+                "payload": {"event_name": "field_goal"},
+            },
         ]
         with open(jsonl_path, "w", encoding="utf-8") as f:
             for ev in events:
@@ -208,10 +244,20 @@ def test_query_memory_time_filter():
         # Recent event (1 second ago)
         new_ts = int((now - 1) * 1e9)
         events = [
-            {"type": "outcome_event", "clock_ns": 1, "ts_ns": old_ts,
-             "source_lobe": "outcome", "payload": {"event_name": "old"}},
-            {"type": "outcome_event", "clock_ns": 2, "ts_ns": new_ts,
-             "source_lobe": "outcome", "payload": {"event_name": "recent"}},
+            {
+                "type": "outcome_event",
+                "clock_ns": 1,
+                "ts_ns": old_ts,
+                "source_lobe": "outcome",
+                "payload": {"event_name": "old"},
+            },
+            {
+                "type": "outcome_event",
+                "clock_ns": 2,
+                "ts_ns": new_ts,
+                "source_lobe": "outcome",
+                "payload": {"event_name": "recent"},
+            },
         ]
         with open(jsonl_path, "w", encoding="utf-8") as f:
             for ev in events:
@@ -239,12 +285,18 @@ def test_query_memory_limit():
         now = time.time()
         with open(jsonl_path, "w", encoding="utf-8") as f:
             for i in range(50):
-                f.write(json.dumps({
-                    "type": "outcome_event", "clock_ns": i,
-                    "ts_ns": int(now * 1e9),
-                    "source_lobe": "outcome",
-                    "payload": {"event_name": f"event_{i}"},
-                }) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "type": "outcome_event",
+                            "clock_ns": i,
+                            "ts_ns": int(now * 1e9),
+                            "source_lobe": "outcome",
+                            "payload": {"event_name": f"event_{i}"},
+                        }
+                    )
+                    + "\n"
+                )
 
         tool = make_query_memory_tool(jsonl_path)
         result = tool.handler(event_type="outcome_event", limit=5)
@@ -256,6 +308,7 @@ def test_query_memory_limit():
 
 def test_zoom_redetect_with_callback():
     """zoom-redetect should call the provided callback."""
+
     def callback(region: str, vocabulary: list[str]) -> dict:
         return {"detections": [{"class": "scoreboard", "confidence": 0.95}]}
 
@@ -279,6 +332,7 @@ def test_zoom_redetect_no_callback():
 
 def test_zoom_redetect_callback_exception():
     """zoom-redetect should handle callback exceptions gracefully."""
+
     def bad_callback(region: str, vocabulary: list[str]) -> dict:
         raise RuntimeError("visual lobe offline")
 
@@ -349,12 +403,18 @@ def test_orchestrator_query_memory_with_jsonl():
         # Write a test event
         now = time.time()
         with open(jsonl_path, "w", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "type": "outcome_event", "clock_ns": 1,
-                "ts_ns": int(now * 1e9),
-                "source_lobe": "outcome",
-                "payload": {"event_name": "touchdown"},
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "type": "outcome_event",
+                        "clock_ns": 1,
+                        "ts_ns": int(now * 1e9),
+                        "source_lobe": "outcome",
+                        "payload": {"event_name": "touchdown"},
+                    }
+                )
+                + "\n"
+            )
 
         orch = A2AOrchestrator(enabled=True, min_interval_s=0.0, jsonl_path=str(jsonl_path))
         result = orch.tools.call("query-memory", event_type="outcome_event")

@@ -18,22 +18,21 @@ from qoresence.a2a.bus import A2ABus
 from qoresence.a2a.deepseek_agent import DeepSeekChatAgent
 from qoresence.a2a.gemini_agent import GeminiSceneAgent
 from qoresence.a2a.policy import A2APolicy
+from qoresence.a2a.router import (
+    build_router_decision,
+    evaluate_must_fire,
+)
+from qoresence.a2a.tools import ToolRegistry, create_default_registry
 from qoresence.a2a.types import (
     A2AMessage,
     ChatProposal,
     CommitAct,
-    EvidenceChain,
     EventRef,
+    EvidenceChain,
     FieldProvenance,
     SceneProposal,
     Veto,
 )
-from qoresence.a2a.router import (
-    build_router_decision,
-    evaluate_must_fire,
-    get_predicates_for_category,
-)
-from qoresence.a2a.tools import ToolRegistry, create_default_registry
 
 log = logging.getLogger(__name__)
 
@@ -190,18 +189,22 @@ class A2AOrchestrator:
                 return
             if reason == "coupling" and not coup_ok:
                 return
-            if reason in {
-                "score_changed",
-                "touchdown",
-                "field_goal",
-                "safety",
-                "two_point_conversion",
-                "turnover",
-                "red_zone_entry",
-                "two_minute_warning",
-                "menu_exit",
-                "scene_tick",
-            } and not is_football:
+            if (
+                reason
+                in {
+                    "score_changed",
+                    "touchdown",
+                    "field_goal",
+                    "safety",
+                    "two_point_conversion",
+                    "turnover",
+                    "red_zone_entry",
+                    "two_minute_warning",
+                    "menu_exit",
+                    "scene_tick",
+                }
+                and not is_football
+            ):
                 return
 
         # Trio P2: Evaluate must-fire predicates early so ambient gating can use them.
@@ -249,16 +252,22 @@ class A2AOrchestrator:
                 if self._inflight:
                     # Suppressed by in-flight
                     decision = build_router_decision(
-                        fired=False, reason=reason, situation=sit,
+                        fired=False,
+                        reason=reason,
+                        situation=sit,
                         must_fire_hit=must_fire_pred,
-                        interval_s=interval, last_trigger_age_s=last_age,
+                        interval_s=interval,
+                        last_trigger_age_s=last_age,
                     )
                 elif not force and not must_fire and (now - self._last_trigger) < interval:
                     # Suppressed by interval
                     decision = build_router_decision(
-                        fired=False, reason=reason, situation=sit,
+                        fired=False,
+                        reason=reason,
+                        situation=sit,
                         must_fire_hit=None,
-                        interval_s=interval, last_trigger_age_s=last_age,
+                        interval_s=interval,
+                        last_trigger_age_s=last_age,
                     )
                 else:
                     self._inflight = True
@@ -266,9 +275,12 @@ class A2AOrchestrator:
                     self._last_reason = reason
                     fired = True
                     decision = build_router_decision(
-                        fired=True, reason=reason, situation=sit,
+                        fired=True,
+                        reason=reason,
+                        situation=sit,
                         must_fire_hit=must_fire_pred,
-                        interval_s=interval, last_trigger_age_s=last_age,
+                        interval_s=interval,
+                        last_trigger_age_s=last_age,
                     )
 
             # Emit OUTSIDE the lock — subscribers run synchronously on this thread.
@@ -277,7 +289,13 @@ class A2AOrchestrator:
             if not fired:
                 return
 
-            log.info("A2A trigger reason=%s interval=%.0fs path=%s must_fire=%s", reason, interval, path, must_fire_pred or "-")
+            log.info(
+                "A2A trigger reason=%s interval=%.0fs path=%s must_fire=%s",
+                reason,
+                interval,
+                path,
+                must_fire_pred or "-",
+            )
         finally:
             self._tls.in_trigger = False
 
@@ -354,7 +372,9 @@ class A2AOrchestrator:
         # Post-hoc menu guard: the visual classifier may say "gameplay" while
         # the Gemini agent can see a menu/pause/archive screen in the JPEG.
         # Veto before DeepSeek wastes a call and before chat reaches the feed.
-        if reason not in {"menu_exit", "force", "score_changed"} and _scene_looks_like_menu(scene.summary):
+        if reason not in {"menu_exit", "force", "score_changed"} and _scene_looks_like_menu(
+            scene.summary
+        ):
             veto = Veto(
                 reason="menu screen detected in scene summary",
                 rejected_text=(scene.summary or "")[:120],
@@ -379,7 +399,9 @@ class A2AOrchestrator:
 
         # Near-duplicate vs recent commits (policy also de-dupes last text)
         if self._is_near_duplicate(chat.text):
-            veto = Veto(reason="near-duplicate recent A2A chat", rejected_text=(chat.text or "")[:120])
+            veto = Veto(
+                reason="near-duplicate recent A2A chat", rejected_text=(chat.text or "")[:120]
+            )
             self.policy.recent_vetos.append(veto.reason)
             self.bus.publish(
                 A2AMessage(kind="veto", body=veto.to_dict(), from_agent="policy", to_agent="*")
@@ -476,61 +498,78 @@ class A2AOrchestrator:
         # Cite the last outcome event if present in situation
         last_event = sit.get("last_outcome_event")
         if last_event:
-            cited_events.append(EventRef(
-                event_type="outcome_event",
-                clock_ns=time.monotonic_ns(),
-                source_lobe="outcome",
-                event_name=str(last_event),
-                summary=f"Last outcome: {last_event}",
-            ))
+            cited_events.append(
+                EventRef(
+                    event_type="outcome_event",
+                    clock_ns=time.monotonic_ns(),
+                    source_lobe="outcome",
+                    event_name=str(last_event),
+                    summary=f"Last outcome: {last_event}",
+                )
+            )
 
         # Cite key football fields from the situation
-        for fname in ("home_score", "away_score", "quarter", "down",
-                       "field_position", "possession", "game_clock_seconds"):
+        for fname in (
+            "home_score",
+            "away_score",
+            "quarter",
+            "down",
+            "field_position",
+            "possession",
+            "game_clock_seconds",
+        ):
             val = sit.get(fname)
             if val is not None:
-                cited_fields.append(FieldProvenance(
-                    field_name=fname,
-                    value=val,
-                    source="vlm",
-                    confidence=float(sit.get("visual_confidence") or 0.0),
-                ))
+                cited_fields.append(
+                    FieldProvenance(
+                        field_name=fname,
+                        value=val,
+                        source="vlm",
+                        confidence=float(sit.get("visual_confidence") or 0.0),
+                    )
+                )
 
         # Cite key shooter fields
         for fname in ("kills", "deaths", "score", "health", "ammo"):
             val = sit.get(fname)
             if val is not None:
-                cited_fields.append(FieldProvenance(
-                    field_name=fname,
-                    value=val,
-                    source="vlm",
-                    confidence=float(sit.get("visual_confidence") or 0.0),
-                ))
+                cited_fields.append(
+                    FieldProvenance(
+                        field_name=fname,
+                        value=val,
+                        source="vlm",
+                        confidence=float(sit.get("visual_confidence") or 0.0),
+                    )
+                )
 
         # Cite controller signals
         apm = sit.get("controller_apm")
         if apm is not None:
-            cited_fields.append(FieldProvenance(
-                field_name="controller_apm",
-                value=apm,
-                source="controller",
-                confidence=1.0,
-            ))
+            cited_fields.append(
+                FieldProvenance(
+                    field_name="controller_apm",
+                    value=apm,
+                    source="controller",
+                    confidence=1.0,
+                )
+            )
 
         # Cite presence sync
         presence = sit.get("presence_sync_ok")
         if presence is not None:
-            cited_fields.append(FieldProvenance(
-                field_name="presence_sync_ok",
-                value=presence,
-                source="fusion",
-                confidence=1.0,
-            ))
+            cited_fields.append(
+                FieldProvenance(
+                    field_name="presence_sync_ok",
+                    value=presence,
+                    source="fusion",
+                    confidence=1.0,
+                )
+            )
 
         # Overall confidence: blend visual confidence and scene tension
         vis_conf = float(sit.get("visual_confidence") or 0.0)
         tension = float(getattr(scene, "tension", 0.5) or 0.5)
-        overall = (vis_conf * 0.6 + tension * 0.4)
+        overall = vis_conf * 0.6 + tension * 0.4
 
         return EvidenceChain(
             cited_events=cited_events,
@@ -608,6 +647,7 @@ def get_a2a_orchestrator(**kwargs: Any) -> A2AOrchestrator:
             # Rebuild tool registry if jsonl_path is provided and tools are missing
             if "jsonl_path" in kwargs and kwargs["jsonl_path"]:
                 from qoresence.a2a.tools import create_default_registry
+
                 _orch.tools = create_default_registry(
                     jsonl_path=kwargs["jsonl_path"],
                     zoom_callback=kwargs.get("zoom_callback"),

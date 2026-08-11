@@ -216,7 +216,7 @@ def run_monitor(
             key = cv2.waitKey(max(1, int(interval * 1000))) & 0xFF
             if key == 27:  # Esc
                 break
-            if key in (ord('p'), ord('P')):
+            if key in (ord("p"), ord("P")):
                 current_preset = _next_preset(current_preset)
                 log.info("Monitor HUD preset → %s", current_preset)
             # Detect user closed window (best-effort; some OpenCV builds differ)

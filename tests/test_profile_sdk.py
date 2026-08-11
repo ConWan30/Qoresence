@@ -10,7 +10,6 @@ import pytest
 from qoresence.core.unified_config import (
     GAME_PROFILE_ALIASES,
     GAME_PROFILE_REGISTRY,
-    GameProfileId,
 )
 
 

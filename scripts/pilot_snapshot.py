@@ -4,10 +4,9 @@
 from __future__ import annotations
 
 import json
-import sys
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -28,7 +27,7 @@ def _get(path: str, timeout: float = 3.0) -> dict | None:
 
 def main() -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     out: dict = {
         "captured_at": ts,
         "base": BASE,

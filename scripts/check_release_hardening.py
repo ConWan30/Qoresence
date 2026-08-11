@@ -67,7 +67,9 @@ def main() -> int:
             fail(f"missing {rel}")
 
     # 4. gitignore essentials
-    gi = (ROOT / ".gitignore").read_text(encoding="utf-8") if (ROOT / ".gitignore").is_file() else ""
+    gi = (
+        (ROOT / ".gitignore").read_text(encoding="utf-8") if (ROOT / ".gitignore").is_file() else ""
+    )
     for token in (".env", "logs/", "clips/", ".secrets"):
         if token in gi:
             ok(f"gitignore has {token}")

@@ -26,10 +26,10 @@ from qoresence.core import (
 
 from .action_executor import ActionExecutor, Backend
 from .eventsub_client import TwitchEventSubClient
+from .fast_moment import FastMomentEngine
 from .helix_client import TwitchHelixClient
 from .learning_loop import LearningLogger
 from .llm_client import LLMConfig, QuicksilverLLMClient
-from .fast_moment import FastMomentEngine
 from .moment_scorer import MomentScorer, ScoredMoment
 from .prediction_lifecycle import PredictionLifecycleManager, get_prediction_lifecycle
 from .session_memory import SessionMemory
@@ -240,7 +240,9 @@ class ClutchBotAgent:
         try:
             cval = float((coupling or {}).get("coupling") or 0.0)
             pressure = self._still_pressure_context()
-            self._pred_life.tick(coupling=cval, still_pressure_context=pressure, clock_ns=event.clock_ns)
+            self._pred_life.tick(
+                coupling=cval, still_pressure_context=pressure, clock_ns=event.clock_ns
+            )
             if (
                 "prediction" in self._features
                 and self._pred_life.state.value == "armed"
@@ -255,9 +257,10 @@ class ClutchBotAgent:
                     if g is not None and g.nodes:
                         ph = g.phase()
                         cl = g.climax_score()
-                        allow_open = ph in ("armed", "pressure", "open", "active") and float(
-                            cl.get("score") or 0
-                        ) >= 0.25
+                        allow_open = (
+                            ph in ("armed", "pressure", "open", "active")
+                            and float(cl.get("score") or 0) >= 0.25
+                        )
                 except Exception:
                     allow_open = True
                 if allow_open:
@@ -293,7 +296,6 @@ class ClutchBotAgent:
                 self._fast.on_confirm_score()
                 try:
                     win = 0
-                    fields = event.payload.get("fields") or {}
                     # Heuristic: home increased → Yes(0) often "they scored" if home possession
                     self._pred_life.resolve(
                         int(win),
@@ -430,7 +432,9 @@ class ClutchBotAgent:
                 try:
                     pl = moment.payload if isinstance(moment.payload, dict) else {}
                     win = int(pl.get("winning_outcome_index", 0) or 0)
-                    self._pred_life.resolve(win, clock_ns=event.clock_ns, reason=moment.reason or "resolve")
+                    self._pred_life.resolve(
+                        win, clock_ns=event.clock_ns, reason=moment.reason or "resolve"
+                    )
                     self._fast.on_confirm_score()
                 except Exception as e:
                     log.debug("pred resolve from scorer: %s", e)
@@ -503,17 +507,18 @@ class ClutchBotAgent:
                         **(getattr(act, "payload", None) or {}),
                     },
                 )
+
                 # Minimal synthetic event for dispatch
                 class _E:
                     type = type("T", (), {"value": "a2a_commit"})()
                     clock_ns = clock_ns()
                     payload = {}
 
-                self._dispatch_moments([moment], _E(), path_label=str(moment.payload.get("path") or "fast"))
+                self._dispatch_moments(
+                    [moment], _E(), path_label=str(moment.payload.get("path") or "fast")
+                )
             except Exception as e:
                 log.warning("A2A commit dispatch failed: %s", e)
-
-        from qoresence.a2a.orchestrator import get_a2a_orchestrator
 
         # Pass JSONL path so query-memory tool can access the event log
         _jsonl = str(self.bus.jsonl_path) if getattr(self.bus, "jsonl_path", None) else None
@@ -599,9 +604,7 @@ class ClutchBotAgent:
 
                     fr = get_latest()
                     if fr is not None:
-                        get_scoreboard_vlm().schedule(
-                            fr, force=True, reason=reason, game_state=gst
-                        )
+                        get_scoreboard_vlm().schedule(fr, force=True, reason=reason, game_state=gst)
                 except Exception:
                     pass
 
@@ -712,9 +715,7 @@ class ClutchBotAgent:
         self._pred_life.open_callback = _open
         self._pred_life.resolve_callback = _resolve
 
-    def _record_timeline(
-        self, moment: ScoredMoment, *, path_label: str, event: BaseEvent
-    ) -> None:
+    def _record_timeline(self, moment: ScoredMoment, *, path_label: str, event: BaseEvent) -> None:
         """Append executed moment to SessionTimeline (shared causal log)."""
         try:
             from qoresence.agents.session_timeline import get_session_timeline
@@ -757,7 +758,11 @@ class ClutchBotAgent:
                 coupling=pl.get("coupling"),
                 buttons=list(pl.get("buttons") or [])[:8],
                 factual=bool(factual) if factual is not None else None,
-                payload={"action": moment.action, "weight": moment.weight, **{k: v for k, v in pl.items() if k not in ("buttons",)}},
+                payload={
+                    "action": moment.action,
+                    "weight": moment.weight,
+                    **{k: v for k, v in pl.items() if k not in ("buttons",)},
+                },
                 clock_ns=getattr(event, "clock_ns", None),
                 open_drive=bool(open_drive and kind in ("arm", "fast_chat", "fast_clip")),
                 close_drive=bool(close_drive),
@@ -994,8 +999,8 @@ class _LocalHdmiClipBackend:
         if action != "clip":
             return False
         try:
-            from qoresence.vision.clip_buffer import export_clip
             from qoresence.deck.server import push_moment as _deck_push
+            from qoresence.vision.clip_buffer import export_clip
 
             seconds = None
             inner = payload.get("payload") or {}
@@ -1079,12 +1084,7 @@ class _DeckFeedBackend:
         inner = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
         path = (inner or {}).get("path") or payload.get("path") or ""
         factual = (inner or {}).get("factual")
-        title = (
-            payload.get("message")
-            or (inner or {}).get("title")
-            or action
-            or "CLUTCH"
-        )
+        title = payload.get("message") or (inner or {}).get("title") or action or "CLUTCH"
         reason = payload.get("reason") or action or ""
         if path:
             reason = f"[{path}] {reason}"

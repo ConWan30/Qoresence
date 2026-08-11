@@ -8,15 +8,14 @@ Supports climax score, fast↔confirm matching, chapter ranking.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
-from typing import Any, Iterable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
 # Kind families
-_FAST_KINDS = frozenset(
-    {"fast_chat", "fast_clip", "arm", "prediction_open"}
-)
+_FAST_KINDS = frozenset({"fast_chat", "fast_clip", "arm", "prediction_open"})
 _CONFIRM_KINDS = frozenset(
     {"confirm_chat", "confirm_clip", "confirm_score", "prediction_resolve", "confirm"}
 )
@@ -122,7 +121,7 @@ class DriveGraph:
         *,
         started_ns: int | None = None,
         ended_ns: int | None = None,
-    ) -> "DriveGraph":
+    ) -> DriveGraph:
         nodes: list[GraphNode] = []
         for i, ev in enumerate(events or []):
             d = _as_event_dict(ev)
@@ -143,7 +142,9 @@ class DriveGraph:
                     frame_seq=d.get("frame_seq"),
                     coupling=_opt_float(d.get("coupling")),
                     factual=d.get("factual"),
-                    payload=dict(d.get("payload") or {}) if isinstance(d.get("payload"), dict) else {},
+                    payload=dict(d.get("payload") or {})
+                    if isinstance(d.get("payload"), dict)
+                    else {},
                 )
             )
         nodes.sort(key=lambda n: n.clock_ns)
@@ -158,7 +159,7 @@ class DriveGraph:
         return g
 
     @classmethod
-    def from_timeline_drive(cls, timeline: Any, drive: Any) -> "DriveGraph | None":
+    def from_timeline_drive(cls, timeline: Any, drive: Any) -> DriveGraph | None:
         """Build graph from SessionTimeline + DriveSegment (or dict)."""
         if timeline is None or drive is None:
             return None
@@ -186,8 +187,10 @@ class DriveGraph:
                     if 0 <= int(idx) < len(all_ev):
                         events.append(all_ev[int(idx)])
             if not events and started is not None:
-                t1 = int(ended) if ended is not None else (
-                    all_ev[-1].clock_ns if all_ev else int(started)
+                t1 = (
+                    int(ended)
+                    if ended is not None
+                    else (all_ev[-1].clock_ns if all_ev else int(started))
                 )
                 if hasattr(timeline, "events_in_window"):
                     events = timeline.events_in_window(int(started), int(t1))
@@ -229,7 +232,9 @@ class DriveGraph:
                 if lag < 0:
                     continue
                 # arms: arm → open or resolve
-                if a.kind in _ARM_KINDS and b.kind in (_OPEN_KINDS | _RESOLVE_KINDS | {"confirm_chat"}):
+                if a.kind in _ARM_KINDS and b.kind in (
+                    _OPEN_KINDS | _RESOLVE_KINDS | {"confirm_chat"}
+                ):
                     if lag <= DEFAULT_MATCH_LAG_MS * 2:
                         self.edges.append(GraphEdge(a.node_id, b.node_id, "arms", lag_ms=lag))
                 # confirms: any fast → later confirm within lag
@@ -239,7 +244,11 @@ class DriveGraph:
                 if a.kind in _ARM_KINDS | _OPEN_KINDS and b.kind in _CANCEL_KINDS:
                     self.edges.append(GraphEdge(a.node_id, b.node_id, "cancels", lag_ms=lag))
                 # boosts: heat within 400ms before next act
-                if a.is_fast and (b.clock_ns - a.clock_ns) <= BOOST_WINDOW_NS and a.node_id != b.node_id:
+                if (
+                    a.is_fast
+                    and (b.clock_ns - a.clock_ns) <= BOOST_WINDOW_NS
+                    and a.node_id != b.node_id
+                ):
                     if b.kind not in _CANCEL_KINDS:
                         self.edges.append(GraphEdge(a.node_id, b.node_id, "boosts", lag_ms=lag))
 
@@ -314,7 +323,9 @@ class DriveGraph:
         if has_confirm:
             score += 0.2
         if pairs:
-            score += 0.35 * min(1.0, len(pairs) / max(1, sum(1 for n in self.nodes if n.is_confirm)))
+            score += 0.35 * min(
+                1.0, len(pairs) / max(1, sum(1 for n in self.nodes if n.is_confirm))
+            )
         if has_resolve:
             score += 0.25
         if has_cancel and not has_resolve:

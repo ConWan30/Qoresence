@@ -7,10 +7,10 @@ Twitch chat companion that posts at clutch moments.
 
 from .action_executor import ActionExecutor
 from .clutchbot import ClutchBotAgent
-from .eventsub_client import TwitchEventSubClient
-from .helix_client import TwitchHelixClient
 from .drive_graph import DriveGraph, active_drive_graph
+from .eventsub_client import TwitchEventSubClient
 from .fast_moment import FastMomentEngine
+from .helix_client import TwitchHelixClient
 from .moment_scorer import MomentScorer
 from .prediction_lifecycle import PredictionLifecycleManager, get_prediction_lifecycle
 from .session_memory import SessionMemory

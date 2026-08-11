@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import time
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -22,6 +22,7 @@ def _make_jpeg(w: int = 160, h: int = 100, color: tuple[int, int, int] = (20, 18
     ok, buf = cv2.imencode(".jpg", frame)
     assert ok
     return buf.tobytes()
+
 
 def test_default_fps_matches_ps5_rate():
     assert DEFAULT_FPS == 60.0
@@ -97,6 +98,7 @@ def test_export_writes_mp4_and_chapters(tmp_path: Path, monkeypatch):
     # Avoid ffmpeg dependency; mock h264 to copy raw AVI to final MP4.
     def fake_h264(src: Path, dst: Path, fps: float) -> bool:
         import shutil
+
         if src.exists():
             shutil.copy(src, dst)
             return True

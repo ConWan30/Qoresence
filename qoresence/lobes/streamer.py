@@ -63,10 +63,7 @@ def list_dshow_devices() -> list[tuple[int, str, bool, str]]:
     except Exception as e:
         log.warning(f"Could not enumerate DShow devices: {e}")
         return []
-    return [
-        (i, name, _is_allowed_capture_name(name), "dshow")
-        for i, name in enumerate(names)
-    ]
+    return [(i, name, _is_allowed_capture_name(name), "dshow") for i, name in enumerate(names)]
 
 
 # Physical HDMI capture card name hints (order = preference)
@@ -455,11 +452,11 @@ class StreamerRuntime:
         )
         if resolved is None and req is not None:
             # Explicit index pointed at webcam after unplug — fall back to any physical
-            resolved = resolve_capture_device(
-                None, prefer_name=prefer, allow_obs_vcam=allow_vcam
-            )
+            resolved = resolve_capture_device(None, prefer_name=prefer, allow_obs_vcam=allow_vcam)
         if resolved is None and os.environ.get("QORESENCE_PRIVACY_GUARD", "1").strip() == "0":
-            fallback_name = prefer if isinstance(prefer, str) and prefer.strip() else "Test Capture Card"
+            fallback_name = (
+                prefer if isinstance(prefer, str) and prefer.strip() else "Test Capture Card"
+            )
             return req if req is not None else 0, fallback_name
         return resolved
 
@@ -515,8 +512,10 @@ class StreamerRuntime:
                     self._cap = cv2.VideoCapture(idx)
 
             if not self._cap.isOpened():
-                source = self.config.url if is_network else (
-                    f"{self.config.device_index} ({device_name})"
+                source = (
+                    self.config.url
+                    if is_network
+                    else (f"{self.config.device_index} ({device_name})")
                 )
                 log.error(f"Failed to open capture source {source}")
                 if not is_network:
@@ -559,9 +558,7 @@ class StreamerRuntime:
             if not ok or frame is None:
                 log.error("First frame read failed")
                 if not is_network and not _is_obs_virtual_camera_name(device_name):
-                    log.error(
-                        "Device busy or still enumerating after plug — will retry rebind."
-                    )
+                    log.error("Device busy or still enumerating after plug — will retry rebind.")
                 self._cap.release()
                 self._cap = None
                 return False
@@ -657,9 +654,7 @@ class StreamerRuntime:
                     time.sleep(0.02)
             self._grab_alive = False
 
-        self._grab_thread = threading.Thread(
-            target=_loop, name="qoresence-dshow-grab", daemon=True
-        )
+        self._grab_thread = threading.Thread(target=_loop, name="qoresence-dshow-grab", daemon=True)
         self._grab_thread.start()
         log.info("Capture grabber thread started (non-blocking LIVE path)")
 
@@ -798,10 +793,7 @@ class StreamerRuntime:
             # Pattern A lag auto-tune: measure inter-frame delta and log hints
             if self._is_pattern_a:
                 self._pattern_a_lag_samples.append(now)
-                if (
-                    not self._pattern_a_hint_logged
-                    and len(self._pattern_a_lag_samples) >= 20
-                ):
+                if not self._pattern_a_hint_logged and len(self._pattern_a_lag_samples) >= 20:
                     samples = list(self._pattern_a_lag_samples)
                     deltas = [samples[i] - samples[i - 1] for i in range(1, len(samples))]
                     avg_delta = sum(deltas) / len(deltas) if deltas else 0

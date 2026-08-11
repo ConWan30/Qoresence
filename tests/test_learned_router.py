@@ -2,24 +2,19 @@
 
 from __future__ import annotations
 
-import json
-import math
 import tempfile
 import time
 from pathlib import Path
 
-import pytest
-
 from qoresence.a2a.learned_router import (
+    MIN_SAMPLES_FOR_LEARNED,
+    FeatureExtractor,
     FeedbackEntry,
     FeedbackStore,
-    FeatureExtractor,
     LearnedRouter,
     LearnedRouterDecision,
     UtilityModel,
-    MIN_SAMPLES_FOR_LEARNED,
 )
-
 
 # ── FeatureExtractor ─────────────────────────────────────────────────────────
 
@@ -205,7 +200,9 @@ def test_learned_router_uses_model_when_trained():
             model_path=Path(td) / "model.json",
         )
         # Manually train the model with enough samples
-        features_list = [[0.9, 0.5, 1.0, 0.0, 1.0, 0.1, 0.1, 1.0, 1.0, 0.0]] * MIN_SAMPLES_FOR_LEARNED
+        features_list = [
+            [0.9, 0.5, 1.0, 0.0, 1.0, 0.1, 0.1, 1.0, 1.0, 0.0]
+        ] * MIN_SAMPLES_FOR_LEARNED
         labels = [1] * MIN_SAMPLES_FOR_LEARNED
         router.model.train(features_list, labels, epochs=10)
 
@@ -241,10 +238,20 @@ def test_learned_router_train_from_feedback():
 
         # Create matching evidence chains
         evidence_chains = [
-            {"clock_ns": 100, "confidence": 0.9, "coupling_score": 0.5,
-             "drive_phase": "pressure", "cited_events": [{"event_name": "touchdown"}]},
-            {"clock_ns": 200, "confidence": 0.1, "coupling_score": 0.1,
-             "drive_phase": "open", "cited_events": [{"event_name": "first_down"}]},
+            {
+                "clock_ns": 100,
+                "confidence": 0.9,
+                "coupling_score": 0.5,
+                "drive_phase": "pressure",
+                "cited_events": [{"event_name": "touchdown"}],
+            },
+            {
+                "clock_ns": 200,
+                "confidence": 0.1,
+                "coupling_score": 0.1,
+                "drive_phase": "open",
+                "cited_events": [{"event_name": "first_down"}],
+            },
         ]
 
         loss = router.train_from_feedback(evidence_chains)
@@ -301,8 +308,12 @@ def test_learned_router_is_learned_property():
 def test_learned_router_decision_to_dict():
     """LearnedRouterDecision should serialize to dict."""
     d = LearnedRouterDecision(
-        fired=True, reason="touchdown", must_fire_hit="big_play",
-        utility_score=0.85, confidence=0.7, source="rule",
+        fired=True,
+        reason="touchdown",
+        must_fire_hit="big_play",
+        utility_score=0.85,
+        confidence=0.7,
+        source="rule",
     )
     dd = d.to_dict()
     assert dd["fired"] is True
