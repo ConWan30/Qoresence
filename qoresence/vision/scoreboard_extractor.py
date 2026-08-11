@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 import re
-import time
 from collections import deque
 from dataclasses import dataclass
 from typing import Any
@@ -116,9 +115,7 @@ class _ScoreStabilizer:
         self._recent: deque[tuple[int | None, int | None]] = deque(maxlen=self._window)
         self._stable: tuple[int | None, int | None] = (None, None)
 
-    def update(
-        self, home: int | None, away: int | None
-    ) -> tuple[int | None, int | None]:
+    def update(self, home: int | None, away: int | None) -> tuple[int | None, int | None]:
         """Return stabilized (home, away). May keep previous if new read is flaky."""
         if home is None and away is None:
             return self._stable
@@ -332,17 +329,14 @@ class FootballScoreboardExtractor:
         if tokens:
             joined = " ".join(t.text for t in tokens).upper()
             is_paused = any(
-                k in joined
-                for k in ("PAUSED", "RESUME", "INSTANT REPLAY", "RETURN TO HUB")
+                k in joined for k in ("PAUSED", "RESUME", "INSTANT REPLAY", "RETURN TO HUB")
             )
             parsed = self._parse(tokens)
             big = self._parse_large_score_pair(tokens)
             if big is not None:
                 parsed["home_score"], parsed["away_score"] = big
                 if is_paused:
-                    log.debug(
-                        "scoreboard pause-menu large pair %s-%s", big[0], big[1]
-                    )
+                    log.debug("scoreboard pause-menu large pair %s-%s", big[0], big[1])
 
         # Merge VLM referee (higher trust for gaming fonts)
         vlm_scores = False
@@ -355,9 +349,7 @@ class FootballScoreboardExtractor:
         if vlm:
             # Only merge when VLM actually read a board — never wipe a good
             # lock with a later None-None (transition frames / blur).
-            vlm_has_board = (
-                vlm.get("home_score") is not None and vlm.get("away_score") is not None
-            )
+            vlm_has_board = vlm.get("home_score") is not None and vlm.get("away_score") is not None
             for k in (
                 "home_score",
                 "away_score",
@@ -529,9 +521,7 @@ class FootballScoreboardExtractor:
                     log.debug("scoreboard engine read failed: %s", e)
                     continue
                 for b in boxes:
-                    area = float(getattr(b, "w", 0.0) or 0.0) * float(
-                        getattr(b, "h", 0.0) or 0.0
-                    )
+                    area = float(getattr(b, "w", 0.0) or 0.0) * float(getattr(b, "h", 0.0) or 0.0)
                     tokens.append(
                         _Token(
                             text=str(b.text).strip(),
@@ -599,8 +589,10 @@ class FootballScoreboardExtractor:
                 rank_team = re.match(r"^(\d+)\s+([A-Za-z].*)$", text)
                 team_score = re.match(r"^([A-Za-z][A-Za-z\s]+?)\s+(\d{1,2})$", text)
                 score_team = re.match(r"^(\d{1,2})\s+([A-Za-z].*)$", text)
-                if rank_team and int(rank_team.group(1)) <= 25 and not re.search(
-                    r"\d{2}", rank_team.group(1)
+                if (
+                    rank_team
+                    and int(rank_team.group(1)) <= 25
+                    and not re.search(r"\d{2}", rank_team.group(1))
                 ):
                     # "5 LOUISVILLE" ranking — keep team only
                     team_clusters.append(
