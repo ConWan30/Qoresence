@@ -9,13 +9,10 @@ import tempfile
 import time
 from pathlib import Path
 
-import pytest
-
 from qoresence.a2a.deepseek_agent import DeepSeekChatAgent
 from qoresence.a2a.gemini_agent import GeminiSceneAgent
 from qoresence.a2a.orchestrator import A2AOrchestrator, reset_a2a_orchestrator
 from qoresence.a2a.router import (
-    _BigPlayPredicate,
     _FourthDownPredicate,
     _OvertimeStartPredicate,
     _TwoPointConversionPredicate,
@@ -25,7 +22,6 @@ from qoresence.a2a.router import (
 from qoresence.a2a.tools import ToolRegistry, create_default_registry
 from qoresence.a2a.types import CommitAct, SceneProposal
 from qoresence.core import RetinaEventBus
-
 
 # ── Agent tool wiring ────────────────────────────────────────────────────────
 
@@ -43,12 +39,18 @@ def test_gemini_agent_stub_uses_query_memory():
         jsonl_path = Path(td) / "events.jsonl"
         now = time.time()
         with open(jsonl_path, "w", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "type": "outcome_event", "clock_ns": 1,
-                "ts_ns": int(now * 1e9),
-                "source_lobe": "outcome",
-                "payload": {"event_name": "touchdown"},
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "type": "outcome_event",
+                        "clock_ns": 1,
+                        "ts_ns": int(now * 1e9),
+                        "source_lobe": "outcome",
+                        "payload": {"event_name": "touchdown"},
+                    }
+                )
+                + "\n"
+            )
 
         reg = create_default_registry(jsonl_path=jsonl_path)
         agent = GeminiSceneAgent(live=False, tools=reg)
@@ -86,12 +88,18 @@ def test_deepseek_agent_stub_uses_query_memory():
         jsonl_path = Path(td) / "events.jsonl"
         now = time.time()
         with open(jsonl_path, "w", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "type": "outcome_event", "clock_ns": 1,
-                "ts_ns": int(now * 1e9),
-                "source_lobe": "outcome",
-                "payload": {"event_name": "field_goal"},
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "type": "outcome_event",
+                        "clock_ns": 1,
+                        "ts_ns": int(now * 1e9),
+                        "source_lobe": "outcome",
+                        "payload": {"event_name": "field_goal"},
+                    }
+                )
+                + "\n"
+            )
 
         reg = create_default_registry(jsonl_path=jsonl_path)
         agent = DeepSeekChatAgent(live=False, tools=reg)
@@ -119,17 +127,21 @@ def test_tool_enrichment_in_run_cycle():
         # Write an event to the log
         now = time.time()
         with open(jsonl_path, "w", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "type": "outcome_event", "clock_ns": 1,
-                "ts_ns": int(now * 1e9),
-                "source_lobe": "outcome",
-                "payload": {"event_name": "touchdown"},
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "type": "outcome_event",
+                        "clock_ns": 1,
+                        "ts_ns": int(now * 1e9),
+                        "source_lobe": "outcome",
+                        "payload": {"event_name": "touchdown"},
+                    }
+                )
+                + "\n"
+            )
 
         # Also set up the retina bus to capture events
-        retina_bus = RetinaEventBus(
-            session_id="tool_test", jsonl_path=jsonl_path, enable_ws=False
-        )
+        retina_bus = RetinaEventBus(session_id="tool_test", jsonl_path=jsonl_path, enable_ws=False)
 
         orch = A2AOrchestrator(enabled=True, min_interval_s=0.0, jsonl_path=str(jsonl_path))
         orch.bus.set_retina_mirror(retina_bus, session_id="tool_test")
@@ -155,25 +167,49 @@ def test_audit_cli_with_evidence():
         # Write some evidence and router events
         now = time.time()
         events = [
-            {"type": "evidence_chain", "clock_ns": 1, "ts_ns": int(now * 1e9),
-             "source_lobe": "agent", "payload": {
-                 "trigger_reason": "touchdown", "confidence": 0.87,
-                 "drive_phase": "open", "coupling_score": 0.55,
-                 "scene_model": "gemini-2.0-flash", "chat_model": "deepseek-chat",
-                 "cited_events": [{"event_name": "touchdown", "event_type": "outcome_event"}],
-                 "cited_fields": [{"field_name": "home_score", "value": 7}],
-                 "policy_refs": ["a2a_commit"],
-             }},
-            {"type": "router_decision", "clock_ns": 2, "ts_ns": int(now * 1e9),
-             "source_lobe": "agent", "payload": {
-                 "fired": True, "reason": "touchdown", "must_fire_hit": "big_play",
-                 "interval_s": 6.0, "last_trigger_age_s": 30.0,
-             }},
-            {"type": "router_decision", "clock_ns": 3, "ts_ns": int(now * 1e9),
-             "source_lobe": "agent", "payload": {
-                 "fired": False, "reason": "scene_tick", "must_fire_hit": None,
-                 "interval_s": 45.0, "last_trigger_age_s": 10.0,
-             }},
+            {
+                "type": "evidence_chain",
+                "clock_ns": 1,
+                "ts_ns": int(now * 1e9),
+                "source_lobe": "agent",
+                "payload": {
+                    "trigger_reason": "touchdown",
+                    "confidence": 0.87,
+                    "drive_phase": "open",
+                    "coupling_score": 0.55,
+                    "scene_model": "gemini-2.0-flash",
+                    "chat_model": "deepseek-chat",
+                    "cited_events": [{"event_name": "touchdown", "event_type": "outcome_event"}],
+                    "cited_fields": [{"field_name": "home_score", "value": 7}],
+                    "policy_refs": ["a2a_commit"],
+                },
+            },
+            {
+                "type": "router_decision",
+                "clock_ns": 2,
+                "ts_ns": int(now * 1e9),
+                "source_lobe": "agent",
+                "payload": {
+                    "fired": True,
+                    "reason": "touchdown",
+                    "must_fire_hit": "big_play",
+                    "interval_s": 6.0,
+                    "last_trigger_age_s": 30.0,
+                },
+            },
+            {
+                "type": "router_decision",
+                "clock_ns": 3,
+                "ts_ns": int(now * 1e9),
+                "source_lobe": "agent",
+                "payload": {
+                    "fired": False,
+                    "reason": "scene_tick",
+                    "must_fire_hit": None,
+                    "interval_s": 45.0,
+                    "last_trigger_age_s": 10.0,
+                },
+            },
         ]
         with open(jsonl_path, "w", encoding="utf-8") as f:
             for ev in events:
@@ -181,9 +217,18 @@ def test_audit_cli_with_evidence():
 
         # Run the audit CLI
         result = subprocess.run(
-            [sys.executable, "-m", "qoresence.cli", "--audit", "5",
-             "--audit-jsonl", str(jsonl_path)],
-            capture_output=True, text=True, timeout=30,
+            [
+                sys.executable,
+                "-m",
+                "qoresence.cli",
+                "--audit",
+                "5",
+                "--audit-jsonl",
+                str(jsonl_path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         assert result.returncode == 0
         assert "EVIDENCE CHAINS" in result.stdout
@@ -200,9 +245,10 @@ def test_audit_cli_no_events():
         Path(jsonl_path).write_text("", encoding="utf-8")
 
         result = subprocess.run(
-            [sys.executable, "-m", "qoresence.cli", "--audit",
-             "--audit-jsonl", str(jsonl_path)],
-            capture_output=True, text=True, timeout=30,
+            [sys.executable, "-m", "qoresence.cli", "--audit", "--audit-jsonl", str(jsonl_path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         assert result.returncode == 0
         assert "no evidence_chain" in result.stdout or "no evidence" in result.stdout.lower()
@@ -211,9 +257,17 @@ def test_audit_cli_no_events():
 def test_audit_cli_missing_file():
     """--audit should handle missing log file gracefully."""
     result = subprocess.run(
-        [sys.executable, "-m", "qoresence.cli", "--audit",
-         "--audit-jsonl", "/nonexistent/path.jsonl"],
-        capture_output=True, text=True, timeout=30,
+        [
+            sys.executable,
+            "-m",
+            "qoresence.cli",
+            "--audit",
+            "--audit-jsonl",
+            "/nonexistent/path.jsonl",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     assert result.returncode == 0
     assert "not found" in result.stdout

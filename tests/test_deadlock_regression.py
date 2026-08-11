@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import threading
 import time
-from pathlib import Path
 
 from qoresence.a2a.orchestrator import A2AOrchestrator
 from qoresence.core import (
