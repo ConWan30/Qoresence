@@ -39,17 +39,12 @@ from __future__ import annotations
 import json
 import logging
 import math
-import os
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from qoresence.a2a.router import (
-    RouterDecision,
-    evaluate_must_fire,
-    get_predicates_for_category,
-)
+from qoresence.a2a.router import evaluate_must_fire
 
 log = logging.getLogger(__name__)
 
