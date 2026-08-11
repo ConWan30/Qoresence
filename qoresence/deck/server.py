@@ -818,6 +818,7 @@ def create_app():  # type: ignore[no-untyped-def]
             _agent_frame_last[cid] = now
         try:
             from fastapi.responses import Response
+
             from qoresence.vision.clip_buffer import get_latest_jpeg
             jpg = get_latest_jpeg()
             if not jpg:
@@ -1309,7 +1310,8 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 self.wfile.write(json.dumps(payload).encode())
                 return
             if self.path.startswith("/api/agent/events"):
-                from urllib.parse import parse_qs, urlparse as _urlparse
+                from urllib.parse import parse_qs
+                from urllib.parse import urlparse as _urlparse
                 qs = parse_qs(_urlparse(self.path).query)
                 try:
                     since = int((qs.get("since") or ["0"])[0])
