@@ -53,7 +53,7 @@ class A2APolicy:
         self._recent_norms = [
             (t, s) for t, s in self._recent_norms if now - t < self.duplicate_window_s
         ]
-        for t, prev in self._recent_norms:
+        for _t, prev in self._recent_norms:
             if n == prev or (len(n) >= 24 and n[:24] == prev[:24]):
                 return self._veto("near-duplicate chat", text)
 
