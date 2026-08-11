@@ -9,9 +9,10 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -174,14 +175,21 @@ class PredictionLifecycleManager:
                 factual=True,
                 clock_ns=clock_ns,
                 close_drive=True,
-                payload={"winning_outcome_index": int(winning_outcome_index), "from_state": str(prev)},
+                payload={
+                    "winning_outcome_index": int(winning_outcome_index),
+                    "from_state": str(prev),
+                },
             )
             self._reset_soft()
             return PredictionState.RESOLVED
 
     def cancel(self, reason: str = "cancelled", *, clock_ns: int | None = None) -> PredictionState:
         with self._lock:
-            if self.state in (PredictionState.IDLE, PredictionState.RESOLVED, PredictionState.CANCELLED):
+            if self.state in (
+                PredictionState.IDLE,
+                PredictionState.RESOLVED,
+                PredictionState.CANCELLED,
+            ):
                 self.state = PredictionState.IDLE
                 return self.state
             self.state = PredictionState.CANCELLED
