@@ -64,7 +64,8 @@ def test_publish_clock_ns_and_stamp():
 
 def test_sync_frame_hub_shim_meta():
     """Two-speed scaffold: qoresence.sync.frame_hub.get_latest_meta()."""
-    from qoresence.sync.frame_hub import get_frame_hub, get_latest_meta, publish as sync_publish
+    from qoresence.sync.frame_hub import get_frame_hub, get_latest_meta
+    from qoresence.sync.frame_hub import publish as sync_publish
 
     hub = get_frame_hub()
     hub.clear()

@@ -8,8 +8,6 @@ import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-import pytest
-
 from qoresence.core import BaseEvent, EventType, RetinaEventBus, SessionAuthority, SourceLobe
 from qoresence.core.unified_config import StreamrConfig
 from qoresence.streamr.publisher import StreamrPublisher, make_streamr_publisher_from_config

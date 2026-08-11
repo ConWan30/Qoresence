@@ -7,8 +7,6 @@ import tempfile
 import time
 from pathlib import Path
 
-import pytest
-
 from qoresence.a2a.tool_loop import (
     ToolCallResult,
     ToolLoopOutput,
@@ -21,8 +19,8 @@ from qoresence.a2a.tool_loop import (
 from qoresence.a2a.tools import ToolDef, ToolRegistry, create_default_registry
 
 # Build marker strings via chr() to avoid literal tags in source
-_TC_OPEN = chr(60) + "tool_call" + chr(62)      # <tool_call>
-_TC_CLOSE = chr(60) + "/tool_call" + chr(62)     # </tool_call>
+_TC_OPEN = chr(60) + "tool_call" + chr(62)  # <tool_call>
+_TC_CLOSE = chr(60) + "/tool_call" + chr(62)  # </tool_call>
 
 
 def _tc(name, **args):
@@ -102,12 +100,18 @@ def test_execute_tool_calls():
         jsonl_path = Path(td) / "events.jsonl"
         now = time.time()
         with open(jsonl_path, "w", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "type": "outcome_event", "clock_ns": 1,
-                "ts_ns": int(now * 1e9),
-                "source_lobe": "outcome",
-                "payload": {"event_name": "touchdown"},
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "type": "outcome_event",
+                        "clock_ns": 1,
+                        "ts_ns": int(now * 1e9),
+                        "source_lobe": "outcome",
+                        "payload": {"event_name": "touchdown"},
+                    }
+                )
+                + "\n"
+            )
 
         reg = create_default_registry(jsonl_path=jsonl_path)
         calls = [{"name": "query-memory", "arguments": {"event_type": "outcome_event"}}]
@@ -130,10 +134,14 @@ def test_execute_tool_calls_unknown_tool():
 def test_execute_tool_calls_depth_bound():
     """Should stop when depth bound is exceeded."""
     reg = ToolRegistry(max_depth=1)
-    reg.register(ToolDef(
-        name="echo", description="echo", parameters={},
-        handler=lambda **kw: {"ok": True},
-    ))
+    reg.register(
+        ToolDef(
+            name="echo",
+            description="echo",
+            parameters={},
+            handler=lambda **kw: {"ok": True},
+        )
+    )
     calls = [
         {"name": "echo", "arguments": {}},
         {"name": "echo", "arguments": {}},
@@ -149,11 +157,13 @@ def test_execute_tool_calls_depth_bound():
 
 def test_format_tool_results():
     """Should format tool results for prompt injection."""
-    results = [ToolCallResult(
-        name="query-memory",
-        arguments={"event_type": "outcome_event"},
-        result={"events": [{"type": "outcome_event"}], "count": 1},
-    )]
+    results = [
+        ToolCallResult(
+            name="query-memory",
+            arguments={"event_type": "outcome_event"},
+            result={"events": [{"type": "outcome_event"}], "count": 1},
+        )
+    ]
     text = format_tool_results_for_prompt(results)
     assert "query-memory" in text
     assert "Tool call results:" in text
@@ -166,12 +176,14 @@ def test_format_tool_results_empty():
 
 def test_format_tool_results_with_error():
     """Should format error results."""
-    results = [ToolCallResult(
-        name="nonexistent",
-        arguments={},
-        result={"error": "tool_not_found"},
-        error="tool_not_found",
-    )]
+    results = [
+        ToolCallResult(
+            name="nonexistent",
+            arguments={},
+            result={"error": "tool_not_found"},
+            error="tool_not_found",
+        )
+    ]
     text = format_tool_results_for_prompt(results)
     assert "ERROR" in text
     assert "tool_not_found" in text
@@ -196,12 +208,18 @@ def test_run_tool_loop_with_tool_call_no_callback():
         jsonl_path = Path(td) / "events.jsonl"
         now = time.time()
         with open(jsonl_path, "w", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "type": "outcome_event", "clock_ns": 1,
-                "ts_ns": int(now * 1e9),
-                "source_lobe": "outcome",
-                "payload": {"event_name": "touchdown"},
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "type": "outcome_event",
+                        "clock_ns": 1,
+                        "ts_ns": int(now * 1e9),
+                        "source_lobe": "outcome",
+                        "payload": {"event_name": "touchdown"},
+                    }
+                )
+                + "\n"
+            )
 
         reg = create_default_registry(jsonl_path=jsonl_path)
         tag = _tc("query-memory", event_type="outcome_event")
@@ -219,10 +237,14 @@ def test_run_tool_loop_with_tool_call_no_callback():
 def test_run_tool_loop_with_callback():
     """Loop should use callback for follow-up LLM calls."""
     reg = ToolRegistry()
-    reg.register(ToolDef(
-        name="echo", description="echo", parameters={},
-        handler=lambda **kw: {"ok": True},
-    ))
+    reg.register(
+        ToolDef(
+            name="echo",
+            description="echo",
+            parameters={},
+            handler=lambda **kw: {"ok": True},
+        )
+    )
 
     call_count = [0]
 
@@ -242,10 +264,14 @@ def test_run_tool_loop_with_callback():
 def test_run_tool_loop_max_rounds():
     """Loop should respect max_rounds."""
     reg = ToolRegistry()
-    reg.register(ToolDef(
-        name="echo", description="echo", parameters={},
-        handler=lambda **kw: {"ok": True},
-    ))
+    reg.register(
+        ToolDef(
+            name="echo",
+            description="echo",
+            parameters={},
+            handler=lambda **kw: {"ok": True},
+        )
+    )
 
     tag = _tc("echo")
 

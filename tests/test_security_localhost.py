@@ -18,8 +18,9 @@ def test_deck_host_is_localhost():
 
 
 def test_deck_start_default_host_is_loopback():
-    from qoresence.deck.server import DECK_HOST, start_deck
     import inspect
+
+    from qoresence.deck.server import DECK_HOST, start_deck
 
     sig = inspect.signature(start_deck)
     # default host parameter should match DECK_HOST

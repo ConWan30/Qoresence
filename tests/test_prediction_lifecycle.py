@@ -7,7 +7,6 @@ import time
 from qoresence.agents.prediction_lifecycle import (
     PredictionLifecycleManager,
     PredictionState,
-    reset_prediction_lifecycle,
 )
 from qoresence.agents.session_timeline import reset_session_timeline
 
