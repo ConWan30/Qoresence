@@ -1125,7 +1125,6 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.websocket("/agent/stream")
     async def agent_ws(websocket: WebSocket):  # type: ignore[no-untyped-def]
         # read-only agent feed: snapshot on connect, then push new events
-        import time as _t2
         # token check via query ?token= or header — optional
         try:
             qp = websocket.query_params.get("token") if hasattr(websocket, "query_params") else None
@@ -1169,7 +1168,7 @@ def create_app():  # type: ignore[no-untyped-def]
                 try:
                     ev = await asyncio.wait_for(queue.get(), timeout=1.0)
                     await websocket.send_text(json.dumps(ev))
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # keepalive ping with snapshot at snapshot_hz
                     try:
                         await websocket.send_text(json.dumps({"type": "agent_keepalive", "payload": _agent_snapshot_payload(), "clock_ns": time.monotonic_ns()}))
