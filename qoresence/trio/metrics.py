@@ -29,7 +29,7 @@ try:
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
-    Counter = Gauge = Histogram = Info = CollectorRegistry = object  # type: ignore
+    Counter = Gauge = Histogram = Info = CollectorRegistry = object
 
 
 # Custom registry for trio-retina metrics (avoids global registry conflicts in tests)

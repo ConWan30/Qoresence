@@ -29,10 +29,10 @@ try:
 
     _HAS_AIORTC = True
 except ImportError:  # pragma: no cover
-    RTCPeerConnection = None  # type: ignore[misc, assignment]
-    RTCSessionDescription = None  # type: ignore[misc, assignment]
-    VideoStreamTrack = object  # type: ignore[misc, assignment]
-    VideoFrame = None  # type: ignore[misc, assignment]
+    RTCPeerConnection = None
+    RTCSessionDescription = None
+    VideoStreamTrack = object
+    VideoFrame = None
     _HAS_AIORTC = False
 
 

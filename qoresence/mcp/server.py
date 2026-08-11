@@ -30,10 +30,10 @@ def _get_fastmcp():
     if _mcp_fastmcp is not None:
         return _mcp_fastmcp
     try:
-        from mcp.server.fastmcp import FastMCP  # type: ignore
+        from mcp.server.fastmcp import FastMCP
     except ImportError:
         return None
-    mcp = FastMCP(SERVER_NAME)  # type: ignore
+    mcp = FastMCP(SERVER_NAME)
 
     @mcp.tool()  # type: ignore
     def get_snapshot() -> dict:  # type: ignore
@@ -797,7 +797,7 @@ def main() -> None:
     if os.getenv("QORESENCE_MCP_USE_FASTMCP") == "1":
         fastmcp = _get_fastmcp()
         if fastmcp is not None:
-            fastmcp.run()  # type: ignore
+            fastmcp.run()
             return
         log.warning(
             "QORESENCE_MCP_USE_FASTMCP=1 but mcp package not installed; falling back to stdio"

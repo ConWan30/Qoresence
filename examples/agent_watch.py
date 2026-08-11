@@ -16,19 +16,23 @@ Requires Qoresence running with AgentGlass enabled:
   set QORESENCE_AGENT_GLASS_ENABLED=1
   python -m qoresence.cli --play --deck --agent-glass
 """
+
 from __future__ import annotations
+
 import argparse
 import json
 import sys
 import time
-import urllib.request
 import urllib.parse
+import urllib.request
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 
+
 def _url(host: str, port: int, path: str) -> str:
     return f"http://{host}:{port}{path}"
+
 
 def fetch_json(host: str, port: int, path: str, token: str | None = None) -> dict:
     url = _url(host, port, path)
@@ -37,6 +41,7 @@ def fetch_json(host: str, port: int, path: str, token: str | None = None) -> dic
         req.add_header("Authorization", f"Bearer {token}")
     with urllib.request.urlopen(req, timeout=5) as r:
         return json.loads(r.read().decode("utf-8"))
+
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Qoresence AgentGlass watcher")
@@ -53,7 +58,10 @@ def main() -> int:
     try:
         snap = fetch_json(args.host, args.port, "/api/agent/snapshot", token=args.token)
     except Exception as e:
-        print(f"snapshot fetch failed: {e} (is Qoresence running with --agent-glass?)", file=sys.stderr)
+        print(
+            f"snapshot fetch failed: {e} (is Qoresence running with --agent-glass?)",
+            file=sys.stderr,
+        )
         return 1
     print(json.dumps(snap, indent=2))
     if args.snapshot_only or args.once:
@@ -72,8 +80,8 @@ def main() -> int:
 
     if args.ws:
         try:
-            import asyncio
             import websockets  # type: ignore
+
             async def _ws_run():
                 uri = f"ws://{args.host}:{args.port}/agent/stream"
                 if args.token:
@@ -87,7 +95,9 @@ def main() -> int:
                             print(msg)
                             continue
                         print(json.dumps(obj)[:600])
+
             import asyncio as _aio
+
             _aio.run(_ws_run())
             return 0
         except ImportError:
@@ -114,6 +124,7 @@ def main() -> int:
             typ = e.get("type", "?")
             print(f"[{seq}] {typ} {json.dumps(e.get('payload', {}))[:300]}")
         since = int(ev.get("next_seq", since))
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

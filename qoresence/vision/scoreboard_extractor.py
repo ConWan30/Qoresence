@@ -388,7 +388,7 @@ class FootballScoreboardExtractor:
         if stab is not None and (raw_h is not None or raw_a is not None):
             if vlm_scores and not _ScoreStabilizer._looks_suspicious_pair((raw_h, raw_a)):
                 # Vision referee is trusted — force lock after a single coherent pair
-                stab._stable = (int(raw_h), int(raw_a))  # type: ignore[attr-defined]
+                stab._stable = (int(raw_h), int(raw_a))
                 stab._recent.clear()
                 stab._recent.append((int(raw_h), int(raw_a)))
                 sh, sa = stab._stable

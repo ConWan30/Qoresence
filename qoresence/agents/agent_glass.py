@@ -48,7 +48,7 @@ class AgentGlass:
             log.warning("AgentGlass start: no bus")
             return False
         try:
-            unsub = self.bus.subscribe(self._on_event)  # type: ignore[attr-defined]
+            unsub = self.bus.subscribe(self._on_event)
             if callable(unsub):
                 self._unsubscribe = unsub
             self._started = True
@@ -123,7 +123,7 @@ class AgentGlass:
         session: dict[str, Any] = {}
         if self.session_identity is not None:
             try:
-                session = self.session_identity.to_dict()  # type: ignore[union-attr]
+                session = self.session_identity.to_dict()
             except Exception:
                 session = {"session_id": getattr(self.session_identity, "session_id", "")}
         elif self.bus is not None:
@@ -225,4 +225,4 @@ def stop_agent_glass() -> None:
 def register_situation_provider(provider: Callable[[], dict[str, Any]] | None) -> None:
     g = get_agent_glass()
     if g is not None:
-        g._situation_provider = provider  # type: ignore[attr-defined]
+        g._situation_provider = provider

@@ -122,7 +122,7 @@ class ClutchBotAgent:
                 log.debug("ClutchBot LLM disabled — template mode")
         except Exception as e:
             log.warning(f"LLM init failed: {e}")
-            self._llm = None  # type: ignore[attr-defined]
+            self._llm = None
 
         self._features = self._build_features()
         for backend in self._build_backends():

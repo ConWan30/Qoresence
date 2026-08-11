@@ -29,7 +29,7 @@ from qoresence.lobes.visual import VLMClient
 try:
     from qoresence.vision.local_vlm import LocalVLMClient as _LocalVLMClient
 
-    VLMClientLike = VLMClient | _LocalVLMClient  # type: ignore[misc]
+    VLMClientLike = VLMClient | _LocalVLMClient
 except Exception:
     VLMClientLike = VLMClient  # type: ignore[misc,assignment]
 

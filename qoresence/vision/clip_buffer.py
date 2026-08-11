@@ -257,7 +257,7 @@ class HdmiClipBuffer:
         ok_h264 = self._ffmpeg_h264(raw_path, final_path, fps)
         try:
             if raw_path.exists() and raw_path != final_path:
-                raw_path.unlink(missing_ok=True)  # type: ignore[arg-type]
+                raw_path.unlink(missing_ok=True)
         except Exception:
             pass
 

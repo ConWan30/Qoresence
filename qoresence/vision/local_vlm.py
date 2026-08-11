@@ -27,8 +27,8 @@ try:
 except Exception:
     # Allow local_vlm to be imported in minimal test environments.
     GameProfileId = None  # type: ignore[misc,assignment]
-    get_game_profile = None  # type: ignore[misc,assignment]
-    normalize_game_profile = None  # type: ignore[misc,assignment]
+    get_game_profile = None
+    normalize_game_profile = None
 
 log = logging.getLogger(__name__)
 DEFAULT_ONNX = Path("models/qoresence-vlm-distilled.onnx")
@@ -93,7 +93,7 @@ class LocalVLMClient:
     def _try_load(self) -> None:
         if self.model_path.exists():
             try:
-                import onnxruntime as ort  # type: ignore
+                import onnxruntime as ort
 
                 self._onnx_sess = ort.InferenceSession(
                     str(self.model_path), providers=["CPUExecutionProvider"]
@@ -480,7 +480,7 @@ class LocalVLMClient:
             details=last.details,
         )
 
-    def cross_modal_check(self, frame: np.ndarray, other_modalities: dict) -> None:  # type: ignore[override]
+    def cross_modal_check(self, frame: np.ndarray, other_modalities: dict) -> None:
         """Local brain has no cloud VLM — return inconclusive."""
         # Keep interface compatible with VLMClient so VisualRuntime/VisionStack can swap.
         return None
