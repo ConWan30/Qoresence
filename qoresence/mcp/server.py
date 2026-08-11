@@ -1,8 +1,17 @@
 """Qoresence MCP — Glass D (stdio fallback)."""
 from __future__ import annotations
-import base64, json, logging, os, sys, time, urllib.error, urllib.request
+
+import base64
+import json
+import logging
+import os
+import sys
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
+
 log = logging.getLogger(__name__)
 SERVER_NAME = "qoresence"
 SERVER_VERSION = "0.1.0-dev"
@@ -293,17 +302,29 @@ def handle_diagnose_freeze() -> dict[str, Any]:
     try:
         snap = handle_get_snapshot()
         health = handle_get_health()
-        video = {}; coupling = {}; bus = {}; seq = 0
+        video: dict[str, Any] = {}
+        coupling: dict[str, Any] = {}
+        bus: dict[str, Any] = {}
+        seq = 0
         if isinstance(snap, dict) and snap.get("ok"):
-            video = snap.get("video") or {}; coupling = snap.get("coupling") or {}; bus = snap.get("bus") or {}; seq = int(snap.get("seq") or 0)
+            video = snap.get("video") or {}
+            coupling = snap.get("coupling") or {}
+            bus = snap.get("bus") or {}
+            seq = int(snap.get("seq") or 0)
         elif isinstance(health, dict):
-            video = health.get("video") or {}; coupling = health.get("coupling") or {}; seq = int(health.get("seq") or 0)
+            video = health.get("video") or {}
+            coupling = health.get("coupling") or {}
+            seq = int(health.get("seq") or 0)
         age_s = video.get("age_s")
-        try: age_f = float(age_s) if age_s is not None else None
-        except Exception: age_f = None
+        try:
+            age_f = float(age_s) if age_s is not None else None
+        except Exception:
+            age_f = None
         frames = video.get("frames") or video.get("pushes") or 0
         has_frame = bool(video.get("has_frame"))
-        frozen = False; reasons = []; advice = []
+        frozen = False
+        reasons: list[str] = []
+        advice: list[str] = []
         if age_f is not None and age_f > 5.0:
             frozen = True
             reasons.append(f"video.age_s={age_f:.1f}s > 5s - frames stalled")
@@ -453,7 +474,7 @@ def main() -> None:
     p.add_argument("--help-tools", action="store_true", help="list tools and exit")
     args = p.parse_args()
     if args.help_tools:
-        print(json.dumps(TOOL_DEFS, indent=2))
+        print(json.dumps(TOOL_DEFS, indent=2))  # noqa: T201
         return
     if os.getenv("QORESENCE_MCP_USE_FASTMCP") == "1":
         fastmcp = _get_fastmcp()
