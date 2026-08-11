@@ -17,9 +17,10 @@ from __future__ import annotations
 import json
 import logging
 import time
-from dataclasses import asdict, dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 log = logging.getLogger(__name__)
 
@@ -179,12 +180,14 @@ def make_query_memory_tool(jsonl_path: Path | str) -> ToolDef:
                 if ev_time < cutoff:
                     continue
 
-            results.append({
-                "type": ev.get("type"),
-                "clock_ns": ev.get("clock_ns"),
-                "source_lobe": ev.get("source_lobe"),
-                "payload": ev.get("payload"),
-            })
+            results.append(
+                {
+                    "type": ev.get("type"),
+                    "clock_ns": ev.get("clock_ns"),
+                    "source_lobe": ev.get("source_lobe"),
+                    "payload": ev.get("payload"),
+                }
+            )
 
             if len(results) >= limit:
                 break
