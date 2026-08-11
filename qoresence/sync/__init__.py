@@ -8,9 +8,12 @@ from qoresence.sync.frame_hub import (
     FrameHub,
     get_frame_hub,
     get_latest_meta,
+)
+from qoresence.sync.frame_hub import (
     publish as publish_frame,
 )
-from qoresence.sync.input_ring import InputEvent, InputRing, get_input_ring, push as push_input
+from qoresence.sync.input_ring import InputEvent, InputRing, get_input_ring
+from qoresence.sync.input_ring import push as push_input
 from qoresence.sync.ivc import (
     InputVideoCoupler,
     get_ivc,
