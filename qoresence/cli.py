@@ -16,7 +16,6 @@ import sys
 import time
 from pathlib import Path
 
-
 # Held open so a second --play cannot race before Deck binds
 _PILOT_LOCK_SOCK: socket.socket | None = None
 
@@ -224,7 +223,6 @@ class QoresenceApp:
         # DECK_BRIDGE_MARKER: RetinaEventBus -> Deck ws live (LIVE FEED ONLY - no mock)
         try:
             from qoresence.core import EventType as _ET  # local import to avoid cycle
-
             from qoresence.deck.server import push_moment as _deck_push
             from qoresence.deck.server import update_situation as _deck_update
 
