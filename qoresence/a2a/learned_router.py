@@ -180,7 +180,7 @@ class UtilityModel:
         confidence: 0..1, based on number of training samples
         """
         z = self.bias
-        for w, f in zip(self.weights, features):
+        for w, f in zip(self.weights, features, strict=False):
             z += w * f
         utility = 1.0 / (1.0 + math.exp(-z))
         # Confidence grows with samples, capped at 0.9
@@ -216,9 +216,9 @@ class UtilityModel:
             grad_b = 0.0
             total_loss = 0.0
 
-            for features, label in zip(features_list, labels):
+            for features, label in zip(features_list, labels, strict=False):
                 z = self.bias
-                for w, f in zip(self.weights, features):
+                for w, f in zip(self.weights, features, strict=False):
                     z += w * f
                 pred = 1.0 / (1.0 + math.exp(-max(-20, min(20, z))))
                 # Label: +1 → target=1, -1 → target=0, 0 → target=0.5
