@@ -45,6 +45,9 @@ class VisualContext:
     # Football / NCAA
     home_score: int | None = None
     away_score: int | None = None
+    # True when the HOME team's score appears on the left side of the scoreboard.
+    # Default/None means away-left / home-right (the most common broadcast layout).
+    home_left: bool | None = None
     quarter: int | None = None
     down: int | None = None
     yards_to_go: int | None = None
@@ -121,6 +124,7 @@ class VisualContext:
             d["football"] = {
                 "home_score": self.home_score,
                 "away_score": self.away_score,
+                "home_left": self.home_left,
                 "quarter": self.quarter,
                 "down": self.down,
                 "yards_to_go": self.yards_to_go,
@@ -212,6 +216,7 @@ class VisualContext:
 
         ctx.home_score = _to_int(fb.get("home_score"))
         ctx.away_score = _to_int(fb.get("away_score"))
+        ctx.home_left = _to_bool(fb.get("home_left"))
         ctx.quarter = _to_int(fb.get("quarter"))
         ctx.down = _to_int(fb.get("down"))
         ctx.yards_to_go = _to_int(fb.get("yards_to_go"))
@@ -284,6 +289,19 @@ def _to_int(v: Any) -> int | None:
         return None
 
 
+def _to_bool(v: Any) -> bool | None:
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return v
+    s = str(v).strip().lower()
+    if s in {"1", "true", "yes", "on"}:
+        return True
+    if s in {"0", "false", "no", "off", "", "none", "null"}:
+        return False
+    return None
+
+
 def _to_str(v: Any) -> str | None:
     if v is None:
         return None
@@ -295,8 +313,11 @@ def build_football_prompt() -> str:
     return (
         "Analyze this NCAA College Football 27 gameplay frame. "
         "Read the scoreboard and HUD carefully. "
-        "In the scoreboard, the left score is the AWAY team and the right score is the HOME team. "
-        "Possession should be 'home' when the right-side team has the ball, 'away' when the left-side team has it. "
+        "Report home_score as the HOME team's score and away_score as the AWAY team's score, "
+        "regardless of which side of the scoreboard they appear on. "
+        "If the team names or HOME/AWAY labels clearly show the HOME team is on the LEFT, "
+        "set home_left to true; otherwise set it to false or null. "
+        "Possession should be 'home' when the team on the right has the ball, 'away' when the team on the left has it. "
         "Respond ONLY with valid JSON, no other text.\n\n"
         '{"game_state": "menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown", '
         '"game_title": "", '
@@ -304,6 +325,7 @@ def build_football_prompt() -> str:
         '"game_category": "football", '
         '"home_score": null, '
         '"away_score": null, '
+        '"home_left": null, '
         '"quarter": null, '
         '"down": null, '
         '"yards_to_go": null, '

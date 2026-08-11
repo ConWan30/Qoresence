@@ -1319,6 +1319,11 @@ def main():
         default="ncaa_football_27",
         help="Game profile (supports common aliases)",
     )
+    parser.add_argument(
+        "--scoreboard-home-left",
+        action="store_true",
+        help="Scoreboard puts the HOME team on the LEFT (default is away-left / home-right)",
+    )
     parser.add_argument("--screen", action="store_true", help="Enable screen lobe (mss/DXGI)")
     parser.add_argument("--screen-fps", type=float, default=60.0, help="Screen capture FPS")
     parser.add_argument("--visual", action="store_true", help="Enable visual lobe (VLM)")
@@ -1531,6 +1536,10 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Scoreboard orientation override: env is authoritative for the extractor.
+    if getattr(args, "scoreboard_home_left", False):
+        os.environ["QORESENCE_SCOREBOARD_HOME_LEFT"] = "1"
 
     # Load community game profiles from profiles/ directory
     try:

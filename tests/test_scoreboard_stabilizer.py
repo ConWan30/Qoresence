@@ -72,3 +72,19 @@ def test_parse_prefers_multi_digit_pair_31_38():
     parsed = ext._parse(tokens)
     assert parsed.get("home_score") == 38
     assert parsed.get("away_score") == 31
+
+
+def test_parse_prefers_multi_digit_pair_home_on_left():
+    """Synthetic clusters: home 31 (left), away 38 (right)."""
+    from qoresence.vision.scoreboard_extractor import _Token
+
+    tokens = [
+        _Token(text="31", x=0.22, y=0.45, conf=0.95),
+        _Token(text="38", x=0.78, y=0.45, conf=0.94),
+        _Token(text="HOME", x=0.15, y=0.45, conf=0.8),
+        _Token(text="AWAY", x=0.85, y=0.45, conf=0.8),
+    ]
+    ext = FootballScoreboardExtractor()
+    parsed = ext._parse(tokens, home_left=True)
+    assert parsed.get("home_score") == 31
+    assert parsed.get("away_score") == 38
