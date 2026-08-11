@@ -17,12 +17,13 @@ Requires Qoresence running with AgentGlass enabled:
   python -m qoresence.cli --play --deck --agent-glass
 """
 from __future__ import annotations
+
 import argparse
 import json
 import sys
 import time
-import urllib.request
 import urllib.parse
+import urllib.request
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
@@ -72,7 +73,6 @@ def main() -> int:
 
     if args.ws:
         try:
-            import asyncio
             import websockets  # type: ignore
             async def _ws_run():
                 uri = f"ws://{args.host}:{args.port}/agent/stream"
