@@ -26,10 +26,10 @@ from qoresence.core import (
 
 from .action_executor import ActionExecutor, Backend
 from .eventsub_client import TwitchEventSubClient
+from .fast_moment import FastMomentEngine
 from .helix_client import TwitchHelixClient
 from .learning_loop import LearningLogger
 from .llm_client import LLMConfig, QuicksilverLLMClient
-from .fast_moment import FastMomentEngine
 from .moment_scorer import MomentScorer, ScoredMoment
 from .prediction_lifecycle import PredictionLifecycleManager, get_prediction_lifecycle
 from .session_memory import SessionMemory
@@ -293,7 +293,6 @@ class ClutchBotAgent:
                 self._fast.on_confirm_score()
                 try:
                     win = 0
-                    fields = event.payload.get("fields") or {}
                     # Heuristic: home increased → Yes(0) often "they scored" if home possession
                     self._pred_life.resolve(
                         int(win),
@@ -512,8 +511,6 @@ class ClutchBotAgent:
                 self._dispatch_moments([moment], _E(), path_label=str(moment.payload.get("path") or "fast"))
             except Exception as e:
                 log.warning("A2A commit dispatch failed: %s", e)
-
-        from qoresence.a2a.orchestrator import get_a2a_orchestrator
 
         # Pass JSONL path so query-memory tool can access the event log
         _jsonl = str(self.bus.jsonl_path) if getattr(self.bus, "jsonl_path", None) else None
@@ -994,8 +991,8 @@ class _LocalHdmiClipBackend:
         if action != "clip":
             return False
         try:
-            from qoresence.vision.clip_buffer import export_clip
             from qoresence.deck.server import push_moment as _deck_push
+            from qoresence.vision.clip_buffer import export_clip
 
             seconds = None
             inner = payload.get("payload") or {}
