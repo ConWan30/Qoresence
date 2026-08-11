@@ -13,7 +13,6 @@ the downstream ``SituationModel`` plausibility gate, not just isolated units.
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from qoresence.agents.situation_model import SituationModel
 from qoresence.core import BaseEvent, EventType, SourceLobe
@@ -23,7 +22,6 @@ from qoresence.vision.scoreboard_extractor import (
 )
 from qoresence.vision.scoreboard_ocr_engine import OcrBox
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -145,9 +143,7 @@ def test_vlm_lock_persists_when_ocr_keeps_misreading(monkeypatch):
         lambda: _FakeOcrEngine(_ocr_boxes_20_20()),
     )
     vlm = _FakeVlm({"home_score": 20, "away_score": 0, "quarter": 3})
-    monkeypatch.setattr(
-        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm
-    )
+    monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     ext = FootballScoreboardExtractor()
     # VLM locks 20-0
     ctx = ext.extract(_blank_frame(), _football_ctx())
@@ -169,18 +165,14 @@ def test_null_vlm_holds_prior_lock(monkeypatch):
         lambda: _FakeOcrEngine(_ocr_boxes_20_0()),
     )
     vlm = _FakeVlm({"home_score": 20, "away_score": 0, "quarter": 3})
-    monkeypatch.setattr(
-        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm
-    )
+    monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     ext = FootballScoreboardExtractor()
     ctx = ext.extract(_blank_frame(), _football_ctx())
     assert (ctx.home_score, ctx.away_score) == (20, 0)
 
     # VLM disappears (transition / blur / no key) — get_last returns None
     vlm = _FakeVlm(None)
-    monkeypatch.setattr(
-        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm
-    )
+    monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     # OCR also goes flaky (reads nothing useful)
     monkeypatch.setattr(
         "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
@@ -199,18 +191,14 @@ def test_partial_vlm_does_not_wipe_lock(monkeypatch):
         lambda: _FakeOcrEngine(_ocr_boxes_20_0()),
     )
     vlm = _FakeVlm({"home_score": 20, "away_score": 0, "quarter": 3})
-    monkeypatch.setattr(
-        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm
-    )
+    monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     ext = FootballScoreboardExtractor()
     ctx = ext.extract(_blank_frame(), _football_ctx())
     assert (ctx.home_score, ctx.away_score) == (20, 0)
 
     # VLM partial: away is None → vlm_has_board False → scores not merged
     vlm = _FakeVlm({"home_score": 20, "away_score": None, "quarter": 3})
-    monkeypatch.setattr(
-        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm
-    )
+    monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     monkeypatch.setattr(
         "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
         lambda: _FakeOcrEngine([]),
@@ -331,9 +319,7 @@ def test_vlm_only_merge_without_ocr(monkeypatch):
         lambda: _FakeOcrEngine(_ocr_boxes_20_0()),
     )
     vlm = _FakeVlm({"home_score": 20, "away_score": 0, "quarter": 3})
-    monkeypatch.setattr(
-        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm
-    )
+    monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     ext = FootballScoreboardExtractor()
     ctx = ext.extract(_blank_frame(), _football_ctx())
     # VLM must merge even though OCR is off
