@@ -3,10 +3,10 @@
 Requires GitHub Discussions to be enabled for the repository.
 Run with: python scripts/publish_discussions.py
 """
+
 import json
 import os
 import re
-import sys
 import urllib.request
 from pathlib import Path
 
@@ -19,6 +19,7 @@ def get_token() -> str:
     token = os.environ.get("GH_TOKEN")
     if not token:
         import subprocess
+
         token = subprocess.check_output(["gh", "auth", "token"], text=True).strip()
     return token
 
@@ -44,11 +45,15 @@ def get_category_id(repo_id: str, category: str, token: str) -> str:
       }
     }
     """
-    cats = _graphql(query, {"repoId": repo_id}, token)["data"]["node"]["discussionCategories"]["nodes"]
+    cats = _graphql(query, {"repoId": repo_id}, token)["data"]["node"]["discussionCategories"][
+        "nodes"
+    ]
     for c in cats:
         if c["name"].lower() == category.lower():
             return c["id"]
-    raise RuntimeError(f"Discussion category {category!r} not found. Options: {[c['name'] for c in cats]}")
+    raise RuntimeError(
+        f"Discussion category {category!r} not found. Options: {[c['name'] for c in cats]}"
+    )
 
 
 def _graphql(query: str, variables: dict, token: str) -> dict:
@@ -70,7 +75,11 @@ def create_discussion(repo_id: str, category_id: str, title: str, body: str, tok
       }
     }
     """
-    data = _graphql(query, {"repositoryId": repo_id, "categoryId": category_id, "title": title, "body": body}, token)
+    data = _graphql(
+        query,
+        {"repositoryId": repo_id, "categoryId": category_id, "title": title, "body": body},
+        token,
+    )
     return data["data"]["createDiscussion"]["discussion"]["url"]
 
 
