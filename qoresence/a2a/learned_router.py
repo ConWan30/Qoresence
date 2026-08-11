@@ -114,10 +114,21 @@ class FeatureExtractor:
 
         is_pressure = 1.0 if drive_phase == "pressure" else 0.0
         is_armed = 1.0 if drive_phase == "armed" else 0.0
-        is_big_play = 1.0 if last_event in {
-            "touchdown", "field_goal", "safety", "turnover", "score_changed",
-            "two_point_conversion", "red_zone_entry", "two_minute_warning",
-        } else 0.0
+        is_big_play = (
+            1.0
+            if last_event
+            in {
+                "touchdown",
+                "field_goal",
+                "safety",
+                "turnover",
+                "score_changed",
+                "two_point_conversion",
+                "red_zone_entry",
+                "two_minute_warning",
+            }
+            else 0.0
+        )
 
         # Time since last evidence chain
         now = time.time()
@@ -453,7 +464,9 @@ class LearnedRouter:
                 "visual_confidence": ec.get("confidence"),
                 "coupling": ec.get("coupling_score"),
                 "drive_phase": ec.get("drive_phase"),
-                "last_outcome_event": (ec.get("cited_events") or [{}])[0].get("event_name") if ec.get("cited_events") else None,
+                "last_outcome_event": (ec.get("cited_events") or [{}])[0].get("event_name")
+                if ec.get("cited_events")
+                else None,
                 "game_state": "gameplay",
                 "game_category": "football",  # inferred from cited fields
             }

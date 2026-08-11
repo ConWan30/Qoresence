@@ -20,7 +20,9 @@ def test_soft_vetoes_scoreline():
 def test_soft_allows_no_digits():
     p = A2APolicy(chat_cooldown_s=0)
     r = p.evaluate(
-        ChatProposal(text="Controller heat on a live drive — eyes up.", path="fast", soft_only=True),
+        ChatProposal(
+            text="Controller heat on a live drive — eyes up.", path="fast", soft_only=True
+        ),
         situation={"home_score": 31, "away_score": 38},
     )
     assert r.__class__.__name__ == "CommitAct"
@@ -105,7 +107,12 @@ def test_score_changed_reason_triggers():
     orch.deepseek.live = False
     orch.policy.chat_cooldown_s = 0
     orch.maybe_trigger_from_drive(
-        situation={"game_category": "football", "game_state": "gameplay", "home_score": 7, "away_score": 0},
+        situation={
+            "game_category": "football",
+            "game_state": "gameplay",
+            "home_score": 7,
+            "away_score": 0,
+        },
         reason="score_changed",
     )
     import time
@@ -201,7 +208,9 @@ def test_near_duplicate_policy():
     r1 = p.evaluate(ChatProposal(text=t, path="fast", soft_only=True), situation={})
     assert r1.__class__.__name__ == "CommitAct"
     r2 = p.evaluate(
-        ChatProposal(text="Big moment energy — stay with it on this drive!!", path="fast", soft_only=True),
+        ChatProposal(
+            text="Big moment energy — stay with it on this drive!!", path="fast", soft_only=True
+        ),
         situation={},
     )
     assert r2.__class__.__name__ == "Veto"

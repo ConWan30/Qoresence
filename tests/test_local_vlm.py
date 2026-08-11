@@ -257,7 +257,10 @@ class TestLocalVLMClient:
         assert ctx.game_state == GameState.MENU
 
 
-@pytest.mark.xfail(reason="ONNX model currently misclassifies near-black frames as football; not a code regression", strict=False)
+@pytest.mark.xfail(
+    reason="ONNX model currently misclassifies near-black frames as football; not a code regression",
+    strict=False,
+)
 def test_onnx_distilled_if_present():
     """If the distilled ONNX model exists, verify it loads and classifies correctly."""
     import os

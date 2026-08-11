@@ -98,7 +98,11 @@ def _parse_yaml_profile(path: Path) -> tuple[GameProfile, list[str]] | None:
 
     # Create a synthetic GameProfileId for the community profile
     # We use a plain string since GameProfileId is a StrEnum
-    pid = GameProfileId(profile_id) if profile_id in GameProfileId.__members__.values() else _CommunityProfileId(profile_id)
+    pid = (
+        GameProfileId(profile_id)
+        if profile_id in GameProfileId.__members__.values()
+        else _CommunityProfileId(profile_id)
+    )
 
     profile = GameProfile(
         profile_id=pid,  # type: ignore[arg-type]
@@ -176,12 +180,14 @@ def list_profiles() -> list[dict[str, Any]]:
     """
     result = []
     for pid, p in GAME_PROFILE_REGISTRY.items():
-        result.append({
-            "profile_id": str(pid),
-            "display_name": p.display_name,
-            "category": p.category,
-            "event_count": len(p.event_types),
-            "field_count": len(p.outcome_fields),
-            "community": isinstance(pid, _CommunityProfileId),
-        })
+        result.append(
+            {
+                "profile_id": str(pid),
+                "display_name": p.display_name,
+                "category": p.category,
+                "event_count": len(p.event_types),
+                "field_count": len(p.outcome_fields),
+                "community": isinstance(pid, _CommunityProfileId),
+            }
+        )
     return result

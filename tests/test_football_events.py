@@ -231,8 +231,16 @@ def test_two_minute_warning_once_per_quarter():
 
 def test_a2a_intervals_have_new_events():
     from qoresence.a2a.orchestrator import _INTERVAL_BY_REASON
-    for reason in ("touchdown", "field_goal", "safety", "two_point_conversion",
-                   "turnover", "red_zone_entry", "two_minute_warning"):
+
+    for reason in (
+        "touchdown",
+        "field_goal",
+        "safety",
+        "two_point_conversion",
+        "turnover",
+        "red_zone_entry",
+        "two_minute_warning",
+    ):
         assert reason in _INTERVAL_BY_REASON, f"{reason} missing from _INTERVAL_BY_REASON"
 
 
@@ -241,8 +249,12 @@ def test_a2a_intervals_have_new_events():
 
 def test_profile_has_new_events():
     new_events = {
-        "touchdown", "field_goal", "safety", "two_point_conversion",
-        "two_minute_warning", "red_zone_entry",
+        "touchdown",
+        "field_goal",
+        "safety",
+        "two_point_conversion",
+        "two_minute_warning",
+        "red_zone_entry",
     }
     for ev in new_events:
         assert ev in NCAA_FOOTBALL_27_PROFILE.event_types, f"{ev} not in profile event_types"

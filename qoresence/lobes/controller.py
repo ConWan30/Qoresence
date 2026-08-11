@@ -300,13 +300,19 @@ class ControllerRuntime:
                 log.info("Controller HID opened: %s", self._device_path)
                 return True
             except Exception as e:
-                log.error("Failed to open HID vid=%s pid=%s: %s", self.config.device_vid, self.config.device_pid, e)
+                log.error(
+                    "Failed to open HID vid=%s pid=%s: %s",
+                    self.config.device_vid,
+                    self.config.device_pid,
+                    e,
+                )
                 self._device = None
                 return False
 
         # Priority 3: Enumerate Sony DualSense family and open first usable path
         candidates = list_controllers()
         sony = [c for c in candidates if int(c.get("vid") or 0) == DS_EDGE_VID]
+
         # Prefer Edge product string / Edge PID, then any Sony pad
         def _rank(c: dict) -> int:
             pid = int(c.get("pid") or 0)
@@ -689,9 +695,7 @@ class ControllerRuntime:
                 # InputRing: edge only (center → outside)
                 if not was_outside:
                     mag = min(1.0, max(dx, dy) / 127.0)
-                    self._push_input_ring(
-                        kind="stick", name=stick, value=mag, clock_ns=now_ns
-                    )
+                    self._push_input_ring(kind="stick", name=stick, value=mag, clock_ns=now_ns)
 
     def _emit_tremor_sample(self, state: ControllerState, now_ns: int) -> None:
         """Emit IMU tremor sample for biometric correlation."""
@@ -764,9 +768,7 @@ class ControllerRuntime:
                     clock_ns_override=now_ns,
                     session_head_ns=self.session_head_ns,
                 )
-                self._push_input_ring(
-                    kind="release", name=name, value=0.0, clock_ns=now_ns
-                )
+                self._push_input_ring(kind="release", name=name, value=0.0, clock_ns=now_ns)
 
     def _emit_controller_event(self, state: ControllerState, now_ns: int) -> None:
         """Emit periodic full state snapshot."""

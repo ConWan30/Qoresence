@@ -54,7 +54,11 @@ def build_chapters_for_window(
         else:
             continue
         kind = str(d.get("kind") or "")
-        if kind not in _CHAPTER_KINDS and not kind.startswith("fast_") and not kind.startswith("confirm"):
+        if (
+            kind not in _CHAPTER_KINDS
+            and not kind.startswith("fast_")
+            and not kind.startswith("confirm")
+        ):
             continue
         cns = int(d.get("clock_ns") or 0)
         if cns < start_ns or cns > end_ns:

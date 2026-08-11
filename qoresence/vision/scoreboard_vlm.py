@@ -25,9 +25,7 @@ from qoresence.agents.llm_client import DEFAULT_BASE_URL, _resolve_api_key
 
 log = logging.getLogger(__name__)
 
-SCOREBOARD_MODEL = os.environ.get(
-    "QORESENCE_SCOREBOARD_VLM_MODEL", "gemini-3.5-flash-lite"
-)
+SCOREBOARD_MODEL = os.environ.get("QORESENCE_SCOREBOARD_VLM_MODEL", "gemini-3.5-flash-lite")
 # Smarter Gemini cadence (not every frame):
 # - gameplay: ~1.5–2 Hz board (default 0.6s min is too hot; use 1.5s)
 # - menu/hub: sparse
@@ -56,20 +54,13 @@ class ScoreboardVlmReferee:
         env = os.environ.get("QORESENCE_SCOREBOARD_VLM", "1").strip().lower()
         self.enabled = env in {"1", "true", "yes", "on"}
         self.model = SCOREBOARD_MODEL
-        self.base_url = (
-            os.environ.get("QUICKSILVER_BASE_URL") or DEFAULT_BASE_URL
-        ).rstrip("/")
-        key_file = (
-            os.environ.get("QUICKSILVER_API_KEY_FILE")
-            or (
-                ".secrets/quicksilver_clutchbot.key"
-                if __import__("pathlib").Path(".secrets/quicksilver_clutchbot.key").exists()
-                else None
-            )
+        self.base_url = (os.environ.get("QUICKSILVER_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+        key_file = os.environ.get("QUICKSILVER_API_KEY_FILE") or (
+            ".secrets/quicksilver_clutchbot.key"
+            if __import__("pathlib").Path(".secrets/quicksilver_clutchbot.key").exists()
+            else None
         )
-        self._api_key = _resolve_api_key(
-            os.environ.get("QUICKSILVER_API_KEY"), key_file
-        )
+        self._api_key = _resolve_api_key(os.environ.get("QUICKSILVER_API_KEY"), key_file)
         if self.enabled and not self._api_key:
             log.info("Scoreboard VLM disabled — no Quicksilver API key")
             self.enabled = False
@@ -181,8 +172,7 @@ class ScoreboardVlmReferee:
             # resize to same width
             ww = min(c.shape[1] for c in valid)
             resized = [
-                cv2.resize(c, (ww, max(8, int(c.shape[0] * ww / c.shape[1]))))
-                for c in valid
+                cv2.resize(c, (ww, max(8, int(c.shape[0] * ww / c.shape[1])))) for c in valid
             ]
             out = np.vstack(resized)
         # Cap size for API
@@ -245,11 +235,7 @@ class ScoreboardVlmReferee:
             except Exception as e2:
                 log.warning("scoreboard VLM HTTP failed: %s / %s", e, e2)
                 return None
-        text = (
-            data.get("choices", [{}])[0]
-            .get("message", {})
-            .get("content", "")
-        )
+        text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         self._last_raw = str(text)[:500]
         return self._parse_json(str(text))
 

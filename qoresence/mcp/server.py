@@ -1,4 +1,5 @@
 """Qoresence MCP — Glass D (stdio fallback)."""
+
 from __future__ import annotations
 
 import base64
@@ -55,15 +56,35 @@ def _get_fastmcp():
         return handle_export_clip(seconds=seconds)
 
     @mcp.tool()  # type: ignore
-    def search_clips(query: str = "", limit: int = 8, kinds: str = "", coupling_min: float = 0.0, drive_id: str = "", since_clock_ns: int = 0) -> dict:  # type: ignore
-        return handle_search_clips(query=query, limit=limit, kinds=kinds, coupling_min=coupling_min, drive_id=drive_id or None, since_clock_ns=since_clock_ns)
+    def search_clips(
+        query: str = "",
+        limit: int = 8,
+        kinds: str = "",
+        coupling_min: float = 0.0,
+        drive_id: str = "",
+        since_clock_ns: int = 0,
+    ) -> dict:  # type: ignore
+        return handle_search_clips(
+            query=query,
+            limit=limit,
+            kinds=kinds,
+            coupling_min=coupling_min,
+            drive_id=drive_id or None,
+            since_clock_ns=since_clock_ns,
+        )
 
     @mcp.tool()  # type: ignore
-    def get_drive_graph(drive_id: str = "", include_nodes: bool = True, max_nodes: int = 40) -> dict:  # type: ignore
-        return handle_get_drive_graph(drive_id=drive_id or None, include_nodes=include_nodes, max_nodes=max_nodes)
+    def get_drive_graph(
+        drive_id: str = "", include_nodes: bool = True, max_nodes: int = 40
+    ) -> dict:  # type: ignore
+        return handle_get_drive_graph(
+            drive_id=drive_id or None, include_nodes=include_nodes, max_nodes=max_nodes
+        )
 
     @mcp.tool()  # type: ignore
-    def subscribe_events(since: int = 0, types: str = "", limit: int = 20, poll_ms: int = 0) -> dict:  # type: ignore
+    def subscribe_events(
+        since: int = 0, types: str = "", limit: int = 20, poll_ms: int = 0
+    ) -> dict:  # type: ignore
         return handle_subscribe_events(since=since, types=types, limit=limit, poll_ms=poll_ms)
 
     @mcp.tool()  # type: ignore
@@ -77,8 +98,14 @@ def _get_fastmcp():
     _mcp_fastmcp = mcp
     return mcp
 
+
 def _read_token(tf: str | None = None) -> str | None:
-    for p in [tf, os.getenv("MCP_TOKEN_FILE"), os.getenv("QORESENCE_AGENT_GLASS_TOKEN_FILE"), DEFAULT_TOKEN_FILE]:
+    for p in [
+        tf,
+        os.getenv("MCP_TOKEN_FILE"),
+        os.getenv("QORESENCE_AGENT_GLASS_TOKEN_FILE"),
+        DEFAULT_TOKEN_FILE,
+    ]:
         if not p:
             continue
         try:
@@ -92,6 +119,7 @@ def _read_token(tf: str | None = None) -> str | None:
     tok = os.getenv("QORESENCE_AGENT_GLASS_TOKEN") or os.getenv("MCP_TOKEN")
     return tok.strip() if tok and tok.strip() else None
 
+
 def _resolve_base() -> tuple[str, int]:
     h = os.getenv("QORESENCE_AGENT_GLASS_HOST") or os.getenv("QORESENCE_HOST") or DEFAULT_HOST
     ps = os.getenv("QORESENCE_AGENT_GLASS_PORT") or os.getenv("QORESENCE_PORT") or str(DEFAULT_PORT)
@@ -103,12 +131,15 @@ def _resolve_base() -> tuple[str, int]:
         h = DEFAULT_HOST
     return h, port
 
+
 def _get_glass():
     try:
         from qoresence.agents.agent_glass import get_agent_glass
+
         return get_agent_glass()
     except Exception:
         return None
+
 
 def _http_get(path: str, token: str | None = None) -> dict[str, Any]:
     h, port = _resolve_base()
@@ -135,7 +166,12 @@ def _http_get(path: str, token: str | None = None) -> dict[str, Any]:
         j.setdefault("error", f"http_{e.code}")
         return j
     except Exception as e:
-        return {"ok": False, "error": "http_unreachable", "hint": f"is Qoresence running with --agent-glass? ({e})"}
+        return {
+            "ok": False,
+            "error": "http_unreachable",
+            "hint": f"is Qoresence running with --agent-glass? ({e})",
+        }
+
 
 def _http_get_bytes(path: str, token: str | None = None):
     h, port = _resolve_base()
@@ -156,6 +192,7 @@ def _http_get_bytes(path: str, token: str | None = None):
             return {"ok": False, "error": f"http_{e.code}", "body": body[:500]}
     except Exception as e:
         return {"ok": False, "error": "http_unreachable", "hint": str(e)}
+
 
 def _http_post(path: str, payload: dict[str, Any], token: str | None = None) -> dict[str, Any]:
     h, port = _resolve_base()
@@ -180,6 +217,8 @@ def _http_post(path: str, payload: dict[str, Any], token: str | None = None) -> 
         return j
     except Exception as e:
         return {"ok": False, "error": "http_unreachable", "hint": str(e)}
+
+
 def handle_get_snapshot() -> dict[str, Any]:
     g = _get_glass()
     if g is not None:
@@ -189,8 +228,11 @@ def handle_get_snapshot() -> dict[str, Any]:
             return {"ok": False, "error": "snapshot_failed", "hint": str(e)}
     r = _http_get("/api/agent/snapshot")
     if not r.get("ok") and r.get("error") == "http_unreachable":
-        r["hint"] = "is Qoresence running with --agent-glass? (--agent-glass enables 127.0.0.1:8765)"
+        r["hint"] = (
+            "is Qoresence running with --agent-glass? (--agent-glass enables 127.0.0.1:8765)"
+        )
     return r
+
 
 def handle_get_events(since: int = 0, types: str = "", limit: int = 20) -> dict[str, Any]:
     limit = max(1, min(500, int(limit)))
@@ -206,8 +248,10 @@ def handle_get_events(since: int = 0, types: str = "", limit: int = 20) -> dict[
     qs = f"?since={since}&limit={limit}"
     if csv:
         import urllib.parse as _up  # local import
+
         qs += "&types=" + _up.quote(csv)
     return _http_get(f"/api/agent/events{qs}")
+
 
 def handle_get_health() -> dict[str, Any]:
     g = _get_glass()
@@ -218,25 +262,40 @@ def handle_get_health() -> dict[str, Any]:
             return {"ok": False, "error": "health_failed", "hint": str(e)}
     r = _http_get("/api/agent/health")
     if not r.get("ok") and r.get("error") == "http_unreachable":
-        r["hint"] = "is Qoresence running with --agent-glass? (--agent-glass enables 127.0.0.1:8765)"
+        r["hint"] = (
+            "is Qoresence running with --agent-glass? (--agent-glass enables 127.0.0.1:8765)"
+        )
     return r
+
 
 def handle_get_frame() -> dict[str, Any]:
     g = _get_glass()
     if g is not None:
         try:
             from qoresence.vision.clip_buffer import get_clip_buffer
+
             cb = get_clip_buffer()
             fn = getattr(cb, "latest_jpeg", None) or getattr(cb, "get_latest_jpeg", None)
             jpeg = fn() if callable(fn) else None
             if jpeg:
-                return {"ok": True, "image": "data:image/jpeg;base64," + base64.b64encode(jpeg).decode(), "bytes": len(jpeg), "clock_ns": time.monotonic_ns()}
+                return {
+                    "ok": True,
+                    "image": "data:image/jpeg;base64," + base64.b64encode(jpeg).decode(),
+                    "bytes": len(jpeg),
+                    "clock_ns": time.monotonic_ns(),
+                }
         except Exception:
             pass
     raw = _http_get_bytes("/api/agent/frame")
     if isinstance(raw, dict):
         return raw
-    return {"ok": True, "image": "data:image/jpeg;base64," + base64.b64encode(raw).decode(), "bytes": len(raw), "clock_ns": time.monotonic_ns()}
+    return {
+        "ok": True,
+        "image": "data:image/jpeg;base64," + base64.b64encode(raw).decode(),
+        "bytes": len(raw),
+        "clock_ns": time.monotonic_ns(),
+    }
+
 
 def handle_export_clip(seconds: int = 15) -> dict[str, Any]:
     seconds = max(1, min(30, int(seconds)))
@@ -246,19 +305,46 @@ def handle_export_clip(seconds: int = 15) -> dict[str, Any]:
     if hr.get("error") == "http_unreachable":
         try:
             from qoresence.vision.clip_buffer import get_clip_buffer
+
             cb = get_clip_buffer()
             fn = getattr(cb, "export", None) or getattr(cb, "export_clip", None)
             if fn is None:
-                return {"ok": False, "error": "clip_failed", "hint": "no export method on ClipBuffer", "http_hint": hr.get("hint")}
-            res = fn(seconds=seconds) if "seconds" in fn.__code__.co_varnames else fn(path=None, seconds=seconds)
+                return {
+                    "ok": False,
+                    "error": "clip_failed",
+                    "hint": "no export method on ClipBuffer",
+                    "http_hint": hr.get("hint"),
+                }
+            res = (
+                fn(seconds=seconds)
+                if "seconds" in fn.__code__.co_varnames
+                else fn(path=None, seconds=seconds)
+            )
             if res is None:
-                return {"ok": False, "error": "clip_no_frames", "hint": "ring empty (is streamer running?)", "http_hint": hr.get("hint")}
+                return {
+                    "ok": False,
+                    "error": "clip_no_frames",
+                    "hint": "ring empty (is streamer running?)",
+                    "http_hint": hr.get("hint"),
+                }
             if hasattr(res, "path"):
-                return {"ok": True, "path": str(res.path), "frames": res.frames, "duration_s": res.duration_s, "seconds": seconds}
+                return {
+                    "ok": True,
+                    "path": str(res.path),
+                    "frames": res.frames,
+                    "duration_s": res.duration_s,
+                    "seconds": seconds,
+                }
             return {"ok": True, "result": str(res)}
         except Exception as e:
-            return {"ok": False, "error": "clip_failed", "hint": str(e), "http_hint": hr.get("hint")}
+            return {
+                "ok": False,
+                "error": "clip_failed",
+                "hint": str(e),
+                "http_hint": hr.get("hint"),
+            }
     return hr
+
 
 def handle_get_situation() -> dict[str, Any]:
     snap = handle_get_snapshot()
@@ -271,33 +357,78 @@ def handle_get_situation() -> dict[str, Any]:
             last = ev["events"][-1]
     except Exception:
         pass
-    return {"ok": True, "situation": snap.get("situation", {}), "coupling": snap.get("coupling", {}), "last_visual_context": last, "seq": snap.get("seq"), "clock_ns": snap.get("clock_ns")}
+    return {
+        "ok": True,
+        "situation": snap.get("situation", {}),
+        "coupling": snap.get("coupling", {}),
+        "last_visual_context": last,
+        "seq": snap.get("seq"),
+        "clock_ns": snap.get("clock_ns"),
+    }
 
-def handle_search_clips(query: str = "", limit: int = 8, kinds: str = "", coupling_min: float = 0.0, drive_id: str | None = None, since_clock_ns: int = 0) -> dict[str, Any]:
+
+def handle_search_clips(
+    query: str = "",
+    limit: int = 8,
+    kinds: str = "",
+    coupling_min: float = 0.0,
+    drive_id: str | None = None,
+    since_clock_ns: int = 0,
+) -> dict[str, Any]:
     try:
         from qoresence.foundry.index import search_clips as _sc
-        return _sc(query=query or "", limit=int(limit), kinds=str(kinds or ""), coupling_min=float(coupling_min) if coupling_min else 0.0, drive_id=drive_id or None, since_clock_ns=int(since_clock_ns) if since_clock_ns else 0)
+
+        return _sc(
+            query=query or "",
+            limit=int(limit),
+            kinds=str(kinds or ""),
+            coupling_min=float(coupling_min) if coupling_min else 0.0,
+            drive_id=drive_id or None,
+            since_clock_ns=int(since_clock_ns) if since_clock_ns else 0,
+        )
     except Exception as e:
         return {"ok": False, "error": "search_failed", "hint": str(e)}
-def handle_get_drive_graph(drive_id: str | None = None, include_nodes: bool = True, max_nodes: int = 40) -> dict[str, Any]:
+
+
+def handle_get_drive_graph(
+    drive_id: str | None = None, include_nodes: bool = True, max_nodes: int = 40
+) -> dict[str, Any]:
     try:
         from qoresence.foundry.index import get_drive_graph as _gdg
-        return _gdg(drive_id=drive_id or None, include_nodes=bool(include_nodes), max_nodes=int(max_nodes))
+
+        return _gdg(
+            drive_id=drive_id or None, include_nodes=bool(include_nodes), max_nodes=int(max_nodes)
+        )
     except Exception as e:
         return {"ok": False, "error": "drive_graph_failed", "hint": str(e)}
-def handle_subscribe_events(since: int = 0, types: str = "", limit: int = 20, poll_ms: int = 1000) -> dict[str, Any]:
+
+
+def handle_subscribe_events(
+    since: int = 0, types: str = "", limit: int = 20, poll_ms: int = 1000
+) -> dict[str, Any]:
     try:
         poll_ms = max(0, min(5000, int(poll_ms)))
         if poll_ms:
             import time as _t
+
             _t.sleep(min(0.5, poll_ms / 1000.0))
         ev = handle_get_events(since=int(since), types=str(types or ""), limit=int(limit))
         if not ev.get("ok"):
             return ev
         nxt = int(ev.get("next_seq") or int(since) or 0)
-        return {"ok": True, "events": ev.get("events") or [], "count": ev.get("count") or 0, "next_since": nxt, "next_seq": nxt, "poll_again_ms": 1000, "hint": "call subscribe_events again with since=next_since for live tail"}
+        return {
+            "ok": True,
+            "events": ev.get("events") or [],
+            "count": ev.get("count") or 0,
+            "next_since": nxt,
+            "next_seq": nxt,
+            "poll_again_ms": 1000,
+            "hint": "call subscribe_events again with since=next_since for live tail",
+        }
     except Exception as e:
         return {"ok": False, "error": "subscribe_failed", "hint": str(e)}
+
+
 def handle_diagnose_freeze() -> dict[str, Any]:
     try:
         snap = handle_get_snapshot()
@@ -328,34 +459,144 @@ def handle_diagnose_freeze() -> dict[str, Any]:
         if age_f is not None and age_f > 5.0:
             frozen = True
             reasons.append(f"video.age_s={age_f:.1f}s > 5s - frames stalled")
-            advice.append("not the capture card - capture thread likely deadlocked; run py-spy dump --pid <pid>, see AGENTS.md R1/R3/R4")
+            advice.append(
+                "not the capture card - capture thread likely deadlocked; run py-spy dump --pid <pid>, see AGENTS.md R1/R3/R4"
+            )
         if not has_frame and (not frames or int(frames) == 0):
-            reasons.append("no frames yet (has_frame=false, frames=0) - is streamer running? (--play --deck --monitor)")
+            reasons.append(
+                "no frames yet (has_frame=false, frames=0) - is streamer running? (--play --deck --monitor)"
+            )
         if seq == 0:
             reasons.append("glass seq=0 - RetinaEventBus not flowing")
         if not frozen and age_f is not None and age_f < 1.0 and has_frame:
             reasons.append(f"healthy: age_s={age_f:.2f}s, frames={frames}")
         diagnosis = "FROZEN" if frozen else ("NO_FRAMES" if not has_frame else "HEALTHY")
-        return {"ok": True, "diagnosis": diagnosis, "frozen": frozen, "healthy": not frozen and has_frame, "video": video, "coupling": coupling, "bus": bus, "seq": seq, "age_s": age_f, "has_frame": has_frame, "reasons": reasons, "advice": advice or ["if degraded, lower --streamer-width/height or --streamer-fps 30"], "refs": ["AGENTS.md R1/R3/R4", "docs/AGENT_GLASS.md#threading-invariant"]}
+        return {
+            "ok": True,
+            "diagnosis": diagnosis,
+            "frozen": frozen,
+            "healthy": not frozen and has_frame,
+            "video": video,
+            "coupling": coupling,
+            "bus": bus,
+            "seq": seq,
+            "age_s": age_f,
+            "has_frame": has_frame,
+            "reasons": reasons,
+            "advice": advice or ["if degraded, lower --streamer-width/height or --streamer-fps 30"],
+            "refs": ["AGENTS.md R1/R3/R4", "docs/AGENT_GLASS.md#threading-invariant"],
+        }
     except Exception as e:
         return {"ok": False, "error": "diagnose_failed", "hint": str(e)}
 
 
 TOOL_DEFS = [
-    {"name": "get_snapshot", "description": "Curated PS5 HDMI + input + game-state + coupling + video health. No capture.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
-    {"name": "get_events", "description": "Cursor-paginated RetinaEventBus. since is _agent_seq, types csv, limit 1..500.", "inputSchema": {"type": "object", "properties": {"since": {"type": "integer", "minimum": 0, "default": 0}, "types": {"type": "string", "default": ""}, "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 20}}, "additionalProperties": False}},
-    {"name": "get_health", "description": "Fast liveness: running, seq, video {age_s,frames}, coupling.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
-    {"name": "get_frame", "description": "Latest JPEG as base64 data uri. Throttled 10fps/client.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
-    {"name": "export_clip", "description": "Export local HDMI ring to MP4+sidecar. seconds 1..30. Throttled 1 per 10s.", "inputSchema": {"type": "object", "properties": {"seconds": {"type": "integer", "minimum": 1, "maximum": 30, "default": 15}}, "additionalProperties": False}},
-    {"name": "search_clips", "description": "Foundry RAG: keyword search over clips chapters+buttons+graph+timeline. query free text, limit 1..20, kinds csv, coupling_min 0..1, drive_id.", "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "default": ""}, "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8}, "kinds": {"type": "string", "default": ""}, "coupling_min": {"type": "number", "minimum": 0, "maximum": 1, "default": 0}, "drive_id": {"type": "string", "default": ""}, "since_clock_ns": {"type": "integer", "minimum": 0, "default": 0}}, "additionalProperties": False}},
-    {"name": "get_drive_graph", "description": "DriveGraph for active or drive_id: phase/climax/nodes/ranking + why_line. Software-only.", "inputSchema": {"type": "object", "properties": {"drive_id": {"type": "string", "default": ""}, "include_nodes": {"type": "boolean", "default": True}, "max_nodes": {"type": "integer", "minimum": 1, "maximum": 200, "default": 40}}, "additionalProperties": False}},
-    {"name": "subscribe_events", "description": "Proactive glass: poll RetinaEventBus since=_agent_seq, types csv, limit 1..500. Returns next_since for live tail.", "inputSchema": {"type": "object", "properties": {"since": {"type": "integer", "minimum": 0, "default": 0}, "types": {"type": "string", "default": ""}, "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 20}, "poll_ms": {"type": "integer", "minimum": 0, "maximum": 5000, "default": 0}}, "additionalProperties": False}},
-    {"name": "diagnose_freeze", "description": "Software-only freeze triage: checks video.age_s/frames, glass seq, bus; returns diagnosis FROZEN/HEALTHY/NO_FRAMES.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
-    {"name": "get_situation", "description": "Merged situation+coupling+last visual_context.", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+    {
+        "name": "get_snapshot",
+        "description": "Curated PS5 HDMI + input + game-state + coupling + video health. No capture.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "get_events",
+        "description": "Cursor-paginated RetinaEventBus. since is _agent_seq, types csv, limit 1..500.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "since": {"type": "integer", "minimum": 0, "default": 0},
+                "types": {"type": "string", "default": ""},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 20},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "get_health",
+        "description": "Fast liveness: running, seq, video {age_s,frames}, coupling.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "get_frame",
+        "description": "Latest JPEG as base64 data uri. Throttled 10fps/client.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "export_clip",
+        "description": "Export local HDMI ring to MP4+sidecar. seconds 1..30. Throttled 1 per 10s.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "seconds": {"type": "integer", "minimum": 1, "maximum": 30, "default": 15}
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "search_clips",
+        "description": "Foundry RAG: keyword search over clips chapters+buttons+graph+timeline. query free text, limit 1..20, kinds csv, coupling_min 0..1, drive_id.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "default": ""},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8},
+                "kinds": {"type": "string", "default": ""},
+                "coupling_min": {"type": "number", "minimum": 0, "maximum": 1, "default": 0},
+                "drive_id": {"type": "string", "default": ""},
+                "since_clock_ns": {"type": "integer", "minimum": 0, "default": 0},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "get_drive_graph",
+        "description": "DriveGraph for active or drive_id: phase/climax/nodes/ranking + why_line. Software-only.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "drive_id": {"type": "string", "default": ""},
+                "include_nodes": {"type": "boolean", "default": True},
+                "max_nodes": {"type": "integer", "minimum": 1, "maximum": 200, "default": 40},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "subscribe_events",
+        "description": "Proactive glass: poll RetinaEventBus since=_agent_seq, types csv, limit 1..500. Returns next_since for live tail.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "since": {"type": "integer", "minimum": 0, "default": 0},
+                "types": {"type": "string", "default": ""},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 20},
+                "poll_ms": {"type": "integer", "minimum": 0, "maximum": 5000, "default": 0},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "diagnose_freeze",
+        "description": "Software-only freeze triage: checks video.age_s/frames, glass seq, bus; returns diagnosis FROZEN/HEALTHY/NO_FRAMES.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "get_situation",
+        "description": "Merged situation+coupling+last visual_context.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
 ]
 RESOURCE_DEFS = [
-    {"uri": "qoresence://snapshot", "name": "snapshot", "mimeType": "application/json", "description": "Live snapshot"},
-    {"uri": "qoresence://events", "name": "events", "mimeType": "application/json", "description": "Event log"},
+    {
+        "uri": "qoresence://snapshot",
+        "name": "snapshot",
+        "mimeType": "application/json",
+        "description": "Live snapshot",
+    },
+    {
+        "uri": "qoresence://events",
+        "name": "events",
+        "mimeType": "application/json",
+        "description": "Event log",
+    },
 ]
 PROMPT_DEFS = [
     {"name": "coach_clutch", "description": "Clutch coach prompt", "arguments": []},
@@ -363,13 +604,31 @@ PROMPT_DEFS = [
 ]
 HANDLERS = {
     "get_snapshot": lambda a: handle_get_snapshot(),
-    "get_events": lambda a: handle_get_events(since=int(a.get("since", 0)), types=str(a.get("types", "")), limit=int(a.get("limit", 20))),
+    "get_events": lambda a: handle_get_events(
+        since=int(a.get("since", 0)), types=str(a.get("types", "")), limit=int(a.get("limit", 20))
+    ),
     "get_health": lambda a: handle_get_health(),
     "get_frame": lambda a: handle_get_frame(),
     "export_clip": lambda a: handle_export_clip(seconds=int(a.get("seconds", 15))),
-    "search_clips": lambda a: handle_search_clips(query=str(a.get("query","")), limit=int(a.get("limit",8)), kinds=str(a.get("kinds","")), coupling_min=float(a.get("coupling_min",0) or 0), drive_id=(str(a.get("drive_id","")).strip() or None), since_clock_ns=int(a.get("since_clock_ns",0) or 0)),
-    "get_drive_graph": lambda a: handle_get_drive_graph(drive_id=(str(a.get("drive_id","")).strip() or None), include_nodes=bool(a.get("include_nodes", True)), max_nodes=int(a.get("max_nodes", 40))),
-    "subscribe_events": lambda a: handle_subscribe_events(since=int(a.get("since",0)), types=str(a.get("types","")), limit=int(a.get("limit",20)), poll_ms=int(a.get("poll_ms",0))),
+    "search_clips": lambda a: handle_search_clips(
+        query=str(a.get("query", "")),
+        limit=int(a.get("limit", 8)),
+        kinds=str(a.get("kinds", "")),
+        coupling_min=float(a.get("coupling_min", 0) or 0),
+        drive_id=(str(a.get("drive_id", "")).strip() or None),
+        since_clock_ns=int(a.get("since_clock_ns", 0) or 0),
+    ),
+    "get_drive_graph": lambda a: handle_get_drive_graph(
+        drive_id=(str(a.get("drive_id", "")).strip() or None),
+        include_nodes=bool(a.get("include_nodes", True)),
+        max_nodes=int(a.get("max_nodes", 40)),
+    ),
+    "subscribe_events": lambda a: handle_subscribe_events(
+        since=int(a.get("since", 0)),
+        types=str(a.get("types", "")),
+        limit=int(a.get("limit", 20)),
+        poll_ms=int(a.get("poll_ms", 0)),
+    ),
     "diagnose_freeze": lambda a: handle_diagnose_freeze(),
     "get_situation": lambda a: handle_get_situation(),
 }
@@ -392,7 +651,14 @@ def _handle_request(msg: dict[str, Any]) -> dict[str, Any] | None:
     params = msg.get("params") or {}
     is_notif = "id" not in msg
     if method == "initialize":
-        return _rpc_result(req_id, {"protocolVersion": "2024-11-05", "capabilities": {"tools": {"listChanged": False}, "resources": {}, "prompts": {}}, "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION}})
+        return _rpc_result(
+            req_id,
+            {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {"listChanged": False}, "resources": {}, "prompts": {}},
+                "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
+            },
+        )
     if method in ("notifications/initialized", "notifications/cancelled"):
         return None
     if method == "tools/list":
@@ -418,23 +684,74 @@ def _handle_request(msg: dict[str, Any]) -> dict[str, Any] | None:
         uri = params.get("uri", "")
         if uri == "qoresence://snapshot":
             snap = handle_get_snapshot()
-            return _rpc_result(req_id, {"contents": [{"uri": uri, "mimeType": "application/json", "text": json.dumps(snap, indent=2, default=str)}]})
+            return _rpc_result(
+                req_id,
+                {
+                    "contents": [
+                        {
+                            "uri": uri,
+                            "mimeType": "application/json",
+                            "text": json.dumps(snap, indent=2, default=str),
+                        }
+                    ]
+                },
+            )
         if uri.startswith("qoresence://events"):
             import urllib.parse as _up
+
             parsed = _up.urlparse(uri)
             qs = _up.parse_qs(parsed.query)
             since = int(qs.get("since", ["0"])[0])
             types = qs.get("types", [""])[0]
             limit = int(qs.get("limit", ["20"])[0])
             ev = handle_get_events(since=since, types=types, limit=limit)
-            return _rpc_result(req_id, {"contents": [{"uri": uri, "mimeType": "application/json", "text": json.dumps(ev, indent=2, default=str)}]})
+            return _rpc_result(
+                req_id,
+                {
+                    "contents": [
+                        {
+                            "uri": uri,
+                            "mimeType": "application/json",
+                            "text": json.dumps(ev, indent=2, default=str),
+                        }
+                    ]
+                },
+            )
         return _rpc_error(req_id, -32602, f"unknown resource: {uri}")
     if method == "prompts/get":
         name = params.get("name")
         if name == "coach_clutch":
-            return _rpc_result(req_id, {"description": "Clutch coach", "messages": [{"role": "user", "content": {"type": "text", "text": "You are Qoresence clutch coach. Call get_snapshot then get_events(types=presence_report) then export_clip if clutch. Cite clock_ns."}}]})
+            return _rpc_result(
+                req_id,
+                {
+                    "description": "Clutch coach",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": {
+                                "type": "text",
+                                "text": "You are Qoresence clutch coach. Call get_snapshot then get_events(types=presence_report) then export_clip if clutch. Cite clock_ns.",
+                            },
+                        }
+                    ],
+                },
+            )
         if name == "debug_freeze":
-            return _rpc_result(req_id, {"description": "Freeze checklist", "messages": [{"role": "user", "content": {"type": "text", "text": "If video.age_s>5s and frames stalled, run py-spy — not capture card. Check AGENTS.md R1/R3/R4."}}]})
+            return _rpc_result(
+                req_id,
+                {
+                    "description": "Freeze checklist",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": {
+                                "type": "text",
+                                "text": "If video.age_s>5s and frames stalled, run py-spy — not capture card. Check AGENTS.md R1/R3/R4.",
+                            },
+                        }
+                    ],
+                },
+            )
         return _rpc_error(req_id, -32602, f"unknown prompt: {name}")
     if method == "ping":
         return _rpc_result(req_id, {})
@@ -470,6 +787,7 @@ def _serve_stdio() -> None:
 
 def main() -> None:
     import argparse
+
     p = argparse.ArgumentParser(description="Qoresence MCP server (Glass D)")
     p.add_argument("--help-tools", action="store_true", help="list tools and exit")
     args = p.parse_args()
@@ -481,10 +799,11 @@ def main() -> None:
         if fastmcp is not None:
             fastmcp.run()  # type: ignore
             return
-        log.warning("QORESENCE_MCP_USE_FASTMCP=1 but mcp package not installed; falling back to stdio")
+        log.warning(
+            "QORESENCE_MCP_USE_FASTMCP=1 but mcp package not installed; falling back to stdio"
+        )
     _serve_stdio()
 
 
 if __name__ == "__main__":
     main()
-

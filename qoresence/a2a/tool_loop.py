@@ -102,10 +102,12 @@ def parse_tool_calls(response: str) -> list[dict[str, Any]]:
         try:
             data = json.loads(match.group(1))
             if "name" in data:
-                calls.append({
-                    "name": data["name"],
-                    "arguments": data.get("arguments", data.get("params", {})),
-                })
+                calls.append(
+                    {
+                        "name": data["name"],
+                        "arguments": data.get("arguments", data.get("params", {})),
+                    }
+                )
         except json.JSONDecodeError:
             continue
 
@@ -115,10 +117,12 @@ def parse_tool_calls(response: str) -> list[dict[str, Any]]:
             try:
                 data = json.loads(match.group(1))
                 if "name" in data:
-                    calls.append({
-                        "name": data["name"],
-                        "arguments": data.get("arguments", data.get("params", {})),
-                    })
+                    calls.append(
+                        {
+                            "name": data["name"],
+                            "arguments": data.get("arguments", data.get("params", {})),
+                        }
+                    )
             except json.JSONDecodeError:
                 continue
 
@@ -151,12 +155,14 @@ def execute_tool_calls(
         result = registry.call(name, **args)
         error = result.get("error") if isinstance(result, dict) else "invalid_result"
 
-        results.append(ToolCallResult(
-            name=name,
-            arguments=args,
-            result=result,
-            error=error if error else None,
-        ))
+        results.append(
+            ToolCallResult(
+                name=name,
+                arguments=args,
+                result=result,
+                error=error if error else None,
+            )
+        )
 
         # Stop if depth bound exceeded
         if error == "depth_bound_exceeded":

@@ -596,7 +596,8 @@ class TestScoreMergeInvariants:
             score_events = [
                 e
                 for e in events
-                if e["type"] == "outcome_event" and e["payload"].get("event_name") == "score_changed"
+                if e["type"] == "outcome_event"
+                and e["payload"].get("event_name") == "score_changed"
             ]
             assert len(score_events) == 0
             assert runtime._home_score == 17

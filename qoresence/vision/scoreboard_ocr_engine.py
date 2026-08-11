@@ -129,7 +129,9 @@ class PaddleScoreboardEngine:
             if lines and lines[0] and isinstance(lines[0][0], list) and len(lines[0][0]) == 2:
                 # already list of [box, (text,conf)]
                 pass
-            elif lines and isinstance(lines[0], list) and lines[0] and isinstance(lines[0][0], list):
+            elif (
+                lines and isinstance(lines[0], list) and lines[0] and isinstance(lines[0][0], list)
+            ):
                 lines = lines[0]
 
         for item in lines or []:
@@ -190,9 +192,7 @@ class EasyOcrScoreboardEngine:
                 import easyocr
 
                 log.info("Loading EasyOCR scoreboard fallback (background)...")
-                EasyOcrScoreboardEngine._reader = easyocr.Reader(
-                    ["en"], gpu=False, verbose=False
-                )
+                EasyOcrScoreboardEngine._reader = easyocr.Reader(["en"], gpu=False, verbose=False)
                 log.info("EasyOCR scoreboard fallback ready")
             except Exception as e:
                 EasyOcrScoreboardEngine._failed = True
@@ -228,9 +228,7 @@ class EasyOcrScoreboardEngine:
                 cy = ((min(ys) + max(ys)) / 2.0) / max(1.0, float(h))
                 bw = (max(xs) - min(xs)) / max(1.0, float(w))
                 bh = (max(ys) - min(ys)) / max(1.0, float(h))
-                boxes.append(
-                    OcrBox(text=text, x=cx, y=cy, conf=float(conf), w=bw, h=bh)
-                )
+                boxes.append(OcrBox(text=text, x=cx, y=cy, conf=float(conf), w=bw, h=bh))
             except Exception:
                 continue
         return boxes

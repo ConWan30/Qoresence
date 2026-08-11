@@ -146,8 +146,7 @@ async def handle_offer(
     """Client offer → server answer with FrameHub video track."""
     if not _HAS_AIORTC:
         raise RuntimeError(
-            "aiortc not installed. Run: pip install aiortc av  "
-            "or pip install -e \".[webrtc]\""
+            'aiortc not installed. Run: pip install aiortc av  or pip install -e ".[webrtc]"'
         )
 
     pc = RTCPeerConnection()
