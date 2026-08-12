@@ -365,6 +365,30 @@ class VisualConfig:
 
 
 @dataclass(frozen=True)
+class StudioConfig:
+    """Studio (Foundry Reels / LTX) configuration. Default OFF."""
+
+    enabled: bool = False
+    api_key: str | None = None
+    api_key_file: str | None = ".secrets/ltx.key"
+    base_url: str = "https://api.ltx.io"
+    endpoint: str = "image-to-video"
+    timeout_s: float = 60.0
+    poll_interval_s: float = 5.0
+    max_poll_s: float = 600.0
+    max_reels_per_session: int = 3
+    output_dir: str = "clips"
+    prompt_style: str = "cinematic"
+    model: str = "ltx-2-3-pro"
+    duration: int = 5
+    resolution: str = "1920x1080"
+    aspect_ratio: str = "16:9"
+    fps: int | None = None
+    generate_audio: bool = False
+    dry_run: bool = False
+
+
+@dataclass(frozen=True)
 class GameDetectionConfig:
     """Game auto-detection configuration (VLM + OCR fusion)."""
 
@@ -532,6 +556,7 @@ class RetinaUnifiedConfig:
     game_detection: GameDetectionConfig = field(default_factory=GameDetectionConfig)
     clutchbot: ClutchBotConfig = field(default_factory=ClutchBotConfig)
     agent_glass: AgentGlassConfig = field(default_factory=AgentGlassConfig)
+    studio: StudioConfig = field(default_factory=StudioConfig)
 
     # ── Network Publisher ────────────────────────────────────────────────────
     streamr: StreamrConfig = field(default_factory=StreamrConfig)
@@ -676,6 +701,9 @@ class RetinaUnifiedConfig:
         - QORESENCE_VISUAL_ENABLED (1/0)
         - QORESENCE_VISUAL_API_KEY
         - QORESENCE_JSONL_PATH
+        - QORESENCE_STUDIO_ENABLED (1/0)
+        - QORESENCE_STUDIO_API_KEY_FILE
+        - QORESENCE_STUDIO_MAX_REELS
         """
         import os
 
@@ -841,6 +869,28 @@ class RetinaUnifiedConfig:
             ws_host=_str("QORESENCE_WS_HOST", "127.0.0.1"),
             ws_port=_int("QORESENCE_WS_PORT", 8765),
             enable_ws=_bool("QORESENCE_WS_ENABLED", True),
+            studio=StudioConfig(
+                enabled=_bool("QORESENCE_STUDIO_ENABLED"),
+                api_key=_str("QORESENCE_STUDIO_API_KEY") or None,
+                api_key_file=_str("QORESENCE_STUDIO_API_KEY_FILE") or (
+                    ".secrets/ltx.key" if __import__("pathlib").Path(".secrets/ltx.key").exists() else None
+                ),
+                base_url=_str("QORESENCE_STUDIO_BASE_URL", "https://api.ltx.io"),
+                endpoint=_str("QORESENCE_STUDIO_ENDPOINT", "image-to-video"),
+                timeout_s=_float("QORESENCE_STUDIO_TIMEOUT_S", 60.0),
+                poll_interval_s=_float("QORESENCE_STUDIO_POLL_INTERVAL_S", 5.0),
+                max_poll_s=_float("QORESENCE_STUDIO_MAX_POLL_S", 600.0),
+                max_reels_per_session=_int("QORESENCE_STUDIO_MAX_REELS", 3),
+                output_dir=_str("QORESENCE_STUDIO_OUTPUT_DIR", "clips"),
+                prompt_style=_str("QORESENCE_STUDIO_PROMPT_STYLE", "cinematic"),
+                model=_str("QORESENCE_STUDIO_MODEL", "ltx-2-3-pro"),
+                duration=_int("QORESENCE_STUDIO_DURATION", 5),
+                resolution=_str("QORESENCE_STUDIO_RESOLUTION", "1920x1080"),
+                aspect_ratio=_str("QORESENCE_STUDIO_ASPECT_RATIO", "16:9"),
+                fps=_int("QORESENCE_STUDIO_FPS") or None,
+                generate_audio=_bool("QORESENCE_STUDIO_GENERATE_AUDIO"),
+                dry_run=_bool("QORESENCE_STUDIO_DRY_RUN"),
+            ),
         )
 
     # ─────────────────────────────────────────────────────────────────────────

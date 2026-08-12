@@ -124,6 +124,7 @@ class DeckState:
 
 
 _state = DeckState()
+_deck_config: Any = None
 _ws_clients: set[Any] = set()
 _ws_queues: dict[Any, asyncio.Queue[str]] = {}
 _ws_client_count = 0
@@ -1208,6 +1209,84 @@ def create_app():  # type: ignore[no-untyped-def]
             headers={"Accept-Ranges": "bytes", "Cache-Control": "no-cache"},
         )
 
+    @app.post("/api/foundry/render")
+    async def api_foundry_render(request: Request):  # type: ignore[no-untyped-def]
+        """Queue one or more LTX reels from Foundry clips."""
+        try:
+            from qoresence.studio.render_command import render_reels
+
+            cfg = _deck_config
+            if cfg is None:
+                return JSONResponse({"ok": False, "error": "no config"}, status_code=500)
+            if not getattr(cfg, "studio", None) or not cfg.studio.enabled:
+                return JSONResponse({"ok": False, "error": "studio not enabled"}, status_code=400)
+            body = await request.json() if hasattr(request, "json") else {}
+            if not isinstance(body, dict):
+                body = {}
+            jobs = render_reels(
+                cfg,
+                clip_path=body.get("clip") or None,
+                count=int(body.get("count") or cfg.studio.max_reels_per_session),
+                output_dir=body.get("output_dir") or cfg.studio.output_dir,
+                kinds=body.get("kinds") or None,
+                style=body.get("style") or cfg.studio.prompt_style,
+                wait=False,
+            )
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "queued": len(jobs),
+                    "job_ids": [j.job_id for j in jobs if j.job_id],
+                }
+            )
+        except Exception as e:
+            log.exception("POST /api/foundry/render failed")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/api/foundry/jobs")
+    async def api_foundry_jobs():  # type: ignore[no-untyped-def]
+        """List recent LTX render jobs."""
+        try:
+            from qoresence.studio.reel_queue import get_reel_queue
+
+            q = get_reel_queue()
+            if q is None:
+                return JSONResponse({"ok": True, "jobs": []})
+            jobs = q.list_jobs(limit=50)
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "jobs": [j.to_dict() for j in jobs],
+                }
+            )
+        except Exception as e:
+            log.exception("GET /api/foundry/jobs failed")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/media/reels/{name}")
+    async def media_reel(name: str):  # type: ignore[no-untyped-def]
+        """Stream a rendered LTX reel MP4."""
+        import re
+
+        from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
+
+        safe = pathlib.Path(name).name
+        if not re.fullmatch(r"reel_[\w\-]+(\.(mp4|receipt\.json))", safe, flags=re.I):
+            return JSONResponse({"ok": False, "error": "invalid name"}, status_code=400)
+        root = pathlib.Path(DEFAULT_OUT_DIR)
+        # Search recursively under clips/*_ltx/ for the reel file.
+        candidates = list(root.rglob(safe))
+        if not candidates:
+            return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+        path = candidates[0]
+        media = "video/mp4" if path.suffix == ".mp4" else "application/json"
+        return FileResponse(
+            path,
+            media_type=media,
+            filename=safe,
+            headers={"Accept-Ranges": "bytes", "Cache-Control": "no-cache"},
+        )
+
     @app.get("/overlay.html")
     async def overlay():  # type: ignore[no-untyped-def]
         return HTMLResponse(
@@ -1585,8 +1664,13 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
 
 
 def start_deck(
-    host: str = DECK_HOST, port: int = DECK_PORT, daemon: bool = True
+    host: str = DECK_HOST,
+    port: int = DECK_PORT,
+    daemon: bool = True,
+    config: Any = None,
 ) -> threading.Thread | None:
+    global _deck_config
+    _deck_config = config
     app = create_app()
     if app is not None:
         import uvicorn
