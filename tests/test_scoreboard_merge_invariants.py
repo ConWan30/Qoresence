@@ -280,12 +280,15 @@ def test_score_vlm_locked_round_trips_through_dict():
         game_state=GameState.GAMEPLAY,
         home_score=20,
         away_score=0,
+        home_left=True,
     )
     ctx.score_vlm_locked = True
     d = ctx.to_dict()
     assert d["score_vlm_locked"] is True
+    assert d["football"]["home_left"] is True
     rt = VisualContext.from_dict(d)
     assert rt.score_vlm_locked is True
+    assert rt.home_left is True
     assert (rt.home_score, rt.away_score) == (20, 0)
 
 
@@ -326,3 +329,38 @@ def test_vlm_only_merge_without_ocr(monkeypatch):
     assert ctx.home_score == 20
     assert ctx.away_score == 0
     assert ctx.score_vlm_locked is True
+
+
+# ── Orientation: home team on the left ────────────────────────────────────────
+
+
+def test_ocr_home_left_override(monkeypatch):
+    """If ctx.home_left is True, local OCR treats the left score as home."""
+    _reset_stabilizer()
+    monkeypatch.setenv("QORESENCE_EASY_OCR", "1")
+    # HOME label on the left, score 20; AWAY label on the right, score 0.
+    boxes = [
+        OcrBox(text="HOME", x=0.20, y=0.45, conf=0.9, w=0.10, h=0.05),
+        OcrBox(text="20", x=0.35, y=0.45, conf=0.95, w=0.06, h=0.08),
+        OcrBox(text="0", x=0.65, y=0.45, conf=0.93, w=0.04, h=0.08),
+        OcrBox(text="AWAY", x=0.80, y=0.45, conf=0.9, w=0.10, h=0.05),
+    ]
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
+        lambda: _FakeOcrEngine(boxes),
+    )
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: _FakeVlm(None)
+    )
+    ext = FootballScoreboardExtractor()
+    ctx = VisualContext(
+        game_category=GameCategory.FOOTBALL,
+        game_state=GameState.GAMEPLAY,
+        home_left=True,
+    )
+    # OCR path needs consensus; run twice to satisfy the stabilizer need=2.
+    for _ in range(2):
+        out = ext.extract(_blank_frame(), ctx)
+    assert out.home_score == 20
+    assert out.away_score == 0
+    assert out.home_left is True

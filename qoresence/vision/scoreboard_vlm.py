@@ -35,11 +35,13 @@ _MENU_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_MENU_INTERVAL"
 
 _PROMPT = """You are a football scoreboard OCR engine for EA College Football / NCAA.
 Look ONLY at the scoreboard or pause score plate. Return STRICT JSON, no markdown:
-{"home_score": <int|null>, "away_score": <int|null>, "quarter": <1-4|null>,
- "clock": "<m:ss>"|null, "down": <1-4|null>, "yards_to_go": <int|null>,
- "play_clock": <int|null>, "paused": <bool>}
+{"home_score": <int|null>, "away_score": <int|null>, "home_left": <bool|null>,
+ "quarter": <1-4|null>, "clock": "<m:ss>"|null, "down": <1-4|null>,
+ "yards_to_go": <int|null>, "play_clock": <int|null>, "paused": <bool>}
 Rules:
-- home is LEFT team, away is RIGHT team.
+- Report home_score as the HOME team's score and away_score as the AWAY team's score.
+- By convention the AWAY team is on the LEFT and the HOME team is on the RIGHT.
+- If the HOME team is clearly on the LEFT (e.g. HOME label or team name), set home_left to true.
 - Read the BIG score digits only (not team records, TOTAL column, play clock, down).
 - 0 is a valid score. Prefer 20-0 over inventing 20-20.
 - If unsure of a field use null. Never invent a close score when digits are clear.
@@ -263,6 +265,14 @@ class ScoreboardVlmReferee:
                 out[k] = int(v)
             except Exception:
                 out[k] = None
+
+        home_left = obj.get("home_left")
+        if isinstance(home_left, bool):
+            out["home_left"] = home_left
+        elif isinstance(home_left, (int, float, str)):
+            out["home_left"] = bool(home_left) and str(home_left).lower() not in {"0", "false", "no", "null", "none"}
+        else:
+            out["home_left"] = None
         # clock "4:51" → seconds
         clock = obj.get("clock")
         if isinstance(clock, str) and ":" in clock:

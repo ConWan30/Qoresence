@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Foundry Bay — Qoresence Studio</title>
+<style>
+:root{
+  --bg:#080B10; --panel:rgba(13,18,25,.84); --card:rgba(18,27,38,.78); --line:rgba(190,214,232,.14);
+  --line-hi:rgba(190,214,232,.3); --text:#EEF5F4; --muted:#91A1AD; --dim:#60707D;
+  --gold:#C8F26A; --gold-dim:rgba(200,242,106,.1); --cyan:#68D9E8; --amber:#F6BD62;
+  --danger:#FF7D91; --ok:#C8F26A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
+body{min-height:100vh;display:grid;grid-template-rows:auto auto 1fr auto;background:
+  radial-gradient(900px 520px at 18% -10%,rgba(200,242,106,.08),transparent 62%),
+  radial-gradient(720px 480px at 110% 8%,rgba(104,217,232,.08),transparent 60%),
+  var(--bg)}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.22;background-image:linear-gradient(rgba(190,214,232,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(190,214,232,.045) 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(to bottom,black,transparent 80%)}
+#cmd{position:relative;z-index:5;display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-height:72px;padding:10px 18px;background:rgba(8,11,16,.8);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;margin-right:8px;color:var(--gold);font:800 12px/1 JetBrains Mono,monospace;letter-spacing:.12em;text-transform:uppercase}
+.brandMark{width:32px;height:32px;display:grid;place-items:center;border:1px solid rgba(200,242,106,.55);border-radius:9px;box-shadow:0 0 24px rgba(200,242,106,.12),inset 0 0 16px rgba(200,242,106,.08);font:800 13px/1 JetBrains Mono,monospace}
+.brandCopy strong{display:block;color:var(--text);font-size:12px}.brandCopy small{display:block;margin-top:4px;color:var(--dim);font-size:8px;letter-spacing:.12em}
+#cmd a,.navBtn{color:var(--cyan);text-decoration:none;font:700 10px JetBrains Mono,monospace;letter-spacing:.06em;text-transform:uppercase;opacity:.82}
+#cmd a:hover{color:var(--gold);opacity:1}
+#status{margin-left:auto;font:700 10px/1.2 JetBrains Mono,monospace;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+#status .dot{color:var(--amber)}#status.on .dot{color:var(--ok);text-shadow:0 0 12px var(--ok)}#status.off .dot{color:var(--danger)}
+#splice{position:relative;z-index:2;display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:0;align-items:stretch;margin:16px 20px 0;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:linear-gradient(145deg,rgba(23,35,50,.7),rgba(12,17,24,.78))}
+.cell{padding:14px 16px;min-width:0}.cell h4{font:800 9px/1 JetBrains Mono,monospace;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin-bottom:8px}
+.cell .v{font:800 14px/1.3 JetBrains Mono,monospace;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell .s{margin-top:4px;font:600 11px/1.3 Inter,sans-serif;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tick{width:28px;position:relative;background:linear-gradient(180deg,transparent,rgba(200,242,106,.18),transparent)}
+.tick::after{content:"";position:absolute;left:50%;top:50%;width:10px;height:10px;border-right:2px solid var(--gold);border-top:2px solid var(--gold);transform:translate(-70%,-50%) rotate(45deg)}
+#work{position:relative;z-index:2;display:grid;grid-template-columns:minmax(280px,380px) minmax(0,1fr);gap:16px;padding:16px 20px;min-height:0}
+#bay,#stage{background:linear-gradient(145deg,rgba(23,35,50,.7),rgba(12,17,24,.78));border:1px solid var(--line);border-radius:17px;padding:16px;min-height:0;display:flex;flex-direction:column}
+h3{display:flex;align-items:center;justify-content:space-between;font:800 10px/1 JetBrains Mono,monospace;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
+h3 .code{color:var(--cyan);font:700 9px/1 JetBrains Mono,monospace}
+#cands{display:flex;flex-direction:column;gap:8px;overflow:auto;flex:1;min-height:160px}
+.cand{appearance:none;border:1px solid rgba(104,217,232,.2);background:rgba(104,217,232,.06);color:var(--text);border-radius:12px;padding:12px;text-align:left;cursor:pointer;font:600 12px/1.35 Inter,sans-serif}
+.cand:hover,.cand.sel{border-color:var(--gold);background:var(--gold-dim)}
+.cand .k{font:800 10px/1 JetBrains Mono,monospace;color:var(--cyan);letter-spacing:.08em;text-transform:uppercase}
+.cand .n{display:block;margin-top:4px;font-weight:800}
+.cand .m{display:block;margin-top:3px;color:var(--muted);font:600 10px/1.3 JetBrains Mono,monospace}
+#actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.actionBtn{appearance:none;border:1px solid var(--line-hi);background:rgba(255,255,255,.035);color:var(--text);border-radius:10px;padding:11px 16px;font:800 11px/1 JetBrains Mono,monospace;cursor:pointer;letter-spacing:.08em;min-height:40px}
+.actionBtn.primary{background:var(--gold);color:var(--bg);border:0;box-shadow:0 10px 28px rgba(200,242,106,.12)}
+.actionBtn:disabled{opacity:.5;cursor:wait}
+#playerWrap{position:relative;flex:1;min-height:240px;background:#040609;border-radius:16px;border:1px solid rgba(104,217,232,.22);overflow:hidden;display:flex;align-items:center;justify-content:center}
+#player,#still{width:100%;height:100%;max-height:100%;object-fit:contain;background:#000;display:none}
+#playerWrap.has-video #player{display:block}#playerWrap.has-still #still{display:block}#playerWrap.has-video.has-still #still{display:none}
+#empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px;text-align:center;color:var(--muted);font:500 13px/1.5 Inter,sans-serif}
+#empty strong{color:var(--gold);font-size:17px}#playerWrap.has-video #empty,#playerWrap.has-still #empty{display:none}
+#receipt{margin-top:12px;padding:12px 14px;border-radius:12px;border:1px dashed rgba(200,242,106,.28);background:rgba(200,242,106,.05);font:600 11px/1.45 JetBrains Mono,monospace;color:var(--muted);min-height:52px}
+#receipt b{color:var(--gold);font-weight:800}
+#jobs{position:relative;z-index:2;margin:0 20px 18px;padding:14px 16px;border:1px solid var(--line);border-radius:17px;background:linear-gradient(145deg,rgba(23,35,50,.7),rgba(12,17,24,.78))}
+#jobList{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow:auto}
+.job{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-radius:10px;background:rgba(104,217,232,.06);border:1px solid rgba(104,217,232,.16);cursor:pointer}
+.job .st{font:800 9px/1 JetBrains Mono,monospace;letter-spacing:.1em;text-transform:uppercase;padding:5px 8px;border-radius:99px}
+.job .st.pending{color:var(--amber);background:rgba(246,189,98,.12)}
+.job .st.processing{color:var(--cyan);background:rgba(104,217,232,.12)}
+.job .st.completed{color:var(--ok);background:var(--gold-dim)}
+.job .st.failed{color:var(--danger);background:rgba(255,125,145,.12)}
+.job .nm{font:700 12px/1.3 Inter,sans-serif}.job .er{color:var(--danger);font:600 10px JetBrains Mono,monospace}
+#gate{position:relative;z-index:3;margin:24px 20px;padding:28px;border:1px solid rgba(200,242,106,.25);border-radius:18px;background:rgba(13,18,25,.88);display:none}
+#gate.show{display:block}#gate h2{font:800 22px/1.2 Inter,sans-serif;letter-spacing:-.03em;margin-bottom:10px}
+#gate p{color:var(--muted);max-width:56ch;line-height:1.5}#gate code{color:var(--gold)}
+#work.hidden,#splice.hidden,#jobs.hidden{display:none}
+@media (max-width:980px){#work{grid-template-columns:1fr}#splice{grid-template-columns:1fr;}.tick{display:none}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style>
+</head>
+<body>
+<header id="cmd">
+  <div class="brand"><span class="brandMark">Q</span><span class="brandCopy"><strong>Foundry Bay</strong><small>post-session reels</small></span></div>
+  <a href="/deck.html">Deck</a>
+  <a href="/overlay.html" target="_blank">Lens ↗</a>
+  <a href="/health" target="_blank">Health ↗</a>
+  <div id="status" class="off"><span class="dot">●</span> <span id="statusText">checking studio…</span></div>
+</header>
+
+<section id="gate">
+  <h2>Studio is off</h2>
+  <p>Foundry Bay turns a local HDMI clip and its chapter receipt into a cinematic reel. It never touches the live capture path.</p>
+  <p style="margin-top:10px">Start Deck with <code>--studio</code> or <code>--play --deck --studio</code>, and keep the LTX key in <code>.secrets/ltx.key</code>.</p>
+</section>
+
+<section id="splice" class="hidden" aria-label="Causal splice">
+  <div class="cell"><h4>01 clip</h4><div class="v" id="spClip">Select a chaptered clip</div><div class="s" id="spClipS">Foundry ranks confirm / score moments</div></div>
+  <div class="tick" aria-hidden="true"></div>
+  <div class="cell"><h4>02 frame</h4><div class="v" id="spFrame">—</div><div class="s" id="spFrameS">PNG at chapter t_s · sent to LTX only if you render</div></div>
+  <div class="tick" aria-hidden="true"></div>
+  <div class="cell"><h4>03 reel</h4><div class="v" id="spReel">idle</div><div class="s" id="spReelS">Local MP4 + receipt beside the clip</div></div>
+</section>
+
+<div id="work" class="hidden">
+  <aside id="bay">
+    <h3><span>Candidates</span><span class="code">FOUNDRY</span></h3>
+    <div id="cands"></div>
+    <div id="actions">
+      <button type="button" class="actionBtn primary" id="btnRender" disabled>Render reel</button>
+      <button type="button" class="actionBtn" id="btnRefresh">Refresh</button>
+    </div>
+  </aside>
+  <main id="stage">
+    <h3><span>Stage</span><span class="code" id="stageCode">PREVIEW</span></h3>
+    <div id="playerWrap">
+      <div id="empty"><strong>Pick a clip</strong>Chaptered HDMI clips from Deck appear on the left.</div>
+      <video id="player" controls playsinline></video>
+      <img id="still" alt="Source frame">
+    </div>
+    <div id="receipt">Receipt appears after a completed render — job id, prompt, source chapter.</div>
+  </main>
+</div>
+
+<section id="jobs" class="hidden">
+  <h3><span>Jobs</span><span class="code">POLL 5S</span></h3>
+  <div id="jobList"></div>
+</section>
+
+<script>
+const statusEl=document.getElementById('status');
+const statusText=document.getElementById('statusText');
+const gate=document.getElementById('gate');
+const splice=document.getElementById('splice');
+const work=document.getElementById('work');
+const jobsEl=document.getElementById('jobs');
+const cands=document.getElementById('cands');
+const jobList=document.getElementById('jobList');
+const btnRender=document.getElementById('btnRender');
+const btnRefresh=document.getElementById('btnRefresh');
+const player=document.getElementById('player');
+const still=document.getElementById('still');
+const wrap=document.getElementById('playerWrap');
+const receipt=document.getElementById('receipt');
+const stageCode=document.getElementById('stageCode');
+let selected=null, status=null;
+
+function setStatus(on, text){
+  statusEl.className=on?'on':'off';
+  statusText.textContent=text;
+}
+function showStudio(on){
+  gate.classList.toggle('show', !on);
+  splice.classList.toggle('hidden', !on);
+  work.classList.toggle('hidden', !on);
+  jobsEl.classList.toggle('hidden', !on);
+}
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+function playUrl(url){
+  if(!url) return;
+  wrap.classList.add('has-video'); wrap.classList.remove('has-still');
+  player.pause();
+  player.src=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
+  player.play().catch(()=>{});
+  stageCode.textContent='REEL';
+}
+function playClip(url){
+  if(!url) return;
+  wrap.classList.add('has-video'); wrap.classList.remove('has-still');
+  player.pause();
+  player.src=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
+  player.play().catch(()=>{});
+  stageCode.textContent='SOURCE';
+}
+function setSplice(c){
+  const ch=c&&c.chapter||{};
+  document.getElementById('spClip').textContent=c? (c.name||'clip') : 'Select a chaptered clip';
+  document.getElementById('spClipS').textContent=c? (ch.kind||'chapter')+' · score '+(c.score!=null?c.score:'—') : 'Foundry ranks confirm / score moments';
+  document.getElementById('spFrame').textContent=c? ('t='+Number(ch.t_s||0).toFixed(2)+'s') : '—';
+  document.getElementById('spFrameS').textContent=ch.label||'PNG at chapter t_s · sent to LTX only if you render';
+}
+function selectCand(c){
+  selected=c;
+  [...cands.children].forEach(el=>el.classList.toggle('sel', el.getAttribute('data-name')===c.name));
+  btnRender.disabled=!status||!status.enabled||!status.available;
+  setSplice(c);
+  playClip(c.clip_url);
+  receipt.textContent='No receipt yet. Render to bind this chapter to an LTX job.';
+}
+function renderCands(items){
+  cands.innerHTML='';
+  if(!items||!items.length){
+    cands.innerHTML='<div class="cand" style="cursor:default">No chaptered clips yet. Make an HDMI clip on Deck first.</div>';
+    return;
+  }
+  items.forEach(c=>{
+    const b=document.createElement('button');
+    b.type='button'; b.className='cand'; b.setAttribute('data-name', c.name||'');
+    const ch=c.chapter||{};
+    b.innerHTML='<span class="k">'+esc(ch.kind||'chapter')+'</span><span class="n">'+esc(c.name||'clip')+'</span><span class="m">'+esc(ch.label||'')+' · t '+Number(ch.t_s||0).toFixed(1)+'s</span>';
+    b.onclick=()=>selectCand(c);
+    cands.appendChild(b);
+  });
+}
+function renderJobs(jobs){
+  jobList.innerHTML='';
+  if(!jobs||!jobs.length){
+    jobList.innerHTML='<div class="job" style="cursor:default"><span class="st pending">idle</span><div class="nm">No renders yet</div><span></span></div>';
+    document.getElementById('spReel').textContent='idle';
+    return;
+  }
+  const latest=jobs[0];
+  document.getElementById('spReel').textContent=latest.status||'queued';
+  document.getElementById('spReelS').textContent=latest.output_path||latest.ltx_job_id||'Local MP4 + receipt beside the clip';
+  jobs.forEach(j=>{
+    const d=document.createElement('div');
+    d.className='job';
+    const name=(j.source_clip||'').split(/[/\\]/).pop()||j.job_id;
+    const err=j.error? '<div class="er">'+esc(j.error)+'</div>' : '';
+    d.innerHTML='<span class="st '+esc(j.status)+'">'+esc(j.status)+'</span><div><div class="nm">'+esc(name)+'</div>'+err+'</div><span class="m">'+esc(j.ltx_job_id||j.job_id)+'</span>';
+    d.onclick=()=>{
+      if(j.status==='completed' && j.output_path){
+        const reelName=(j.output_path||'').split(/[/\\]/).pop();
+        if(reelName) playUrl('/media/reels/'+reelName);
+        loadReceipt(reelName);
+      }
+    };
+    jobList.appendChild(d);
+  });
+}
+function loadReceipt(name){
+  if(!name) return;
+  const rec=name.replace(/\.mp4$/i,'.receipt.json');
+  fetch('/media/reels/'+rec).then(r=>r.ok?r.json():null).then(j=>{
+    if(!j) return;
+    receipt.innerHTML='<b>RECEIPT</b>  job '+esc(j.ltx_job_id||'—')+'  ·  '+esc(j.chapter_kind||'')+'  ·  '+esc(j.chapter_label||'')+'<br>'+esc(j.ltx_prompt||'');
+  }).catch(()=>{});
+}
+async function refresh(){
+  try{
+    const st=await fetch('/api/foundry/status').then(r=>r.json());
+    status=st;
+    const on=!!(st&&st.enabled);
+    showStudio(on);
+    if(!on){ setStatus(false,'studio off'); return; }
+    if(!st.available){ setStatus(false,'key missing · .secrets/ltx.key'); }
+    else setStatus(true, (st.dry_run?'dry-run · ':'')+st.model+' · '+st.duration+'s');
+    const [c,j]=await Promise.all([
+      fetch('/api/foundry/candidates?limit=8').then(r=>r.json()),
+      fetch('/api/foundry/jobs').then(r=>r.json())
+    ]);
+    renderCands(c&&c.candidates||[]);
+    renderJobs(j&&j.jobs||[]);
+    if(selected){
+      const again=(c.candidates||[]).find(x=>x.name===selected.name);
+      if(again) selectCand(again);
+    }
+  }catch(e){
+    setStatus(false,'studio unreachable');
+  }
+}
+btnRefresh.onclick=refresh;
+btnRender.onclick=async ()=>{
+  if(!selected) return;
+  btnRender.disabled=true;
+  const prev=btnRender.textContent;
+  btnRender.textContent='Queuing…';
+  try{
+    const r=await fetch('/api/foundry/render',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({clip:selected.name, count:1})
+    }).then(x=>x.json());
+    if(!r||!r.ok) throw new Error((r&&r.error)||'queue failed');
+    document.getElementById('spReel').textContent='queued';
+    await refresh();
+  }catch(e){
+    receipt.textContent=String(e.message||e);
+  }finally{
+    btnRender.disabled=false; btnRender.textContent=prev;
+  }
+};
+window.addEventListener('keydown',e=>{
+  if(e.target && (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')) return;
+  if(e.key==='r'||e.key==='R'){ e.preventDefault(); if(!btnRender.disabled) btnRender.click(); }
+  if(e.key==='d'||e.key==='D'){ location.href='/deck.html'; }
+});
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body></html>

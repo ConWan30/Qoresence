@@ -8,6 +8,7 @@ import os
 import re
 import time
 from pathlib import Path
+from typing import Any
 
 log = logging.getLogger(__name__)
 DEFAULT_CLIPS_DIR = Path("clips")
@@ -342,3 +343,67 @@ class FoundryIndex:
 
     def drive_graph(self, drive_id=None, **kw):
         return get_drive_graph(drive_id, **kw)
+
+    def get_render_candidates(self, limit=3, kinds=None, **kw):
+        """Return top clip chapters suitable for LTX reel rendering."""
+        return get_render_candidates(limit=limit, kinds=kinds, **kw)
+
+
+def get_render_candidates(clips_dir=None, limit=3, kinds=None):
+    """Pick the best chapters across all Foundry clips for generative reels.
+
+    Ranks by:
+      - confirm / score_changed / climax kinds
+      - graph_summary.climax.has_fast_confirm
+      - max chapter coupling
+      - recent mtime
+    """
+    want_kinds = None
+    if kinds:
+        want_kinds = {k.strip() for k in kinds.split(",") if k.strip()}
+    clips = scan_clips(clips_dir)
+    scored: list[tuple[float, dict[str, Any], dict[str, Any]]] = []
+    for clip in clips:
+        chapters = clip.get("chapters") or []
+        if not chapters:
+            continue
+        graph = clip.get("graph_summary") or {}
+        best = None
+        best_score = -1.0
+        for ch in chapters:
+            k = str(ch.get("kind") or "")
+            s = 0.0
+            if k in CONFIRM_KINDS or k.startswith("confirm") or k == "score_changed":
+                s += 1.0
+            elif k in FAST_KINDS or k.startswith("fast"):
+                s += 0.3
+            if ch.get("coupling") is not None:
+                try:
+                    s += float(ch["coupling"]) * 0.5
+                except Exception:
+                    pass
+            if want_kinds and k in want_kinds:
+                s += 0.5
+            if best is None or s > best_score:
+                best = ch
+                best_score = s
+        if graph and isinstance(graph.get("climax"), dict):
+            if graph["climax"].get("has_fast_confirm"):
+                best_score += 0.5
+        if best is not None and best_score > 0:
+            scored.append((best_score, clip, best))
+    scored.sort(key=lambda x: (-x[0], -float(x[1].get("mtime") or 0)))
+    out = []
+    for score, clip, ch in scored[:limit]:
+        if want_kinds and str(ch.get("kind")) not in want_kinds:
+            continue
+        out.append(
+            {
+                "clip": clip.get("clip"),
+                "chapter": ch,
+                "score": round(float(score), 3),
+                "buttons_summary": clip.get("buttons_summary") or {},
+                "graph_summary": clip.get("graph_summary"),
+            }
+        )
+    return out

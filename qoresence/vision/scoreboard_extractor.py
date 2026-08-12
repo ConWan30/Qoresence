@@ -312,9 +312,10 @@ class FootballScoreboardExtractor:
         except Exception as e:
             log.debug("scoreboard VLM schedule: %s", e)
 
-        # Local OCR tokens are heavy (PaddleOCR/EasyOCR can freeze the visual
-        # loop). Gate on QORESENCE_EASY_OCR=1 (default off) — the async VLM
-        # referee above is the primary score source; OCR is opt-in confirmation.
+        # Resolve scoreboard orientation: by convention the AWAY team is on the
+        # LEFT and the HOME team on the RIGHT. Some broadcasts or pause menus
+        # flip this. Accept a context field, env override, or fall back to the
+        # standard convention.
         import os as _os_ocr
 
         _ocr_on = _os_ocr.environ.get("QORESENCE_EASY_OCR", "0").strip().lower() in {
@@ -322,6 +323,17 @@ class FootballScoreboardExtractor:
             "true",
             "yes",
         }
+        env_home_left = _os_ocr.environ.get("QORESENCE_SCOREBOARD_HOME_LEFT", "").strip().lower()
+        home_left: bool
+        if env_home_left in {"1", "true", "yes", "on"}:
+            home_left = True
+        elif env_home_left in {"0", "false", "no", "off"}:
+            home_left = False
+        elif ctx is not None and ctx.home_left is not None:
+            home_left = ctx.home_left
+        else:
+            home_left = False
+
         tokens: list[_Token] = []
         if _ocr_on:
             tokens = self._ocr_tokens(frame)
@@ -331,8 +343,8 @@ class FootballScoreboardExtractor:
             is_paused = any(
                 k in joined for k in ("PAUSED", "RESUME", "INSTANT REPLAY", "RETURN TO HUB")
             )
-            parsed = self._parse(tokens)
-            big = self._parse_large_score_pair(tokens)
+            parsed = self._parse(tokens, home_left=home_left)
+            big = self._parse_large_score_pair(tokens, home_left=home_left)
             if big is not None:
                 parsed["home_score"], parsed["away_score"] = big
                 if is_paused:
@@ -350,6 +362,12 @@ class FootballScoreboardExtractor:
             # Only merge when VLM actually read a board — never wipe a good
             # lock with a later None-None (transition frames / blur).
             vlm_has_board = vlm.get("home_score") is not None and vlm.get("away_score") is not None
+
+            # VLM can also report scoreboard orientation (home team on left).
+            vlm_home_left = vlm.get("home_left")
+            if vlm_home_left is not None:
+                home_left = bool(vlm_home_left)
+
             for k in (
                 "home_score",
                 "away_score",
@@ -438,10 +456,13 @@ class FootballScoreboardExtractor:
             ctx.play_clock = parsed["play_clock"]
         if parsed.get("down_distance_text"):
             ctx.down_distance_text = parsed["down_distance_text"]
+        ctx.home_left = home_left
         return ctx
 
     @staticmethod
-    def _parse_large_score_pair(tokens: list[_Token]) -> tuple[int, int] | None:
+    def _parse_large_score_pair(
+        tokens: list[_Token], home_left: bool = False
+    ) -> tuple[int, int] | None:
         """Pick two largest pure digit boxes left/right — CFB pause menu 20 | 0."""
         digitish: list[tuple[float, float, int, float]] = []  # (area, x, val, conf)
         for t in tokens:
@@ -467,17 +488,24 @@ class FootballScoreboardExtractor:
         if abs(left[1] - right[1]) < 0.08:
             return None
         # Reject same-digit double-count when right is a badge (tiny area, same val)
+        pair = (right[2], left[2])
         if left[2] == right[2] and right[0] < left[0] * 0.35:
             # look for a zero or smaller score on right among top
             for cand in sorted(digitish, key=lambda z: z[1]):
                 if cand[1] > 0.5 and cand[2] != left[2]:
-                    return (cand[2], left[2])
+                    pair = (cand[2], left[2])
+                    break
             # Prefer 0 if we only see one big score left of center
             if left[1] < 0.55:
                 for cand in digitish:
                     if cand[2] == 0 and cand[1] > left[1]:
-                        return (0, left[2])
-        return (right[2], left[2])
+                        pair = (0, left[2])
+                        break
+
+        # Orient (home, away) according to which side the home team is on.
+        if home_left:
+            pair = (pair[1], pair[0])
+        return pair
 
     def _ocr_tokens(self, frame: np.ndarray) -> list[_Token]:
         """OCR scoreboard regions via pluggable engine (multi-crop for CFB 27)."""
@@ -557,7 +585,7 @@ class FootballScoreboardExtractor:
                 out.append(t)
         return out
 
-    def _parse(self, tokens: list[_Token]) -> dict[str, Any]:
+    def _parse(self, tokens: list[_Token], home_left: bool = False) -> dict[str, Any]:
         """Parse sorted OCR tokens into football fields."""
         parsed: dict[str, Any] = {}
 
@@ -658,7 +686,7 @@ class FootballScoreboardExtractor:
                 break
 
         # Prefer explicit "17-17" / "17–17" / "17 17" pair patterns from OCR text
-        pair = self._find_score_pair_text(clusters)
+        pair = self._find_score_pair_text(clusters, home_left=home_left)
         if pair is not None:
             parsed["home_score"] = pair[0]
             parsed["away_score"] = pair[1]
@@ -800,6 +828,12 @@ class FootballScoreboardExtractor:
                 else:
                     home_score, away_score = None, None
 
+        # Orient (home, away) according to which side the home team is on.
+        # The parser above treats left-of-center as away and right-of-center as home;
+        # home_left=True means the HOME team is actually on the left.
+        if home_left:
+            home_score, away_score = away_score, home_score
+
         # If only one side found, leave the other unset (don't invent 0)
         if home_score is not None:
             parsed["home_score"] = home_score
@@ -809,7 +843,9 @@ class FootballScoreboardExtractor:
         return parsed
 
     @staticmethod
-    def _find_score_pair_text(clusters: list[_Cluster]) -> tuple[int, int] | None:
+    def _find_score_pair_text(
+        clusters: list[_Cluster], home_left: bool = False
+    ) -> tuple[int, int] | None:
         """Detect explicit scoreline patterns like 17-17, 17–17, 21 14."""
         for c in clusters:
             text = c.text.replace("–", "-").replace("—", "-").replace(":", "-")
@@ -820,7 +856,10 @@ class FootballScoreboardExtractor:
                     if _ScoreStabilizer._looks_suspicious_pair((a, b)):
                         continue
                     # left-of-center is away, right-of-center is home
-                    return b, a
+                    pair = (b, a)
+                    if home_left:
+                        pair = (a, b)
+                    return pair
         # Prefer left-half + right-half multi-digit pair (true scorebug), not
         # adjacent (31, 2) where 2 is quarter in the center.
         nums: list[tuple[int, float, float]] = []
@@ -837,6 +876,8 @@ class FootballScoreboardExtractor:
             rh = max(right, key=lambda n: (n[0] >= 10, n[0], -abs(n[1] - 0.75)))
             # left-of-center is away, right-of-center is home
             pair = (rh[0], lh[0])
+            if home_left:
+                pair = (lh[0], rh[0])
             if not _ScoreStabilizer._looks_suspicious_pair(pair):
                 return pair
         return None
