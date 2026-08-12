@@ -79,13 +79,23 @@ class LtxJob:
 
 
 def _resolve_api_key(api_key: str | None = None, api_key_file: str | None = None) -> str | None:
+    def _clean(value: str) -> str:
+        value = value.strip()
+        # Support keys saved with a label prefix such as "LTX: ltxv_..." or "API KEY: ...".
+        if " " in value:
+            for token in value.split():
+                if token.startswith(("ltxv_", "ltx_")):
+                    return token
+            return value.split()[-1]
+        return value
+
     if api_key and api_key.strip():
-        return api_key.strip()
+        return _clean(api_key)
     if api_key_file:
         try:
             p = pathlib.Path(api_key_file)
             if p.exists():
-                return p.read_text(encoding="utf-8").strip()
+                return _clean(p.read_text(encoding="utf-8"))
             log.warning("LTX api_key_file not found: %s", api_key_file)
         except Exception as e:
             log.warning("LTX api_key_file read failed: %s", e)
@@ -94,7 +104,7 @@ def _resolve_api_key(api_key: str | None = None, api_key_file: str | None = None
     for k in ("LTX_API_KEY", "LTXV_API_KEY"):
         v = os.environ.get(k)
         if v and v.strip():
-            return v.strip()
+            return _clean(v)
     return None
 
 
@@ -170,9 +180,17 @@ class LtxClient:
                 resp = requests.request(method, url, headers=_headers, json=json_body, timeout=_timeout)
             else:
                 resp = requests.request(method, url, headers=_headers, data=data, timeout=_timeout)
-            if resp.headers.get("Content-Type", "").startswith("video/"):
+            ctype = resp.headers.get("Content-Type", "")
+            if ctype.startswith("video/") or ctype.startswith("application/octet-stream"):
                 return resp.status_code, resp.content
-            return resp.status_code, resp.json() if resp.text else {}
+            if ctype.startswith(("application/json", "text/json")) or (resp.text and resp.text.lstrip().startswith(("{", "["))):
+                try:
+                    return resp.status_code, resp.json()
+                except Exception:
+                    pass
+            if 200 <= resp.status_code < 300:
+                return resp.status_code, {}
+            return resp.status_code, {"_raw": resp.text}
 
         import http.client
         import urllib.parse
@@ -210,7 +228,7 @@ class LtxClient:
         result = UploadResult(raw=body)
         result.storage_uri = body.get("storage_uri")
         result.upload_url = body.get("upload_url") or body.get("upload_uri") or body.get("signed_url")
-        result.headers = body.get("upload_headers") or {}
+        result.headers = body.get("required_headers") or body.get("upload_headers") or {}
         result.upload_method = (body.get("upload_method") or self.upload_method).upper()
 
         upload_url = result.url_to_upload
