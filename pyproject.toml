@@ -146,6 +146,9 @@ all = [
 where = ["."]
 include = ["qoresence*"]
 
+[tool.setuptools.package-data]
+qoresence = ["deck/*.html", "studio/prompts/*.yaml"]
+
 [project.scripts]
 qoresence = "qoresence.cli:main"
 qoresence-mcp = "qoresence.mcp.server:main"

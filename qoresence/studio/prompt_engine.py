@@ -16,6 +16,8 @@ from qoresence.core.unified_config import GameProfile, GameProfileId, get_game_p
 
 log = logging.getLogger(__name__)
 
+_DEFAULT_TEMPLATE_DIR = Path(__file__).resolve().parent / "prompts"
+
 _BUILTIN_TEMPLATES: dict[str, dict[str, Any]] = {
     GameProfileId.NCAA_FOOTBALL_27.value: {
         "display_name": "NCAA College Football 27",
@@ -58,11 +60,15 @@ class RenderPayload:
 class PromptEngine:
     """Build LTX prompts from local Qoresence context."""
 
-    def __init__(self, template_dir: str | Path | None = None):
+    def __init__(self, template_dir: str | Path | None = _DEFAULT_TEMPLATE_DIR):
         self.template_dir = Path(template_dir) if template_dir else None
         self._templates: dict[str, dict[str, Any]] = dict(_BUILTIN_TEMPLATES)
+        self._yaml_loaded = False
 
     def _load_yaml_templates(self) -> None:
+        if self._yaml_loaded:
+            return
+        self._yaml_loaded = True
         if self.template_dir is None or not self.template_dir.exists():
             return
         try:
@@ -153,7 +159,7 @@ class PromptEngine:
         *,
         style: str | None = None,
         model: str = "ltx-2-3-pro",
-        duration: int = 5,
+        duration: int = 6,
         resolution: str = "1920x1080",
         aspect_ratio: str = "16:9",
         fps: int | None = None,

@@ -10,7 +10,7 @@ from qoresence.core.unified_config import RetinaUnifiedConfig, StudioConfig, get
 from qoresence.foundry.index import FoundryIndex
 
 from .frame_selector import FrameSelector
-from .ltx_client import LtxClient
+from .ltx_client import LtxClient, normalize_duration
 from .prompt_engine import PromptEngine
 from .receipt import now_ns
 from .reel_queue import RenderJob, init_reel_queue
@@ -84,6 +84,7 @@ def render_reels(
         frame_selector=frame_selector,
         output_dir=output_dir or studio.output_dir,
     )
+    render_duration = normalize_duration(studio.duration, studio.model)
 
     # Collect candidates.
     limit = count if count is not None else studio.max_reels_per_session
@@ -146,6 +147,10 @@ def render_reels(
             game_profile=game_profile,
             session_id=config.session_id,
             style=style or studio.prompt_style,
+            model=studio.model,
+            duration=render_duration,
+            resolution=studio.resolution,
+            generate_audio=studio.generate_audio,
             output_dir=str(output_dir) if output_dir else None,
             created_ns=now_ns(),
         )
@@ -158,8 +163,8 @@ def render_reels(
     log.info("Foundry Reels: queued %d render jobs", len(jobs))
 
     if wait:
-        queue.join(timeout=wait_timeout)
-        if queue._worker and queue._worker.is_alive():
+        finished = queue.join(timeout=wait_timeout)
+        if not finished:
             log.warning("Foundry Reels: timed out waiting for render jobs")
         return [queue.get_job(j.job_id) for j in jobs if j.job_id]
 

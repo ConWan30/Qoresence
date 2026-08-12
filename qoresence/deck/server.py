@@ -1209,28 +1209,61 @@ def create_app():  # type: ignore[no-untyped-def]
             headers={"Accept-Ranges": "bytes", "Cache-Control": "no-cache"},
         )
 
+    @app.get("/api/foundry/status")
+    async def api_foundry_status():  # type: ignore[no-untyped-def]
+        """Studio enablement + key presence. Never blocks capture."""
+        try:
+            from qoresence.studio.api import status_payload
+
+            return JSONResponse(status_payload(_deck_config))
+        except Exception as e:
+            log.exception("GET /api/foundry/status failed")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/api/foundry/candidates")
+    async def api_foundry_candidates(request: Request):  # type: ignore[no-untyped-def]
+        """Ranked chaptered clips for Foundry Bay."""
+        try:
+            from qoresence.studio.api import list_candidates
+
+            qp = request.query_params if hasattr(request, "query_params") else {}
+            limit = 8
+            kinds = None
+            try:
+                limit = int(qp.get("limit") or 8)
+            except (TypeError, ValueError):
+                limit = 8
+            kinds = qp.get("kinds") or None
+            items = await asyncio.to_thread(list_candidates, limit, kinds)
+            return JSONResponse({"ok": True, "candidates": items})
+        except Exception as e:
+            log.exception("GET /api/foundry/candidates failed")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
     @app.post("/api/foundry/render")
     async def api_foundry_render(request: Request):  # type: ignore[no-untyped-def]
         """Queue one or more LTX reels from Foundry clips."""
         try:
-            from qoresence.studio.render_command import render_reels
+            from qoresence.studio.api import queue_renders
 
             cfg = _deck_config
             if cfg is None:
                 return JSONResponse({"ok": False, "error": "no config"}, status_code=500)
             if not getattr(cfg, "studio", None) or not cfg.studio.enabled:
-                return JSONResponse({"ok": False, "error": "studio not enabled"}, status_code=400)
+                return JSONResponse(
+                    {"ok": False, "error": "studio not enabled — start with --studio"},
+                    status_code=400,
+                )
             body = await request.json() if hasattr(request, "json") else {}
             if not isinstance(body, dict):
                 body = {}
-            jobs = render_reels(
+            jobs = await asyncio.to_thread(
+                queue_renders,
                 cfg,
-                clip_path=body.get("clip") or None,
-                count=int(body.get("count") or cfg.studio.max_reels_per_session),
-                output_dir=body.get("output_dir") or cfg.studio.output_dir,
+                clip=body.get("clip") or None,
+                count=body.get("count"),
                 kinds=body.get("kinds") or None,
-                style=body.get("style") or cfg.studio.prompt_style,
-                wait=False,
+                style=body.get("style") or None,
             )
             return JSONResponse(
                 {
@@ -1247,18 +1280,10 @@ def create_app():  # type: ignore[no-untyped-def]
     async def api_foundry_jobs():  # type: ignore[no-untyped-def]
         """List recent LTX render jobs."""
         try:
-            from qoresence.studio.reel_queue import get_reel_queue
+            from qoresence.studio.api import jobs_payload
 
-            q = get_reel_queue()
-            if q is None:
-                return JSONResponse({"ok": True, "jobs": []})
-            jobs = q.list_jobs(limit=50)
-            return JSONResponse(
-                {
-                    "ok": True,
-                    "jobs": [j.to_dict() for j in jobs],
-                }
-            )
+            jobs = await asyncio.to_thread(jobs_payload, 50)
+            return JSONResponse({"ok": True, "jobs": jobs})
         except Exception as e:
             log.exception("GET /api/foundry/jobs failed")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
@@ -1299,6 +1324,18 @@ def create_app():  # type: ignore[no-untyped-def]
             _html("deck.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
+    @app.get("/studio.html")
+    async def studio():  # type: ignore[no-untyped-def]
+        return HTMLResponse(
+            _html("studio.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+        )
+
+    @app.get("/studio")
+    async def studio_alias():  # type: ignore[no-untyped-def]
+        return HTMLResponse(
+            _html("studio.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+        )
+
     @app.get("/")
     async def index():  # type: ignore[no-untyped-def]
         return HTMLResponse(
@@ -1307,6 +1344,7 @@ def create_app():  # type: ignore[no-untyped-def]
             "<h1 style='color:#f5c542'>Retina Deck</h1>"
             "<p><a href='/overlay.html' style='color:#f5c542'>Lens</a> · "
             "<a href='/deck.html' style='color:#f5c542'>Rail</a> · "
+            "<a href='/studio.html' style='color:#f5c542'>Foundry Bay</a> · "
             "<a href='/health' style='color:#f5c542'>health</a> · "
             "<a href='/api/situation' style='color:#f5c542'>api</a></p>"
             "<h2>OBS Browser Source</h2>"
@@ -1483,6 +1521,7 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 self.end_headers()
                 self.wfile.write(
                     b'<a href="/overlay.html">Lens</a> | <a href="/deck.html">Rail</a>'
+                    b' | <a href="/studio.html">Foundry Bay</a>'
                     b' | <a href="/video">LIVE /video</a>'
                 )
                 return
@@ -1509,6 +1548,13 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                         self.wfile.flush()
                 except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
                     return
+                return
+            if self.path in ("/studio.html", "/studio"):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Cache-Control", "no-cache, must-revalidate")
+                self.end_headers()
+                self.wfile.write(_html("studio.html").encode("utf-8"))
                 return
             if self.path == "/health":
                 self.send_response(200)
@@ -1671,6 +1717,13 @@ def start_deck(
 ) -> threading.Thread | None:
     global _deck_config
     _deck_config = config
+    if config is not None and getattr(config, "studio", None) and config.studio.enabled:
+        try:
+            from qoresence.studio.api import boot_studio
+
+            boot_studio(config)
+        except Exception:
+            log.exception("Foundry Bay boot failed")
     app = create_app()
     if app is not None:
         import uvicorn
@@ -1691,10 +1744,13 @@ def start_deck(
         t.start()
         log.info("Retina Deck http://%s:%s  ws://%s:%s%s", host, port, host, port, WS_PATH)
         log.info(
-            "Lens /overlay.html  Theater /deck.html  LIVE /video default %.0ffps "
+            "Lens /overlay.html  Theater /deck.html  Foundry /studio.html  "
+            "LIVE /video default %.0ffps "
             "(PS5 60 Hz full-rate LIVE default; override ?fps= for lighter)",
             DEFAULT_LIVE_FPS,
         )
+        if config is not None and getattr(config, "studio", None) and config.studio.enabled:
+            log.info("Foundry Bay http://%s:%s/studio.html (studio enabled)", host, port)
         return t
     # fallback
     t = threading.Thread(

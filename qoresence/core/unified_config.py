@@ -380,7 +380,7 @@ class StudioConfig:
     output_dir: str = "clips"
     prompt_style: str = "cinematic"
     model: str = "ltx-2-3-pro"
-    duration: int = 5
+    duration: int = 6
     resolution: str = "1920x1080"
     aspect_ratio: str = "16:9"
     fps: int | None = None
@@ -884,7 +884,7 @@ class RetinaUnifiedConfig:
                 output_dir=_str("QORESENCE_STUDIO_OUTPUT_DIR", "clips"),
                 prompt_style=_str("QORESENCE_STUDIO_PROMPT_STYLE", "cinematic"),
                 model=_str("QORESENCE_STUDIO_MODEL", "ltx-2-3-pro"),
-                duration=_int("QORESENCE_STUDIO_DURATION", 5),
+                duration=_int("QORESENCE_STUDIO_DURATION", 6),
                 resolution=_str("QORESENCE_STUDIO_RESOLUTION", "1920x1080"),
                 aspect_ratio=_str("QORESENCE_STUDIO_ASPECT_RATIO", "16:9"),
                 fps=_int("QORESENCE_STUDIO_FPS") or None,

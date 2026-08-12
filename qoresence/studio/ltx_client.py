@@ -26,6 +26,22 @@ log = logging.getLogger(__name__)
 _DEFAULT_BASE_URL = "https://api.ltx.io"
 _DEFAULT_ENDPOINT = "image-to-video"
 
+# Official LTX-2.3 support matrix (1080p). Pro does not accept 5s.
+_PRO_DURATIONS = (6, 8, 10)
+_FAST_DURATIONS = (6, 8, 10, 12, 14, 16, 18, 20)
+
+
+def normalize_duration(duration: int | None, model: str = "ltx-2-3-pro") -> int:
+    """Snap a requested duration to a value the selected model accepts."""
+    try:
+        value = int(duration) if duration is not None else 6
+    except (TypeError, ValueError):
+        value = 6
+    allowed = _FAST_DURATIONS if "fast" in (model or "") else _PRO_DURATIONS
+    if value in allowed:
+        return value
+    return min(allowed, key=lambda item: abs(item - value))
+
 
 try:
     import requests
@@ -78,33 +94,45 @@ class LtxJob:
         return self.status in {"completed", "failed"}
 
 
-def _resolve_api_key(api_key: str | None = None, api_key_file: str | None = None) -> str | None:
-    def _clean(value: str) -> str:
-        value = value.strip()
-        # Support keys saved with a label prefix such as "LTX: ltxv_..." or "API KEY: ...".
-        if " " in value:
-            for token in value.split():
-                if token.startswith(("ltxv_", "ltx_")):
-                    return token
-            return value.split()[-1]
-        return value
+def _strip_wrapping_quotes(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1].strip()
+    return value
 
+
+def _clean_api_key(value: str) -> str:
+    """Extract an LTX token from a labeled or quoted secrets file."""
+    for line in value.splitlines():
+        line = _strip_wrapping_quotes(line)
+        if not line or line.startswith("#"):
+            continue
+        tokens = line.replace(":", " ").split()
+        for token in tokens:
+            token = _strip_wrapping_quotes(token)
+            if token.startswith(("ltxv_", "ltx_")):
+                return token
+        return tokens[-1] if tokens else line
+    return _strip_wrapping_quotes(value)
+
+
+def _resolve_api_key(api_key: str | None = None, api_key_file: str | None = None) -> str | None:
     if api_key and api_key.strip():
-        return _clean(api_key)
+        return _clean_api_key(api_key)
     if api_key_file:
         try:
             p = pathlib.Path(api_key_file)
             if p.exists():
-                return _clean(p.read_text(encoding="utf-8"))
+                return _clean_api_key(p.read_text(encoding="utf-8"))
             log.warning("LTX api_key_file not found: %s", api_key_file)
         except Exception as e:
             log.warning("LTX api_key_file read failed: %s", e)
     import os
 
-    for k in ("LTX_API_KEY", "LTXV_API_KEY"):
+    for k in ("LTX_API_KEY", "LTXV_API_KEY", "QORESENCE_STUDIO_API_KEY"):
         v = os.environ.get(k)
         if v and v.strip():
-            return _clean(v)
+            return _clean_api_key(v)
     return None
 
 
@@ -160,14 +188,25 @@ class LtxClient:
         data: bytes | None = None,
         headers: dict[str, str] | None = None,
         timeout: float | None = None,
+        expect_bytes: bool = False,
     ) -> tuple[int, dict[str, Any] | bytes]:
-        """Low-level request with requests or stdlib fallback."""
+        """Low-level request with requests or stdlib fallback.
+
+        `headers is None` attaches API auth for LTX JSON calls.
+        Pass `headers={}` (or any dict) to send exactly those headers — required
+        for GCS signed PUT/GET, which reject extra Authorization headers.
+        """
         if not self._api_key and not self.dry_run:
             raise RuntimeError("LTX API key not configured")
 
-        url = self._url(path)
+        url = path if path.startswith(("http://", "https://")) else self._url(path)
         _timeout = timeout if timeout is not None else self.timeout_s
-        _headers = headers or (self._headers() if json_body is not None or method in {"GET", "POST"} else {})
+        if headers is not None:
+            _headers = dict(headers)
+        elif json_body is not None or method in {"GET", "POST"}:
+            _headers = self._headers()
+        else:
+            _headers = {}
         if json_body is not None:
             _headers.setdefault("Content-Type", "application/json")
 
@@ -180,37 +219,61 @@ class LtxClient:
                 resp = requests.request(method, url, headers=_headers, json=json_body, timeout=_timeout)
             else:
                 resp = requests.request(method, url, headers=_headers, data=data, timeout=_timeout)
-            ctype = resp.headers.get("Content-Type", "")
-            if ctype.startswith("video/") or ctype.startswith("application/octet-stream"):
-                return resp.status_code, resp.content
-            if ctype.startswith(("application/json", "text/json")) or (resp.text and resp.text.lstrip().startswith(("{", "["))):
-                try:
-                    return resp.status_code, resp.json()
-                except Exception:
-                    pass
-            if 200 <= resp.status_code < 300:
-                return resp.status_code, {}
-            return resp.status_code, {"_raw": resp.text}
+            return resp.status_code, self._decode_response(
+                resp.status_code,
+                resp.headers.get("Content-Type", ""),
+                resp.content,
+                getattr(resp, "text", "") or "",
+                expect_bytes=expect_bytes,
+                json_loader=resp.json,
+            )
 
         import http.client
         import urllib.parse
 
         parsed = urllib.parse.urlparse(url)
         conn_cls = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
-        conn = conn_cls(parsed.hostname or "", parsed.port or 443, timeout=_timeout)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        conn = conn_cls(parsed.hostname or "", port, timeout=_timeout)
         body = json.dumps(json_body).encode() if json_body is not None else (data or b"")
-        if json_body is not None:
-            _headers.setdefault("Content-Type", "application/json")
         conn.request(method, (parsed.path or "/") + (f"?{parsed.query}" if parsed.query else ""), body, _headers)
         resp = conn.getresponse()
         raw = resp.read()
-        ctype = resp.headers.get("Content-Type", "")
-        if ctype.startswith("video/") or ctype.startswith("application/octet-stream"):
-            return resp.status, raw
-        try:
-            return resp.status, json.loads(raw.decode("utf-8", errors="replace"))
-        except Exception:
-            return resp.status, {}
+        text = raw.decode("utf-8", errors="replace")
+        return resp.status, self._decode_response(
+            resp.status,
+            resp.headers.get("Content-Type", ""),
+            raw,
+            text,
+            expect_bytes=expect_bytes,
+        )
+
+    @staticmethod
+    def _decode_response(
+        status: int,
+        content_type: str,
+        raw: bytes,
+        text: str,
+        *,
+        expect_bytes: bool = False,
+        json_loader: Any | None = None,
+    ) -> dict[str, Any] | bytes:
+        ctype = (content_type or "").split(";")[0].strip().lower()
+        if expect_bytes or ctype.startswith("video/") or ctype.startswith("application/octet-stream"):
+            return raw
+        looks_json = ctype.startswith(("application/json", "text/json")) or (
+            text and text.lstrip().startswith(("{", "["))
+        )
+        if looks_json:
+            try:
+                if callable(json_loader):
+                    return json_loader()
+                return json.loads(text)
+            except Exception:
+                pass
+        if 200 <= status < 300:
+            return {} if not expect_bytes else raw
+        return {"_raw": text}
 
     def upload_image(self, image_path: str | pathlib.Path) -> str:
         """Upload a local image and return the storage_uri for generation."""
@@ -261,9 +324,9 @@ class LtxClient:
         prompt: str,
         *,
         model: str = "ltx-2-3-pro",
-        duration: int = 5,
+        duration: int = 6,
         resolution: str = "1920x1080",
-        aspect_ratio: str | None = "16:9",
+        aspect_ratio: str | None = None,
         fps: int | None = None,
         generate_audio: bool = False,
     ) -> LtxJob:
@@ -272,14 +335,15 @@ class LtxClient:
             "image_uri": image_uri,
             "prompt": prompt,
             "model": model,
-            "duration": duration,
+            "duration": normalize_duration(duration, model),
             "resolution": resolution,
             "generate_audio": generate_audio,
         }
-        if aspect_ratio:
-            payload["aspect_ratio"] = aspect_ratio
+        # Official V2 image-to-video has no aspect_ratio field; resolution encodes it.
         if fps:
             payload["fps"] = fps
+        if aspect_ratio:
+            log.debug("Ignoring aspect_ratio=%s (not in LTX V2 image-to-video)", aspect_ratio)
 
         path = f"/v2/{self.endpoint}"
         status, body = self._request("POST", path, json_body=payload)
@@ -339,10 +403,11 @@ class LtxClient:
         """Download a completed video to a local path."""
         output_path = pathlib.Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        status, body = self._request("GET", video_url, timeout=120)
+        # Signed GCS URLs reject extra Authorization / Content-Type headers.
+        status, body = self._request("GET", video_url, headers={}, timeout=120, expect_bytes=True)
         if status != 200:
             raise RuntimeError(f"LTX download failed ({status})")
-        if not isinstance(body, bytes):
+        if not isinstance(body, bytes) or not body:
             raise RuntimeError("LTX download did not return video bytes")
         output_path.write_bytes(body)
         return output_path

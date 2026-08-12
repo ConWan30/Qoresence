@@ -40,6 +40,10 @@ class RenderJob:
     game_profile: str = ""
     session_id: str = ""
     style: str = "cinematic"
+    model: str = ""
+    duration: int = 0
+    resolution: str = ""
+    generate_audio: bool = False
     output_dir: str | None = None
     status: str = "pending"
     ltx_job_id: str = ""
@@ -60,6 +64,10 @@ class RenderJob:
             "game_profile": self.game_profile,
             "session_id": self.session_id,
             "style": self.style,
+            "model": self.model,
+            "duration": self.duration,
+            "resolution": self.resolution,
+            "generate_audio": self.generate_audio,
             "output_dir": self.output_dir,
             "status": self.status,
             "ltx_job_id": self.ltx_job_id,
@@ -82,6 +90,10 @@ class RenderJob:
             game_profile=d.get("game_profile", ""),
             session_id=d.get("session_id", ""),
             style=d.get("style", "cinematic"),
+            model=d.get("model", ""),
+            duration=int(d.get("duration") or 0),
+            resolution=d.get("resolution", ""),
+            generate_audio=bool(d.get("generate_audio", False)),
             output_dir=d.get("output_dir"),
             status=d.get("status", "pending"),
             ltx_job_id=d.get("ltx_job_id", ""),
@@ -144,7 +156,7 @@ class ReelQueue:
         with self._lock:
             if self._worker is None or not self._worker.is_alive():
                 self._stopped.clear()
-                self._worker = threading.Thread(target=self._worker_loop, daemon=False)
+                self._worker = threading.Thread(target=self._worker_loop, daemon=True)
                 self._worker.start()
 
     def submit(self, jobs: list[RenderJob]) -> list[str]:
@@ -181,10 +193,18 @@ class ReelQueue:
             self._worker.join(timeout=timeout)
 
     def join(self, timeout: float | None = None) -> bool:
-        if self._worker and self._worker.is_alive():
-            self._worker.join(timeout=timeout)
-            return not self._worker.is_alive()
-        return True
+        """Wait until queued jobs finish. Does not stop the worker."""
+        import time
+
+        if timeout is None:
+            self._queue.join()
+            return True
+        deadline = time.time() + float(timeout)
+        while time.time() < deadline:
+            if self._queue.unfinished_tasks == 0:
+                return True
+            time.sleep(0.05)
+        return self._queue.unfinished_tasks == 0
 
     def _worker_loop(self) -> None:
         while not self._stopped.is_set():
@@ -234,6 +254,10 @@ class ReelQueue:
             situation=job.situation,
             buttons_summary=job.buttons_summary,
             style=job.style,
+            model=job.model or "ltx-2-3-pro",
+            duration=job.duration or 6,
+            resolution=job.resolution or "1920x1080",
+            generate_audio=job.generate_audio,
         )
 
         # 4. Render.
@@ -245,7 +269,6 @@ class ReelQueue:
             model=payload.model,
             duration=payload.duration,
             resolution=payload.resolution,
-            aspect_ratio=payload.aspect_ratio,
             fps=payload.fps,
             generate_audio=payload.generate_audio,
         )
@@ -305,3 +328,15 @@ def init_reel_queue(client: LtxClient, prompt_engine: PromptEngine, **kw: Any) -
         if _reel_queue is None:
             _reel_queue = ReelQueue(client, prompt_engine, **kw)
         return _reel_queue
+
+
+def reset_reel_queue() -> None:
+    """Drop the process singleton. Used by tests and process teardown."""
+    global _reel_queue
+    with _reel_queue_lock:
+        if _reel_queue is not None:
+            try:
+                _reel_queue.stop(wait=True, timeout=2.0)
+            except Exception:
+                pass
+            _reel_queue = None

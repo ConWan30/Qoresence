@@ -1205,14 +1205,25 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         )
 
     # Studio / Foundry Reels wiring
-    if args.foundry_reel or args.render_reels or args.foundry_reel_clip or args.ltx_api_key_file:
+    if (
+        args.foundry_reel
+        or args.render_reels
+        or args.foundry_reel_clip
+        or args.ltx_api_key_file
+        or getattr(args, "studio", False)
+    ):
         from dataclasses import replace as _replace_studio
         from pathlib import Path as _P_studio
 
         _key_file = args.ltx_api_key_file
         if not _key_file and _P_studio(".secrets/ltx.key").exists():
             _key_file = ".secrets/ltx.key"
-        _enabled = bool(args.foundry_reel or args.render_reels or args.foundry_reel_clip)
+        _enabled = bool(
+            args.foundry_reel
+            or args.render_reels
+            or args.foundry_reel_clip
+            or getattr(args, "studio", False)
+        )
         _out_dir = args.foundry_reel_output_dir
         config.studio = _replace_studio(
             config.studio,
@@ -1557,9 +1568,14 @@ def main():
 
     # Foundry Reels / LTX Studio (default OFF)
     parser.add_argument(
+        "--studio",
+        action="store_true",
+        help="Enable Foundry Bay on Deck (post-session reels). Does not start a one-shot render.",
+    )
+    parser.add_argument(
         "--foundry-reel",
         action="store_true",
-        help="Render LTX reels from Foundry clips (post-session one-shot if not combined with --play)",
+        help="Render LTX reels from Foundry clips (post-session one-shot if not combined with --play/--deck)",
     )
     parser.add_argument(
         "--render-reels",
@@ -1595,7 +1611,7 @@ def main():
     parser.add_argument(
         "--foundry-reel-no-wait",
         action="store_true",
-        help="Queue reels and exit; do not wait for LTX to finish",
+        help="With --play/--deck: queue reels and keep running. One-shot mode always waits.",
     )
     parser.add_argument(
         "--ltx-api-key-file",
@@ -2000,6 +2016,11 @@ def main():
         try:
             from qoresence.studio.render_command import render_reels
 
+            if getattr(args, "foundry_reel_no_wait", False):
+                log.warning(
+                    "Foundry Reels one-shot always waits; use --play --deck --studio "
+                    "to queue in the background"
+                )
             _jobs = render_reels(
                 config,
                 clip_path=args.foundry_reel_clip,
@@ -2007,7 +2028,7 @@ def main():
                 output_dir=args.foundry_reel_output_dir,
                 kinds=args.foundry_reel_kinds,
                 style=args.foundry_reel_style,
-                wait=not args.foundry_reel_no_wait,
+                wait=True,
             )
             _ok = sum(1 for j in _jobs if j and j.status == "completed")
             _fail = sum(1 for j in _jobs if j and j.status == "failed")
@@ -2018,7 +2039,9 @@ def main():
             log.exception("Foundry Reels render failed: %s", e)
             sys.exit(1)
 
-    if getattr(args, "deck", False):
+    if getattr(args, "deck", False) or (
+        getattr(args, "studio", False) and not _is_reel_one_shot
+    ):
         try:
             object.__setattr__(config, "deck_enabled", True)
             object.__setattr__(config, "deck_host", getattr(args, "deck_host", "127.0.0.1"))
