@@ -70,7 +70,7 @@ h3 .code{color:var(--cyan);font:700 9px/1 JetBrains Mono,monospace}
 </head>
 <body>
 <header id="cmd">
-  <div class="brand"><span class="brandMark">Q</span><span class="brandCopy"><strong>Foundry Bay</strong><small>post-session reels</small></span></div>
+  <div class="brand"><span class="brandMark">Q</span><span class="brandCopy"><strong>Foundry Bay</strong><small>ghost cut · local</small></span></div>
   <a href="/deck.html">Deck</a>
   <a href="/overlay.html" target="_blank">Lens ↗</a>
   <a href="/health" target="_blank">Health ↗</a>
@@ -79,8 +79,8 @@ h3 .code{color:var(--cyan);font:700 9px/1 JetBrains Mono,monospace}
 
 <section id="gate">
   <h2>Studio is off</h2>
-  <p>Foundry Bay turns a local HDMI clip and its chapter receipt into a cinematic reel. It never touches the live capture path.</p>
-  <p style="margin-top:10px">Start Deck with <code>--studio</code> or <code>--play --deck --studio</code>, and keep the LTX key in <code>.secrets/ltx.key</code>.</p>
+  <p>Foundry Bay cuts a local highlight from your HDMI clip and burns the chapter, score, and buttons onto it. No cloud key. It never touches the live capture path.</p>
+  <p style="margin-top:10px">Start Deck with <code>--studio</code> or <code>--play --deck --studio</code>.</p>
 </section>
 
 <section id="splice" class="hidden" aria-label="Causal splice">
@@ -88,7 +88,7 @@ h3 .code{color:var(--cyan);font:700 9px/1 JetBrains Mono,monospace}
   <div class="tick" aria-hidden="true"></div>
   <div class="cell"><h4>02 frame</h4><div class="v" id="spFrame">—</div><div class="s" id="spFrameS">PNG at chapter t_s · sent to LTX only if you render</div></div>
   <div class="tick" aria-hidden="true"></div>
-  <div class="cell"><h4>03 reel</h4><div class="v" id="spReel">idle</div><div class="s" id="spReelS">Local MP4 + receipt beside the clip</div></div>
+  <div class="cell"><h4>03 cut</h4><div class="v" id="spReel">idle</div><div class="s" id="spReelS">Local highlight + receipt · no LTX</div></div>
 </section>
 
 <div id="work" class="hidden">
@@ -96,7 +96,7 @@ h3 .code{color:var(--cyan);font:700 9px/1 JetBrains Mono,monospace}
     <h3><span>Candidates</span><span class="code">FOUNDRY</span></h3>
     <div id="cands"></div>
     <div id="actions">
-      <button type="button" class="actionBtn primary" id="btnRender" disabled>Render reel</button>
+      <button type="button" class="actionBtn primary" id="btnRender" disabled>Cut highlight</button>
       <button type="button" class="actionBtn" id="btnRefresh">Refresh</button>
     </div>
   </aside>
@@ -232,8 +232,7 @@ async function refresh(){
     const on=!!(st&&st.enabled);
     showStudio(on);
     if(!on){ setStatus(false,'studio off'); return; }
-    if(!st.available){ setStatus(false,'key missing · .secrets/ltx.key'); }
-    else setStatus(true, (st.dry_run?'dry-run · ':'')+st.model+' · '+st.duration+'s');
+    setStatus(true, (st.renderer||'ghost_cut')+' · local');
     const [c,j]=await Promise.all([
       fetch('/api/foundry/candidates?limit=8').then(r=>r.json()),
       fetch('/api/foundry/jobs').then(r=>r.json())

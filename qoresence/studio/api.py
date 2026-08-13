@@ -70,20 +70,16 @@ def boot_studio(config: RetinaUnifiedConfig) -> dict[str, Any]:
 def status_payload(config: RetinaUnifiedConfig | None) -> dict[str, Any]:
     studio = getattr(config, "studio", None) if config is not None else None
     enabled = bool(studio and studio.enabled)
-    client_available = False
-    if enabled and studio is not None:
-        client_available = LtxClient(
-            api_key=studio.api_key,
-            api_key_file=studio.api_key_file,
-            dry_run=studio.dry_run,
-        ).is_available()
+    # Ghost Cut is local and always available when Studio is on.
+    client_available = enabled
     queue = get_reel_queue()
     jobs = queue.list_jobs(limit=50) if queue is not None else []
     return {
         "ok": True,
         "enabled": enabled,
         "available": client_available,
-        "dry_run": bool(studio.dry_run) if studio else False,
+        "dry_run": False,
+        "renderer": "ghost_cut",
         "model": studio.model if studio else "ltx-2-3-pro",
         "duration": studio.duration if studio else 6,
         "resolution": studio.resolution if studio else "1920x1080",

@@ -15,17 +15,12 @@ from queue import Queue
 from typing import Any
 
 from .frame_selector import FrameSelector
+from .ghost_cut import buttons_from_sidecar, cut_highlight
 from .ltx_client import LtxClient
 from .prompt_engine import PromptEngine
-from .receipt import ReelReceipt, now_ns, write_receipt
+from .receipt import now_ns
 
 log = logging.getLogger(__name__)
-
-
-def _sha256_hash(s: str) -> str:
-    import hashlib
-
-    return hashlib.sha256(s.encode("utf-8")).hexdigest()[:16]
 
 
 @dataclass
@@ -231,85 +226,34 @@ class ReelQueue:
         if job.output_dir:
             out_dir = Path(job.output_dir)
         else:
-            out_dir = clip_path.parent / (clip_path.stem + "_ltx")
+            out_dir = clip_path.parent / (clip_path.stem + "_cut")
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # 2. Extract frame.
         t_s = float(job.chapter.get("t_s") or 0.0)
         png_path = self.frame_selector.extract_png(clip_path, t_s, out_dir / f"frame_{t_s:.3f}.png")
         if png_path is None:
             raise RuntimeError(f"Failed to extract frame from {clip_path}")
 
-        # 3. Build prompt.
-        from qoresence.core.unified_config import get_game_profile
-
-        try:
-            profile = get_game_profile(job.game_profile)
-        except Exception:
-            profile = get_game_profile("ncaa_football_27")
-
-        payload = self.prompt_engine.build_payload(
-            profile,
+        buttons = job.buttons_summary or buttons_from_sidecar(clip_path)
+        job.output_path = str(out_dir / f"reel_{job.job_id}.mp4")
+        result = cut_highlight(
+            clip_path,
             job.chapter,
             situation=job.situation,
-            buttons_summary=job.buttons_summary,
-            style=job.style,
-            model=job.model or "ltx-2-3-pro",
-            duration=job.duration or 6,
-            resolution=job.resolution or "1920x1080",
-            generate_audio=job.generate_audio,
-        )
-
-        # 4. Render.
-        job.output_path = str(out_dir / f"reel_{job.job_id}.mp4")
-        ltx_job = self.client.render(
-            png_path,
-            payload.prompt,
-            job.output_path,
-            model=payload.model,
-            duration=payload.duration,
-            resolution=payload.resolution,
-            fps=payload.fps,
-            generate_audio=payload.generate_audio,
-        )
-
-        job.completed_ns = now_ns()
-        job.ltx_job_id = ltx_job.job_id
-
-        if ltx_job.status != "completed":
-            job.status = ltx_job.status or "failed"
-            job.error = ltx_job.error or "LTX render failed"
-            self._save_jobs()
-            return
-
-        # 5. Write receipt.
-        receipt = ReelReceipt(
-            session_id=job.session_id,
-            clock_ns=job.situation.get("clock_ns") if job.situation else 0,
-            source_clip=str(job.source_clip),
-            source_t_s=t_s,
-            ltx_job_id=ltx_job.job_id,
-            ltx_prompt=payload.prompt,
-            ltx_payload_hash=_sha256_hash(payload.prompt + str(job.game_profile)),
+            buttons_summary=buttons,
             output_path=job.output_path,
-            output_url=ltx_job.video_url or "",
-            created_ns=job.created_ns,
-            completed_ns=job.completed_ns,
-            status="completed",
+            session_id=job.session_id,
             game_profile=str(job.game_profile),
-            chapter_kind=str(job.chapter.get("kind") or ""),
-            chapter_label=str(job.chapter.get("label") or ""),
-            metadata={"negative_prompt": payload.negative_prompt, "model": payload.model},
         )
-        write_receipt(job.output_path, receipt)
-
+        job.completed_ns = now_ns()
+        job.ltx_job_id = ""
         job.status = "completed"
         self._save_jobs()
         log.info(
-            "ReelQueue: finished %s -> %s (LTX job %s)",
+            "ReelQueue: Ghost Cut %s -> %s (%d frames)",
             job.source_clip,
-            job.output_path,
-            ltx_job.job_id,
+            result.output_path,
+            result.frames,
         )
 
 

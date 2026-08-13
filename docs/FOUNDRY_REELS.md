@@ -1,6 +1,6 @@
-# Foundry Bay — post-session reels
+# Foundry Bay — Ghost Cut
 
-Foundry Bay is Qoresence Studio. It turns a **local HDMI clip + chapter receipt** into a cinematic LTX reel. It is default-off, post-session, and never joins the live event bus.
+Foundry Bay is Qoresence Studio. **Ghost Cut** edits a **local HDMI clip + chapter receipt** into a highlight with the why-strip burned in. No LTX key. Default-off, post-session, never on the live event bus.
 
 ## Why a fourth glass
 
@@ -34,7 +34,7 @@ python -m qoresence.cli --play --deck --studio --streamer-device 0 --streamer-fp
 # Open the bay
 # http://127.0.0.1:8765/studio.html
 
-# Or one-shot after the session (always waits for LTX)
+# Or one-shot after the session (Ghost Cut, local, no LTX)
 python -m qoresence.cli --foundry-reel --foundry-reel-count 1
 ```
 

@@ -46,6 +46,33 @@ def _fake_game_profile() -> GameProfile:
     )
 
 
+def test_ghost_cut_writes_local_mp4(tmp_path):
+    from qoresence.studio.ghost_cut import cut_highlight
+
+    video_path = tmp_path / "hdmi_clip_cut.mp4"
+    writer = cv2.VideoWriter(str(video_path), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (320, 240))
+    for i in range(30):
+        writer.write(np.full((240, 320, 3), 40 + i * 4, dtype=np.uint8))
+    writer.release()
+    out = tmp_path / "reel_ghost.mp4"
+    result = cut_highlight(
+        video_path,
+        {"kind": "confirm_chat", "label": "14-10 clutch", "t_s": 1.2},
+        situation={"home_score": 14, "away_score": 10, "quarter": 4},
+        buttons_summary={"cross": 3, "r1": 1},
+        output_path=out,
+        pre_s=0.8,
+        post_s=1.2,
+        slow_last_s=0.4,
+    )
+    assert result.output_path.is_file()
+    assert result.frames > 0
+    assert result.receipt_path.is_file()
+    rec = json.loads(result.receipt_path.read_text(encoding="utf-8"))
+    assert rec["metadata"]["renderer"] == "ghost_cut"
+    assert rec["status"] == "completed"
+
+
 def test_prompt_engine_ncaa_score_changed():
     engine = PromptEngine()
     chapter = {
@@ -412,7 +439,7 @@ def test_foundry_bay_routes_registered():
     html = _html("studio.html")
     assert "Foundry Bay" in html
     assert "/api/foundry/status" in html
-    assert "Render reel" in html
+    assert "Cut highlight" in html
     app = create_app()
     if app is None:
         pytest.skip("fastapi not installed")

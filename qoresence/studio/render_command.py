@@ -63,9 +63,6 @@ def render_reels(
     if studio is None:
         raise RuntimeError("Studio not enabled. Set --foundry-reel or QORESENCE_STUDIO_ENABLED=1")
 
-    if not LtxClient(api_key=studio.api_key, api_key_file=studio.api_key_file).is_available():
-        raise RuntimeError("LTX API key not configured. Set QORESENCE_STUDIO_API_KEY or place key in .secrets/ltx.key")
-
     client = LtxClient(
         api_key=studio.api_key,
         api_key_file=studio.api_key_file,
@@ -74,7 +71,7 @@ def render_reels(
         timeout_s=studio.timeout_s,
         poll_interval_s=studio.poll_interval_s,
         max_poll_s=studio.max_poll_s,
-        dry_run=studio.dry_run,
+        dry_run=True,
     )
     prompt_engine = PromptEngine()
     frame_selector = FrameSelector(cache_dir=output_dir or studio.output_dir)

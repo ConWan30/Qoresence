@@ -1,15 +1,16 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Retina Lens — LIVE</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@700&family=Syne:wght@800&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#080B10;--paper:#EEF5F4;--muted:#91A1AD;--dim:#60707D;--lime:#C8F26A;--cyan:#68D9E8;--amber:#F6BD62;--rose:#FF7D91}
+:root{--ink:#050a08;--paper:#E8F2EC;--muted:#8EA396;--dim:#5D7166;--lime:#C6F26A;--cyan:#4FE0D4;--amber:#FFC14A;--rose:#FF7D91}
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font-family:Inter,JetBrains Mono,system-ui,sans-serif}
+html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font-family:Syne,IBM Plex Mono,system-ui,sans-serif}
 #ribbon{position:absolute;top:0;left:0;height:3px;width:100%;background:linear-gradient(90deg,#17332B 0%,var(--cyan) 42%,var(--lime) 100%);opacity:.12;transition:opacity .8s;box-shadow:0 0 18px rgba(104,217,232,.35)}
 #pill{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:rgba(8,11,16,.78);backdrop-filter:blur(16px);border:1px solid rgba(200,242,106,.38);border-radius:999px;padding:11px 22px;color:var(--paper);font:700 13px/1 JetBrains Mono,monospace;letter-spacing:.04em;box-shadow:0 14px 38px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.06);opacity:0;transition:opacity .8s;white-space:nowrap}
 #pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 13px var(--lime)}
 #pill.show{opacity:1}#pill.hide{opacity:0}
-#spark{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%) scale(.88);font:800 82px/.98 Inter,sans-serif;letter-spacing:-.065em;color:var(--lime);text-align:center;text-shadow:0 10px 42px rgba(200,242,106,.28);opacity:0;transition:all .55s cubic-bezier(.34,1.56,.64,1);filter:saturate(1.05)}
+#spark{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%) scale(.88);font:800 82px/.98 Syne,sans-serif;letter-spacing:-.065em;color:var(--lime);text-align:center;text-shadow:0 10px 42px rgba(198,242,106,.32);opacity:0;transition:all .55s cubic-bezier(.34,1.56,.64,1);filter:saturate(1.05)}
 #spark.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
 #eye{position:absolute;right:22px;top:16px;padding:8px 11px;border:1px solid rgba(190,214,232,.2);border-radius:10px;background:rgba(8,11,16,.72);backdrop-filter:blur(13px);color:var(--muted);font:700 10px/1 JetBrains Mono,monospace;letter-spacing:.05em;box-shadow:0 10px 24px rgba(0,0,0,.2)}
 #eye strong{color:var(--lime);font-weight:800}

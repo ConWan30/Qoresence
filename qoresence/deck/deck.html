@@ -1,23 +1,25 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Retina Deck — Streamer Console</title>
+<title>Retina Deck — observation plane</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Sora:wght@400;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#080B10; --panel:rgba(13,18,25,.84); --card:rgba(18,27,38,.78); --line:rgba(190,214,232,.14);
-  --line-hi:rgba(190,214,232,.3); --text:#EEF5F4; --muted:#91A1AD; --dim:#60707D;
-  --gold:#C8F26A; --gold-dim:rgba(200,242,106,.1); --cyan:#68D9E8; --amber:#F6BD62;
-  --danger:#FF7D91; --ok:#C8F26A; --rail-w:402px;
+  --bg:#050a08; --panel:rgba(10,22,16,.84); --card:rgba(14,32,24,.78); --line:rgba(198,242,106,.14);
+  --line-hi:rgba(79,224,212,.3); --text:#E8F2EC; --muted:#8EA396; --dim:#5D7166;
+  --gold:#C6F26A; --gold-dim:rgba(198,242,106,.1); --cyan:#4FE0D4; --amber:#FFC14A;
+  --danger:#FF7D91; --ok:#C6F26A; --rail-w:402px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;overflow:hidden}
-body{display:grid;grid-template-columns:1fr var(--rail-w);grid-template-rows:auto 1fr;min-height:100vh;background:radial-gradient(900px 520px at 72% -12%,rgba(104,217,232,.1),transparent 65%),radial-gradient(720px 520px at -12% 20%,rgba(200,242,106,.07),transparent 64%),var(--bg)}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:Sora,Inter,system-ui,sans-serif;overflow:hidden}
+body{display:grid;grid-template-columns:1fr var(--rail-w);grid-template-rows:auto 1fr;min-height:100vh;background:radial-gradient(900px 520px at 72% -12%,rgba(79,224,212,.1),transparent 65%),radial-gradient(720px 520px at -12% 20%,rgba(198,242,106,.08),transparent 64%),var(--bg)}
 body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.28;background-image:linear-gradient(rgba(190,214,232,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(190,214,232,.045) 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(to bottom,black,transparent 85%)}
 
 /* ── Top command bar (always reachable) ── */
 #cmd{grid-column:1 / -1;position:relative;z-index:5;display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-height:72px;padding:10px 18px;background:rgba(8,11,16,.8);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
 #cmd .brand{display:flex;align-items:center;gap:10px;margin-right:8px;color:var(--gold);font:800 12px/1 JetBrains Mono,monospace;letter-spacing:.12em;text-transform:uppercase}
 .brandMark{width:32px;height:32px;display:grid;place-items:center;border:1px solid rgba(200,242,106,.55);border-radius:9px;color:var(--gold);box-shadow:0 0 24px rgba(200,242,106,.12),inset 0 0 16px rgba(200,242,106,.08);font:800 13px/1 JetBrains Mono,monospace}
-.brandCopy{display:block}.brandCopy strong{display:block;color:var(--text);font-size:12px}.brandCopy small{display:block;margin-top:4px;color:var(--dim);font-size:8px;letter-spacing:.12em}
+.brandCopy{display:block}.brandCopy strong{display:block;color:var(--text);font-family:Syne,sans-serif;font-size:13px}.brandCopy small{display:block;margin-top:4px;color:var(--dim);font-size:8px;letter-spacing:.12em}
 #modeBar{display:flex;gap:6px}
 .modeBtn,.actionBtn{appearance:none;border:1px solid var(--line-hi);background:rgba(255,255,255,.035);color:var(--text);border-radius:10px;padding:10px 16px;font:800 11px/1 JetBrains Mono,monospace;cursor:pointer;letter-spacing:.08em;min-height:40px;transition:background .2s,border-color .2s,transform .2s}
 .modeBtn.active{background:var(--gold);color:var(--bg);border-color:var(--gold);box-shadow:0 8px 24px rgba(200,242,106,.12)}
@@ -65,7 +67,7 @@ body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{displa
 </head>
 <body class="mode-live">
 <header id="cmd">
-  <div class="brand"><span class="brandMark">Q</span><span class="brandCopy"><strong>Retina Deck</strong><small>local session plane</small></span></div>
+  <div class="brand"><span class="brandMark">Q</span><span class="brandCopy"><strong>Retina Deck</strong><small>observation plane</small></span></div>
   <div id="modeBar">
     <button type="button" class="modeBtn active" id="btnLive">LIVE</button>
     <button type="button" class="modeBtn" id="btnReplay">REPLAY</button>
