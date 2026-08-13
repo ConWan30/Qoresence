@@ -16,8 +16,6 @@ from typing import Any
 
 from .frame_selector import FrameSelector
 from .ghost_cut import buttons_from_sidecar, cut_highlight
-from .ltx_client import LtxClient
-from .prompt_engine import PromptEngine
 from .receipt import now_ns
 
 log = logging.getLogger(__name__)
@@ -34,14 +32,8 @@ class RenderJob:
     buttons_summary: dict[str, int] | None = None
     game_profile: str = ""
     session_id: str = ""
-    style: str = "cinematic"
-    model: str = ""
-    duration: int = 0
-    resolution: str = ""
-    generate_audio: bool = False
     output_dir: str | None = None
     status: str = "pending"
-    ltx_job_id: str = ""
     output_path: str = ""
     error: str = ""
     created_ns: int = field(default_factory=now_ns)
@@ -58,14 +50,8 @@ class RenderJob:
             "buttons_summary": self.buttons_summary,
             "game_profile": self.game_profile,
             "session_id": self.session_id,
-            "style": self.style,
-            "model": self.model,
-            "duration": self.duration,
-            "resolution": self.resolution,
-            "generate_audio": self.generate_audio,
             "output_dir": self.output_dir,
             "status": self.status,
-            "ltx_job_id": self.ltx_job_id,
             "output_path": self.output_path,
             "error": self.error,
             "created_ns": self.created_ns,
@@ -84,14 +70,8 @@ class RenderJob:
             buttons_summary=d.get("buttons_summary"),
             game_profile=d.get("game_profile", ""),
             session_id=d.get("session_id", ""),
-            style=d.get("style", "cinematic"),
-            model=d.get("model", ""),
-            duration=int(d.get("duration") or 0),
-            resolution=d.get("resolution", ""),
-            generate_audio=bool(d.get("generate_audio", False)),
             output_dir=d.get("output_dir"),
             status=d.get("status", "pending"),
-            ltx_job_id=d.get("ltx_job_id", ""),
             output_path=d.get("output_path", ""),
             error=d.get("error", ""),
             created_ns=d.get("created_ns") or now_ns(),
@@ -102,19 +82,15 @@ class RenderJob:
 
 
 class ReelQueue:
-    """Thread-safe background queue for LTX reels."""
+    """Thread-safe background queue for local Ghost Cuts."""
 
     def __init__(
         self,
-        client: LtxClient,
-        prompt_engine: PromptEngine,
         frame_selector: FrameSelector,
         output_dir: str | Path = "clips",
         *,
         jobs_file: str | Path | None = None,
     ):
-        self.client = client
-        self.prompt_engine = prompt_engine
         self.frame_selector = frame_selector
         self.output_dir = Path(output_dir)
         self.jobs_file = Path(jobs_file) if jobs_file else self.output_dir / "reels" / "jobs.jsonl"
@@ -246,7 +222,6 @@ class ReelQueue:
             game_profile=str(job.game_profile),
         )
         job.completed_ns = now_ns()
-        job.ltx_job_id = ""
         job.status = "completed"
         self._save_jobs()
         log.info(
@@ -266,11 +241,11 @@ def get_reel_queue() -> ReelQueue | None:
     return _reel_queue
 
 
-def init_reel_queue(client: LtxClient, prompt_engine: PromptEngine, **kw: Any) -> ReelQueue:
+def init_reel_queue(**kw: Any) -> ReelQueue:
     global _reel_queue
     with _reel_queue_lock:
         if _reel_queue is None:
-            _reel_queue = ReelQueue(client, prompt_engine, **kw)
+            _reel_queue = ReelQueue(**kw)
         return _reel_queue
 
 

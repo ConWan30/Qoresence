@@ -1,7 +1,7 @@
-"""Local Ghost Cut — cinematic highlight from the real HDMI clip.
+"""Local Ghost Cut — highlight from the real HDMI clip.
 
-No LTX. No cloud. OpenCV only. Burns Qoresence chapter / score / button
-evidence onto the operator's own footage.
+Burns chapter, score, and *timed* controller ghosts onto the operator's
+own footage. No cloud, no generative model.
 """
 
 from __future__ import annotations
@@ -18,6 +18,30 @@ import numpy as np
 from .receipt import ReelReceipt, now_ns, write_receipt
 
 log = logging.getLogger(__name__)
+
+def _norm_btn(name: str) -> str:
+    n = name.lower().replace("-", "_").strip()
+    for suffix in ("_btn", "_button", "_key"):
+        if n.endswith(suffix):
+            n = n[: -len(suffix)]
+    return {"a": "cross", "b": "circle", "x": "square", "y": "triangle"}.get(n, n)
+
+
+_FACE = {
+    "triangle": (0, -1, "Y"),
+    "circle": (1, 0, "B"),
+    "cross": (0, 1, "A"),
+    "square": (-1, 0, "X"),
+}
+_SHOULDERS = ("l2", "l1", "r1", "r2")
+
+
+@dataclass
+class GhostEvent:
+    t_s: float
+    name: str
+    kind: str
+    value: float = 0.0
 
 
 @dataclass
@@ -40,21 +64,105 @@ def _score_line(situation: dict[str, Any] | None) -> str:
     return f"{home or 0}-{away or 0}{qpart}"
 
 
-def _active_buttons(buttons_summary: dict[str, Any] | None) -> list[str]:
-    if not buttons_summary:
+def load_button_timeline(clip_path: str | Path) -> list[GhostEvent]:
+    """Map *.buttons.json events onto clip-relative seconds."""
+    p = Path(clip_path).with_name(Path(clip_path).stem + ".buttons.json")
+    if not p.is_file():
         return []
-    if isinstance(buttons_summary.get("pressed"), list):
-        return [str(x) for x in buttons_summary["pressed"][:6]]
-    names: list[str] = []
-    for key, val in buttons_summary.items():
-        if key in {"duration_s", "events"}:
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    raw = data.get("events") or []
+    clocks = [int(e.get("clock_ns") or 0) for e in raw if isinstance(e, dict)]
+    clocks = [c for c in clocks if c > 0]
+    t0 = min(clocks) if clocks else 0
+    out: list[GhostEvent] = []
+    for ev in raw:
+        if not isinstance(ev, dict):
+            continue
+        name = _norm_btn(str(ev.get("name") or ""))
+        if not name:
+            continue
+        cns = int(ev.get("clock_ns") or 0)
+        if ev.get("t_s") is not None:
+            t = float(ev["t_s"])
+        elif cns and t0:
+            t = (cns - t0) / 1e9
+        else:
             continue
         try:
-            if float(val) > 0:
-                names.append(str(key))
+            val = float(ev.get("value") or 0.0)
         except (TypeError, ValueError):
-            continue
-    return names[:6]
+            val = 0.0
+        out.append(GhostEvent(t_s=t, name=name, kind=str(ev.get("kind") or "press"), value=val))
+    out.sort(key=lambda e: e.t_s)
+    return out
+
+
+def held_at(timeline: list[GhostEvent], t_s: float) -> set[str]:
+    """Buttons down at t_s, plus presses in the last 180ms (flash)."""
+    held: set[str] = set()
+    flash: set[str] = set()
+    for ev in timeline:
+        if ev.t_s > t_s + 0.01:
+            break
+        if ev.kind == "press":
+            held.add(ev.name)
+            if t_s - ev.t_s <= 0.18:
+                flash.add(ev.name)
+        elif ev.kind == "release":
+            held.discard(ev.name)
+        elif ev.kind == "trigger":
+            if ev.value > 0.15:
+                held.add(ev.name)
+            else:
+                held.discard(ev.name)
+    return held | flash
+
+
+def buttons_from_sidecar(clip_path: str | Path) -> dict[str, Any]:
+    p = Path(clip_path).with_name(Path(clip_path).stem + ".buttons.json")
+    if not p.is_file():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if isinstance(data.get("buttons_summary"), dict):
+        return data["buttons_summary"]
+    names: dict[str, int] = {}
+    for ev in data.get("events") or []:
+        if isinstance(ev, dict) and ev.get("kind") == "press" and ev.get("name"):
+            n = str(ev["name"])
+            names[n] = names.get(n, 0) + 1
+    return names
+
+
+def _draw_pad(frame: np.ndarray, held: set[str], origin: tuple[int, int]) -> None:
+    """DualSense-ish ghost in the lower-left. Active names light phosphor."""
+    ox, oy = origin
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    on = (106, 242, 200)
+    off = (70, 82, 76)
+    # shoulders
+    labels = [("l2", 0), ("l1", 1), ("r1", 3), ("r2", 4)]
+    for name, col in labels:
+        x = ox + col * 36
+        color = on if name in held else off
+        cv2.rectangle(frame, (x, oy), (x + 32, oy + 16), color, 1, cv2.LINE_AA)
+        cv2.putText(frame, name.upper(), (x + 3, oy + 12), font, 0.32, color, 1, cv2.LINE_AA)
+    # face cluster
+    cx, cy = ox + 90, oy + 58
+    for name, (dx, dy, glyph) in _FACE.items():
+        x = int(cx + dx * 28)
+        y = int(cy + dy * 22)
+        color = on if name in held else off
+        cv2.circle(frame, (x, y), 11, color, 1, cv2.LINE_AA)
+        cv2.putText(frame, glyph, (x - 5, y + 4), font, 0.38, color, 1, cv2.LINE_AA)
+    extras = [n for n in sorted(held) if n not in _FACE and n not in _SHOULDERS]
+    if extras:
+        cv2.putText(frame, " ".join(extras[:4]).upper(), (ox, oy + 96), font, 0.36, on, 1, cv2.LINE_AA)
 
 
 def _draw_hud(
@@ -63,7 +171,7 @@ def _draw_hud(
     kind: str,
     label: str,
     score: str,
-    buttons: list[str],
+    held: set[str],
     t_s: float,
     duration_s: float,
 ) -> np.ndarray:
@@ -75,24 +183,19 @@ def _draw_hud(
     frame = cv2.addWeighted(glass, 0.62, frame, 0.38, 0)
     cv2.line(frame, (0, 36), (w, 36), (106, 242, 200), 1, cv2.LINE_AA)
     cv2.line(frame, (0, h - 86), (w, h - 86), (106, 242, 200), 1, cv2.LINE_AA)
-
     tick_w = max(8, int(w * min(1.0, t_s / max(duration_s, 0.01))))
     cv2.rectangle(frame, (0, h - 4), (tick_w, h), (106, 242, 200), -1)
 
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.putText(frame, "QORESENCE  GHOST CUT", (18, 24), font, 0.48, (200, 242, 106), 1, cv2.LINE_AA)
     cv2.putText(frame, f"{t_s:05.2f}s", (w - 118, 24), font, 0.48, (145, 161, 173), 1, cv2.LINE_AA)
-
-    kind_s = (kind or "chapter").upper()[:18]
-    cv2.putText(frame, kind_s, (18, h - 52), font, 0.62, (104, 217, 232), 1, cv2.LINE_AA)
+    cv2.putText(frame, (kind or "chapter").upper()[:18], (18, h - 52), font, 0.62, (104, 217, 232), 1, cv2.LINE_AA)
     if score:
         cv2.putText(frame, score, (18, h - 24), font, 0.72, (238, 245, 244), 2, cv2.LINE_AA)
-    lab = (label or "")[:64]
+    lab = (label or "")[:56]
     if lab:
         cv2.putText(frame, lab, (200, h - 24), font, 0.48, (145, 161, 173), 1, cv2.LINE_AA)
-    if buttons:
-        chips = "  ".join(b.upper() for b in buttons)
-        cv2.putText(frame, chips, (w - 18 - 11 * len(chips), h - 52), font, 0.45, (246, 189, 98), 1, cv2.LINE_AA)
+    _draw_pad(frame, held, (w - 210, h - 168))
     return frame
 
 
@@ -109,13 +212,13 @@ def cut_highlight(
     post_s: float = 4.0,
     slow_last_s: float = 1.2,
     slow_factor: float = 0.5,
+    timeline: list[GhostEvent] | None = None,
 ) -> GhostCutResult:
-    """Cut a local highlight around chapter t_s and burn the causal HUD."""
     clip_path = Path(clip_path)
     if not clip_path.is_file():
         raise FileNotFoundError(clip_path)
 
-    t_s = float(chapter.get("t_s") or 0.0)
+    t_mark = float(chapter.get("t_s") or 0.0)
     cap = cv2.VideoCapture(str(clip_path))
     if not cap.isOpened():
         raise RuntimeError(f"cannot open clip: {clip_path}")
@@ -125,8 +228,8 @@ def cut_highlight(
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 720)
     clip_dur = total / fps if fps > 0 else 0.0
 
-    start_s = max(0.0, t_s - pre_s)
-    end_s = min(clip_dur, t_s + post_s) if clip_dur else t_s + post_s
+    start_s = max(0.0, t_mark - pre_s)
+    end_s = min(clip_dur, t_mark + post_s) if clip_dur else t_mark + post_s
     if end_s <= start_s:
         end_s = start_s + 1.0
     start_f = int(start_s * fps)
@@ -136,20 +239,20 @@ def cut_highlight(
     if output_path is None:
         out_dir = clip_path.parent / (clip_path.stem + "_cut")
         out_dir.mkdir(parents=True, exist_ok=True)
-        output_path = out_dir / f"reel_ghost_{int(t_s * 1000):06d}.mp4"
+        output_path = out_dir / f"reel_ghost_{int(t_mark * 1000):06d}.mp4"
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
+    writer = cv2.VideoWriter(str(output_path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
     if not writer.isOpened():
         cap.release()
         raise RuntimeError(f"cannot write {output_path}")
 
+    if timeline is None:
+        timeline = load_button_timeline(clip_path)
     kind = str(chapter.get("kind") or "chapter")
     label = str(chapter.get("label") or "")
     score = _score_line(situation)
-    buttons = _active_buttons(buttons_summary)
     written = 0
     cap.set(cv2.CAP_PROP_POS_FRAMES, start_f)
     for idx in range(start_f, min(end_f, total if total else end_f)):
@@ -158,18 +261,17 @@ def cut_highlight(
             break
         if bgr.shape[1] != width or bgr.shape[0] != height:
             bgr = cv2.resize(bgr, (width, height))
-        rel = (idx / fps) - start_s
+        abs_t = idx / fps
         hud = _draw_hud(
             bgr,
             kind=kind,
             label=label,
             score=score,
-            buttons=buttons,
-            t_s=rel,
+            held=held_at(timeline, abs_t),
+            t_s=abs_t - start_s,
             duration_s=end_s - start_s,
         )
         repeats = 1
-        abs_t = idx / fps
         if abs_t >= slow_from and slow_factor > 0:
             repeats = max(1, int(round(1.0 / slow_factor)))
         for _ in range(repeats):
@@ -184,10 +286,7 @@ def cut_highlight(
     receipt = ReelReceipt(
         session_id=session_id,
         source_clip=str(clip_path),
-        source_t_s=t_s,
-        ltx_job_id="",
-        ltx_prompt="ghost_cut",
-        ltx_payload_hash="ghost",
+        source_t_s=t_mark,
         output_path=str(output_path),
         created_ns=now_ns(),
         completed_ns=now_ns(),
@@ -195,6 +294,7 @@ def cut_highlight(
         game_profile=game_profile,
         chapter_kind=kind,
         chapter_label=label,
+        renderer="ghost_cut",
         metadata={
             "renderer": "ghost_cut",
             "pre_s": pre_s,
@@ -203,37 +303,9 @@ def cut_highlight(
             "frames": written,
             "duration_s": round(duration_out, 3),
             "score": score,
-            "buttons": buttons,
+            "ghost_events": len(timeline),
         },
     )
     receipt_path = write_receipt(output_path, receipt)
-    log.info("Ghost Cut: %s -> %s (%d frames)", clip_path.name, output_path.name, written)
-    return GhostCutResult(
-        output_path=output_path,
-        receipt_path=receipt_path,
-        frames=written,
-        duration_s=duration_out,
-    )
-
-
-def buttons_from_sidecar(clip_path: str | Path) -> dict[str, Any]:
-    """Best-effort pressed-name summary from a *.buttons.json sidecar."""
-    p = Path(clip_path).with_name(Path(clip_path).stem + ".buttons.json")
-    if not p.is_file():
-        return {}
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-    if isinstance(data.get("buttons_summary"), dict):
-        return data["buttons_summary"]
-    names: dict[str, int] = {}
-    for ev in data.get("events") or []:
-        if not isinstance(ev, dict):
-            continue
-        if ev.get("kind") != "press":
-            continue
-        name = str(ev.get("name") or "")
-        if name:
-            names[name] = names.get(name, 0) + 1
-    return names
+    log.info("Ghost Cut: %s -> %s (%d frames, %d ghosts)", clip_path.name, output_path.name, written, len(timeline))
+    return GhostCutResult(output_path=output_path, receipt_path=receipt_path, frames=written, duration_s=duration_out)

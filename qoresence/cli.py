@@ -1204,20 +1204,15 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             ),
         )
 
-    # Studio / Foundry Reels wiring
+    # Studio / Ghost Cut wiring
     if (
         args.foundry_reel
         or args.render_reels
         or args.foundry_reel_clip
-        or args.ltx_api_key_file
         or getattr(args, "studio", False)
     ):
         from dataclasses import replace as _replace_studio
-        from pathlib import Path as _P_studio
 
-        _key_file = args.ltx_api_key_file
-        if not _key_file and _P_studio(".secrets/ltx.key").exists():
-            _key_file = ".secrets/ltx.key"
         _enabled = bool(
             args.foundry_reel
             or args.render_reels
@@ -1228,10 +1223,8 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         config.studio = _replace_studio(
             config.studio,
             enabled=_enabled,
-            api_key_file=_key_file,
             max_reels_per_session=int(args.foundry_reel_count or 3),
             output_dir=_out_dir if _out_dir else config.studio.output_dir,
-            prompt_style=args.foundry_reel_style or config.studio.prompt_style,
         )
 
     return config
@@ -1566,16 +1559,16 @@ def main():
         help="Path to JSONL log for --audit (default: --jsonl-path or logs/events.jsonl).",
     )
 
-    # Foundry Reels / LTX Studio (default OFF)
+    # Foundry Bay / Ghost Cut (default OFF, local)
     parser.add_argument(
         "--studio",
         action="store_true",
-        help="Enable Foundry Bay on Deck (post-session reels). Does not start a one-shot render.",
+        help="Enable Foundry Bay on Deck (local Ghost Cut). Does not start a one-shot cut.",
     )
     parser.add_argument(
         "--foundry-reel",
         action="store_true",
-        help="Render LTX reels from Foundry clips (post-session one-shot if not combined with --play/--deck)",
+        help="Cut local Ghost highlights from Foundry clips (one-shot if not combined with --play/--deck)",
     )
     parser.add_argument(
         "--render-reels",
@@ -1585,23 +1578,18 @@ def main():
     parser.add_argument(
         "--foundry-reel-clip",
         default=None,
-        help="Render a single specific clip (path or stem) and exit",
+        help="Cut a Ghost highlight from one clip (path or stem) and exit",
     )
     parser.add_argument(
         "--foundry-reel-count",
         type=int,
         default=3,
-        help="Max reels to render per session (default 3)",
-    )
-    parser.add_argument(
-        "--foundry-reel-style",
-        default=None,
-        help="Flavor after the 3D game-render lock (default: cinematic 3D game render)",
+        help="Max Ghost Cuts per session (default 3)",
     )
     parser.add_argument(
         "--foundry-reel-output-dir",
         default=None,
-        help="Directory for rendered reels (default: clips/<stem>_ltx/)",
+        help="Directory for Ghost Cuts (default: clips/<stem>_cut/)",
     )
     parser.add_argument(
         "--foundry-reel-kinds",
@@ -1611,12 +1599,7 @@ def main():
     parser.add_argument(
         "--foundry-reel-no-wait",
         action="store_true",
-        help="With --play/--deck: queue reels and keep running. One-shot mode always waits.",
-    )
-    parser.add_argument(
-        "--ltx-api-key-file",
-        default=None,
-        help="Path to LTX API key file (default .secrets/ltx.key)",
+        help="With --play/--deck: queue Ghost Cuts and keep running. One-shot mode always waits.",
     )
 
     args = parser.parse_args()
@@ -2006,7 +1989,7 @@ def main():
         except Exception:
             pass
 
-    # Foundry Reels one-shot post-session render
+    # Ghost Cut one-shot post-session
     _is_reel_one_shot = bool(
         getattr(args, "foundry_reel", False)
         or getattr(args, "render_reels", False)
@@ -2018,7 +2001,7 @@ def main():
 
             if getattr(args, "foundry_reel_no_wait", False):
                 log.warning(
-                    "Foundry Reels one-shot always waits; use --play --deck --studio "
+                    "Ghost Cut one-shot always waits; use --play --deck --studio "
                     "to queue in the background"
                 )
             _jobs = render_reels(
@@ -2027,16 +2010,15 @@ def main():
                 count=args.foundry_reel_count,
                 output_dir=args.foundry_reel_output_dir,
                 kinds=args.foundry_reel_kinds,
-                style=args.foundry_reel_style,
                 wait=True,
             )
             _ok = sum(1 for j in _jobs if j and j.status == "completed")
             _fail = sum(1 for j in _jobs if j and j.status == "failed")
             _pending = sum(1 for j in _jobs if j and j.status not in {"completed", "failed"})
-            print(f"Foundry Reels: completed={_ok} failed={_fail} pending={_pending}")  # noqa: T201
+            print(f"Ghost Cut: completed={_ok} failed={_fail} pending={_pending}")  # noqa: T201
             sys.exit(0 if _ok or _pending else 1)
         except Exception as e:
-            log.exception("Foundry Reels render failed: %s", e)
+            log.exception("Ghost Cut failed: %s", e)
             sys.exit(1)
 
     if getattr(args, "deck", False) or (

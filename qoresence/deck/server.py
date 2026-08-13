@@ -1242,7 +1242,7 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.post("/api/foundry/render")
     async def api_foundry_render(request: Request):  # type: ignore[no-untyped-def]
-        """Queue one or more LTX reels from Foundry clips."""
+        """Queue one or more local Ghost Cuts."""
         try:
             from qoresence.studio.api import queue_renders
 
@@ -1278,7 +1278,7 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/api/foundry/jobs")
     async def api_foundry_jobs():  # type: ignore[no-untyped-def]
-        """List recent LTX render jobs."""
+        """List recent Ghost Cut jobs."""
         try:
             from qoresence.studio.api import jobs_payload
 
@@ -1290,7 +1290,7 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/media/reels/{name}")
     async def media_reel(name: str):  # type: ignore[no-untyped-def]
-        """Stream a rendered LTX reel MP4."""
+        """Stream a Ghost Cut MP4 or receipt."""
         import re
 
         from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
@@ -1299,7 +1299,7 @@ def create_app():  # type: ignore[no-untyped-def]
         if not re.fullmatch(r"reel_[\w\-]+(\.(mp4|receipt\.json))", safe, flags=re.I):
             return JSONResponse({"ok": False, "error": "invalid name"}, status_code=400)
         root = pathlib.Path(DEFAULT_OUT_DIR)
-        # Search recursively under clips/*_ltx/ for the reel file.
+        # Search recursively under clips/*_cut/ for the highlight.
         candidates = list(root.rglob(safe))
         if not candidates:
             return JSONResponse({"ok": False, "error": "not found"}, status_code=404)

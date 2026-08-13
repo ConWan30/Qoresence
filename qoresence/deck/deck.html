@@ -40,6 +40,13 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opa
 #playerWrap{position:relative;margin:0 20px 20px;min-height:0;display:flex;align-items:center;justify-content:center;background:#040609;border-radius:22px;border:1px solid rgba(104,217,232,.22);box-shadow:0 24px 70px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden}
 #playerWrap::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 0 45%,rgba(255,255,255,.035) 50%,transparent 55%);transform:translateX(-110%);animation:stageScan 9s ease-in-out infinite}
 #playerWrap::after{content:"";position:absolute;inset:12px;pointer-events:none;border:1px solid rgba(190,214,232,.08);border-radius:15px}
+#ghostPad{position:absolute;z-index:4;right:22px;bottom:56px;display:none;padding:10px 12px;border:1px solid rgba(198,242,106,.28);border-radius:14px;background:rgba(5,10,8,.62);backdrop-filter:blur(10px);pointer-events:none}
+body.mode-replay #ghostPad.show{display:block}
+.gRow{display:flex;gap:6px;justify-content:space-between;margin-bottom:8px}
+.gFace{display:grid;grid-template-columns:20px 20px 20px;grid-template-rows:18px 18px 18px;gap:2px;justify-content:end;margin-left:auto;width:68px}
+.gBtn{min-width:22px;height:16px;padding:0 4px;border:1px solid rgba(93,113,102,.8);border-radius:4px;color:#5d7166;font:700 8px/16px IBM Plex Mono,monospace;text-align:center;letter-spacing:.04em}
+.gBtn.on{color:#050a08;background:#c6f26a;border-color:#c6f26a;box-shadow:0 0 10px rgba(198,242,106,.45)}
+.gFace .gBtn{width:20px;height:18px;border-radius:50%;padding:0;line-height:18px}
 #player,#liveFeed,#liveRtc{position:relative;z-index:1;width:100%;height:100%;max-height:100%;object-fit:contain;background:#000;display:none}
 body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{display:none}body.mode-live.webrtc-on #liveRtc{display:block}body.mode-replay #player{display:block}#liveRtc{background:#000}
 .stageHud{position:absolute;z-index:3;color:var(--dim);font:700 9px/1 JetBrains Mono,monospace;letter-spacing:.12em;text-transform:uppercase;pointer-events:none}.stageHudTop{top:25px;left:30px}.stageHudBottom{right:30px;bottom:25px}.stageHud strong{color:var(--gold)}
@@ -95,6 +102,17 @@ body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{displa
     <video id="liveRtc" autoplay playsinline muted></video>
     <img id="liveFeed" alt="LIVE HDMI MJPEG" src="/video?fps=60" decoding="async" fetchpriority="high">
     <video id="player" controls playsinline></video>
+    <div id="ghostPad" aria-label="Controller ghosts">
+      <div class="gRow">
+        <span class="gBtn" data-b="l2">L2</span><span class="gBtn" data-b="l1">L1</span>
+        <span class="gBtn" data-b="r1">R1</span><span class="gBtn" data-b="r2">R2</span>
+      </div>
+      <div class="gFace">
+        <span></span><span class="gBtn" data-b="triangle">Y</span><span></span>
+        <span class="gBtn" data-b="square">X</span><span></span><span class="gBtn" data-b="circle">B</span>
+        <span></span><span class="gBtn" data-b="cross">A</span><span></span>
+      </div>
+    </div>
   </div>
   <!-- Clip library removed — stage free for future features -->
 </main>
@@ -276,7 +294,47 @@ function playClip(url, label){
   t1.textContent='● REPLAY';
   setStatus('warn','Playing clip');
   loadChaptersForClip(url);
+  loadGhostsForClip(url);
 }
+let ghostEvents=[];
+function loadGhostsForClip(url){
+  const pad=document.getElementById('ghostPad');
+  ghostEvents=[];
+  if(pad) pad.classList.remove('show');
+  if(!url) return;
+  const bUrl=url.replace(/\.mp4(\?.*)?$/i,'.buttons.json');
+  fetch(bUrl).then(r=>{ if(!r.ok) throw new Error('no buttons'); return r.json(); }).then(j=>{
+    const ev=j.events||[];
+    const clocks=ev.map(e=>Number(e.clock_ns||0)).filter(c=>c>0);
+    const t0=clocks.length?Math.min.apply(null,clocks):0;
+    ghostEvents=ev.map(e=>{
+      const t=e.t_s!=null?Number(e.t_s): (t0?(Number(e.clock_ns)-t0)/1e9:0);
+      return {t:t, name:String(e.name||'').toLowerCase(), kind:String(e.kind||''), value:Number(e.value||0)};
+    }).filter(e=>e.name);
+    if(ghostEvents.length && pad) pad.classList.add('show');
+  }).catch(()=>{ ghostEvents=[]; });
+}
+function heldAt(t){
+  const held={};
+  for(let i=0;i<ghostEvents.length;i++){
+    const e=ghostEvents[i];
+    if(e.t>t+0.01) break;
+    if(e.kind==='press') held[e.name]=true;
+    else if(e.kind==='release') delete held[e.name];
+    else if(e.kind==='trigger'){ if(e.value>0.15) held[e.name]=true; else delete held[e.name]; }
+  }
+  ghostEvents.forEach(e=>{ if(e.kind==='press' && t-e.t>=0 && t-e.t<=0.18) held[e.name]=true; });
+  return held;
+}
+function paintGhosts(t){
+  const pad=document.getElementById('ghostPad');
+  if(!pad || !pad.classList.contains('show')) return;
+  const held=heldAt(t);
+  pad.querySelectorAll('[data-b]').forEach(el=>{
+    el.classList.toggle('on', !!held[el.getAttribute('data-b')]);
+  });
+}
+player.addEventListener('timeupdate',()=>paintGhosts(player.currentTime||0));
 function loadChaptersForClip(url){
   // /media/clips/foo.mp4 → /media/clips/foo.chapters.json
   if(!url){ chaptersCard.classList.remove('show'); return; }

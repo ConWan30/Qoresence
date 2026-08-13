@@ -345,19 +345,61 @@ class FoundryIndex:
         return get_drive_graph(drive_id, **kw)
 
     def get_render_candidates(self, limit=3, kinds=None, **kw):
-        """Return top clip chapters suitable for LTX reel rendering."""
+        """Return top clip chapters suitable for Ghost Cut."""
         return get_render_candidates(limit=limit, kinds=kinds, **kw)
 
 
-def get_render_candidates(clips_dir=None, limit=3, kinds=None):
-    """Pick the best chapters across all Foundry clips for generative reels.
+def score_play_chapter(ch: dict[str, Any], clip: dict[str, Any] | None = None) -> float:
+    """Rank a chapter by 'is this the play' — not the first chat line."""
+    k = str(ch.get("kind") or "")
+    try:
+        t = float(ch.get("t_s") or 0.0)
+    except (TypeError, ValueError):
+        t = 0.0
+    s = 0.0
+    if k in {"score_changed", "touchdown", "clutch"} or k.startswith("confirm_score"):
+        s += 2.2
+    elif k in CONFIRM_KINDS or k.startswith("confirm"):
+        s += 0.7
+    elif k in FAST_KINDS or k.startswith("fast"):
+        s += 0.35
+    elif k == "a2a_scene":
+        s += 0.45
+    if t < 0.2:
+        s -= 1.3
+    if ch.get("coupling") is not None:
+        try:
+            s += float(ch["coupling"]) * 0.8
+        except (TypeError, ValueError):
+            pass
+    if clip:
+        bs = clip.get("buttons_summary") or {}
+        energy = 0.0
+        for v in bs.values():
+            try:
+                energy += float(v)
+            except (TypeError, ValueError):
+                continue
+        s += min(1.0, energy / 20.0)
+    return s
 
-    Ranks by:
-      - confirm / score_changed / climax kinds
-      - graph_summary.climax.has_fast_confirm
-      - max chapter coupling
-      - recent mtime
-    """
+
+def pick_play_chapter(chapters: list[Any], clip: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """Choose the chapter most likely to be the actual play."""
+    best = None
+    best_s = -999.0
+    for ch in chapters or []:
+        if not isinstance(ch, dict):
+            continue
+        s = score_play_chapter(ch, clip)
+        if best is None or s > best_s:
+            best = ch
+            best_s = s
+    return best
+
+
+def get_render_candidates(clips_dir=None, limit=3, kinds=None):
+    """Pick the best *play* chapters across Foundry clips for Ghost Cut."""
     want_kinds = None
     if kinds:
         want_kinds = {k.strip() for k in kinds.split(",") if k.strip()}
@@ -369,28 +411,23 @@ def get_render_candidates(clips_dir=None, limit=3, kinds=None):
             continue
         graph = clip.get("graph_summary") or {}
         best = None
-        best_score = -1.0
+        best_score = -999.0
         for ch in chapters:
+            if not isinstance(ch, dict):
+                continue
             k = str(ch.get("kind") or "")
-            s = 0.0
-            if k in CONFIRM_KINDS or k.startswith("confirm") or k == "score_changed":
-                s += 1.0
-            elif k in FAST_KINDS or k.startswith("fast"):
-                s += 0.3
-            if ch.get("coupling") is not None:
-                try:
-                    s += float(ch["coupling"]) * 0.5
-                except Exception:
-                    pass
+            if want_kinds and k not in want_kinds:
+                continue
+            s = score_play_chapter(ch, clip)
             if want_kinds and k in want_kinds:
-                s += 0.5
+                s += 0.4
             if best is None or s > best_score:
                 best = ch
                 best_score = s
         if graph and isinstance(graph.get("climax"), dict):
             if graph["climax"].get("has_fast_confirm"):
                 best_score += 0.5
-        if best is not None and best_score > 0:
+        if best is not None and best_score > -1.0:
             scored.append((best_score, clip, best))
     scored.sort(key=lambda x: (-x[0], -float(x[1].get("mtime") or 0)))
     out = []

@@ -57,7 +57,7 @@ class FrameSelector:
             if not ok or bgr is None:
                 return None
 
-        # Resize if too large (LTX recommends ~768-1920px on long edge).
+        # Keep long edge bounded for overlay compositing.
         h, w = bgr.shape[:2]
         scale = 1.0
         if max(w, h) > max_dimension:
@@ -70,7 +70,7 @@ class FrameSelector:
             if self.cache_dir:
                 out_dir = self.cache_dir / clip_path.stem
             else:
-                out_dir = clip_path.parent / (clip_path.stem + "_ltx")
+                out_dir = clip_path.parent / (clip_path.stem + "_cut")
             out_dir.mkdir(parents=True, exist_ok=True)
             output_path = out_dir / f"frame_{frame_idx:06d}.png"
         else:

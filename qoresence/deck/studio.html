@@ -86,9 +86,9 @@ h3 .code{color:var(--cyan);font:700 9px/1 JetBrains Mono,monospace}
 <section id="splice" class="hidden" aria-label="Causal splice">
   <div class="cell"><h4>01 clip</h4><div class="v" id="spClip">Select a chaptered clip</div><div class="s" id="spClipS">Foundry ranks confirm / score moments</div></div>
   <div class="tick" aria-hidden="true"></div>
-  <div class="cell"><h4>02 frame</h4><div class="v" id="spFrame">—</div><div class="s" id="spFrameS">PNG at chapter t_s · sent to LTX only if you render</div></div>
+  <div class="cell"><h4>02 frame</h4><div class="v" id="spFrame">—</div><div class="s" id="spFrameS">PNG at chapter t_s · source for the local cut</div></div>
   <div class="tick" aria-hidden="true"></div>
-  <div class="cell"><h4>03 cut</h4><div class="v" id="spReel">idle</div><div class="s" id="spReelS">Local highlight + receipt · no LTX</div></div>
+  <div class="cell"><h4>03 cut</h4><div class="v" id="spReel">idle</div><div class="s" id="spReelS">Local highlight + receipt · button ghosts</div></div>
 </section>
 
 <div id="work" class="hidden">
@@ -166,7 +166,7 @@ function setSplice(c){
   document.getElementById('spClip').textContent=c? (c.name||'clip') : 'Select a chaptered clip';
   document.getElementById('spClipS').textContent=c? (ch.kind||'chapter')+' · score '+(c.score!=null?c.score:'—') : 'Foundry ranks confirm / score moments';
   document.getElementById('spFrame').textContent=c? ('t='+Number(ch.t_s||0).toFixed(2)+'s') : '—';
-  document.getElementById('spFrameS').textContent=ch.label||'PNG at chapter t_s · sent to LTX only if you render';
+  document.getElementById('spFrameS').textContent=ch.label||'PNG at chapter t_s · source for the local cut';
 }
 function selectCand(c){
   selected=c;
@@ -174,7 +174,7 @@ function selectCand(c){
   btnRender.disabled=!status||!status.enabled||!status.available;
   setSplice(c);
   playClip(c.clip_url);
-  receipt.textContent='No receipt yet. Render to bind this chapter to an LTX job.';
+  receipt.textContent='No receipt yet. Cut a highlight to bind this chapter to a local file.';
 }
 function renderCands(items){
   cands.innerHTML='';
@@ -200,13 +200,13 @@ function renderJobs(jobs){
   }
   const latest=jobs[0];
   document.getElementById('spReel').textContent=latest.status||'queued';
-  document.getElementById('spReelS').textContent=latest.output_path||latest.ltx_job_id||'Local MP4 + receipt beside the clip';
+  document.getElementById('spReelS').textContent=latest.output_path||latest.job_id||'Local MP4 + receipt beside the clip';
   jobs.forEach(j=>{
     const d=document.createElement('div');
     d.className='job';
     const name=(j.source_clip||'').split(/[/\\]/).pop()||j.job_id;
     const err=j.error? '<div class="er">'+esc(j.error)+'</div>' : '';
-    d.innerHTML='<span class="st '+esc(j.status)+'">'+esc(j.status)+'</span><div><div class="nm">'+esc(name)+'</div>'+err+'</div><span class="m">'+esc(j.ltx_job_id||j.job_id)+'</span>';
+    d.innerHTML='<span class="st '+esc(j.status)+'">'+esc(j.status)+'</span><div><div class="nm">'+esc(name)+'</div>'+err+'</div><span class="m">'+esc(j.job_id)+'</span>';
     d.onclick=()=>{
       if(j.status==='completed' && j.output_path){
         const reelName=(j.output_path||'').split(/[/\\]/).pop();
@@ -222,7 +222,7 @@ function loadReceipt(name){
   const rec=name.replace(/\.mp4$/i,'.receipt.json');
   fetch('/media/reels/'+rec).then(r=>r.ok?r.json():null).then(j=>{
     if(!j) return;
-    receipt.innerHTML='<b>RECEIPT</b>  job '+esc(j.ltx_job_id||'—')+'  ·  '+esc(j.chapter_kind||'')+'  ·  '+esc(j.chapter_label||'')+'<br>'+esc(j.ltx_prompt||'');
+    receipt.innerHTML='<b>RECEIPT</b>  '+esc(j.renderer||'ghost_cut')+'  ·  '+esc(j.chapter_kind||'')+'  ·  '+esc(j.chapter_label||'');
   }).catch(()=>{});
 }
 async function refresh(){

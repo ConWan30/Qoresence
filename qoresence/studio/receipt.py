@@ -1,4 +1,4 @@
-"""ReelReceipt sidecar — local proof that a render came from Qoresence data."""
+"""ReelReceipt sidecar — local proof a Ghost Cut came from Qoresence data."""
 
 from __future__ import annotations
 
@@ -11,15 +11,12 @@ from typing import Any
 
 @dataclass
 class ReelReceipt:
-    """Immutable(ish) record linking an LTX output to a Qoresence chapter."""
+    """Record linking a local highlight to a Qoresence chapter."""
 
     session_id: str = ""
     clock_ns: int = 0
     source_clip: str = ""
     source_t_s: float = 0.0
-    ltx_job_id: str = ""
-    ltx_prompt: str = ""
-    ltx_payload_hash: str = ""
     output_path: str = ""
     output_url: str = ""
     created_ns: int = 0
@@ -29,6 +26,7 @@ class ReelReceipt:
     game_profile: str = ""
     chapter_kind: str = ""
     chapter_label: str = ""
+    renderer: str = "ghost_cut"
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -37,9 +35,6 @@ class ReelReceipt:
             "clock_ns": self.clock_ns,
             "source_clip": self.source_clip,
             "source_t_s": self.source_t_s,
-            "ltx_job_id": self.ltx_job_id,
-            "ltx_prompt": self.ltx_prompt,
-            "ltx_payload_hash": self.ltx_payload_hash,
             "output_path": self.output_path,
             "output_url": self.output_url,
             "created_ns": self.created_ns,
@@ -49,12 +44,13 @@ class ReelReceipt:
             "game_profile": self.game_profile,
             "chapter_kind": self.chapter_kind,
             "chapter_label": self.chapter_label,
+            "renderer": self.renderer,
             "metadata": self.metadata,
         }
 
 
 def write_receipt(output_path: str | Path, receipt: ReelReceipt) -> Path:
-    """Write `<output>.receipt.json` next to the rendered video."""
+    """Write `<output>.receipt.json` next to the highlight."""
     output_path = Path(output_path)
     receipt_path = output_path.with_name(output_path.stem + ".receipt.json")
     receipt_path.write_text(json.dumps(receipt.to_dict(), indent=2), encoding="utf-8")

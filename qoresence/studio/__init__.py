@@ -1,34 +1,28 @@
-"""Qoresence Studio — post-session Ghost Cut and optional LTX plugin.
+"""Qoresence Studio — post-session Ghost Cut.
 
-Ghost Cut edits the local HDMI clip with chapter / score / button evidence.
-LTX remains optional. Everything here is default-off and never blocks capture.
+Cuts a local HDMI clip with chapter / score / timed button ghosts.
+Default-off. Never blocks the live capture path. No paid video API.
 """
 
 from __future__ import annotations
 
 from .frame_selector import FrameSelector
-from .ghost_cut import GhostCutResult, cut_highlight
-from .ltx_client import LtxClient, LtxJob, UploadResult, normalize_duration
-from .prompt_engine import STYLE_LOCK, PromptEngine, RenderPayload
+from .ghost_cut import GhostCutResult, GhostEvent, cut_highlight, held_at, load_button_timeline
 from .receipt import ReelReceipt, write_receipt
 from .reel_queue import ReelQueue, RenderJob, reset_reel_queue
 from .render_command import render_reels
 
 __all__ = [
-    "LtxClient",
-    "LtxJob",
-    "UploadResult",
-    "normalize_duration",
-    "STYLE_LOCK",
-    "PromptEngine",
-    "RenderPayload",
+    "FrameSelector",
+    "GhostCutResult",
+    "GhostEvent",
+    "cut_highlight",
+    "held_at",
+    "load_button_timeline",
     "ReelReceipt",
     "write_receipt",
     "ReelQueue",
     "RenderJob",
     "reset_reel_queue",
-    "FrameSelector",
-    "GhostCutResult",
-    "cut_highlight",
     "render_reels",
 ]
