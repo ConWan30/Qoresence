@@ -14,6 +14,8 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 #spark.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
 #eye{position:absolute;right:22px;top:16px;padding:8px 11px;border:1px solid rgba(190,214,232,.2);border-radius:10px;background:rgba(8,11,16,.72);backdrop-filter:blur(13px);color:var(--muted);font:700 10px/1 JetBrains Mono,monospace;letter-spacing:.05em;box-shadow:0 10px 24px rgba(0,0,0,.2)}
 #eye strong{color:var(--lime);font-weight:800}
+#body{position:absolute;right:22px;top:52px;padding:7px 11px;border:1px solid rgba(79,224,212,.4);border-radius:10px;background:rgba(8,11,16,.72);backdrop-filter:blur(13px);color:var(--cyan);font:700 10px/1 JetBrains Mono,monospace;letter-spacing:.08em;text-transform:uppercase;opacity:0;transition:opacity .35s;pointer-events:none}
+#body.show{opacity:1}
 #wait{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(570px,80vw);padding:18px 23px;color:var(--paper);font:700 15px/1.45 Inter,sans-serif;text-align:center;background:rgba(8,11,16,.86);backdrop-filter:blur(17px);border:1px solid rgba(104,217,232,.35);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.06);z-index:9}
 #wait::before{content:"RETINA LENS / ";color:var(--cyan);font:800 9px/1 JetBrains Mono,monospace;letter-spacing:.14em;margin-right:8px}
 #wait.connected{background:rgba(8,11,16,.78);color:var(--muted);border-color:rgba(200,242,106,.28);font-weight:500;font-size:14px}
@@ -21,9 +23,9 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 @media(max-width:900px){#eye{right:12px;top:12px}#pill{bottom:5%;max-width:88vw;overflow:hidden;text-overflow:ellipsis;font-size:11px}#spark{font-size:56px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.001ms!important}}
 </style></head><body>
-<div id="ribbon"></div><div id="pill" class="hide">Waiting for game — run --play</div><div id="spark"></div><div id="eye">● <strong>waiting</strong> — no game</div><div id="wait">OBS URL must be http://127.0.0.1:8765/overlay.html (not file://) · then: python -m qoresence.cli --play</div>
+<div id="ribbon"></div><div id="pill" class="hide">Waiting for game — run --play</div><div id="spark"></div><div id="eye">● <strong>waiting</strong> — no game</div><div id="body" aria-live="polite"></div><div id="wait">OBS URL must be http://127.0.0.1:8765/overlay.html (not file://) · then: python -m qoresence.cli --play</div>
 <script>
-const ribbon=document.getElementById('ribbon'),pill=document.getElementById('pill'),spark=document.getElementById('spark'),eye=document.getElementById('eye'),wait=document.getElementById('wait');
+const ribbon=document.getElementById('ribbon'),pill=document.getElementById('pill'),spark=document.getElementById('spark'),eye=document.getElementById('eye'),wait=document.getElementById('wait'),bodyChip=document.getElementById('body');
 let lastLiveNs=0, wsOk=false, lastSit=null;
 // Scorebug / HUD numbers — without these the pill stays hidden (no fake 0-0).
 function hasBoard(s){
@@ -95,6 +97,18 @@ function handle(m){
     }
   }
   if(m.type==='moment'&&m.payload&&m.payload.title) setSpark(m.payload.title.toUpperCase(),m.payload.icon||'⚡');
+  const ctrl=(snap&&snap.controller)||m.controller||{};
+  if(bodyChip){
+    if(ctrl.imu_bodied){
+      const ms=ctrl.imu_precursor_ms!=null?Math.round(Number(ctrl.imu_precursor_ms)):'';
+      const nm=ctrl.imu_precursor_name?(' '+String(ctrl.imu_precursor_name).toUpperCase()):'';
+      bodyChip.textContent='BODY'+(ms!==''&&!Number.isNaN(ms)?' −'+ms+'ms':'')+nm;
+      bodyChip.classList.add('show');
+    }else{
+      bodyChip.textContent='';
+      bodyChip.classList.remove('show');
+    }
+  }
 }
 let ws=null;
 function connect(){

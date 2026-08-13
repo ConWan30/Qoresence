@@ -58,6 +58,8 @@ class InputVideoCoupler:
             "coupling": 0.0,
             "lag_band_ms": [self.lag_lo_ms, self.lag_hi_ms],
             "path": "fast",
+            "imu_bodied": False,
+            "binds": 0,
         }
 
     def start(self) -> None:
@@ -158,22 +160,28 @@ class InputVideoCoupler:
             # Two-speed ClutchBot: IVC is the realtime (fast) path signal
             "path": "fast",
         }
-        precursors = [e.imu_precursor_ms for e in events if e.imu_precursor_ms is not None]
-        if precursors:
-            payload["imu_precursor_ms"] = round(sum(precursors) / len(precursors), 2)
+        prec_evs = [e for e in events if e.imu_precursor_ms is not None]
+        if prec_evs:
+            payload["imu_precursor_ms"] = round(
+                sum(float(e.imu_precursor_ms or 0.0) for e in prec_evs) / len(prec_evs),
+                2,
+            )
             payload["imu_bodied"] = True
+            payload["imu_precursor_name"] = str(prec_evs[-1].name)
         else:
             payload["imu_bodied"] = False
         try:
             from qoresence.sync.event_bind import get_event_binder
 
             binds = get_event_binder().recent()
+            payload["binds"] = len(binds)
             if binds:
-                payload["binds"] = len(binds)
-                payload["last_bind_ms"] = binds[-1].lag_ms
-                payload["last_bind_kind"] = binds[-1].visual_kind
+                last = binds[-1]
+                payload["last_bind_ms"] = last.lag_ms
+                payload["last_bind_kind"] = last.visual_kind
+                payload["last_bind_hid"] = last.hid_name
         except Exception:
-            pass
+            payload["binds"] = 0
         try:
             from qoresence.sync.imu_ring import get_imu_ring
             from qoresence.sync.optical import StickMotionCoupler, frame_motion_energy
@@ -296,7 +304,11 @@ def get_last_coupling() -> dict[str, Any]:
             "coupling": 0.0,
             "lag_band_ms": [DEFAULT_LAG_LO_MS, DEFAULT_LAG_HI_MS],
             "path": "fast",
+            "imu_bodied": False,
+            "binds": 0,
         }
     out = ivc.get_last_coupling()
     out.setdefault("path", "fast")
+    out.setdefault("imu_bodied", False)
+    out.setdefault("binds", 0)
     return out

@@ -366,3 +366,21 @@ def test_studio_config_has_no_video_api():
     assert not hasattr(studio, "api_key")
     assert not hasattr(studio, "base_url")
     assert studio.enabled is False
+
+
+def test_health_exposes_coupling():
+    from qoresence.deck import server as deck_server
+
+    app = deck_server.create_app()
+    if app is None:
+        pytest.skip("fastapi not installed")
+    try:
+        from fastapi.testclient import TestClient
+    except Exception:
+        pytest.skip("httpx/starlette TestClient not installed")
+    client = TestClient(app)
+    body = client.get("/health").json()
+    assert body["ok"] is True
+    assert "coupling" in body
+    assert body["coupling"]["imu_bodied"] is False
+    assert "binds" in body["coupling"]

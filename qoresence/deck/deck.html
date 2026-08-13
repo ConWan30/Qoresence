@@ -41,6 +41,7 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opa
 #playerWrap::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 0 45%,rgba(255,255,255,.035) 50%,transparent 55%);transform:translateX(-110%);animation:stageScan 9s ease-in-out infinite}
 #playerWrap::after{content:"";position:absolute;inset:12px;pointer-events:none;border:1px solid rgba(190,214,232,.08);border-radius:15px}
 #ghostPad{position:absolute;z-index:4;right:22px;bottom:56px;display:none;padding:10px 12px;border:1px solid rgba(198,242,106,.28);border-radius:14px;background:rgba(5,10,8,.62);backdrop-filter:blur(10px);pointer-events:none}
+body.mode-live #ghostPad.show,
 body.mode-replay #ghostPad.show{display:block}
 .gRow{display:flex;gap:6px;justify-content:space-between;margin-bottom:8px}
 .gFace{display:grid;grid-template-columns:20px 20px 20px;grid-template-rows:18px 18px 18px;gap:2px;justify-content:end;margin-left:auto;width:68px}
@@ -169,6 +170,7 @@ const statusDot=document.getElementById('statusDot'), statusText=document.getEle
 const bufFill=document.getElementById('bufFill'), bufLabel=document.getElementById('bufLabel');
 const chaptersCard=document.getElementById('chaptersCard'), chapterList=document.getElementById('chapterList');
 let activeUrl='', mode='live', rtcPc=null, liveMode='mjpeg';
+let lastCtrl=null;
 
 function setStatus(kind, text){
   statusDot.className='dot'+(kind==='ok'?'':kind==='bad'?' bad':' warn');
@@ -247,6 +249,7 @@ function setMode(m){
     try{player.pause()}catch(e){}
     // Prefer WebRTC; fall back to MJPEG
     startWebRtc().then(function(ok){ if(!ok) fallbackMjpeg(); });
+    if(lastCtrl) paintLivePad(lastCtrl);
   } else {
     stopWebRtc();
     stageMeta.textContent=activeUrl?('REPLAY · '+(activeUrl.split('/').pop()||'')):'REPLAY · tap a clip below';
@@ -345,6 +348,35 @@ function precursorAt(t){
     if(t>=tJolt && t<e.t) out.push(e);
   }
   return out;
+}
+function paintLivePad(ctrl){
+  if(mode!=='live') return;
+  const pad=document.getElementById('ghostPad');
+  if(!pad) return;
+  const buttons=(ctrl&&ctrl.buttons)||[];
+  const held={};
+  buttons.forEach(n=>{ held[String(n).toLowerCase()]=true; });
+  const bodied=!!(ctrl&&ctrl.imu_bodied);
+  const bodyName=ctrl&&ctrl.imu_precursor_name?String(ctrl.imu_precursor_name).toLowerCase():'';
+  if(buttons.length || bodied) pad.classList.add('show');
+  else pad.classList.remove('show');
+  pad.querySelectorAll('[data-b]').forEach(el=>{
+    const n=el.getAttribute('data-b');
+    const isHeld=!!held[n];
+    el.classList.toggle('on', isHeld);
+    el.classList.toggle('body', !isHeld && bodied && (!bodyName || bodyName===n));
+  });
+  const gb=document.getElementById('ghostBody');
+  if(gb){
+    if(bodied){
+      const ms=ctrl.imu_precursor_ms!=null?Math.round(Number(ctrl.imu_precursor_ms)):'';
+      gb.textContent='BODY'+(ms!==''&&!Number.isNaN(ms)?' −'+ms+'ms':'')+(bodyName?' '+bodyName.toUpperCase():'');
+      gb.classList.add('show');
+    }else{
+      gb.textContent='';
+      gb.classList.remove('show');
+    }
+  }
 }
 function paintGhosts(t){
   const pad=document.getElementById('ghostPad');
@@ -458,20 +490,31 @@ function applySnap(snap,latMs){
   if(snap && snap.video && (snap.video.has_frame || (snap.video.frames||0)>0)){
     if(mode==='live') markHasVideo(true);
   }
-  // Controller strip
-  if(snap && snap.situation){
-    const s=snap.situation;
-    const syncOk=!!s.presence_sync_ok;
+  // Controller strip + live ghost pad (observation plane)
+  const ctrl=(snap&&snap.controller)||{};
+  lastCtrl=ctrl;
+  paintLivePad(ctrl);
+  if(snap && (snap.situation || snap.controller)){
+    const s=snap.situation||{};
+    const syncOk=!!s.presence_sync_ok || (ctrl.coupling||0)>0 || !!(ctrl.buttons&&ctrl.buttons.length) || !!ctrl.imu_bodied;
     const apm=s.controller_apm||0, trig=s.controller_triggers_5s||0, stick=s.controller_stick_motion_5s||0;
     ctrlStrip.classList.remove('wait','sync-ok','sync-bad');
-    if(syncOk){
+    if(ctrl.imu_bodied){
+      const ms=ctrl.imu_precursor_ms!=null?Math.round(Number(ctrl.imu_precursor_ms)):'';
+      ctrlStrip.textContent='BODY'+(ms!==''&&!Number.isNaN(ms)?' −'+ms+'ms':'');
+      ctrlStrip.classList.add('sync-ok');
+    } else if((ctrl.coupling||0)>0){
+      ctrlStrip.textContent='COUPLED · '+Number(ctrl.coupling).toFixed(2);
+      ctrlStrip.classList.add('sync-ok');
+    } else if(syncOk){
       ctrlStrip.textContent='SYNC OK · '+apm.toFixed(0)+' APM';
       ctrlStrip.classList.add('sync-ok');
     } else {
       ctrlStrip.textContent='No controller';
       ctrlStrip.classList.add('sync-bad');
     }
-    ctrlDetail.innerHTML='<span>APM <b>'+apm.toFixed(0)+'</b></span><span>Trig/5s <b>'+trig+'</b></span><span>Stick <b>'+stick.toFixed(1)+'</b></span>';
+    const bind=ctrl.last_bind_kind?('BIND <b>'+ctrl.last_bind_kind+(ctrl.last_bind_hid?('←'+ctrl.last_bind_hid):'')+'</b>'):'';
+    ctrlDetail.innerHTML='<span>APM <b>'+apm.toFixed(0)+'</b></span><span>Trig/5s <b>'+trig+'</b></span><span>Stick <b>'+stick.toFixed(1)+'</b></span>'+(bind?'<span>'+bind+'</span>':'');
   }
   // Merge moments without wiping — poll used to re-render the same 3 forever
   if(snap && Array.isArray(snap.moments) && snap.moments.length){

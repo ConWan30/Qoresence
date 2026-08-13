@@ -92,6 +92,14 @@ class DeckState:
                     "coupling": coup.get("coupling", 0.0),
                     "frame_seq": coup.get("frame_seq", 0),
                     "input_energy": coup.get("input_energy", 0.0),
+                    "imu_bodied": bool(coup.get("imu_bodied")),
+                    "imu_precursor_ms": coup.get("imu_precursor_ms"),
+                    "imu_precursor_name": coup.get("imu_precursor_name"),
+                    "binds": int(coup.get("binds") or 0),
+                    "last_bind_ms": coup.get("last_bind_ms"),
+                    "last_bind_kind": coup.get("last_bind_kind"),
+                    "last_bind_hid": coup.get("last_bind_hid"),
+                    "lag_band_ms": coup.get("lag_band_ms"),
                 }
         except Exception:
             controller = {}
@@ -577,6 +585,12 @@ def create_app():  # type: ignore[no-untyped-def]
             body["webrtc"] = webrtc_stats()
         except Exception:
             body["webrtc"] = {"available": False}
+        try:
+            from qoresence.sync.ivc import get_last_coupling
+
+            body["coupling"] = get_last_coupling()
+        except Exception:
+            body["coupling"] = {"imu_bodied": False, "coupling": 0.0, "binds": 0}
         return JSONResponse(body)
 
     @app.get("/api/situation")
@@ -1560,7 +1574,14 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"ok": True, "state": _state.snapshot()}).encode())
+                health: dict[str, Any] = {"ok": True, "state": _state.snapshot()}
+                try:
+                    from qoresence.sync.ivc import get_last_coupling
+
+                    health["coupling"] = get_last_coupling()
+                except Exception:
+                    health["coupling"] = {"imu_bodied": False, "coupling": 0.0, "binds": 0}
+                self.wfile.write(json.dumps(health).encode())
                 return
             if self.path == "/api/situation":
                 self.send_response(200)

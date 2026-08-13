@@ -90,7 +90,17 @@ def _fmt_controller_hud() -> str:
         c = float(coup.get("coupling") or 0.0)
         seq = coup.get("frame_seq") or 0
         btn_s = "+".join(btns[:6]) if btns else "—"
-        return f"pad {btn_s}  c={c:.2f}  fs={seq}"
+        extra = ""
+        if coup.get("imu_bodied"):
+            try:
+                prec = int(round(float(coup.get("imu_precursor_ms") or 0.0)))
+            except (TypeError, ValueError):
+                prec = 0
+            extra += f"  BODY -{prec}ms"
+        kind = coup.get("last_bind_kind")
+        if kind:
+            extra += f"  bind {kind}"
+        return f"pad {btn_s}  c={c:.2f}  fs={seq}{extra}"
     except Exception:
         return ""
 

@@ -76,3 +76,31 @@ def test_ivc_empty_inputs_zero_coupling(monkeypatch):
     assert payload is not None
     assert payload["coupling"] == 0.0
     assert payload["input_events"] == 0
+    assert payload["imu_bodied"] is False
+    assert payload["binds"] == 0
+
+
+def test_ivc_imu_bodied_names_precursor(monkeypatch):
+    hub = FrameHub()
+    ring = InputRing()
+    t_video = time.monotonic_ns()
+    press_ns = t_video - int(50 * 1e6)
+    ring.push(
+        InputEvent(
+            clock_ns=press_ns,
+            kind="press",
+            name="R2",
+            value=1.0,
+            imu_precursor_ms=18.0,
+        )
+    )
+    hub.publish(np.zeros((8, 8, 3), dtype=np.uint8), clock_ns=t_video)
+    monkeypatch.setattr("qoresence.monitor.frame_hub.get_frame_hub", lambda: hub)
+    monkeypatch.setattr("qoresence.sync.input_ring.get_input_ring", lambda: ring)
+    ivc = InputVideoCoupler(bus=None, lag_lo_ms=20.0, lag_hi_ms=120.0)
+    payload = ivc.tick_once()
+    assert payload is not None
+    assert payload["imu_bodied"] is True
+    assert payload["imu_precursor_ms"] == 18.0
+    assert payload["imu_precursor_name"] == "R2"
+    assert payload["coupling"] > 0.0

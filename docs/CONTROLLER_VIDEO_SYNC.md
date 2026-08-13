@@ -25,10 +25,23 @@ Outcome score_changed / first_down / kill
 IVC
   → lag band from estimator
   → coupling + imu_bodied + last_bind
+Glasses
+  → GET /health `coupling.imu_bodied`
+  → Deck live pad + BODY chip (not just replay)
+  → Lens `#body` chip (invisible unless bodied)
+  → Monitor HUD `BODY -XXms`
 Ghost Cut / Deck replay
   → pad lights + BODY -XXms precursor
   → Foundry ranks chapters by HID-near-score bind
   → receipt.metadata.binds = TEMPORAL (clip-relative)
+```
+
+Live proof (no extra camera):
+
+```powershell
+curl http://127.0.0.1:8765/health
+# coupling.imu_bodied = true after a DualSense press that had an IMU jolt
+# coupling.last_bind_kind / last_bind_hid after a score/kill/first-down
 ```
 
 Language stays observation: **coupling / co-occurrence / precursor**. Not authorship, not anti-cheat.
