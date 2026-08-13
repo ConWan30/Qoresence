@@ -21,6 +21,7 @@ from qoresence.studio.ghost_cut import (
     cut_highlight,
     held_at,
     load_button_timeline,
+    precursor_at,
 )
 from qoresence.studio.receipt import ReelReceipt, write_receipt
 from qoresence.studio.reel_queue import ReelQueue, RenderJob, reset_reel_queue
@@ -74,6 +75,18 @@ def test_held_at_follows_press_release():
     assert "r2" not in held_at(tl, 1.0)
 
 
+def test_precursor_at_window():
+    tl = [
+        GhostEvent(0.50, "r2", "press", 1.0, imu_precursor_ms=20.0),
+        GhostEvent(0.80, "cross", "press", 1.0),
+    ]
+    names = {n for n, _ in precursor_at(tl, 0.49)}
+    assert names == {"r2"}
+    assert precursor_at(tl, 0.50) == []
+    assert precursor_at(tl, 0.47) == []
+    assert precursor_at(tl, 0.79) == []
+
+
 def test_load_button_timeline_normalizes_clock(tmp_path):
     clip = tmp_path / "hdmi_clip_x.mp4"
     clip.write_bytes(b"x")
@@ -83,7 +96,13 @@ def test_load_button_timeline_normalizes_clock(tmp_path):
             {
                 "duration_s": 2.0,
                 "events": [
-                    {"clock_ns": 1_000_000_000, "kind": "press", "name": "cross", "value": 1},
+                    {
+                        "clock_ns": 1_000_000_000,
+                        "kind": "press",
+                        "name": "cross",
+                        "value": 1,
+                        "imu_precursor_ms": 18.0,
+                    },
                     {"clock_ns": 1_200_000_000, "kind": "press", "name": "r2_btn", "value": 1},
                     {"clock_ns": 1_400_000_000, "kind": "release", "name": "cross", "value": 0},
                 ],
@@ -94,6 +113,7 @@ def test_load_button_timeline_normalizes_clock(tmp_path):
     tl = load_button_timeline(clip)
     assert len(tl) == 3
     assert tl[0].t_s == 0.0
+    assert tl[0].imu_precursor_ms == 18.0
     assert tl[1].name == "r2"
     assert abs(tl[2].t_s - 0.4) < 0.001
 
@@ -108,6 +128,79 @@ def test_pick_play_chapter_skips_t0_chat():
     assert picked is not None
     assert picked["kind"] == "score_changed"
     assert score_play_chapter(chapters[0], {}) < score_play_chapter(chapters[1], {})
+
+
+def test_score_play_chapter_hid_near_boosts():
+    ch = {"kind": "score_changed", "t_s": 8.2, "label": "TD"}
+    bare = score_play_chapter(ch, {})
+    bodied = score_play_chapter(
+        ch,
+        {
+            "button_onsets": [
+                {"t_s": 8.05, "name": "r2", "kind": "trigger", "imu_precursor_ms": 22.0},
+            ]
+        },
+    )
+    press_only = score_play_chapter(
+        ch,
+        {"button_onsets": [{"t_s": 8.05, "name": "r2", "kind": "trigger"}]},
+    )
+    far = score_play_chapter(
+        ch,
+        {"button_onsets": [{"t_s": 1.0, "name": "cross", "kind": "press"}]},
+    )
+    assert bodied > press_only > bare
+    assert abs(far - bare) < 0.01
+    hid_beats_chat = [
+        {"kind": "confirm_chat", "t_s": 0.0, "label": "menu"},
+        {"kind": "fast_chat", "t_s": 4.0, "label": "heat"},
+    ]
+    picked = pick_play_chapter(
+        hid_beats_chat,
+        {"button_onsets": [{"t_s": 3.85, "name": "r2", "kind": "press", "imu_precursor_ms": 16.0}]},
+    )
+    assert picked is not None
+    assert picked["kind"] == "fast_chat"
+
+
+def test_ghost_cut_receipt_records_binds(tmp_path):
+    video_path = tmp_path / "hdmi_clip_bind.mp4"
+    _write_clip(video_path, frames=24)
+    side = tmp_path / "hdmi_clip_bind.buttons.json"
+    side.write_text(
+        json.dumps(
+            {
+                "events": [
+                    {
+                        "t_s": 1.05,
+                        "kind": "press",
+                        "name": "r2",
+                        "value": 1,
+                        "imu_precursor_ms": 18.0,
+                    },
+                    {"t_s": 1.40, "kind": "release", "name": "r2", "value": 0},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    out = tmp_path / "reel_bind.mp4"
+    result = cut_highlight(
+        video_path,
+        {"kind": "score_changed", "label": "TD", "t_s": 1.2},
+        situation={"home_score": 14, "away_score": 10, "quarter": 4},
+        output_path=out,
+        pre_s=0.4,
+        post_s=0.8,
+        slow_last_s=0.2,
+    )
+    rec = json.loads(result.receipt_path.read_text(encoding="utf-8"))
+    binds = rec["metadata"]["binds"]
+    assert binds
+    assert binds[0]["mode"] == "TEMPORAL"
+    assert binds[0]["hid_name"] == "r2"
+    assert binds[0]["visual_kind"] == "score_changed"
+    assert rec["metadata"]["imu_bodied"] is True
 
 
 def test_frame_selector_extracts_png(tmp_path):

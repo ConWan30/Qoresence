@@ -59,6 +59,7 @@ def scan_clips(clips_dir=None):
                             )
             if not buttons_summary and isinstance(ch.get("buttons"), dict):
                 buttons_summary = ch["buttons"]
+            button_onsets = button_onsets_from_sidecar(bt if isinstance(bt, dict) else None)
             chapters = ch.get("chapters") if isinstance(ch.get("chapters"), list) else []
             why = ch.get("why") if isinstance(ch.get("why"), dict) else None
             gs = ch.get("graph_summary") if isinstance(ch.get("graph_summary"), dict) else None
@@ -77,6 +78,7 @@ def scan_clips(clips_dir=None):
                     "size_bytes": size,
                     "chapters": chapters if isinstance(chapters, list) else [],
                     "buttons_summary": buttons_summary,
+                    "button_onsets": button_onsets,
                     "why": why,
                     "graph_summary": gs,
                 }
@@ -349,6 +351,84 @@ class FoundryIndex:
         return get_render_candidates(limit=limit, kinds=kinds, **kw)
 
 
+# TEMPORAL bind window (same as EventBinder). HID must precede the chapter mark.
+_HID_BIND_WINDOW_S = 0.40
+
+
+def button_onsets_from_sidecar(bt: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Clip-relative press/trigger onsets from ``*.buttons.json`` (max 256)."""
+    if not isinstance(bt, dict):
+        return []
+    raw = bt.get("events") or []
+    if not isinstance(raw, list):
+        return []
+    clocks = [int(e.get("clock_ns") or 0) for e in raw if isinstance(e, dict)]
+    clocks = [c for c in clocks if c > 0]
+    t0 = min(clocks) if clocks else 0
+    out: list[dict[str, Any]] = []
+    for ev in raw:
+        if not isinstance(ev, dict):
+            continue
+        kind = str(ev.get("kind") or "")
+        if kind not in {"press", "trigger"}:
+            continue
+        name = ev.get("name")
+        if not name:
+            continue
+        try:
+            val = float(ev.get("value") if ev.get("value") is not None else 1.0)
+        except (TypeError, ValueError):
+            val = 1.0
+        if kind == "trigger" and val <= 0.15:
+            continue
+        if ev.get("t_s") is not None:
+            try:
+                t = float(ev["t_s"])
+            except (TypeError, ValueError):
+                continue
+        elif ev.get("clock_ns") and t0:
+            t = (int(ev["clock_ns"]) - t0) / 1e9
+        else:
+            continue
+        item: dict[str, Any] = {"t_s": round(t, 4), "name": str(name), "kind": kind}
+        prec = ev.get("imu_precursor_ms")
+        if prec is not None:
+            try:
+                item["imu_precursor_ms"] = float(prec)
+            except (TypeError, ValueError):
+                pass
+        out.append(item)
+        if len(out) >= 256:
+            break
+    return out
+
+
+def _hid_near_boost(t_s: float, onsets: list[dict[str, Any]]) -> float:
+    """Score bump when a press/trigger sits in the TEMPORAL window before t_s."""
+    best = 0.0
+    for o in onsets:
+        if not isinstance(o, dict):
+            continue
+        try:
+            ot = float(o.get("t_s") or 0.0)
+        except (TypeError, ValueError):
+            continue
+        dt = t_s - ot
+        if dt < -0.05 or dt > _HID_BIND_WINDOW_S:
+            continue
+        s = 0.9
+        prec = o.get("imu_precursor_ms")
+        if prec is not None:
+            try:
+                if float(prec) > 0:
+                    s += 0.45
+            except (TypeError, ValueError):
+                pass
+        if s > best:
+            best = s
+    return best
+
+
 def score_play_chapter(ch: dict[str, Any], clip: dict[str, Any] | None = None) -> float:
     """Rank a chapter by 'is this the play' — not the first chat line."""
     k = str(ch.get("kind") or "")
@@ -381,6 +461,10 @@ def score_play_chapter(ch: dict[str, Any], clip: dict[str, Any] | None = None) -
             except (TypeError, ValueError):
                 continue
         s += min(1.0, energy / 20.0)
+        onsets = clip.get("button_onsets")
+        if not isinstance(onsets, list):
+            onsets = button_onsets_from_sidecar(clip)
+        s += _hid_near_boost(t, onsets)
     return s
 
 

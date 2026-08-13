@@ -26,7 +26,9 @@ IVC
   → lag band from estimator
   → coupling + imu_bodied + last_bind
 Ghost Cut / Deck replay
-  → pad lights + optional precursor on the sidecar
+  → pad lights + BODY -XXms precursor
+  → Foundry ranks chapters by HID-near-score bind
+  → receipt.metadata.binds = TEMPORAL (clip-relative)
 ```
 
 Language stays observation: **coupling / co-occurrence / precursor**. Not authorship, not anti-cheat.

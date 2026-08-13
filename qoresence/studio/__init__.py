@@ -7,7 +7,14 @@ Default-off. Never blocks the live capture path. No paid video API.
 from __future__ import annotations
 
 from .frame_selector import FrameSelector
-from .ghost_cut import GhostCutResult, GhostEvent, cut_highlight, held_at, load_button_timeline
+from .ghost_cut import (
+    GhostCutResult,
+    GhostEvent,
+    cut_highlight,
+    held_at,
+    load_button_timeline,
+    precursor_at,
+)
 from .receipt import ReelReceipt, write_receipt
 from .reel_queue import ReelQueue, RenderJob, reset_reel_queue
 from .render_command import render_reels
@@ -19,6 +26,7 @@ __all__ = [
     "cut_highlight",
     "held_at",
     "load_button_timeline",
+    "precursor_at",
     "ReelReceipt",
     "write_receipt",
     "ReelQueue",

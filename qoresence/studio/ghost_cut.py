@@ -15,6 +15,8 @@ from typing import Any
 import cv2
 import numpy as np
 
+from qoresence.sync.event_bind import HidOnset, VisualOnset, bind_onsets
+
 from .receipt import ReelReceipt, now_ns, write_receipt
 
 log = logging.getLogger(__name__)
@@ -135,6 +137,56 @@ def held_at(timeline: list[GhostEvent], t_s: float) -> set[str]:
     return held | flash
 
 
+def precursor_at(timeline: list[GhostEvent], t_s: float) -> list[tuple[str, float]]:
+    """Buttons whose IMU jolt is live: ``t`` in [press − precursor_ms, press)."""
+    pending: list[tuple[str, float, float]] = []
+    for ev in timeline:
+        if ev.kind == "press":
+            pass
+        elif ev.kind == "trigger" and ev.value > 0.15:
+            pass
+        else:
+            continue
+        prec = ev.imu_precursor_ms
+        if prec is None or prec <= 0:
+            continue
+        t_jolt = ev.t_s - (prec / 1000.0)
+        if t_jolt <= t_s < ev.t_s:
+            pending.append((ev.name, prec, ev.t_s))
+    pending.sort(key=lambda row: row[2])
+    return [(name, prec) for name, prec, _ in pending]
+
+
+def _binds_for_cut(timeline: list[GhostEvent], chapter: dict[str, Any]) -> list[dict[str, Any]]:
+    """Clip-relative TEMPORAL binds (HID before chapter mark). Observation only."""
+    try:
+        t_mark = float(chapter.get("t_s") or 0.0)
+    except (TypeError, ValueError):
+        t_mark = 0.0
+    visuals = [
+        VisualOnset(
+            clock_ns=int(t_mark * 1e9),
+            kind=str(chapter.get("kind") or "chapter"),
+            label=str(chapter.get("label") or ""),
+        )
+    ]
+    hids: list[HidOnset] = []
+    for ev in timeline:
+        if ev.kind not in {"press", "trigger"}:
+            continue
+        if ev.kind == "trigger" and ev.value <= 0.15:
+            continue
+        hids.append(
+            HidOnset(
+                clock_ns=int(ev.t_s * 1e9),
+                name=ev.name,
+                kind=ev.kind,
+                imu_precursor_ms=ev.imu_precursor_ms,
+            )
+        )
+    return [b.to_dict() for b in bind_onsets(visuals, hids)]
+
+
 def buttons_from_sidecar(clip_path: str | Path) -> dict[str, Any]:
     p = Path(clip_path).with_name(Path(clip_path).stem + ".buttons.json")
     if not p.is_file():
@@ -153,17 +205,32 @@ def buttons_from_sidecar(clip_path: str | Path) -> dict[str, Any]:
     return names
 
 
-def _draw_pad(frame: np.ndarray, held: set[str], origin: tuple[int, int]) -> None:
-    """DualSense-ish ghost in the lower-left. Active names light phosphor."""
+def _draw_pad(
+    frame: np.ndarray,
+    held: set[str],
+    origin: tuple[int, int],
+    body: set[str] | None = None,
+) -> None:
+    """DualSense-ish ghost. Held = phosphor; IMU precursor = cyan body."""
     ox, oy = origin
     font = cv2.FONT_HERSHEY_SIMPLEX
     on = (106, 242, 200)
+    body_col = (232, 217, 104)
     off = (70, 82, 76)
+    body = body or set()
+
+    def _color(name: str) -> tuple[int, int, int]:
+        if name in held:
+            return on
+        if name in body:
+            return body_col
+        return off
+
     # shoulders
     labels = [("l2", 0), ("l1", 1), ("r1", 3), ("r2", 4)]
     for name, col in labels:
         x = ox + col * 36
-        color = on if name in held else off
+        color = _color(name)
         cv2.rectangle(frame, (x, oy), (x + 32, oy + 16), color, 1, cv2.LINE_AA)
         cv2.putText(frame, name.upper(), (x + 3, oy + 12), font, 0.32, color, 1, cv2.LINE_AA)
     # face cluster
@@ -171,10 +238,10 @@ def _draw_pad(frame: np.ndarray, held: set[str], origin: tuple[int, int]) -> Non
     for name, (dx, dy, glyph) in _FACE.items():
         x = int(cx + dx * 28)
         y = int(cy + dy * 22)
-        color = on if name in held else off
+        color = _color(name)
         cv2.circle(frame, (x, y), 11, color, 1, cv2.LINE_AA)
         cv2.putText(frame, glyph, (x - 5, y + 4), font, 0.38, color, 1, cv2.LINE_AA)
-    extras = [n for n in sorted(held) if n not in _FACE and n not in _SHOULDERS]
+    extras = [n for n in sorted(held | body) if n not in _FACE and n not in _SHOULDERS]
     if extras:
         cv2.putText(frame, " ".join(extras[:4]).upper(), (ox, oy + 96), font, 0.36, on, 1, cv2.LINE_AA)
 
@@ -188,6 +255,8 @@ def _draw_hud(
     held: set[str],
     t_s: float,
     duration_s: float,
+    body: set[str] | None = None,
+    body_line: str = "",
 ) -> np.ndarray:
     frame = bgr.copy()
     h, w = frame.shape[:2]
@@ -209,7 +278,9 @@ def _draw_hud(
     lab = (label or "")[:56]
     if lab:
         cv2.putText(frame, lab, (200, h - 24), font, 0.48, (145, 161, 173), 1, cv2.LINE_AA)
-    _draw_pad(frame, held, (w - 210, h - 168))
+    if body_line:
+        cv2.putText(frame, body_line, (w - 210, h - 52), font, 0.42, (232, 217, 104), 1, cv2.LINE_AA)
+    _draw_pad(frame, held, (w - 210, h - 168), body=body)
     return frame
 
 
@@ -276,6 +347,11 @@ def cut_highlight(
         if bgr.shape[1] != width or bgr.shape[0] != height:
             bgr = cv2.resize(bgr, (width, height))
         abs_t = idx / fps
+        bodies = precursor_at(timeline, abs_t)
+        body_line = ""
+        if bodies:
+            name, prec = bodies[0]
+            body_line = f"BODY -{int(round(prec))}ms {name.upper()}"
         hud = _draw_hud(
             bgr,
             kind=kind,
@@ -284,6 +360,8 @@ def cut_highlight(
             held=held_at(timeline, abs_t),
             t_s=abs_t - start_s,
             duration_s=end_s - start_s,
+            body={n for n, _ in bodies},
+            body_line=body_line,
         )
         repeats = 1
         if abs_t >= slow_from and slow_factor > 0:
@@ -297,6 +375,7 @@ def cut_highlight(
         raise RuntimeError("Ghost Cut wrote no frames")
 
     duration_out = written / fps if fps else 0.0
+    binds = _binds_for_cut(timeline, chapter)
     receipt = ReelReceipt(
         session_id=session_id,
         source_clip=str(clip_path),
@@ -318,6 +397,8 @@ def cut_highlight(
             "duration_s": round(duration_out, 3),
             "score": score,
             "ghost_events": len(timeline),
+            "binds": binds,
+            "imu_bodied": any(b.get("imu_precursor_ms") is not None for b in binds),
         },
     )
     receipt_path = write_receipt(output_path, receipt)

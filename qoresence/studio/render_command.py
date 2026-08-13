@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from qoresence.core.unified_config import RetinaUnifiedConfig, StudioConfig, get_game_profile
-from qoresence.foundry.index import FoundryIndex, pick_play_chapter
+from qoresence.foundry.index import FoundryIndex, button_onsets_from_sidecar, pick_play_chapter
 
 from .frame_selector import FrameSelector
 from .receipt import now_ns
@@ -77,6 +77,13 @@ def render_reels(
         except Exception as exc:
             raise RuntimeError(f"Bad chapters sidecar for {clip_path}") from exc
         chs = data.get("chapters") or []
+        bt_path = p.with_name(p.stem + ".buttons.json")
+        if bt_path.is_file():
+            try:
+                bt = json.loads(bt_path.read_text(encoding="utf-8"))
+                data["button_onsets"] = button_onsets_from_sidecar(bt if isinstance(bt, dict) else None)
+            except Exception:
+                pass
         ch = pick_play_chapter(chs, data)
         if ch is None:
             raise RuntimeError(f"No usable play chapter in sidecar for {clip_path}")

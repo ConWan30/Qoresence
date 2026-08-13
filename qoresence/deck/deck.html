@@ -46,7 +46,10 @@ body.mode-replay #ghostPad.show{display:block}
 .gFace{display:grid;grid-template-columns:20px 20px 20px;grid-template-rows:18px 18px 18px;gap:2px;justify-content:end;margin-left:auto;width:68px}
 .gBtn{min-width:22px;height:16px;padding:0 4px;border:1px solid rgba(93,113,102,.8);border-radius:4px;color:#5d7166;font:700 8px/16px IBM Plex Mono,monospace;text-align:center;letter-spacing:.04em}
 .gBtn.on{color:#050a08;background:#c6f26a;border-color:#c6f26a;box-shadow:0 0 10px rgba(198,242,106,.45)}
+.gBtn.body{color:#050a08;background:#68d9e8;border-color:#68d9e8;box-shadow:0 0 10px rgba(104,217,232,.45)}
 .gFace .gBtn{width:20px;height:18px;border-radius:50%;padding:0;line-height:18px}
+#ghostBody{display:none;margin-top:8px;font:700 8px/1.2 JetBrains Mono,monospace;letter-spacing:.08em;color:#68d9e8;text-align:right;text-transform:uppercase}
+#ghostBody.show{display:block}
 #player,#liveFeed,#liveRtc{position:relative;z-index:1;width:100%;height:100%;max-height:100%;object-fit:contain;background:#000;display:none}
 body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{display:none}body.mode-live.webrtc-on #liveRtc{display:block}body.mode-replay #player{display:block}#liveRtc{background:#000}
 .stageHud{position:absolute;z-index:3;color:var(--dim);font:700 9px/1 JetBrains Mono,monospace;letter-spacing:.12em;text-transform:uppercase;pointer-events:none}.stageHudTop{top:25px;left:30px}.stageHudBottom{right:30px;bottom:25px}.stageHud strong{color:var(--gold)}
@@ -112,6 +115,7 @@ body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{displa
         <span class="gBtn" data-b="square">X</span><span></span><span class="gBtn" data-b="circle">B</span>
         <span></span><span class="gBtn" data-b="cross">A</span><span></span>
       </div>
+      <div id="ghostBody" aria-live="polite"></div>
     </div>
   </div>
   <!-- Clip library removed — stage free for future features -->
@@ -309,7 +313,12 @@ function loadGhostsForClip(url){
     const t0=clocks.length?Math.min.apply(null,clocks):0;
     ghostEvents=ev.map(e=>{
       const t=e.t_s!=null?Number(e.t_s): (t0?(Number(e.clock_ns)-t0)/1e9:0);
-      return {t:t, name:String(e.name||'').toLowerCase(), kind:String(e.kind||''), value:Number(e.value||0)};
+      let prec=null;
+      if(e.imu_precursor_ms!=null){
+        const p=Number(e.imu_precursor_ms);
+        if(!Number.isNaN(p) && p>0) prec=p;
+      }
+      return {t:t, name:String(e.name||'').toLowerCase(), kind:String(e.kind||''), value:Number(e.value||0), imu_precursor_ms:prec};
     }).filter(e=>e.name);
     if(ghostEvents.length && pad) pad.classList.add('show');
   }).catch(()=>{ ghostEvents=[]; });
@@ -326,13 +335,41 @@ function heldAt(t){
   ghostEvents.forEach(e=>{ if(e.kind==='press' && t-e.t>=0 && t-e.t<=0.18) held[e.name]=true; });
   return held;
 }
+function precursorAt(t){
+  const out=[];
+  for(let i=0;i<ghostEvents.length;i++){
+    const e=ghostEvents[i];
+    if(e.kind!=='press' && !(e.kind==='trigger' && e.value>0.15)) continue;
+    if(e.imu_precursor_ms==null || e.imu_precursor_ms<=0) continue;
+    const tJolt=e.t - e.imu_precursor_ms/1000;
+    if(t>=tJolt && t<e.t) out.push(e);
+  }
+  return out;
+}
 function paintGhosts(t){
   const pad=document.getElementById('ghostPad');
   if(!pad || !pad.classList.contains('show')) return;
   const held=heldAt(t);
+  const body=precursorAt(t);
+  const bodySet={};
+  body.forEach(e=>{ bodySet[e.name]=e; });
   pad.querySelectorAll('[data-b]').forEach(el=>{
-    el.classList.toggle('on', !!held[el.getAttribute('data-b')]);
+    const n=el.getAttribute('data-b');
+    const isHeld=!!held[n];
+    el.classList.toggle('on', isHeld);
+    el.classList.toggle('body', !isHeld && !!bodySet[n]);
   });
+  const gb=document.getElementById('ghostBody');
+  if(gb){
+    if(body.length){
+      const e=body[0];
+      gb.textContent='BODY −'+Math.round(e.imu_precursor_ms)+'ms '+String(e.name).toUpperCase();
+      gb.classList.add('show');
+    }else{
+      gb.textContent='';
+      gb.classList.remove('show');
+    }
+  }
 }
 player.addEventListener('timeupdate',()=>paintGhosts(player.currentTime||0));
 function loadChaptersForClip(url){

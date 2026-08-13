@@ -28,11 +28,13 @@ Output: `clips/<stem>_cut/reel_<id>.mp4` plus `.receipt.json`.
 - Why strip: kind, score, chapter label
 - Clock tick across the cut window
 - DualSense ghost pad: face + shoulder buttons light when that press is live in `*.buttons.json`
-- Deck replay shows the same ghosts over the source clip
+- IMU precursor: pad goes cyan and the strip reads `BODY -XXms` in the 5–80 ms window *before* the bit flips
+- Receipt `.receipt.json` records clip-relative TEMPORAL binds (HID before the chapter mark)
+- Deck replay shows the same ghosts and precursor over the source clip
 
 ## Ranking
 
-Chapters at `t_s ≈ 0` (chat dumps, menus) are penalized. Score-change / clutch / confirm-score and coupling + input energy win.
+Chapters at `t_s ≈ 0` (chat dumps, menus) are penalized. Score-change / clutch / confirm-score, coupling, input energy, and a HID press in the 400 ms TEMPORAL window before the mark win. A bodied press (`imu_precursor_ms`) ranks higher than a bare edge.
 
 ## Removed
 
