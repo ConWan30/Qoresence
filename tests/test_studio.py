@@ -23,7 +23,7 @@ from qoresence.studio.ltx_client import (
     _resolve_api_key,
     normalize_duration,
 )
-from qoresence.studio.prompt_engine import PromptEngine
+from qoresence.studio.prompt_engine import STYLE_LOCK, PromptEngine
 from qoresence.studio.receipt import ReelReceipt, write_receipt
 from qoresence.studio.reel_queue import ReelQueue, RenderJob, reset_reel_queue
 from qoresence.studio.render_command import render_reels
@@ -55,9 +55,18 @@ def test_prompt_engine_ncaa_score_changed():
     }
     situation = {"home_score": 14, "away_score": 10, "quarter": 4, "possession": "home"}
     prompt, negative = engine.build_prompt(_fake_game_profile(), chapter, situation)
+    assert prompt.startswith(STYLE_LOCK)
     assert "14" in prompt
     assert "10" in prompt
     assert "quarter" in prompt.lower() or "stadium" in prompt.lower()
+    assert "sports broadcast" not in prompt.lower()
+    assert "football players as football players" in prompt.lower()
+    assert "matching the source frame" in prompt.lower()
+    assert "no character redesign" in prompt.lower()
+    assert "Avatar-film CG characters" not in prompt
+    assert "luminous oversized eyes" not in prompt.lower()
+    assert "live-action" in negative
+    assert "character redesign" in negative
     assert negative
 
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from .frame_selector import FrameSelector
 from .ltx_client import LtxClient, LtxJob, UploadResult, normalize_duration
-from .prompt_engine import PromptEngine, RenderPayload
+from .prompt_engine import STYLE_LOCK, PromptEngine, RenderPayload
 from .receipt import ReelReceipt, write_receipt
 from .reel_queue import ReelQueue, RenderJob, reset_reel_queue
 from .render_command import render_reels
@@ -18,6 +18,7 @@ __all__ = [
     "LtxJob",
     "UploadResult",
     "normalize_duration",
+    "STYLE_LOCK",
     "PromptEngine",
     "RenderPayload",
     "ReelReceipt",

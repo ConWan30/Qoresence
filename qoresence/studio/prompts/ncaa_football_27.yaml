@@ -1,13 +1,14 @@
 profile_id: ncaa_football_27
 display_name: NCAA College Football 27
-style: cinematic sports broadcast
-negative: blurry, distorted faces, watermark, text overlay, HUD, scoreboard
+style: cinematic 3D game render
+negative: live-action footage, documentary, ESPN broadcast, filmed camera, Avatar Na'vi faces, oversized anime eyes, alien features, character redesign, blurry, distorted faces, watermark, text overlay, HUD, scoreboard
 
 # Placeholders: see default.yaml
+# Visual lock is prepended in PromptEngine (film-grade 3D graphics, players unchanged).
 
 templates:
-  score_changed: "{quarter} quarter, {home_score}-{away_score}, {possession} team scores, dramatic sideline camera, stadium lights, 4K"
-  red_zone_entry: "Tense red-zone drive, {home_score}-{away_score}, crowd atmosphere, low-angle field shot"
-  touchdown: "Touchdown moment, {home_score}-{away_score}, celebration under stadium lights, sideline perspective"
-  clutch: "Clutch late-game moment, {home_score}-{away_score}, cinematic slow-motion feel, broadcast lighting"
-  default: "NCAA football broadcast, {quarter} quarter, {home_score}-{away_score}, intense game action, cinematic lighting"
+  score_changed: "{quarter} quarter, {home_score}-{away_score}, {possession} side scores, in-game sideline camera, rendered stadium, 3D crowd"
+  red_zone_entry: "Tense red-zone drive, {home_score}-{away_score}, low-angle 3D field shot, volumetric night light, stadium crowd"
+  touchdown: "Touchdown beat, {home_score}-{away_score}, in-game celebration, rendered stadium lights, sideline camera"
+  clutch: "Clutch late-game beat, {home_score}-{away_score}, fluent 3D slow-motion, stadium lighting"
+  default: "college-football video-game world, {quarter} quarter, {home_score}-{away_score}, intense in-game action"

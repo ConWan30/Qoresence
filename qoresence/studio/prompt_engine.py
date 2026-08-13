@@ -2,6 +2,10 @@
 
 Grounds LTX prompts in local Qoresence data: game profile, chapter label,
 scoreboard state, and controller summary. Avoids EA/team/player likenesses.
+
+Visual lock: film-grade 3D *graphics* (lighting, motion, finish) — not a
+character redesign. Players stay football players matching the source frame.
+LTX image-to-video has no negative_prompt field, so the lock leads the prompt.
 """
 
 from __future__ import annotations
@@ -18,25 +22,60 @@ log = logging.getLogger(__name__)
 
 _DEFAULT_TEMPLATE_DIR = Path(__file__).resolve().parent / "prompts"
 
+# Always leads the prompt. LTX follows this more than the scene clause.
+STYLE_LOCK = (
+    "cinematic 3D game-render, film-grade CG lighting and fluent motion, "
+    "enhanced polished graphics, keep football players as football players "
+    "matching the source frame, same helmets pads bodies and faces, "
+    "no character redesign, not live-action footage, not sports documentary, "
+    "not alien or Avatar-like faces, not oversized anime eyes"
+)
+
+_ANTI_LIVE_ACTION = (
+    "live-action footage, documentary, ESPN broadcast, filmed camera, "
+    "Avatar Na'vi faces, oversized anime eyes, alien features, character redesign"
+)
+
 _BUILTIN_TEMPLATES: dict[str, dict[str, Any]] = {
     GameProfileId.NCAA_FOOTBALL_27.value: {
         "display_name": "NCAA College Football 27",
-        "style": "cinematic sports broadcast",
-        "negative": "blurry, distorted faces, watermark, text overlay, HUD, scoreboard",
+        "style": "cinematic 3D game render",
+        "negative": (
+            f"{_ANTI_LIVE_ACTION}, blurry, distorted faces, watermark, "
+            "text overlay, HUD, scoreboard"
+        ),
         "templates": {
-            "score_changed": "{quarter} quarter, {home_score}-{away_score}, {possession} team scores, dramatic sideline camera, stadium lights, 4K",
-            "red_zone_entry": "Tense red-zone drive, {home_score}-{away_score}, crowd atmosphere, low-angle field shot",
-            "touchdown": "Touchdown moment, {home_score}-{away_score}, celebration under stadium lights, sideline perspective",
-            "clutch": "Clutch late-game moment, {home_score}-{away_score}, cinematic slow-motion feel, broadcast lighting",
-            "default": "NCAA football broadcast, {quarter} quarter, {home_score}-{away_score}, intense game action, cinematic lighting",
+            "score_changed": (
+                "{quarter} quarter, {home_score}-{away_score}, {possession} side scores, "
+                "in-game sideline camera, rendered stadium, stylized 3D crowd bloom"
+            ),
+            "red_zone_entry": (
+                "tense red-zone drive, {home_score}-{away_score}, "
+                "low-angle 3D field shot, volumetric night light, animated crowd"
+            ),
+            "touchdown": (
+                "touchdown beat, {home_score}-{away_score}, in-game celebration, "
+                "rendered stadium lights, sideline camera"
+            ),
+            "clutch": (
+                "clutch late-game beat, {home_score}-{away_score}, "
+                "fluent 3D slow-motion, painterly stadium lighting"
+            ),
+            "default": (
+                "college-football video-game world, {quarter} quarter, "
+                "{home_score}-{away_score}, intense 3D animated action"
+            ),
         },
     },
     "_default": {
         "display_name": "gameplay",
-        "style": "cinematic gameplay action",
-        "negative": "blurry, distorted faces, watermark, text overlay, HUD",
+        "style": "cinematic 3D game render",
+        "negative": f"{_ANTI_LIVE_ACTION}, blurry, distorted faces, watermark, text overlay, HUD",
         "templates": {
-            "default": "Cinematic gameplay highlight, intense moment, dramatic lighting, 4K action shot",
+            "default": (
+                "3D animated gameplay highlight, {chapter_label}, "
+                "fluent motion, painterly rendered lighting"
+            ),
         },
     },
 }
@@ -137,17 +176,24 @@ class PromptEngine:
 
         kind = str(chapter.get("kind") or "default")
         templates = tmpl.get("templates") or {}
-        template = templates.get(kind) or templates.get("default") or "{game} cinematic action, {chapter_label}, dramatic lighting"
+        template = (
+            templates.get(kind)
+            or templates.get("default")
+            or "{game} 3D animated action, {chapter_label}, painterly lighting"
+        )
 
-        prompt = self._format_dict(template, ctx).strip()
-        if not prompt:
-            prompt = f"{ctx['game']} cinematic highlight, {ctx['chapter_label']}, dramatic lighting"
+        scene = self._format_dict(template, ctx).strip()
+        if not scene:
+            scene = f"{ctx['game']} 3D animated highlight, {ctx['chapter_label']}"
 
-        style_prefix = style or tmpl.get("style") or "cinematic"
-        if style_prefix and not prompt.lower().startswith(style_prefix.lower()):
-            prompt = f"{style_prefix}, {prompt}"
+        flavor = (style or tmpl.get("style") or "cinematic 3D game render").strip()
+        parts = [STYLE_LOCK]
+        if flavor and flavor.lower() not in STYLE_LOCK.lower():
+            parts.append(flavor)
+        parts.append(scene)
+        prompt = ", ".join(parts)
 
-        negative = tmpl.get("negative") or "blurry, distorted faces, watermark, text overlay, HUD"
+        negative = tmpl.get("negative") or f"{_ANTI_LIVE_ACTION}, blurry, distorted faces, watermark"
         return prompt, negative
 
     def build_payload(

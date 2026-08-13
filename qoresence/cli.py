@@ -1596,7 +1596,7 @@ def main():
     parser.add_argument(
         "--foundry-reel-style",
         default=None,
-        help="Prompt style override (e.g. cinematic, anime, slow-motion)",
+        help="Flavor after the 3D game-render lock (default: cinematic 3D game render)",
     )
     parser.add_argument(
         "--foundry-reel-output-dir",

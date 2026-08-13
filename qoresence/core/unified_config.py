@@ -378,7 +378,7 @@ class StudioConfig:
     max_poll_s: float = 600.0
     max_reels_per_session: int = 3
     output_dir: str = "clips"
-    prompt_style: str = "cinematic"
+    prompt_style: str = "cinematic 3D game render"
     model: str = "ltx-2-3-pro"
     duration: int = 6
     resolution: str = "1920x1080"
@@ -882,7 +882,7 @@ class RetinaUnifiedConfig:
                 max_poll_s=_float("QORESENCE_STUDIO_MAX_POLL_S", 600.0),
                 max_reels_per_session=_int("QORESENCE_STUDIO_MAX_REELS", 3),
                 output_dir=_str("QORESENCE_STUDIO_OUTPUT_DIR", "clips"),
-                prompt_style=_str("QORESENCE_STUDIO_PROMPT_STYLE", "cinematic"),
+                prompt_style=_str("QORESENCE_STUDIO_PROMPT_STYLE", "cinematic 3D game render"),
                 model=_str("QORESENCE_STUDIO_MODEL", "ltx-2-3-pro"),
                 duration=_int("QORESENCE_STUDIO_DURATION", 6),
                 resolution=_str("QORESENCE_STUDIO_RESOLUTION", "1920x1080"),

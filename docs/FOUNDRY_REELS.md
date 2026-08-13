@@ -54,6 +54,7 @@ Keyboard: `R` render selected, `D` back to Deck.
 - Default **OFF**. `--studio`, `--foundry-reel`, or `QORESENCE_STUDIO_ENABLED=1`.
 - No bus emits. No lobe locks. Worker thread is not the capture path.
 - Frames leave the box only when the operator hits Render. Output MP4 + `.receipt.json` stay local.
+- Prompts lock **film-grade 3D graphics** (lighting, motion, finish). Players stay football players matching the source frame — not Avatar faces, not anime-eye redesign. LTX has no negative-prompt field, so the lock is the leading clause of the positive prompt.
 - LTX-2.3-pro durations are 6 / 8 / 10 seconds. Qoresence snaps invalid values (including the old 5s default) to 6.
 - Signed GCS upload/download send **only** the headers LTX required. No Bearer token on storage URLs.
 - Deck `POST /api/foundry/render` ignores client `output_dir` and only resolves clip names under `clips/`.
