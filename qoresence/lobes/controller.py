@@ -409,6 +409,9 @@ class ControllerRuntime:
             state = self._decode_report(report)
             state.host_ts_ns = clock_ns()
 
+            # IMU ring first so a press in this report can see the precursor.
+            self._push_imu(state)
+
             # Process and emit events
             self._process_state(state)
 
@@ -432,12 +435,11 @@ class ControllerRuntime:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _read_report(self) -> bytes | None:
-        """Read single input report from device."""
+        """Read single input report from device (USB 64 or BT 78)."""
         if not self._device:
             return None
         try:
-            # hidapi read returns list of ints or bytes
-            data = self._device.read(INPUT_REPORT_SIZE, timeout_ms=10)
+            data = self._device.read(78, timeout_ms=8)
             if not data:
                 return None
             return bytes(data)
@@ -446,72 +448,30 @@ class ControllerRuntime:
             return None
 
     def _decode_report(self, report: bytes) -> ControllerState:
-        """Decode DualSense/DualSense Edge input report.
+        """Decode DualSense / Edge via the QorTroller-forked USB/BT map."""
+        from qoresence.sync.hid_report import parse_report
 
-        Handles both USB (report ID 0x01, 64 bytes) and Bluetooth
-        (report ID 0x31, 78 bytes) layouts. Applies stick center
-        calibration and trigger noise rejection to reduce phantom edges.
-        """
         state = ControllerState()
-        state.device_ts = int(time.time() * 1_000_000)  # microseconds since epoch
+        state.device_ts = int(time.time() * 1_000_000)
         state.host_ts_ns = clock_ns()
-
         if len(report) < 8:
             return state
-
-        # Determine report layout from the first byte (report ID)
-        report_id = report[0]
-        # USB: 0x01 (64 bytes), Bluetooth: 0x31 (78 bytes)
-        # For Bluetooth, the HID header is 1 byte extra at the start
-        offset = 1 if report_id == 0x31 else 0
-
-        # Buttons in bytes 1-2 (USB) or 2-3 (BT, after 0x31 + 0x30 header)
-        btn_off = 1 + offset
-        buttons_low = report[btn_off] if len(report) > btn_off else 0
-        buttons_high = report[btn_off + 1] if len(report) > btn_off + 1 else 0
-        state.buttons = buttons_low | (buttons_high << 8)
-
-        # Triggers
-        trig_off = 3 + offset
-        state.l2 = report[trig_off] if len(report) > trig_off else 0
-        state.r2 = report[trig_off + 1] if len(report) > trig_off + 1 else 0
-
-        # Sticks (left: 5-6, right: 7-8) — apply center deadzone
-        stick_off = 5 + offset
-        lx = report[stick_off] if len(report) > stick_off else 128
-        ly = report[stick_off + 1] if len(report) > stick_off + 1 else 128
-        rx = report[stick_off + 2] if len(report) > stick_off + 2 else 128
-        ry = report[stick_off + 3] if len(report) > stick_off + 3 else 128
-        # Clamp to center if within noise deadzone (reduces phantom stick events)
-        stick_dz = 8  # raw units around center 128
+        parsed = parse_report(report)
+        state.buttons = int(parsed["buttons"])
+        state.l2 = int(parsed["l2"])
+        state.r2 = int(parsed["r2"])
+        stick_dz = 8
+        lx, ly, rx, ry = int(parsed["lx"]), int(parsed["ly"]), int(parsed["rx"]), int(parsed["ry"])
         state.lx = 128 if abs(lx - 128) <= stick_dz else lx
         state.ly = 128 if abs(ly - 128) <= stick_dz else ly
         state.rx = 128 if abs(rx - 128) <= stick_dz else rx
         state.ry = 128 if abs(ry - 128) <= stick_dz else ry
-
-        # IMU data (if present in extended report)
-        # Gyro: bytes 13-18 (3x int16), Accel: bytes 19-24 (3x int16)
-        imu_off = 13 + offset
-        if len(report) >= imu_off + 12:
-            import struct
-
-            state.gyro_x = struct.unpack_from("<h", report, imu_off)[0]
-            state.gyro_y = struct.unpack_from("<h", report, imu_off + 2)[0]
-            state.gyro_z = struct.unpack_from("<h", report, imu_off + 4)[0]
-            state.accel_x = struct.unpack_from("<h", report, imu_off + 6)[0]
-            state.accel_y = struct.unpack_from("<h", report, imu_off + 8)[0]
-            state.accel_z = struct.unpack_from("<h", report, imu_off + 10)[0]
-
-        # Battery (byte 30 + offset)
-        bat_off = 30 + offset
-        if len(report) > bat_off:
-            state.battery = report[bat_off]
-
-        # USB state (byte 31 + offset)
-        usb_off = 31 + offset
-        if len(report) > usb_off:
-            state.usb_state = report[usb_off]
-
+        state.gyro_x = int(parsed["gyro_x"])
+        state.gyro_y = int(parsed["gyro_y"])
+        state.gyro_z = int(parsed["gyro_z"])
+        state.accel_x = int(parsed["accel_x"])
+        state.accel_y = int(parsed["accel_y"])
+        state.accel_z = int(parsed["accel_z"])
         return state
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -567,6 +527,30 @@ class ControllerRuntime:
 
         self._prev_state = state
 
+    def _latest_frame_seq(self) -> int | None:
+        try:
+            from qoresence.monitor.frame_hub import get_latest_stamp
+
+            st = get_latest_stamp()
+            if st.get("has_frame"):
+                return int(st.get("seq") or 0) or None
+        except Exception:
+            return None
+        return None
+
+    def _push_imu(self, state: ControllerState) -> None:
+        try:
+            from qoresence.sync.imu_ring import push_imu
+
+            push_imu(
+                clock_ns=state.host_ts_ns,
+                gyro=(state.gyro_x, state.gyro_y, state.gyro_z),
+                accel=(state.accel_x, state.accel_y, state.accel_z),
+                frame_seq=self._latest_frame_seq(),
+            )
+        except Exception:
+            pass
+
     def _push_input_ring(
         self,
         *,
@@ -578,17 +562,17 @@ class ControllerRuntime:
     ) -> None:
         """Best-effort InputRing edge for IVC / clip sidecar (additive)."""
         try:
+            from qoresence.sync.event_bind import HidOnset, get_event_binder
+            from qoresence.sync.imu_ring import get_imu_ring
             from qoresence.sync.input_ring import push as _ring_push
 
-            frame_seq = None
-            try:
-                from qoresence.monitor.frame_hub import get_latest_stamp
-
-                st = get_latest_stamp()
-                if st.get("has_frame"):
-                    frame_seq = int(st.get("seq") or 0) or None
-            except Exception:
-                frame_seq = None
+            frame_seq = self._latest_frame_seq()
+            precursor = None
+            if kind in {"press", "trigger"}:
+                try:
+                    precursor = get_imu_ring().precursor_ms(clock_ns)
+                except Exception:
+                    precursor = None
             _ring_push(
                 {
                     "clock_ns": clock_ns,
@@ -597,8 +581,19 @@ class ControllerRuntime:
                     "value": value,
                     "buttons_mask": buttons_mask,
                     "frame_seq": frame_seq,
+                    "imu_precursor_ms": precursor,
                 }
             )
+            if kind in {"press", "trigger"}:
+                get_event_binder().push_hid(
+                    HidOnset(
+                        clock_ns=clock_ns,
+                        name=name,
+                        kind=kind,
+                        frame_seq=frame_seq,
+                        imu_precursor_ms=precursor,
+                    )
+                )
         except Exception:
             pass
 

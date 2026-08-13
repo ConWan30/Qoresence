@@ -627,6 +627,7 @@ class OutcomeRuntime:
             log.debug(f"Outcome event {event_name} not in profile; skipping")
             return
 
+        now = clock_ns()
         self.bus.emit_raw(
             source_lobe=SourceLobe.OUTCOME,
             event_type=EventType.OUTCOME_EVENT,
@@ -636,10 +637,28 @@ class OutcomeRuntime:
                 "confidence": confidence,
                 "fields": fields,
             },
-            clock_ns_override=clock_ns(),
+            clock_ns_override=now,
             session_head_ns=self.session_head_ns,
         )
         self._detections_count += 1
+        if event_name in {"score_changed", "first_down", "touchdown", "kill", "score"}:
+            try:
+                from qoresence.sync.event_bind import VisualOnset, get_event_binder
+
+                seq = None
+                try:
+                    from qoresence.monitor.frame_hub import get_latest_stamp
+
+                    st = get_latest_stamp()
+                    if st.get("has_frame"):
+                        seq = int(st.get("seq") or 0) or None
+                except Exception:
+                    seq = None
+                get_event_binder().push_visual(
+                    VisualOnset(clock_ns=now, kind=event_name, frame_seq=seq)
+                )
+            except Exception:
+                pass
 
     def _emit_session_start(self) -> None:
         self.bus.emit_raw(

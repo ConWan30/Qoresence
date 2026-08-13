@@ -115,8 +115,20 @@ class InputVideoCoupler:
         if t_video <= 0:
             return None
 
-        lag_lo_ns = int(self.lag_lo_ms * 1e6)
-        lag_hi_ns = int(self.lag_hi_ms * 1e6)
+        lag_lo_ms, lag_hi_ms = self.lag_lo_ms, self.lag_hi_ms
+        try:
+            from qoresence.sync.event_bind import get_event_binder
+            from qoresence.sync.lag_estimator import get_lag_estimator
+
+            est = get_lag_estimator()
+            last_lag = get_event_binder().last_lag_ms()
+            if last_lag is not None:
+                est.observe(last_lag)
+            lag_lo_ms, lag_hi_ms = est.band(self.lag_lo_ms, self.lag_hi_ms)
+        except Exception:
+            pass
+        lag_lo_ns = int(lag_lo_ms * 1e6)
+        lag_hi_ns = int(lag_hi_ms * 1e6)
         # Inputs that occurred slightly *before* this frame (display lag band)
         t0 = t_video - lag_hi_ns
         t1 = t_video - lag_lo_ns
@@ -142,10 +154,61 @@ class InputVideoCoupler:
             "buttons": buttons,
             "input_energy": round(energy, 4),
             "coupling": round(coupling, 4),
-            "lag_band_ms": [self.lag_lo_ms, self.lag_hi_ms],
+            "lag_band_ms": [round(lag_lo_ms, 1), round(lag_hi_ms, 1)],
             # Two-speed ClutchBot: IVC is the realtime (fast) path signal
             "path": "fast",
         }
+        precursors = [e.imu_precursor_ms for e in events if e.imu_precursor_ms is not None]
+        if precursors:
+            payload["imu_precursor_ms"] = round(sum(precursors) / len(precursors), 2)
+            payload["imu_bodied"] = True
+        else:
+            payload["imu_bodied"] = False
+        try:
+            from qoresence.sync.event_bind import get_event_binder
+
+            binds = get_event_binder().recent()
+            if binds:
+                payload["binds"] = len(binds)
+                payload["last_bind_ms"] = binds[-1].lag_ms
+                payload["last_bind_kind"] = binds[-1].visual_kind
+        except Exception:
+            pass
+        try:
+            from qoresence.sync.imu_ring import get_imu_ring
+            from qoresence.sync.optical import StickMotionCoupler, frame_motion_energy
+
+            if not hasattr(self, "_stick_opt"):
+                self._stick_opt = StickMotionCoupler()
+                self._prev_jpeg = None
+            imu = get_imu_ring().last()
+            stick_ev = [e for e in events if e.kind == "stick" and e.name == "right"]
+            vx = float(stick_ev[-1].value) if stick_ev else 0.0
+            gz = imu.gyro_z if imu else 0.0
+            jpeg = None
+            try:
+                from qoresence.vision.clip_buffer import get_latest_jpeg
+
+                jpeg = get_latest_jpeg()
+            except Exception:
+                jpeg = None
+            motion = 0.0
+            if jpeg is not None and self._prev_jpeg is not None:
+                import cv2
+                import numpy as np
+
+                prev = cv2.imdecode(np.frombuffer(self._prev_jpeg, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+                curr = cv2.imdecode(np.frombuffer(jpeg, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+                if prev is not None and curr is not None:
+                    motion = frame_motion_energy(prev, curr)
+            if jpeg is not None:
+                self._prev_jpeg = jpeg
+            self._stick_opt.push(vx, gz, motion)
+            opt = self._stick_opt.snapshot()
+            payload["stick_gyro_r"] = opt["stick_gyro_r"]
+            payload["stick_motion_r"] = opt["stick_motion_r"]
+        except Exception:
+            pass
         with self._lock:
             self._last = payload
 

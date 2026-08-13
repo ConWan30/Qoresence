@@ -42,6 +42,7 @@ class GhostEvent:
     name: str
     kind: str
     value: float = 0.0
+    imu_precursor_ms: float | None = None
 
 
 @dataclass
@@ -95,7 +96,20 @@ def load_button_timeline(clip_path: str | Path) -> list[GhostEvent]:
             val = float(ev.get("value") or 0.0)
         except (TypeError, ValueError):
             val = 0.0
-        out.append(GhostEvent(t_s=t, name=name, kind=str(ev.get("kind") or "press"), value=val))
+        prec = ev.get("imu_precursor_ms")
+        try:
+            prec_f = float(prec) if prec is not None else None
+        except (TypeError, ValueError):
+            prec_f = None
+        out.append(
+            GhostEvent(
+                t_s=t,
+                name=name,
+                kind=str(ev.get("kind") or "press"),
+                value=val,
+                imu_precursor_ms=prec_f,
+            )
+        )
     out.sort(key=lambda e: e.t_s)
     return out
 

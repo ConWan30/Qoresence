@@ -8,7 +8,6 @@ rolling buffer, causal_parent_ns, trigger onset detection, stick motion.
 from __future__ import annotations
 
 import json
-import struct
 import tempfile
 import time
 from pathlib import Path
@@ -74,27 +73,20 @@ def _make_dualsense_report(
     battery: int = 100,
     usb_state: int = 1,
 ) -> bytes:
-    """Create a synthetic DualSense input report (64 bytes)."""
-    report = bytearray(64)
-    report[0] = 0x01  # Report ID
-    report[1] = buttons & 0xFF
-    report[2] = (buttons >> 8) & 0xFF
-    report[3] = l2
-    report[4] = r2
-    report[5] = lx
-    report[6] = ly
-    report[7] = rx
-    report[8] = ry
+    """Create a synthetic DualSense USB 0x01 report (canonical offsets)."""
+    from qoresence.sync.hid_report import pack_usb_report
 
-    # IMU at bytes 13-24 (6 int16)
-    if any(gyro) or any(accel):
-        struct.pack_into("<hhh", report, 13, *gyro)
-        struct.pack_into("<hhh", report, 19, *accel)
-
-    report[30] = battery
-    report[31] = usb_state
-
-    return bytes(report)
+    return pack_usb_report(
+        buttons=buttons,
+        l2=l2,
+        r2=r2,
+        lx=lx,
+        ly=ly,
+        rx=rx,
+        ry=ry,
+        gyro=gyro,
+        accel=accel,
+    )
 
 
 class TestControllerRuntime:

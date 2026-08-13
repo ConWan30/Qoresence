@@ -38,6 +38,7 @@ class InputEvent:
     value: float = 1.0
     buttons_mask: int | None = None
     frame_seq: int | None = None
+    imu_precursor_ms: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -70,6 +71,7 @@ class InputRing:
                     value=float(ev.get("value", 1.0)),
                     buttons_mask=ev.get("buttons_mask"),
                     frame_seq=ev.get("frame_seq"),
+                    imu_precursor_ms=ev.get("imu_precursor_ms"),
                 )
             if ev.clock_ns <= 0:
                 ev.clock_ns = time.monotonic_ns()
