@@ -197,6 +197,48 @@ class TestMomentScorer:
         )
         assert any(m.action == "clip" for m in moments)
 
+
+    def test_q2_score_delta_clips_even_when_not_clutch_weight(self):
+        scorer = MomentScorer()
+        state = SituationState(
+            game_state="gameplay",
+            game_profile="ncaa_football_27",
+            home_score=7,
+            away_score=14,
+            quarter=2,
+        )
+        payload = {
+            "event_name": "score_changed",
+            "fields": {
+                "away_score": 13,
+                "prev_away_score": 7,
+                "home_score": 14,
+            },
+        }
+        moments = scorer.score(
+            state,
+            event_type="outcome_event",
+            event_payload=payload,
+            features={"chat", "clip"},
+        )
+        assert any(m.triggered and m.action == "clip" for m in moments)
+
+
+    def test_first_lock_0_0_does_not_clip(self):
+        scorer = MomentScorer()
+        state = SituationState(game_state="gameplay", game_profile="ncaa_football_27", quarter=1)
+        payload = {
+            "event_name": "score_changed",
+            "fields": {"home_score": 0, "away_score": 0},
+        }
+        moments = scorer.score(
+            state,
+            event_type="outcome_event",
+            event_payload=payload,
+            features={"chat", "clip"},
+        )
+        assert not any(m.action == "clip" and m.triggered for m in moments)
+
     def test_visual_context_can_start_prediction(self):
         scorer = MomentScorer()
         state = SituationState(

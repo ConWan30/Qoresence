@@ -353,6 +353,7 @@ class FoundryIndex:
 
 # TEMPORAL bind window (same as EventBinder). HID must precede the chapter mark.
 _HID_BIND_WINDOW_S = 0.40
+_BOARD_DUMP = re.compile(r"(live\s+[—\-–].*board)|^live\s+[—\-–]\s+board|board\s+\d+\s*-\s*\d+", re.I)
 
 
 def button_onsets_from_sidecar(bt: dict[str, Any] | None) -> list[dict[str, Any]]:
@@ -403,6 +404,26 @@ def button_onsets_from_sidecar(bt: dict[str, Any] | None) -> list[dict[str, Any]
     return out
 
 
+def is_board_dump(ch: dict[str, Any]) -> bool:
+    """t≈0 'Live — board 7-7' lines are not the play."""
+    try:
+        t = float(ch.get("t_s") or 0.0)
+    except (TypeError, ValueError):
+        t = 0.0
+    lab = str(ch.get("label") or "")
+    k = str(ch.get("kind") or "")
+    low = lab.lower()
+    if "touchdown" in low or "score update" in low or "field goal" in low:
+        return False
+    if t >= 0.4:
+        return False
+    if _BOARD_DUMP.search(lab):
+        return True
+    if t < 0.2 and (k in CONFIRM_KINDS or k.startswith("confirm")):
+        return True
+    return False
+
+
 def _hid_near_boost(t_s: float, onsets: list[dict[str, Any]]) -> float:
     """Score bump when a press/trigger sits in the TEMPORAL window before t_s."""
     best = 0.0
@@ -450,6 +471,8 @@ def score_play_chapter(ch: dict[str, Any], clip: dict[str, Any] | None = None) -
         s += 0.45
     if t < 0.2:
         s -= 1.3
+    if is_board_dump(ch):
+        s -= 2.0
     if ch.get("coupling") is not None:
         try:
             s += float(ch["coupling"]) * 0.8
@@ -476,10 +499,14 @@ def score_play_chapter(ch: dict[str, Any], clip: dict[str, Any] | None = None) -
 
 def pick_play_chapter(chapters: list[Any], clip: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """Choose the chapter most likely to be the actual play."""
+    playable = [ch for ch in (chapters or []) if isinstance(ch, dict)]
+    if not playable:
+        return None
+    has_real = any(not is_board_dump(ch) for ch in playable)
     best = None
     best_s = -999.0
-    for ch in chapters or []:
-        if not isinstance(ch, dict):
+    for ch in playable:
+        if has_real and is_board_dump(ch):
             continue
         s = score_play_chapter(ch, clip)
         if best is None or s > best_s:

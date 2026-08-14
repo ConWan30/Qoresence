@@ -27,6 +27,28 @@ log = logging.getLogger(__name__)
 DEFAULT_FEATURES = frozenset({"chat"})
 
 
+def _should_auto_clip_score(
+    fields: dict[str, Any], state: SituationState, weight: float
+) -> bool:
+    """Clip on a real confirm digit change — not the first 0-0 lock."""
+    home = fields.get("home_score", state.home_score)
+    away = fields.get("away_score", state.away_score)
+    prev_h = fields.get("prev_home_score")
+    prev_a = fields.get("prev_away_score")
+    if prev_h is None and prev_a is None:
+        if (home or 0) == 0 and (away or 0) == 0:
+            return False
+        return weight >= 0.8
+    try:
+        if prev_h is not None and home is not None and int(home) != int(prev_h):
+            return True
+        if prev_a is not None and away is not None and int(away) != int(prev_a):
+            return True
+    except (TypeError, ValueError):
+        return False
+    return False
+
+
 @dataclass
 class ScoredMoment:
     """A scored moment with an action plan."""
@@ -493,17 +515,17 @@ class MomentScorer:
         )
         moments: list[ScoredMoment] = [chat] if chat.triggered else []
 
-        if chat.triggered:
-            if "clip" in features and weight >= 0.8:
-                clip = self._build_moment(
-                    weight=weight,
-                    action="clip",
-                    message=message,
-                    reason="clutch score — clip",
-                    cooldown_key="clip",
-                )
-                if clip.triggered:
-                    moments.append(clip)
+        if chat.triggered and "clip" in features and _should_auto_clip_score(fields, state, weight):
+            clip = self._build_moment(
+                weight=max(weight, 0.85),
+                action="clip",
+                message=message,
+                reason="confirm score — producer clip",
+                cooldown_key="clip",
+                payload={"path": "confirm", "seconds": 30},
+            )
+            if clip.triggered:
+                moments.append(clip)
 
             if "prediction" in features and active_prediction:
                 scoring_team = self._scoring_team(fields, state)

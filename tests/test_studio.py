@@ -13,7 +13,7 @@ from qoresence.core.unified_config import (
     RetinaUnifiedConfig,
     StudioConfig,
 )
-from qoresence.foundry.index import pick_play_chapter, score_play_chapter
+from qoresence.foundry.index import is_board_dump, pick_play_chapter, score_play_chapter
 from qoresence.studio.api import jobs_payload, list_candidates, resolve_clip_path, status_payload
 from qoresence.studio.frame_selector import FrameSelector
 from qoresence.studio.ghost_cut import (
@@ -151,6 +151,8 @@ def test_pick_play_chapter_prefers_touchdown_label_over_t0_board():
     )
     assert picked is not None
     assert "TOUCHDOWN" in picked["label"]
+    assert is_board_dump(chapters[0]) is True
+    assert is_board_dump(chapters[1]) is False
 
 
 def test_play_window_gives_td_room_for_the_throw():
