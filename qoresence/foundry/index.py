@@ -437,8 +437,11 @@ def score_play_chapter(ch: dict[str, Any], clip: dict[str, Any] | None = None) -
     except (TypeError, ValueError):
         t = 0.0
     s = 0.0
+    lab = str(ch.get("label") or "").lower()
     if k in {"score_changed", "touchdown", "clutch"} or k.startswith("confirm_score"):
         s += 2.2
+    elif "touchdown" in lab or "score update" in lab or " field goal" in lab:
+        s += 2.0
     elif k in CONFIRM_KINDS or k.startswith("confirm"):
         s += 0.7
     elif k in FAST_KINDS or k.startswith("fast"):
@@ -464,7 +467,10 @@ def score_play_chapter(ch: dict[str, Any], clip: dict[str, Any] | None = None) -
         onsets = clip.get("button_onsets")
         if not isinstance(onsets, list):
             onsets = button_onsets_from_sidecar(clip)
-        s += _hid_near_boost(t, onsets)
+        # t≈0 chat dumps often share the clip's first HID edge — do not let that
+        # outrank a later score/TD mark.
+        if t >= 0.2 or "touchdown" in lab or "score update" in lab:
+            s += _hid_near_boost(t, onsets)
     return s
 
 

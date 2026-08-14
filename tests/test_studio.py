@@ -130,6 +130,28 @@ def test_pick_play_chapter_skips_t0_chat():
     assert score_play_chapter(chapters[0], {}) < score_play_chapter(chapters[1], {})
 
 
+def test_pick_play_chapter_prefers_touchdown_label_over_t0_board():
+    chapters = [
+        {"kind": "confirm_chat", "t_s": 0.0, "label": "Live — board 7-7, Q1."},
+        {
+            "kind": "confirm_chat",
+            "t_s": 10.038,
+            "label": "TOUCHDOWN! Away storms back—14-13, and it's getting CLUTCH!",
+        },
+        {"kind": "input", "t_s": 25.5, "label": "input r2_btn"},
+    ]
+    picked = pick_play_chapter(
+        chapters,
+        {
+            "button_onsets": [
+                {"t_s": 0.0, "name": "r2", "kind": "press", "imu_precursor_ms": 78.0},
+            ]
+        },
+    )
+    assert picked is not None
+    assert "TOUCHDOWN" in picked["label"]
+
+
 def test_score_play_chapter_hid_near_boosts():
     ch = {"kind": "score_changed", "t_s": 8.2, "label": "TD"}
     bare = score_play_chapter(ch, {})
