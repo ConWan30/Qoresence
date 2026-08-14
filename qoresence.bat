@@ -24,8 +24,8 @@ REM Example: set QORESENCE_AGENT_GLASS_ENABLED=1 & python -m qoresence.cli --pla
 
 REM If no args passed, use sensible defaults
 if "%~1"=="" (
-    echo Starting Qoresence with defaults: --play --deck --monitor --tray --a2a
-    python -m qoresence.cli --play --deck --monitor --tray --a2a --streamer-fps 30
+    echo Starting Qoresence with defaults: --play --deck --monitor --tray --a2a --controller
+    python -m qoresence.cli --play --deck --monitor --tray --a2a --controller --streamer-fps 30
 ) else (
     python -m qoresence.cli %*
 )

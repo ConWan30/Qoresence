@@ -156,6 +156,11 @@ class ControllerRuntime:
         # HID device
         self._device: hid.Device | None = None
         self._device_path: str | None = None
+        self._connected = False
+        self._reconnects = 0
+        self._reconnect_s = 1.5
+        self._last_transport: str | None = None
+        self._ever_connected = False
 
         # State
         self._running = False
@@ -192,25 +197,31 @@ class ControllerRuntime:
     # ──────────────────────────────────────────────────────────────────────────
 
     def start(self) -> bool:
-        """Open HID device and start capture thread."""
+        """Start the capture thread. Waits for DualSense if none is listed yet."""
         if self._running:
             log.warning("ControllerRuntime already running")
             return True
 
-        if not self._open_device():
-            return False
-
+        opened = self._open_device(quiet=True)
+        self._connected = bool(opened)
+        self._ever_connected = bool(opened)
         self._running = True
         self._start_time = time.time()
         self._thread = threading.Thread(
             target=self._run_loop, name="qoresence-controller", daemon=True
         )
         self._thread.start()
+        _register_runtime(self)
 
-        log.info(
-            f"Controller lobe started: {self._device_path}, "
-            f"poll_rate={self.config.poll_rate_hz}Hz, buffer={self.config.buffer_size}"
-        )
+        if opened:
+            log.info(
+                "Controller lobe started: %s, poll_rate=%.0fHz, buffer=%s",
+                self._device_path,
+                self.config.poll_rate_hz,
+                self.config.buffer_size,
+            )
+        else:
+            log.info("Controller lobe waiting for DualSense (USB/BT hot-plug)")
         return True
 
     def stop(self) -> None:
@@ -218,12 +229,8 @@ class ControllerRuntime:
         self._running = False
         if self._thread:
             self._thread.join(timeout=2.0)
-        if self._device:
-            try:
-                self._device.close()
-            except Exception:
-                pass
-            self._device = None
+        self._drop_device()
+        _unregister_runtime(self)
         log.info("Controller lobe stopped")
 
     def is_running(self) -> bool:
@@ -234,8 +241,14 @@ class ControllerRuntime:
         self._presence_callback = callback
 
     def get_stats(self) -> dict:
-        """Get controller statistics for cross-lobe coupling."""
+        """Get controller statistics for health / Deck (no bus emit)."""
         return {
+            "connected": bool(self._connected),
+            "waiting": bool(self._running and not self._connected),
+            "device": self._device_path,
+            "transport": self._last_transport,
+            "reports": int(self._reports_read),
+            "reconnects": int(self._reconnects),
             "last_trigger": self._last_trigger_value
             if hasattr(self, "_last_trigger_value")
             else 0.0,
@@ -243,6 +256,16 @@ class ControllerRuntime:
             "causal_density": self._causal_density if hasattr(self, "_causal_density") else 0,
             "last_event_ns": self._last_event_ns if hasattr(self, "_last_event_ns") else 0,
         }
+
+    def ingest_report(self, report: bytes, *, host_ts_ns: int | None = None) -> ControllerState:
+        """Decode + process one HID report (tests / software DualSense)."""
+        state = self._decode_report(report)
+        if host_ts_ns is not None:
+            state.host_ts_ns = int(host_ts_ns)
+        self._push_imu(state)
+        self._process_state(state)
+        self._reports_read += 1
+        return state
 
     def get_last_state(self) -> dict:
         """Get last controller state for cross-modal verification."""
@@ -273,7 +296,17 @@ class ControllerRuntime:
     # DEVICE MANAGEMENT
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _open_device(self) -> bool:
+    def _drop_device(self) -> None:
+        """Close HID handle without emitting. Caller owns reconnect."""
+        if self._device:
+            try:
+                self._device.close()
+            except Exception:
+                pass
+        self._device = None
+        self._connected = False
+
+    def _open_device(self, *, quiet: bool = False) -> bool:
         """Open HID device by VID/PID or path (DualSense Edge preferred)."""
         # Priority 1: Explicit path
         if self.config.device_path:
@@ -357,14 +390,15 @@ class ControllerRuntime:
                 self._device = None
                 continue
 
-        log.error(
-            "Failed to open DualSense HID (Edge/standard). last_err=%s listed=%s",
-            last_err,
-            [
-                f"vid={c.get('vid'):04x} pid={c.get('pid'):04x} {c.get('product')}"
-                for c in candidates[:8]
-            ],
-        )
+        listed = [
+            f"vid={c.get('vid'):04x} pid={c.get('pid'):04x} {c.get('product')}"
+            for c in candidates[:8]
+        ]
+        msg = f"DualSense HID not open (Edge/standard). last_err={last_err} listed={listed}"
+        if quiet:
+            log.debug(msg)
+        else:
+            log.warning(msg)
         return False
 
     def _enumerate_devices(self) -> list[dict]:
@@ -387,17 +421,35 @@ class ControllerRuntime:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _run_loop(self) -> None:
-        """Background HID read loop."""
+        """Background HID read loop. Re-opens the pad after unplug / late plug-in."""
         period = 1.0 / max(self.config.poll_rate_hz, 1.0)
         last_heartbeat = 0.0
+        last_retry = 0.0
+        emitted_start = False
 
-        # Emit session_start
-        self._emit_session_start()
+        if self._connected:
+            self._emit_session_start()
+            emitted_start = True
 
         while self._running:
             loop_start = time.time()
 
-            # Read report
+            if not self._connected:
+                now = time.time()
+                if now - last_retry >= self._reconnect_s:
+                    last_retry = now
+                    if self._open_device(quiet=True):
+                        self._connected = True
+                        self._ever_connected = True
+                        self._reconnects += 1
+                        self._prev_state = ControllerState()
+                        log.info("DualSense hot-plug: %s", self._device_path)
+                        if not emitted_start:
+                            self._emit_session_start()
+                            emitted_start = True
+                time.sleep(min(0.05, self._reconnect_s))
+                continue
+
             report = self._read_report()
             if report is None:
                 time.sleep(0.001)
@@ -405,30 +457,25 @@ class ControllerRuntime:
 
             self._reports_read += 1
 
-            # Decode state
             state = self._decode_report(report)
             state.host_ts_ns = clock_ns()
 
             # IMU ring first so a press in this report can see the precursor.
             self._push_imu(state)
-
-            # Process and emit events
             self._process_state(state)
 
-            # Heartbeat
             now = time.time()
             if now - last_heartbeat >= 5.0:
                 self._emit_heartbeat(now)
                 last_heartbeat = now
 
-            # Pace
             elapsed = time.time() - loop_start
             sleep_time = period - elapsed
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
-        # Session end
-        self._emit_session_end()
+        if self._ever_connected:
+            self._emit_session_end()
 
     # ──────────────────────────────────────────────────────────────────────────
     # HID REPORT READING
@@ -444,7 +491,8 @@ class ControllerRuntime:
                 return None
             return bytes(data)
         except Exception as e:
-            log.warning(f"HID read error: {e}")
+            log.warning("HID read error: %s — will retry open", e)
+            self._drop_device()
             return None
 
     def _decode_report(self, report: bytes) -> ControllerState:
@@ -457,6 +505,7 @@ class ControllerRuntime:
         if len(report) < 8:
             return state
         parsed = parse_report(report)
+        self._last_transport = str(parsed.get("transport") or "") or None
         state.buttons = int(parsed["buttons"])
         state.l2 = int(parsed["l2"])
         state.r2 = int(parsed["r2"])
@@ -874,6 +923,28 @@ class ControllerRuntime:
 # ──────────────────────────────────────────────────────────────────────────────
 # HELPER: List available controllers
 # ──────────────────────────────────────────────────────────────────────────────
+
+
+_active: ControllerRuntime | None = None
+_active_lock = threading.Lock()
+
+
+def _register_runtime(runtime: ControllerRuntime) -> None:
+    global _active
+    with _active_lock:
+        _active = runtime
+
+
+def _unregister_runtime(runtime: ControllerRuntime) -> None:
+    global _active
+    with _active_lock:
+        if _active is runtime:
+            _active = None
+
+
+def get_controller_runtime() -> ControllerRuntime | None:
+    """Process-local controller lobe (None if not started)."""
+    return _active
 
 
 def list_controllers() -> list[dict]:

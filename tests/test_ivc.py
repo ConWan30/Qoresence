@@ -65,6 +65,9 @@ def test_ivc_emits_coupling_with_frame_seq(monkeypatch):
 
 
 def test_ivc_empty_inputs_zero_coupling(monkeypatch):
+    from qoresence.sync.event_bind import get_event_binder
+
+    get_event_binder().clear()
     hub = FrameHub()
     ring = InputRing()
     t_video = time.monotonic_ns()

@@ -499,7 +499,10 @@ function applySnap(snap,latMs){
     const syncOk=!!s.presence_sync_ok || (ctrl.coupling||0)>0 || !!(ctrl.buttons&&ctrl.buttons.length) || !!ctrl.imu_bodied;
     const apm=s.controller_apm||0, trig=s.controller_triggers_5s||0, stick=s.controller_stick_motion_5s||0;
     ctrlStrip.classList.remove('wait','sync-ok','sync-bad');
-    if(ctrl.imu_bodied){
+    if(ctrl.waiting && !ctrl.connected){
+      ctrlStrip.textContent='WAITING FOR DUALSENSE';
+      ctrlStrip.classList.add('wait');
+    } else if(ctrl.imu_bodied){
       const ms=ctrl.imu_precursor_ms!=null?Math.round(Number(ctrl.imu_precursor_ms)):'';
       ctrlStrip.textContent='BODY'+(ms!==''&&!Number.isNaN(ms)?' −'+ms+'ms':'');
       ctrlStrip.classList.add('sync-ok');

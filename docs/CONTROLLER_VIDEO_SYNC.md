@@ -12,6 +12,12 @@ Qoresence forks the **physical coupling** stack from QorTroller, not the asserti
 
 Not taken: PoAC, ZK, IoTeX, TinyML cheat codes, wallets.
 
+## Hot-plug
+
+`--play` starts the controller lobe **waiting**. Plug DualSense USB or BT after Deck is up; the loop re-opens HID every 1.5 s. `/health` `state.controller.waiting` is true until the first report, then `connected` flips.
+
+Software stand-in (no pad): `qoresence.sync.dualsense_fixture.feed_bodied_r2(runtime)` drives the same `ingest_report` path as a USB 0x01 stream.
+
 ## Live path
 
 ```

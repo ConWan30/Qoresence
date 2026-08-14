@@ -46,10 +46,25 @@ def main() -> int:
         return 1
     print(f"  DECK_HOST={DECK_HOST!r}: OK (loopback)")
 
+    try:
+        from qoresence.lobes.controller import list_controllers
+
+        pads = list_controllers()
+        if pads:
+            shown = ", ".join(
+                f"{c.get('product') or 'pad'} vid={int(c.get('vid') or 0):04x} pid={int(c.get('pid') or 0):04x}"
+                for c in pads[:4]
+            )
+            print(f"  DualSense listed: {shown}")
+        else:
+            print("  DualSense listed: none — lobe will wait for USB/BT plug-in")
+    except Exception as e:
+        print(f"  DualSense enumerate skipped: {e}")
+
     print("")
     print("Next steps:")
     print("  python -m qoresence.cli --streamer-list")
-    print("  python -m qoresence.cli --play --deck --monitor --streamer-fps 60")
+    print("  python -m qoresence.cli --play --deck --monitor --controller --streamer-fps 60")
     print("  # leave that window running; in a NEW PowerShell:")
     print("  #   $h = Invoke-RestMethod http://127.0.0.1:8765/health")
     print('  #   Write-Host "has_frame=$($h.state.video.has_frame)"')

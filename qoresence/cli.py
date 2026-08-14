@@ -1842,27 +1842,21 @@ def main():
                     object.__setattr__(config.streamer, "enabled", True)
                 except Exception:
                     pass
-            # controller lobe — auto-enable in --play if a DualSense is detected
-            # so IVC / APM / trigger edges flow without requiring --controller
+            # controller lobe — always wait in --play so a late DualSense plug-in
+            # still feeds InputRing / IVC without requiring --controller at boot
             if not getattr(args, "controller", False):
                 try:
-                    from qoresence.lobes.controller import list_controllers
-
-                    _ctrls = list_controllers()
-                    if _ctrls:
-                        config = _rep_play(
-                            config,
-                            controller=_rep_play(
-                                config.controller,
-                                enabled=True,
-                                poll_rate_hz=float(getattr(args, "controller_rate", 1000.0)),
-                            ),
-                        )
-                        log.info(
-                            "play auto-enabled controller (DualSense detected): %s", _ctrls[:2]
-                        )
+                    config = _rep_play(
+                        config,
+                        controller=_rep_play(
+                            config.controller,
+                            enabled=True,
+                            poll_rate_hz=float(getattr(args, "controller_rate", 1000.0)),
+                        ),
+                    )
+                    log.info("play: controller lobe waiting for DualSense (USB/BT hot-plug)")
                 except Exception as _e:
-                    log.debug("play controller auto-enable skipped: %s", _e)
+                    log.debug("play controller enable skipped: %s", _e)
             # mss desktop only when user explicitly asked (--screen). Desktop frames
             # make LocalVLM guess football from wallpaper green while OCR crop is empty.
             if getattr(args, "screen", False):

@@ -9,7 +9,7 @@ Exports:
 - visual: VisualRuntime, VisualConfig (from core), MockVLMClient
 """
 
-from .controller import ControllerRuntime, list_controllers
+from .controller import ControllerRuntime, get_controller_runtime, list_controllers
 from .outcome import OutcomeRuntime, OutcomeTrigger
 from .screen import ScreenRuntime, list_monitors
 from .streamer import StreamerRuntime
@@ -18,6 +18,7 @@ from .visual import MockVLMClient, VisualRuntime
 __all__ = [
     "StreamerRuntime",
     "ControllerRuntime",
+    "get_controller_runtime",
     "list_controllers",
     "OutcomeRuntime",
     "OutcomeTrigger",

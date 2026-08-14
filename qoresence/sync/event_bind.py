@@ -121,6 +121,11 @@ class EventBinder:
             return None
         return binds[-1].lag_ms
 
+    def clear(self) -> None:
+        with self._lock:
+            self._visual.clear()
+            self._hid.clear()
+
 
 _binder = EventBinder()
 

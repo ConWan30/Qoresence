@@ -22,7 +22,7 @@ from qoresence.core import (
     SessionAuthority,
     SourceLobe,
 )
-from qoresence.lobes.controller import ControllerRuntime, list_controllers
+from qoresence.lobes.controller import ControllerRuntime, get_controller_runtime, list_controllers
 
 
 class FakeHIDDevice:
@@ -132,8 +132,11 @@ class TestControllerRuntime:
 
             assert runtime.start() is True
             assert runtime.is_running()
+            assert runtime.get_stats()["connected"] is True
+            assert get_controller_runtime() is runtime
 
             runtime.stop()
+            assert get_controller_runtime() is None
 
     @patch("qoresence.lobes.controller.HIDDevice")
     def test_button_press_emits_events(self, mock_device_class):
@@ -428,6 +431,78 @@ class TestListControllers:
         assert controllers[0]["vid"] == 0x054C
         assert controllers[0]["pid"] == 0x0CE6
         assert "DualSense" in controllers[0]["product"]
+
+
+class TestHotPlugAndFixture:
+    """Waiting mode + software DualSense through ingest_report."""
+
+    @patch("qoresence.lobes.controller.list_controllers", return_value=[])
+    @patch("qoresence.lobes.controller.HIDDevice")
+    def test_start_without_device_waits(self, mock_device_class, _mock_list):
+        fake = FakeHIDDevice([])
+        fake.open = lambda *a, **k: (_ for _ in ()).throw(OSError("no pad"))
+        fake.open_path = lambda *a, **k: (_ for _ in ()).throw(OSError("no pad"))
+        mock_device_class.return_value = fake
+
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="wait_test", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="wait_test")
+            runtime = ControllerRuntime(
+                config=ControllerConfig(enabled=True),
+                bus=bus,
+                session_head_ns=identity.session_head_ns,
+            )
+            assert runtime.start() is True
+            assert runtime.is_running()
+            stats = runtime.get_stats()
+            assert stats["connected"] is False
+            assert stats["waiting"] is True
+            runtime.stop()
+
+    def test_fixture_bodied_r2_binds_score(self):
+        from qoresence.sync.dualsense_fixture import feed_bodied_r2
+
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="fix_test", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="fix_test")
+            runtime = ControllerRuntime(
+                config=ControllerConfig(enabled=True),
+                bus=bus,
+                session_head_ns=identity.session_head_ns,
+            )
+            out = feed_bodied_r2(runtime)
+            assert out["ok"] is True
+            assert out["last_bind"]["mode"] == "TEMPORAL"
+            assert out["last_bind"]["visual_kind"] == "score_changed"
+            assert out["last_bind"]["hid_name"] in {"R2", "r2_btn"}
+            assert out["imu_bodied"] is True
+            assert runtime.get_stats()["reports"] >= 4
+
+    @patch("qoresence.lobes.controller.HIDDevice")
+    def test_reconnect_after_drop(self, mock_device_class):
+        reports = [_make_dualsense_report() for _ in range(30)]
+        fake = FakeHIDDevice(reports)
+        mock_device_class.return_value = fake
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="re_test", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="re_test")
+            runtime = ControllerRuntime(
+                config=ControllerConfig(enabled=True, device_vid=0x054C, device_pid=0x0CE6),
+                bus=bus,
+                session_head_ns=identity.session_head_ns,
+            )
+            runtime._reconnect_s = 0.05
+            assert runtime.start() is True
+            time.sleep(0.05)
+            assert runtime.get_stats()["connected"] is True
+            runtime._drop_device()
+            assert runtime.get_stats()["connected"] is False
+            time.sleep(0.2)
+            assert runtime.get_stats()["connected"] is True
+            runtime.stop()
 
 
 class TestPresenceTouchFile:

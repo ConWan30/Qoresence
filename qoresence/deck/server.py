@@ -82,27 +82,47 @@ class DeckState:
             pass
         controller: dict[str, Any] = {}
         try:
+            from qoresence.lobes.controller import get_controller_runtime
+
+            rt = get_controller_runtime()
+            if rt is not None:
+                stats = rt.get_stats()
+                controller.update(
+                    {
+                        "connected": bool(stats.get("connected")),
+                        "waiting": bool(stats.get("waiting")),
+                        "device": stats.get("device"),
+                        "transport": stats.get("transport"),
+                        "reports": stats.get("reports", 0),
+                        "reconnects": stats.get("reconnects", 0),
+                    }
+                )
+        except Exception:
+            pass
+        try:
             from qoresence.sync.input_ring import get_input_ring
             from qoresence.sync.ivc import get_ivc, get_last_coupling
 
             if get_ivc() is not None:
                 coup = get_last_coupling()
-                controller = {
-                    "buttons": get_input_ring().latest_buttons()[:8],
-                    "coupling": coup.get("coupling", 0.0),
-                    "frame_seq": coup.get("frame_seq", 0),
-                    "input_energy": coup.get("input_energy", 0.0),
-                    "imu_bodied": bool(coup.get("imu_bodied")),
-                    "imu_precursor_ms": coup.get("imu_precursor_ms"),
-                    "imu_precursor_name": coup.get("imu_precursor_name"),
-                    "binds": int(coup.get("binds") or 0),
-                    "last_bind_ms": coup.get("last_bind_ms"),
-                    "last_bind_kind": coup.get("last_bind_kind"),
-                    "last_bind_hid": coup.get("last_bind_hid"),
-                    "lag_band_ms": coup.get("lag_band_ms"),
-                }
+                controller.update(
+                    {
+                        "buttons": get_input_ring().latest_buttons()[:8],
+                        "coupling": coup.get("coupling", 0.0),
+                        "frame_seq": coup.get("frame_seq", 0),
+                        "input_energy": coup.get("input_energy", 0.0),
+                        "imu_bodied": bool(coup.get("imu_bodied")),
+                        "imu_precursor_ms": coup.get("imu_precursor_ms"),
+                        "imu_precursor_name": coup.get("imu_precursor_name"),
+                        "binds": int(coup.get("binds") or 0),
+                        "last_bind_ms": coup.get("last_bind_ms"),
+                        "last_bind_kind": coup.get("last_bind_kind"),
+                        "last_bind_hid": coup.get("last_bind_hid"),
+                        "lag_band_ms": coup.get("lag_band_ms"),
+                    }
+                )
         except Exception:
-            controller = {}
+            pass
         out: dict[str, Any] = {
             "type": "snapshot",
             "situation": self.situation,
