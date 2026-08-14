@@ -21,6 +21,7 @@ from qoresence.studio.ghost_cut import (
     cut_highlight,
     held_at,
     load_button_timeline,
+    play_window,
     precursor_at,
 )
 from qoresence.studio.receipt import ReelReceipt, write_receipt
@@ -150,6 +151,16 @@ def test_pick_play_chapter_prefers_touchdown_label_over_t0_board():
     )
     assert picked is not None
     assert "TOUCHDOWN" in picked["label"]
+
+
+def test_play_window_gives_td_room_for_the_throw():
+    pre, post = play_window(
+        {"kind": "confirm_chat", "label": "TOUCHDOWN! Away storms back—14-13", "t_s": 10.0}
+    )
+    assert pre >= 6.0
+    assert post >= 12.0
+    short = play_window({"kind": "fast_chat", "label": "heat", "t_s": 4.0})
+    assert short[1] < post
 
 
 def test_score_play_chapter_hid_near_boosts():

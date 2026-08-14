@@ -298,6 +298,21 @@ def _draw_hud(
     return frame
 
 
+def play_window(chapter: dict[str, Any]) -> tuple[float, float]:
+    """Seconds before/after the chapter mark so a football play can finish."""
+    k = str(chapter.get("kind") or "")
+    lab = str(chapter.get("label") or "").lower()
+    if (
+        k in {"score_changed", "touchdown", "clutch"}
+        or k.startswith("confirm_score")
+        or "touchdown" in lab
+        or "score update" in lab
+        or "field goal" in lab
+    ):
+        return 6.0, 12.0
+    return 4.0, 8.0
+
+
 def cut_highlight(
     clip_path: str | Path,
     chapter: dict[str, Any],
@@ -307,8 +322,8 @@ def cut_highlight(
     output_path: str | Path | None = None,
     session_id: str = "",
     game_profile: str = "",
-    pre_s: float = 2.0,
-    post_s: float = 4.0,
+    pre_s: float | None = None,
+    post_s: float | None = None,
     slow_last_s: float = 1.2,
     slow_factor: float = 0.5,
     timeline: list[GhostEvent] | None = None,
@@ -316,6 +331,12 @@ def cut_highlight(
     clip_path = Path(clip_path)
     if not clip_path.is_file():
         raise FileNotFoundError(clip_path)
+
+    win_pre, win_post = play_window(chapter)
+    if pre_s is None:
+        pre_s = win_pre
+    if post_s is None:
+        post_s = win_post
 
     t_mark = float(chapter.get("t_s") or 0.0)
     cap = cv2.VideoCapture(str(clip_path))
