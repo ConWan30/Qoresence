@@ -2,15 +2,27 @@
 
 Agent Society is an optional layer of **role-specialized agents** that sit on AgentGlass / Foundry / timeline. They use **Quicksilver** (same provider family as ClutchBot A2A: DeepSeek + Gemini slots) for **phrasing and reasoning only**.
 
+The *package* is default OFF. **`--play` turns it on** for every match (all five roles). Use `--no-agent-society` to opt out.
+
 They are **not** ClutchBot, **not** a Twitch poster, and **not** a capture owner.
 
 ## Enable
 
+`--play` turns Society **on** with every match (all five roles). No extra flag.
+
+```powershell
+python -m qoresence.cli --play --deck --controller --streamer-device 0 --streamer-fps 30
+# Society is already running (rules-only if no Quicksilver key)
+
+# opt out
+python -m qoresence.cli --play --deck --no-agent-society
+```
+
+Or set env (same effect as `--play`):
+
 ```powershell
 $env:QORESENCE_AGENT_SOCIETY = "1"
-$env:QORESENCE_AGENT_SOCIETY_ROLES = "spam_warden,pilot_auditor"
-# optional: same key file style as A2A / Quicksilver
-python -m qoresence.cli --play --deck --agent-glass --agent-society
+$env:QORESENCE_AGENT_SOCIETY_ROLES = "spam_warden,pilot_auditor,drive_coach,ghost_editor,prediction_steward"
 ```
 
 Without a key, roles run **rules-only** (no crash).

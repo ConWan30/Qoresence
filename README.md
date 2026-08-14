@@ -271,7 +271,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |
 | `--clutchbot` / Twitch flags | off | IRC + Helix (see clutchbot setup) |
 | `--agent-glass` | off | HTTP/WS spectator API (MCP-ready) |
-| `--agent-society` | off | Agent Society roles (warden/auditor/coach/editor) |
+| `--agent-society` | off (on with `--play`) | Agent Society roles; `--no-agent-society` to opt out |
 
 ---
 

@@ -10,6 +10,26 @@ from qoresence.agents.society.types import AgentPacket, AgentReceipt
 from qoresence.core.unified_config import RetinaUnifiedConfig
 
 
+def test_play_enables_society_all_roles():
+    from argparse import Namespace
+
+    from qoresence.cli import apply_society_cli
+
+    cfg = RetinaUnifiedConfig(session_id="s", session_head_ns=1)
+    assert getattr(cfg.society, "enabled", True) is False
+    on = apply_society_cli(cfg, Namespace(play=True, agent_society=False, agent_society_roles=None, no_agent_society=False))
+    assert on.society.enabled is True
+    assert set(on.society.roles) >= {
+        "spam_warden",
+        "pilot_auditor",
+        "drive_coach",
+        "ghost_editor",
+        "prediction_steward",
+    }
+    off = apply_society_cli(cfg, Namespace(play=True, no_agent_society=True, agent_society=False, agent_society_roles=None))
+    assert off.society.enabled is False
+
+
 def test_society_config_default_off():
     cfg = AgentSocietyConfig()
     assert cfg.enabled is False

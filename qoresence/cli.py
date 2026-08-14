@@ -1002,6 +1002,34 @@ def setup_logging(level: str = "INFO") -> None:
     )
 
 
+def apply_society_cli(config: RetinaUnifiedConfig, args) -> RetinaUnifiedConfig:
+    """--play turns Agent Society on (all roles). --no-agent-society opts out."""
+    from dataclasses import replace
+
+    from qoresence.agents.society.config import AgentSocietyConfig, _csv_roles
+    from qoresence.agents.society.types import KNOWN_ROLES
+
+    base = getattr(config, "society", None) or AgentSocietyConfig.from_env()
+    if not isinstance(base, AgentSocietyConfig):
+        base = AgentSocietyConfig.from_env()
+    if getattr(args, "no_agent_society", False):
+        return replace(config, society=replace(base, enabled=False))
+    if (
+        getattr(args, "play", False)
+        or getattr(args, "agent_society", False)
+        or getattr(args, "agent_society_roles", None)
+    ):
+        raw = getattr(args, "agent_society_roles", None)
+        if raw:
+            roles = _csv_roles(raw)
+        elif getattr(args, "play", False):
+            roles = KNOWN_ROLES
+        else:
+            roles = base.roles
+        return replace(config, society=replace(base, enabled=True, roles=roles))
+    return config
+
+
 def create_config_from_args(args) -> RetinaUnifiedConfig:
     """Create config from CLI arguments."""
     from dataclasses import replace
@@ -1175,24 +1203,7 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
                 )
             if getattr(args, "agent_glass_no_frame", False):
                 config.agent_glass = replace(config.agent_glass, allow_frame=False)
-        if getattr(args, "agent_society", False) or getattr(args, "agent_society_roles", None):
-            from qoresence.agents.society.config import AgentSocietyConfig
-
-            base = AgentSocietyConfig.from_env()
-            roles = base.roles
-            raw = getattr(args, "agent_society_roles", None)
-            if raw:
-                from qoresence.agents.society.config import _csv_roles
-
-                roles = _csv_roles(raw)
-            config = replace(
-                config,
-                society=replace(
-                    base,
-                    enabled=True,
-                    roles=roles,
-                ),
-            )
+        config = apply_society_cli(config, args)
     except Exception:
         pass
 
@@ -1580,7 +1591,12 @@ def main():
     parser.add_argument(
         "--agent-society",
         action="store_true",
-        help="Enable Agent Society (default OFF; ops agents, no Twitch, no capture)",
+        help="Enable Agent Society (also auto-on with --play)",
+    )
+    parser.add_argument(
+        "--no-agent-society",
+        action="store_true",
+        help="Disable Agent Society even under --play",
     )
     parser.add_argument(
         "--agent-society-roles",
