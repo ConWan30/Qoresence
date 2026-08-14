@@ -30,10 +30,10 @@ def _norm_btn(name: str) -> str:
 
 
 _FACE = {
-    "triangle": (0, -1, "Y"),
-    "circle": (1, 0, "B"),
-    "cross": (0, 1, "A"),
-    "square": (-1, 0, "X"),
+    "triangle": (0, -1),
+    "circle": (1, 0),
+    "cross": (0, 1),
+    "square": (-1, 0),
 }
 _SHOULDERS = ("l2", "l1", "r1", "r2")
 
@@ -205,6 +205,20 @@ def buttons_from_sidecar(clip_path: str | Path) -> dict[str, Any]:
     return names
 
 
+def _draw_ps_face(frame: np.ndarray, name: str, x: int, y: int, color: tuple[int, int, int]) -> None:
+    """PlayStation face glyphs. Hershey cannot draw △□○✕ reliably."""
+    if name == "triangle":
+        pts = np.array([[x, y - 5], [x - 5, y + 4], [x + 5, y + 4]], np.int32)
+        cv2.polylines(frame, [pts], True, color, 1, cv2.LINE_AA)
+    elif name == "square":
+        cv2.rectangle(frame, (x - 4, y - 4), (x + 4, y + 4), color, 1, cv2.LINE_AA)
+    elif name == "circle":
+        cv2.circle(frame, (x, y), 5, color, 1, cv2.LINE_AA)
+    elif name == "cross":
+        cv2.line(frame, (x - 4, y - 4), (x + 4, y + 4), color, 1, cv2.LINE_AA)
+        cv2.line(frame, (x + 4, y - 4), (x - 4, y + 4), color, 1, cv2.LINE_AA)
+
+
 def _draw_pad(
     frame: np.ndarray,
     held: set[str],
@@ -233,14 +247,14 @@ def _draw_pad(
         color = _color(name)
         cv2.rectangle(frame, (x, oy), (x + 32, oy + 16), color, 1, cv2.LINE_AA)
         cv2.putText(frame, name.upper(), (x + 3, oy + 12), font, 0.32, color, 1, cv2.LINE_AA)
-    # face cluster
+    # face cluster — DualSense △ ○ ✕ □ (not Xbox Y/B/A/X)
     cx, cy = ox + 90, oy + 58
-    for name, (dx, dy, glyph) in _FACE.items():
+    for name, (dx, dy) in _FACE.items():
         x = int(cx + dx * 28)
         y = int(cy + dy * 22)
         color = _color(name)
         cv2.circle(frame, (x, y), 11, color, 1, cv2.LINE_AA)
-        cv2.putText(frame, glyph, (x - 5, y + 4), font, 0.38, color, 1, cv2.LINE_AA)
+        _draw_ps_face(frame, name, x, y, color)
     extras = [n for n in sorted(held | body) if n not in _FACE and n not in _SHOULDERS]
     if extras:
         cv2.putText(frame, " ".join(extras[:4]).upper(), (ox, oy + 96), font, 0.36, on, 1, cv2.LINE_AA)

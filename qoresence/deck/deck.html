@@ -48,7 +48,7 @@ body.mode-replay #ghostPad.show{display:block}
 .gBtn{min-width:22px;height:16px;padding:0 4px;border:1px solid rgba(93,113,102,.8);border-radius:4px;color:#5d7166;font:700 8px/16px IBM Plex Mono,monospace;text-align:center;letter-spacing:.04em}
 .gBtn.on{color:#050a08;background:#c6f26a;border-color:#c6f26a;box-shadow:0 0 10px rgba(198,242,106,.45)}
 .gBtn.body{color:#050a08;background:#68d9e8;border-color:#68d9e8;box-shadow:0 0 10px rgba(104,217,232,.45)}
-.gFace .gBtn{width:20px;height:18px;border-radius:50%;padding:0;line-height:18px}
+.gFace .gBtn{width:20px;height:18px;border-radius:50%;padding:0;line-height:18px;font-size:11px}
 #ghostBody{display:none;margin-top:8px;font:700 8px/1.2 JetBrains Mono,monospace;letter-spacing:.08em;color:#68d9e8;text-align:right;text-transform:uppercase}
 #ghostBody.show{display:block}
 #player,#liveFeed,#liveRtc{position:relative;z-index:1;width:100%;height:100%;max-height:100%;object-fit:contain;background:#000;display:none}
@@ -118,9 +118,9 @@ body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{displa
         <span class="gBtn" data-b="r1">R1</span><span class="gBtn" data-b="r2">R2</span>
       </div>
       <div class="gFace">
-        <span></span><span class="gBtn" data-b="triangle">Y</span><span></span>
-        <span class="gBtn" data-b="square">X</span><span></span><span class="gBtn" data-b="circle">B</span>
-        <span></span><span class="gBtn" data-b="cross">A</span><span></span>
+        <span></span><span class="gBtn" data-b="triangle" title="Triangle">△</span><span></span>
+        <span class="gBtn" data-b="square" title="Square">□</span><span></span><span class="gBtn" data-b="circle" title="Circle">○</span>
+        <span></span><span class="gBtn" data-b="cross" title="Cross">✕</span><span></span>
       </div>
       <div id="ghostBody" aria-live="polite"></div>
     </div>
