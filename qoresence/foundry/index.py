@@ -518,6 +518,21 @@ def get_render_candidates(clips_dir=None, limit=3, kinds=None):
     for score, clip, ch in scored[:limit]:
         if want_kinds and str(ch.get("kind")) not in want_kinds:
             continue
+        onsets = clip.get("button_onsets") or []
+        try:
+            t_ch = float(ch.get("t_s") or 0.0)
+        except (TypeError, ValueError):
+            t_ch = 0.0
+        hid_near = _hid_near_boost(t_ch, onsets if isinstance(onsets, list) else [])
+        bodied = 0
+        if isinstance(onsets, list):
+            for o in onsets:
+                if isinstance(o, dict) and o.get("imu_precursor_ms") is not None:
+                    try:
+                        if float(o.get("imu_precursor_ms") or 0) > 0:
+                            bodied += 1
+                    except (TypeError, ValueError):
+                        continue
         out.append(
             {
                 "clip": clip.get("clip"),
@@ -525,6 +540,9 @@ def get_render_candidates(clips_dir=None, limit=3, kinds=None):
                 "score": round(float(score), 3),
                 "buttons_summary": clip.get("buttons_summary") or {},
                 "graph_summary": clip.get("graph_summary"),
+                "hid_near": round(float(hid_near), 3),
+                "bodied_onsets": bodied,
+                "onset_count": len(onsets) if isinstance(onsets, list) else 0,
             }
         )
     return out

@@ -186,7 +186,10 @@ function renderCands(items){
     const b=document.createElement('button');
     b.type='button'; b.className='cand'; b.setAttribute('data-name', c.name||'');
     const ch=c.chapter||{};
-    b.innerHTML='<span class="k">'+esc(ch.kind||'chapter')+'</span><span class="n">'+esc(c.name||'clip')+'</span><span class="m">'+esc(ch.label||'')+' · t '+Number(ch.t_s||0).toFixed(1)+'s</span>';
+    const hid=c.hid_near?(' · hid-near '+Number(c.hid_near).toFixed(2)):'';
+    const body=c.bodied_onsets?(' · body '+c.bodied_onsets):'';
+    const onsets=c.onset_count?(' · '+c.onset_count+' edges'):'';
+    b.innerHTML='<span class="k">'+esc(ch.kind||'chapter')+'</span><span class="n">'+esc(c.name||'clip')+'</span><span class="m">'+esc(ch.label||'')+' · t '+Number(ch.t_s||0).toFixed(1)+'s · score '+(c.score!=null?c.score:'—')+hid+body+onsets+'</span>';
     b.onclick=()=>selectCand(c);
     cands.appendChild(b);
   });
@@ -222,7 +225,14 @@ function loadReceipt(name){
   const rec=name.replace(/\.mp4$/i,'.receipt.json');
   fetch('/media/reels/'+rec).then(r=>r.ok?r.json():null).then(j=>{
     if(!j) return;
-    receipt.innerHTML='<b>RECEIPT</b>  '+esc(j.renderer||'ghost_cut')+'  ·  '+esc(j.chapter_kind||'')+'  ·  '+esc(j.chapter_label||'');
+    const meta=j.metadata||{};
+    const binds=Array.isArray(meta.binds)?meta.binds:[];
+    const bindLine=binds.slice(0,4).map(b=>{
+      return (b.hid_name||'?')+'→'+(b.visual_kind||'?')+(b.lag_ms!=null?(' '+Number(b.lag_ms).toFixed(0)+'ms'):'')+(b.imu_precursor_ms!=null?(' body −'+Number(b.imu_precursor_ms).toFixed(0)+'ms'):'');
+    }).join(' · ');
+    receipt.innerHTML='<b>RECEIPT</b>  '+esc(j.renderer||'ghost_cut')+'  ·  '+esc(j.chapter_kind||'')+'  ·  '+esc(j.chapter_label||'')
+      +'<div>body '+(meta.imu_bodied?'yes':'no')+' · ghosts '+(meta.ghost_events!=null?meta.ghost_events:'—')+' · t '+Number(j.source_t_s||0).toFixed(2)+'s</div>'
+      +(bindLine?'<div>'+esc(bindLine)+'</div>':'<div>no TEMPORAL bind on this cut</div>');
   }).catch(()=>{});
 }
 async function refresh(){

@@ -82,6 +82,9 @@ def list_candidates(limit: int = 8, kinds: str | None = None) -> list[dict[str, 
                 "score": item.get("score"),
                 "buttons_summary": item.get("buttons_summary") or {},
                 "graph_summary": item.get("graph_summary"),
+                "hid_near": item.get("hid_near", 0),
+                "bodied_onsets": item.get("bodied_onsets", 0),
+                "onset_count": item.get("onset_count", 0),
             }
         )
     return out

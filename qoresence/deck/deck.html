@@ -63,7 +63,13 @@ body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{displa
 .card h3{display:flex;align-items:center;justify-content:space-between;font:800 10px/1 JetBrains Mono,monospace;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:12px}.cardCode{color:var(--cyan);font:700 9px/1 JetBrains Mono,monospace;letter-spacing:.08em}.card h3::after{content:"";width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
 #strip{font:800 18px/1.35 JetBrains Mono,monospace;min-height:28px;color:var(--text);letter-spacing:-.03em}#strip.wait{color:var(--muted);font-weight:600;font-size:13px}
 #ctrlStrip{font:800 14px/1.35 JetBrains Mono,monospace;min-height:22px;color:var(--text)}#ctrlStrip.wait{color:var(--muted);font-weight:600;font-size:12px}#ctrlStrip.sync-ok{color:var(--gold)}#ctrlStrip.sync-bad{color:var(--danger)}
-#ctrlDetail{display:flex;gap:14px;margin-top:9px;font:600 10px/1.3 JetBrains Mono,monospace;color:var(--muted)}#ctrlDetail span{white-space:nowrap}#ctrlDetail b{color:var(--text);font-weight:800}
+#ctrlDetail{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:9px;font:600 10px/1.3 JetBrains Mono,monospace;color:var(--muted)}#ctrlDetail span{white-space:nowrap}#ctrlDetail b{color:var(--text);font-weight:800}
+#ctrlPlane{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;margin-top:12px}
+.kv{display:flex;flex-direction:column;gap:2px;min-width:0}
+.kv i{font:700 8px/1 JetBrains Mono,monospace;letter-spacing:.08em;color:var(--dim);text-transform:uppercase;font-style:normal}
+.kv b{font:700 11px/1.25 JetBrains Mono,monospace;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kv.hot b{color:var(--cyan)}.kv.ok b{color:var(--gold)}.kv.bad b{color:var(--danger)}
+#vidMeta{font:600 10px/1.3 JetBrains Mono,monospace;color:var(--dim);margin-top:6px}
 #lat{font:600 10px/1.3 JetBrains Mono,monospace;color:var(--dim);margin-top:9px}#bufBar{height:7px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:11px}#bufFill{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--gold));transition:width .3s}#bufLabel{font:600 10px JetBrains Mono,monospace;color:var(--muted);margin-top:7px}
 #feedCard{flex:1;min-height:0;display:flex;flex-direction:column}#feed{display:flex;flex-direction:column;gap:8px;flex:1;min-height:120px;max-height:none;overflow:auto}#feed.empty::before{content:"Moments · score / fast path · playable clips appear here";color:var(--muted);font:500 12px/1.4 Inter,sans-serif;padding:4px 0}
 .item{padding:12px;border-radius:12px;background:rgba(104,217,232,.07);border:1px solid rgba(104,217,232,.2);font:600 12px/1.35 Inter,sans-serif}.item.playable{cursor:pointer;display:flex;align-items:center;gap:12px}.item.playable:hover{border-color:var(--gold);background:var(--gold-dim)}.item .play{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--gold);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900}.item .body{min-width:0;flex:1}.item .body .t{font-weight:800}.item .body .r{font:600 10px/1.3 JetBrains Mono,monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:4px}
@@ -127,6 +133,7 @@ body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{displa
     <h3><span>Situation</span><span class="cardCode">01</span></h3>
     <div id="strip" class="wait">Waiting for scoreboard…</div>
     <div id="lat">deck live</div>
+    <div id="vidMeta">video —</div>
     <div id="bufBar"><div id="bufFill"></div></div>
     <div id="bufLabel">Buffer: …</div>
   </div>
@@ -134,6 +141,7 @@ body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{displa
     <h3><span>Controller</span><span class="cardCode">02</span></h3>
     <div id="ctrlStrip" class="wait">No controller</div>
     <div id="ctrlDetail"></div>
+    <div id="ctrlPlane" aria-label="Observation plane"></div>
   </div>
   <div class="card" id="chaptersCard">
     <h3><span>Replay chapters</span><span class="cardCode">03</span></h3>
@@ -169,8 +177,9 @@ const btnLive=document.getElementById('btnLive'), btnReplay=document.getElementB
 const statusDot=document.getElementById('statusDot'), statusText=document.getElementById('statusText');
 const bufFill=document.getElementById('bufFill'), bufLabel=document.getElementById('bufLabel');
 const chaptersCard=document.getElementById('chaptersCard'), chapterList=document.getElementById('chapterList');
+const ctrlPlane=document.getElementById('ctrlPlane'), vidMeta=document.getElementById('vidMeta');
 let activeUrl='', mode='live', rtcPc=null, liveMode='mjpeg';
-let lastCtrl=null;
+let lastCtrl=null, lastVideo=null;
 
 function setStatus(kind, text){
   statusDot.className='dot'+(kind==='ok'?'':kind==='bad'?' bad':' warn');
@@ -358,7 +367,7 @@ function paintLivePad(ctrl){
   buttons.forEach(n=>{ held[String(n).toLowerCase()]=true; });
   const bodied=!!(ctrl&&ctrl.imu_bodied);
   const bodyName=ctrl&&ctrl.imu_precursor_name?String(ctrl.imu_precursor_name).toLowerCase():'';
-  if(buttons.length || bodied) pad.classList.add('show');
+  if(buttons.length || bodied || ctrl.waiting || ctrl.connected) pad.classList.add('show');
   else pad.classList.remove('show');
   pad.querySelectorAll('[data-b]').forEach(el=>{
     const n=el.getAttribute('data-b');
@@ -478,6 +487,90 @@ function addMoment(p){
   while(feed.children.length>FEED_MAX) feed.removeChild(feed.lastChild);
   return true;
 }
+function dash(v){ return (v==null||v==='')?'—':String(v); }
+function fmtNum(v, d){
+  if(v==null||v==='') return '—';
+  const n=Number(v);
+  return Number.isNaN(n)?'—':n.toFixed(d==null?2:d);
+}
+function kv(label, value, cls){
+  return '<div class="kv'+(cls?' '+cls:'')+'"><i>'+label+'</i><b>'+value+'</b></div>';
+}
+function paintVideo(video){
+  if(video) lastVideo=video;
+  const v=video||lastVideo||{};
+  if(!vidMeta) return;
+  const age=v.age_s!=null?Number(v.age_s).toFixed(2)+'s':'—';
+  const frames=v.frames!=null?v.frames:(v.pushes!=null?v.pushes:'—');
+  const fps=v.live_fps_default!=null?v.live_fps_default:(v.fps!=null?v.fps:'—');
+  vidMeta.textContent='age '+age+' · frames '+frames+' · fps '+fps+(v.has_frame?' · frame':'');
+  const hud=document.querySelector('.stageHudBottom');
+  if(hud){
+    const c=lastCtrl||{};
+    const port=(c.transport||'').toUpperCase();
+    const body=c.imu_bodied?' · BODY':'';
+    const wait=c.waiting&&!c.connected?' · WAITING':'';
+    hud.innerHTML='FRAMEHUB / NO SECOND CAPTURE'+(port?' · <strong>'+port+'</strong>':'')+body+wait;
+  }
+}
+function paintController(ctrl, sit){
+  lastCtrl=ctrl||{};
+  paintLivePad(lastCtrl);
+  const s=sit||{};
+  const c=lastCtrl;
+  const syncOk=!!s.presence_sync_ok || (c.coupling||0)>0 || !!(c.buttons&&c.buttons.length) || !!c.imu_bodied || !!c.connected;
+  const apm=s.controller_apm||0, trig=s.controller_triggers_5s||0, stick=s.controller_stick_motion_5s||0;
+  ctrlStrip.classList.remove('wait','sync-ok','sync-bad');
+  if(c.waiting && !c.connected){
+    ctrlStrip.textContent='WAITING FOR DUALSENSE';
+    ctrlStrip.classList.add('wait');
+  } else if(c.imu_bodied){
+    const ms=c.imu_precursor_ms!=null?Math.round(Number(c.imu_precursor_ms)):'';
+    ctrlStrip.textContent='BODY'+(ms!==''&&!Number.isNaN(ms)?' −'+ms+'ms':'')+(c.imu_precursor_name?(' '+String(c.imu_precursor_name).toUpperCase()):'');
+    ctrlStrip.classList.add('sync-ok');
+  } else if((c.coupling||0)>0){
+    ctrlStrip.textContent='COUPLED · '+Number(c.coupling).toFixed(2);
+    ctrlStrip.classList.add('sync-ok');
+  } else if(c.connected){
+    ctrlStrip.textContent='CONNECTED · '+(c.transport||'hid').toUpperCase();
+    ctrlStrip.classList.add('sync-ok');
+  } else if(syncOk){
+    ctrlStrip.textContent='SYNC OK · '+apm.toFixed(0)+' APM';
+    ctrlStrip.classList.add('sync-ok');
+  } else {
+    ctrlStrip.textContent='No controller';
+    ctrlStrip.classList.add('sync-bad');
+  }
+  const bindBits=[];
+  if(c.last_bind_kind) bindBits.push(c.last_bind_kind+(c.last_bind_hid?('←'+c.last_bind_hid):''));
+  if(c.last_bind_ms!=null) bindBits.push(Number(c.last_bind_ms).toFixed(0)+'ms');
+  ctrlDetail.innerHTML='<span>APM <b>'+apm.toFixed(0)+'</b></span><span>Trig/5s <b>'+trig+'</b></span><span>Stick <b>'+Number(stick).toFixed(1)+'</b></span>'+(bindBits.length?'<span>BIND <b>'+bindBits.join(' ')+'</b></span>':'');
+  const lag=Array.isArray(c.lag_band_ms)&&c.lag_band_ms.length===2
+    ? (Number(c.lag_band_ms[0]).toFixed(0)+'–'+Number(c.lag_band_ms[1]).toFixed(0)+'ms')
+    : '—';
+  const device=c.device?String(c.device).replace(/^.*[\\/]/,'').slice(0,28):'—';
+  const padState=c.connected?'live':(c.waiting?'wait':'off');
+  const padCls=c.connected?'ok':(c.waiting?'hot':'bad');
+  if(ctrlPlane){
+    ctrlPlane.innerHTML=
+      kv('pad', padState, padCls)+
+      kv('port', dash((c.transport||'').toUpperCase()||null))+
+      kv('device', device)+
+      kv('reports', dash(c.reports))+
+      kv('reconnects', dash(c.reconnects))+
+      kv('coupling', fmtNum(c.coupling, 2), (c.coupling||0)>0?'ok':'')+
+      kv('energy', fmtNum(c.input_energy, 2))+
+      kv('events', dash(c.input_events))+
+      kv('lag', lag)+
+      kv('binds', dash(c.binds), c.binds?'hot':'')+
+      kv('bind', dash(c.last_bind_kind)+(c.last_bind_hid?(' ← '+c.last_bind_hid):''), c.last_bind_kind?'hot':'')+
+      kv('bind ms', c.last_bind_ms!=null?Number(c.last_bind_ms).toFixed(0)+'ms':'—')+
+      kv('body', c.imu_bodied?( (c.imu_precursor_ms!=null?('−'+Math.round(Number(c.imu_precursor_ms))+'ms'):'yes')+' '+(c.imu_precursor_name||'').toString().toUpperCase() ):'—', c.imu_bodied?'hot':'')+
+      kv('stick↔gyro', fmtNum(c.stick_gyro_r, 2))+
+      kv('stick↔pix', fmtNum(c.stick_motion_r, 2))+
+      kv('frame', dash(c.frame_seq));
+  }
+}
 function applySnap(snap,latMs){
   if(snap && snap.situation && isLiveSit(snap.situation)){
     strip.textContent=fmt(snap.situation); strip.classList.remove('wait');
@@ -490,35 +583,8 @@ function applySnap(snap,latMs){
   if(snap && snap.video && (snap.video.has_frame || (snap.video.frames||0)>0)){
     if(mode==='live') markHasVideo(true);
   }
-  // Controller strip + live ghost pad (observation plane)
-  const ctrl=(snap&&snap.controller)||{};
-  lastCtrl=ctrl;
-  paintLivePad(ctrl);
-  if(snap && (snap.situation || snap.controller)){
-    const s=snap.situation||{};
-    const syncOk=!!s.presence_sync_ok || (ctrl.coupling||0)>0 || !!(ctrl.buttons&&ctrl.buttons.length) || !!ctrl.imu_bodied;
-    const apm=s.controller_apm||0, trig=s.controller_triggers_5s||0, stick=s.controller_stick_motion_5s||0;
-    ctrlStrip.classList.remove('wait','sync-ok','sync-bad');
-    if(ctrl.waiting && !ctrl.connected){
-      ctrlStrip.textContent='WAITING FOR DUALSENSE';
-      ctrlStrip.classList.add('wait');
-    } else if(ctrl.imu_bodied){
-      const ms=ctrl.imu_precursor_ms!=null?Math.round(Number(ctrl.imu_precursor_ms)):'';
-      ctrlStrip.textContent='BODY'+(ms!==''&&!Number.isNaN(ms)?' −'+ms+'ms':'');
-      ctrlStrip.classList.add('sync-ok');
-    } else if((ctrl.coupling||0)>0){
-      ctrlStrip.textContent='COUPLED · '+Number(ctrl.coupling).toFixed(2);
-      ctrlStrip.classList.add('sync-ok');
-    } else if(syncOk){
-      ctrlStrip.textContent='SYNC OK · '+apm.toFixed(0)+' APM';
-      ctrlStrip.classList.add('sync-ok');
-    } else {
-      ctrlStrip.textContent='No controller';
-      ctrlStrip.classList.add('sync-bad');
-    }
-    const bind=ctrl.last_bind_kind?('BIND <b>'+ctrl.last_bind_kind+(ctrl.last_bind_hid?('←'+ctrl.last_bind_hid):'')+'</b>'):'';
-    ctrlDetail.innerHTML='<span>APM <b>'+apm.toFixed(0)+'</b></span><span>Trig/5s <b>'+trig+'</b></span><span>Stick <b>'+stick.toFixed(1)+'</b></span>'+(bind?'<span>'+bind+'</span>':'');
-  }
+  paintVideo(snap&&snap.video);
+  paintController((snap&&snap.controller)||{}, snap&&snap.situation);
   // Merge moments without wiping — poll used to re-render the same 3 forever
   if(snap && Array.isArray(snap.moments) && snap.moments.length){
     snap.moments.forEach(function(m){ addMoment(m); });
@@ -543,7 +609,32 @@ function connect(){
   }catch{ setTimeout(connect,1200); }
 }
 connect();
+paintController({}, {});
+paintVideo({});
 setInterval(()=>{fetch('/api/situation').then(r=>r.json()).then(j=>{ if(j) handle(j.type==='snapshot'?j:{state:j}); }).catch(()=>{});},2000);
+setInterval(()=>{fetch('/health').then(r=>r.json()).then(h=>{
+  if(!h) return;
+  const coup=h.coupling||{};
+  const st=h.state||{};
+  const merged=Object.assign({}, lastCtrl, st.controller||{});
+  if(coup.imu_bodied!=null) merged.imu_bodied=coup.imu_bodied;
+  if(coup.imu_precursor_ms!=null) merged.imu_precursor_ms=coup.imu_precursor_ms;
+  if(coup.imu_precursor_name) merged.imu_precursor_name=coup.imu_precursor_name;
+  if(coup.coupling!=null) merged.coupling=coup.coupling;
+  if(coup.binds!=null) merged.binds=coup.binds;
+  if(coup.last_bind_kind) merged.last_bind_kind=coup.last_bind_kind;
+  if(coup.last_bind_hid) merged.last_bind_hid=coup.last_bind_hid;
+  if(coup.last_bind_ms!=null) merged.last_bind_ms=coup.last_bind_ms;
+  if(coup.lag_band_ms) merged.lag_band_ms=coup.lag_band_ms;
+  if(coup.stick_gyro_r!=null) merged.stick_gyro_r=coup.stick_gyro_r;
+  if(coup.stick_motion_r!=null) merged.stick_motion_r=coup.stick_motion_r;
+  if(coup.input_energy!=null) merged.input_energy=coup.input_energy;
+  if(coup.input_events!=null) merged.input_events=coup.input_events;
+  if(coup.frame_seq!=null) merged.frame_seq=coup.frame_seq;
+  if(coup.buttons) merged.buttons=coup.buttons;
+  paintController(merged, st.situation);
+  paintVideo(st.video||{});
+}).catch(()=>{});},1500);
 
 function doClip(){
   btnClip.disabled=true;

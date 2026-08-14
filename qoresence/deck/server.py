@@ -111,6 +111,7 @@ class DeckState:
                         "coupling": coup.get("coupling", 0.0),
                         "frame_seq": coup.get("frame_seq", 0),
                         "input_energy": coup.get("input_energy", 0.0),
+                        "input_events": coup.get("input_events", 0),
                         "imu_bodied": bool(coup.get("imu_bodied")),
                         "imu_precursor_ms": coup.get("imu_precursor_ms"),
                         "imu_precursor_name": coup.get("imu_precursor_name"),
@@ -119,6 +120,9 @@ class DeckState:
                         "last_bind_kind": coup.get("last_bind_kind"),
                         "last_bind_hid": coup.get("last_bind_hid"),
                         "lag_band_ms": coup.get("lag_band_ms"),
+                        "stick_gyro_r": coup.get("stick_gyro_r"),
+                        "stick_motion_r": coup.get("stick_motion_r"),
+                        "path": coup.get("path") or "fast",
                     }
                 )
         except Exception:

@@ -330,6 +330,13 @@ def test_foundry_bay_routes_registered():
     html = _html("studio.html")
     assert "Foundry Bay" in html
     assert "Cut highlight" in html
+    deck = _html("deck.html")
+    assert 'id="ctrlPlane"' in deck
+    assert "WAITING FOR DUALSENSE" in deck
+    lens = _html("overlay.html")
+    assert 'id="pad"' in lens
+    assert 'id="bind"' in lens
+    assert 'id="body"' in lens
     app = create_app()
     if app is None:
         pytest.skip("fastapi not installed")
