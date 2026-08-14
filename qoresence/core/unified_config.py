@@ -542,6 +542,9 @@ class RetinaUnifiedConfig:
     clutchbot: ClutchBotConfig = field(default_factory=ClutchBotConfig)
     agent_glass: AgentGlassConfig = field(default_factory=AgentGlassConfig)
     studio: StudioConfig = field(default_factory=StudioConfig)
+    society: object = field(default_factory=lambda: __import__(
+        "qoresence.agents.society.config", fromlist=["AgentSocietyConfig"]
+    ).AgentSocietyConfig())
 
     # ── Network Publisher ────────────────────────────────────────────────────
     streamr: StreamrConfig = field(default_factory=StreamrConfig)
@@ -858,6 +861,9 @@ class RetinaUnifiedConfig:
                 max_reels_per_session=_int("QORESENCE_STUDIO_MAX_REELS", 3),
                 output_dir=_str("QORESENCE_STUDIO_OUTPUT_DIR", "clips"),
             ),
+            society=__import__(
+                "qoresence.agents.society.config", fromlist=["AgentSocietyConfig"]
+            ).AgentSocietyConfig.from_env(),
         )
 
     # ─────────────────────────────────────────────────────────────────────────

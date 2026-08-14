@@ -29,6 +29,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 | **Input–Video Coupler (IVC)** | DualSense edges join `clock_ns` / `frame_seq` for co-occurrence *coupling* (observation only) |
 | **Two-speed ClutchBot** | `path=fast` video+input soft acts; OCR/outcome is `path=confirm` referee (never invents scores on fast) |
 | **A2A bus (optional)** | Gemini scene ↔ DeepSeek chat via Quicksilver; local policy veto; does not replace OCR |
+| **Agent Society (optional, default OFF)** | Narrow ops agents (warden, auditor, coach, editor) on glass/Foundry; Quicksilver phrasing only |
 | **Local HDMI Foundry** | True capture-ring clips (`clips/*.mp4`) + optional `.buttons.json` sidecars — not Twitch Helix-only |
 | **Foundry RAG** | Search past clips by chapter/buttons/graph/timeline — software-only, no capture needed |
 | **Causal event bus** | Every event carries `session_id` + `clock_ns` + `source_lobe` |
@@ -68,6 +69,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 | Operator glass | `--deck` / `--monitor` | Theater, Lens, native monitor |
 | Social | `--clutchbot` | Chat, clips, predictions |
 | Spectator | `--agent-glass` | HTTP/WS API + MCP for AI agents |
+| Society | `--agent-society` | Ops agents on glass (default OFF; no Twitch, no capture) |
 | Research | Off | Fusion, trio-retina / WASM |
 
 ---
@@ -269,6 +271,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |
 | `--clutchbot` / Twitch flags | off | IRC + Helix (see clutchbot setup) |
 | `--agent-glass` | off | HTTP/WS spectator API (MCP-ready) |
+| `--agent-society` | off | Agent Society roles (warden/auditor/coach/editor) |
 
 ---
 
@@ -327,6 +330,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | [docs/PRIORITY_INTEGRATIONS.md](docs/PRIORITY_INTEGRATIONS.md) | Timeline · prediction lifecycle · clip chapters |
 | [docs/DRIVE_GRAPH.md](docs/DRIVE_GRAPH.md) | DriveGraph climax · fast↔confirm match · Why/chapters |
 | [docs/AGENT_GLASS.md](docs/AGENT_GLASS.md) | AgentGlass / MCP spectator API |
+| [docs/AGENT_SOCIETY.md](docs/AGENT_SOCIETY.md) | Agent Society (default OFF; ops roles) |
 | [docs/STREAMR.md](docs/STREAMR.md) | Experimental Streamr (default OFF) |
 | [docs/A2A_CLUTCHBOT.md](docs/A2A_CLUTCHBOT.md) | Gemini↔DeepSeek A2A bus · Quicksilver Pro |
 | [docs/RELEASE_HARDENING.md](docs/RELEASE_HARDENING.md) | CI localhost · latency · soak preflight |

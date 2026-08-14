@@ -428,6 +428,16 @@ class QoresenceApp:
         except Exception as e:
             log.warning("AgentGlass init failed: %s", e)
 
+        self.society = None
+        try:
+            soc = getattr(self.config, "society", None)
+            if soc is not None and getattr(soc, "enabled", False):
+                from qoresence.agents.society import start_society
+
+                self.society = start_society(soc)
+        except Exception as e:
+            log.warning("Agent Society init failed: %s", e)
+
         # Input–Video Coupler (only when controller enabled)
         self.ivc = None
 
@@ -856,6 +866,15 @@ class QoresenceApp:
                 pass
             self.agent_glass = None
 
+        if getattr(self, "society", None) is not None:
+            try:
+                from qoresence.agents.society import stop_society
+
+                stop_society()
+            except Exception:
+                pass
+            self.society = None
+
         if self.streamr_publisher:
             self.streamr_publisher.stop()
 
@@ -1156,6 +1175,24 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
                 )
             if getattr(args, "agent_glass_no_frame", False):
                 config.agent_glass = replace(config.agent_glass, allow_frame=False)
+        if getattr(args, "agent_society", False) or getattr(args, "agent_society_roles", None):
+            from qoresence.agents.society.config import AgentSocietyConfig
+
+            base = AgentSocietyConfig.from_env()
+            roles = base.roles
+            raw = getattr(args, "agent_society_roles", None)
+            if raw:
+                from qoresence.agents.society.config import _csv_roles
+
+                roles = _csv_roles(raw)
+            config = replace(
+                config,
+                society=replace(
+                    base,
+                    enabled=True,
+                    roles=roles,
+                ),
+            )
     except Exception:
         pass
 
@@ -1539,6 +1576,26 @@ def main():
     )
     parser.add_argument(
         "--agent-glass-no-frame", action="store_true", help="Disable AgentGlass frame endpoint"
+    )
+    parser.add_argument(
+        "--agent-society",
+        action="store_true",
+        help="Enable Agent Society (default OFF; ops agents, no Twitch, no capture)",
+    )
+    parser.add_argument(
+        "--agent-society-roles",
+        default=None,
+        help="CSV roles: spam_warden,pilot_auditor,drive_coach,ghost_editor,prediction_steward",
+    )
+    parser.add_argument(
+        "--society-audit",
+        action="store_true",
+        help="One-shot pilot_auditor closeout (no --play) then exit",
+    )
+    parser.add_argument(
+        "--society-propose-cuts",
+        action="store_true",
+        help="One-shot ghost_editor proposals (no --play) then exit",
     )
     parser.add_argument(
         "--profiles-list",
@@ -1982,6 +2039,19 @@ def main():
                 pass
         except Exception:
             pass
+
+    if getattr(args, "society_audit", False) and not getattr(args, "play", False):
+        from qoresence.agents.society import run_audit_once
+
+        rec = run_audit_once()
+        print(rec.text if rec else "no audit")  # noqa: T201
+        sys.exit(0)
+    if getattr(args, "society_propose_cuts", False) and not getattr(args, "play", False):
+        from qoresence.agents.society import run_propose_cuts_once
+
+        rec = run_propose_cuts_once()
+        print(rec.text if rec else "no proposal")  # noqa: T201
+        sys.exit(0)
 
     # Ghost Cut one-shot post-session
     _is_reel_one_shot = bool(
