@@ -34,10 +34,10 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opa
 #cmd a:hover{color:var(--gold);opacity:1}
 
 /* ── Stage (video; clip library removed — reserved for future glass) ── */
-#stage{position:relative;z-index:1;display:grid;grid-template-rows:auto minmax(0,1fr);min-width:0;min-height:0;background:radial-gradient(ellipse 70% 50% at 50% 35%,rgba(104,217,232,.06),transparent 55%),transparent}
+#stage{position:relative;z-index:1;display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-width:0;min-height:0;background:radial-gradient(ellipse 70% 50% at 50% 35%,rgba(104,217,232,.06),transparent 55%),transparent}
 #stageSub{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px 10px;color:var(--muted);font:700 10px/1 JetBrains Mono,monospace;letter-spacing:.1em;text-transform:uppercase}
 #stageMeta{color:var(--text)}#stageHint{color:var(--dim)}
-#playerWrap{position:relative;margin:0 20px 20px;min-height:0;display:flex;align-items:center;justify-content:center;background:#040609;border-radius:22px;border:1px solid rgba(104,217,232,.22);box-shadow:0 24px 70px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden}
+#playerWrap{position:relative;margin:0 20px 10px;min-height:0;display:flex;align-items:center;justify-content:center;background:#040609;border-radius:22px;border:1px solid rgba(104,217,232,.22);box-shadow:0 24px 70px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden}
 #playerWrap::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 0 45%,rgba(255,255,255,.035) 50%,transparent 55%);transform:translateX(-110%);animation:stageScan 9s ease-in-out infinite}
 #playerWrap::after{content:"";position:absolute;inset:12px;pointer-events:none;border:1px solid rgba(190,214,232,.08);border-radius:15px}
 #ghostPad{position:absolute;z-index:4;right:22px;bottom:56px;display:none;padding:10px 12px;border:1px solid rgba(198,242,106,.28);border-radius:14px;background:rgba(5,10,8,.62);backdrop-filter:blur(10px);pointer-events:none}
@@ -71,13 +71,24 @@ body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{displa
 .kv.hot b{color:var(--cyan)}.kv.ok b{color:var(--gold)}.kv.bad b{color:var(--danger)}
 #vidMeta{font:600 10px/1.3 JetBrains Mono,monospace;color:var(--dim);margin-top:6px}
 #lat{font:600 10px/1.3 JetBrains Mono,monospace;color:var(--dim);margin-top:9px}#bufBar{height:7px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:11px}#bufFill{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--gold));transition:width .3s}#bufLabel{font:600 10px JetBrains Mono,monospace;color:var(--muted);margin-top:7px}
-#feedCard{flex:1;min-height:0;display:flex;flex-direction:column}#feed{display:flex;flex-direction:column;gap:8px;flex:1;min-height:120px;max-height:none;overflow:auto}#feed.empty::before{content:"Moments · score / fast path · playable clips appear here";color:var(--muted);font:500 12px/1.4 Inter,sans-serif;padding:4px 0}
-.item{padding:12px;border-radius:12px;background:rgba(104,217,232,.07);border:1px solid rgba(104,217,232,.2);font:600 12px/1.35 Inter,sans-serif}.item.playable{cursor:pointer;display:flex;align-items:center;gap:12px}.item.playable:hover{border-color:var(--gold);background:var(--gold-dim)}.item .play{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--gold);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900}.item .body{min-width:0;flex:1}.item .body .t{font-weight:800}.item .body .r{font:600 10px/1.3 JetBrains Mono,monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:4px}
+#feedDock{position:relative;z-index:2;margin:0 20px 16px;padding:12px 14px 10px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(145deg,rgba(23,35,50,.72),rgba(12,17,24,.82));box-shadow:inset 0 1px 0 rgba(255,255,255,.04);min-height:118px;max-height:168px;display:flex;flex-direction:column}
+#feedDock h3{margin-bottom:8px}
+#feedCount{color:var(--dim);font:700 9px/1 JetBrains Mono,monospace;letter-spacing:.08em}
+#feed{display:flex;flex-direction:row;gap:8px;overflow-x:auto;overflow-y:hidden;min-height:76px;padding-bottom:4px;scrollbar-width:thin}
+#feed.empty{align-items:center}
+#feed.empty::before{content:"Watching HDMI + DualSense + scorebug. Fast chat, score locks, and clips land here — click a chip to replay.";color:var(--muted);font:500 12px/1.4 Inter,sans-serif;padding:8px 4px;white-space:normal;max-width:52ch}
+.item{flex:0 0 248px;min-height:68px;padding:10px 12px;border-radius:12px;background:rgba(104,217,232,.08);border:1px solid rgba(104,217,232,.22);font:600 12px/1.35 Inter,sans-serif;display:flex;align-items:center;gap:10px}
+.item.fast{border-color:rgba(255,193,74,.35);background:rgba(255,193,74,.08)}
+.item.confirm{border-color:rgba(198,242,106,.35);background:rgba(198,242,106,.08)}
+.item.playable{cursor:pointer}.item.playable:hover{border-color:var(--gold);background:var(--gold-dim)}
+.item .play{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:rgba(198,242,106,.18);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900}
+.item.playable .play{background:var(--gold);color:var(--bg)}
+.item .body{min-width:0;flex:1}.item .body .t{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.item .body .r{font:600 10px/1.3 JetBrains Mono,monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}
 #trail{display:flex;justify-content:space-between;gap:8px;font:600 10px JetBrains Mono,monospace;color:var(--dim);padding:0 2px;margin-top:auto}#links{display:flex;flex-wrap:wrap;gap:9px 13px;font:600 10px JetBrains Mono,monospace}#links a{color:var(--cyan);text-decoration:none}#links a:hover{color:var(--gold);text-decoration:underline}
 #chaptersCard{display:none;margin-top:0}#chaptersCard.show{display:block}#chapterList{display:flex;flex-direction:column;gap:6px;max-height:140px;overflow:auto}.chBtn{appearance:none;border:1px solid rgba(104,217,232,.24);background:rgba(104,217,232,.06);color:var(--text);border-radius:8px;padding:8px 10px;text-align:left;cursor:pointer;font:600 10px/1.3 JetBrains Mono,monospace}.chBtn:hover{border-color:var(--gold);background:var(--gold-dim)}
 #evidencePanel{background:linear-gradient(145deg,rgba(200,242,106,.08),rgba(12,17,24,.8));border-color:rgba(200,242,106,.22)}#evidencePanel h3{color:var(--gold)!important}
 @keyframes stageScan{0%,35%{transform:translateX(-110%)}70%,100%{transform:translateX(110%)}}
-@media (max-width:1100px){body{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto}#cmd{grid-column:1}#stage{grid-row:2;min-height:50vh}#rail{grid-row:3;border-left:0;border-top:1px solid var(--line);max-height:42vh}:root{--rail-w:100%}}
+@media (max-width:1100px){body{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto}#cmd{grid-column:1}#stage{grid-row:2;min-height:50vh}#rail{grid-row:3;border-left:0;border-top:1px solid var(--line);max-height:36vh}:root{--rail-w:100%}#feedDock{max-height:140px}}
 @media (max-width:700px){#cmd{padding:10px 12px}#btnClip{min-width:100%;margin-left:0}#modeBar{order:2}.stageHudBottom{display:none}#stageSub{padding-left:14px;padding-right:14px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 </style>
@@ -125,7 +136,10 @@ body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{displa
       <div id="ghostBody" aria-live="polite"></div>
     </div>
   </div>
-  <!-- Clip library removed — stage free for future features -->
+  <section id="feedDock" aria-label="Clutch feed">
+    <h3><span>Clutch feed</span><span class="cardCode" id="feedCount">00</span></h3>
+    <div id="feed" class="empty"></div>
+  </section>
 </main>
 
 <aside id="rail">
@@ -146,10 +160,6 @@ body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{displa
   <div class="card" id="chaptersCard">
     <h3><span>Replay chapters</span><span class="cardCode">03</span></h3>
     <div id="chapterList"></div>
-  </div>
-  <div class="card" id="feedCard">
-    <h3><span>Clutch feed</span><span class="cardCode">04</span></h3>
-    <div id="feed" class="empty"></div>
   </div>
   <div id="trail"><span id="t1">● waiting</span><span>LIVE WebRTC/MJPEG</span><span id="t3">local</span></div>
   <div id="links">
@@ -178,6 +188,7 @@ const statusDot=document.getElementById('statusDot'), statusText=document.getEle
 const bufFill=document.getElementById('bufFill'), bufLabel=document.getElementById('bufLabel');
 const chaptersCard=document.getElementById('chaptersCard'), chapterList=document.getElementById('chapterList');
 const ctrlPlane=document.getElementById('ctrlPlane'), vidMeta=document.getElementById('vidMeta');
+const feedCount=document.getElementById('feedCount');
 let activeUrl='', mode='live', rtcPc=null, liveMode='mjpeg';
 let lastCtrl=null, lastVideo=null;
 
@@ -450,11 +461,14 @@ function momentKey(p){
   if(p.ts_ns!=null) return 'ts:'+p.ts_ns;
   return '';
 }
+function esc(s){
+  return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 function addMoment(p){
   if(!p) return false;
   const key=momentKey(p);
   if(!key) return false;
-  const title=String(p.title||p.message||'').trim();
+  const title=String(p.title||p.message||p.reason||'').trim();
   const nt=normTitle(title);
   const now=Date.now();
   // Hard suppress identical chat lines for CHAT_TITLE_TTL_MS
@@ -464,7 +478,6 @@ function addMoment(p){
     feedTitleAt[nt]=now;
   }
   if(feedKeys.indexOf(key)>=0) return false;
-  // Same title as current head (any path/action)
   if(title && feed.firstElementChild){
     const head=feed.firstElementChild.getAttribute('data-title')||'';
     if(normTitle(head)===nt) return false;
@@ -473,18 +486,18 @@ function addMoment(p){
   while(feedKeys.length>FEED_MAX) feedKeys.pop();
   feed.classList.remove('empty');
   const url=clipUrlFromPayload(p);
+  const path=String(p.path||'');
   const d=document.createElement('div');
-  d.className='item'+(url?' playable':'');
+  d.className='item'+(url?' playable':'')+(path==='fast'?' fast':'')+(path==='confirm'?' confirm':'');
   d.setAttribute('data-key', key);
   d.setAttribute('data-title', title);
-  if(url){
-    d.innerHTML='<div class="play">▶</div><div class="body"><div class="t">'+(p.clock||'now')+' '+(p.title||'CLUTCH')+'</div><div class="r">'+(p.name||p.reason||url)+'</div></div>';
-    d.onclick=()=>playClip(url, p.title||p.name);
-  } else {
-    d.textContent=(p.clock||'now')+'  '+(p.title||'CLUTCH');
-  }
+  const icon=p.icon||(url?'▶':(path==='fast'?'⚡':'●'));
+  const sub=[p.clock||'now', path, p.reason||p.name||''].filter(Boolean).join(' · ');
+  d.innerHTML='<div class="play">'+esc(icon)+'</div><div class="body"><div class="t">'+esc(title||'CLUTCH')+'</div><div class="r">'+esc(sub)+'</div></div>';
+  if(url) d.onclick=()=>playClip(url, title||p.name);
   feed.prepend(d);
   while(feed.children.length>FEED_MAX) feed.removeChild(feed.lastChild);
+  if(feedCount) feedCount.textContent=String(feed.children.length).padStart(2,'0');
   return true;
 }
 function dash(v){ return (v==null||v==='')?'—':String(v); }
@@ -588,6 +601,8 @@ function applySnap(snap,latMs){
   // Merge moments without wiping — poll used to re-render the same 3 forever
   if(snap && Array.isArray(snap.moments) && snap.moments.length){
     snap.moments.forEach(function(m){ addMoment(m); });
+  } else if(snap && snap.last_moment){
+    addMoment(snap.last_moment);
   }
 }
 function handle(m){
@@ -596,8 +611,6 @@ function handle(m){
   if(snap && (snap.situation||snap.state)) applySnap(snap, m.latency_ms||snap.latency_ms);
   if(m.type==='moment'&&m.payload){
     addMoment(m.payload);
-    const u=clipUrlFromPayload(m.payload);
-    if(u) playClip(u, m.payload.title||m.payload.name);
   }
 }
 function connect(){
