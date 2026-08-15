@@ -119,6 +119,32 @@ def test_export_writes_mp4_and_chapters(tmp_path: Path, monkeypatch):
     assert chapter_calls[0][1] > 0
 
 
+def test_export_walks_back_across_gap(tmp_path: Path, monkeypatch):
+    """Score clips must keep ~requested seconds even if recent pushes gapped."""
+    buf = HdmiClipBuffer(seconds=30, target_fps=10, max_width=160, out_dir=tmp_path)
+    jpg = _make_jpeg()
+    now = time.monotonic()
+    # 40s of older play, then a 20s hole, then 8s of celebration.
+    for i in range(40):
+        buf._frames.append((now + i * 1.0, jpg, 160, 100, i + 1))
+    for j in range(8):
+        buf._frames.append((now + 60.0 + j * 1.0, jpg, 160, 100, 100 + j))
+
+    def fake_h264(src: Path, dst: Path, fps: float) -> bool:
+        import shutil
+
+        if src.exists():
+            shutil.copy(src, dst)
+            return True
+        return False
+
+    monkeypatch.setattr(HdmiClipBuffer, "_ffmpeg_h264", staticmethod(fake_h264))
+    out = buf.export(path=tmp_path / "gap_clip.mp4", seconds=6.0)
+    assert out is not None
+    # Last-6s timestamp window is only the 8 celebration frames.
+    assert out.frames >= 30
+
+
 def test_get_latest_jpeg_module_helper():
     # Shared singleton may already have frames from other tests; ensure push works.
     b = get_clip_buffer(seconds=2, target_fps=50, max_width=160)

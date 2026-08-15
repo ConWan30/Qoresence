@@ -1006,7 +1006,7 @@ def apply_society_cli(config: RetinaUnifiedConfig, args) -> RetinaUnifiedConfig:
     """--play turns Agent Society on (all roles). --no-agent-society opts out."""
     from dataclasses import replace
 
-    from qoresence.agents.society.config import AgentSocietyConfig, _csv_roles
+    from qoresence.agents.society.config import AgentSocietyConfig, _csv_roles, resolve_key_file
     from qoresence.agents.society.types import KNOWN_ROLES
 
     base = getattr(config, "society", None) or AgentSocietyConfig.from_env()
@@ -1026,7 +1026,8 @@ def apply_society_cli(config: RetinaUnifiedConfig, args) -> RetinaUnifiedConfig:
             roles = KNOWN_ROLES
         else:
             roles = base.roles
-        return replace(config, society=replace(base, enabled=True, roles=roles))
+        key_file = resolve_key_file(getattr(base, "api_key_file", None))
+        return replace(config, society=replace(base, enabled=True, roles=roles, api_key_file=key_file))
     return config
 
 

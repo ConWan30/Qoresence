@@ -90,6 +90,8 @@ class SessionTimeline:
         self._persist = bool(persist)
         self._persist_dir = Path(persist_dir or DEFAULT_JSONL_DIR)
         self._jsonl: Path | None = None
+        self._graph_cache: dict[str, Any] | None = None
+        self._graph_cache_key: tuple[Any, ...] | None = None
         if self._persist:
             try:
                 self._persist_dir.mkdir(parents=True, exist_ok=True)
@@ -218,14 +220,25 @@ class SessionTimeline:
         drive_graph_summary = None
         why_graph_line = None
         try:
-            from qoresence.agents.drive_graph import DriveGraph
-
             drive = active_obj or last_drive_obj
-            if drive is not None:
+            cache_key = (
+                getattr(drive, "drive_id", None) if drive is not None else None,
+                getattr(drive, "ended_ns", None) if drive is not None else None,
+                len(getattr(drive, "event_indices", []) or []) if drive is not None else 0,
+                len(events),
+            )
+            if self._graph_cache_key == cache_key and self._graph_cache:
+                drive_graph_summary = self._graph_cache.get("summary")
+                why_graph_line = self._graph_cache.get("why")
+            elif drive is not None:
+                from qoresence.agents.drive_graph import DriveGraph
+
                 g = DriveGraph.from_timeline_drive(self, drive)
                 if g is not None and g.nodes:
                     drive_graph_summary = g.summary()
                     why_graph_line = g.why_line()
+                    self._graph_cache = {"summary": drive_graph_summary, "why": why_graph_line}
+                    self._graph_cache_key = cache_key
         except Exception:
             drive_graph_summary = None
             why_graph_line = None

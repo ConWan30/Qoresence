@@ -101,6 +101,8 @@ class ClutchBotAgent:
         self._fast = FastMomentEngine()
         self._pred_life: PredictionLifecycleManager = get_prediction_lifecycle()
         self._a2a: Any = None
+        self._drive_phase_cache: str | None = None
+        self._drive_phase_cache_t = 0.0
         self._executor = ActionExecutor()
         self._memory = SessionMemory(
             output_path=Path(config.memory_path) if config.memory_path else None
@@ -236,37 +238,39 @@ class ClutchBotAgent:
             except Exception:
                 coupling = {"coupling": 0.0, "input_energy": 0.0, "path": "fast"}
 
-        # Lifecycle tick (arm TTL / pressure) on every fast-path pulse
+        # Lifecycle tick (arm TTL / pressure) on every fast-path pulse.
+        # PRESENCE_REPORT is fanned out from streamer/controller/IVC — never
+        # rebuild DriveGraph or call A2A on that thread (starves capture).
         try:
             cval = float((coupling or {}).get("coupling") or 0.0)
-            pressure = self._still_pressure_context()
             self._pred_life.tick(
-                coupling=cval, still_pressure_context=pressure, clock_ns=event.clock_ns
+                coupling=cval, still_pressure_context=self._still_pressure_context(), clock_ns=event.clock_ns
             )
-            if (
-                "prediction" in self._features
-                and self._pred_life.state.value == "armed"
-                and cval >= self._pred_life.min_coupling_to_open
-            ):
-                # Policy open: prefer armed/pressure + climax threshold (DriveGraph)
-                allow_open = True
-                try:
-                    from qoresence.agents.drive_graph import active_drive_graph
-
-                    g = active_drive_graph()
-                    if g is not None and g.nodes:
-                        ph = g.phase()
-                        cl = g.climax_score()
-                        allow_open = (
-                            ph in ("armed", "pressure", "open", "active")
-                            and float(cl.get("score") or 0) >= 0.25
-                        )
-                except Exception:
+            if event.type != EventType.PRESENCE_REPORT:
+                if (
+                    "prediction" in self._features
+                    and self._pred_life.state.value == "armed"
+                    and cval >= self._pred_life.min_coupling_to_open
+                ):
+                    # Policy open: prefer armed/pressure + climax threshold (DriveGraph)
                     allow_open = True
-                if allow_open:
-                    self._pred_life.try_open(coupling=cval, clock_ns=event.clock_ns)
-            # Sparse A2A on drive pressure / high coupling (never on grab thread await)
-            self._maybe_a2a_from_situation(event=event, coupling=cval)
+                    try:
+                        from qoresence.agents.drive_graph import active_drive_graph
+
+                        g = active_drive_graph()
+                        if g is not None and g.nodes:
+                            ph = g.phase()
+                            cl = g.climax_score()
+                            allow_open = (
+                                ph in ("armed", "pressure", "open", "active")
+                                and float(cl.get("score") or 0) >= 0.25
+                            )
+                    except Exception:
+                        allow_open = True
+                    if allow_open:
+                        self._pred_life.try_open(coupling=cval, clock_ns=event.clock_ns)
+                # Sparse A2A on drive pressure / high coupling (never on grab thread await)
+                self._maybe_a2a_from_situation(event=event, coupling=cval)
         except Exception as e:
             log.debug("pred lifecycle tick: %s", e)
 
@@ -609,14 +613,20 @@ class ClutchBotAgent:
                     pass
 
             phase = None
-            try:
-                from qoresence.agents.drive_graph import active_drive_graph
+            now_t = time.time()
+            if self._drive_phase_cache is not None and (now_t - self._drive_phase_cache_t) < 2.0:
+                phase = self._drive_phase_cache
+            else:
+                try:
+                    from qoresence.agents.drive_graph import active_drive_graph
 
-                g = active_drive_graph()
-                if g is not None:
-                    phase = g.phase()
-            except Exception:
-                phase = None
+                    g = active_drive_graph()
+                    if g is not None:
+                        phase = g.phase()
+                        self._drive_phase_cache = phase
+                        self._drive_phase_cache_t = now_t
+                except Exception:
+                    phase = None
             frame_seq = None
             try:
                 from qoresence.monitor.frame_hub import get_latest_stamp

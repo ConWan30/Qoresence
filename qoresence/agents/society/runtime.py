@@ -96,6 +96,9 @@ class SocietyRuntime:
         self.bus = SocietyBus(mirror_timeline=self.config.mirror_timeline)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._ticks = 0
+        self._receipts = 0
+        self._last: list[dict[str, Any]] = []
 
     def start(self) -> bool:
         if not self.config.enabled:
@@ -119,6 +122,18 @@ class SocietyRuntime:
             self._thread = None
         log.info("Agent Society stopped")
 
+    def stats(self) -> dict[str, Any]:
+        return {
+            "enabled": bool(self.config.enabled),
+            "alive": bool(self._thread and self._thread.is_alive()),
+            "roles": list(self.config.roles),
+            "quicksilver": self.qs.available(),
+            "key_file": self.config.api_key_file,
+            "ticks": self._ticks,
+            "receipts": self._receipts,
+            "last": list(self._last[-5:]),
+        }
+
     def _complete(self, system: str, user: str) -> str:
         if not self.qs.available() or not self.policy.budget_ok():
             return ""
@@ -129,6 +144,7 @@ class SocietyRuntime:
         packet = packet or build_packet()
         want = roles or self.config.roles
         out: list[AgentReceipt] = []
+        self._ticks += 1
         for role in want:
             if not self.policy.allow_role(role, self.config.roles if roles is None else want):
                 continue
@@ -148,6 +164,9 @@ class SocietyRuntime:
             self.policy.mark(role)
             self.bus.publish(rec)
             out.append(rec)
+        if out:
+            self._receipts += len(out)
+            self._last = (self._last + [r.to_dict() for r in out])[-12:]
         return out
 
     def _loop(self) -> None:

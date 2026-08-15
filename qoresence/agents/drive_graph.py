@@ -148,6 +148,8 @@ class DriveGraph:
                 )
             )
         nodes.sort(key=lambda n: n.clock_ns)
+        if len(nodes) > 48:
+            nodes = nodes[-48:]
         g = cls(
             drive_id=str(drive_id or "drive"),
             nodes=nodes,
@@ -169,40 +171,27 @@ class DriveGraph:
                 started = drive.started_ns
                 ended = drive.ended_ns
                 ctx = dict(getattr(drive, "context", None) or {})
-                indices = list(getattr(drive, "event_indices", None) or [])
             elif isinstance(drive, dict):
                 did = drive.get("drive_id") or "drive"
                 started = drive.get("started_ns")
                 ended = drive.get("ended_ns")
                 ctx = dict(drive.get("context") or {})
-                indices = list(drive.get("event_indices") or [])
             else:
                 return None
 
-            # Prefer index resolution against timeline event deque
+            # Bound the graph. recent(0) used to copy the entire 2000-event
+            # log and O(n²) _build_edges froze Deck /health (live 2026-08-14).
             events: list[Any] = []
-            all_ev = list(timeline.recent(0)) if hasattr(timeline, "recent") else []
-            if indices and all_ev:
-                for idx in indices:
-                    if 0 <= int(idx) < len(all_ev):
-                        events.append(all_ev[int(idx)])
-            if not events and started is not None:
+            all_ev = list(timeline.recent(64)) if hasattr(timeline, "recent") else []
+            if started is not None and hasattr(timeline, "events_in_window"):
                 t1 = (
                     int(ended)
                     if ended is not None
                     else (all_ev[-1].clock_ns if all_ev else int(started))
                 )
-                if hasattr(timeline, "events_in_window"):
-                    events = timeline.events_in_window(int(started), int(t1))
+                events = list(timeline.events_in_window(int(started), int(t1)))[-48:]
             if not events:
-                # Fallback: events tagged with this drive_id
-                for e in all_ev:
-                    d = _as_event_dict(e)
-                    if d.get("drive_id") == did:
-                        events.append(e)
-            if not events and all_ev:
-                # Last resort: recent events (still a valid graph for Why)
-                events = all_ev[-24:]
+                events = all_ev[-48:]
 
             return cls.from_events(
                 str(did),

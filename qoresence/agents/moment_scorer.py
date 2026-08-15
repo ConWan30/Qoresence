@@ -40,12 +40,22 @@ def _should_auto_clip_score(
             return False
         return weight >= 0.8
     try:
-        if prev_h is not None and home is not None and int(home) != int(prev_h):
-            return True
-        if prev_a is not None and away is not None and int(away) != int(prev_a):
-            return True
+        h = int(home) if home is not None else None
+        a = int(away) if away is not None else None
+        ph = int(prev_h) if prev_h is not None else None
+        pa = int(prev_a) if prev_a is not None else None
     except (TypeError, ValueError):
         return False
+    # Football scores only go up in a game. A drop is a VLM flicker / replay
+    # graphic (live 2026-08-14: 17-21 → 10-7), not a clip.
+    if ph is not None and h is not None and h < ph:
+        return False
+    if pa is not None and a is not None and a < pa:
+        return False
+    if ph is not None and h is not None and h != ph:
+        return True
+    if pa is not None and a is not None and a != pa:
+        return True
     return False
 
 

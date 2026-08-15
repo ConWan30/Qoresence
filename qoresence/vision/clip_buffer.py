@@ -60,6 +60,9 @@ class HdmiClipBuffer:
         self.max_width = int(max_width)
         self.jpeg_quality = int(jpeg_quality)
         self.out_dir = Path(out_dir)
+        # Never Path.resolve() under _lock — Windows realpath can hang and
+        # freeze Deck /health plus every push() waiter (live 2026-08-14).
+        self._out_dir_str = str(self.out_dir)
         self._interval = 1.0 / max(self.target_fps, 1.0)
         self._maxlen = max(1, int(self.seconds * self.target_fps) + 2)
         # (ts, jpeg_bytes, w, h, seq)
@@ -166,7 +169,7 @@ class HdmiClipBuffer:
                 "height": h,
                 "pushes": self._pushes,
                 "skipped": self._skipped,
-                "out_dir": str(self.out_dir.resolve()),
+                "out_dir": self._out_dir_str,
                 "has_frame": n > 0 or self._live_jpeg is not None,
                 "age_s": None if age_s is None else round(float(age_s), 3),
                 "seq": int(seq),
@@ -183,12 +186,21 @@ class HdmiClipBuffer:
             if not self._frames:
                 log.warning("ClipBuffer export: no frames yet (is streamer running?)")
                 return None
-            t_end = self._frames[-1][0]
-            t_start = t_end - max(0.5, seconds)
-            selected = [f for f in self._frames if f[0] >= t_start]
-            if len(selected) < 2:
-                selected = list(self._frames)
-            snapshot = list(selected)
+            # Walk backward until we cover `seconds` AND enough frames to
+            # encode at the 5 fps floor. A timestamp window after a push
+            # stall used to yield 7–13s clips that opened on the score banner.
+            want = max(0.5, seconds)
+            min_frames = max(2, int(want * 5.0))
+            picked: list = []
+            for frame in reversed(self._frames):
+                picked.append(frame)
+                span = picked[0][0] - picked[-1][0]
+                if span >= want and len(picked) >= min_frames:
+                    break
+            picked.reverse()
+            if len(picked) < 2:
+                picked = list(self._frames)
+            snapshot = list(picked)
 
         if len(snapshot) < 2:
             log.warning("ClipBuffer export: need >=2 frames, have %d", len(snapshot))

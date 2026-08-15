@@ -28,7 +28,15 @@ def _read_key(path: str) -> str | None:
 class SocietyQuicksilver:
     def __init__(self, config: AgentSocietyConfig) -> None:
         self.config = config
+        from .config import CLUTCHBOT_KEY_FILE, DEFAULT_KEY_FILE, resolve_key_file
+
         self._key = _read_key(config.api_key_file)
+        if not self._key and config.api_key_file in {DEFAULT_KEY_FILE, "", None}:
+            fallback = resolve_key_file()
+            if fallback and fallback != config.api_key_file:
+                self._key = _read_key(fallback)
+            if not self._key:
+                self._key = _read_key(CLUTCHBOT_KEY_FILE)
         if not self._key:
             for env in ("QUICKSILVER_API_KEY", "QUICKSILVERPRO_API_KEY", "QORESENCE_QUICKSILVER_API_KEY"):
                 v = os.environ.get(env)

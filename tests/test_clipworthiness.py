@@ -10,7 +10,11 @@ from unittest.mock import Mock
 import pytest
 
 from qoresence.agents.learning_loop import ClipWorthinessTrainer, LearningLogger
-from qoresence.agents.moment_scorer import ClipWorthinessModel, MomentScorer
+from qoresence.agents.moment_scorer import (
+    ClipWorthinessModel,
+    MomentScorer,
+    _should_auto_clip_score,
+)
 from qoresence.agents.situation_model import ControllerSnapshot, SituationState
 from qoresence.vision.visual_context import GameCategory
 
@@ -142,6 +146,25 @@ class TestClipWorthinessModel:
 # MomentScorer gating
 # ---------------------------------------------------------------------------
 class TestMomentScorerGating:
+    def test_auto_clip_rejects_decreasing_score(self):
+        st = _football_state()
+        assert (
+            _should_auto_clip_score(
+                {"home_score": 21, "away_score": 14, "prev_home_score": 14, "prev_away_score": 14},
+                st,
+                0.9,
+            )
+            is True
+        )
+        assert (
+            _should_auto_clip_score(
+                {"home_score": 10, "away_score": 7, "prev_home_score": 17, "prev_away_score": 21},
+                st,
+                0.9,
+            )
+            is False
+        )
+
     def test_is_football_string(self):
         sc = MomentScorer(wp_enabled=False, clip_model_path="/tmp/__nonexistent__.json")
         assert sc._is_football(_football_state()) is True

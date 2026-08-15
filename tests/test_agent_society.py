@@ -30,6 +30,27 @@ def test_play_enables_society_all_roles():
     assert off.society.enabled is False
 
 
+def test_resolve_key_file_falls_back_to_clutchbot(tmp_path, monkeypatch):
+    from qoresence.agents.society.config import resolve_key_file
+    from qoresence.agents.society.quicksilver import SocietyQuicksilver
+
+    clutch = tmp_path / "quicksilver_clutchbot.key"
+    clutch.write_text("test-society-key\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("QORESENCE_SOCIETY_KEY_FILE", raising=False)
+    monkeypatch.delenv("QORESENCE_QUICKSILVER_KEY_FILE", raising=False)
+    monkeypatch.delenv("QUICKSILVER_API_KEY", raising=False)
+    monkeypatch.delenv("QUICKSILVERPRO_API_KEY", raising=False)
+    monkeypatch.delenv("QORESENCE_QUICKSILVER_API_KEY", raising=False)
+    (tmp_path / ".secrets").mkdir()
+    (tmp_path / ".secrets" / "quicksilver_clutchbot.key").write_text(
+        "test-society-key\n", encoding="utf-8"
+    )
+    assert resolve_key_file(".secrets/quicksilver.key").endswith("quicksilver_clutchbot.key")
+    qs = SocietyQuicksilver(AgentSocietyConfig(api_key_file=".secrets/quicksilver.key"))
+    assert qs.available() is True
+
+
 def test_society_config_default_off():
     cfg = AgentSocietyConfig()
     assert cfg.enabled is False

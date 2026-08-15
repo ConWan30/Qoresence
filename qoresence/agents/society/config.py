@@ -12,6 +12,22 @@ DEFAULT_BASE = "https://api.quicksilverpro.io/v1"
 DEFAULT_REASON = "deepseek-v4-flash"
 DEFAULT_SCENE = "gemini-3.5-flash-lite"
 DEFAULT_KEY_FILE = ".secrets/quicksilver.key"
+CLUTCHBOT_KEY_FILE = ".secrets/quicksilver_clutchbot.key"
+
+
+def resolve_key_file(explicit: str | None = None) -> str:
+    """Prefer an explicit path, then society file, then ClutchBot's key."""
+    if explicit and Path(explicit).is_file():
+        return explicit
+    env = os.environ.get("QORESENCE_SOCIETY_KEY_FILE") or os.environ.get(
+        "QORESENCE_QUICKSILVER_KEY_FILE"
+    )
+    if env and Path(env).is_file():
+        return env
+    for cand in (DEFAULT_KEY_FILE, CLUTCHBOT_KEY_FILE):
+        if Path(cand).is_file():
+            return cand
+    return explicit or env or DEFAULT_KEY_FILE
 
 
 def _bool(name: str, default: bool = False) -> bool:
@@ -50,14 +66,7 @@ class AgentSocietyConfig:
 
     @classmethod
     def from_env(cls) -> AgentSocietyConfig:
-        key = os.environ.get("QORESENCE_SOCIETY_KEY_FILE") or os.environ.get(
-            "QORESENCE_QUICKSILVER_KEY_FILE"
-        )
-        if not key:
-            for cand in (DEFAULT_KEY_FILE, ".secrets/quicksilver_clutchbot.key"):
-                if Path(cand).is_file():
-                    key = cand
-                    break
+        key = resolve_key_file()
         return cls(
             enabled=_bool("QORESENCE_AGENT_SOCIETY"),
             roles=_csv_roles(os.environ.get("QORESENCE_AGENT_SOCIETY_ROLES")),

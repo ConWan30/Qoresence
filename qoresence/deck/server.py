@@ -598,6 +598,13 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception:
             body["a2a"] = {"enabled": False}
         try:
+            from qoresence.agents.society import get_society
+
+            soc = get_society()
+            body["society"] = soc.stats() if soc is not None else {"enabled": False}
+        except Exception:
+            body["society"] = {"enabled": False}
+        try:
             from qoresence.observability import get_latency_stats
 
             body["latency"] = get_latency_stats().summary()
