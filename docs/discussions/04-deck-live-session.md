@@ -8,6 +8,7 @@ category: Show and tell
 This is the operator glass, not a second capture of the card.
 
 - **Pages:** https://conwan30.github.io/Qoresence/#watch
+- **Discussion:** https://github.com/ConWan30/Qoresence/discussions/14
 - **Clip:** 75s from a local NCAA Football 27 session (Texas A&M / Louisville capture path)
 - DualSense Edge on USB, FrameHub LIVE, clutch feed under the picture
 - Qoresence owned the USB3.0 card; the recording is a **window capture of** `http://127.0.0.1:8765/deck.html`
