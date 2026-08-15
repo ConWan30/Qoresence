@@ -262,7 +262,7 @@ class OutcomeRuntime:
         }:
             return
 
-        if self._profile.profile_id == GameProfileId.NCAA_FOOTBALL_27:
+        if self._profile.category == "football":
             if ctx.game_category == GameCategory.FOOTBALL:
                 self._process_football(ctx)
         elif self._profile.category == "shooter":

@@ -74,6 +74,42 @@ class GameVocabulary:
         return min(score, 1.0)
 
 
+MADDEN_VOCABULARY = GameVocabulary(
+    profile_id=GameProfileId.MADDEN_27,
+    display_name="EA Sports Madden NFL 27",
+    keywords={
+        "touchdown": 0.30,
+        "field goal": 0.25,
+        "quarterback": 0.25,
+        "yard line": 0.20,
+        "first down": 0.25,
+        "down": 0.15,
+        "interception": 0.20,
+        "fumble": 0.20,
+        "punt": 0.15,
+        "kickoff": 0.15,
+        "snap": 0.15,
+        "possession": 0.15,
+        "timeout": 0.10,
+        "penalty": 0.15,
+        "turnover": 0.15,
+        "quarter": 0.10,
+        "overtime": 0.10,
+        "challenge": 0.20,
+        "two minute warning": 0.15,
+        # Identity — NFL / Madden, not college
+        "madden": 0.45,
+        "madden nfl": 0.45,
+        "nfl": 0.30,
+        "ea sports madden": 0.40,
+        "play clock": 0.10,
+        "game clock": 0.10,
+        "scoreboard": 0.10,
+        "to go": 0.15,
+        "ball on": 0.15,
+    },
+)
+
 NCAA_VOCABULARY = GameVocabulary(
     profile_id=GameProfileId.NCAA_FOOTBALL_27,
     display_name="NCAA College Football 27",
@@ -299,6 +335,7 @@ class GameAutoDetector:
 
         self._vocabularies: dict[GameProfileId, GameVocabulary] = {
             GameProfileId.NCAA_FOOTBALL_27: NCAA_VOCABULARY,
+            GameProfileId.MADDEN_27: MADDEN_VOCABULARY,
             GameProfileId.CALL_OF_DUTY: COD_VOCABULARY,
         }
         self._all_profiles = tuple(self._vocabularies.keys())

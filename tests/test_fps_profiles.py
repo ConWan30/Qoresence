@@ -44,6 +44,7 @@ def test_all_profiles_in_registry():
     assert len(GAME_PROFILE_REGISTRY) >= 5
     for pid in (
         GameProfileId.NCAA_FOOTBALL_27,
+        GameProfileId.MADDEN_27,
         GameProfileId.CALL_OF_DUTY,
         GameProfileId.VALORANT,
         GameProfileId.APEX_LEGENDS,

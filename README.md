@@ -265,6 +265,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | Flag | Default | Effect |
 |------|---------|--------|
 | `--play` | off | Streamer + visual(local) + outcome + ClutchBot backends + deck wiring |
+| `--game-profile` | `ncaa_football_27` | `madden_27` (Madden NFL 27), `ncaa_football_27`, CoD / Valorant / Apex / Fortnite |
 | `--deck` | off | Retina Deck HTTP/WS on `:8765` |
 | `--monitor` | off | Native FrameHub window |
 | `--controller` | off | DualSense HID + InputRing + IVC |

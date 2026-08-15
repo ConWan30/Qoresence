@@ -36,6 +36,7 @@ Output:
 ID                        Name                                 Cat        Ev   Fld  Type
 ------------------------------------------------------------------------------------------
 ncaa_football_27          NCAA College Football 27             football   16   9    built-in
+madden_27                 EA Sports Madden NFL 27              football   18   9    built-in
 call_of_duty              Call of Duty (Warzone / Multiplayer) shooter    10   8    built-in
 valorant                  Valorant                             shooter    13   10   built-in
 apex_legends              Apex Legends                         shooter    13   10   built-in
@@ -81,7 +82,7 @@ for p in list_profiles():
   `GAME_PROFILE_REGISTRY`
 - Aliases are added to `GAME_PROFILE_ALIASES` for CLI/VLM normalization
 - Community profiles are marked with `community=True` in `list_profiles()`
-- Built-in profiles (NCAA, CoD, Valorant, Apex, Fortnite) are always
+- Built-in profiles (NCAA, Madden 27, CoD, Valorant, Apex, Fortnite) are always
   available and cannot be overridden by community profiles
 
 ## Example: Rocket League

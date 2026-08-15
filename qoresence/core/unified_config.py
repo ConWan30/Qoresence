@@ -26,6 +26,7 @@ class GameProfileId(StrEnum):
     """First-class game profiles (equal citizens)."""
 
     NCAA_FOOTBALL_27 = "ncaa_football_27"
+    MADDEN_27 = "madden_27"
     CALL_OF_DUTY = "call_of_duty"
     VALORANT = "valorant"
     APEX_LEGENDS = "apex_legends"
@@ -67,6 +68,43 @@ NCAA_FOOTBALL_27_PROFILE = GameProfile(
         "penalty",
         "turnover",
         "red_zone_entry",
+    ),
+    outcome_fields=(
+        "home_score",
+        "away_score",
+        "quarter",
+        "down",
+        "yards_to_go",
+        "possession",
+        "play_clock",
+        "game_clock",
+        "field_position",
+    ),
+    category="football",
+)
+
+MADDEN_27_PROFILE = GameProfile(
+    profile_id=GameProfileId.MADDEN_27,
+    display_name="EA Sports Madden NFL 27",
+    event_types=(
+        "snap",
+        "down_advanced",
+        "first_down",
+        "score_changed",
+        "touchdown",
+        "field_goal",
+        "safety",
+        "two_point_conversion",
+        "playclock_reset",
+        "quarter_changed",
+        "two_minute_warning",
+        "possession_changed",
+        "timeout_called",
+        "penalty",
+        "turnover",
+        "red_zone_entry",
+        "challenge",
+        "overtime",
     ),
     outcome_fields=(
         "home_score",
@@ -214,6 +252,7 @@ FORTNITE_PROFILE = GameProfile(
 # Registry of all known profiles (extensible)
 GAME_PROFILE_REGISTRY: dict[GameProfileId, GameProfile] = {
     NCAA_FOOTBALL_27_PROFILE.profile_id: NCAA_FOOTBALL_27_PROFILE,
+    MADDEN_27_PROFILE.profile_id: MADDEN_27_PROFILE,
     CALL_OF_DUTY_PROFILE.profile_id: CALL_OF_DUTY_PROFILE,
     VALORANT_PROFILE.profile_id: VALORANT_PROFILE,
     APEX_LEGENDS_PROFILE.profile_id: APEX_LEGENDS_PROFILE,
@@ -222,8 +261,13 @@ GAME_PROFILE_REGISTRY: dict[GameProfileId, GameProfile] = {
 
 # Friendly / legacy aliases for CLI and VLM output normalization.
 GAME_PROFILE_ALIASES: dict[str, GameProfileId] = {
-    "madden_27": GameProfileId.NCAA_FOOTBALL_27,
-    "madden_2027": GameProfileId.NCAA_FOOTBALL_27,
+    "madden_27": GameProfileId.MADDEN_27,
+    "madden_2027": GameProfileId.MADDEN_27,
+    "madden": GameProfileId.MADDEN_27,
+    "madden27": GameProfileId.MADDEN_27,
+    "madden_nfl_27": GameProfileId.MADDEN_27,
+    "ea_madden": GameProfileId.MADDEN_27,
+    "ea_sports_madden_27": GameProfileId.MADDEN_27,
     "ncaa_27": GameProfileId.NCAA_FOOTBALL_27,
     "college_football_27": GameProfileId.NCAA_FOOTBALL_27,
     "ea_sports_college_football_27": GameProfileId.NCAA_FOOTBALL_27,

@@ -50,6 +50,11 @@ def _is_football_profile(game_profile: str | object | None) -> bool:
         "ncaa_27",
         "madden_27",
         "madden_2027",
+        "madden",
+        "madden27",
+        "madden_nfl_27",
+        "ea_madden",
+        "ea_sports_madden_27",
     ):
         return True
     if GameProfileId is not None and isinstance(game_profile, GameProfileId):

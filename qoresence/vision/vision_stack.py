@@ -345,6 +345,8 @@ class VisionStack:
         aliases = {
             "ncaa_football_27": GameProfileId.NCAA_FOOTBALL_27,
             "ncaa": GameProfileId.NCAA_FOOTBALL_27,
+            "madden_27": GameProfileId.MADDEN_27,
+            "madden": GameProfileId.MADDEN_27,
             "college_football_27": GameProfileId.NCAA_FOOTBALL_27,
             "college_football": GameProfileId.NCAA_FOOTBALL_27,
             "call_of_duty": GameProfileId.CALL_OF_DUTY,
