@@ -57,6 +57,18 @@ class VisualContext:
     play_type: str | None = None
     field_position: str | None = None
     down_distance_text: str | None = None
+    home_team_raw: str | None = None
+    away_team_raw: str | None = None
+    home_team: str | None = None
+    away_team: str | None = None
+    home_team_name: str | None = None
+    away_team_name: str | None = None
+    player_name_raw: str | None = None
+    player_jersey: int | None = None
+    on_screen_player: str | None = None
+    on_screen_player_team: str | None = None
+    on_screen_player_jersey: int | None = None
+    on_screen_player_pos: str | None = None
 
     # Shooter / Call of Duty
     health: int | None = None
@@ -134,6 +146,18 @@ class VisualContext:
                 "play_type": self.play_type,
                 "field_position": self.field_position,
                 "down_distance_text": self.down_distance_text,
+                "home_team_raw": self.home_team_raw,
+                "away_team_raw": self.away_team_raw,
+                "home_team": self.home_team,
+                "away_team": self.away_team,
+                "home_team_name": self.home_team_name,
+                "away_team_name": self.away_team_name,
+                "player_name_raw": self.player_name_raw,
+                "player_jersey": self.player_jersey,
+                "on_screen_player": self.on_screen_player,
+                "on_screen_player_team": self.on_screen_player_team,
+                "on_screen_player_jersey": self.on_screen_player_jersey,
+                "on_screen_player_pos": self.on_screen_player_pos,
             }
         elif self.game_category == GameCategory.SHOOTER:
             d["shooter"] = {
@@ -226,6 +250,28 @@ class VisualContext:
         ctx.play_type = _to_str(fb.get("play_type"))
         ctx.field_position = _to_str(fb.get("field_position"))
         ctx.down_distance_text = _to_str(fb.get("down_distance_text"))
+        ctx.home_team_raw = _to_str(fb.get("home_team_raw") or fb.get("home_team"))
+        ctx.away_team_raw = _to_str(fb.get("away_team_raw") or fb.get("away_team"))
+        ctx.player_name_raw = _to_str(fb.get("player_name") or fb.get("player_name_raw"))
+        ctx.player_jersey = _to_int(fb.get("player_jersey"))
+        # Resolved names come from the local NFL roster — never trust the model
+        # to invent a club. Raw HUD strings are matched or dropped.
+        try:
+            from qoresence.profiles.nfl_roster import apply_roster_to_context, is_madden_profile
+
+            if is_madden_profile(ctx.game_profile) or is_madden_profile(raw.get("game_profile")):
+                apply_roster_to_context(
+                    ctx,
+                    {
+                        "home_team_raw": ctx.home_team_raw,
+                        "away_team_raw": ctx.away_team_raw,
+                        "player_name": ctx.player_name_raw,
+                        "player_jersey": ctx.player_jersey,
+                        "game_profile": ctx.game_profile or raw.get("game_profile"),
+                    },
+                )
+        except Exception:
+            pass
 
         # Shooter fields: support nested "shooter" block or flat top-level keys
         sh = raw.get("shooter")
@@ -335,6 +381,10 @@ def build_football_prompt() -> str:
         '"play_type": null, '
         '"field_position": null, '
         '"down_distance_text": null, '
+        '"home_team": null, '
+        '"away_team": null, '
+        '"player_name": null, '
+        '"player_jersey": null, '
         '"quality": {"has_screen_tearing": false, "has_lag_indicator": false, "frame_quality": "ok"}, '
         '"confidence": 0.0}'
     )

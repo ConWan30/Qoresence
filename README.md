@@ -265,7 +265,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | Flag | Default | Effect |
 |------|---------|--------|
 | `--play` | off | Streamer + visual(local) + outcome + ClutchBot backends + deck wiring |
-| `--game-profile` | `ncaa_football_27` | `madden_27` (Madden NFL 27), `ncaa_football_27`, CoD / Valorant / Apex / Fortnite |
+| `--game-profile` | `ncaa_football_27` | `madden_27` (Madden NFL 27 + local NFL roster), `ncaa_football_27`, CoD / Valorant / Apex / Fortnite |
 | `--deck` | off | Retina Deck HTTP/WS on `:8765` |
 | `--monitor` | off | Native FrameHub window |
 | `--controller` | off | DualSense HID + InputRing + IVC |
@@ -325,6 +325,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Extended capture operator detail |
 | [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md) | CFB pilot runbook + notes |
 | [docs/PILOT_MONITOR.md](docs/PILOT_MONITOR.md) | P0 evidence recorder while you play |
+| [docs/NFL_ROSTER.md](docs/NFL_ROSTER.md) | Madden 27 local NFL team/player names (nflverse) |
 | [docs/WEBRTC_LIVE.md](docs/WEBRTC_LIVE.md) | WebRTC LIVE from FrameHub (optional) |
 | [docs/RETINA_MONITOR.md](docs/RETINA_MONITOR.md) | Native monitor / FrameHub |
 | [docs/CONTROLLER_VIDEO_SYNC.md](docs/CONTROLLER_VIDEO_SYNC.md) | IVC + InputRing |

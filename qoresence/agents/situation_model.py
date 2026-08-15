@@ -46,6 +46,13 @@ class SituationState:
     field_position: str | None = None
     play_clock: int | None = None
     game_clock_seconds: int | None = None
+    home_team: str | None = None
+    away_team: str | None = None
+    home_team_name: str | None = None
+    away_team_name: str | None = None
+    on_screen_player: str | None = None
+    on_screen_player_team: str | None = None
+    on_screen_player_jersey: int | None = None
 
     # Shooter
     health: int | None = None
@@ -137,6 +144,13 @@ class SituationModel:
                 field_position=ctx.field_position,
                 play_clock=ctx.play_clock,
                 game_clock_seconds=ctx.clock_seconds,
+                home_team=getattr(ctx, "home_team", None),
+                away_team=getattr(ctx, "away_team", None),
+                home_team_name=getattr(ctx, "home_team_name", None),
+                away_team_name=getattr(ctx, "away_team_name", None),
+                on_screen_player=getattr(ctx, "on_screen_player", None),
+                on_screen_player_team=getattr(ctx, "on_screen_player_team", None),
+                on_screen_player_jersey=getattr(ctx, "on_screen_player_jersey", None),
             )
 
         if ctx.game_category and ctx.game_category.value == "shooter":
@@ -243,6 +257,13 @@ class SituationModel:
             "field_position": s.field_position,
             "play_clock": s.play_clock,
             "game_clock_seconds": s.game_clock_seconds,
+            "home_team": s.home_team,
+            "away_team": s.away_team,
+            "home_team_name": s.home_team_name,
+            "away_team_name": s.away_team_name,
+            "on_screen_player": s.on_screen_player,
+            "on_screen_player_team": s.on_screen_player_team,
+            "on_screen_player_jersey": s.on_screen_player_jersey,
             "health": s.health,
             "ammo": s.ammo,
             "kills": s.kills,

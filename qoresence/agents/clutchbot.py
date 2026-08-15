@@ -943,15 +943,26 @@ class ClutchBotAgent:
         cmd = parts[0]
         if cmd == "!state":
             s = self._situation.state
+            home = getattr(s, "home_team_name", None) or "home"
+            away = getattr(s, "away_team_name", None) or "away"
+            poss = s.possession or "?"
+            if poss == "home" and getattr(s, "home_team_name", None):
+                poss = s.home_team_name
+            elif poss == "away" and getattr(s, "away_team_name", None):
+                poss = s.away_team_name
+            who = getattr(s, "on_screen_player", None)
+            extra = f" On screen: {who}." if who else ""
             return (
                 f"Qoresence sees {s.game_title or 'a game'} — "
-                f"{s.home_score or '?'} - {s.away_score or '?'} Q{s.quarter or '?'}, "
-                f"{s.possession or '?'} ball, {s.down or '?'} & {s.yards_to_go or '?'}."
+                f"{away} {s.away_score or '?'} @ {home} {s.home_score or '?'} Q{s.quarter or '?'}, "
+                f"{poss} ball, {s.down or '?'} & {s.yards_to_go or '?'}.{extra}"
             )
 
         if cmd == "!score":
             s = self._situation.state
-            return f"Score: {s.home_score or '?'} - {s.away_score or '?'} (Q{s.quarter or '?'})."
+            home = getattr(s, "home_team", None) or "HOME"
+            away = getattr(s, "away_team", None) or "AWAY"
+            return f"Score: {away} {s.away_score or '?'} @ {home} {s.home_score or '?'} (Q{s.quarter or '?'})."
 
         if cmd == "!lastclip":
             if self._helix_client and self._helix_client.last_clip_url:

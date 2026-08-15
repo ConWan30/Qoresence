@@ -116,6 +116,9 @@ MADDEN_27_PROFILE = GameProfile(
         "play_clock",
         "game_clock",
         "field_position",
+        "home_team",
+        "away_team",
+        "on_screen_player",
     ),
     category="football",
 )

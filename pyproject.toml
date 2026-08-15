@@ -147,7 +147,7 @@ where = ["."]
 include = ["qoresence*"]
 
 [tool.setuptools.package-data]
-qoresence = ["deck/*.html"]
+qoresence = ["deck/*.html", "profiles/nfl_data/*.json"]
 
 [project.scripts]
 qoresence = "qoresence.cli:main"

@@ -41,7 +41,8 @@ def test_madden_shares_football_vocab_plus_nfl():
     assert "challenge" in ev
     assert "overtime" in ev
     assert ncaa <= ev or {"snap", "touchdown"} <= ev
-    assert MADDEN_27_PROFILE.outcome_fields == NCAA_FOOTBALL_27_PROFILE.outcome_fields
+    assert set(NCAA_FOOTBALL_27_PROFILE.outcome_fields) <= set(MADDEN_27_PROFILE.outcome_fields)
+    assert "home_team" in MADDEN_27_PROFILE.outcome_fields
 
 
 def test_get_game_profile_madden():

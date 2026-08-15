@@ -27,6 +27,15 @@ log = logging.getLogger(__name__)
 DEFAULT_FEATURES = frozenset({"chat"})
 
 
+def _possession_label(state: SituationState) -> str:
+    poss = state.possession or ""
+    if poss == "home" and getattr(state, "home_team_name", None):
+        return state.home_team_name
+    if poss == "away" and getattr(state, "away_team_name", None):
+        return state.away_team_name
+    return poss
+
+
 def _should_auto_clip_score(
     fields: dict[str, Any], state: SituationState, weight: float
 ) -> bool:
@@ -363,9 +372,15 @@ class MomentScorer:
             "quarter": state.quarter or "?",
             "down": state.down or "?",
             "yards_to_go": state.yards_to_go or "?",
-            "possession": state.possession or "",
+            "possession": _possession_label(state),
             "field_position": state.field_position or "",
             "game_title": state.game_title or state.game_profile or "the game",
+            "home_team": getattr(state, "home_team_name", None)
+            or getattr(state, "home_team", None)
+            or "home",
+            "away_team": getattr(state, "away_team_name", None)
+            or getattr(state, "away_team", None)
+            or "away",
         }
         fmt.update({k: v if v is not None else "" for k, v in extra.items()})
 
@@ -852,9 +867,15 @@ class MomentScorer:
         """Soft video-only line — no invented score digits when board is unknown."""
         if state.home_score is not None and state.away_score is not None:
             q = state.quarter
+            home = getattr(state, "home_team", None)
+            away = getattr(state, "away_team", None)
+            if home and away:
+                board = f"{away} {state.away_score}-{home} {state.home_score}"
+            else:
+                board = f"{state.home_score}-{state.away_score}"
             if q:
-                return f"Live — board {state.home_score}-{state.away_score}, Q{q}."
-            return f"Live — board {state.home_score}-{state.away_score}."
+                return f"Live — board {board}, Q{q}."
+            return f"Live — board {board}."
         if self._is_red_zone(state):
             return "Red-zone look from the feed — pressure building."
         if (state.quarter or 0) >= 4:

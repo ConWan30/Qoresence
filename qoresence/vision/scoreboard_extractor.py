@@ -456,7 +456,17 @@ class FootballScoreboardExtractor:
             ctx.play_clock = parsed["play_clock"]
         if parsed.get("down_distance_text"):
             ctx.down_distance_text = parsed["down_distance_text"]
+        if parsed.get("home_team_raw"):
+            ctx.home_team_raw = str(parsed["home_team_raw"])
+        if parsed.get("away_team_raw"):
+            ctx.away_team_raw = str(parsed["away_team_raw"])
         ctx.home_left = home_left
+        try:
+            from qoresence.profiles.nfl_roster import apply_roster_to_context
+
+            apply_roster_to_context(ctx, parsed)
+        except Exception:
+            pass
         return ctx
 
     @staticmethod
@@ -686,6 +696,18 @@ class FootballScoreboardExtractor:
                 break
 
         # Prefer explicit "17-17" / "17–17" / "17 17" pair patterns from OCR text
+        left_team = min((c for c in team_clusters), key=lambda c: c.x, default=None)
+        right_team = max((c for c in team_clusters), key=lambda c: c.x, default=None)
+        if left_team or right_team:
+            left_txt = left_team.text if left_team else None
+            right_txt = right_team.text if right_team else None
+            if home_left:
+                parsed["home_team_raw"] = left_txt
+                parsed["away_team_raw"] = right_txt
+            else:
+                parsed["away_team_raw"] = left_txt
+                parsed["home_team_raw"] = right_txt
+
         pair = self._find_score_pair_text(clusters, home_left=home_left)
         if pair is not None:
             parsed["home_score"] = pair[0]
@@ -694,8 +716,6 @@ class FootballScoreboardExtractor:
 
         # Scores: left-of-center (away) and right-of-center (home).
         # Use team positions to anchor.
-        left_team = min((c for c in team_clusters), key=lambda c: c.x, default=None)
-        right_team = max((c for c in team_clusters), key=lambda c: c.x, default=None)
 
         def _is_score_candidate(c: _Cluster) -> bool:
             val = self._parse_int(c.text)
