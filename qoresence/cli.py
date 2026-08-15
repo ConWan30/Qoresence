@@ -438,6 +438,8 @@ class QoresenceApp:
         except Exception as e:
             log.warning("Agent Society init failed: %s", e)
 
+        self.pilot_monitor = None
+
         # Input–Video Coupler (only when controller enabled)
         self.ivc = None
 
@@ -669,6 +671,12 @@ class QoresenceApp:
                     _dh,
                     _dp,
                 )
+                try:
+                    from qoresence.pilot import start_pilot_monitor
+
+                    self.pilot_monitor = start_pilot_monitor(f"http://{_dh}:{_dp}")
+                except Exception as e:
+                    log.debug("pilot monitor hook skipped: %s", e)
         except Exception as e:
             log.warning("Deck start failed: %s", e)
         self._running = True
@@ -874,6 +882,15 @@ class QoresenceApp:
             except Exception:
                 pass
             self.society = None
+
+        if getattr(self, "pilot_monitor", None) is not None:
+            try:
+                from qoresence.pilot import stop_pilot_monitor
+
+                stop_pilot_monitor()
+            except Exception:
+                pass
+            self.pilot_monitor = None
 
         if self.streamr_publisher:
             self.streamr_publisher.stop()

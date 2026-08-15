@@ -94,7 +94,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 | **MCP universal glass** | `qoresence-mcp` exposes 6 AgentGlass tools over stdio for any Cursor/Claude agent |
 | **Foundry RAG + proactive glass** | `search_clips`/`get_drive_graph` searchable session memory (clips+chapters+DriveGraph+timeline fallback) + `subscribe_events`/`diagnose_freeze` on `127.0.0.1:8765` — software-only, no capture card |
 
-Docs for each: [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [clutchbot_setup](docs/clutchbot_setup.md)
+Docs for each: [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md) · [clutchbot_setup](docs/clutchbot_setup.md)
 
 ---
 
@@ -169,7 +169,7 @@ Start-Process http://127.0.0.1:8765/deck.html
 
 **Note:** `python -m qoresence.cli --play ...` keeps running in that window (log lines only). Deck is a **browser** URL — it does not pop up by itself. Hard-refresh if the tab was open before restart.
 
-Session notes: [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md).
+Session notes: [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md). While playing, `python scripts/pilot_monitor.py` writes `logs/pilot/closeout_*.md` ([docs/PILOT_MONITOR.md](docs/PILOT_MONITOR.md)).
 
 **Gameplay eye:** TV / Retina Monitor (Pattern B) or OBS Preview (Pattern A). **Not** Twitch delay.
 
@@ -323,6 +323,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | [docs/CAPTURE_OWNERSHIP.md](docs/CAPTURE_OWNERSHIP.md) | Pattern A (OBS) vs B (Qoresence owns card) |
 | [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Extended capture operator detail |
 | [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md) | CFB pilot runbook + notes |
+| [docs/PILOT_MONITOR.md](docs/PILOT_MONITOR.md) | P0 evidence recorder while you play |
 | [docs/WEBRTC_LIVE.md](docs/WEBRTC_LIVE.md) | WebRTC LIVE from FrameHub (optional) |
 | [docs/RETINA_MONITOR.md](docs/RETINA_MONITOR.md) | Native monitor / FrameHub |
 | [docs/CONTROLLER_VIDEO_SYNC.md](docs/CONTROLLER_VIDEO_SYNC.md) | IVC + InputRing |
