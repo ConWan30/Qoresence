@@ -58,6 +58,12 @@
     .button:hover{border-color:var(--phosphor);background:rgba(198,242,106,.08);transform:translateY(-2px)}
     .button.primary{background:var(--phosphor);color:var(--night);border-color:var(--phosphor);box-shadow:0 14px 36px rgba(198,242,106,.16)}
     .hero-note{margin-top:18px;color:var(--dim);font:500 12px/1.5 "IBM Plex Mono",monospace}
+    .demo-stage{padding:0 0 96px}
+    .demo-frame{border:1px solid var(--line-hi);border-radius:24px;overflow:hidden;background:#050a08;box-shadow:0 24px 70px rgba(0,0,0,.35)}
+    .demo-frame video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#000}
+    .demo-cap{margin-top:14px;color:var(--dim);font:500 12px/1.55 "IBM Plex Mono",monospace}
+    .demo-cap a{color:var(--signal);text-decoration:none}
+    .demo-cap a:hover{color:var(--phosphor)}
 
     .instrument{position:relative;min-height:560px;padding:22px 20px 18px;border:1px solid var(--line-hi);border-radius:28px;background:linear-gradient(160deg,rgba(14,32,24,.85),rgba(5,10,8,.92));box-shadow:0 30px 80px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
     .instrument::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 40%,rgba(198,242,106,.06) 50%,transparent 60%);animation:scan 9s ease-in-out infinite}
@@ -150,6 +156,7 @@
       <a class="wordmark" href="#top"><span class="mark" aria-hidden="true">Q</span><span><b>Qoresence</b><small>observation plane</small></span></a>
       <button class="menu-toggle" type="button" data-menu aria-expanded="false">MENU</button>
       <nav class="nav-links" data-nav>
+        <a href="#watch">Watch</a>
         <a href="#what">What it is</a>
         <a href="#orchestrate">Orchestration</a>
         <a href="#glasses">Glasses</a>
@@ -168,6 +175,7 @@
         <p class="lede">Qoresence is an observation plane for gamers. HDMI video and controller input share one monotonic clock. Situation, clips, Deck, Lens and Ghost Cut all read that clock. The capture card opens once. Nothing else is allowed to open it.</p>
         <div class="actions">
           <a class="button primary" href="./install.html">Get the Windows package</a>
+          <a class="button" href="#watch">Watch a live session</a>
           <a class="button" href="https://github.com/ConWan30/Qoresence">Read the source</a>
         </div>
         <p class="hero-note">127.0.0.1 by default · Ghost Cut is local · Twitch stays opt-in</p>
@@ -185,6 +193,26 @@
           <div class="node left n5"><b>Glasses</b><span>Lens · Deck · Cut · MCP</span></div>
         </div>
         <div class="inst-foot"><span>one device / <em>one owner</em></span><span>no second capture</span></div>
+      </div>
+    </section>
+
+    <section class="demo-stage" id="watch">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Live session</div><h2>Retina Deck<br>while a match is on.</h2></div>
+          <p>Recorded from the operator glass — HDMI, DualSense, clutch feed, one clock. Not a second capture of the card.</p>
+        </div>
+        <div class="demo-frame">
+          <video
+            controls
+            playsinline
+            preload="metadata"
+            poster="./assets/deck-live-demo.jpg"
+            src="./assets/deck-live-demo.mp4">
+            Your browser cannot play this MP4.
+          </video>
+        </div>
+        <p class="demo-cap">75s cut from a local NCAA 27 session · DualSense Edge on USB · scoreboard 0–0 Q1 · <a href="https://github.com/ConWan30/Qoresence/discussions">Discuss on GitHub</a></p>
       </div>
     </section>
 
