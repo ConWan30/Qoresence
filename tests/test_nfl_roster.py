@@ -99,20 +99,24 @@ def test_nameplate_ambiguous_flag(tmp_path: Path):
     from qoresence.profiles import nfl_roster as nr
 
     nr._index = idx
+    # Clean hit
     hit = VisualContext(game_profile="madden_27")
     apply_roster_to_context(
         hit, {"home_team_raw": "Chiefs", "away_team_raw": "Eagles", "player_name": "15 Mahomes"}
     )
     assert hit.on_screen_player == "Patrick Mahomes"
     assert hit.nameplate_ambiguous is False
+    # Ambiguous last name, no team/jersey
     amb = VisualContext(game_profile="madden_27")
     apply_roster_to_context(amb, {"player_name": "Brown"})
     assert amb.on_screen_player is None
     assert amb.nameplate_ambiguous is True
+    # Missing / empty — not a nameplate
     miss = VisualContext(game_profile="madden_27")
     apply_roster_to_context(miss, {"home_team_raw": "Chiefs"})
     assert miss.on_screen_player is None
     assert miss.nameplate_ambiguous is False
+    # NCAA path unchanged
     ncaa = VisualContext(game_profile="ncaa_football_27")
     apply_roster_to_context(ncaa, {"player_name": "Brown"})
     assert ncaa.on_screen_player is None
@@ -137,6 +141,20 @@ def test_apply_only_on_madden(tmp_path: Path):
     assert mad.home_team == "KC"
     assert mad.away_team == "PHI"
     assert mad.home_team_name == "Kansas City Chiefs"
+
+
+def test_apply_roster_from_vlm_left_right(tmp_path: Path):
+    idx = _index(tmp_path)
+    from qoresence.profiles import nfl_roster as nr
+
+    nr._index = idx
+    mad = VisualContext(game_profile="madden_27")
+    apply_roster_to_context(
+        mad,
+        {"left_team": "Eagles", "right_team": "Chiefs", "home_left": False},
+    )
+    assert mad.away_team == "PHI"
+    assert mad.home_team == "KC"
 
 
 def test_resolve_possession_and_player(tmp_path: Path):

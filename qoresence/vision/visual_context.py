@@ -63,6 +63,12 @@ class VisualContext:
     away_team: str | None = None
     home_team_name: str | None = None
     away_team_name: str | None = None
+    home_color: str | None = None
+    away_color: str | None = None
+    home_logo: str | None = None
+    away_logo: str | None = None
+    home_hex: str | None = None
+    away_hex: str | None = None
     player_name_raw: str | None = None
     player_jersey: int | None = None
     on_screen_player: str | None = None
@@ -92,6 +98,7 @@ class VisualContext:
     # when they look like "drops" relative to a prior bad OCR lock (e.g. 20-20
     # corrected to 20-0). See engineering invariants #4/#5.
     score_vlm_locked: bool = False
+    confirm_ticket_id: str = ""
 
     # Provenance
     raw_response: str = ""
@@ -153,6 +160,12 @@ class VisualContext:
                 "away_team": self.away_team,
                 "home_team_name": self.home_team_name,
                 "away_team_name": self.away_team_name,
+                "home_color": self.home_color,
+                "away_color": self.away_color,
+                "home_logo": self.home_logo,
+                "away_logo": self.away_logo,
+                "home_hex": self.home_hex,
+                "away_hex": self.away_hex,
                 "player_name_raw": self.player_name_raw,
                 "player_jersey": self.player_jersey,
                 "on_screen_player": self.on_screen_player,
@@ -184,6 +197,7 @@ class VisualContext:
         d["latency_ms"] = self.latency_ms
         d["details"] = self.details
         d["score_vlm_locked"] = self.score_vlm_locked
+        d["confirm_ticket_id"] = self.confirm_ticket_id
         return d
 
     @staticmethod
@@ -254,6 +268,16 @@ class VisualContext:
         ctx.down_distance_text = _to_str(fb.get("down_distance_text"))
         ctx.home_team_raw = _to_str(fb.get("home_team_raw") or fb.get("home_team"))
         ctx.away_team_raw = _to_str(fb.get("away_team_raw") or fb.get("away_team"))
+        ctx.home_team = _to_str(fb.get("home_team"))
+        ctx.away_team = _to_str(fb.get("away_team"))
+        ctx.home_team_name = _to_str(fb.get("home_team_name"))
+        ctx.away_team_name = _to_str(fb.get("away_team_name"))
+        ctx.home_color = _to_str(fb.get("home_color"))
+        ctx.away_color = _to_str(fb.get("away_color"))
+        ctx.home_logo = _to_str(fb.get("home_logo"))
+        ctx.away_logo = _to_str(fb.get("away_logo"))
+        ctx.home_hex = _to_str(fb.get("home_hex"))
+        ctx.away_hex = _to_str(fb.get("away_hex"))
         ctx.player_name_raw = _to_str(fb.get("player_name") or fb.get("player_name_raw"))
         ctx.player_jersey = _to_int(fb.get("player_jersey"))
         ctx.nameplate_ambiguous = bool(fb.get("nameplate_ambiguous") or raw.get("nameplate_ambiguous"))
@@ -325,6 +349,7 @@ class VisualContext:
         ctx.latency_ms = float(raw.get("latency_ms", 0.0))
         ctx.details = raw.get("details") or {}
         ctx.score_vlm_locked = bool(raw.get("score_vlm_locked", False))
+        ctx.confirm_ticket_id = str(raw.get("confirm_ticket_id") or "")
 
         return ctx
 
@@ -360,8 +385,9 @@ def _to_str(v: Any) -> str | None:
 
 def build_football_prompt() -> str:
     return (
-        "Analyze this NCAA College Football 27 gameplay frame. "
-        "Read the scoreboard and HUD carefully. "
+        "Analyze this EA College Football 27 or Madden NFL 27 gameplay frame. "
+        "Read THIS match's primary scorebug / HUD only. "
+        "IGNORE the bottom ticker or crawl of other games' scores. "
         "Report home_score as the HOME team's score and away_score as the AWAY team's score, "
         "regardless of which side of the scoreboard they appear on. "
         "If the team names or HOME/AWAY labels clearly show the HOME team is on the LEFT, "

@@ -235,10 +235,17 @@ def test_situation_model_accepts_vlm_correction():
                 "home_score": 20,
                 "away_score": 0,
                 "score_vlm_locked": True,
+                "confirm_ticket_id": "cafecafecafecafe",
             }
         )
     )
     assert (sm.state.home_score, sm.state.away_score) == (20, 0)
+    assert sm.state.score_vlm_locked is True
+    assert sm.state.confirm_ticket_id == "cafecafecafecafe"
+    snap = sm.to_dict()
+    assert snap["score_vlm_locked"] is True
+    assert snap["scoreboard_locked"] is True
+    assert snap["confirm_ticket_id"] == "cafecafecafecafe"
 
 
 def test_situation_model_still_rejects_ocr_drop_without_vlm():

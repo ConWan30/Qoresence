@@ -58,6 +58,24 @@ class GhostCutResult:
 def _score_line(situation: dict[str, Any] | None) -> str:
     if not situation:
         return ""
+    try:
+        from qoresence.vision.confirm_ticket import get_ticket_book, why_strip
+
+        book = get_ticket_book()
+        ticket = book.get(str(situation.get("confirm_ticket_id") or "")) or book.latest()
+        if ticket is not None:
+            line = why_strip(ticket, last_fast=book.last_fast())
+            try:
+                from qoresence.sync.coupling_ticket import get_coupling_book, why_strip_coupling
+
+                couple = why_strip_coupling(get_coupling_book().latest_live())
+                if couple and couple != "couple: none":
+                    line = f"{line} · {couple}"
+            except Exception:
+                pass
+            return line
+    except Exception:
+        pass
     home = situation.get("home_score")
     away = situation.get("away_score")
     if home is None and away is None:

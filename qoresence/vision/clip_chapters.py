@@ -222,7 +222,22 @@ def chapters_after_export(mp4_path: str | Path, duration_s: float) -> Path | Non
         except Exception as e:
             log.debug("drive graph chapters merge skipped: %s", e)
 
-        why = tl.why_last()
+        why = tl.why_last() or {}
+        try:
+            from qoresence.sync.coupling_ticket import get_coupling_book, why_strip_coupling
+            from qoresence.sync.ivc import get_last_coupling
+            from qoresence.vision.confirm_ticket import get_ticket_book, why_strip
+
+            coup = get_last_coupling() or {}
+            why = dict(why)
+            why["phrase"] = coup.get("phrase") or "IDLE"
+            why["coupling_ticket_id"] = coup.get("coupling_ticket_id") or ""
+            why["confirm"] = why_strip(get_ticket_book().latest())
+            why["couple"] = why_strip_coupling(get_coupling_book().latest_live())
+            extra = f"{why['confirm']} · {why['couple']} · phrase={why['phrase']}"
+            why["line"] = f"{why.get('line') or extra} · {extra}" if why.get("line") else extra
+        except Exception:
+            pass
         return write_clip_sidecar(
             mp4_path,
             chapters,

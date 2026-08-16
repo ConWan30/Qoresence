@@ -18,6 +18,46 @@ def test_vlm_parse_json_20_0():
     assert out["paused"] is True
 
 
+def test_vlm_gameplay_crop_excludes_ticker():
+    import numpy as np
+
+    from qoresence.vision.scoreboard_vlm import TICKER_CUT_Y, ScoreboardVlmReferee
+
+    h, w = 100, 200
+    frame = np.zeros((h, w, 3), dtype=np.uint8)
+    # Paint ticker (below cut) red so a leak is visible
+    frame[int(h * TICKER_CUT_Y) :, :, 2] = 255
+    # Paint scorebug band green
+    frame[int(h * 0.78) : int(h * TICKER_CUT_Y), :, 1] = 255
+    crop = ScoreboardVlmReferee._crop(frame, game_state="gameplay")
+    assert crop is not None
+    # No red ticker pixels in the crop
+    assert int(crop[:, :, 2].max()) == 0
+    assert int(crop[:, :, 1].max()) == 255
+
+
+def test_vlm_menu_crop_is_pause_plate_not_ticker():
+    import numpy as np
+
+    from qoresence.vision.scoreboard_vlm import TICKER_CUT_Y, ScoreboardVlmReferee
+
+    h, w = 100, 200
+    frame = np.zeros((h, w, 3), dtype=np.uint8)
+    frame[int(h * TICKER_CUT_Y) :, :, 2] = 255
+    frame[int(h * 0.12) : int(h * 0.52), int(w * 0.22) : int(w * 0.78), 0] = 200
+    crop = ScoreboardVlmReferee._crop(frame, game_state="menu")
+    assert crop is not None
+    assert int(crop[:, :, 2].max()) == 0
+    assert int(crop[:, :, 0].max()) >= 200
+
+
+def test_vlm_prompt_forbids_ticker():
+    from qoresence.vision.scoreboard_vlm import _PROMPT
+
+    assert "ticker" in _PROMPT.lower()
+    assert "OTHER games" in _PROMPT
+
+
 def test_vlm_parse_home_left_false():
     text = '{"home_score": 7, "away_score": 0, "home_left": false, "quarter": 1}'
     out = ScoreboardVlmReferee._parse_json(text)

@@ -200,15 +200,17 @@ class _ScoreStabilizer:
             return True
         # One side multi-digit / large, other tiny 1–4 → down/quarter/play-clock leak
         # Classic failures: 17-2, 12-2, 21-1
-        if (h >= 10 and 1 <= a <= 4) or (a >= 10 and 1 <= h <= 4):
+        # 1–2 (and 4) next to a large score look like down/quarter leaks.
+        # 0 is a shutout; 3 is a field goal — those are real football.
+        if (h >= 10 and a in (1, 2, 4)) or (a >= 10 and h in (1, 2, 4)):
             return True
-        if (h >= 7 and 1 <= a <= 4) or (a >= 7 and 1 <= h <= 4):
+        if (h >= 7 and a in (1, 2, 4)) or (a >= 7 and h in (1, 2, 4)):
             return True
         # Huge imbalance with tiny side (e.g. 28-1 mid-game OCR glitch)
         # Allow true 20-0 / 28-0 blowouts (zero is valid football)
         if min(h, a) == 0 and max(h, a) <= 80:
             return False
-        if min(h, a) <= 3 and min(h, a) > 0 and max(h, a) >= 14:
+        if min(h, a) in (1, 2) and max(h, a) >= 14:
             return True
         return False
 
@@ -386,6 +388,26 @@ class FootballScoreboardExtractor:
                     parsed[k] = vlm[k]
             if vlm_has_board:
                 vlm_scores = True
+                try:
+                    from qoresence.profiles.cfb27_product import (
+                        identity_compatible,
+                        vlm_home_away_names,
+                    )
+
+                    nh, na = vlm_home_away_names(vlm)
+                    if getattr(ctx, "score_vlm_locked", False) and not identity_compatible(
+                        getattr(ctx, "home_team", None),
+                        getattr(ctx, "away_team", None),
+                        nh,
+                        na,
+                        profile=getattr(ctx, "game_profile", None),
+                    ):
+                        # Ticker / other-game pair — keep the held lock
+                        vlm_scores = False
+                        parsed.pop("home_score", None)
+                        parsed.pop("away_score", None)
+                except Exception:
+                    pass
 
         if not parsed:
             # No OCR/VLM this frame — still publish a held stabilizer lock so a
@@ -411,7 +433,48 @@ class FootballScoreboardExtractor:
                 stab._recent.append((int(raw_h), int(raw_a)))
                 sh, sa = stab._stable
                 ctx.score_vlm_locked = True
-                log.info("scoreboard VLM lock %s-%s", sh, sa)
+                try:
+                    import time as _time_ticket
+
+                    from qoresence.monitor.frame_hub import get_latest_stamp
+                    from qoresence.vision.confirm_ticket import get_ticket_book, mint_confirm_ticket
+
+                    stamp = {}
+                    try:
+                        stamp = get_latest_stamp() or {}
+                    except Exception:
+                        stamp = {}
+
+                    def _ti(v: Any) -> int | None:
+                        try:
+                            return int(v) if v is not None and v != "" else None
+                        except (TypeError, ValueError):
+                            return None
+
+                    ticket = mint_confirm_ticket(
+                        session_id=str(getattr(ctx, "session_id", "") or ""),
+                        clock_ns=int(stamp.get("clock_ns") or _time_ticket.monotonic_ns()),
+                        home_score=int(sh),
+                        away_score=int(sa),
+                        model=str(getattr(ctx, "model", "") or "gemini-3.5-flash-lite"),
+                        frame_seq=_ti(stamp.get("seq")),
+                        crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
+                        quarter=_ti(parsed.get("quarter")),
+                        down=_ti(parsed.get("down")),
+                    )
+                    get_ticket_book().put(ticket)
+                    ctx.confirm_ticket_id = ticket.ticket_id
+                    if isinstance(ctx.details, dict):
+                        ctx.details["confirm_ticket"] = ticket.to_dict()
+                    log.info(
+                        "scoreboard VLM lock %s-%s ticket=%s",
+                        sh,
+                        sa,
+                        ticket.ticket_id,
+                    )
+                except Exception as e:
+                    log.debug("confirm ticket mint skipped: %s", e)
+                    log.info("scoreboard VLM lock %s-%s", sh, sa)
             else:
                 sh, sa = stab.update(raw_h, raw_a)
             if sh is not None:
@@ -461,6 +524,25 @@ class FootballScoreboardExtractor:
         if parsed.get("away_team_raw"):
             ctx.away_team_raw = str(parsed["away_team_raw"])
         ctx.home_left = home_left
+        if vlm:
+            for k in (
+                "left_team",
+                "left_color",
+                "left_logo",
+                "right_team",
+                "right_color",
+                "right_logo",
+            ):
+                if vlm.get(k):
+                    parsed[k] = vlm[k]
+            if vlm.get("home_left") is not None:
+                parsed["home_left"] = bool(vlm.get("home_left"))
+        try:
+            from qoresence.profiles.team_identity import apply_identity_to_context
+
+            apply_identity_to_context(ctx, parsed)
+        except Exception:
+            pass
         try:
             from qoresence.profiles.nfl_roster import apply_roster_to_context
 
@@ -522,10 +604,10 @@ class FootballScoreboardExtractor:
         from qoresence.vision.scoreboard_ocr_engine import get_scoreboard_engine
 
         h, w = frame.shape[:2]
-        # Bottom scorebug + mid HUD + center pause-menu score plate
+        # Scorebug is the red/blue bar just above the ticker (y > 0.93).
         crops_frac = (
-            (0.22, 0.78, 0.80, 0.98),  # primary bottom scorebug
-            (0.28, 0.72, 0.74, 0.90),  # slightly higher
+            (0.12, 0.88, 0.78, 0.93),  # primary in-game scorebug (ticker excluded)
+            (0.20, 0.80, 0.76, 0.92),  # slightly tighter
             (0.30, 0.70, 0.18, 0.55),  # pause / big center scores
             (0.18, 0.82, 0.12, 0.42),  # wider pause plate
         )

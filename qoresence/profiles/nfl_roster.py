@@ -189,6 +189,7 @@ class NflRosterIndex:
             hits = [p for p in hits if p.jersey == int(jer)]
         if len(hits) > 1:
             return True
+        # Parsed as a nameplate but zero unique hits (e.g. Brown, no team)
         if last and not team and jer is None and (len(hits) != 1):
             return True
         return False
@@ -319,6 +320,18 @@ def apply_roster_to_context(ctx: Any, parsed: dict[str, Any] | None = None) -> A
     idx = get_nfl_roster()
     home_raw = parsed.get("home_team_raw") or getattr(ctx, "home_team_raw", None)
     away_raw = parsed.get("away_team_raw") or getattr(ctx, "away_team_raw", None)
+    left = parsed.get("left_team")
+    right = parsed.get("right_team")
+    if left or right:
+        home_left = bool(parsed.get("home_left")) if parsed.get("home_left") is not None else bool(
+            getattr(ctx, "home_left", False)
+        )
+        if home_left:
+            home_raw = home_raw or left
+            away_raw = away_raw or right
+        else:
+            away_raw = away_raw or left
+            home_raw = home_raw or right
     nameplate = parsed.get("player_name") or getattr(ctx, "player_name_raw", None)
     jersey = parsed.get("player_jersey")
     if jersey is None:

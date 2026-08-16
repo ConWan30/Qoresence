@@ -33,19 +33,34 @@ SCOREBOARD_MODEL = os.environ.get("QORESENCE_SCOREBOARD_VLM_MODEL", "gemini-3.5-
 _GAMEPLAY_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_INTERVAL", "1.5"))
 _MENU_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_MENU_INTERVAL", "8.0"))
 
-_PROMPT = """You are a football scoreboard OCR engine for EA College Football / NCAA.
-Look ONLY at the scoreboard or pause score plate. Return STRICT JSON, no markdown:
+# CFB 26/27: in-game scorebug is the red/blue bar (~y 0.78–0.93).
+# The national ticker / other-games crawl is the last ~7% (y > 0.93).
+TICKER_CUT_Y = 0.93
+# (x1, x2, y1, y2) fractions
+_SCOREBUG_FRAC = (0.12, 0.88, 0.78, TICKER_CUT_Y)
+_PAUSE_FRAC = (0.22, 0.78, 0.12, 0.52)
+
+_PROMPT = """You are a football scoreboard identity engine for EA College Football 27 or Madden NFL 27.
+Look at THIS match's primary in-game scorebug or pause score plate only.
+Return STRICT JSON, no markdown:
 {"home_score": <int|null>, "away_score": <int|null>, "home_left": <bool|null>,
+ "left_team": "<wordmark or null>", "left_color": "<jersey/bug color>", "left_logo": "<mascot/logo>",
+ "right_team": "<wordmark or null>", "right_color": "<jersey/bug color>", "right_logo": "<mascot/logo>",
  "quarter": <1-4|null>, "clock": "<m:ss>"|null, "down": <1-4|null>,
  "yards_to_go": <int|null>, "play_clock": <int|null>, "paused": <bool>}
 Rules:
-- Report home_score as the HOME team's score and away_score as the AWAY team's score.
-- By convention the AWAY team is on the LEFT and the HOME team is on the RIGHT.
-- If the HOME team is clearly on the LEFT (e.g. HOME label or team name), set home_left to true.
-- Read the BIG score digits only (not team records, TOTAL column, play clock, down).
-- 0 is a valid score. Prefer 20-0 over inventing 20-20.
-- If unsure of a field use null. Never invent a close score when digits are clear.
-- If this is a PAUSED menu with large center scores, still fill home/away.
+- IGNORE the bottom ticker / crawl / "scores around the country" strip. Those are OTHER games. Never copy a ticker pair.
+- If you see many small scores in a row, that is a ticker — set scores null rather than using it.
+- Read ONLY the primary scorebug for the match on this screen (the two LARGE scores next to the two team wordmarks, with down & distance).
+- Bind EACH SIDE: the name, jersey/scorebug color, and logo on that side stay with THAT side's score. Never swap a mustang onto a cardinal, or blue onto a red bug.
+- left_* is the LEFT scorebug (usually away). right_* is the RIGHT scorebug (usually home).
+- left_color / right_color: dominant jersey or bug color (blue, red, crimson, orange, gold, purple, green, black, white, maroon, navy).
+- left_logo / right_logo: mascot/mark (eagle, horse, star, fleur-de-lis, mustang, cardinal, …) not a URL.
+- Madden: use NFL abbreviations when readable (KC, PHI, DAL, SF, …). NCAA: school wordmarks (OU, LOU, …).
+- home_score / away_score are HOME vs AWAY, not left vs right.
+- Convention: AWAY left, HOME right. If HOME is on the LEFT, set home_left true.
+- Read the BIG score digits only (not records, TOTAL, play clock, ticker).
+- 0 is valid. Prefer 20-0 over inventing 20-20. Unsure → null.
 """
 
 
@@ -125,7 +140,7 @@ class ScoreboardVlmReferee:
             self._inflight = True
             self._last_call = now
             self._last_reason = reason
-        crop = self._crop(frame)
+        crop = self._crop(frame, game_state=gst)
         if crop is None:
             with self._lock:
                 self._inflight = False
@@ -155,29 +170,29 @@ class ScoreboardVlmReferee:
         threading.Thread(target=_run, name="scoreboard-vlm", daemon=True).start()
 
     @staticmethod
-    def _crop(frame: np.ndarray) -> np.ndarray | None:
+    def _slice(frame: np.ndarray, frac: tuple[float, float, float, float]) -> np.ndarray | None:
+        h, w = frame.shape[:2]
+        x1, x2, y1, y2 = frac
+        crop = frame[int(h * y1) : int(h * y2), int(w * x1) : int(w * x2)]
+        if crop.size == 0 or crop.shape[0] < 8 or crop.shape[1] < 8:
+            return None
+        return crop
+
+    @classmethod
+    def _crop(cls, frame: np.ndarray, game_state: str | None = None) -> np.ndarray | None:
         h, w = frame.shape[:2]
         if h < 40 or w < 40:
             return None
-        # Prefer center pause plate + bottom scorebug composite strip
-        crops = [
-            frame[int(h * 0.12) : int(h * 0.55), int(w * 0.22) : int(w * 0.78)],
-            frame[int(h * 0.78) : int(h * 0.98), int(w * 0.20) : int(w * 0.80)],
-        ]
-        # Stitch vertically if both valid
-        valid = [c for c in crops if c.size > 0 and c.shape[0] > 8 and c.shape[1] > 8]
-        if not valid:
+        gst = (game_state or "").lower()
+        menu = gst in {"menu", "lobby", "hub", "paused", "pause"}
+        # Gameplay: scorebug only, ticker cut off. Menu: pause plate only.
+        # Never stitch pause+bottom — that used to feed Gemini the other-games crawl.
+        src = cls._slice(frame, _PAUSE_FRAC if menu else _SCOREBUG_FRAC)
+        if src is None:
+            src = cls._slice(frame, _SCOREBUG_FRAC if menu else _PAUSE_FRAC)
+        if src is None:
             return None
-        if len(valid) == 1:
-            out = valid[0]
-        else:
-            # resize to same width
-            ww = min(c.shape[1] for c in valid)
-            resized = [
-                cv2.resize(c, (ww, max(8, int(c.shape[0] * ww / c.shape[1])))) for c in valid
-            ]
-            out = np.vstack(resized)
-        # Cap size for API
+        out = src
         mh, mw = out.shape[:2]
         max_dim = 640
         if max(mh, mw) > max_dim:
@@ -194,6 +209,8 @@ class ScoreboardVlmReferee:
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "Qoresence-ScoreboardGemini/1.0",
+            "Accept": "application/json",
         }
         body = {
             "model": self.model,
@@ -286,6 +303,16 @@ class ScoreboardVlmReferee:
         else:
             out["clock_seconds"] = None
         out["paused"] = bool(obj.get("paused"))
+        for side_k in (
+            "left_team",
+            "left_color",
+            "left_logo",
+            "right_team",
+            "right_color",
+            "right_logo",
+        ):
+            v = obj.get(side_k)
+            out[side_k] = str(v).strip() if v not in (None, "") else None
         # sanity
         hs, aws = out.get("home_score"), out.get("away_score")
         if hs is not None and not (0 <= hs <= 99):

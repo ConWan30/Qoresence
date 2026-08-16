@@ -3,9 +3,9 @@ Qoresence Visual Lobe
 
 VLM integration for game-state classification and cross-modal verification.
 
-Cloud path: Quicksilver Pro OpenAI-compatible vision (default gemini-3.5-flash-lite).
-Local path: LocalVLM (ONNX/heuristic) when prefer_local=True — default under --play.
-OCR scoreboard remains the score referee.
+Cloud path: Quicksilver Pro Gemini vision (default gemini-3.5-flash-lite).
+That is the confirm-path referee: board + scene. LocalVLM only when
+prefer_local=True or no Quicksilver key is present.
 """
 
 from __future__ import annotations
@@ -87,7 +87,11 @@ class VLMClient:
         self._session = requests.Session()
 
         # Headers
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Qoresence-VisualGemini/1.0",
+            "Accept": "application/json",
+        }
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         self._session.headers.update(headers)
@@ -353,14 +357,15 @@ class VisualRuntime:
         self._frame_provider = frame_provider
         self._modality_provider = modality_provider
 
-        # VLM client â€” prefer local distilled brain when VisualConfig.prefer_local=True
-        # Wiring: LocalVLMClient (<100ms offline) is primary; cloud VLM is fallback.
-        # This is the switch that makes baf1a11's scaffold a fully wired product.
-        self._client_kind = "cloud"
+        # Gemini is the vision/confirm client. Local ONNX only if asked, or if
+        # there is no Quicksilver key (offline play still has to start).
+        self._client_kind = "cloud:gemini"
         _prefer = bool(getattr(config, "prefer_local", False))
         _local_path = getattr(config, "local_model_path", None)
         _fallback = bool(getattr(config, "local_fallback", True))
-        if _prefer:
+        _cloud = VLMClient(config)
+        _has_gemini = bool(getattr(_cloud, "api_key", None))
+        if _prefer or not _has_gemini:
             try:
                 from qoresence.vision.local_vlm import LocalVLMClient as _LocalVLM
 
@@ -368,26 +373,32 @@ class VisualRuntime:
                     model_path=_local_path,
                     game_profile=getattr(config, "game_profile", None),
                 )
-                if _local.is_available():
+                if _prefer or _local.is_available() or _fallback:
                     self._client = _local
-                    self._client_kind = "local:onnx"
-                elif _fallback:
-                    # heuristic is always available â€” still local
-                    self._client = _local
-                    self._client_kind = "local:heuristic"
+                    self._client_kind = (
+                        "local:onnx" if _local.is_available() else "local:heuristic"
+                    )
+                    why = "prefer_local" if _prefer else "no Quicksilver key"
+                    log.info(
+                        "VisualRuntime using %s (%s, path=%s)",
+                        self._client_kind,
+                        why,
+                        _local_path or "models/qoresence-vlm-distilled.onnx",
+                    )
                 else:
-                    self._client = VLMClient(config)
-                    self._client_kind = "cloud"
-                log.info(
-                    f"VisualRuntime using {self._client_kind} (prefer_local=True, path={_local_path or 'models/qoresence-vlm-distilled.onnx'})"
-                )
+                    self._client = _cloud
+                    self._client_kind = "cloud:gemini"
             except Exception as e:
-                log.warning(f"LocalVLM init failed ({e}), falling back to cloud VLM")
-                self._client = VLMClient(config)
-                self._client_kind = "cloud-fallback"
+                log.warning("LocalVLM init failed (%s), using Gemini if keyed", e)
+                self._client = _cloud
+                self._client_kind = "cloud:gemini"
         else:
-            self._client = VLMClient(config)
-            self._client_kind = "cloud"
+            self._client = _cloud
+            self._client_kind = "cloud:gemini"
+            log.info(
+                "VisualRuntime using Gemini confirm (%s)",
+                getattr(config, "model_name", "gemini-3.5-flash-lite"),
+            )
 
         # Prompts
         self._classify_prompt = self._build_classify_prompt()
@@ -504,14 +515,19 @@ class VisualRuntime:
         return None
 
     def _analyze_frame(self, frame: np.ndarray) -> None:
-        """Analyze single frame with VLM."""
+        """Classify, then always merge Gemini scoreboard lock/ticket on football."""
         # 1. Game state classification
         context = self._client.analyze_frame(
             frame,
             self._classify_prompt,
             game_profile=self.config.game_profile or self.config.game_category,
         )
-        if context and context.confidence >= self.config.min_confidence:
+        context = self._merge_scoreboard(frame, context)
+        if context and (
+            context.confidence >= self.config.min_confidence
+            or context.score_vlm_locked
+            or context.home_score is not None
+        ):
             self._last_context = context
             self._emit_visual_context(context)
 
@@ -526,8 +542,45 @@ class VisualRuntime:
 
         self._frames_analyzed += 1
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    # PROMPTS
+    def _merge_scoreboard(self, frame: np.ndarray, context: VisualContext | None) -> VisualContext | None:
+        """Always run the extractor so Gemini get_last() becomes a lock + ticket.
+
+        Cloud VisualRuntime used to skip this; LocalVLM was the only caller.
+        A2A still schedules the referee, but without extract() scores never land.
+        """
+        profile = str(self.config.game_profile or self.config.game_category or "")
+        football = "football" in profile.lower() or "ncaa" in profile.lower() or "madden" in profile.lower()
+        if "madden" in profile.lower():
+            profile = "madden_27"
+        if context is None:
+            if not football:
+                return None
+            from qoresence.vision.visual_context import GameCategory, GameState
+
+            context = VisualContext(
+                game_category=GameCategory.FOOTBALL,
+                game_state=GameState.GAMEPLAY,
+                game_profile=profile,
+                confidence=0.0,
+            )
+        elif "madden" in profile.lower() or "madden" in str(getattr(context, "game_profile", "") or "").lower():
+            context.game_profile = "madden_27"
+        try:
+            cat = getattr(context.game_category, "value", context.game_category)
+            if not football and str(cat) != "football":
+                return context
+            if str(cat) != "football":
+                from qoresence.vision.visual_context import GameCategory
+
+                context.game_category = GameCategory.FOOTBALL
+            from qoresence.vision.scoreboard_extractor import extract_football_scoreboard
+
+            return extract_football_scoreboard(frame, context)
+        except Exception as e:
+            log.debug("scoreboard merge skipped: %s", e)
+            return context
+
+    # Prompts
     # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _build_classify_prompt(self) -> str:

@@ -35,6 +35,9 @@ class SituationState:
     game_category: str | None = None
     game_title: str | None = None
     visual_confidence: float = 0.0
+    # True when Gemini scoreboard VLM force-locked the board (confirm path).
+    score_vlm_locked: bool = False
+    confirm_ticket_id: str = ""
 
     # Football
     home_score: int | None = None
@@ -50,6 +53,12 @@ class SituationState:
     away_team: str | None = None
     home_team_name: str | None = None
     away_team_name: str | None = None
+    home_color: str | None = None
+    away_color: str | None = None
+    home_logo: str | None = None
+    away_logo: str | None = None
+    home_hex: str | None = None
+    away_hex: str | None = None
     on_screen_player: str | None = None
     on_screen_player_team: str | None = None
     on_screen_player_jersey: int | None = None
@@ -113,6 +122,23 @@ class SituationModel:
             self._state.game_state = (
                 ctx.game_state.value if hasattr(ctx.game_state, "value") else str(ctx.game_state)
             )
+        if ctx.score_vlm_locked:
+            self._state.score_vlm_locked = True
+        if getattr(ctx, "confirm_ticket_id", ""):
+            self._state.confirm_ticket_id = str(ctx.confirm_ticket_id)
+        try:
+            from qoresence.profiles.cfb27_product import effective_game_state
+            from qoresence.sync.play_phrase import note_game_state
+
+            self._state.game_state = effective_game_state(
+                self._state.game_state,
+                locked=bool(self._state.score_vlm_locked),
+                quarter=self._state.quarter if self._state.quarter is not None else getattr(ctx, "quarter", None),
+                down=self._state.down if self._state.down is not None else getattr(ctx, "down", None),
+            )
+            note_game_state(self._state.game_state)
+        except Exception:
+            pass
         if ctx.game_category is not None:
             self._state.game_category = (
                 ctx.game_category.value
@@ -124,7 +150,6 @@ class SituationModel:
         if ctx.game_profile:
             self._state.game_profile = ctx.game_profile
         self._state.visual_confidence = ctx.confidence
-
         if ctx.game_category and ctx.game_category.value == "football":
             # Scores: only apply if plausible (OCR often emits 17-2 for a real 17-17)
             # VLM-locked scores bypass this gate — the scoreboard referee is the
@@ -135,6 +160,37 @@ class SituationModel:
                     hs = None
                 if aws is not None and not self._score_plausible(self._state.away_score, aws):
                     aws = None
+            id_ok = True
+            try:
+                from qoresence.profiles.cfb27_product import identity_compatible
+
+                if self._state.score_vlm_locked and (self._state.home_team or self._state.away_team):
+                    id_ok = identity_compatible(
+                        self._state.home_team,
+                        self._state.away_team,
+                        getattr(ctx, "home_team", None),
+                        getattr(ctx, "away_team", None),
+                        profile=self._state.game_profile or getattr(ctx, "game_profile", None),
+                    )
+            except Exception:
+                id_ok = True
+            ident: dict[str, Any] = {}
+            if id_ok:
+                ident = {
+                    "home_team": getattr(ctx, "home_team", None),
+                    "away_team": getattr(ctx, "away_team", None),
+                    "home_team_name": getattr(ctx, "home_team_name", None),
+                    "away_team_name": getattr(ctx, "away_team_name", None),
+                    "home_color": getattr(ctx, "home_color", None),
+                    "away_color": getattr(ctx, "away_color", None),
+                    "home_logo": getattr(ctx, "home_logo", None),
+                    "away_logo": getattr(ctx, "away_logo", None),
+                    "home_hex": getattr(ctx, "home_hex", None),
+                    "away_hex": getattr(ctx, "away_hex", None),
+                }
+            elif not ctx.score_vlm_locked:
+                # Stranger ticker pair — do not take its scores either
+                hs, aws = None, None
             self._apply_if_set(
                 home_score=hs,
                 away_score=aws,
@@ -145,14 +201,11 @@ class SituationModel:
                 field_position=ctx.field_position,
                 play_clock=ctx.play_clock,
                 game_clock_seconds=ctx.clock_seconds,
-                home_team=getattr(ctx, "home_team", None),
-                away_team=getattr(ctx, "away_team", None),
-                home_team_name=getattr(ctx, "home_team_name", None),
-                away_team_name=getattr(ctx, "away_team_name", None),
                 on_screen_player=getattr(ctx, "on_screen_player", None),
                 on_screen_player_team=getattr(ctx, "on_screen_player_team", None),
                 on_screen_player_jersey=getattr(ctx, "on_screen_player_jersey", None),
                 nameplate_ambiguous=bool(getattr(ctx, "nameplate_ambiguous", False)),
+                **ident,
             )
 
         if ctx.game_category and ctx.game_category.value == "shooter":
@@ -250,6 +303,9 @@ class SituationModel:
             "game_category": s.game_category,
             "game_title": s.game_title,
             "visual_confidence": s.visual_confidence,
+            "score_vlm_locked": bool(s.score_vlm_locked),
+            "scoreboard_locked": bool(s.score_vlm_locked),
+            "confirm_ticket_id": s.confirm_ticket_id or "",
             "home_score": s.home_score,
             "away_score": s.away_score,
             "quarter": s.quarter,
@@ -263,6 +319,12 @@ class SituationModel:
             "away_team": s.away_team,
             "home_team_name": s.home_team_name,
             "away_team_name": s.away_team_name,
+            "home_color": s.home_color,
+            "away_color": s.away_color,
+            "home_logo": s.home_logo,
+            "away_logo": s.away_logo,
+            "home_hex": s.home_hex,
+            "away_hex": s.away_hex,
             "on_screen_player": s.on_screen_player,
             "on_screen_player_team": s.on_screen_player_team,
             "on_screen_player_jersey": s.on_screen_player_jersey,
