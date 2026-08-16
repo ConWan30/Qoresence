@@ -79,6 +79,8 @@ class NflRosterIndex:
         self.players: list[NflPlayer] = []
         self._by_team_jersey: dict[tuple[str, int], list[NflPlayer]] = {}
         self._by_team_last: dict[tuple[str, str], list[NflPlayer]] = {}
+        self._by_last: dict[str, list[NflPlayer]] = {}
+        self._by_last_jersey: dict[tuple[str, int], list[NflPlayer]] = {}
         self.roster_path: Path | None = None
 
     @classmethod
@@ -140,12 +142,14 @@ class NflRosterIndex:
             if player is None:
                 continue
             self.players.append(player)
+            last_key = _norm(player.last_name)
             if player.jersey is not None:
                 self._by_team_jersey.setdefault((player.team, player.jersey), []).append(player)
-            if player.last_name:
-                self._by_team_last.setdefault((player.team, _norm(player.last_name)), []).append(
-                    player
-                )
+                if last_key:
+                    self._by_last_jersey.setdefault((last_key, player.jersey), []).append(player)
+            if last_key:
+                self._by_team_last.setdefault((player.team, last_key), []).append(player)
+                self._by_last.setdefault(last_key, []).append(player)
 
     def match_team(self, text: str | None) -> NflTeam | None:
         key = _norm(text)
@@ -202,6 +206,24 @@ class NflRosterIndex:
         team: str | None = None,
         last_name: str | None = None,
     ) -> NflPlayer | None:
+        player, _rule = self.match_player_explained(
+            text, jersey=jersey, team=team, last_name=last_name
+        )
+        return player
+
+    def match_player_explained(
+        self,
+        text: str | None = None,
+        *,
+        jersey: int | None = None,
+        team: str | None = None,
+        last_name: str | None = None,
+    ) -> tuple[NflPlayer | None, str | None]:
+        """Return (player, rule). Rule is set only on a unique hit.
+
+        last-name-only and last+jersey with no team accept only when the
+        loaded roster has exactly one match. Collisions stay None.
+        """
         team_abbr = None
         if team:
             found = self.match_team(team)
@@ -224,14 +246,57 @@ class NflRosterIndex:
             if last:
                 hits = [p for p in hits if _norm(p.last_name) == last]
             if len(hits) == 1:
-                return hits[0]
-            return None
+                return hits[0], "team_jersey"
+            return None, None
         if team_abbr and last:
             hits = self._by_team_last.get((team_abbr, last)) or []
             if len(hits) == 1:
-                return hits[0]
-            return None
-        return None
+                return hits[0], "team_last"
+            return None, None
+        if last and jersey is not None:
+            hits = self._by_last_jersey.get((last, int(jersey))) or []
+            if len(hits) == 1:
+                return hits[0], "unique_last_jersey"
+            return None, None
+        if last:
+            hits = self._by_last.get(last) or []
+            if len(hits) == 1:
+                return hits[0], "unique_last"
+            return None, None
+        return None, None
+
+    def collision_report(self) -> dict[str, Any]:
+        last_collisions: list[dict[str, Any]] = []
+        for last, players in sorted(self._by_last.items()):
+            if len(players) > 1:
+                last_collisions.append(
+                    {
+                        "last": last,
+                        "n": len(players),
+                        "teams": sorted({p.team for p in players}),
+                    }
+                )
+        last_jersey_collisions: list[dict[str, Any]] = []
+        for (last, jer), players in sorted(self._by_last_jersey.items()):
+            if len(players) > 1:
+                last_jersey_collisions.append(
+                    {
+                        "last": last,
+                        "jersey": jer,
+                        "n": len(players),
+                        "teams": sorted({p.team for p in players}),
+                    }
+                )
+        return {
+            "roster_loaded": self.roster_path is not None,
+            "roster_path": str(self.roster_path) if self.roster_path else None,
+            "player_n": len(self.players),
+            "team_n": len(self.teams),
+            "last_name_collision_n": len(last_collisions),
+            "last_jersey_collision_n": len(last_jersey_collisions),
+            "last_name_collisions": last_collisions[:32],
+            "unique_hit_rule": "last-only and last+jersey accept only if exactly one roster hit",
+        }
 
     def resolve(
         self,
@@ -260,11 +325,17 @@ class NflRosterIndex:
             side = "away"
 
         team_hint = poss_team.abbr if poss_team else None
-        player = self.match_player(nameplate, jersey=jersey, team=team_hint)
+        player, rule = self.match_player_explained(nameplate, jersey=jersey, team=team_hint)
         if player is None and home:
-            player = self.match_player(nameplate, jersey=jersey, team=home.abbr)
+            player, rule = self.match_player_explained(
+                nameplate, jersey=jersey, team=home.abbr
+            )
         if player is None and away:
-            player = self.match_player(nameplate, jersey=jersey, team=away.abbr)
+            player, rule = self.match_player_explained(
+                nameplate, jersey=jersey, team=away.abbr
+            )
+        if player is None:
+            player, rule = self.match_player_explained(nameplate, jersey=jersey)
 
         ambiguous = self.nameplate_ambiguous(
             nameplate, jersey=jersey, team=team_hint or home_raw or away_raw
@@ -278,6 +349,8 @@ class NflRosterIndex:
             "possession_side": side,
             "on_screen_player": player.to_dict() if player else None,
             "nameplate_ambiguous": bool(ambiguous),
+            "nameplate_match": rule,
+            "roster_loaded": self.roster_path is not None,
         }
         return out
 
@@ -356,6 +429,10 @@ def apply_roster_to_context(ctx: Any, parsed: dict[str, Any] | None = None) -> A
         ctx.away_team = away["abbr"]
         ctx.away_team_name = away["name"]
     player = resolved.get("on_screen_player")
+    if hasattr(ctx, "roster_loaded"):
+        ctx.roster_loaded = bool(resolved.get("roster_loaded"))
+    if hasattr(ctx, "nameplate_match"):
+        ctx.nameplate_match = resolved.get("nameplate_match")
     if player:
         ctx.on_screen_player = player["full_name"]
         ctx.on_screen_player_team = player["team"]

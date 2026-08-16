@@ -56,6 +56,10 @@ ClutchBot score_changed
     └── _log_drive_graph_sample → LearningLogger (opt-in)
 ```
 
+## Node cap
+
+`_build_edges` is O(n²). A live 2000-event dump froze Deck `/health` (2026-08-14), so builders keep a **named safety cap**: default **48**, floor 8, hard ceiling **96**. Raise with `QORESENCE_DRIVE_GRAPH_MAX_NODES` or `from_events(..., max_nodes=N)`. Unbounded graphs are refused. Summary reports `node_cap`, `nodes_truncated`, `raw_node_count`.
+
 ## Operator
 
 ```powershell

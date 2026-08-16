@@ -94,6 +94,22 @@ def test_ambiguous_last_name_no_invent(tmp_path: Path):
     assert idx.match_player("SMITH", team="KC") is None
 
 
+def test_unique_last_and_last_jersey_without_team(tmp_path: Path):
+    idx = _index(tmp_path)
+    p, rule = idx.match_player_explained(last_name="Mahomes")
+    assert p is not None and p.full_name == "Patrick Mahomes"
+    assert rule == "unique_last"
+    brown11, rule11 = idx.match_player_explained("Brown #11")
+    assert brown11 is not None and brown11.full_name == "A.J. Brown"
+    assert rule11 == "unique_last_jersey"
+    assert idx.match_player(last_name="Brown") is None
+    report = idx.collision_report()
+    assert report["roster_loaded"] is True
+    assert report["player_n"] == 5
+    assert report["last_name_collision_n"] == 1
+    assert report["last_name_collisions"][0]["last"] == "BROWN"
+
+
 def test_nameplate_ambiguous_flag(tmp_path: Path):
     idx = _index(tmp_path)
     from qoresence.profiles import nfl_roster as nr

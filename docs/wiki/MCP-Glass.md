@@ -34,7 +34,7 @@ PS5 HDMI → Qoresence Streamer (owns card) → FrameHub / ClipBuffer / IVC / A2
 
 `mcp` reuses Glass D — no new port, no second capture open, no `0.0.0.0`.
 
-## 11 tools (7 glass + 4 foundry/proactive)
+## 12 tools (7 glass + 4 foundry/proactive + wrap)
 
 | tool | what it does | throttle / error |
 |------|--------------|------------------|
@@ -45,6 +45,7 @@ PS5 HDMI → Qoresence Streamer (owns card) → FrameHub / ClipBuffer / IVC / A2
 | `export_clip` | local `clips/*.mp4` + chapter/`.buttons.json` sidecars (`seconds` 1..30) | **1 per 10 s global** → `429 clip_rate_limited` |
 | `get_situation` | merged `situation + coupling + last visual_context` | — |
 | `get_observation` | **Witness pack** — plane-tagged title/score/phrase/glass the agent *may* say; unlocked digits and localhost phone URLs stay silent | — |
+| `wrap_observation` | **Research wrap** — last `title_presence` → `qoresence-research`. Grant env required. Refuses `qortroller-truth`. | — |
 | `search_clips` | Foundry RAG: keyword search over `clips/*.chapters.json` + buttons + graph + timeline fallback (`query`, `limit` 1..20, `kinds` csv, `coupling_min`, `drive_id`) | — |
 | `get_drive_graph` | DriveGraph for `active` or `drive_id` → `phase/climax/match_rate/nodes/why_line` | — |
 | `subscribe_events` | Proactive glass: poll since cursor, returns `next_since + poll_again_ms` for live tail | `max_eps_per_client` |

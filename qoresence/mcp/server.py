@@ -99,6 +99,10 @@ def _get_fastmcp():
     def get_observation() -> dict:  # type: ignore
         return handle_get_observation()
 
+    @mcp.tool()  # type: ignore
+    def wrap_observation(dest_plane: str = "qoresence-research") -> dict:  # type: ignore
+        return handle_wrap_observation(dest_plane=dest_plane)
+
     _mcp_fastmcp = mcp
     return mcp
 
@@ -397,6 +401,46 @@ def handle_get_observation() -> dict[str, Any]:
     return pack
 
 
+def handle_wrap_observation(dest_plane: str = "qoresence-research") -> dict[str, Any]:
+    """Fail-closed research wrap. Never writes a truth-plane store."""
+    from qoresence.vision.title_presence_ceremony import run_research_ceremony
+    from qoresence.vision.title_presence_wrap import RESEARCH_DEST, dest_denied
+
+    dest = str(dest_plane or RESEARCH_DEST).strip() or RESEARCH_DEST
+    if dest_denied(dest):
+        return {
+            "ok": False,
+            "reason": "dest_denied",
+            "dest_plane": dest,
+            "wrap": None,
+            "ingredient": None,
+        }
+    rec = None
+    try:
+        ev = handle_get_events(since=0, types="title_presence", limit=8)
+        if ev.get("ok"):
+            for item in reversed(ev.get("events") or []):
+                payload = item.get("payload") if isinstance(item, dict) else None
+                if isinstance(payload, dict):
+                    rec = payload
+                    break
+                if isinstance(item, dict) and item.get("plane"):
+                    rec = item
+                    break
+    except Exception:
+        rec = None
+    if not isinstance(rec, dict):
+        return {
+            "ok": False,
+            "reason": "no_record",
+            "dest_plane": dest,
+            "wrap": None,
+            "ingredient": None,
+            "hint": "no title_presence event on the bus",
+        }
+    return run_research_ceremony(rec, dest_plane=dest, persist=False)
+
+
 def handle_get_situation() -> dict[str, Any]:
     snap = handle_get_snapshot()
     if not snap.get("ok"):
@@ -642,6 +686,20 @@ TOOL_DEFS = [
         ),
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
+    {
+        "name": "wrap_observation",
+        "description": (
+            "Fail-closed re-wrap of the last title_presence record onto qoresence-research. "
+            "Requires QORESENCE_WRAP_GRANT_ID. Refuses qortroller-truth. Does not mutate the optical record."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "dest_plane": {"type": "string", "default": "qoresence-research"},
+            },
+            "additionalProperties": False,
+        },
+    },
 ]
 RESOURCE_DEFS = [
     {
@@ -692,6 +750,9 @@ HANDLERS = {
     "diagnose_freeze": lambda a: handle_diagnose_freeze(),
     "get_situation": lambda a: handle_get_situation(),
     "get_observation": lambda a: handle_get_observation(),
+    "wrap_observation": lambda a: handle_wrap_observation(
+        dest_plane=str(a.get("dest_plane") or "qoresence-research")
+    ),
 }
 
 

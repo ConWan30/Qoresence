@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from qoresence.agents.drive_graph import DriveGraph, active_drive_graph
+from qoresence.agents.drive_graph import (
+    DEFAULT_MAX_DRIVE_GRAPH_NODES,
+    HARD_CEILING_DRIVE_GRAPH_NODES,
+    DriveGraph,
+    active_drive_graph,
+    resolve_max_nodes,
+)
 from qoresence.agents.session_timeline import SessionTimeline, reset_session_timeline
 
 
@@ -112,6 +118,24 @@ def test_rollback_marks_t0_board_stale():
     ranked = g.ranked_chapter_nodes(k=4)
     top_kinds = [n.kind for n in ranked]
     assert "confirm_score" in top_kinds
+
+
+def test_node_cap_keeps_tail_and_never_unbounded():
+    events = [_ev(i + 1, "fast_chat", "fast", f"e{i}") for i in range(80)]
+    g = DriveGraph.from_events("cap", events)
+    assert g.node_cap == DEFAULT_MAX_DRIVE_GRAPH_NODES
+    assert g.raw_node_count == 80
+    assert g.nodes_truncated is True
+    assert len(g.nodes) == DEFAULT_MAX_DRIVE_GRAPH_NODES
+    assert g.nodes[0].message == "e32"
+    assert g.nodes[-1].message == "e79"
+    s = g.summary()
+    assert s["node_count"] == 48
+    assert s["nodes_truncated"] is True
+    assert resolve_max_nodes(999) == HARD_CEILING_DRIVE_GRAPH_NODES
+    tight = DriveGraph.from_events("cap8", events, max_nodes=8)
+    assert len(tight.nodes) == 8
+    assert tight.nodes_truncated is True
 
 
 def test_empty_safe_summary():

@@ -11,8 +11,13 @@ against a local index:
 - 32 clubs shipped in `qoresence/profiles/nfl_data/teams.json`
 - Optional seasonal roster at `data/nfl/roster.jsonl` (gitignored)
 
-Ambiguous HUD text (`New York`, last name `Brown` with no team/number) is
-dropped. ClutchBot only speaks a name that matched.
+Ambiguous HUD text (`New York`, last name `Brown` with no unique roster hit) is
+dropped. Last-name-only and last+jersey with no team accept **only** when the
+loaded JSONL has exactly one match (`Mahomes` → hit; `Brown` → refuse).
+`collision_report()` lists last-name collisions; `nameplate_match` on situation
+records the rule (`unique_last` / `unique_last_jersey` / `team_jersey` / `team_last`).
+ClutchBot only speaks a name that matched. Seasonal `data/nfl/roster.jsonl` stays
+operator-synced (gitignored) — this repo does not invent a live league dump.
 
 ## Sync rosters (once, then play offline)
 

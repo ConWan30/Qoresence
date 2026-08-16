@@ -78,7 +78,7 @@ python examples/agent_watch.py --ws   # needs `pip install websockets`
 
 ## MCP — universal glass (stdio + SSE via AgentGlass)
 
-Glass D is reused as **N glasses** via `qoresence/mcp` — 11 tools wrapping `AgentGlass` HTTP/in-process on `127.0.0.1:8765` without opening capture.
+Glass D is reused as **N glasses** via `qoresence/mcp` — 12 tools wrapping `AgentGlass` HTTP/in-process on `127.0.0.1:8765` without opening capture.
 
 | tool | what it does | throttle |
 |------|-------------|----------|
@@ -89,6 +89,7 @@ Glass D is reused as **N glasses** via `qoresence/mcp` — 11 tools wrapping `Ag
 | `export_clip` | local `clips/*.mp4` + chapter/`.buttons.json` sidecars (`seconds` 1..30) | **1 per 10 s global** (`429 clip_rate_limited`) |
 | `get_situation` | merged `situation + coupling + last visual_context` | — |
 | `get_observation` | **Witness pack**: plane-tagged title/score/phrase/glass the agent *may* say; unlocked digits and localhost phone URLs stay silent | — |
+| `wrap_observation` | **Research wrap**: last `title_presence` → `qoresence-research` envelope. Needs `QORESENCE_WRAP_GRANT_ID`. Refuses `qortroller-truth`. | — |
 | `search_clips` | **Foundry RAG**: keyword search over `clips/*.chapters.json` + `*.buttons.json` + DriveGraph summary + `SessionTimeline` fallback; filters `kinds`, `coupling_min`, `drive_id` | — |
 | `get_drive_graph` | **DriveGraph**: `active` or `drive_id` → `phase/climax/match_rate/nodes/why_line` via `DriveGraph.from_events` / `from_timeline_drive` | — |
 | `subscribe_events` | **Proactive glass**: poll `RetinaEventBus` with `since` cursor; returns `events + next_since + poll_again_ms` for live tail | `max_eps_per_client` |

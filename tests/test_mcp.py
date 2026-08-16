@@ -43,6 +43,7 @@ def test_mcp_initialize_and_tools_list():
         "subscribe_events",
         "diagnose_freeze",
         "get_observation",
+        "wrap_observation",
     }
 
 
@@ -310,3 +311,19 @@ def test_observation_pack_licenses_locked_board_and_lan_glass():
     assert any("14-10" in s for s in pack["may_say"])
     assert pack["glass"]["lan"] is True
     assert "not a public stream" in pack["glass"]["say"]
+
+
+def test_wrap_observation_refuses_truth_plane_and_missing_record():
+    import qoresence.mcp.server as mcp_server
+
+    denied = mcp_server.handle_wrap_observation(dest_plane="qortroller-truth")
+    assert denied["ok"] is False
+    assert denied["reason"] == "dest_denied"
+    orig_events = mcp_server.handle_get_events
+    try:
+        mcp_server.handle_get_events = lambda **_k: {"ok": True, "events": []}
+        missing = mcp_server.handle_wrap_observation()
+        assert missing["ok"] is False
+        assert missing["reason"] == "no_record"
+    finally:
+        mcp_server.handle_get_events = orig_events

@@ -30,10 +30,17 @@ Incumbent `game_detected` timing is unchanged (no plane, no `title_presence` eve
 
 Raised poll (~1 s) for ~6 s on: first visual, operator profile hint, menu→gameplay, first score lock, SNAP/SPRINT phrase, fused title flip. Never 60 Hz.
 
-## Re-wrap ceremony
+## Re-wrap ceremony (live, fail-closed)
 
-`qoresence.vision.title_presence_wrap.wrap_observation_for_plane` is fail-closed. Default dest allowlist is empty. It never mutates the observation record and never writes a truth-plane store.
+`wrap_observation_for_plane` and `run_research_ceremony` are live. Default dest allowlist is **`qoresence-research` only**. `qortroller-truth` (and any dest containing `qortroller` / `poac` / ending in `-truth`) is denied even if passed in an allowlist.
 
-## Research sidecar
+Requires an operator grant (`QORESENCE_WRAP_GRANT_ID`, optional dest/expiry/token). Missing or expired grant → refuse. The optical record is never mutated; the envelope points at `source_hash`.
 
-When `--title-presence` **and** local learning are both on, a JSONL sidecar `title_presence_ingredients.jsonl` links `source_hash` + decay. The optical record is not rewritten.
+Live path:
+
+- MCP `wrap_observation` — wraps the last bus `title_presence` claim (no file write)
+- Auto-wrap on lock when the grant env is set; sidecar `title_presence_wraps.jsonl` if local learning is on
+
+## Research sidecar + ceremony
+
+When title-presence **and** local learning are both on, `title_presence_ingredients.jsonl` links `source_hash` + decay. The ceremony path (`run_research_ceremony`) attaches the same `source_hash` to the research wrap. The optical record is not rewritten.

@@ -65,6 +65,8 @@ class SituationState:
     on_screen_player_team: str | None = None
     on_screen_player_jersey: int | None = None
     nameplate_ambiguous: bool = False
+    nameplate_match: str | None = None
+    roster_loaded: bool = False
 
     # Shooter
     health: int | None = None
@@ -226,6 +228,8 @@ class SituationModel:
                 on_screen_player_team=getattr(ctx, "on_screen_player_team", None),
                 on_screen_player_jersey=getattr(ctx, "on_screen_player_jersey", None),
                 nameplate_ambiguous=bool(getattr(ctx, "nameplate_ambiguous", False)),
+                nameplate_match=getattr(ctx, "nameplate_match", None),
+                roster_loaded=bool(getattr(ctx, "roster_loaded", False)),
                 **ident,
             )
 
@@ -352,6 +356,8 @@ class SituationModel:
             "on_screen_player_team": s.on_screen_player_team,
             "on_screen_player_jersey": s.on_screen_player_jersey,
             "nameplate_ambiguous": bool(s.nameplate_ambiguous),
+            "nameplate_match": s.nameplate_match,
+            "roster_loaded": bool(s.roster_loaded),
             "health": s.health,
             "ammo": s.ammo,
             "kills": s.kills,

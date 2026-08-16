@@ -76,6 +76,8 @@ class VisualContext:
     on_screen_player_jersey: int | None = None
     on_screen_player_pos: str | None = None
     nameplate_ambiguous: bool = False
+    nameplate_match: str | None = None
+    roster_loaded: bool = False
 
     # Shooter / Call of Duty
     health: int | None = None
@@ -173,6 +175,8 @@ class VisualContext:
                 "on_screen_player_jersey": self.on_screen_player_jersey,
                 "on_screen_player_pos": self.on_screen_player_pos,
                 "nameplate_ambiguous": bool(self.nameplate_ambiguous),
+                "nameplate_match": self.nameplate_match,
+                "roster_loaded": bool(self.roster_loaded),
             }
         elif self.game_category == GameCategory.SHOOTER:
             d["shooter"] = {

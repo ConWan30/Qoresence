@@ -9,5 +9,7 @@ Optical title lock around `GameAutoDetector`. Observation plane only (`plane: "q
 - Pause/menu/hub is no-claim; a huddle with a locked scorebug still counts as gameplay
 - An explicit `--game-profile` is **pinned** — optics will not yank it
 - No scores or player names in the title record
+- Re-wrap ceremony is live onto `qoresence-research` only (`QORESENCE_WRAP_GRANT_ID`); `qortroller-truth` is denied
+- Research ingredients link `source_hash` + decay; the optical record is not rewritten
 
 Full doc: [docs/TITLE_PRESENCE.md](https://github.com/ConWan30/Qoresence/blob/main/docs/TITLE_PRESENCE.md)

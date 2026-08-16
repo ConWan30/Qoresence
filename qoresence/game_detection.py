@@ -1045,6 +1045,7 @@ class GameAutoDetector:
             if just_locked:
                 self._emit_title_presence(rec)
                 self._maybe_write_ingredient(rec)
+                self._maybe_run_wrap_ceremony(rec)
                 self._emit_game_detected(result, title_presence=rec)
                 if self._profile_switch_callback:
                     try:
@@ -1072,6 +1073,19 @@ class GameAutoDetector:
         if state != prev:
             self._emit_title_presence(rec)
             self._maybe_write_ingredient(rec)
+
+    def _maybe_run_wrap_ceremony(self, rec: dict[str, Any]) -> None:
+        if not self._title_presence:
+            return
+        try:
+            from qoresence.vision.title_presence_ceremony import maybe_auto_wrap
+
+            wrap_side = None
+            if self._learning_enabled:
+                wrap_side = Path(self._learning_path).with_name("title_presence_wraps.jsonl")
+            maybe_auto_wrap(rec, wrap_path=wrap_side)
+        except Exception as e:
+            log.debug("title-presence wrap ceremony skip: %s", e)
 
     def _maybe_write_ingredient(self, rec: dict[str, Any]) -> None:
         if not (self._title_presence and self._learning_enabled):

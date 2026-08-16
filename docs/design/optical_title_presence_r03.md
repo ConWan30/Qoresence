@@ -1,7 +1,7 @@
 # Optical Title-Presence · r03 Mitigation Realization Plan
 
 **After r02 HOLD clearance.** Insertion map only — I2 implements the vertical slice.  
-Ceremony remains **undeployed**. Research ingredients **deferred**. Default-OFF.
+Ceremony is **deployed** onto `qoresence-research` only (operator grant required). Research ingredients are a live sidecar + ceremony path; optical records stay unmutated. Title-presence is **on with `--play`**.
 
 ## Wiring discovered (I1, live tree)
 

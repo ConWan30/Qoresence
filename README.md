@@ -99,7 +99,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 | **Blank-frame guard** | Scoreboard extractor rejects uniform/black frames to prevent invented scores |
 | **Health + A2A soak loggers** | `scripts/soak_logger.py` and `scripts/a2a_soak_logger.py` for long pilot validation |
 | **Twitch ClutchBot smoke test** | IRC token → chat + optional auto-clips confirmed working |
-| **MCP universal glass** | `qoresence-mcp` exposes 11 tools including fail-closed `get_observation` (licensed title/score/glass) |
+| **MCP universal glass** | `qoresence-mcp` exposes 12 tools including fail-closed `get_observation` and `wrap_observation` (research dest only) |
 | **Foundry RAG + proactive glass** | `search_clips`/`get_drive_graph` searchable session memory (clips+chapters+DriveGraph+timeline fallback) + `subscribe_events`/`diagnose_freeze` on `127.0.0.1:8765` — software-only, no capture card |
 
 Docs for each: [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md) · [clutchbot_setup](docs/clutchbot_setup.md)

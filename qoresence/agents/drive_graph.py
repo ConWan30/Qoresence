@@ -8,11 +8,33 @@ Supports climax score, fast↔confirm matching, chapter ranking.
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
 log = logging.getLogger(__name__)
+
+DEFAULT_MAX_DRIVE_GRAPH_NODES = 48
+HARD_CEILING_DRIVE_GRAPH_NODES = 96
+MIN_DRIVE_GRAPH_NODES = 8
+ENV_MAX_DRIVE_GRAPH_NODES = "QORESENCE_DRIVE_GRAPH_MAX_NODES"
+
+
+def resolve_max_nodes(explicit: int | None = None) -> int:
+    """Named O(n²) safety cap. Raisable, never unbounded."""
+    if explicit is not None:
+        try:
+            n = int(explicit)
+        except (TypeError, ValueError):
+            n = DEFAULT_MAX_DRIVE_GRAPH_NODES
+    else:
+        raw = os.environ.get(ENV_MAX_DRIVE_GRAPH_NODES, "").strip()
+        try:
+            n = int(raw) if raw else DEFAULT_MAX_DRIVE_GRAPH_NODES
+        except ValueError:
+            n = DEFAULT_MAX_DRIVE_GRAPH_NODES
+    return max(MIN_DRIVE_GRAPH_NODES, min(HARD_CEILING_DRIVE_GRAPH_NODES, n))
 
 # Kind families
 _FAST_KINDS = frozenset({"fast_chat", "fast_clip", "arm", "prediction_open"})
@@ -153,6 +175,9 @@ class DriveGraph:
     context: dict[str, Any] = field(default_factory=dict)
     started_ns: int | None = None
     ended_ns: int | None = None
+    node_cap: int = DEFAULT_MAX_DRIVE_GRAPH_NODES
+    nodes_truncated: bool = False
+    raw_node_count: int = 0
 
     # ── builders ──────────────────────────────────────────────────────────
 
@@ -165,6 +190,7 @@ class DriveGraph:
         *,
         started_ns: int | None = None,
         ended_ns: int | None = None,
+        max_nodes: int | None = None,
     ) -> DriveGraph:
         nodes: list[GraphNode] = []
         for i, ev in enumerate(events or []):
@@ -192,14 +218,20 @@ class DriveGraph:
                 )
             )
         nodes.sort(key=lambda n: n.clock_ns)
-        if len(nodes) > 48:
-            nodes = nodes[-48:]
+        cap = resolve_max_nodes(max_nodes)
+        raw_n = len(nodes)
+        truncated = raw_n > cap
+        if truncated:
+            nodes = nodes[-cap:]
         g = cls(
             drive_id=str(drive_id or "drive"),
             nodes=nodes,
             context=dict(context or {}),
             started_ns=started_ns or (nodes[0].clock_ns if nodes else None),
             ended_ns=ended_ns or (nodes[-1].clock_ns if nodes else None),
+            node_cap=cap,
+            nodes_truncated=truncated,
+            raw_node_count=raw_n,
         )
         g._build_edges()
         return g
@@ -225,6 +257,7 @@ class DriveGraph:
 
             # Bound the graph. recent(0) used to copy the entire 2000-event
             # log and O(n²) _build_edges froze Deck /health (live 2026-08-14).
+            cap = resolve_max_nodes()
             events: list[Any] = []
             all_ev = list(timeline.recent(64)) if hasattr(timeline, "recent") else []
             if started is not None and hasattr(timeline, "events_in_window"):
@@ -233,9 +266,9 @@ class DriveGraph:
                     if ended is not None
                     else (all_ev[-1].clock_ns if all_ev else int(started))
                 )
-                events = list(timeline.events_in_window(int(started), int(t1)))[-48:]
+                events = list(timeline.events_in_window(int(started), int(t1)))[-cap:]
             if not events:
-                events = all_ev[-48:]
+                events = all_ev[-cap:]
 
             return cls.from_events(
                 str(did),
@@ -243,6 +276,7 @@ class DriveGraph:
                 context=ctx,
                 started_ns=int(started) if started is not None else None,
                 ended_ns=int(ended) if ended is not None else None,
+                max_nodes=cap,
             )
         except Exception as e:
             log.debug("from_timeline_drive failed: %s", e)
@@ -471,6 +505,9 @@ class DriveGraph:
             "drive_id": self.drive_id,
             "phase": ph,
             "node_count": len(self.nodes),
+            "node_cap": self.node_cap,
+            "nodes_truncated": bool(self.nodes_truncated),
+            "raw_node_count": self.raw_node_count,
             "edge_count": len(self.edges),
             "climax": climax,
             "match_rate": climax.get("match_rate", 0.0),

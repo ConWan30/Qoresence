@@ -236,8 +236,16 @@ def test_wrap_ceremony_fail_closed():
     original = dict(rec)
     refused = wrap_observation_for_plane(rec, "qortroller-truth")
     assert isinstance(refused, WrapRefuse)
-    assert refused.reason == "dest_not_allowlisted"
+    assert refused.reason == "dest_denied"
     assert rec == original
+    still_denied = wrap_observation_for_plane(
+        rec,
+        "qortroller-truth",
+        OperatorGrant(grant_id="g0", dest_plane="qortroller-truth", expires_ns=10**18),
+        allowlist={"qortroller-truth"},
+        now_ns=1,
+    )
+    assert still_denied.reason == "dest_denied"
     grant = OperatorGrant(grant_id="g1", dest_plane="other-plane", expires_ns=10**18)
     still = wrap_observation_for_plane(rec, "other-plane", grant)
     assert isinstance(still, WrapRefuse)
@@ -253,6 +261,58 @@ def test_wrap_ceremony_fail_closed():
     assert wrap_observation_for_plane(
         no_claim, "other-plane", grant, allowlist={"other-plane"}
     ).reason == "no_claim"
+    live = wrap_observation_for_plane(
+        rec,
+        "qoresence-research",
+        OperatorGrant(grant_id="g-research", dest_plane="qoresence-research", expires_ns=10**18),
+        now_ns=1,
+    )
+    assert isinstance(live, WrapEnvelope)
+    assert live.plane == "qoresence-research"
+
+
+def test_research_ceremony_links_ingredient_without_mutating():
+    from qoresence.vision.title_presence import source_hash
+    from qoresence.vision.title_presence_ceremony import run_research_ceremony
+    from qoresence.vision.title_presence_wrap import OperatorGrant
+
+    rec = claim_record(
+        session_id="s",
+        clock_ns=1,
+        session_head_ns=0,
+        profile_id="madden_27",
+        display_name="M",
+        confidence=0.9,
+        threshold=0.65,
+        consecutive=2,
+        stability_count=2,
+        evidence_count=1,
+        vlm_confidence=0.8,
+        ocr_confidence=0.7,
+        motion_confidence=0.1,
+    )
+    original = dict(rec)
+    out = run_research_ceremony(
+        rec,
+        grant=OperatorGrant(
+            grant_id="g-research", dest_plane="qoresence-research", expires_ns=10**18
+        ),
+        now_ns=5,
+        persist=False,
+    )
+    assert out["ok"] is True
+    assert rec == original
+    assert out["wrap"]["source_hash"] == source_hash(rec)
+    assert out["ingredient"]["source_hash"] == source_hash(rec)
+    assert out["ingredient"]["dest_plane"] == "qoresence-research"
+    denied = run_research_ceremony(
+        rec,
+        dest_plane="qortroller-truth",
+        grant=OperatorGrant(grant_id="x", dest_plane="qortroller-truth", expires_ns=10**18),
+        persist=False,
+    )
+    assert denied["ok"] is False
+    assert denied["reason"] == "dest_denied"
 
 
 def test_ingredient_immutable_and_decays():
