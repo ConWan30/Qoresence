@@ -74,6 +74,46 @@ def test_ranked_chapter_nodes_sorted_limited():
     assert times == sorted(times)
 
 
+def test_confirmed_td_outranks_t0_board():
+    t0 = 0
+    events = [
+        _ev(t0, "fast_chat", "fast", "Live-board 0-0", 0.9),
+        _ev(t0 + 10_000, "fast_chat", "fast", "board dump", 0.8),
+        _ev(t0 + int(20e9), "confirm_score", "confirm", "touchdown 7-0"),
+        _ev(t0 + int(21e9), "prediction_resolve", "confirm", "TD resolved"),
+    ]
+    g = DriveGraph.from_events("td", events)
+    g.started_ns = t0
+    ranked = g.ranked_chapter_nodes(k=3)
+    labels = [n.label.lower() for n in ranked]
+    assert any("touchdown" in x or n.kind == "confirm_score" for n, x in zip(ranked, labels))
+    cl = g.climax_score()
+    assert cl["best_kind"] in {"confirm_score", "prediction_resolve"}
+    assert "board" not in str(cl.get("best_label") or "").lower() or cl["best_kind"] != "fast_chat"
+
+
+def test_rollback_marks_t0_board_stale():
+    t0 = 1_000
+    events = [
+        _ev(t0, "fast_chat", "fast", "Live-board 14-0", 0.95),
+        _ev(t0 + 50_000, "fast_chat", "fast", "board dump", 0.9),
+        {
+            **_ev(t0 + int(5e9), "score_rollback", "system", "rollback 14-0→7-0"),
+            "payload": {"rollback": True},
+        },
+        _ev(t0 + int(12e9), "confirm_score", "confirm", "touchdown 14-7"),
+    ]
+    g = DriveGraph.from_events("rb", events)
+    g.started_ns = t0
+    g.mark_stale_after_rollback()
+    assert any(n.stale_after_rollback for n in g.nodes if n.kind == "fast_chat")
+    why = g.why_line() or ""
+    assert "touchdown" in why.lower() or "confirm_score" in why.lower() or "14-7" in why
+    ranked = g.ranked_chapter_nodes(k=4)
+    top_kinds = [n.kind for n in ranked]
+    assert "confirm_score" in top_kinds
+
+
 def test_empty_safe_summary():
     g = DriveGraph.from_events("empty", [])
     s = g.summary()

@@ -23,9 +23,50 @@ _CANCEL_KINDS = frozenset({"prediction_cancel"})
 _ARM_KINDS = frozenset({"arm"})
 _OPEN_KINDS = frozenset({"prediction_open"})
 _RESOLVE_KINDS = frozenset({"prediction_resolve", "confirm_score"})
+_SCORE_PLAY_KINDS = frozenset(
+    {
+        "touchdown",
+        "field_goal",
+        "safety",
+        "two_point",
+        "two_point_conversion",
+        "score_changed",
+        "confirm_score",
+        "prediction_resolve",
+    }
+)
+_BOARD_DUMP_KINDS = frozenset({"fast_chat", "video_ambient", "scene_tick"})
+_SCORE_PLAY_HINTS = (
+    "touchdown",
+    " td",
+    "td ",
+    "field goal",
+    "field-goal",
+    " fg",
+    "safety",
+    "score update",
+    "score_changed",
+)
 
 BOOST_WINDOW_NS = int(0.4 * 1e9)  # ~400ms heat → following act
 DEFAULT_MATCH_LAG_MS = 8000
+_T0_BOARD_NS = int(1.5 * 1e9)
+
+
+def _is_score_play(n: GraphNode) -> bool:
+    if n.kind in _SCORE_PLAY_KINDS:
+        return True
+    blob = f"{n.kind} {n.label}".lower()
+    return any(h in blob for h in _SCORE_PLAY_HINTS)
+
+
+def _is_t0_board(n: GraphNode, started_ns: int) -> bool:
+    if n.clock_ns - int(started_ns or 0) > _T0_BOARD_NS:
+        return False
+    blob = n.label.lower()
+    if n.kind in _BOARD_DUMP_KINDS:
+        return True
+    return "board" in blob or "live-board" in blob or blob.startswith("live ")
 
 
 @dataclass
@@ -40,6 +81,7 @@ class GraphNode:
     coupling: float | None = None
     factual: bool | None = None
     payload: dict[str, Any] = field(default_factory=dict)
+    stale_after_rollback: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         d = {
@@ -56,6 +98,8 @@ class GraphNode:
             d["coupling"] = self.coupling
         if self.factual is not None:
             d["factual"] = self.factual
+        if self.stale_after_rollback:
+            d["stale_after_rollback"] = True
         return d
 
     @property
@@ -325,16 +369,23 @@ class DriveGraph:
             score += 0.15 * min(1.0, max(coups))
         score = max(0.0, min(1.0, score))
 
-        # best node: prefer matched confirm, else highest coupling, else last
+        # best node: confirmed score-play > matched confirm > coupling > last
+        self.mark_stale_after_rollback()
+        live = [n for n in self.nodes if not n.stale_after_rollback]
         best: GraphNode | None = None
-        if pairs:
+        plays = [n for n in live if _is_score_play(n)]
+        if plays:
+            best = plays[-1]
+        if best is None and pairs:
             cid = pairs[-1].confirm_id
-            best = next((n for n in self.nodes if n.node_id == cid), None)
+            best = next((n for n in live if n.node_id == cid), None)
         if best is None and coups:
             best = max(
-                (n for n in self.nodes if n.coupling is not None),
+                (n for n in live if n.coupling is not None),
                 key=lambda n: float(n.coupling or 0),
             )
+        if best is None and live:
+            best = live[-1]
         if best is None and self.nodes:
             best = self.nodes[-1]
 
@@ -358,10 +409,32 @@ class DriveGraph:
             "has_cancel_only": has_cancel and not has_resolve,
         }
 
+    def mark_stale_after_rollback(self) -> None:
+        """Demote t0 board / chat dumps that preceded a score rollback."""
+        roll_ns: int | None = None
+        for n in self.nodes:
+            blob = f"{n.kind} {n.reason} {n.message}".lower()
+            if "rollback" in blob or n.payload.get("rollback"):
+                roll_ns = n.clock_ns if roll_ns is None else min(roll_ns, n.clock_ns)
+        if roll_ns is None:
+            return
+        start = self.started_ns if self.started_ns is not None else (
+            self.nodes[0].clock_ns if self.nodes else 0
+        )
+        for n in self.nodes:
+            if n.clock_ns >= roll_ns:
+                continue
+            if _is_t0_board(n, start) or n.kind in _BOARD_DUMP_KINDS:
+                n.stale_after_rollback = True
+
     def ranked_chapter_nodes(self, k: int = 8) -> list[GraphNode]:
-        """Chapter candidates: matched confirms, arms, climaxes — sorted by time, limited k."""
+        """Chapter candidates: confirmed score-plays beat t0 board dumps."""
+        self.mark_stale_after_rollback()
         pairs = self.match_fast_confirm()
         pair_ids = {p.confirm_id for p in pairs} | {p.fast_id for p in pairs}
+        start = self.started_ns if self.started_ns is not None else (
+            self.nodes[0].clock_ns if self.nodes else 0
+        )
         scored: list[tuple[float, GraphNode]] = []
         for n in self.nodes:
             w = 0.0
@@ -375,6 +448,12 @@ class DriveGraph:
                 w += 2.0
             if n.kind in ("fast_chat", "confirm_chat"):
                 w += 1.0
+            if _is_score_play(n):
+                w += 8.0
+            if _is_t0_board(n, start):
+                w -= 4.0
+            if n.stale_after_rollback:
+                w -= 6.0
             if n.coupling is not None:
                 w += float(n.coupling)
             if w > 0:
