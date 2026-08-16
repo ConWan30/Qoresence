@@ -256,6 +256,7 @@ class QoresenceApp:
                             _ET.OUTCOME_EVENT.value,
                             _ET.PRESENCE_REPORT.value,
                             _ET.GAME_DETECTED.value,
+                            getattr(_ET, "TITLE_PRESENCE", _ET.GAME_DETECTED).value,
                         ):
                             sm = getattr(self, "situation_model", None)
                             if sm is not None:
@@ -519,8 +520,12 @@ class QoresenceApp:
                 if self.config.game_detection.vision_model_dir
                 else None,
                 game_profile=self.config.outcome.game_profile,
+                title_presence=bool(getattr(self.config.game_detection, "title_presence", False)),
             )
-            log.info("Game auto-detector initialized")
+            log.info(
+                "Game auto-detector initialized (title_presence=%s)",
+                bool(getattr(self.config.game_detection, "title_presence", False)),
+            )
 
         # Fusion engine (always created for presence reports)
         self.fusion = create_fusion_engine(
@@ -1106,6 +1111,8 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         config.game_detection = replace(config.game_detection, enabled=True)
     if getattr(args, "no_game_detect", False):
         config.game_detection = replace(config.game_detection, enabled=False)
+    if getattr(args, "title_presence", False):
+        config.game_detection = replace(config.game_detection, title_presence=True)
 
     # Game detection tuning
     config.game_detection = replace(
@@ -1465,6 +1472,11 @@ def main():
     )
     parser.add_argument(
         "--game-detect-poll", type=float, default=3.0, help="Game detection poll interval (s)"
+    )
+    parser.add_argument(
+        "--title-presence",
+        action="store_true",
+        help="Optical title-presence hysteresis wrap (default OFF; not implied by --play)",
     )
 
     # ClutchBot (Twitch agent)

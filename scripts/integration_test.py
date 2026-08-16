@@ -339,6 +339,7 @@ class IntegrationTestApp:
                 learning_path=Path(self.config.game_detection.learning_path),
                 ocr_provider=self.config.game_detection.ocr_provider,
                 model_dir=Path(self.config.game_detection.vision_model_dir),
+                title_presence=bool(getattr(self.config.game_detection, "title_presence", False)),
             )
             log.info("  OK Game auto-detector initialized")
 

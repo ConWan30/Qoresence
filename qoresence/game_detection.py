@@ -259,6 +259,7 @@ class GameAutoDetector:
         learning_enabled: bool = False,
         learning_path: Path | None = None,
         game_profile: GameProfileId = GameProfileId.NCAA_FOOTBALL_27,
+        title_presence: bool = False,
     ):
         self.bus = bus
         self.session_head_ns = session_head_ns
@@ -351,6 +352,15 @@ class GameAutoDetector:
 
         self._running = False
         self._thread: threading.Thread | None = None
+
+        self._title_presence = bool(title_presence)
+        self._hyst_state: str | None = None
+        self._last_game_state: str | None = None
+        self._frame_source = "none"
+        self._sampling_mode = "sparse"
+        self._lock_verify_until = 0.0
+        self._hub_seq: int | None = None
+        self._hub_clock_ns: int | None = None
 
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
@@ -448,7 +458,13 @@ class GameAutoDetector:
                 log.warning(f"Game detection tick failed: {e}")
 
             elapsed = time.time() - loop_start
-            sleep_time = self._poll_interval_s - elapsed
+            interval = self._poll_interval_s
+            if self._title_presence and time.time() < self._lock_verify_until:
+                self._sampling_mode = "lock_verify"
+                interval = min(interval, 1.0)
+            else:
+                self._sampling_mode = "sparse"
+            sleep_time = interval - elapsed
             if sleep_time > 0 and self._running:
                 time.sleep(sleep_time)
 
@@ -456,6 +472,8 @@ class GameAutoDetector:
         """Collect evidence, fuse, and emit if stable."""
         frame = self._get_frame()
         if frame is None:
+            if self._title_presence:
+                self._note_no_frame()
             return
 
         if self._use_vision_stack and self._vision_stack:
@@ -502,6 +520,14 @@ class GameAutoDetector:
             if self._learning_enabled:
                 self._record_learning_sample(frame, vision)
 
+            if vision.visual_context is not None:
+                try:
+                    self._last_game_state = getattr(
+                        vision.visual_context.game_state, "value", None
+                    ) or str(vision.visual_context.game_state or "")
+                except Exception:
+                    self._last_game_state = None
+
             # Emit structured visual context for the outcome lobe
             if vision.visual_context is not None:
                 try:
@@ -546,6 +572,8 @@ class GameAutoDetector:
     def _maybe_emit_and_switch(self, result: GameDetectionResult | None) -> None:
         if result is None:
             log.debug("_maybe_emit_and_switch: no result")
+            if self._title_presence:
+                self._apply_hysteresis(None, has_frame=True)
             return
 
         log.debug(
@@ -553,6 +581,10 @@ class GameAutoDetector:
             f"confidence={result.confidence:.3f}, threshold={self._confidence_threshold}, "
             f"evidence={result.evidence_count}"
         )
+
+        if self._title_presence:
+            self._apply_hysteresis(result, has_frame=True)
+            return
 
         if result.confidence >= self._confidence_threshold:
             if result.profile_id == self._last_emitted_profile:
@@ -579,10 +611,30 @@ class GameAutoDetector:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _get_frame(self) -> np.ndarray | None:
+        if self._title_presence:
+            try:
+                from qoresence.monitor.frame_hub import get_latest, get_latest_stamp
+
+                stamp = get_latest_stamp()
+                if stamp.get("has_frame"):
+                    frame = get_latest()
+                    if frame is not None:
+                        self._frame_source = "framehub"
+                        try:
+                            self._hub_seq = int(stamp.get("seq") or 0) or None
+                            self._hub_clock_ns = int(stamp.get("clock_ns") or 0) or None
+                        except (TypeError, ValueError):
+                            pass
+                        return frame
+            except Exception:
+                pass
         if self._frame_provider is None:
             return None
         try:
-            return self._frame_provider()
+            frame = self._frame_provider()
+            if frame is not None:
+                self._frame_source = "streamer_latest"
+            return frame
         except Exception as e:
             log.warning(f"Frame provider error: {e}")
             return None
@@ -815,25 +867,204 @@ class GameAutoDetector:
             motion_confidence=motion_confidence,
         )
 
-    def _emit_game_detected(self, result: GameDetectionResult) -> None:
+    def _note_no_frame(self) -> None:
+        self._frame_source = "none"
+        self._apply_hysteresis(None, has_frame=False)
+
+    def _provenance(self) -> dict[str, Any]:
+        from qoresence.vision.title_presence import make_provenance
+
+        return make_provenance(
+            frame_source=self._frame_source,
+            sampling_mode=self._sampling_mode,
+            seq=self._hub_seq,
+            frame_clock_ns=self._hub_clock_ns,
+            poll_interval_s=self._poll_interval_s,
+        )
+
+    def _apply_hysteresis(self, result: GameDetectionResult | None, *, has_frame: bool) -> None:
+        from qoresence.vision.title_presence import (
+            HYST_LOCKED,
+            claim_record,
+            is_overlay_state,
+            no_claim_record,
+            step_hysteresis,
+        )
+
+        prev = self._hyst_state
+        overlay = is_overlay_state(self._last_game_state)
+        if overlay and self._last_game_state and prev != "overlay-rejected":
+            prev_gs = getattr(self, "_prev_game_state_for_sample", None)
+            if prev_gs and str(prev_gs).lower() in {"menu", "lobby", "hub", "paused"}:
+                pass
+        if (
+            self._last_game_state
+            and str(self._last_game_state).lower() in {"gameplay", "playing", "in_game"}
+            and str(getattr(self, "_prev_game_state_for_sample", "") or "").lower()
+            in {"menu", "lobby", "hub", "paused"}
+        ):
+            self._lock_verify_until = time.time() + 6.0
+            self._sampling_mode = "lock_verify"
+        self._prev_game_state_for_sample = self._last_game_state
+
+        if result is None or not has_frame:
+            self._consecutive_detections = 0
+            state, reason = step_hysteresis(
+                has_frame=has_frame,
+                confidence=0.0,
+                threshold=self._confidence_threshold,
+                consecutive=0,
+                stability_count=self._stability_count,
+                overlay=False,
+                profile_changed=False,
+            )
+            self._hyst_state = state
+            rec = no_claim_record(
+                session_id=getattr(self.bus, "session_id", "") or "",
+                clock_ns=clock_ns(),
+                session_head_ns=self.session_head_ns,
+                reason=reason or "no_result",
+                hysteresis_state=state,
+                threshold=self._confidence_threshold,
+                consecutive=0,
+                stability_count=self._stability_count,
+                provenance=self._provenance(),
+            )
+            if state != prev:
+                self._emit_title_presence(rec)
+            return
+
+        if overlay:
+            self._consecutive_detections = 0
+            state, reason = step_hysteresis(
+                has_frame=True,
+                confidence=result.confidence,
+                threshold=self._confidence_threshold,
+                consecutive=0,
+                stability_count=self._stability_count,
+                overlay=True,
+                profile_changed=False,
+            )
+        elif result.confidence >= self._confidence_threshold:
+            if result.profile_id == self._last_emitted_profile:
+                self._consecutive_detections += 1
+            else:
+                self._consecutive_detections = 1
+                self._last_emitted_profile = result.profile_id
+            state, reason = step_hysteresis(
+                has_frame=True,
+                confidence=result.confidence,
+                threshold=self._confidence_threshold,
+                consecutive=self._consecutive_detections,
+                stability_count=self._stability_count,
+                overlay=False,
+                profile_changed=False,
+            )
+        else:
+            self._consecutive_detections = 0
+            state, reason = step_hysteresis(
+                has_frame=True,
+                confidence=result.confidence,
+                threshold=self._confidence_threshold,
+                consecutive=0,
+                stability_count=self._stability_count,
+                overlay=False,
+                profile_changed=False,
+            )
+
+        self._hyst_state = state
+        sid = getattr(self.bus, "session_id", "") or ""
+        now = clock_ns()
+        if state == HYST_LOCKED:
+            rec = claim_record(
+                session_id=sid,
+                clock_ns=now,
+                session_head_ns=self.session_head_ns,
+                profile_id=result.profile_id.value,
+                display_name=result.display_name,
+                confidence=result.confidence,
+                threshold=self._confidence_threshold,
+                consecutive=self._consecutive_detections,
+                stability_count=self._stability_count,
+                evidence_count=result.evidence_count,
+                vlm_confidence=result.vlm_confidence,
+                ocr_confidence=result.ocr_confidence,
+                motion_confidence=result.motion_confidence,
+                provenance=self._provenance(),
+            )
+            just_locked = prev != HYST_LOCKED or result.profile_id != self._last_emitted_profile
+            self._last_emitted_profile = result.profile_id
+            if just_locked:
+                self._emit_title_presence(rec)
+                self._emit_game_detected(result, title_presence=rec)
+                if self._profile_switch_callback:
+                    try:
+                        self._profile_switch_callback(result.profile_id)
+                    except Exception as e:
+                        log.warning(f"Profile switch callback failed: {e}")
+            return
+
+        rec = no_claim_record(
+            session_id=sid,
+            clock_ns=now,
+            session_head_ns=self.session_head_ns,
+            reason=reason or "not_locked",
+            hysteresis_state=state,
+            confidence=result.confidence,
+            threshold=self._confidence_threshold,
+            consecutive=self._consecutive_detections,
+            stability_count=self._stability_count,
+            evidence_count=result.evidence_count,
+            vlm_confidence=result.vlm_confidence,
+            ocr_confidence=result.ocr_confidence,
+            motion_confidence=result.motion_confidence,
+            provenance=self._provenance(),
+        )
+        if state != prev:
+            self._emit_title_presence(rec)
+
+    def _emit_title_presence(self, rec: dict[str, Any]) -> None:
+        from qoresence.vision.title_presence import record_valid
+
+        if not record_valid(rec):
+            return
+        try:
+            self.bus.emit_raw(
+                source_lobe=SourceLobe.FUSION,
+                event_type=EventType.TITLE_PRESENCE,
+                payload=rec,
+                session_head_ns=self.session_head_ns,
+            )
+        except Exception as e:
+            log.warning(f"Failed to emit title_presence event: {e}")
+
+    def _emit_game_detected(
+        self,
+        result: GameDetectionResult,
+        title_presence: dict[str, Any] | None = None,
+    ) -> None:
         """Emit canonical game_detected event to the bus."""
         log.info(
             f"Emitting game_detected: profile={result.profile_id.value}, "
             f"confidence={result.confidence:.3f}, evidence_count={result.evidence_count}"
         )
+        payload: dict[str, Any] = {
+            "profile_id": result.profile_id.value,
+            "display_name": result.display_name,
+            "confidence": result.confidence,
+            "evidence_count": result.evidence_count,
+            "vlm_confidence": result.vlm_confidence,
+            "ocr_confidence": result.ocr_confidence,
+            "motion_confidence": result.motion_confidence,
+        }
+        if title_presence is not None:
+            payload["plane"] = title_presence.get("plane")
+            payload["title_presence"] = title_presence
         try:
             self.bus.emit_raw(
                 source_lobe=SourceLobe.FUSION,
                 event_type=EventType.GAME_DETECTED,
-                payload={
-                    "profile_id": result.profile_id.value,
-                    "display_name": result.display_name,
-                    "confidence": result.confidence,
-                    "evidence_count": result.evidence_count,
-                    "vlm_confidence": result.vlm_confidence,
-                    "ocr_confidence": result.ocr_confidence,
-                    "motion_confidence": result.motion_confidence,
-                },
+                payload=payload,
                 session_head_ns=self.session_head_ns,
             )
         except Exception as e:

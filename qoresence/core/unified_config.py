@@ -432,6 +432,7 @@ class GameDetectionConfig:
     learning_path: str | None = "game_detection_learning.jsonl"
     ocr_provider: str = "vlm"
     vision_model_dir: str | None = "models"
+    title_presence: bool = False  # optical hysteresis wrap; default OFF, not implied by --play
 
 
 @dataclass(frozen=True)
@@ -852,6 +853,7 @@ class RetinaUnifiedConfig:
                 confidence_threshold=_float("QORESENCE_GAME_DETECT_THRESHOLD", 0.65),
                 poll_interval_s=_float("QORESENCE_GAME_DETECT_POLL", 3.0),
                 learning_enabled=_bool("QORESENCE_GAME_DETECT_LEARNING"),
+                title_presence=_bool("QORESENCE_TITLE_PRESENCE"),
             ),
             clutchbot=ClutchBotConfig(
                 enabled=_bool("QORESENCE_CLUTCHBOT_ENABLED"),

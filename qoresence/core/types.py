@@ -55,8 +55,9 @@ class EventType(StrEnum):
     VISUAL_CONTEXT = "visual_context"
     CROSS_MODAL_VERDICT = "cross_modal_verdict"
 
-    # Game detection
+    # Game detection / optical title-presence
     GAME_DETECTED = "game_detected"
+    TITLE_PRESENCE = "title_presence"
 
     # Fusion
     PRESENCE_REPORT = "presence_report"
