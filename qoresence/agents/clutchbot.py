@@ -63,6 +63,7 @@ _CONFIRM_TRIGGER_TYPES = frozenset(
         EventType.VISUAL_CONTEXT,
         EventType.OUTCOME_EVENT,
         EventType.GAME_DETECTED,
+        getattr(EventType, "TITLE_PRESENCE", EventType.GAME_DETECTED),
     }
 )
 

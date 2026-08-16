@@ -1,15 +1,15 @@
 # Optical title-presence (observation only)
 
 Hardens `GameAutoDetector` with a hysteresis FSM and a hard `plane` tag.  
-**Default OFF.** Not implied by `--play` or `--stream`.
+**On with `--play` / `--stream`.** Opt out with `--no-title-presence` (or `--no-game-detect` to stop the detector entirely).
 
 ## Enable
 
 ```powershell
-python -m qoresence.cli --play --deck --visual --game-detect --title-presence --streamer-device 0
+python -m qoresence.cli --play --deck --monitor --controller --streamer-device 0 --game-profile madden_27
 ```
 
-Or `QORESENCE_TITLE_PRESENCE=1` plus game-detect. `--no-game-detect` still disables the detector entirely.
+Title-presence starts with that stack. An explicit `--game-profile` is pinned: a locked optical title is observed but will not yank the operator profile.
 
 ## What you get
 

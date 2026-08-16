@@ -38,6 +38,8 @@ class SituationState:
     # True when Gemini scoreboard VLM force-locked the board (confirm path).
     score_vlm_locked: bool = False
     confirm_ticket_id: str = ""
+    title_hysteresis: str | None = None
+    title_claim: bool | None = None
 
     # Football
     home_score: int | None = None
@@ -95,6 +97,8 @@ class SituationModel:
         """Ingest a Qoresence event and refresh the situation."""
         if event.type == EventType.GAME_DETECTED:
             self._handle_game_detected(event.payload)
+        elif event.type == EventType.TITLE_PRESENCE:
+            self._handle_title_presence(event.payload)
         elif event.type == EventType.VISUAL_CONTEXT:
             self._handle_visual_context(event)
         elif event.type == EventType.OUTCOME_EVENT:
@@ -108,8 +112,25 @@ class SituationModel:
         elif event.type == EventType.PRESENCE_REPORT:
             self._handle_presence_report(event.payload)
 
+    def seed_profile(self, profile_id: str | None) -> None:
+        if profile_id:
+            self._state.game_profile = str(profile_id)
+
     def _handle_game_detected(self, payload: dict[str, Any]) -> None:
-        self._state.game_profile = payload.get("profile_id")
+        pid = payload.get("profile_id")
+        if pid:
+            self._state.game_profile = pid
+
+    def _handle_title_presence(self, payload: dict[str, Any]) -> None:
+        if not isinstance(payload, dict):
+            return
+        hyst = payload.get("hysteresis_state")
+        if hyst:
+            self._state.title_hysteresis = str(hyst)
+        if "claim" in payload:
+            self._state.title_claim = bool(payload.get("claim"))
+        if payload.get("claim") and payload.get("profile_id"):
+            self._state.game_profile = payload.get("profile_id")
 
     def _handle_visual_context(self, event: BaseEvent) -> None:
         try:
@@ -306,6 +327,8 @@ class SituationModel:
             "score_vlm_locked": bool(s.score_vlm_locked),
             "scoreboard_locked": bool(s.score_vlm_locked),
             "confirm_ticket_id": s.confirm_ticket_id or "",
+            "title_hysteresis": s.title_hysteresis,
+            "title_claim": s.title_claim,
             "home_score": s.home_score,
             "away_score": s.away_score,
             "quarter": s.quarter,

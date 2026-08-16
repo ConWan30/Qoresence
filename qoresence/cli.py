@@ -600,6 +600,30 @@ class QoresenceApp:
             if self.outcome:
 
                 def switch_profile(profile_id):
+                    # Honor an explicit --game-profile pin; still observe via title_presence.
+                    try:
+                        import sys as _sys_pin
+
+                        pinned = any(
+                            a == "--game-profile" or str(a).startswith("--game-profile=")
+                            for a in _sys_pin.argv
+                        )
+                        if pinned:
+                            from qoresence.core import normalize_game_profile
+
+                            want = normalize_game_profile(
+                                getattr(self.config.outcome, "game_profile", None)
+                            )
+                            got = normalize_game_profile(profile_id)
+                            if want != got:
+                                log.info(
+                                    "title-presence locked %s; keeping operator profile %s",
+                                    got,
+                                    want,
+                                )
+                                return
+                    except Exception:
+                        pass
                     self.outcome.set_game_profile(profile_id)
 
                 self.game_detector.set_profile_switch_callback(switch_profile)
@@ -776,6 +800,15 @@ class QoresenceApp:
 
         if self.game_detector:
             self.game_detector.start()
+        if self.clutchbot and getattr(self.config.outcome, "game_profile", None):
+            try:
+                sit = getattr(self.clutchbot, "_situation", None)
+                if sit is not None:
+                    pid = self.config.outcome.game_profile
+                    pid_s = getattr(pid, "value", None) or str(pid)
+                    sit.seed_profile(pid_s)
+            except Exception:
+                pass
 
         if self.fusion:
             self.fusion.start()
@@ -1111,7 +1144,9 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             game_profile=args.game_profile or config.visual.game_profile,
         )
         config.game_detection = replace(
-            config.game_detection, enabled=getattr(args, "game_detect", True)
+            config.game_detection,
+            enabled=getattr(args, "game_detect", True),
+            title_presence=not getattr(args, "no_title_presence", False),
         )
 
     if getattr(args, "game_detect", False):
@@ -1120,6 +1155,8 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         config.game_detection = replace(config.game_detection, enabled=False)
     if getattr(args, "title_presence", False):
         config.game_detection = replace(config.game_detection, title_presence=True)
+    if getattr(args, "no_title_presence", False):
+        config.game_detection = replace(config.game_detection, title_presence=False)
 
     # Game detection tuning
     config.game_detection = replace(
@@ -1483,7 +1520,12 @@ def main():
     parser.add_argument(
         "--title-presence",
         action="store_true",
-        help="Optical title-presence hysteresis wrap (default OFF; not implied by --play)",
+        help="Force optical title-presence on (already on with --play/--stream)",
+    )
+    parser.add_argument(
+        "--no-title-presence",
+        action="store_true",
+        help="Disable title-presence wrap even under --play/--stream",
     )
 
     # ClutchBot (Twitch agent)
@@ -1906,6 +1948,21 @@ def main():
                     )
                 except Exception:
                     pass
+            # Title-presence + detector ride the live visual stack (opt out: --no-game-detect / --no-title-presence)
+            try:
+                if not getattr(args, "no_game_detect", False):
+                    _tp = not getattr(args, "no_title_presence", False)
+                    config = _rep_play(
+                        config,
+                        game_detection=_rep_play(
+                            config.game_detection,
+                            enabled=True,
+                            title_presence=_tp,
+                        ),
+                    )
+                    log.info("play: game-detect + title-presence=%s (FrameHub/streamer)", _tp)
+            except Exception as _e_tp:
+                log.debug("play title-presence enable skipped: %s", _e_tp)
             # HDMI / UVC capture card (PS5) — primary frame source for --play
             try:
                 # Capture at 60 Hz under --play so Deck LIVE / clip ring run full-rate.

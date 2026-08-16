@@ -265,8 +265,8 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | Flag | Default | Effect |
 |------|---------|--------|
 | `--play` | off | Streamer + visual(local) + outcome + ClutchBot backends + deck wiring |
-| `--game-detect` | off (`--stream` on) | Incumbent `GameAutoDetector` (not implied by `--play`) |
-| `--title-presence` | off | Optical title hysteresis wrap + `plane` tag (requires `--game-detect`; not implied by `--play`) |
+| `--game-detect` | on with `--play`/`--stream` | Incumbent `GameAutoDetector` (`--no-game-detect` to opt out) |
+| `--title-presence` | on with `--play`/`--stream` | Optical title hysteresis + `plane` tag (`--no-title-presence` to opt out) |
 | `--game-profile` | `ncaa_football_27` | `madden_27` (Madden NFL 27 + local NFL roster), `ncaa_football_27`, CoD / Valorant / Apex / Fortnite |
 | `--deck` | off | Retina Deck HTTP/WS on `:8765` |
 | `--monitor` | off | Native FrameHub window |

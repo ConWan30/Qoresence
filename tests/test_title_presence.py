@@ -285,6 +285,51 @@ def test_ingredient_immutable_and_decays():
     assert abs(later - 0.4) < 1e-6
 
 
+def test_situation_stays_in_sync_and_no_claim_does_not_wipe():
+    from qoresence.agents.situation_model import SituationModel
+    from qoresence.core.types import BaseEvent, EventType, SourceLobe
+
+    sit = SituationModel()
+    sit.seed_profile("madden_27")
+    ev_nc = BaseEvent(
+        session_id="s",
+        clock_ns=1,
+        source_lobe=SourceLobe.FUSION,
+        type=EventType.TITLE_PRESENCE,
+        payload=no_claim_record(session_id="s", clock_ns=1, session_head_ns=0, reason="not_locked"),
+    )
+    sit.update(ev_nc)
+    assert sit.state.game_profile == "madden_27"
+    assert sit.state.title_claim is False
+    ev_ok = BaseEvent(
+        session_id="s",
+        clock_ns=2,
+        source_lobe=SourceLobe.FUSION,
+        type=EventType.TITLE_PRESENCE,
+        payload=claim_record(
+            session_id="s",
+            clock_ns=2,
+            session_head_ns=0,
+            profile_id="madden_27",
+            display_name="Madden",
+            confidence=0.9,
+            threshold=0.65,
+            consecutive=2,
+            stability_count=2,
+            evidence_count=1,
+            vlm_confidence=0.8,
+            ocr_confidence=0.7,
+            motion_confidence=0.1,
+        ),
+    )
+    sit.update(ev_ok)
+    assert sit.state.game_profile == "madden_27"
+    assert sit.state.title_claim is True
+    assert sit.state.title_hysteresis == "locked"
+    d = sit.to_dict()
+    assert d["title_claim"] is True
+
+
 def test_title_flip_requests_lock_verify():
     bus = _Bus()
     det = GameAutoDetector(
