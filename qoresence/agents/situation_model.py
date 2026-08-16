@@ -53,6 +53,7 @@ class SituationState:
     on_screen_player: str | None = None
     on_screen_player_team: str | None = None
     on_screen_player_jersey: int | None = None
+    nameplate_ambiguous: bool = False
 
     # Shooter
     health: int | None = None
@@ -151,6 +152,7 @@ class SituationModel:
                 on_screen_player=getattr(ctx, "on_screen_player", None),
                 on_screen_player_team=getattr(ctx, "on_screen_player_team", None),
                 on_screen_player_jersey=getattr(ctx, "on_screen_player_jersey", None),
+                nameplate_ambiguous=bool(getattr(ctx, "nameplate_ambiguous", False)),
             )
 
         if ctx.game_category and ctx.game_category.value == "shooter":
@@ -264,6 +266,7 @@ class SituationModel:
             "on_screen_player": s.on_screen_player,
             "on_screen_player_team": s.on_screen_player_team,
             "on_screen_player_jersey": s.on_screen_player_jersey,
+            "nameplate_ambiguous": bool(s.nameplate_ambiguous),
             "health": s.health,
             "ammo": s.ammo,
             "kills": s.kills,

@@ -94,6 +94,31 @@ def test_ambiguous_last_name_no_invent(tmp_path: Path):
     assert idx.match_player("SMITH", team="KC") is None
 
 
+def test_nameplate_ambiguous_flag(tmp_path: Path):
+    idx = _index(tmp_path)
+    from qoresence.profiles import nfl_roster as nr
+
+    nr._index = idx
+    hit = VisualContext(game_profile="madden_27")
+    apply_roster_to_context(
+        hit, {"home_team_raw": "Chiefs", "away_team_raw": "Eagles", "player_name": "15 Mahomes"}
+    )
+    assert hit.on_screen_player == "Patrick Mahomes"
+    assert hit.nameplate_ambiguous is False
+    amb = VisualContext(game_profile="madden_27")
+    apply_roster_to_context(amb, {"player_name": "Brown"})
+    assert amb.on_screen_player is None
+    assert amb.nameplate_ambiguous is True
+    miss = VisualContext(game_profile="madden_27")
+    apply_roster_to_context(miss, {"home_team_raw": "Chiefs"})
+    assert miss.on_screen_player is None
+    assert miss.nameplate_ambiguous is False
+    ncaa = VisualContext(game_profile="ncaa_football_27")
+    apply_roster_to_context(ncaa, {"player_name": "Brown"})
+    assert ncaa.on_screen_player is None
+    assert ncaa.nameplate_ambiguous is False
+
+
 def test_nameplate_parse():
     assert parse_nameplate("15 MAHOMES")["jersey"] == 15
     assert parse_nameplate("P. Mahomes")["last"].lower() == "mahomes"

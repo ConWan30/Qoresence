@@ -69,6 +69,7 @@ class VisualContext:
     on_screen_player_team: str | None = None
     on_screen_player_jersey: int | None = None
     on_screen_player_pos: str | None = None
+    nameplate_ambiguous: bool = False
 
     # Shooter / Call of Duty
     health: int | None = None
@@ -158,6 +159,7 @@ class VisualContext:
                 "on_screen_player_team": self.on_screen_player_team,
                 "on_screen_player_jersey": self.on_screen_player_jersey,
                 "on_screen_player_pos": self.on_screen_player_pos,
+                "nameplate_ambiguous": bool(self.nameplate_ambiguous),
             }
         elif self.game_category == GameCategory.SHOOTER:
             d["shooter"] = {
@@ -254,6 +256,7 @@ class VisualContext:
         ctx.away_team_raw = _to_str(fb.get("away_team_raw") or fb.get("away_team"))
         ctx.player_name_raw = _to_str(fb.get("player_name") or fb.get("player_name_raw"))
         ctx.player_jersey = _to_int(fb.get("player_jersey"))
+        ctx.nameplate_ambiguous = bool(fb.get("nameplate_ambiguous") or raw.get("nameplate_ambiguous"))
         # Resolved names come from the local NFL roster — never trust the model
         # to invent a club. Raw HUD strings are matched or dropped.
         try:

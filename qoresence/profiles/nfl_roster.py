@@ -160,6 +160,39 @@ class NflRosterIndex:
             return hits[0]
         return None
 
+    def nameplate_ambiguous(
+        self,
+        text: str | None,
+        *,
+        jersey: int | None = None,
+        team: str | None = None,
+    ) -> bool:
+        """True when HUD text looks like a nameplate but is not uniquely resolvable."""
+        key = _norm(text)
+        if key and key in self._ambiguous_keys:
+            return True
+        if team and _norm(team) in self._ambiguous_keys:
+            return True
+        parsed = parse_nameplate(text) if text else {}
+        last = parsed.get("last")
+        jer = jersey if jersey is not None else parsed.get("jersey")
+        if not last and jer is None:
+            return False
+        hits = list(self.players)
+        if last:
+            hits = [p for p in hits if _norm(p.last_name) == _norm(str(last))]
+        if team:
+            found = self.match_team(team)
+            if found:
+                hits = [p for p in hits if p.team == found.abbr]
+        if jer is not None:
+            hits = [p for p in hits if p.jersey == int(jer)]
+        if len(hits) > 1:
+            return True
+        if last and not team and jer is None and (len(hits) != 1):
+            return True
+        return False
+
     def match_player(
         self,
         text: str | None = None,
@@ -232,12 +265,18 @@ class NflRosterIndex:
         if player is None and away:
             player = self.match_player(nameplate, jersey=jersey, team=away.abbr)
 
+        ambiguous = self.nameplate_ambiguous(
+            nameplate, jersey=jersey, team=team_hint or home_raw or away_raw
+        )
+        if player is not None:
+            ambiguous = False
         out: dict[str, Any] = {
             "home_team": home.to_dict() if home else None,
             "away_team": away.to_dict() if away else None,
             "possession_team": poss_team.to_dict() if poss_team else None,
             "possession_side": side,
             "on_screen_player": player.to_dict() if player else None,
+            "nameplate_ambiguous": bool(ambiguous),
         }
         return out
 
@@ -309,6 +348,9 @@ def apply_roster_to_context(ctx: Any, parsed: dict[str, Any] | None = None) -> A
         ctx.on_screen_player_team = player["team"]
         ctx.on_screen_player_jersey = player.get("jersey")
         ctx.on_screen_player_pos = player.get("position")
+        ctx.nameplate_ambiguous = False
+    else:
+        ctx.nameplate_ambiguous = bool(resolved.get("nameplate_ambiguous"))
     return ctx
 
 
