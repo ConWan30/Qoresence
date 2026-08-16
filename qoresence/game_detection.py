@@ -361,6 +361,11 @@ class GameAutoDetector:
         self._lock_verify_until = 0.0
         self._hub_seq: int | None = None
         self._hub_clock_ns: int | None = None
+        self._score_locked_seen = False
+        self._last_locked_profile: GameProfileId | None = None
+        self._board_locked = False
+        self._board_quarter: int | None = None
+        self._board_down: int | None = None
 
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
@@ -373,6 +378,21 @@ class GameAutoDetector:
     def set_profile_switch_callback(self, callback: Callable[[GameProfileId], None]) -> None:
         """Set callback invoked when a new game is detected."""
         self._profile_switch_callback = callback
+
+    def note_lock_verify(self, reason: str, window_s: float = 6.0) -> None:
+        """Raise sampling for a short window. No-op when title-presence is OFF."""
+        if not self._title_presence:
+            return
+        from qoresence.vision.title_presence import request_lock_verify
+
+        request_lock_verify(reason, window_s=window_s)
+        self._lock_verify_until = time.time() + max(1.0, float(window_s))
+        self._sampling_mode = "lock_verify"
+
+    def note_operator_profile(self, profile_id: GameProfileId | str | None = None) -> None:
+        """Operator --game-profile / runtime profile hint → lock-and-verify."""
+        del profile_id
+        self.note_lock_verify("operator_profile")
 
     def start(self) -> bool:
         """Start detection loop in a background thread."""
@@ -390,11 +410,13 @@ class GameAutoDetector:
             target=self._run_loop, name="qoresence-game-detect", daemon=True
         )
         self._thread.start()
+        if self._title_presence:
+            self.note_lock_verify("first_visual")
 
         log.info(
             f"GameAutoDetector started: threshold={self._confidence_threshold}, "
             f"window={self._evidence_window_s}s, poll={self._poll_interval_s}s, "
-            f"learning={self._learning_enabled}"
+            f"learning={self._learning_enabled} title_presence={self._title_presence}"
         )
         return True
 
@@ -459,9 +481,15 @@ class GameAutoDetector:
 
             elapsed = time.time() - loop_start
             interval = self._poll_interval_s
-            if self._title_presence and time.time() < self._lock_verify_until:
-                self._sampling_mode = "lock_verify"
-                interval = min(interval, 1.0)
+            if self._title_presence:
+                from qoresence.vision.title_presence import lock_verify_active
+
+                active, _why = lock_verify_active()
+                if active or time.time() < self._lock_verify_until:
+                    self._sampling_mode = "lock_verify"
+                    interval = min(interval, 1.0)
+                else:
+                    self._sampling_mode = "sparse"
             else:
                 self._sampling_mode = "sparse"
             sleep_time = interval - elapsed
@@ -527,6 +555,18 @@ class GameAutoDetector:
                     ) or str(vision.visual_context.game_state or "")
                 except Exception:
                     self._last_game_state = None
+                try:
+                    locked = bool(getattr(vision.visual_context, "score_vlm_locked", False))
+                    self._board_locked = locked
+                    q = getattr(vision.visual_context, "quarter", None)
+                    d = getattr(vision.visual_context, "down", None)
+                    self._board_quarter = int(q) if q is not None else None
+                    self._board_down = int(d) if d is not None else None
+                    if locked and not self._score_locked_seen:
+                        self._score_locked_seen = True
+                        self.note_lock_verify("score_lock")
+                except Exception:
+                    pass
 
             # Emit structured visual context for the outcome lobe
             if vision.visual_context is not None:
@@ -892,19 +932,21 @@ class GameAutoDetector:
         )
 
         prev = self._hyst_state
-        overlay = is_overlay_state(self._last_game_state)
-        if overlay and self._last_game_state and prev != "overlay-rejected":
-            prev_gs = getattr(self, "_prev_game_state_for_sample", None)
-            if prev_gs and str(prev_gs).lower() in {"menu", "lobby", "hub", "paused"}:
-                pass
-        if (
-            self._last_game_state
-            and str(self._last_game_state).lower() in {"gameplay", "playing", "in_game"}
-            and str(getattr(self, "_prev_game_state_for_sample", "") or "").lower()
-            in {"menu", "lobby", "hub", "paused"}
-        ):
-            self._lock_verify_until = time.time() + 6.0
-            self._sampling_mode = "lock_verify"
+        overlay = is_overlay_state(
+            self._last_game_state,
+            locked_board=self._board_locked,
+            quarter=self._board_quarter,
+            down=self._board_down,
+        )
+        prev_gs = str(getattr(self, "_prev_game_state_for_sample", "") or "").lower()
+        now_gs = str(self._last_game_state or "").lower()
+        if now_gs in {"gameplay", "playing", "in_game"} and prev_gs in {
+            "menu",
+            "lobby",
+            "hub",
+            "paused",
+        }:
+            self.note_lock_verify("menu_to_gameplay")
         self._prev_game_state_for_sample = self._last_game_state
 
         if result is None or not has_frame:
@@ -949,6 +991,11 @@ class GameAutoDetector:
             if result.profile_id == self._last_emitted_profile:
                 self._consecutive_detections += 1
             else:
+                if (
+                    self._last_locked_profile is not None
+                    and result.profile_id != self._last_locked_profile
+                ):
+                    self.note_lock_verify("title_flip")
                 self._consecutive_detections = 1
                 self._last_emitted_profile = result.profile_id
             state, reason = step_hysteresis(
@@ -992,10 +1039,12 @@ class GameAutoDetector:
                 motion_confidence=result.motion_confidence,
                 provenance=self._provenance(),
             )
-            just_locked = prev != HYST_LOCKED or result.profile_id != self._last_emitted_profile
+            just_locked = prev != HYST_LOCKED or result.profile_id != self._last_locked_profile
             self._last_emitted_profile = result.profile_id
+            self._last_locked_profile = result.profile_id
             if just_locked:
                 self._emit_title_presence(rec)
+                self._maybe_write_ingredient(rec)
                 self._emit_game_detected(result, title_presence=rec)
                 if self._profile_switch_callback:
                     try:
@@ -1022,6 +1071,21 @@ class GameAutoDetector:
         )
         if state != prev:
             self._emit_title_presence(rec)
+            self._maybe_write_ingredient(rec)
+
+    def _maybe_write_ingredient(self, rec: dict[str, Any]) -> None:
+        if not (self._title_presence and self._learning_enabled):
+            return
+        try:
+            from qoresence.vision.title_presence_ingredient import append_ingredient, make_ingredient
+
+            ing = make_ingredient(rec, created_ns=clock_ns())
+            if ing is None:
+                return
+            side = Path(self._learning_path).with_name("title_presence_ingredients.jsonl")
+            append_ingredient(side, ing)
+        except Exception as e:
+            log.debug("title-presence ingredient skip: %s", e)
 
     def _emit_title_presence(self, rec: dict[str, Any]) -> None:
         from qoresence.vision.title_presence import record_valid

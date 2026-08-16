@@ -188,3 +188,108 @@ def test_overlay_rejects_claim():
     assert "game_detected" not in kinds
     assert bus.events[-1]["payload"]["hysteresis_state"] == "overlay-rejected"
     assert bus.events[-1]["payload"]["claim"] is False
+
+
+def test_lock_verify_mailbox_and_note():
+    from qoresence.vision.title_presence import lock_verify_active, request_lock_verify
+
+    request_lock_verify("phrase_sprint", window_s=2.0)
+    on, why = lock_verify_active()
+    assert on is True
+    assert why == "phrase_sprint"
+    bus = _Bus()
+    det = GameAutoDetector(
+        bus, 0, vlm_client=None, use_vision_stack=False, title_presence=True
+    )
+    det.note_lock_verify("title_flip", window_s=3.0)
+    assert det._sampling_mode == "lock_verify"
+    det_off = GameAutoDetector(
+        bus, 0, vlm_client=None, use_vision_stack=False, title_presence=False
+    )
+    det_off.note_lock_verify("title_flip")
+    assert det_off._sampling_mode == "sparse"
+
+
+def test_wrap_ceremony_fail_closed():
+    from qoresence.vision.title_presence_wrap import (
+        OperatorGrant,
+        WrapEnvelope,
+        WrapRefuse,
+        wrap_observation_for_plane,
+    )
+
+    rec = claim_record(
+        session_id="s",
+        clock_ns=1,
+        session_head_ns=0,
+        profile_id="madden_27",
+        display_name="M",
+        confidence=0.9,
+        threshold=0.65,
+        consecutive=2,
+        stability_count=2,
+        evidence_count=1,
+        vlm_confidence=0.8,
+        ocr_confidence=0.7,
+        motion_confidence=0.1,
+    )
+    original = dict(rec)
+    refused = wrap_observation_for_plane(rec, "qortroller-truth")
+    assert isinstance(refused, WrapRefuse)
+    assert refused.reason == "dest_not_allowlisted"
+    assert rec == original
+    grant = OperatorGrant(grant_id="g1", dest_plane="other-plane", expires_ns=10**18)
+    still = wrap_observation_for_plane(rec, "other-plane", grant)
+    assert isinstance(still, WrapRefuse)
+    ok = wrap_observation_for_plane(
+        rec, "other-plane", grant, allowlist={"other-plane"}, now_ns=1
+    )
+    assert isinstance(ok, WrapEnvelope)
+    assert ok.plane == "other-plane"
+    assert ok.source_plane == PLANE
+    assert ok.source_hash
+    assert rec["plane"] == PLANE
+    no_claim = no_claim_record(session_id="s", clock_ns=1, session_head_ns=0, reason="not_locked")
+    assert wrap_observation_for_plane(
+        no_claim, "other-plane", grant, allowlist={"other-plane"}
+    ).reason == "no_claim"
+
+
+def test_ingredient_immutable_and_decays():
+    from qoresence.vision.title_presence import source_hash
+    from qoresence.vision.title_presence_ingredient import decayed_confidence, make_ingredient
+
+    rec = claim_record(
+        session_id="s",
+        clock_ns=100,
+        session_head_ns=0,
+        profile_id="ncaa_football_27",
+        display_name="CFB",
+        confidence=0.8,
+        threshold=0.65,
+        consecutive=2,
+        stability_count=2,
+        evidence_count=1,
+        vlm_confidence=0.8,
+        ocr_confidence=0.7,
+        motion_confidence=0.1,
+    )
+    before = dict(rec)
+    ing = make_ingredient(rec, created_ns=0, half_life_s=3600.0)
+    assert ing is not None
+    assert rec == before
+    assert ing["source_hash"] == source_hash(rec)
+    assert "ingredient" not in rec
+    assert decayed_confidence(ing, 0) == 0.8
+    later = decayed_confidence(ing, int(3600 * 1e9))
+    assert abs(later - 0.4) < 1e-6
+
+
+def test_title_flip_requests_lock_verify():
+    bus = _Bus()
+    det = GameAutoDetector(
+        bus, 0, vlm_client=None, use_vision_stack=False, title_presence=True, stability_count=1
+    )
+    det._maybe_emit_and_switch(_result(GameProfileId.MADDEN_27))
+    det._maybe_emit_and_switch(_result(GameProfileId.NCAA_FOOTBALL_27))
+    assert det._sampling_mode == "lock_verify"

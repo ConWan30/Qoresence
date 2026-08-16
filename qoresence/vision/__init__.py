@@ -21,6 +21,7 @@ from .ocr_providers import (
 )
 from .vision_stack import VisionEvidence, VisionStack
 from .title_presence import PLANE as TITLE_PRESENCE_PLANE
+from .title_presence_wrap import wrap_observation_for_plane
 from .visual_context import GameCategory, GameState, VisualContext, build_vlm_prompt
 
 __all__ = [
@@ -42,4 +43,5 @@ __all__ = [
     "LocalVLMClient",
     "create_local_vlm_client",
     "TITLE_PRESENCE_PLANE",
+    "wrap_observation_for_plane",
 ]

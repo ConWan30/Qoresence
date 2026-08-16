@@ -266,6 +266,13 @@ class InputVideoCoupler:
                 hold_fresh=hold_energy > 0.0,
             )
             ph = phrase_payload(phrase, phrase_conf)
+            if phrase in {"SNAP", "SPRINT"}:
+                try:
+                    from qoresence.vision.title_presence import request_lock_verify
+
+                    request_lock_verify("phrase_snap" if phrase == "SNAP" else "phrase_sprint")
+                except Exception:
+                    pass
         except Exception:
             ph = {"phrase": "IDLE", "phrase_conf": 0.0, "phrase_live": False}
         self._prev_r2 = r2_now

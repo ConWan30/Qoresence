@@ -6,6 +6,10 @@ No scores, names, eligibility, or truth-plane writes.
 
 from __future__ import annotations
 
+import hashlib
+import json
+import threading
+import time
 from typing import Any
 
 PLANE = "qoresence-observation"
@@ -194,6 +198,54 @@ def _default_provenance() -> dict[str, Any]:
         "frame_clock_ns": None,
         "poll_interval_s": 3.0,
     }
+
+
+_lv_lock = threading.Lock()
+_lv_until = 0.0
+_lv_reason = ""
+
+LOCK_VERIFY_REASONS = frozenset(
+    {
+        "operator_profile",
+        "first_visual",
+        "menu_to_gameplay",
+        "score_lock",
+        "phrase_snap",
+        "phrase_sprint",
+        "title_flip",
+    }
+)
+
+
+def request_lock_verify(reason: str, window_s: float = 6.0) -> None:
+    """Process-local raised-rate window. Sparse default; never 60 Hz."""
+    global _lv_until, _lv_reason
+    why = str(reason or "").strip()
+    if why not in LOCK_VERIFY_REASONS:
+        why = "first_visual"
+    now = time.time()
+    until = now + max(1.0, float(window_s))
+    with _lv_lock:
+        if until > _lv_until:
+            _lv_until = until
+            _lv_reason = why
+
+
+def lock_verify_active(now: float | None = None) -> tuple[bool, str]:
+    t = time.time() if now is None else float(now)
+    with _lv_lock:
+        if t < _lv_until:
+            return True, _lv_reason
+        return False, ""
+
+
+def canonical_record_bytes(rec: dict[str, Any]) -> bytes:
+    body = {k: rec.get(k) for k in sorted(rec.keys()) if k != "ingredient"}
+    return json.dumps(body, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+
+
+def source_hash(rec: dict[str, Any]) -> str:
+    return hashlib.sha256(canonical_record_bytes(rec)).hexdigest()
 
 
 def make_provenance(

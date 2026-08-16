@@ -603,6 +603,13 @@ class QoresenceApp:
                     self.outcome.set_game_profile(profile_id)
 
                 self.game_detector.set_profile_switch_callback(switch_profile)
+            if bool(getattr(self.config.game_detection, "title_presence", False)):
+                try:
+                    self.game_detector.note_operator_profile(
+                        getattr(self.config.outcome, "game_profile", None)
+                    )
+                except Exception:
+                    pass
 
         # Fusion â† All lobes (lobe status updates)
         if self.fusion:

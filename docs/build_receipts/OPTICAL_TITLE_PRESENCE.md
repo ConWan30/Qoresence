@@ -9,4 +9,4 @@ Local receipts: `logs/build/optical_title_presence_*`
 
 Default OFF. Hard `plane: "qoresence-observation"`. Incumbent `GameAutoDetector` wrapped, not replaced.
 
-Ceremony and research ingredients remain undeployed by design.
+Follow-on on `main` (this tree): lock-verify triggers, fail-closed wrap ceremony (empty allowlist), immutable ingredient sidecar when learning is on. Still no truth-plane write and not implied by `--play`.

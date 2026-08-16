@@ -25,3 +25,15 @@ Or `QORESENCE_TITLE_PRESENCE=1` plus game-detect. `--no-game-detect` still disab
 ## Feature OFF
 
 Incumbent `game_detected` timing is unchanged (no plane, no `title_presence` events).
+
+## Lock-and-verify (still sparse)
+
+Raised poll (~1 s) for ~6 s on: first visual, operator profile hint, menu→gameplay, first score lock, SNAP/SPRINT phrase, fused title flip. Never 60 Hz.
+
+## Re-wrap ceremony
+
+`qoresence.vision.title_presence_wrap.wrap_observation_for_plane` is fail-closed. Default dest allowlist is empty. It never mutates the observation record and never writes a truth-plane store.
+
+## Research sidecar
+
+When `--title-presence` **and** local learning are both on, a JSONL sidecar `title_presence_ingredients.jsonl` links `source_hash` + decay. The optical record is not rewritten.
