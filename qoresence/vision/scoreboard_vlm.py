@@ -22,6 +22,7 @@ import cv2
 import numpy as np
 
 from qoresence.agents.llm_client import DEFAULT_BASE_URL, _resolve_api_key
+from qoresence.vision.scorebug_crops import CFB_PRIMARY_SCOREBUG, primary_scorebug_crop
 
 log = logging.getLogger(__name__)
 
@@ -36,8 +37,8 @@ _MENU_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_MENU_INTERVAL"
 # CFB 26/27: in-game scorebug is the red/blue bar (~y 0.78–0.93).
 # The national ticker / other-games crawl is the last ~7% (y > 0.93).
 TICKER_CUT_Y = 0.93
-# (x1, x2, y1, y2) fractions
-_SCOREBUG_FRAC = (0.12, 0.88, 0.78, TICKER_CUT_Y)
+# (x1, x2, y1, y2) fractions — CFB default; Madden overrides via primary_scorebug_crop.
+_SCOREBUG_FRAC = CFB_PRIMARY_SCOREBUG
 _PAUSE_FRAC = (0.22, 0.78, 0.12, 0.52)
 
 _PROMPT = """You are a football scoreboard identity engine for EA College Football 27 or Madden NFL 27.
@@ -112,6 +113,7 @@ class ScoreboardVlmReferee:
         force: bool = False,
         reason: str = "tick",
         game_state: str | None = None,
+        game_profile: str | None = None,
     ) -> None:
         """Kick a background VLM read if due; never blocks.
 
@@ -140,7 +142,7 @@ class ScoreboardVlmReferee:
             self._inflight = True
             self._last_call = now
             self._last_reason = reason
-        crop = self._crop(frame, game_state=gst)
+        crop = self._crop(frame, game_state=gst, game_profile=game_profile)
         if crop is None:
             with self._lock:
                 self._inflight = False
@@ -179,17 +181,23 @@ class ScoreboardVlmReferee:
         return crop
 
     @classmethod
-    def _crop(cls, frame: np.ndarray, game_state: str | None = None) -> np.ndarray | None:
+    def _crop(
+        cls,
+        frame: np.ndarray,
+        game_state: str | None = None,
+        game_profile: str | None = None,
+    ) -> np.ndarray | None:
         h, w = frame.shape[:2]
         if h < 40 or w < 40:
             return None
         gst = (game_state or "").lower()
         menu = gst in {"menu", "lobby", "hub", "paused", "pause"}
-        # Gameplay: scorebug only, ticker cut off. Menu: pause plate only.
+        # Gameplay: profile-aware scorebug. Menu: pause plate only.
         # Never stitch pause+bottom — that used to feed Gemini the other-games crawl.
-        src = cls._slice(frame, _PAUSE_FRAC if menu else _SCOREBUG_FRAC)
+        scorebug = primary_scorebug_crop(game_profile)
+        src = cls._slice(frame, _PAUSE_FRAC if menu else scorebug)
         if src is None:
-            src = cls._slice(frame, _SCOREBUG_FRAC if menu else _PAUSE_FRAC)
+            src = cls._slice(frame, scorebug if menu else _PAUSE_FRAC)
         if src is None:
             return None
         out = src

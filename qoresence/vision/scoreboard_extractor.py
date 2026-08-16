@@ -310,7 +310,12 @@ class FootballScoreboardExtractor:
                 gst = getattr(ctx.game_state, "value", None) or str(ctx.game_state or "")
             except Exception:
                 gst = None
-            get_scoreboard_vlm().schedule(frame, game_state=gst, reason="tick")
+            get_scoreboard_vlm().schedule(
+                frame,
+                game_state=gst,
+                reason="tick",
+                game_profile=getattr(ctx, "game_profile", None),
+            )
         except Exception as e:
             log.debug("scoreboard VLM schedule: %s", e)
 
@@ -338,7 +343,7 @@ class FootballScoreboardExtractor:
 
         tokens: list[_Token] = []
         if _ocr_on:
-            tokens = self._ocr_tokens(frame)
+            tokens = self._ocr_tokens(frame, profile=getattr(ctx, "game_profile", None))
         parsed: dict[str, Any] = {}
         if tokens:
             joined = " ".join(t.text for t in tokens).upper()
@@ -599,18 +604,15 @@ class FootballScoreboardExtractor:
             pair = (pair[1], pair[0])
         return pair
 
-    def _ocr_tokens(self, frame: np.ndarray) -> list[_Token]:
-        """OCR scoreboard regions via pluggable engine (multi-crop for CFB 27)."""
+    def _ocr_tokens(self, frame: np.ndarray, profile: str | None = None) -> list[_Token]:
+        """OCR scoreboard regions via pluggable engine (profile-aware crops)."""
         from qoresence.vision.scoreboard_ocr_engine import get_scoreboard_engine
+        from qoresence.vision.scorebug_crops import scorebug_crops_for_profile
 
         h, w = frame.shape[:2]
-        # Scorebug is the red/blue bar just above the ticker (y > 0.93).
-        crops_frac = (
-            (0.12, 0.88, 0.78, 0.93),  # primary in-game scorebug (ticker excluded)
-            (0.20, 0.80, 0.76, 0.92),  # slightly tighter
-            (0.30, 0.70, 0.18, 0.55),  # pause / big center scores
-            (0.18, 0.82, 0.12, 0.42),  # wider pause plate
-        )
+        # CFB: red/blue bar just above the ticker (y > 0.93).
+        # Madden: white full-width HUD strip (y≈0.9375–1.00) from preexisting frames.
+        crops_frac = scorebug_crops_for_profile(profile)
         eng = get_scoreboard_engine()
         if not eng.is_ready():
             eng.start_warmup()

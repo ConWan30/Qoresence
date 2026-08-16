@@ -660,7 +660,13 @@ class ClutchBotAgent:
 
                     fr = get_latest()
                     if fr is not None:
-                        get_scoreboard_vlm().schedule(fr, force=True, reason=reason, game_state=gst)
+                        get_scoreboard_vlm().schedule(
+                            fr,
+                            force=True,
+                            reason=reason,
+                            game_state=gst,
+                            game_profile=sit.get("game_profile") or getattr(st, "game_profile", None),
+                        )
                 except Exception:
                     pass
 
