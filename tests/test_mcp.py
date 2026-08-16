@@ -42,6 +42,7 @@ def test_mcp_initialize_and_tools_list():
         "get_drive_graph",
         "subscribe_events",
         "diagnose_freeze",
+        "get_observation",
     }
 
 
@@ -257,3 +258,55 @@ def test_search_clips_filters():
     assert r1["ok"] is True
     r2 = mcp_server.handle_search_clips(query="nonexistentqueryxyz", limit=2)
     assert r2["ok"] is True and isinstance(r2["hits"], list)
+
+
+def test_observation_pack_silences_unlocked_score_and_localhost_glass():
+    from qoresence.mcp.observation import PLANE, build_observation
+
+    pack = build_observation(
+        situation={
+            "game_profile": "madden_27",
+            "title_claim": False,
+            "title_hysteresis": "transitioning",
+            "home_score": 21,
+            "away_score": 7,
+            "score_vlm_locked": False,
+        },
+        video={"has_frame": True, "age_s": 0.1, "seq": 9},
+        coupling={"phrase": "SPRINT", "coupling": 0.4, "frame_seq": 9},
+        glass_link={"url": "http://127.0.0.1:8765/mobile.html", "lan": False},
+        clock_ns=1,
+        seq=3,
+    )
+    assert pack["plane"] == PLANE
+    assert pack["score"]["claim"] is False
+    assert pack["score"]["home"] is None
+    assert pack["title"]["claim"] is False
+    assert pack["title"]["profile"] is None
+    assert "score_not_locked" in pack["must_not_invent"]
+    assert "glass_localhost_only" in pack["must_not_invent"]
+    assert "21-7" not in " ".join(pack["may_say"])
+    assert pack["pad"]["phrase"] == "SPRINT"
+
+
+def test_observation_pack_licenses_locked_board_and_lan_glass():
+    from qoresence.mcp.observation import build_observation
+
+    pack = build_observation(
+        situation={
+            "game_profile": "madden_27",
+            "title_claim": True,
+            "title_hysteresis": "locked",
+            "home_score": 14,
+            "away_score": 10,
+            "score_vlm_locked": True,
+        },
+        video={"has_frame": True},
+        coupling={"phrase": "SNAP", "coupling": 0.6, "frame_seq": 12},
+        glass_link={"url": "http://192.168.1.9:8765/mobile.html", "lan": True},
+    )
+    assert pack["score"] == {"claim": True, "home": 14, "away": 10}
+    assert pack["title"]["profile"] == "madden_27"
+    assert any("14-10" in s for s in pack["may_say"])
+    assert pack["glass"]["lan"] is True
+    assert "not a public stream" in pack["glass"]["say"]

@@ -95,6 +95,10 @@ def _get_fastmcp():
     def get_situation() -> dict:  # type: ignore
         return handle_get_situation()
 
+    @mcp.tool()  # type: ignore
+    def get_observation() -> dict:  # type: ignore
+        return handle_get_observation()
+
     _mcp_fastmcp = mcp
     return mcp
 
@@ -346,6 +350,53 @@ def handle_export_clip(seconds: int = 15) -> dict[str, Any]:
     return hr
 
 
+def handle_get_observation() -> dict[str, Any]:
+    """Licensed witness pack — what the agent may say right now."""
+    from qoresence.mcp.observation import build_observation
+
+    snap = handle_get_snapshot()
+    sit: dict[str, Any] = {}
+    video: dict[str, Any] = {}
+    coup: dict[str, Any] = {}
+    clock_ns = None
+    seq = None
+    if isinstance(snap, dict) and snap.get("ok"):
+        sit = snap.get("situation") or {}
+        video = snap.get("video") or {}
+        coup = snap.get("coupling") or {}
+        clock_ns = snap.get("clock_ns")
+        seq = snap.get("seq")
+    elif isinstance(snap, dict) and snap.get("error") == "http_unreachable":
+        return {
+            "ok": False,
+            "plane": "qoresence-observation",
+            "error": "http_unreachable",
+            "hint": snap.get("hint")
+            or "is Qoresence running with --play --deck --agent-glass?",
+            "must_not_invent": ["no_live_session"],
+            "may_say": [],
+        }
+    glass = None
+    try:
+        from qoresence.deck.server import glass_link_info
+
+        glass = glass_link_info()
+    except Exception:
+        glass = None
+    pack = build_observation(
+        situation=sit,
+        video=video,
+        coupling=coup,
+        glass_link=glass,
+        clock_ns=clock_ns,
+        seq=seq,
+    )
+    if isinstance(snap, dict) and not snap.get("ok"):
+        pack["snapshot_ok"] = False
+        pack["must_not_invent"] = list(pack.get("must_not_invent") or []) + ["snapshot_degraded"]
+    return pack
+
+
 def handle_get_situation() -> dict[str, Any]:
     snap = handle_get_snapshot()
     if not snap.get("ok"):
@@ -583,6 +634,14 @@ TOOL_DEFS = [
         "description": "Merged situation+coupling+last visual_context.",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
+    {
+        "name": "get_observation",
+        "description": (
+            "Fail-closed witness pack: plane-tagged title/score/phrase/glass the agent MAY say. "
+            "Unlocked scores and localhost glass URLs are silenced. Call this before speaking."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
 ]
 RESOURCE_DEFS = [
     {
@@ -601,6 +660,7 @@ RESOURCE_DEFS = [
 PROMPT_DEFS = [
     {"name": "coach_clutch", "description": "Clutch coach prompt", "arguments": []},
     {"name": "debug_freeze", "description": "Freeze checklist", "arguments": []},
+    {"name": "speak_licensed", "description": "Speak only from get_observation", "arguments": []},
 ]
 HANDLERS = {
     "get_snapshot": lambda a: handle_get_snapshot(),
@@ -631,6 +691,7 @@ HANDLERS = {
     ),
     "diagnose_freeze": lambda a: handle_diagnose_freeze(),
     "get_situation": lambda a: handle_get_situation(),
+    "get_observation": lambda a: handle_get_observation(),
 }
 
 
@@ -720,6 +781,27 @@ def _handle_request(msg: dict[str, Any]) -> dict[str, Any] | None:
         return _rpc_error(req_id, -32602, f"unknown resource: {uri}")
     if method == "prompts/get":
         name = params.get("name")
+        if name == "speak_licensed":
+            return _rpc_result(
+                req_id,
+                {
+                    "description": "Speak only licensed observation",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": {
+                                "type": "text",
+                                "text": (
+                                    "Call get_observation first. Speak only items in may_say. "
+                                    "If score.claim is false do not invent digits. "
+                                    "If glass.lan is false do not tell anyone to open the URL on a phone. "
+                                    "Cite plane qoresence-observation. Never claim humanity or eligibility."
+                                ),
+                            },
+                        }
+                    ],
+                },
+            )
         if name == "coach_clutch":
             return _rpc_result(
                 req_id,
