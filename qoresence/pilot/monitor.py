@@ -119,6 +119,7 @@ class PilotMonitor:
         prev_score: tuple[int, int] | None = None
         known_clips = _list_clips(self.clips_dir)
         graph_err_s = 0
+        prev_frames: int | None = None
         timeout = min(2.0, max(0.4, self.interval_s))
 
         while not self._stop.is_set():
@@ -146,7 +147,8 @@ class PilotMonitor:
                     "score_vlm_locked": None,
                     "drive_phase": None,
                     "climax": None,
-                    "flags": flags,
+                    "flags": flags + ["FREEZE"],
+                    "freeze_kind": "deck_lock",
                     "clips_n": len(known_clips),
                     "society_veto_n": 0,
                     "society_receipts": None,
@@ -193,8 +195,19 @@ class PilotMonitor:
                 age_f = None
 
             freeze_s = metrics.freeze_streak(has_frame, age_f, freeze_s)
+            freeze_kind = None
             if metrics.freeze_flag(freeze_s):
                 flags.append("FREEZE")
+                freeze_kind = metrics.classify_freeze(
+                    has_frame=has_frame,
+                    age_s=age_f,
+                    frames=frames,
+                    prev_frames=prev_frames,
+                    graph_stall="GRAPH_STALL" in flags,
+                    deck_down=False,
+                )
+                flags.append(freeze_kind)
+            prev_frames = frames
             no_s = metrics.no_frame_streak(has_frame, frames, no_s)
             if metrics.no_frame_flag(no_s, elapsed, self.warm_up_s):
                 flags.append("NO_FRAMES")
@@ -252,9 +265,13 @@ class PilotMonitor:
                 "score_away": pair[1] if pair else None,
                 "score_prev": list(old_score) if old_score and "SCORE_DELTA" in flags else None,
                 "score_vlm_locked": locked,
+                "nameplate_ambiguous": bool(sit.get("nameplate_ambiguous"))
+                if isinstance(sit, dict)
+                else False,
                 "drive_phase": phase,
                 "climax": climax,
                 "flags": flags,
+                "freeze_kind": freeze_kind,
                 "clips_n": len(known_clips),
                 "new_clips": new,
                 "society_veto_n": 0,
