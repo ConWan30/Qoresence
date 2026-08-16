@@ -5,14 +5,12 @@ category: Announcements
 
 # Roadmap snapshot
 
-**v0.5.x on main:** Deck LIVE polish · Qoresence owns card (Pattern B) · FrameHub monitor · Input–Video Coupler · DualSense Edge open fix.
+**On main now:** Deck LIVE · Mobile Glass · title-presence · Pattern B capture · FrameHub monitor · IVC · DualSense Edge open.
 
 ### Next up
 - DualSense Edge HID report decode harden (less phantom edges)  
-- Theater UI surface for `controller` coupling strip  
-- Game profile expansion  
-- Optional tray / installer  
+- Optional tray / installer polish  
 
 Full checklist: https://github.com/ConWan30/Qoresence/blob/main/docs/ROADMAP.md  
 
-Comment with the glass you care about most (Lens / Monitor / Foundry / ClutchBot).
+Comment with the glass you care about most (Lens / Theater / Mobile Glass / Foundry / ClutchBot).

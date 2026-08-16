@@ -15,11 +15,14 @@
 
 3. **Play stack**
    ```text
-   python -m qoresence.cli --play --deck --monitor --controller --streamer-device 0 --streamer-fps 60
+   python -m qoresence.cli --play --deck --monitor --controller --streamer-device 0 --streamer-fps 60 --game-profile madden_27
    ```
+   Title-presence is on with `--play`. Add `--deck-bind 0.0.0.0` only if a phone on the same Wi‑Fi should open `/mobile.html`.
 
 4. **Theater**  
-   `http://127.0.0.1:8765/deck.html`
+   `http://127.0.0.1:8765/deck.html`  
+   **Lens:** `http://127.0.0.1:8765/overlay.html`  
+   **Mobile Glass:** `http://127.0.0.1:8765/mobile.html` (or scan the Theater QR when LAN bind is on)
 
 ## Health checks
 

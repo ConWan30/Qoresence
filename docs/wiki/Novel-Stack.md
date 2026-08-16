@@ -8,6 +8,7 @@ What is distinctive about Qoresence (vs “another OBS plugin bot”).
 
 - **Lens** — transparent OBS Browser Source (`/overlay.html`)
 - **Rail / Ghost Theater** — local Deck (`/deck.html`)
+- **Mobile Glass** — phone HTML (`/mobile.html`) — WebRTC primary, MJPEG fallback
 - **LIVE** — MJPEG ops preview (`/video`)
 - **Retina Monitor** — native OpenCV blit from FrameHub
 - **Twitch panel** — optional extension HTML
@@ -30,7 +31,7 @@ Streamer already owns BGR frames. It:
 1. Pushes JPEG ring (`clip_buffer`) for Foundry / LIVE  
 2. Publishes copy + `clock_ns` + monotonic `seq` to **FrameHub**
 
-Monitor and IVC **only read**. Closing monitor does not stop capture.
+Monitor, IVC, WebRTC, and Mobile Glass **only read**. Closing a glass does not stop capture.
 
 ## 4. Input–Video Coupler
 

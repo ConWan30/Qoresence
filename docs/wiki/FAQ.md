@@ -13,7 +13,13 @@ No edges in lag band, or controller off. Press buttons; widen `QORESENCE_IVC_LAG
 DualSense Edge report layout may still chatter; pipeline is valid — decode harden is on roadmap.
 
 ### Deck LIVE lags behind TV
-Expected for MJPEG ops glass. Use Retina Monitor for local blit; LIVE for “is path alive?”.
+Expected for MJPEG ops glass. Theater prefers WebRTC from FrameHub. Use Retina Monitor for the local blit; LIVE / Mobile Glass for “is the path alive?”
+
+### Phone cannot open Mobile Glass
+`127.0.0.1` on the phone is the phone itself. Restart with `--deck-bind 0.0.0.0` and scan the Theater QR. The PC cannot find phones on Wi‑Fi or open Safari/Chrome remotely.
+
+### Title flipped to the wrong game
+Pass `--game-profile madden_27` (or `ncaa_football_27`). An explicit pin is not yanked when optics lock a stranger pair. Pause/menu is `overlay-rejected` (no title claim).
 
 ### No buttons.json after clip
 No InputRing events in export window (controller off or silent pad).

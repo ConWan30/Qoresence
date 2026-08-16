@@ -9,7 +9,7 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 
 ### Capture ownership & Deck glass ✓
 - [x] Pattern B (recommended): Qoresence owns physical card; Pattern A VCam legacy (`docs/OBS_OWNS_CARD.md`)
-- [x] Retina Deck: Lens `/overlay.html`, Theater `/deck.html`, LIVE `/video`
+- [x] Retina Deck: Lens `/overlay.html`, Theater `/deck.html`, LIVE `/video`, Mobile Glass `/mobile.html`
 - [x] Async MJPEG + latency-oriented LIVE path
 - [x] Local HDMI clip buffer (Foundry) + browser-safe H.264 remux
 - [x] Streamer console UX (clip dock, top bar)
@@ -48,6 +48,17 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] Attached to `/api/timeline` + Deck Why preference  
 - [x] Chapter merge + `graph_summary` sidecar; thin learning samples  
 - [x] Docs: `docs/DRIVE_GRAPH.md`
+
+### Title-presence & Mobile Glass ✓
+- [x] Optical title lock (`plane: qoresence-observation`) wrapping `GameAutoDetector`
+- [x] On with `--play` / `--stream`; `--game-profile` pin honored; `--no-title-presence` opt-out
+- [x] Mobile Glass `/mobile.html` — FrameHub WebRTC, MJPEG fallback
+- [x] LAN bind opt-in (`--deck-bind 0.0.0.0`); Theater QR (PC cannot open the phone browser)
+- [x] Docs: `docs/TITLE_PRESENCE.md`, `docs/MOBILE_GLASS.md`, `docs/WEBRTC_LIVE.md`
+
+### Pilot closeout schema v2 ✓
+- [x] `freeze_events_by_kind` + `freeze_events_excluding_deck_lock`
+- [x] Docs: `docs/PILOT_MONITOR.md`, `docs/build_receipts/FREEZE_COMPARABILITY.md`
 
 ---
 

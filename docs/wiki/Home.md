@@ -10,7 +10,9 @@
 | [Novel-Stack](Novel-Stack) | Architecture that differentiates the project |
 | [Operator-Runbook](Operator-Runbook) | Daily Pattern B pilot (Qoresence owns card) |
 | [Capture-Ownership](Capture-Ownership) | Qoresence owns card (recommended) vs legacy VCam |
-| [Retina-Deck-and-Monitor](Retina-Deck-and-Monitor) | Glasses: Lens, Theater, LIVE, FrameHub monitor |
+| [Retina-Deck-and-Monitor](Retina-Deck-and-Monitor) | Glasses: Lens, Theater, LIVE, Mobile Glass, FrameHub monitor |
+| [Mobile-Glass](Mobile-Glass) | Phone view of the same FrameHub session (WebRTC / MJPEG, QR on Theater) |
+| [Title-Presence](Title-Presence) | Optical title lock; on with `--play`; observation plane only |
 | [Retina-Monitor](Retina-Monitor) | Native OpenCV monitor window |
 | [Controller-Video-Sync](Controller-Video-Sync) | InputRing + IVC |
 | [Two-Speed-ClutchBot](Two-Speed-ClutchBot) | Fast video+input; OCR referee |

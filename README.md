@@ -23,7 +23,9 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 
 | Idea | Why it matters |
 |------|----------------|
-| **One brain → N glasses** | Situation + events once; Lens (OBS), Rail/Theater (Deck), Monitor, Twitch panel are *views* |
+| **One brain → N glasses** | Situation + events once; Lens (OBS), Rail/Theater, **Mobile Glass**, Monitor, Twitch panel are *views* |
+| **Mobile Glass** | Phone HTML at `/mobile.html` — FrameHub WebRTC (MJPEG fallback). Phone is a view. LAN bind opt-in; Theater QR when bind is on |
+| **Title-presence** | Optical title lock with a hard `plane` tag; on with `--play`; menu/pause fail-closed; does not yank an explicit `--game-profile` |
 | **Qoresence owns the card** | Physical HDMI has one owner — Qoresence Streamer; OBS uses Browser Source for Lens only (no dual-open) |
 | **FrameHub (no second capture)** | Streamer already holds BGR frames; monitor + IVC **subscribe** — never dual-open DShow |
 | **Input–Video Coupler (IVC)** | DualSense edges join `clock_ns` / `frame_seq` for co-occurrence *coupling* (observation only) |
@@ -50,14 +52,16 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
  └───────┬──────────────────────────────┬─────────────────────┘
          │                              │
          ▼                              ▼
-  Deck LIVE / Retina Monitor     DualSense → InputRing → IVC
+  Deck LIVE / Mobile Glass /     DualSense → InputRing → IVC
+  Retina Monitor                        │
          │                              │
          └──────────┬───────────────────┘
                     ▼
-             RetinaEventBus → Situation / ClutchBot / A2A / AgentGlass / MCP
+             RetinaEventBus → Situation / title-presence / ClutchBot / A2A / AgentGlass / MCP
                     │
     OBS (optional stream): Browser Source ONLY
     http://127.0.0.1:8765/overlay.html  — do NOT open the same physical card
+    Phone: http://127.0.0.1:8765/mobile.html  (LAN: --deck-bind 0.0.0.0 + scan QR)
 ```
 
 **Planes**
@@ -66,7 +70,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 |-------|---------|------|
 | Capture | Opt-in per lobe | Streamer, controller, screen, outcome, visual |
 | Situation | With `--play` | Score, down, clutch context |
-| Operator glass | `--deck` / `--monitor` | Theater, Lens, native monitor |
+| Operator glass | `--deck` / `--monitor` | Theater, Lens, Mobile Glass, native monitor |
 | Social | `--clutchbot` | Chat, clips, predictions |
 | Spectator | `--agent-glass` | HTTP/WS API + MCP for AI agents |
 | Society | `--agent-society` | Ops agents on glass (default OFF; no Twitch, no capture) |
@@ -78,6 +82,10 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 
 | Commit / theme | What landed |
 |----------------|-------------|
+| **Mobile Glass + QR** | `/mobile.html` FrameHub WebRTC (MJPEG fallback); Theater copy-link + QR when `--deck-bind 0.0.0.0`; phone cannot be opened remotely |
+| **Title-presence** | Hysteresis wrap on `GameAutoDetector`; on with `--play`; situation stays in sync; `--game-profile` pin honored |
+| **Pilot FREEZE v2** | `freeze_events_by_kind` + `freeze_events_excluding_deck_lock` for pre/post-C3 compare |
+| **Madden HUD crops** | Profile-aware scorebug bands from preexisting frames; CFB bands unchanged |
 | **Capture ownership** | Qoresence owns physical card (Pattern B); Pattern A VCam still documented |
 | **Retina Deck LIVE** | Async MJPEG, lower lag, streamer console UX |
 | **FrameHub + Retina Monitor** | `--monitor` native OpenCV glass; no second capture |
@@ -94,7 +102,7 @@ It does **not** claim humanity, act as anti-cheat, or write to chain by default.
 | **MCP universal glass** | `qoresence-mcp` exposes 6 AgentGlass tools over stdio for any Cursor/Claude agent |
 | **Foundry RAG + proactive glass** | `search_clips`/`get_drive_graph` searchable session memory (clips+chapters+DriveGraph+timeline fallback) + `subscribe_events`/`diagnose_freeze` on `127.0.0.1:8765` — software-only, no capture card |
 
-Docs for each: [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md) · [clutchbot_setup](docs/clutchbot_setup.md)
+Docs for each: [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md) · [clutchbot_setup](docs/clutchbot_setup.md)
 
 ---
 
@@ -149,6 +157,7 @@ python -m qoresence.cli --play --deck --monitor --streamer-fps 60
 |-----|--------|
 | http://127.0.0.1:8765/deck.html | Ghost Theater / Rail (LIVE @ 60 fps) |
 | http://127.0.0.1:8765/overlay.html | Clutch Lens (OBS Browser Source) |
+| http://127.0.0.1:8765/mobile.html | Mobile Glass (phone view; WebRTC / MJPEG) |
 | http://127.0.0.1:8765/video | LIVE MJPEG |
 | http://127.0.0.1:8765/api/situation | Snapshot (+ `controller` when IVC on) |
 | http://127.0.0.1:8765/api/agent/snapshot | AgentGlass: curated state + coupling |

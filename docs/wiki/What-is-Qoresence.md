@@ -6,7 +6,7 @@ Qoresence is a **local, opt-in observation layer** that:
 2. Optionally reads **DualSense / DualSense Edge** HID
 3. Builds a **situation model** (score, down, game context) from outcome + visual lobes
 4. Emits a **causal event bus** (`session_id` + `clock_ns` + `source_lobe` on every event)
-5. Renders **operator glasses**: Retina Deck (Lens + Theater), native Retina Monitor, LIVE MJPEG
+5. Renders **operator glasses**: Retina Deck (Lens + Theater), Mobile Glass, native Retina Monitor, LIVE MJPEG
 6. Optionally runs **ClutchBot** for Twitch chat / clips / predictions
 
 ## Planes

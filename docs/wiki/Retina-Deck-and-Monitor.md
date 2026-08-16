@@ -4,13 +4,17 @@
 
 | Path | Role |
 |------|------|
-| `/deck.html` | Ghost Theater / Rail — moments, LIVE, clips |
+| `/deck.html` | Ghost Theater / Rail — moments, LIVE, clips, Mobile Glass QR |
 | `/overlay.html` | Clutch Lens for OBS Browser Source |
+| `/mobile.html` | Mobile Glass — same FrameHub on a phone (WebRTC / MJPEG) |
 | `/video` | MJPEG LIVE from clip_buffer (ops glass) |
 | `/api/situation` | Snapshot JSON |
+| `/api/glass-link` | Honest glass URL + whether LAN bind is on |
 | `/api/clip` | Export Foundry MP4 |
 
 Start: `--play --deck` or `--deck` with lobes enabled.
+
+**Phone:** localhost `/mobile.html` is for the PC. Same Wi‑Fi needs `--deck-bind 0.0.0.0`, then scan the Theater QR. The PC cannot open the phone browser. See [Mobile-Glass](Mobile-Glass).
 
 ## Retina Monitor (native)
 

@@ -5,6 +5,8 @@
 - [Operator Runbook](./Operator-Runbook)
 - [Capture Ownership](./Capture-Ownership)
 - [Retina Deck & Monitor](./Retina-Deck-and-Monitor)
+- [Mobile Glass](./Mobile-Glass)
+- [Title Presence](./Title-Presence)
 - [Retina Monitor](./Retina-Monitor)
 - [Controller-Video Sync](./Controller-Video-Sync)
 - [Two-Speed ClutchBot](./Two-Speed-ClutchBot)
