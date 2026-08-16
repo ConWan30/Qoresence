@@ -41,4 +41,4 @@ Markdown must contain headings: `## Score lock timeline`, `## Climax chapters`, 
 
 ## Metric note
 
-`DECK_DOWN` samples are also tagged `FREEZE` / `deck_lock`. Do not compare raw `freeze_events` 1:1 with closeouts from before C3.
+Pre-C3 closeouts report only aggregate `freeze_events`. Schema v2 adds `freeze_events_by_kind` and `freeze_events_excluding_deck_lock`. Prefer the excluding-deck_lock figure when comparing stability across the C3 boundary.

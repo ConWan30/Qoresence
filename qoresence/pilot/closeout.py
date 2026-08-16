@@ -117,12 +117,18 @@ def summarize(
     top = [f"{k}:{v}" for k, v in flags.most_common(8)]
     lock_tl = score_lock_timeline(samples, events)
     climax = climax_chapters(samples, events, clips)
-    freezes = freeze_classified(samples)
+    all_freezes = freeze_classified(samples, limit=None)
+    freezes = all_freezes[:40]
+    by_kind = _freeze_kind_counts(all_freezes)
+    excluding_deck = int(sum(v for k, v in by_kind.items() if k != "deck_lock"))
     amb_n = sum(1 for rec in samples if rec.get("nameplate_ambiguous"))
     out = {
+        "metrics_schema_version": 2,
         "duration_s": round(duration_s, 1),
         "samples": len(samples),
         "freeze_events": freeze_events,
+        "freeze_events_by_kind": by_kind,
+        "freeze_events_excluding_deck_lock": excluding_deck,
         "no_frame_events": no_frame_events,
         "score_deltas": score_deltas,
         "score_lock_true_ratio": None if lock_ratio is None else round(lock_ratio, 3),
@@ -141,9 +147,12 @@ def summarize(
     out["summary_metrics"] = {
         k: out[k]
         for k in (
+            "metrics_schema_version",
             "duration_s",
             "samples",
             "freeze_events",
+            "freeze_events_by_kind",
+            "freeze_events_excluding_deck_lock",
             "no_frame_events",
             "score_deltas",
             "score_lock_true_ratio",
@@ -319,7 +328,21 @@ def climax_chapters(
     return chapters[: max(1, int(top_n))]
 
 
-def freeze_classified(samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _freeze_kind_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
+    counts = {"card_stall": 0, "graph_stall": 0, "deck_lock": 0, "unknown": 0}
+    for r in rows:
+        kind = r.get("kind")
+        if kind not in counts:
+            kind = "unknown"
+        counts[str(kind)] += 1
+    return counts
+
+
+def freeze_classified(
+    samples: list[dict[str, Any]],
+    *,
+    limit: int | None = 40,
+) -> list[dict[str, Any]]:
     from qoresence.pilot.metrics import classify_freeze, freeze_owner
 
     out: list[dict[str, Any]] = []
@@ -356,7 +379,9 @@ def freeze_classified(samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
         prev_frames = frames
-    return out[:40]
+    if limit is None:
+        return out
+    return out[: max(0, int(limit))]
 
 
 def _fmt_lock_tl(rows: list[dict[str, Any]]) -> str:
@@ -394,6 +419,16 @@ def _fmt_freeze(rows: list[dict[str, Any]]) -> str:
 
 def render_markdown(summary: dict[str, Any], *, session_jsonl: str = "", events_jsonl: str = "") -> str:
     freeze_n = int(summary.get("freeze_events") or 0)
+    by_kind = summary.get("freeze_events_by_kind") or {}
+    excluding = summary.get("freeze_events_excluding_deck_lock")
+    if excluding is None:
+        excluding = freeze_n
+    kind_line = (
+        f"card_stall={int(by_kind.get('card_stall') or 0)} "
+        f"graph_stall={int(by_kind.get('graph_stall') or 0)} "
+        f"deck_lock={int(by_kind.get('deck_lock') or 0)} "
+        f"unknown={int(by_kind.get('unknown') or 0)}"
+    )
     capture_ok = freeze_n == 0 and int(summary.get("no_frame_events") or 0) == 0
     soc = int(summary.get("society_receipts") or 0)
     if soc <= 0:
@@ -418,6 +453,8 @@ def render_markdown(summary: dict[str, Any], *, session_jsonl: str = "", events_
 | **Samples** | {summary.get("samples")} |
 | **Capture stable** | {"Y" if capture_ok else "N"} |
 | **Freeze events** | {freeze_n} |
+| **Freeze excluding deck_lock** | {excluding} |
+| **Freeze by kind** | {kind_line} |
 | **No-frame events** | {summary.get("no_frame_events")} |
 | **Score deltas** | {summary.get("score_deltas")} |
 | **Score lock ratio** | {ratio_s} |
@@ -432,6 +469,8 @@ def render_markdown(summary: dict[str, Any], *, session_jsonl: str = "", events_
 
 - Alive? {"Y" if capture_ok else "N"}
 - Freeze storms: {freeze_n}
+- By kind: {kind_line}
+- Excluding deck_lock: {excluding}
 
 ## Score lock
 
@@ -448,6 +487,8 @@ def render_markdown(summary: dict[str, Any], *, session_jsonl: str = "", events_
 
 ## FREEZE classified
 
+- schema v2 · excluding deck_lock: {excluding}
+- by kind: {kind_line}
 {_fmt_freeze(summary.get("freeze_classified") or [])}
 
 ## Clips created

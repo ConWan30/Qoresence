@@ -117,6 +117,78 @@ def test_closeout_from_fixture_jsonl(tmp_path: Path):
     plays = [c for c in summary["climax_chapters"] if c.get("label") == "touchdown"]
     assert plays, "7→14 should rank as touchdown"
     assert plays[0]["climax_score"] >= 0.9
+    assert summary["metrics_schema_version"] == 2
+    assert "freeze_events_by_kind" in summary
+    assert "freeze_events_excluding_deck_lock" in summary
+    assert "By kind:" in text
+    assert "Excluding deck_lock:" in text
+
+
+def _freeze_row(ts: str, flags: list[str], **extra) -> dict:
+    rec = {
+        "ts": ts,
+        "clock_ns": 0,
+        "video_age_s": extra.pop("video_age_s", 0.2),
+        "frames": extra.pop("frames", 100),
+        "has_frame": extra.pop("has_frame", True),
+        "score_home": 7,
+        "score_away": 0,
+        "score_vlm_locked": True,
+        "flags": flags,
+    }
+    rec.update(extra)
+    return rec
+
+
+def test_closeout_schema_v2_mixed_freeze_kinds():
+    samples = [
+        _freeze_row("t0", []),
+        _freeze_row("t1", ["FREEZE"], freeze_kind="card_stall", video_age_s=8.0, frames=10),
+        _freeze_row("t2", ["FREEZE"], freeze_kind="card_stall", video_age_s=8.1, frames=10),
+        _freeze_row("t3", []),
+        _freeze_row("t4", ["FREEZE", "GRAPH_STALL"], freeze_kind="graph_stall"),
+        _freeze_row("t5", []),
+        _freeze_row("t6", ["FREEZE", "DECK_DOWN"], freeze_kind="deck_lock", err="timeout", has_frame=False),
+        _freeze_row("t7", ["FREEZE", "DECK_DOWN"], freeze_kind="deck_lock", err="timeout", has_frame=False),
+        _freeze_row("t8", []),
+        _freeze_row("t9", ["FREEZE"], freeze_kind="unknown"),
+    ]
+    summary = closeout.summarize(samples)
+    assert summary["metrics_schema_version"] == 2
+    assert summary["freeze_events"] == 4
+    assert summary["freeze_events_by_kind"] == {
+        "card_stall": 1,
+        "graph_stall": 1,
+        "deck_lock": 1,
+        "unknown": 1,
+    }
+    assert summary["freeze_events_excluding_deck_lock"] == 3
+    assert summary["summary_metrics"]["freeze_events"] == 4
+    assert summary["summary_metrics"]["freeze_events_excluding_deck_lock"] == 3
+    md = closeout.render_markdown(summary)
+    assert "## Capture stability" in md
+    assert "## FREEZE classified" in md
+    assert "card_stall=1" in md
+    assert "deck_lock=1" in md
+    assert "excluding deck_lock: 3" in md.lower() or "Excluding deck_lock: 3" in md
+
+
+def test_closeout_schema_v2_pre_c3_style_no_kind():
+    """Pre-C3 JSONL: FREEZE flag, no freeze_kind, no DECK_DOWN."""
+    samples = [
+        _freeze_row("a", [], video_age_s=0.1, frames=50),
+        _freeze_row("b", ["FREEZE"], video_age_s=7.0, frames=50),
+        _freeze_row("c", ["FREEZE"], video_age_s=7.2, frames=50),
+        _freeze_row("d", [], video_age_s=0.1, frames=80),
+        _freeze_row("e", ["FREEZE"], video_age_s=6.5, frames=80),
+    ]
+    summary = closeout.summarize(samples)
+    assert summary["metrics_schema_version"] == 2
+    assert summary["freeze_events"] == 2
+    assert summary["freeze_events_by_kind"]["card_stall"] == 2
+    assert summary["freeze_events_by_kind"]["deck_lock"] == 0
+    assert summary["freeze_events_excluding_deck_lock"] == 2
+    assert "freeze_events" in summary
 
 
 def test_deck_down_no_raise(tmp_path: Path):

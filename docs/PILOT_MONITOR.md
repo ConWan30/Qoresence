@@ -28,7 +28,7 @@ Closeout answers:
 1. Did video stay alive?
 2. How many score deltas and were they locked?
 3. How many new clips?
-4. Any FREEZE storms?
+4. Any FREEZE storms? Schema v2 closeouts break these out by kind (`freeze_events_by_kind`). Prefer `freeze_events_excluding_deck_lock` when comparing to pre-C3 `freeze_events`.
 5. Was society noisy?
 
 ## Flags
