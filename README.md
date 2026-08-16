@@ -269,6 +269,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | `--title-presence` | on with `--play`/`--stream` | Optical title hysteresis + `plane` tag (`--no-title-presence` to opt out) |
 | `--game-profile` | `ncaa_football_27` | `madden_27` (Madden NFL 27 + local NFL roster), `ncaa_football_27`, CoD / Valorant / Apex / Fortnite |
 | `--deck` | off | Retina Deck HTTP/WS on `:8765` |
+| `--deck-bind` | unset (host `127.0.0.1`) | Opt-in LAN listen (`0.0.0.0`) for `/mobile.html` phone glass |
 | `--monitor` | off | Native FrameHub window |
 | `--controller` | off | DualSense HID + InputRing + IVC |
 | `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |

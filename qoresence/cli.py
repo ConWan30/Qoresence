@@ -1641,7 +1641,12 @@ def main():
     parser.add_argument(
         "--deck", action="store_true", help="Enable Retina Deck ws://127.0.0.1:8765 (Lens+Rail)"
     )
-    parser.add_argument("--deck-host", default="127.0.0.1", help="Deck host")
+    parser.add_argument("--deck-host", default="127.0.0.1", help="Deck listen host (default 127.0.0.1)")
+    parser.add_argument(
+        "--deck-bind",
+        default=None,
+        help="Opt-in listen address; overrides --deck-host. Use 0.0.0.0 for same-Wi-Fi phone glass. Default stays localhost.",
+    )
     parser.add_argument("--deck-port", type=int, default=8765, help="Deck port")
     parser.add_argument("--health-check", action="store_true", help="Run health checks and exit")
     parser.add_argument("--dry-run", action="store_true", help="Initialize but don't start lobes")
@@ -1771,6 +1776,9 @@ def main():
     )
 
     args = parser.parse_args()
+    _bind = (getattr(args, "deck_bind", None) or os.environ.get("QORESENCE_DECK_BIND") or "").strip()
+    if _bind:
+        args.deck_host = _bind
 
     # Scoreboard orientation override: env is authoritative for the extractor.
     if getattr(args, "scoreboard_home_left", False):

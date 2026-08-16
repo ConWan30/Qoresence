@@ -170,6 +170,8 @@ class DeckState:
 
 _state = DeckState()
 _deck_config: Any = None
+_deck_bind_host: str = DECK_HOST
+_deck_bind_port: int = DECK_PORT
 _ws_clients: set[Any] = set()
 _ws_queues: dict[Any, asyncio.Queue[str]] = {}
 _ws_client_count = 0
@@ -448,6 +450,46 @@ def _html(name: str) -> str:
     return f"<h1>{name} missing</h1>"
 
 
+def _guess_lan_ip() -> str | None:
+    import socket
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect(("8.8.8.8", 80))
+        ip = sock.getsockname()[0]
+        return str(ip) if ip and not str(ip).startswith("127.") else None
+    except Exception:
+        return None
+    finally:
+        sock.close()
+
+
+def glass_link_info(host: str | None = None, port: int | None = None) -> dict[str, Any]:
+    """Honest Mobile Glass URL. Never invents a public CDN."""
+    bind = str(host if host is not None else _deck_bind_host or DECK_HOST)
+    p = int(port if port is not None else _deck_bind_port or DECK_PORT)
+    loopback = bind in {"127.0.0.1", "localhost", "::1"}
+    wildcard = bind in {"0.0.0.0", "::", "[::]"}
+    display = bind
+    if wildcard:
+        display = _guess_lan_ip() or bind
+    lan = (not loopback) or wildcard
+    if loopback:
+        note = "Localhost only. Enable LAN bind (--deck-host 0.0.0.0 or --deck-bind) to open on a phone."
+    elif wildcard and display in {"0.0.0.0", "::"}:
+        note = "LAN bind is on but this PC's LAN IP could not be guessed. Use the PC address on Wi-Fi."
+    else:
+        note = "LAN opt-in. Same Wi-Fi only. Not a public stream."
+    return {
+        "bind": bind,
+        "port": p,
+        "lan": bool(lan and not loopback),
+        "url": f"http://{display}:{p}/mobile.html",
+        "note": note,
+        "path": "/mobile.html",
+    }
+
+
 _PLACEHOLDER_JPEG: bytes | None = None
 
 
@@ -640,6 +682,10 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.get("/api/situation")
     async def api_situation():  # type: ignore[no-untyped-def]
         return JSONResponse(_state.snapshot())
+
+    @app.get("/api/glass-link")
+    async def api_glass_link():  # type: ignore[no-untyped-def]
+        return JSONResponse({"ok": True, **glass_link_info()})
 
     @app.get("/api/timeline")
     async def api_timeline():  # type: ignore[no-untyped-def]
@@ -1394,6 +1440,18 @@ def create_app():  # type: ignore[no-untyped-def]
             _html("studio.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
+    @app.get("/mobile.html")
+    async def mobile_glass():  # type: ignore[no-untyped-def]
+        return HTMLResponse(
+            _html("mobile.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+        )
+
+    @app.get("/glass")
+    async def mobile_glass_alias():  # type: ignore[no-untyped-def]
+        return HTMLResponse(
+            _html("mobile.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+        )
+
     @app.get("/")
     async def index():  # type: ignore[no-untyped-def]
         return HTMLResponse(
@@ -1403,6 +1461,7 @@ def create_app():  # type: ignore[no-untyped-def]
             "<p><a href='/overlay.html' style='color:#f5c542'>Lens</a> · "
             "<a href='/deck.html' style='color:#f5c542'>Rail</a> · "
             "<a href='/studio.html' style='color:#f5c542'>Foundry Bay</a> · "
+            "<a href='/mobile.html' style='color:#f5c542'>Mobile glass</a> · "
             "<a href='/health' style='color:#f5c542'>health</a> · "
             "<a href='/api/situation' style='color:#f5c542'>api</a></p>"
             "<h2>OBS Browser Source</h2>"
@@ -1566,6 +1625,9 @@ def create_app():  # type: ignore[no-untyped-def]
 
 
 def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
+    global _deck_bind_host, _deck_bind_port
+    _deck_bind_host = str(host or DECK_HOST)
+    _deck_bind_port = int(port or DECK_PORT)
     import http.server
     import socketserver
 
@@ -1580,6 +1642,7 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 self.wfile.write(
                     b'<a href="/overlay.html">Lens</a> | <a href="/deck.html">Rail</a>'
                     b' | <a href="/studio.html">Foundry Bay</a>'
+                    b' | <a href="/mobile.html">Mobile glass</a>'
                     b' | <a href="/video">LIVE /video</a>'
                 )
                 return
@@ -1613,6 +1676,19 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 self.send_header("Cache-Control", "no-cache, must-revalidate")
                 self.end_headers()
                 self.wfile.write(_html("studio.html").encode("utf-8"))
+                return
+            if self.path in ("/mobile.html", "/glass"):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Cache-Control", "no-cache, must-revalidate")
+                self.end_headers()
+                self.wfile.write(_html("mobile.html").encode("utf-8"))
+                return
+            if self.path == "/api/glass-link":
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, **glass_link_info()}).encode())
                 return
             if self.path == "/health":
                 self.send_response(200)
@@ -1780,8 +1856,10 @@ def start_deck(
     daemon: bool = True,
     config: Any = None,
 ) -> threading.Thread | None:
-    global _deck_config
+    global _deck_config, _deck_bind_host, _deck_bind_port
     _deck_config = config
+    _deck_bind_host = str(host or DECK_HOST)
+    _deck_bind_port = int(port or DECK_PORT)
     if config is not None and getattr(config, "studio", None) and config.studio.enabled:
         try:
             from qoresence.studio.api import boot_studio
@@ -1810,7 +1888,7 @@ def start_deck(
         log.info("Retina Deck http://%s:%s  ws://%s:%s%s", host, port, host, port, WS_PATH)
         log.info(
             "Lens /overlay.html  Theater /deck.html  Foundry /studio.html  "
-            "LIVE /video default %.0ffps "
+            "Mobile /mobile.html  LIVE /video default %.0ffps "
             "(PS5 60 Hz full-rate LIVE default; override ?fps= for lighter)",
             DEFAULT_LIVE_FPS,
         )

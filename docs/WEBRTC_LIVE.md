@@ -30,7 +30,8 @@ pip install -e ".[webrtc]"
 | `POST /api/webrtc/offer` | Body `{ sdp, type, fps?, max_width? }` → answer |
 | `GET /video?fps=60` | MJPEG fallback |
 
-Deck Theater auto-tries WebRTC on LIVE, then falls back to MJPEG.
+Deck Theater auto-tries WebRTC on LIVE, then falls back to MJPEG.  
+**Mobile glass:** `http://127.0.0.1:8765/mobile.html` — same FrameHub track, phone is a view only. See `docs/MOBILE_GLASS.md`.
 
 ---
 
