@@ -107,3 +107,110 @@ def test_ivc_imu_bodied_names_precursor(monkeypatch):
     assert payload["imu_precursor_ms"] == 18.0
     assert payload["imu_precursor_name"] == "R2"
     assert payload["coupling"] > 0.0
+
+
+def test_ivc_hold_couples_without_edge_in_window(monkeypatch):
+    """Sprint hold after the onset aged out of the lag band still couples."""
+    hub = FrameHub()
+    ring = InputRing()
+    t_video = time.monotonic_ns()
+    # No edges in the 20–120 ms band; analog hold is live at sample time
+    ring.set_hold(clock_ns=t_video, r2=0.92, l2=0.0, left=0.0, right=0.0)
+    hub.publish(np.zeros((8, 8, 3), dtype=np.uint8), clock_ns=t_video)
+    monkeypatch.setattr("qoresence.monitor.frame_hub.get_frame_hub", lambda: hub)
+    monkeypatch.setattr("qoresence.sync.input_ring.get_input_ring", lambda: ring)
+    ivc = InputVideoCoupler(bus=None, lag_lo_ms=20.0, lag_hi_ms=120.0)
+    payload = ivc.tick_once()
+    assert payload is not None
+    assert payload["input_events"] == 0
+    assert payload["hold_energy"] > 0.0
+    assert payload["edge_energy"] == 0.0
+    assert payload["coupling"] > 0.0
+    assert payload["coupling_ema"] > 0.0
+
+
+def test_ivc_stale_hold_zero(monkeypatch):
+    hub = FrameHub()
+    ring = InputRing()
+    t_video = time.monotonic_ns()
+    ring.set_hold(clock_ns=t_video - int(500 * 1e6), r2=1.0)
+    hub.publish(np.zeros((4, 4, 3), dtype=np.uint8), clock_ns=t_video)
+    monkeypatch.setattr("qoresence.monitor.frame_hub.get_frame_hub", lambda: hub)
+    monkeypatch.setattr("qoresence.sync.input_ring.get_input_ring", lambda: ring)
+    ivc = InputVideoCoupler(bus=None)
+    payload = ivc.tick_once()
+    assert payload is not None
+    assert payload["hold_energy"] == 0.0
+    assert payload["coupling"] == 0.0
+
+
+def test_ivc_near_simultaneous_edge_joins(monkeypatch):
+    """5 ms before the frame used to miss the 20 ms lag_lo floor."""
+    hub = FrameHub()
+    ring = InputRing()
+    t_video = time.monotonic_ns()
+    ring.push(InputEvent(clock_ns=t_video - int(5 * 1e6), kind="press", name="cross", value=1.0))
+    hub.publish(np.zeros((8, 8, 3), dtype=np.uint8), clock_ns=t_video)
+    monkeypatch.setattr("qoresence.monitor.frame_hub.get_frame_hub", lambda: hub)
+    monkeypatch.setattr("qoresence.sync.input_ring.get_input_ring", lambda: ring)
+    ivc = InputVideoCoupler(bus=None, lag_lo_ms=0.0, lag_hi_ms=120.0, lead_ms=24.0)
+    payload = ivc.tick_once()
+    assert payload is not None
+    assert payload["input_events"] >= 1
+    assert payload["edge_energy"] > 0.0
+    assert payload["coupling"] > 0.0
+
+
+def test_ivc_lead_includes_slightly_after_frame(monkeypatch):
+    hub = FrameHub()
+    ring = InputRing()
+    t_video = time.monotonic_ns()
+    ring.push(InputEvent(clock_ns=t_video + int(10 * 1e6), kind="trigger", name="R2", value=0.8))
+    hub.publish(np.zeros((8, 8, 3), dtype=np.uint8), clock_ns=t_video)
+    monkeypatch.setattr("qoresence.monitor.frame_hub.get_frame_hub", lambda: hub)
+    monkeypatch.setattr("qoresence.sync.input_ring.get_input_ring", lambda: ring)
+    ivc = InputVideoCoupler(bus=None, lag_lo_ms=0.0, lag_hi_ms=120.0, lead_ms=24.0)
+    payload = ivc.tick_once()
+    assert payload is not None
+    assert payload["input_events"] >= 1
+    assert payload["coupling"] > 0.0
+
+
+def test_ivc_sprint_hold_mints_coupling_ticket(monkeypatch):
+    from qoresence.sync.coupling_ticket import reset_coupling_book
+    from qoresence.sync.play_phrase import note_game_state
+
+    reset_coupling_book()
+    note_game_state("gameplay")
+    hub = FrameHub()
+    ring = InputRing()
+    t_video = time.monotonic_ns()
+    ring.set_hold(clock_ns=t_video, r2=0.95, l2=0.0, left=0.0, right=0.0)
+    hub.publish(np.zeros((8, 8, 3), dtype=np.uint8), clock_ns=t_video)
+    monkeypatch.setattr("qoresence.monitor.frame_hub.get_frame_hub", lambda: hub)
+    monkeypatch.setattr("qoresence.sync.input_ring.get_input_ring", lambda: ring)
+    ivc = InputVideoCoupler(bus=None)
+    payload = ivc.tick_once()
+    assert payload is not None
+    assert payload["phrase"] == "SPRINT"
+    assert payload["coupling_ticket_id"]
+    assert payload["hold_energy"] > 0.0
+
+
+def test_ivc_ema_rises_on_repeat(monkeypatch):
+    hub = FrameHub()
+    ring = InputRing()
+    t_video = time.monotonic_ns()
+    ring.set_hold(clock_ns=t_video, r2=0.95)
+    hub.publish(np.zeros((8, 8, 3), dtype=np.uint8), clock_ns=t_video)
+    monkeypatch.setattr("qoresence.monitor.frame_hub.get_frame_hub", lambda: hub)
+    monkeypatch.setattr("qoresence.sync.input_ring.get_input_ring", lambda: ring)
+    ivc = InputVideoCoupler(bus=None, ema_alpha=0.40)
+    p1 = ivc.tick_once()
+    # Refresh hold so it stays inside the 80 ms freshness window
+    ring.set_hold(clock_ns=time.monotonic_ns(), r2=0.95)
+    p2 = ivc.tick_once()
+    assert p1 is not None and p2 is not None
+    assert p1["coupling"] > 0.0
+    assert p2["coupling_ema"] >= p1["coupling_ema"]
+    assert p1["coupling_ema"] < p1["coupling"]

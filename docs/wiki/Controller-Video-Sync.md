@@ -3,9 +3,9 @@
 ## Pieces
 
 1. **ControllerRuntime** — DualSense / Edge HID edges → bus  
-2. **InputRing** — ring of press/release/trigger/stick edges  
+2. **InputRing** — ring of press/release/trigger/stick edges + analog hold  
 3. **FrameHub** — `seq` + `clock_ns` per published frame  
-4. **IVC** — lag-band join → `coupling_score`  
+4. **IVC** — join window + hold sustain → `coupling_score`  
 
 Enable: `--controller` (starts HID + InputRing pushes + IVC).
 
@@ -14,10 +14,12 @@ Enable: `--controller` (starts HID + InputRing pushes + IVC).
 Observation only:
 
 ```text
-coupling = 1 - exp(-input_energy / 2.5)   # clipped [0,1]
+window   = [t_video − lag_hi, t_video − lag_lo + lead]
+energy   = edge_energy + hold_energy
+coupling = 1 - exp(-energy / 2.5)   # clipped [0,1]; EMA at 30 Hz
 ```
 
-Inputs in `[t_video - lag_hi, t_video - lag_lo]` (defaults 20–120 ms).
+Defaults: `lag_lo=0`, `lag_hi=120`, `lead=24` ms. Held R2/stick still couple.
 
 VCam: `$env:QORESENCE_IVC_LAG_HI_MS = "200"`
 

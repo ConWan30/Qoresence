@@ -1,29 +1,12 @@
 """Input–Video Coupler package — observation-plane only.
 
-InputRing holds recent HID edges; IVC joins them to FrameHub frame stamps.
-Controller default OFF; no second capture device.
+Lazy exports so importing hid_report from the controller thread cannot
+deadlock against a concurrent `import qoresence.sync.ivc`.
 """
 
-from qoresence.sync.event_bind import EventBind, EventBinder, get_event_binder
-from qoresence.sync.frame_hub import (
-    FrameHub,
-    get_frame_hub,
-    get_latest_meta,
-)
-from qoresence.sync.frame_hub import (
-    publish as publish_frame,
-)
-from qoresence.sync.hid_report import pack_usb_report, parse_report
-from qoresence.sync.imu_ring import ImuRing, get_imu_ring
-from qoresence.sync.input_ring import InputEvent, InputRing, get_input_ring
-from qoresence.sync.input_ring import push as push_input
-from qoresence.sync.ivc import (
-    InputVideoCoupler,
-    get_ivc,
-    get_last_coupling,
-    start_ivc,
-    stop_ivc,
-)
+from __future__ import annotations
+
+from typing import Any
 
 __all__ = [
     "EventBind",
@@ -47,3 +30,36 @@ __all__ = [
     "start_ivc",
     "stop_ivc",
 ]
+
+_LAZY = {
+    "EventBind": ("qoresence.sync.event_bind", "EventBind"),
+    "EventBinder": ("qoresence.sync.event_bind", "EventBinder"),
+    "get_event_binder": ("qoresence.sync.event_bind", "get_event_binder"),
+    "FrameHub": ("qoresence.sync.frame_hub", "FrameHub"),
+    "get_frame_hub": ("qoresence.sync.frame_hub", "get_frame_hub"),
+    "get_latest_meta": ("qoresence.sync.frame_hub", "get_latest_meta"),
+    "publish_frame": ("qoresence.sync.frame_hub", "publish"),
+    "pack_usb_report": ("qoresence.sync.hid_report", "pack_usb_report"),
+    "parse_report": ("qoresence.sync.hid_report", "parse_report"),
+    "ImuRing": ("qoresence.sync.imu_ring", "ImuRing"),
+    "get_imu_ring": ("qoresence.sync.imu_ring", "get_imu_ring"),
+    "InputEvent": ("qoresence.sync.input_ring", "InputEvent"),
+    "InputRing": ("qoresence.sync.input_ring", "InputRing"),
+    "get_input_ring": ("qoresence.sync.input_ring", "get_input_ring"),
+    "push_input": ("qoresence.sync.input_ring", "push"),
+    "InputVideoCoupler": ("qoresence.sync.ivc", "InputVideoCoupler"),
+    "get_ivc": ("qoresence.sync.ivc", "get_ivc"),
+    "get_last_coupling": ("qoresence.sync.ivc", "get_last_coupling"),
+    "start_ivc": ("qoresence.sync.ivc", "start_ivc"),
+    "stop_ivc": ("qoresence.sync.ivc", "stop_ivc"),
+}
+
+
+def __getattr__(name: str) -> Any:
+    spec = _LAZY.get(name)
+    if spec is None:
+        raise AttributeError(name)
+    mod_name, attr = spec
+    import importlib
+
+    return getattr(importlib.import_module(mod_name), attr)

@@ -1,7 +1,9 @@
 """Thread-safe ring of recent controller input edges (observation plane).
 
 Joins HID press/release/trigger/stick edges to video by wall-clock window
-(shared ``clock_ns`` / monotonic_ns). Does not open capture devices.
+(shared ``clock_ns`` / monotonic_ns). Also keeps a throttled analog *hold*
+snapshot so sprint / stick sustain still couple after the onset edge ages
+out of the IVC lag band. Does not open capture devices.
 """
 
 from __future__ import annotations
@@ -10,7 +12,7 @@ import logging
 import threading
 import time
 from collections import deque
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 log = logging.getLogger(__name__)
@@ -18,6 +20,8 @@ log = logging.getLogger(__name__)
 # ~5 s at high event rate (edges only; not 1 kHz full state)
 DEFAULT_CAPACITY = 4096
 DEFAULT_MAX_AGE_S = 5.0
+# Hold is "live" only while HID is still writing (controller throttles ~60 Hz)
+DEFAULT_HOLD_FRESH_MS = 80.0
 
 # Energy weights for simple activity score
 _WEIGHT = {
@@ -26,6 +30,17 @@ _WEIGHT = {
     "trigger": 1.2,
     "stick": 0.4,
 }
+
+# Sustain weights — analog holds (CFB sprint / steer) after the edge expires
+_HOLD_WEIGHT = {
+    "r2": 1.35,
+    "l2": 1.15,
+    "left": 0.45,
+    "right": 0.50,
+    "button": 0.35,
+}
+_HOLD_TRIGGER_FLOOR = 0.08
+_HOLD_STICK_FLOOR = 0.15
 
 
 @dataclass
@@ -46,6 +61,28 @@ class InputEvent:
         return {k: v for k, v in d.items() if v is not None}
 
 
+@dataclass
+class HoldState:
+    """Latest analog / digital hold (not an edge). clock_ns = last HID write."""
+
+    clock_ns: int = 0
+    r2: float = 0.0
+    l2: float = 0.0
+    left: float = 0.0
+    right: float = 0.0
+    buttons: tuple[str, ...] = field(default_factory=tuple)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "clock_ns": int(self.clock_ns),
+            "r2": round(float(self.r2), 3),
+            "l2": round(float(self.l2), 3),
+            "left": round(float(self.left), 3),
+            "right": round(float(self.right), 3),
+            "buttons": list(self.buttons),
+        }
+
+
 class InputRing:
     """Thread-safe deque of recent InputEvents, keyed by clock_ns."""
 
@@ -59,6 +96,7 @@ class InputRing:
         self._lock = threading.Lock()
         self._events: deque[InputEvent] = deque(maxlen=self._capacity)
         self._latest_buttons: list[str] = []
+        self._hold = HoldState()
 
     def push(self, ev: InputEvent | dict[str, Any]) -> None:
         """Append an edge. Never raises into HID poll loop."""
@@ -87,6 +125,71 @@ class InputRing:
                 self._prune_locked(time.monotonic_ns())
         except Exception as e:
             log.debug("InputRing.push failed: %s", e)
+
+    def set_hold(
+        self,
+        *,
+        clock_ns: int,
+        r2: float = 0.0,
+        l2: float = 0.0,
+        left: float = 0.0,
+        right: float = 0.0,
+        buttons: list[str] | tuple[str, ...] | None = None,
+    ) -> None:
+        """Overwrite analog hold. Never raises into HID poll loop."""
+        try:
+            ts = int(clock_ns) if clock_ns and int(clock_ns) > 0 else time.monotonic_ns()
+            btns = tuple(str(b) for b in buttons) if buttons is not None else None
+            with self._lock:
+                self._hold = HoldState(
+                    clock_ns=ts,
+                    r2=max(0.0, min(1.5, float(r2))),
+                    l2=max(0.0, min(1.5, float(l2))),
+                    left=max(0.0, min(1.5, float(left))),
+                    right=max(0.0, min(1.5, float(right))),
+                    buttons=btns if btns is not None else tuple(self._latest_buttons[:8]),
+                )
+        except Exception as e:
+            log.debug("InputRing.set_hold failed: %s", e)
+
+    def hold(self) -> HoldState:
+        with self._lock:
+            return HoldState(
+                clock_ns=self._hold.clock_ns,
+                r2=self._hold.r2,
+                l2=self._hold.l2,
+                left=self._hold.left,
+                right=self._hold.right,
+                buttons=self._hold.buttons,
+            )
+
+    def hold_energy(
+        self,
+        now_ns: int | None = None,
+        max_age_ms: float = DEFAULT_HOLD_FRESH_MS,
+    ) -> float:
+        """Weighted sustain from the live analog hold. 0 if stale or idle."""
+        now = int(now_ns) if now_ns is not None else time.monotonic_ns()
+        max_age_ns = int(max(1.0, float(max_age_ms)) * 1e6)
+        with self._lock:
+            h = self._hold
+            if h.clock_ns <= 0:
+                return 0.0
+            age = now - h.clock_ns
+            if age < 0 or age > max_age_ns:
+                return 0.0
+            energy = 0.0
+            if h.r2 >= _HOLD_TRIGGER_FLOOR:
+                energy += _HOLD_WEIGHT["r2"] * min(1.0, h.r2)
+            if h.l2 >= _HOLD_TRIGGER_FLOOR:
+                energy += _HOLD_WEIGHT["l2"] * min(1.0, h.l2)
+            if h.left >= _HOLD_STICK_FLOOR:
+                energy += _HOLD_WEIGHT["left"] * min(1.0, h.left)
+            if h.right >= _HOLD_STICK_FLOOR:
+                energy += _HOLD_WEIGHT["right"] * min(1.0, h.right)
+            if h.buttons:
+                energy += _HOLD_WEIGHT["button"] * min(3, len(h.buttons))
+            return float(energy)
 
     def in_window(self, t0_ns: int, t1_ns: int) -> list[InputEvent]:
         """Events with clock_ns in [t0_ns, t1_ns] inclusive."""
@@ -121,6 +224,7 @@ class InputRing:
         with self._lock:
             self._events.clear()
             self._latest_buttons.clear()
+            self._hold = HoldState()
 
     def stats(self) -> dict[str, Any]:
         with self._lock:
@@ -128,6 +232,7 @@ class InputRing:
                 "count": len(self._events),
                 "buttons": list(self._latest_buttons),
                 "capacity": self._capacity,
+                "hold": self._hold.to_dict(),
             }
 
     def _prune_locked(self, now_ns: int) -> None:
@@ -149,5 +254,28 @@ def push(ev: InputEvent | dict[str, Any]) -> None:
     """Module helper — best-effort push for controller path."""
     try:
         get_input_ring().push(ev)
+    except Exception:
+        pass
+
+
+def set_hold(
+    *,
+    clock_ns: int,
+    r2: float = 0.0,
+    l2: float = 0.0,
+    left: float = 0.0,
+    right: float = 0.0,
+    buttons: list[str] | tuple[str, ...] | None = None,
+) -> None:
+    """Module helper — best-effort analog hold for controller path."""
+    try:
+        get_input_ring().set_hold(
+            clock_ns=clock_ns,
+            r2=r2,
+            l2=l2,
+            left=left,
+            right=right,
+            buttons=buttons,
+        )
     except Exception:
         pass

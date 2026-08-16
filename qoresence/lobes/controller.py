@@ -191,6 +191,8 @@ class ControllerRuntime:
         self._last_stick_motion = 0.0
         self._causal_density = 0
         self._last_event_ns = 0
+        # Analog hold for IVC sustain (throttled; not an edge flood)
+        self._last_hold_ns = 0
 
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
@@ -574,6 +576,7 @@ class ControllerRuntime:
         if changed or state.l2 > self._trigger_threshold or state.r2 > self._trigger_threshold:
             self._touch_presence()
 
+        self._push_hold(state, now_ns)
         self._prev_state = state
 
     def _latest_frame_seq(self) -> int | None:
@@ -596,6 +599,34 @@ class ControllerRuntime:
                 gyro=(state.gyro_x, state.gyro_y, state.gyro_z),
                 accel=(state.accel_x, state.accel_y, state.accel_z),
                 frame_seq=self._latest_frame_seq(),
+            )
+        except Exception:
+            pass
+
+    def _push_hold(self, state: ControllerState, now_ns: int) -> None:
+        """Throttled analog snapshot so IVC couples sprint/steer holds."""
+        if now_ns - int(self._last_hold_ns or 0) < 16_000_000:
+            return
+        self._last_hold_ns = now_ns
+        try:
+            from qoresence.sync.input_ring import set_hold as _set_hold
+
+            stick_floor = 20  # same deadzone as _check_stick_motion
+
+            def _mag(x: int, y: int) -> float:
+                m = max(abs(int(x) - 128), abs(int(y) - 128))
+                if m <= stick_floor:
+                    return 0.0
+                return min(1.0, m / 127.0)
+
+            r2 = (state.r2 / 255.0) if state.r2 > self._trigger_threshold else 0.0
+            l2 = (state.l2 / 255.0) if state.l2 > self._trigger_threshold else 0.0
+            _set_hold(
+                clock_ns=now_ns,
+                r2=r2,
+                l2=l2,
+                left=_mag(state.lx, state.ly),
+                right=_mag(state.rx, state.ry),
             )
         except Exception:
             pass

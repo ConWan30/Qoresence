@@ -90,8 +90,20 @@ def test_lag_estimator_slides_band():
     for lag in (40, 42, 45, 48, 50, 52, 55, 58):
         est.observe(float(lag))
     lo, hi = est.band(20.0, 120.0)
-    assert 20.0 <= lo < 50.0
-    assert 50.0 < hi <= 120.0
+    # Widen-only: configured [20, 120] is a floor, mid-band samples do not shrink it
+    assert lo == 20.0
+    assert hi == 120.0
+
+
+def test_lag_estimator_late_binds_do_not_raise_lo():
+    """Live bug: 200 ms first-down binds slid the window to 191–227 and killed coupling."""
+    est = LagEstimator()
+    for lag in (190, 200, 205, 210, 220):
+        est.observe(float(lag))
+    lo, hi = est.band(0.0, 120.0)
+    assert lo == 0.0
+    assert hi >= 200.0
+    assert hi <= 280.0
 
 
 def test_optical_motion_and_pearson():

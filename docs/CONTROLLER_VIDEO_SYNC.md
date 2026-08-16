@@ -25,12 +25,16 @@ DualSense @ ~1 kHz
   → hid_report.parse (USB 0x01 / BT 0x31)
   → ImuRing (scaled gyro/1000)
   → digital edge + precursor_ms
-  → InputRing + EventBinder.hid
+  → InputRing edges + throttled analog hold (~60 Hz)
+  → EventBinder.hid
 Outcome score_changed / first_down / kill
   → EventBinder.visual
-IVC
-  → lag band from estimator
-  → coupling + imu_bodied + last_bind
+IVC @ 30 Hz
+  → join [t_video − lag_hi, t_video − lag_lo + lead]
+  → edge_energy + hold_energy (fresh analog sustain)
+  → play phrase (IDLE/HUDDLE/SNAP/SPRINT/CUT/RELEASE)
+  → coupling ticket (licenses heat-speech)
+  → coupling + coupling_ema + imu_bodied + last_bind
 Glasses
   → GET /health `coupling.imu_bodied`
   → Deck live pad + BODY chip (not just replay)
@@ -41,6 +45,8 @@ Ghost Cut / Deck replay
   → Foundry ranks chapters by HID-near-score bind
   → receipt.metadata.binds = TEMPORAL (clip-relative)
 ```
+
+Default join is `lag_lo=0`, `lag_hi=120`, `lead=24` (one 60 fps frame of clock skew). Held R2 / stick still score after the onset edge leaves the window. Stale FrameHub stamps (`age_s > 200 ms`) decay coupling. Env: `QORESENCE_IVC_LAG_HI_MS`, `QORESENCE_IVC_LAG_LO_MS`, `QORESENCE_IVC_LEAD_MS`, `QORESENCE_IVC_HZ`.
 
 Live proof (no extra camera):
 

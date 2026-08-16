@@ -57,3 +57,29 @@ def test_snapshot_seconds():
     assert len(snap) >= 1
     assert snap[0]["name"] == "l1"
     assert "kind" in snap[0]
+
+
+def test_hold_energy_fresh_r2():
+    ring = InputRing()
+    now = time.monotonic_ns()
+    ring.set_hold(clock_ns=now, r2=0.9, l2=0.0, left=0.0, right=0.0)
+    e = ring.hold_energy(now_ns=now, max_age_ms=80.0)
+    assert e > 0.5
+    idle = InputRing()
+    idle.set_hold(clock_ns=now, r2=0.0, l2=0.0, left=0.0, right=0.0)
+    assert idle.hold_energy(now_ns=now) == 0.0
+
+
+def test_hold_energy_stale_is_zero():
+    ring = InputRing()
+    now = time.monotonic_ns()
+    ring.set_hold(clock_ns=now - int(500 * 1e6), r2=1.0, left=0.8)
+    assert ring.hold_energy(now_ns=now, max_age_ms=80.0) == 0.0
+
+
+def test_clear_resets_hold():
+    ring = InputRing()
+    ring.set_hold(clock_ns=time.monotonic_ns(), r2=1.0)
+    ring.clear()
+    assert ring.hold().clock_ns == 0
+    assert ring.hold_energy() == 0.0
