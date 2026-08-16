@@ -4,14 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#050a08">
-  <meta name="description" content="Qoresence is a local observation plane for gamers. One HDMI capture, one controller clock, many glasses — Deck, Lens, Mobile Glass, Foundry Ghost Cut, AgentGlass. Nothing leaves the box unless you ask.">
-  <title>Qoresence — the observation plane</title>
+  <meta name="description" content="Qoresence is a local observation plane for gamers. One HDMI capture, one DualSense clock, many glasses — Deck, Lens, Mobile Glass, Foundry Ghost Cut, AgentGlass. Nothing leaves the box unless you ask.">
+  <meta name="color-scheme" content="dark">
+  <title>Qoresence — see the session as it actually happened</title>
+  <link rel="canonical" href="https://conwan30.github.io/Qoresence/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Qoresence">
+  <meta property="og:title" content="Qoresence — the observation plane">
+  <meta property="og:description" content="Local-first. One capture card. One monotonic clock. Many glasses. Zero humanity claims.">
+  <meta property="og:url" content="https://conwan30.github.io/Qoresence/">
+  <meta property="og:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Qoresence — the observation plane">
+  <meta name="twitter:description" content="See the session as it actually happened. HDMI + DualSense on one clock.">
+  <meta name="twitter:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Sora:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <style>
     :root{
-      --night:#050a08; --field:#0b1610; --panel:rgba(10,22,16,.78);
+      --night:#050a08; --field:#08140f; --panel:rgba(10,22,16,.82);
       --chalk:#e8f2ec; --mist:#8ea396; --dim:#5d7166;
       --phosphor:#c6f26a; --signal:#4fe0d4; --confirm:#ffc14a; --alert:#ff7d91;
       --line:rgba(198,242,106,.14); --line-hi:rgba(79,224,212,.28);
@@ -22,54 +34,52 @@
     body{
       color:var(--chalk);
       background:
-        radial-gradient(900px 480px at 88% -10%, rgba(79,224,212,.1), transparent 58%),
-        radial-gradient(700px 520px at -8% 12%, rgba(198,242,106,.08), transparent 55%),
-        linear-gradient(180deg, #07110c 0%, var(--night) 28%, #06140f 100%);
+        radial-gradient(980px 520px at 92% -12%, rgba(79,224,212,.11), transparent 58%),
+        radial-gradient(760px 560px at -10% 8%, rgba(198,242,106,.07), transparent 55%),
+        linear-gradient(180deg, #07110c 0%, var(--night) 26%, #06140f 100%);
       font-family:Sora,ui-sans-serif,system-ui,sans-serif;
       line-height:1.55;
       overflow-x:hidden;
     }
     body::before{
-      content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.18;
+      content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.16;
       background-image:repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(198,242,106,.07) 48px);
     }
     a{color:inherit}
+    :focus-visible{outline:2px solid var(--phosphor);outline-offset:3px}
     .wrap{width:min(var(--max), calc(100% - 40px));margin:0 auto}
-    .site-header{position:sticky;top:0;z-index:30;border-bottom:1px solid var(--line);background:rgba(5,10,8,.78);backdrop-filter:blur(20px)}
-    .nav{min-height:78px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+    .site-header{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--line);background:rgba(5,10,8,.8);backdrop-filter:blur(20px)}
+    .nav{min-height:74px;display:flex;align-items:center;justify-content:space-between;gap:20px}
     .wordmark{display:flex;align-items:center;gap:12px;text-decoration:none}
     .mark{width:36px;height:36px;display:grid;place-items:center;border:1px solid rgba(198,242,106,.55);border-radius:50%;color:var(--phosphor);box-shadow:0 0 24px rgba(198,242,106,.16), inset 0 0 14px rgba(198,242,106,.08);font:800 13px/1 Syne,sans-serif}
     .wordmark b{display:block;font:800 15px/1 Syne,sans-serif;letter-spacing:.04em}
     .wordmark small{display:block;margin-top:4px;color:var(--dim);font:600 9px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase}
-    .nav-links{display:flex;align-items:center;gap:22px}
-    .nav-links a{color:var(--mist);font:600 11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-decoration:none;text-transform:uppercase}
-    .nav-links a:hover{color:var(--phosphor)}
+    .nav-links{display:flex;align-items:center;gap:18px}
+    .nav-links a{color:var(--mist);font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-decoration:none;text-transform:uppercase}
+    .nav-links a:hover,.nav-links a.is-active{color:var(--phosphor)}
     .nav-cta{padding:10px 14px;border:1px solid rgba(198,242,106,.45);border-radius:999px;color:var(--phosphor)!important}
     .menu-toggle{display:none;border:1px solid var(--line);background:transparent;color:var(--chalk);padding:8px 10px;font:700 11px/1 "IBM Plex Mono",monospace}
+    .progress{position:absolute;left:0;bottom:0;height:2px;width:0;background:linear-gradient(90deg,var(--phosphor),var(--signal));box-shadow:0 0 12px rgba(198,242,106,.4)}
 
-    .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(36px,6vw,88px);align-items:center;padding:clamp(64px,9vw,120px) 0 96px}
+    .hero{display:grid;grid-template-columns:1.08fr .92fr;gap:clamp(32px,6vw,80px);align-items:center;padding:clamp(56px,8vw,108px) 0 72px}
     .kicker{display:inline-flex;align-items:center;gap:8px;color:var(--phosphor);font:700 11px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase}
     .kicker i{width:7px;height:7px;border-radius:50%;background:var(--phosphor);box-shadow:0 0 0 5px rgba(198,242,106,.12),0 0 16px var(--phosphor)}
-    h1{margin:18px 0 20px;font:800 clamp(3.2rem,7vw,6.4rem)/.9 Syne,sans-serif;letter-spacing:-.06em}
+    h1{margin:18px 0 20px;font:800 clamp(3rem,6.6vw,6.1rem)/.9 Syne,sans-serif;letter-spacing:-.06em}
     h1 em{font-style:normal;color:var(--phosphor)}
-    .lede{max-width:36rem;color:var(--mist);font-size:1.08rem}
-    .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
-    .button{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 18px;border:1px solid var(--line-hi);border-radius:999px;background:rgba(255,255,255,.03);color:var(--chalk);font:700 11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-decoration:none;text-transform:uppercase;transition:transform .2s,border-color .2s,background .2s}
+    .lede{max-width:36rem;color:var(--mist);font-size:1.06rem}
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+    .chip{padding:7px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase}
+    .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+    .button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 18px;border:1px solid var(--line-hi);border-radius:999px;background:rgba(255,255,255,.03);color:var(--chalk);font:700 11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-decoration:none;text-transform:uppercase;transition:transform .2s,border-color .2s,background .2s}
     .button:hover{border-color:var(--phosphor);background:rgba(198,242,106,.08);transform:translateY(-2px)}
     .button.primary{background:var(--phosphor);color:var(--night);border-color:var(--phosphor);box-shadow:0 14px 36px rgba(198,242,106,.16)}
-    .hero-note{margin-top:18px;color:var(--dim);font:500 12px/1.5 "IBM Plex Mono",monospace}
-    .demo-stage{padding:0 0 96px}
-    .demo-frame{border:1px solid var(--line-hi);border-radius:24px;overflow:hidden;background:#050a08;box-shadow:0 24px 70px rgba(0,0,0,.35)}
-    .demo-frame video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#000}
-    .demo-cap{margin-top:14px;color:var(--dim);font:500 12px/1.55 "IBM Plex Mono",monospace}
-    .demo-cap a{color:var(--signal);text-decoration:none}
-    .demo-cap a:hover{color:var(--phosphor)}
+    .hero-note{margin-top:16px;color:var(--dim);font:500 12px/1.5 "IBM Plex Mono",monospace}
 
-    .instrument{position:relative;min-height:560px;padding:22px 20px 18px;border:1px solid var(--line-hi);border-radius:28px;background:linear-gradient(160deg,rgba(14,32,24,.85),rgba(5,10,8,.92));box-shadow:0 30px 80px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
+    .instrument{position:relative;min-height:540px;padding:22px 20px 18px;border:1px solid var(--line-hi);border-radius:28px;background:linear-gradient(160deg,rgba(14,32,24,.85),rgba(5,10,8,.92));box-shadow:0 30px 80px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
     .instrument::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 40%,rgba(198,242,106,.06) 50%,transparent 60%);animation:scan 9s ease-in-out infinite}
     .inst-top{position:relative;z-index:1;display:flex;justify-content:space-between;font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
     .inst-top strong{color:var(--chalk)}
-    .spine-wrap{position:relative;z-index:1;height:430px;margin:18px 8px 10px}
+    .spine-wrap{position:relative;z-index:1;height:410px;margin:18px 8px 10px}
     .spine{position:absolute;left:50%;top:12px;bottom:12px;width:2px;background:linear-gradient(180deg,var(--phosphor),var(--signal));box-shadow:0 0 18px rgba(198,242,106,.35);transform:translateX(-50%)}
     .pulse{position:absolute;left:50%;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:var(--phosphor);box-shadow:0 0 16px var(--phosphor);animation:fall 5.6s linear infinite}
     .node{position:absolute;width:calc(50% - 28px);padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(5,10,8,.72);font:600 11px/1.35 "IBM Plex Mono",monospace}
@@ -83,25 +93,32 @@
     .inst-foot{position:relative;z-index:1;display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid var(--line);color:var(--dim);font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase}
     .inst-foot em{color:var(--phosphor);font-style:normal}
 
-    .section{padding:96px 0;border-top:1px solid var(--line)}
-    h2{margin:10px 0 0;font:800 clamp(2.1rem,4.2vw,3.8rem)/.98 Syne,sans-serif;letter-spacing:-.05em}
-    .section-head{display:flex;justify-content:space-between;gap:28px;align-items:end;margin-bottom:36px}
-    .section-head p{max-width:22rem;color:var(--mist)}
+    .section{padding:88px 0;border-top:1px solid var(--line)}
+    h2{margin:10px 0 0;font:800 clamp(2rem,4vw,3.6rem)/.98 Syne,sans-serif;letter-spacing:-.05em}
+    .section-head{display:flex;justify-content:space-between;gap:28px;align-items:end;margin-bottom:32px}
+    .section-head p{max-width:24rem;color:var(--mist)}
+
+    .demo-frame{position:relative;border:1px solid var(--line-hi);border-radius:24px;overflow:hidden;background:#050a08;box-shadow:0 24px 70px rgba(0,0,0,.35)}
+    .demo-chrome{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);background:rgba(8,18,12,.92);font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+    .demo-chrome strong{color:var(--phosphor)}
+    .demo-frame video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#000}
+    .demo-cap{margin-top:14px;color:var(--dim);font:500 12px/1.55 "IBM Plex Mono",monospace}
+    .demo-cap a{color:var(--signal);text-decoration:none}
+    .demo-cap a:hover{color:var(--phosphor)}
 
     .thesis{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
     .thesis-copy,.principle{padding:32px;border:1px solid var(--line);border-radius:24px;background:var(--panel)}
     .thesis-copy p+p{margin-top:14px;color:var(--mist)}
     .principle{border-color:rgba(198,242,106,.28);background:linear-gradient(160deg,rgba(198,242,106,.1),rgba(5,10,8,.85))}
-    .principle blockquote{font:800 clamp(1.6rem,3vw,2.5rem)/1.05 Syne,sans-serif;letter-spacing:-.04em}
+    .principle blockquote{font:800 clamp(1.5rem,2.8vw,2.4rem)/1.05 Syne,sans-serif;letter-spacing:-.04em}
     .principle em{color:var(--phosphor);font-style:normal}
     .principle footer{margin-top:28px;color:var(--dim);font:600 10px/1.4 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase}
 
-    .glasses{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-    .glass{padding:26px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(160deg,rgba(14,32,24,.7),rgba(5,10,8,.8));min-height:220px}
-    .glass .idx{color:var(--signal);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.14em}
-    .glass h3{margin:28px 0 8px;font:800 1.55rem/1 Syne,sans-serif;letter-spacing:-.03em}
-    .glass p{color:var(--mist);font-size:.95rem}
-    .glass code{color:var(--phosphor);font-family:"IBM Plex Mono",monospace;font-size:.8rem}
+    .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .flow article{padding:16px 14px;border:1px solid var(--line);border-radius:16px;background:rgba(8,18,12,.58)}
+    .flow .idx{color:var(--signal);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em}
+    .flow h3{margin:14px 0 6px;font:800 1.05rem/1 Syne,sans-serif}
+    .flow p{color:var(--mist);font-size:.82rem}
 
     .orch{display:grid;gap:0}
     .step{display:grid;grid-template-columns:88px 1fr 120px;gap:18px;align-items:start;padding:22px 0;border-bottom:1px solid var(--line)}
@@ -111,41 +128,86 @@
     .step p{margin-top:6px;color:var(--mist);font-size:.92rem}
     .step .tag{justify-self:end;color:var(--signal);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em}
 
-    .uses{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    .use{padding:22px;border:1px solid var(--line);border-radius:18px;background:rgba(8,18,12,.6)}
-    .use h3{margin:0 0 8px;font:800 1.15rem Syne,sans-serif}
-    .use p{color:var(--mist);font-size:.9rem}
+    .glasses{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+    .glass{grid-column:span 3;padding:26px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(160deg,rgba(14,32,24,.7),rgba(5,10,8,.8));min-height:210px}
+    .glass:last-child{grid-column:2 / span 4}
+    .glass .idx{color:var(--signal);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.14em}
+    .glass h3{margin:26px 0 8px;font:800 1.5rem/1 Syne,sans-serif;letter-spacing:-.03em}
+    .glass p{color:var(--mist);font-size:.95rem}
+    .glass code{color:var(--phosphor);font-family:"IBM Plex Mono",monospace;font-size:.8rem}
+
+    .caps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .cap{padding:20px;border:1px solid var(--line);border-radius:18px;background:rgba(8,18,12,.6)}
+    .cap h3{margin:0 0 8px;font:800 1.08rem Syne,sans-serif}
+    .cap p{color:var(--mist);font-size:.88rem}
+
+    .profiles{display:grid;grid-template-columns:1.2fr 1fr 1fr .9fr;gap:12px}
+    .profile{padding:22px;border:1px solid var(--line);border-radius:18px;background:rgba(8,18,12,.55)}
+    .profile.lead{border-color:rgba(198,242,106,.28)}
+    .profile .idx{color:var(--confirm);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em}
+    .profile h3{margin:14px 0 8px;font:800 1.25rem Syne,sans-serif}
+    .profile p{color:var(--mist);font-size:.88rem}
+
+    table.contrast{width:100%;border-collapse:collapse;font-size:.92rem}
+    table.contrast th,table.contrast td{padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+    table.contrast th{color:var(--dim);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase}
+    table.contrast td:first-child{color:var(--phosphor);font-weight:600;white-space:nowrap}
+    table.contrast td{color:var(--mist)}
 
     .gates{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
     .gate{padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(8,18,12,.55)}
     .gate strong{display:block;color:var(--phosphor);font:800 11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase}
     .gate span{display:block;margin-top:10px;color:var(--mist);font-size:.88rem}
 
+    .limits{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .limit{padding:22px;border:1px solid var(--line);border-radius:18px}
+    .limit.ok{border-color:rgba(79,224,212,.28);background:rgba(79,224,212,.04)}
+    .limit.no{border-color:rgba(255,125,145,.22);background:rgba(255,125,145,.04)}
+    .limit h3{margin-bottom:10px;font:800 1.1rem Syne,sans-serif}
+    .limit ul{margin:0 0 0 1.1rem;color:var(--mist)}
+    .limit li{margin:.35rem 0}
+
+    .faq details{padding:16px 0;border-bottom:1px solid var(--line)}
+    .faq summary{cursor:pointer;font:700 1.05rem/1.3 Syne,sans-serif;list-style:none}
+    .faq summary::-webkit-details-marker{display:none}
+    .faq summary::after{content:"＋";float:right;color:var(--phosphor);font-family:"IBM Plex Mono",monospace}
+    .faq details[open] summary::after{content:"–"}
+    .faq p{margin-top:10px;color:var(--mist);max-width:52rem}
+
+    .community{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .community a{display:block;padding:20px;border:1px solid var(--line);border-radius:16px;text-decoration:none;background:rgba(8,18,12,.5)}
+    .community a:hover{border-color:var(--phosphor)}
+    .community b{display:block;font:800 1.1rem Syne,sans-serif}
+    .community span{display:block;margin-top:8px;color:var(--mist);font-size:.88rem}
+
     .download{display:grid;grid-template-columns:1fr auto;gap:28px;align-items:center;padding:36px;border:1px solid var(--line-hi);border-radius:28px;background:radial-gradient(500px 180px at 90% 0,rgba(79,224,212,.12),transparent 70%),linear-gradient(130deg,rgba(14,32,24,.9),rgba(5,10,8,.92))}
     .download h2{margin-top:8px}
     .download p{max-width:36rem;margin-top:10px;color:var(--mist)}
 
     footer.site-footer{padding:28px 0 52px;color:var(--dim);font:500 11px/1.6 "IBM Plex Mono",monospace}
-    .footer-row{display:flex;justify-content:space-between;gap:16px;padding-top:18px;border-top:1px solid var(--line)}
+    .footer-row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:18px;border-top:1px solid var(--line)}
     footer a{color:var(--mist);text-decoration:none} footer a:hover{color:var(--phosphor)}
 
     @keyframes fall{0%{top:6%;opacity:0}8%{opacity:1}92%{opacity:1}100%{top:92%;opacity:0}}
     @keyframes scan{0%,30%{transform:translateX(-120%)}70%,100%{transform:translateX(120%)}}
-    @media (max-width:980px){
-      .hero,.thesis,.download{grid-template-columns:1fr}
-      .glasses,.uses,.gates{grid-template-columns:1fr 1fr}
+    @media (max-width:1040px){
+      .hero,.thesis,.download,.profiles{grid-template-columns:1fr}
+      .glasses,.caps,.uses,.gates,.community,.limits,.flow{grid-template-columns:1fr 1fr}
+      .glass,.glass:last-child{grid-column:span 1}
       .step{grid-template-columns:64px 1fr}
       .step .tag{display:none}
+      table.contrast td:first-child{white-space:normal}
     }
     @media (max-width:680px){
       .wrap{width:min(var(--max),calc(100% - 28px))}
-      .nav-links{display:none;position:absolute;top:78px;left:14px;right:14px;padding:14px;flex-direction:column;align-items:stretch;border:1px solid var(--line-hi);border-radius:14px;background:rgba(5,10,8,.96)}
+      .nav-links{display:none;position:absolute;top:74px;left:14px;right:14px;padding:14px;flex-direction:column;align-items:stretch;border:1px solid var(--line-hi);border-radius:14px;background:rgba(5,10,8,.96)}
       .nav-links.open{display:flex}
       .menu-toggle{display:block}
-      .glasses,.uses,.gates{grid-template-columns:1fr}
-      .instrument{min-height:480px}
+      .glasses,.caps,.gates,.community,.limits,.flow{grid-template-columns:1fr}
+      .instrument{min-height:460px}
     }
     @media (prefers-reduced-motion:reduce){
+      html{scroll-behavior:auto}
       *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
     }
   </style>
@@ -154,17 +216,20 @@
   <header class="site-header">
     <div class="wrap nav">
       <a class="wordmark" href="#top"><span class="mark" aria-hidden="true">Q</span><span><b>Qoresence</b><small>observation plane</small></span></a>
-      <button class="menu-toggle" type="button" data-menu aria-expanded="false">MENU</button>
-      <nav class="nav-links" data-nav>
+      <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="site-nav">MENU</button>
+      <nav id="site-nav" class="nav-links" data-nav aria-label="Primary">
         <a href="#watch">Watch</a>
-        <a href="#what">What it is</a>
-        <a href="#orchestrate">Orchestration</a>
+        <a href="#plane">Plane</a>
+        <a href="#spine">Spine</a>
         <a href="#glasses">Glasses</a>
-        <a href="#uses">Uses</a>
+        <a href="#proof">Proof</a>
+        <a href="#privacy">Limits</a>
         <a href="./install.html">Install</a>
+        <a href="https://github.com/ConWan30/Qoresence">GitHub</a>
         <a class="nav-cta" href="https://github.com/ConWan30/Qoresence/releases/latest">Download</a>
       </nav>
     </div>
+    <div class="progress" data-progress aria-hidden="true"></div>
   </header>
 
   <main id="top">
@@ -172,15 +237,21 @@
       <div>
         <div class="kicker"><i></i> Local-first · one clock · many glasses</div>
         <h1>See the session<br><em>as it actually happened.</em></h1>
-        <p class="lede">Qoresence is an observation plane for gamers. HDMI video and controller input share one monotonic clock. Situation, clips, Deck, Lens and Ghost Cut all read that clock. The capture card opens once. Nothing else is allowed to open it.</p>
-        <div class="actions">
-          <a class="button primary" href="./install.html">Get the Windows package</a>
-          <a class="button" href="#watch">Watch a live session</a>
-          <a class="button" href="https://github.com/ConWan30/Qoresence">Read the source</a>
+        <p class="lede">Qoresence is a local observation plane for gamers. HDMI video and DualSense HID share one monotonic clock. Deck, Lens, Mobile Glass, Ghost Cut, and MCP hang off that clock. The capture card opens once. Nothing else is allowed to open it.</p>
+        <div class="chips" aria-label="Invariants">
+          <span class="chip">127.0.0.1 default</span>
+          <span class="chip">no second capture</span>
+          <span class="chip">Twitch opt-in</span>
+          <span class="chip">observation only</span>
         </div>
-        <p class="hero-note">127.0.0.1 by default · Ghost Cut is local · Twitch stays opt-in</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Get Windows package</a>
+          <a class="button" href="#watch">Watch a session</a>
+          <a class="button" href="https://github.com/ConWan30/Qoresence">View source</a>
+        </div>
+        <p class="hero-note">Windows-first pilot · lobes default OFF · no humanity / eligibility / chain claims</p>
       </div>
-      <div class="instrument" aria-label="Causal clock spine">
+      <div class="instrument" aria-label="Causal clock spine: HDMI, HID, IVC, Bus, Glasses">
         <div class="inst-top"><strong>SESSION / CLOCK SPINE</strong><span>monotonic ns</span></div>
         <div class="spine-wrap">
           <div class="spine"></div>
@@ -190,19 +261,23 @@
           <div class="node right n2"><b>HID</b><span>DualSense · InputRing</span></div>
           <div class="node left n3"><b>IVC</b><span>couple video to press</span></div>
           <div class="node right n4"><b>Bus</b><span>situation · moment · why</span></div>
-          <div class="node left n5"><b>Glasses</b><span>Lens · Deck · Cut · MCP</span></div>
+          <div class="node left n5"><b>Glasses</b><span>Lens · Deck · Mobile · Cut · MCP</span></div>
         </div>
         <div class="inst-foot"><span>one device / <em>one owner</em></span><span>no second capture</span></div>
       </div>
     </section>
 
-    <section class="demo-stage" id="watch">
+    <section class="section" id="watch">
       <div class="wrap">
         <div class="section-head">
-          <div><div class="kicker">Live session</div><h2>Retina Deck<br>while a match is on.</h2></div>
-          <p>Recorded from the operator glass — HDMI, DualSense, clutch feed, one clock. Not a second capture of the card.</p>
+          <div><div class="kicker">Proof / Watch</div><h2>Retina Deck<br>while a match is on.</h2></div>
+          <p>Window-capture of the operator glass. HDMI and DualSense on one clock. Not a second open of the card.</p>
         </div>
         <div class="demo-frame">
+          <div class="demo-chrome">
+            <span><strong>NCAA 27</strong> · DualSense Edge · one clock</span>
+            <span>Deck / LIVE · FrameHub</span>
+          </div>
           <video
             controls
             playsinline
@@ -212,21 +287,21 @@
             Your browser cannot play this MP4.
           </video>
         </div>
-        <p class="demo-cap">75s cut from a local NCAA 27 session · DualSense Edge on USB · scoreboard 0–0 Q1 · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
+        <p class="demo-cap">75s cut from a local NCAA 27 session · USB DualSense · scoreboard 0–0 Q1 · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
       </div>
     </section>
 
-    <section class="section" id="what">
+    <section class="section" id="plane">
       <div class="wrap">
         <div class="section-head">
-          <div><div class="kicker">What it is</div><h2>Not a dashboard.<br>A causal plane.</h2></div>
-          <p>Most tools overlay stats on a stream. Qoresence keeps a single session memory and hangs purpose-built glasses off it.</p>
+          <div><div class="kicker">The inversion</div><h2>Not a dashboard.<br>A causal plane.</h2></div>
+          <p>Most tools overlay stats on a stream. Qoresence keeps one session memory and hangs glasses off it.</p>
         </div>
         <div class="thesis">
           <div class="thesis-copy">
             <p>A gamer’s session is video plus hands plus game state. Those three signals usually live in different programs, on different clocks. Qoresence binds them locally: the streamer lobe owns the USB capture card, the controller lobe writes the InputRing, IVC stamps both with the same nanoseconds.</p>
             <p>From that coupling the rest follows. Scoreboard OCR can confirm a call. FastMoment can mark clutch energy. Foundry writes an MP4 plus <code>.chapters.json</code> and <code>.buttons.json</code>. Ghost Cut later slices that same file and burns the why-strip onto it — no generative model, no extra camera.</p>
-            <p>The product promise is narrow on purpose: you can prove why a clip fired, from evidence that never left the machine.</p>
+            <p>The product promise is narrow on purpose: you can show why a clip fired, from evidence that never left the machine. Co-occurrence and coupling — not “proof you are legit.”</p>
           </div>
           <div class="principle">
             <blockquote>The capture card is the <em>brain</em>. Everything else is a glass.</blockquote>
@@ -236,18 +311,34 @@
       </div>
     </section>
 
+    <section class="section" id="spine">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Clock spine</div><h2>HDMI → HID → IVC<br>→ Bus → glasses.</h2></div>
+          <p>One aperture. Subscribers never become owners.</p>
+        </div>
+        <div class="flow" aria-label="Signal path">
+          <article><span class="idx">01</span><h3>HDMI</h3><p>Physical capture card opens once. Frames land in FrameHub.</p></article>
+          <article><span class="idx">02</span><h3>HID</h3><p>DualSense USB/BT map. Edges write the InputRing.</p></article>
+          <article><span class="idx">03</span><h3>IVC</h3><p>Press and frame share <code>clock_ns</code>. Coupling is observation.</p></article>
+          <article><span class="idx">04</span><h3>Bus</h3><p>Situation, title-presence, moments. Fail-closed speech.</p></article>
+          <article><span class="idx">05</span><h3>Glasses</h3><p>Deck, Lens, Mobile, Ghost Cut, MCP. Views only.</p></article>
+        </div>
+      </div>
+    </section>
+
     <section class="section" id="orchestrate">
       <div class="wrap">
         <div class="section-head">
-          <div><div class="kicker">How it is orchestrated</div><h2>Capture once.<br>Subscribe everywhere.</h2></div>
+          <div><div class="kicker">Orchestration</div><h2>Capture once.<br>Subscribe everywhere.</h2></div>
           <p>Each step is a lobe or a glass. None of them re-open the hardware.</p>
         </div>
         <div class="orch">
           <div class="step"><span class="num">01</span><div><h3>Own the card</h3><p>StreamerRuntime opens DirectShow index 0 (or the device you name). Frames land in FrameHub. OBS, if you use it, consumes the Lens URL — never the physical device a second time.</p></div><span class="tag">INPUT</span></div>
-          <div class="step"><span class="num">02</span><div><h3>Couple the hands</h3><p>HID is parsed on the DualSense USB/BT map. An IMU jolt 5–80&nbsp;ms before a press is a <em>precursor</em> — the body moved, then the bit flipped. IVC joins that edge to the FrameHub sequence. Score changes bind back to the nearest trigger. Ghost Cut lights the pad on the real footage.</p></div><span class="tag">COUPLE</span></div>
-          <div class="step"><span class="num">03</span><div><h3>Name the situation</h3><p>Visual + OCR read the scorebug. Presence fusion and MomentScorer emit only when the clock and the picture agree. Blank frames do not invent 0–0.</p></div><span class="tag">SITUATION</span></div>
+          <div class="step"><span class="num">02</span><div><h3>Couple the hands</h3><p>HID is parsed on the DualSense USB/BT map. An IMU jolt 5–80&nbsp;ms before a press is a precursor — the body moved, then the bit flipped. IVC joins that edge to the FrameHub sequence. Score changes bind back to the nearest trigger.</p></div><span class="tag">COUPLE</span></div>
+          <div class="step"><span class="num">03</span><div><h3>Name the situation</h3><p>Visual + OCR read the scorebug. Title-presence locks NCAA vs Madden vs CoD without inventing digits. Blank frames do not invent 0–0. Confirm tickets license score speech.</p></div><span class="tag">SITUATION</span></div>
           <div class="step"><span class="num">04</span><div><h3>Fan out on the bus</h3><p>RetinaEventBus carries situation and moment events. Subscribers must not emit while holding their own lock — that rule is tested. The live feed must never freeze because a glass was slow.</p></div><span class="tag">CAUSAL</span></div>
-          <div class="step"><span class="num">05</span><div><h3>Hang the glasses</h3><p>Lens (OBS), Deck/Rail (operator), Mobile Glass (phone view), Foundry Ghost Cut (after the clip), AgentGlass and MCP (read-only agents). All of them are views. None of them capture.</p></div><span class="tag">VIEW</span></div>
+          <div class="step"><span class="num">05</span><div><h3>Hang the glasses</h3><p>Lens (OBS), Deck (operator), Mobile Glass (phone view), Foundry Ghost Cut (after the clip), AgentGlass and MCP (read-only agents). All of them are views. None of them capture.</p></div><span class="tag">VIEW</span></div>
         </div>
       </div>
     </section>
@@ -255,30 +346,72 @@
     <section class="section" id="glasses">
       <div class="wrap">
         <div class="section-head">
-          <div><div class="kicker">The glasses</div><h2>Five surfaces.<br>One session.</h2></div>
+          <div><div class="kicker">Glasses</div><h2>Five surfaces.<br>One session.</h2></div>
           <p>Each glass is a different atmosphere for the same clock. None of them is a second product.</p>
         </div>
         <div class="glasses">
           <article class="glass"><span class="idx">GLASS / LENS</span><h3>Clutch Lens</h3><p>OBS Browser Source at <code>http://127.0.0.1:8765/overlay.html</code>. A thin ribbon and a score pill. Opacity follows tension. It sits on the game; it does not cover the ball.</p></article>
-          <article class="glass"><span class="idx">GLASS / DECK</span><h3>Retina Rail</h3><p>Local theater at <code>/deck.html</code>. LIVE from FrameHub (WebRTC, MJPEG fallback). REPLAY from your HDMI clips. Situation, controller sync, clutch feed — the operator stays in the session.</p></article>
-          <article class="glass"><span class="idx">GLASS / BAY</span><h3>Foundry · Ghost Cut</h3><p>Post-session. Pick a chaptered clip. Cut a local highlight with the why-strip and timed button ghosts burned in. Your players stay your players. Output lives beside the clip as MP4 + receipt.</p></article>
-          <article class="glass"><span class="idx">GLASS / PHONE</span><h3>Mobile Glass</h3><p>Same FrameHub on the phone at <code>/mobile.html</code>. WebRTC first, MJPEG fallback. Localhost by default. Same Wi‑Fi needs <code>--deck-bind 0.0.0.0</code> and the Theater QR. The PC cannot open the phone browser.</p></article>
-          <article class="glass"><span class="idx">GLASS / AGENT</span><h3>AgentGlass + MCP</h3><p>Read-only spectator APIs and ten MCP tools. Snapshot, health, clips, situation, search, graph. Localhost. No hidden write path. No second capture.</p></article>
+          <article class="glass"><span class="idx">GLASS / DECK</span><h3>Retina Deck</h3><p>Local theater at <code>/deck.html</code>. LIVE from FrameHub (WebRTC, MJPEG fallback). REPLAY from your HDMI clips. Situation, DualSense rail, clutch strip — the operator stays in the session.</p></article>
+          <article class="glass"><span class="idx">GLASS / PHONE</span><h3>Mobile Glass</h3><p>Same FrameHub on the phone at <code>/mobile.html</code>. WebRTC first, MJPEG fallback. Localhost by default. Same Wi‑Fi needs <code>--deck-bind 0.0.0.0</code> and the Theater QR. The phone is a view, never a capture.</p></article>
+          <article class="glass"><span class="idx">GLASS / BAY</span><h3>Foundry · Ghost Cut</h3><p>Post-session. Pick a chaptered clip. Cut a local highlight with the why-strip and timed DualSense ghosts burned in. Your players stay your players. Output lives beside the clip as MP4 + receipt.</p></article>
+          <article class="glass"><span class="idx">GLASS / AGENT</span><h3>AgentGlass + MCP</h3><p>Read-only spectator APIs and 12 MCP tools. Snapshot, health, clips, situation, search, graph, diagnose, <code>get_observation</code> witness pack, grant-gated <code>wrap_observation</code> onto <code>qoresence-research</code> only. Localhost. No hidden write path. No second capture.</p></article>
         </div>
       </div>
     </section>
 
-    <section class="section" id="uses">
+    <section class="section" id="caps">
       <div class="wrap">
         <div class="section-head">
-          <div><div class="kicker">Use cases</div><h2>What you actually do<br>with it.</h2></div>
-          <p>Built first for NCAA Football 27 and Call of Duty. The plane is the product; the profile is a lens.</p>
+          <div><div class="kicker">Capabilities</div><h2>What the plane<br>already does.</h2></div>
+          <p>Shipped on main. Optional lobes stay OFF until you ask.</p>
         </div>
-        <div class="uses">
-          <article class="use"><h3>Call the board</h3><p>Keep a live score, quarter and down on Lens, Deck, and Mobile Glass from the HDMI scorebug — not from a cloud VLM guessing after a delay. Title-presence locks CFB vs Madden without inventing digits.</p></article>
-          <article class="use"><h3>Prove a clutch</h3><p>When FastMoment fires, the clip sidecar stores why. Ghost Cut turns that mark into a 6-second highlight you can watch without leaving the box.</p></article>
-          <article class="use"><h3>Talk with evidence</h3><p>ClutchBot can wait for OCR confirm before a chat line. Agents can subscribe to AgentGlass. The streamer still owns the card.</p></article>
+        <div class="caps">
+          <article class="cap"><h3>Title-presence</h3><p>Optical title lock with a hard <code>plane: qoresence-observation</code> tag. On with <code>--play</code>. Menu and pause fail closed. Never yanks an explicit <code>--game-profile</code>.</p></article>
+          <article class="cap"><h3>Score + tickets</h3><p>Scorebug OCR is the referee. Confirm tickets license digits. Fast path cannot invent a score or heat-speech without a coupling ticket.</p></article>
+          <article class="cap"><h3>Coupling / ghosts</h3><p>IVC joins DualSense hold and edges to FrameHub. Ghost Cut lights the pad on the real HDMI clip. IMU precursors show BODY −XXms.</p></article>
+          <article class="cap"><h3>DriveGraph</h3><p>Why-strip over a drive. Named 48-node safety cap (floor 8, ceiling 96) so <code>/health</code> cannot O(n²)-freeze.</p></article>
+          <article class="cap"><h3>Foundry clips</h3><p>True capture-ring MP4s plus chapter and button sidecars. Searchable later. No Twitch Helix required.</p></article>
+          <article class="cap"><h3>Mobile Glass</h3><p>WebRTC primary, MJPEG fallback. Default bind <code>127.0.0.1</code>. LAN is opt-in. No STUN/TURN, no CDN.</p></article>
+          <article class="cap"><h3>MCP witness pack</h3><p>Agents call <code>get_observation</code> before they speak. Unlocked scores and localhost URLs stay silent.</p></article>
+          <article class="cap"><h3>Pilot closeout</h3><p>Stranger-auditable JSON/MD: lock timeline, ranked climax, FREEZE kinds. Trust is a health check.</p></article>
         </div>
+      </div>
+    </section>
+
+    <section class="section" id="profiles">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Profiles</div><h2>The plane is the product.<br>The title is a lens.</h2></div>
+          <p>Football and shooter first. Community YAML can add more.</p>
+        </div>
+        <div class="profiles">
+          <article class="profile lead"><span class="idx">FIRST-CLASS</span><h3>NCAA Football 27</h3><p>Snap, score, TD, FG. Scorebug band measured on live stills. Primary pilot corpus.</p></article>
+          <article class="profile"><span class="idx">FIRST-CLASS</span><h3>Madden NFL 27</h3><p>Own HUD crop. Local NFL roster. Ambiguous last names stay empty + flagged.</p></article>
+          <article class="profile"><span class="idx">FIRST-CLASS</span><h3>Call of Duty</h3><p>Shooter family. Situation follows the same bus; profile is the crop and vocab.</p></article>
+          <article class="profile"><span class="idx">SECONDARY</span><h3>Community</h3><p>Valorant, Apex, Fortnite YAML. Same clock. Same fail-closed speech rules.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="contrast">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Contrast</div><h2>Same HDMI.<br>Different job.</h2></div>
+          <p>No trash talk. Different tools optimize for different truths.</p>
+        </div>
+        <table class="contrast">
+          <thead>
+            <tr><th></th><th>Typical overlay / clipper</th><th>Qoresence</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Aperture</td><td>OBS often owns the card; extras reopen it or ingest a VCam.</td><td>One physical DShow owner. Glasses subscribe to FrameHub.</td></tr>
+            <tr><td>Clock</td><td>Video clock, chat clock, and pad clock rarely meet.</td><td>HDMI + DualSense share monotonic <code>clock_ns</code>.</td></tr>
+            <tr><td>Speech</td><td>Cloud VLMs guess scores after a delay.</td><td>OCR confirm + tickets. Silence over invention.</td></tr>
+            <tr><td>Clips</td><td>Cloud highlight model, or Twitch Helix only.</td><td>Local capture-ring MP4 + Ghost Cut on the real file.</td></tr>
+            <tr><td>Phone</td><td>Second encoder or a CDN.</td><td>Same FrameHub view. LAN bind opt-in.</td></tr>
+            <tr><td>Agents</td><td>Often write-capable and cloud-hosted.</td><td>Read-only MCP. Witness pack. Research wrap only with a grant.</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -292,7 +425,7 @@
           <div class="gate"><strong>Capture</strong><span><code>age_s &lt; 1</code><br>frames and pushes climb</span></div>
           <div class="gate"><strong>Deck</strong><span><code>/health</code> ok<br>LIVE picture moves</span></div>
           <div class="gate"><strong>Cut</strong><span>chaptered clip →<br>local <code>reel_*.mp4</code></span></div>
-          <div class="gate"><strong>Agent</strong><span>11 MCP tools<br>localhost only</span></div>
+          <div class="gate"><strong>Agent</strong><span>12 MCP tools<br>localhost only</span></div>
         </div>
         <div class="actions" style="margin-top:28px">
           <a class="button" href="https://github.com/ConWan30/Qoresence/blob/main/docs/PILOT_CHECKLIST.md">Pilot checklist</a>
@@ -301,18 +434,93 @@
       </div>
     </section>
 
+    <section class="section" id="privacy">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Privacy &amp; claim ceiling</div><h2>Local by default.<br>Silent when unsure.</h2></div>
+          <p>If copy ever sounds like anti-cheat or a humanity proof, it is wrong.</p>
+        </div>
+        <div class="limits">
+          <article class="limit ok">
+            <h3>What it is</h3>
+            <ul>
+              <li>Local observation of HDMI + DualSense</li>
+              <li>Co-occurrence, coupling, presence evidence</li>
+              <li>Fail-closed speech licensing</li>
+              <li>Optional wrap onto <code>qoresence-research</code> with an operator grant</li>
+            </ul>
+          </article>
+          <article class="limit no">
+            <h3>What it is not</h3>
+            <ul>
+              <li>No humanity, eligibility, or anti-cheat claims</li>
+              <li>No live path into QorTroller / PoAC / <code>*-truth</code></li>
+              <li>No second capture, no personal webcam</li>
+              <li>No cloud biometrics; Twitch and LAN stay opt-in</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
     <section class="section" id="install">
       <div class="wrap">
         <div class="download">
           <div>
-            <div class="kicker">Ready when you are</div>
-            <h2>Install the plane.</h2>
-            <p>Windows starter package, local venv, no cloud account. Capture hardware is optional for setup and required for live frames. Ghost Cut runs on the clips you already have.</p>
+            <div class="kicker">Install the plane</div>
+            <h2>Windows package.<br>Local venv. No account.</h2>
+            <p>Capture hardware is optional for setup and required for live frames. Ghost Cut runs on clips you already have. Pattern B: Qoresence owns the card. Pattern A: OBS Virtual Cam remains a legacy path.</p>
           </div>
           <div class="actions">
             <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Windows package</a>
             <a class="button" href="./install.html">Install guide</a>
+            <a class="button" href="https://github.com/ConWan30/Qoresence/releases">Releases</a>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="community">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Community</div><h2>Source, wiki,<br>and the operator desk.</h2></div>
+          <p>No Discord is claimed here. GitHub is the public room.</p>
+        </div>
+        <div class="community">
+          <a href="https://github.com/ConWan30/Qoresence"><b>GitHub</b><span>Source, issues, releases.</span></a>
+          <a href="https://github.com/ConWan30/Qoresence/wiki"><b>Wiki</b><span>Operator glass and runbooks.</span></a>
+          <a href="https://github.com/ConWan30/Qoresence/discussions"><b>Discussions</b><span>Session cuts and questions.</span></a>
+          <a href="https://github.com/ConWan30/QorTroller"><b>QorTroller</b><span>Sibling truth plane. Do not merge claims.</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">FAQ</div><h2>Short answers.</h2></div>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>Is this anti-cheat?</summary>
+            <p>No. Qoresence observes HDMI and DualSense on one clock. It does not score humanity, eligibility, or tournament-grade presence.</p>
+          </details>
+          <details>
+            <summary>Does it replace OBS?</summary>
+            <p>No. For the lowest-lag path, Qoresence owns the physical card and OBS consumes Lens as a Browser Source. The legacy path is OBS owning the card and publishing a Virtual Cam.</p>
+          </details>
+          <details>
+            <summary>Will it work on my phone?</summary>
+            <p>As a view. Open <code>/mobile.html</code>. Default is localhost. Same-Wi‑Fi needs <code>--deck-bind 0.0.0.0</code> and the Theater QR. Video only in v1. No remote/cellular STUN.</p>
+          </details>
+          <details>
+            <summary>Does --play write to QorTroller?</summary>
+            <p>No. Title-presence is observation-plane only. A research wrap needs <code>QORESENCE_WRAP_GRANT_ID</code> and dest <code>qoresence-research</code>. Truth-plane dests are denied.</p>
+          </details>
+          <details>
+            <summary>Linux / macOS?</summary>
+            <p>The public pilot is Windows-first (DirectShow capture card). Other hosts are not claimed as ready.</p>
+          </details>
         </div>
       </div>
     </section>
@@ -320,23 +528,44 @@
 
   <footer class="site-footer">
     <div class="wrap footer-row">
-      <div>Qoresence / observation plane / local-first pilot</div>
-      <div><a href="https://github.com/ConWan30/Qoresence">GitHub</a> · <a href="./install.html">Install</a> · <a href="https://github.com/ConWan30/Qoresence/releases">Releases</a></div>
+      <div>Qoresence / observation plane / local-first pilot<br>The capture card is the brain. Everything else is a glass.</div>
+      <div>
+        <a href="./install.html">Install</a> ·
+        <a href="https://github.com/ConWan30/Qoresence">GitHub</a> ·
+        <a href="https://github.com/ConWan30/Qoresence/wiki">Wiki</a> ·
+        <a href="https://github.com/ConWan30/Qoresence/releases">Releases</a> ·
+        <a href="https://github.com/ConWan30/QorTroller">QorTroller</a>
+      </div>
     </div>
   </footer>
   <script>
-    const menu=document.querySelector('[data-menu]');
-    const nav=document.querySelector('[data-nav]');
-    if(menu&&nav){
-      menu.addEventListener('click',()=>{
-        const open=nav.classList.toggle('open');
-        menu.setAttribute('aria-expanded',String(open));
+    const menu = document.querySelector('[data-menu]');
+    const nav = document.querySelector('[data-nav]');
+    const bar = document.querySelector('[data-progress]');
+    if (menu && nav) {
+      menu.addEventListener('click', () => {
+        const open = nav.classList.toggle('open');
+        menu.setAttribute('aria-expanded', String(open));
       });
-      nav.querySelectorAll('a').forEach((a)=>a.addEventListener('click',()=>{
+      nav.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => {
         nav.classList.remove('open');
-        menu.setAttribute('aria-expanded','false');
+        menu.setAttribute('aria-expanded', 'false');
       }));
     }
+    const sections = [...document.querySelectorAll('main section[id]')];
+    const links = [...document.querySelectorAll('.nav-links a[href^="#"]')];
+    const mark = () => {
+      const y = window.scrollY + 96;
+      let current = '';
+      for (const s of sections) if (s.offsetTop <= y) current = s.id;
+      links.forEach((a) => a.classList.toggle('is-active', a.getAttribute('href') === '#' + current));
+      if (bar) {
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        bar.style.width = (max > 0 ? (window.scrollY / max) * 100 : 0) + '%';
+      }
+    };
+    mark();
+    window.addEventListener('scroll', mark, {passive: true});
   </script>
 </body>
 </html>
