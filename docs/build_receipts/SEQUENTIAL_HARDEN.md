@@ -1,11 +1,18 @@
-# Sequential evidence harden — pointer
+# Sequential evidence harden — landed
 
-Latest receipt (2026-08-16):
+C1–C4 are on local `main` (4 commits ahead of `origin/main`). Push to GitHub returned **403**.
 
-- `logs/build/sequential_harden_20260816_120000.json`
-- `logs/build/sequential_harden_20260816_120000.md`
-- Example closeout: `logs/build/examples/c1_closeout_example.json`
+| Phase | SHA | Message |
+|---|---|---|
+| C1 | `ce24897` | feat(pilot): self-contained closeout… |
+| C2 | `c8bbdcf` | fix(drivegraph): confirmed score-play marks… |
+| C3 | `71fb913` | feat(pilot): classify FREEZE… |
+| C4 | `436fc18` | feat(madden): explicit nameplate_ambiguous… |
 
-Phases completed: **C1 C2 C3 C4**. Tests: 67 passed. Commits: **none** (operator HOLD).
+Receipts:
 
-Branch tip at receipt time: `main` `9000ea53883e89b36b5c636fb4e5b2c13401057e`.
+- `logs/build/post_harden_land_20260816_130000.json`
+- `logs/build/post_harden_land_20260816_130000.md`
+- Prior: `logs/build/sequential_harden_20260816_120000.json`
+
+Verification checklist: `docs/PILOT_VERIFICATION_AFTER_HARDEN.md`
