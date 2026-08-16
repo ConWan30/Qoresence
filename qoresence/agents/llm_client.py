@@ -1,7 +1,7 @@
 """ClutchBot LLM client — Quicksilver Pro (OpenAI-compatible).
 
 Dedicated API for ClutchBot via https://api.quicksilverpro.io/v1
-Default model: deepseek-v4-flash. Falls back to gpt-4o-mini.
+Default model: nemotron-3.5-lightning (Quicksilver Pro). Falls back to gpt-4o-mini.
 
 No new deps — uses requests if available, stdlib http otherwise.
 Key is resolved from ClutchBotConfig.llm_api_key or llm_api_key_file
@@ -28,7 +28,7 @@ except ImportError:
     HAS_REQUESTS = False
 
 DEFAULT_BASE_URL = "https://api.quicksilverpro.io/v1"
-DEFAULT_MODEL = "deepseek-v4-flash"
+DEFAULT_MODEL = "nemotron-3.5-lightning"
 FALLBACK_MODEL = "gpt-4o-mini"
 
 

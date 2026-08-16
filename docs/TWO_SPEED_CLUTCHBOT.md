@@ -39,7 +39,11 @@ Outcome + Visual (OCR/VLM) ──► MomentScorer.score(...)
 | Speed | Source | May invent scores? | Examples |
 |-------|--------|--------------------|----------|
 | **fast** | IVC coupling + last-known red zone / close / late | **No** | “Red-zone energy spike…” |
-| **confirm** | `outcome_event` / visual OCR | Yes, **only real** OCR digits | “Score update: 21-14” |
+| **confirm** | Gemini scoreboard VLM + OCR | Yes, **only digits licensed by a confirm ticket** | “Score update: 21-14” |
+
+A **confirm ticket** is minted when Gemini force-locks the board (`QORESENCE-CONFIRM-TICKET-v0`). Nemotron, Society, and confirm-chat must cite `ticket_id` or score pairs become `board`. Deck `/api/situation` exposes `confirm.last_fast` vs `confirm.last_confirm` (mismatch theater). Ghost Cut why-strip prints the ticket.
+
+A **coupling ticket** (`QORESENCE-COUPLING-TICKET-v0`) is minted when IVC classifies a live play-phrase (`SNAP`/`SPRINT`/`CUT`/`RELEASE`). Heat-speech (“controller heat”, “pad and picture”) is stripped or vetoed without one. Confirm tickets license **digits**; coupling tickets license **pad heat**.
 
 ---
 

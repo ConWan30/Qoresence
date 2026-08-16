@@ -55,6 +55,8 @@ def test_society_config_default_off():
     cfg = AgentSocietyConfig()
     assert cfg.enabled is False
     assert "spam_warden" in cfg.roles
+    assert cfg.model_reason == "nemotron-3.5-lightning"
+    assert cfg.model_scene == "gemini-3.5-flash-lite"
     env = AgentSocietyConfig.from_env()
     # env may be on if operator exported the flag; still valid roles
     assert all(r in {"spam_warden", "pilot_auditor", "drive_coach", "ghost_editor", "prediction_steward"} for r in env.roles)
@@ -74,6 +76,8 @@ def test_policy_strips_digits_unless_locked():
     out = pol.finalize(rec, pkt)
     assert "14-13" not in out.text
     pkt.score_vlm_locked = True
+    pkt.confirm_ticket_id = "abcdabcdabcdabcd"
+    pkt.situation["confirm_ticket_id"] = "abcdabcdabcdabcd"
     rec2 = AgentReceipt(role="drive_coach", action="note", text="Board 14-13 holds")
     out2 = pol.finalize(rec2, pkt)
     assert "14-13" in out2.text

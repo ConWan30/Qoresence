@@ -73,15 +73,42 @@ def build_packet() -> AgentPacket:
             session_id = session_id or str((gs.get("session") or {}).get("session_id") or "")
     except Exception:
         pass
+    sit_d = sit if isinstance(sit, dict) else {}
+    try:
+        from qoresence.vision.confirm_ticket import get_ticket_book
+
+        latest = get_ticket_book().latest()
+        if latest is not None and not sit_d.get("confirm_ticket_id"):
+            sit_d = dict(sit_d)
+            sit_d["confirm_ticket_id"] = latest.ticket_id
+            sit_d["score_vlm_locked"] = True
+    except Exception:
+        pass
+    phrase = "IDLE"
+    couple_tid = ""
+    try:
+        from qoresence.sync.ivc import get_last_coupling
+
+        coup = get_last_coupling() or {}
+        phrase = str(coup.get("phrase") or sit_d.get("phrase") or "IDLE")
+        couple_tid = str(coup.get("coupling_ticket_id") or "")
+        if isinstance(health, dict) and "coupling" not in health:
+            health = {**health, "coupling": coup}
+    except Exception:
+        pass
+    tid = str(sit_d.get("confirm_ticket_id") or "")
     return AgentPacket(
         session_id=session_id,
         clock_ns=time.monotonic_ns(),
-        situation=sit if isinstance(sit, dict) else {},
-        score_vlm_locked=_locked(sit if isinstance(sit, dict) else {}),
+        situation=sit_d,
+        score_vlm_locked=_locked(sit_d) or bool(tid),
+        confirm_ticket_id=tid,
         drive_graph=graph if isinstance(graph, dict) else {},
         last_commits=commits,
         health=health,
         clip_hits=hits,
+        phrase=phrase,
+        coupling_ticket_id=couple_tid,
     )
 
 
@@ -128,6 +155,7 @@ class SocietyRuntime:
             "alive": bool(self._thread and self._thread.is_alive()),
             "roles": list(self.config.roles),
             "quicksilver": self.qs.available(),
+            "model": self.config.model_reason,
             "key_file": self.config.api_key_file,
             "ticks": self._ticks,
             "receipts": self._receipts,

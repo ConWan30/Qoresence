@@ -32,11 +32,14 @@ class AgentPacket:
     clock_ns: int = 0
     situation: dict[str, Any] = field(default_factory=dict)
     score_vlm_locked: bool = False
+    confirm_ticket_id: str = ""
     drive_graph: dict[str, Any] = field(default_factory=dict)
     last_commits: list[dict[str, Any]] = field(default_factory=list)
     health: dict[str, Any] = field(default_factory=dict)
     clip_hits: list[dict[str, Any]] = field(default_factory=list)
     path: str = ""
+    phrase: str = "IDLE"
+    coupling_ticket_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

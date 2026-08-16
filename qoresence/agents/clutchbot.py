@@ -393,6 +393,58 @@ class ClutchBotAgent:
             if not self._rate_limit_ok(moment):
                 continue
 
+            if path_label == "fast":
+                try:
+                    from qoresence.vision.confirm_ticket import get_ticket_book
+
+                    get_ticket_book().note_fast(
+                        {
+                            "kind": f"fast_{moment.action}",
+                            "clock_ns": event.clock_ns,
+                            "reason": moment.reason,
+                        }
+                    )
+                except Exception:
+                    pass
+                if moment.action == "chat" and moment.message:
+                    try:
+                        from qoresence.sync.coupling_ticket import (
+                            get_coupling_book,
+                            license_heat_text,
+                        )
+
+                        licensed = license_heat_text(
+                            moment.message, ticket=get_coupling_book().latest_live()
+                        )
+                        if licensed != moment.message:
+                            import dataclasses as _dc_heat
+
+                            moment = _dc_heat.replace(moment, message=licensed)
+                            if not licensed:
+                                continue
+                    except Exception:
+                        pass
+            elif path_label == "confirm" and moment.action == "chat" and moment.message:
+                try:
+                    from qoresence.vision.confirm_ticket import get_ticket_book, license_score_text
+
+                    ticket = get_ticket_book().latest()
+                    sit = self._situation.to_dict()
+                    licensed = license_score_text(
+                        moment.message,
+                        ticket=ticket,
+                        home_score=sit.get("home_score"),
+                        away_score=sit.get("away_score"),
+                    )
+                    import dataclasses as _dc2
+
+                    pl = dict(moment.payload or {})
+                    if ticket is not None:
+                        pl["ticket_id"] = ticket.ticket_id
+                    moment = _dc2.replace(moment, message=licensed, payload=pl)
+                except Exception:
+                    pass
+
             context = {
                 "session_id": self.bus.session_id,
                 "event_type": event.type.value,

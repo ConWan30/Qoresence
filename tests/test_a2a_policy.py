@@ -21,13 +21,56 @@ def test_soft_allows_no_digits():
     p = A2APolicy(chat_cooldown_s=0)
     r = p.evaluate(
         ChatProposal(
-            text="Controller heat on a live drive — eyes up.", path="fast", soft_only=True
+            text="Pressure building — this possession matters.", path="fast", soft_only=True
         ),
         situation={"home_score": 31, "away_score": 38},
     )
     assert r.__class__.__name__ == "CommitAct"
     assert r.path == "fast"
     assert r.factual is False
+
+
+def test_soft_vetoes_heat_without_ticket():
+    from qoresence.sync.coupling_ticket import reset_coupling_book
+
+    reset_coupling_book()
+    p = A2APolicy(chat_cooldown_s=0)
+    r = p.evaluate(
+        ChatProposal(
+            text="Controller heat on a live drive — eyes up.", path="fast", soft_only=True
+        ),
+        situation={"home_score": 31, "away_score": 38},
+    )
+    assert r.__class__.__name__ == "Veto"
+    assert "coupling ticket" in r.reason.lower()
+
+
+def test_soft_allows_heat_with_ticket():
+    import time
+
+    from qoresence.sync.coupling_ticket import (
+        get_coupling_book,
+        mint_coupling_ticket,
+        reset_coupling_book,
+    )
+
+    reset_coupling_book()
+    t = mint_coupling_ticket(
+        clock_ns=time.monotonic_ns(),
+        frame_seq=3,
+        phrase="SPRINT",
+        coupling=0.5,
+        hold_energy=1.0,
+    )
+    get_coupling_book().put(t)
+    p = A2APolicy(chat_cooldown_s=0)
+    r = p.evaluate(
+        ChatProposal(
+            text="Controller heat on a live drive — eyes up.", path="fast", soft_only=True
+        ),
+        situation={"home_score": 31, "away_score": 38, "coupling_ticket_id": t.ticket_id},
+    )
+    assert r.__class__.__name__ == "CommitAct"
 
 
 def test_confirm_digits_must_match_situation():

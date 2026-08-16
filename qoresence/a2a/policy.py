@@ -63,6 +63,8 @@ class A2APolicy:
                 return self._veto("soft path forbids score digits", text)
             if self._invents_score_digits(text, situation):
                 return self._veto("soft path invents score digits", text)
+            if self._heat_unlicensed(text, situation):
+                return self._veto("heat speech requires coupling ticket", text)
             self._accept(now, text, n)
             return CommitAct(
                 action="chat",
@@ -99,6 +101,21 @@ class A2APolicy:
         if len(self.recent_vetos) > 40:
             self.recent_vetos = self.recent_vetos[-40:]
         return Veto(reason=reason, rejected_text=text[:120])
+
+    @staticmethod
+    def _heat_unlicensed(text: str, situation: dict[str, Any] | None) -> bool:
+        try:
+            from qoresence.sync.coupling_ticket import get_coupling_book, heat_speech
+        except Exception:
+            return False
+        if not heat_speech(text):
+            return False
+        sit = situation or {}
+        tid = str(sit.get("coupling_ticket_id") or "")
+        book = get_coupling_book()
+        if tid and book.get(tid) is not None:
+            return False
+        return book.latest_live() is None
 
     @staticmethod
     def _invents_score_digits(text: str, situation: dict[str, Any] | None) -> bool:

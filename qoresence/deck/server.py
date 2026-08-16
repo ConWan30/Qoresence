@@ -109,9 +109,16 @@ class DeckState:
                     {
                         "buttons": get_input_ring().latest_buttons()[:8],
                         "coupling": coup.get("coupling", 0.0),
+                        "coupling_ema": coup.get("coupling_ema", coup.get("coupling", 0.0)),
+                        "hold_energy": coup.get("hold_energy", 0.0),
+                        "edge_energy": coup.get("edge_energy", 0.0),
+                        "phrase": coup.get("phrase") or "IDLE",
+                        "phrase_conf": coup.get("phrase_conf") or 0.0,
+                        "coupling_ticket_id": coup.get("coupling_ticket_id") or "",
                         "frame_seq": coup.get("frame_seq", 0),
                         "input_energy": coup.get("input_energy", 0.0),
                         "input_events": coup.get("input_events", 0),
+                        "lead_ms": coup.get("lead_ms"),
                         "imu_bodied": bool(coup.get("imu_bodied")),
                         "imu_precursor_ms": coup.get("imu_precursor_ms"),
                         "imu_precursor_name": coup.get("imu_precursor_name"),
@@ -137,6 +144,12 @@ class DeckState:
             "updated_ns": self.updated_ns,
             "video": video,
         }
+        try:
+            from qoresence.vision.confirm_ticket import get_ticket_book
+
+            out["confirm"] = get_ticket_book().mismatch()
+        except Exception:
+            out["confirm"] = {"last_fast": None, "last_confirm": None, "lag_ns": None}
         if controller:
             out["controller"] = controller
         # Session timeline why-strip / active drive (optional)

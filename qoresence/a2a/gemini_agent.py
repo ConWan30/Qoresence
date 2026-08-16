@@ -203,6 +203,8 @@ class GeminiSceneAgent:
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "Qoresence-A2AGemini/1.0",
+            "Accept": "application/json",
         }
         url = f"{self.base_url}/chat/completions"
         r = requests.post(url, headers=headers, json=body, timeout=12)

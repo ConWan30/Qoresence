@@ -47,7 +47,8 @@ class SocietyPolicy:
         away = sit.get("away_score")
 
         def _keep(m: re.Match[str]) -> str:
-            if not packet.score_vlm_locked:
+            ticket_id = packet.confirm_ticket_id or (sit.get("confirm_ticket_id") or "")
+            if not packet.score_vlm_locked or not ticket_id:
                 return "board"
             try:
                 a, b = int(m.group(1)), int(m.group(2))
@@ -72,6 +73,10 @@ class SocietyPolicy:
             text = deny
         receipt.text = text
         receipt.policy_ok = ok
+        ticket_id = packet.confirm_ticket_id or (packet.situation or {}).get("confirm_ticket_id")
+        if ticket_id and SCORE_PAIR.search(text or ""):
+            receipt.refs = dict(receipt.refs or {})
+            receipt.refs.setdefault("ticket_id", str(ticket_id))
         return receipt
 
 

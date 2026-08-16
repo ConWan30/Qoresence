@@ -16,7 +16,7 @@ Standard overlays **cover** gameplay. Standard dashboards make you **alt-tab awa
  -> VisualRuntime 6fps (heuristic 5112e31 -> hysteresis 3/5 992318e -> ONNX ee834e1 p50 1.12ms)
  -> FootballScoreboardExtractor 383L (bottom-center HUD -> score/quarter/clock/down)
  -> SituationModel + win_probability + MomentScorer/ClipWorthiness
- -> RetinaEventBus --+--> ClutchBot -> Quicksilver Pro deepseek-v4-flash @ https://api.quicksilverpro.io/v1 -> Twitch chat/clip/prediction
+ -> RetinaEventBus --+--> ClutchBot -> Quicksilver Pro nemotron-3.5-lightning @ https://api.quicksilverpro.io/v1 -> Twitch chat/clip/prediction
                      +--> ws://localhost:8765/retina --+--> A) Clutch Lens [OBS Browser Source]
                      +--> trio-retina batch 30s EvmLogPayload merkle    +--> B) Retina Rail [Local Deck + Twitch Extension]
                                                          +--> C) Ghost Replay [3s memory]

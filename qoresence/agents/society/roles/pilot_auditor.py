@@ -25,7 +25,10 @@ def _metrics(packet: AgentPacket) -> dict[str, Any]:
         "chat_lines": len(chats),
         "confirm_lines": len(confirms),
         "clip_hits": len(packet.clip_hits or []),
-        "score_locked": packet.score_vlm_locked,
+        "score_locked": bool(packet.score_vlm_locked or packet.confirm_ticket_id),
+        "confirm_ticket_id": packet.confirm_ticket_id or "",
+        "phrase": getattr(packet, "phrase", "") or "",
+        "coupling_ticket_id": getattr(packet, "coupling_ticket_id", "") or "",
         "drive_id": (packet.drive_graph or {}).get("drive_id"),
     }
 
@@ -37,11 +40,12 @@ def run(packet: AgentPacket, *, complete=None) -> AgentReceipt | None:
         issues.append("capture age high or no frame")
     if m["chat_lines"] > 12:
         issues.append("chat volume high")
-    if not m["score_locked"] and m["confirm_lines"] == 0:
+    if not m["score_locked"] and m["confirm_lines"] == 0 and not m.get("confirm_ticket_id"):
         issues.append("no confirm score lock this window")
     bullets = [
         f"capture_stable={m['capture_stable']} age={m['video_age_s']}",
         f"commits={m['commits']} confirm={m['confirm_lines']} clips={m['clip_hits']}",
+        f"phrase={m.get('phrase') or 'IDLE'} ticket={m.get('confirm_ticket_id') or 'none'}",
         f"issues={issues or ['none']}",
     ]
     text = "\n".join(bullets)

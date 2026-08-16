@@ -69,6 +69,8 @@ class SocietyQuicksilver:
             headers={
                 "Authorization": f"Bearer {self._key}",
                 "Content-Type": "application/json",
+                "User-Agent": "Qoresence-AgentSociety/1.0",
+                "Accept": "application/json",
             },
             method="POST",
         )

@@ -76,9 +76,10 @@ class FastMomentEngine:
             late = self._is_late(situation)
             moments: list[ScoredMoment] = []
 
-            # Soft chat — never include score digits
+            # Soft chat — never include score digits. Heat lines need a coupling ticket.
             if "chat" in features and c >= self.chat_coupling:
-                key, msg = self._pick_soft_chat(red=red, close=close, late=late)
+                heat_ok = self._heat_ticket_ok(coup)
+                key, msg = self._pick_soft_chat(red=red, close=close, late=late, heat_ok=heat_ok)
                 if msg and self._cooldown_ok(f"fast_chat:{key}", self.chat_cooldown_s):
                     msg = self._sanitize_soft(msg)
                     moments.append(
@@ -222,14 +223,35 @@ class FastMomentEngine:
         except Exception:
             return False
 
-    def _pick_soft_chat(self, *, red: bool, close: bool, late: bool) -> tuple[str, str]:
+    @staticmethod
+    def _heat_ticket_ok(coup: dict[str, Any]) -> bool:
+        tid = str(coup.get("coupling_ticket_id") or "")
+        try:
+            from qoresence.sync.coupling_ticket import get_coupling_book
+
+            live = get_coupling_book().latest_live()
+            if live is None:
+                return False
+            if tid and live.ticket_id != tid:
+                return bool(get_coupling_book().get(tid))
+            return True
+        except Exception:
+            return False
+
+    def _pick_soft_chat(
+        self, *, red: bool, close: bool, late: bool, heat_ok: bool = False
+    ) -> tuple[str, str]:
         if red and (close or late):
-            return "clutch_window", _SOFT_CHAT["clutch_window"]
+            if heat_ok:
+                return "clutch_window", _SOFT_CHAT["clutch_window"]
+            return "red_zone_heat", _SOFT_CHAT["red_zone_heat"]
         if red:
             return "red_zone_heat", _SOFT_CHAT["red_zone_heat"]
         if close and late:
             return "close_late", _SOFT_CHAT["close_late"]
-        return "input_spike", _SOFT_CHAT["input_spike"]
+        if heat_ok:
+            return "input_spike", _SOFT_CHAT["input_spike"]
+        return "", ""
 
     @staticmethod
     def _sanitize_soft(msg: str) -> str:

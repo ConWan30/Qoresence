@@ -75,6 +75,28 @@ def test_arm_prediction_and_clear_on_confirm():
     assert eng.prediction_armed() is False
 
 
+def test_input_spike_requires_coupling_ticket():
+    from qoresence.sync.coupling_ticket import reset_coupling_book
+
+    reset_coupling_book()
+    eng = FastMomentEngine(chat_cooldown_s=0.0)
+    # Gameplay, not red/close/late → would be input_spike, but no ticket
+    sit = SituationState(
+        game_state="gameplay",
+        game_category="football",
+        game_profile="ncaa_football_27",
+        quarter=2,
+        home_score=14,
+        away_score=0,
+    )
+    moments = eng.score_fast(
+        sit,
+        coupling={"coupling": 0.7, "input_energy": 3.0, "buttons": ["r2"]},
+        features={"chat"},
+    )
+    assert moments == []
+
+
 def test_sanitize_strips_scorelike_patterns():
     eng = FastMomentEngine()
     dirty = eng._sanitize_soft("Look at that 21-14 swing")

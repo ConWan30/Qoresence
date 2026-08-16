@@ -15,9 +15,10 @@ def run(packet: AgentPacket, *, complete=None) -> AgentReceipt | None:
     climax = g.get("climax") if isinstance(g.get("climax"), dict) else {}
     label = climax.get("best_label") or ""
     hits = packet.clip_hits or []
+    phrase = getattr(packet, "phrase", "") or "IDLE"
     bullets = [
         f"Drive phase {phase}.",
-        f"Climax note: {label or 'none on graph'}."[:120],
+        f"Phrase {phrase}. Climax: {label or 'none'}."[:120],
         f"Foundry hits this drive: {len(hits)}.",
     ]
     text = " ".join(bullets)

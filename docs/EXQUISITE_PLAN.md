@@ -10,7 +10,7 @@ python -m qoresence.cli --play
 # alias for:
 # --game-profile ncaa_football_27 --streamer --streamer-device 0 --streamer-backend dshow
 # --visual --visual-prefer-local --visual-sample-rate 6 --fusion --clutchbot
-# --clutchbot-llm quicksilver/deepseek-v4-flash @ https://api.quicksilverpro.io/v1
+# --clutchbot-llm quicksilver/nemotron-3.5-lightning @ https://api.quicksilverpro.io/v1
 # eye-check mandatory, logs/ + .secrets/ + models/ gitignored
 ```
 
@@ -25,7 +25,7 @@ python -m qoresence.cli --play
 | Boot | 2s `FIELD verified 1.84MB green 0.39` shutter | Streamer DSHOW 1280x720@30 + Visual 6fps warmup |
 | Drive | Nothing — game full bleed | MomentScorer silent (`3-6 msg/min` respects `_rate_limit_ok`) |
 | 3rd & 2 | **Clutch Lens** fades in 0.8s: `14-7 Q3 3rd&2 00:42 WP 58%→71%` | `FootballScoreboardExtractor` (6a45b58) + `win_probability` + `ClipWorthiness 0.82` |
-| Convert | Pulse `CHAINS ⚡` + ClutchBot `Huge 3rd down!` | `Quicksilver deepseek-v4-flash 2.6s` grounded on `situation.to_dict()`, template fallback |
+| Convert | Pulse `CHAINS ⚡` + ClutchBot `Huge 3rd down!` | `Quicksilver nemotron-3.5-lightning` grounded on `situation.to_dict()`, template fallback |
 | Quiet | Lens fades, ribbon stays (8% opacity) | `5-frame hysteresis 3/5` (992318e) + `shooter→unknown` (5112e31) — no flicker |
 
 No chrome when not clutch. That's the polish.

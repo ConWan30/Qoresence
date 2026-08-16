@@ -478,7 +478,7 @@ class ClutchBotConfig:
     # -- LLM via Quicksilver Pro (OpenAI-compatible https://api.quicksilverpro.io/v1)
     llm_enabled: bool = False
     llm_provider: str = "quicksilver"  # quicksilver | openai | anthropic | ollama
-    llm_model: str = "deepseek-v4-flash"  # chat agent (A2A DeepSeek side)
+    llm_model: str = "nemotron-3.5-lightning"  # chat/reason agent via Quicksilver Pro
     llm_base_url: str = "https://api.quicksilverpro.io/v1"
     llm_api_key: str | None = None
     llm_api_key_file: str | None = None  # file containing key (never commit)
@@ -866,7 +866,7 @@ class RetinaUnifiedConfig:
                 learning_log_path=_str("QORESENCE_CLUTCHBOT_LEARNING_PATH") or None,
                 llm_enabled=_bool("QORESENCE_CLUTCHBOT_LLM_ENABLED", False),
                 llm_provider=_str("QORESENCE_CLUTCHBOT_LLM_PROVIDER", "quicksilver"),
-                llm_model=_str("QORESENCE_CLUTCHBOT_LLM_MODEL", "deepseek-v4-flash"),
+                llm_model=_str("QORESENCE_CLUTCHBOT_LLM_MODEL", "nemotron-3.5-lightning"),
                 llm_base_url=_str(
                     "QORESENCE_CLUTCHBOT_LLM_BASE_URL", "https://api.quicksilverpro.io/v1"
                 ),

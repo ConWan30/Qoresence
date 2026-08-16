@@ -722,20 +722,31 @@ class QoresenceApp:
             try:
                 from qoresence.sync.ivc import start_ivc
 
-                # Physical card: default 120 ms. Legacy VCam: set QORESENCE_IVC_LAG_HI_MS=200
+                # Physical card: join [t-hi, t+lead]. Legacy VCam: QORESENCE_IVC_LAG_HI_MS=200
+                lag_lo = 0.0
                 lag_hi = 120.0
+                lead_ms = 24.0
+                ivc_hz = 30.0
                 try:
                     import os as _os_ivc
 
+                    lag_lo = float(_os_ivc.environ.get("QORESENCE_IVC_LAG_LO_MS", "0") or 0)
+                    lag_lo = max(0.0, min(80.0, lag_lo))
                     lag_hi = float(_os_ivc.environ.get("QORESENCE_IVC_LAG_HI_MS", "120") or 120)
                     lag_hi = max(40.0, min(250.0, lag_hi))
+                    lead_ms = float(_os_ivc.environ.get("QORESENCE_IVC_LEAD_MS", "24") or 24)
+                    lead_ms = max(0.0, min(80.0, lead_ms))
+                    ivc_hz = float(_os_ivc.environ.get("QORESENCE_IVC_HZ", "30") or 30)
+                    ivc_hz = max(10.0, min(60.0, ivc_hz))
                 except Exception:
-                    lag_hi = 120.0
+                    lag_lo, lag_hi, lead_ms, ivc_hz = 0.0, 120.0, 24.0, 30.0
                 self.ivc = start_ivc(
                     bus=self.bus,
                     session_head_ns=self.identity.session_head_ns,
-                    lag_lo_ms=20.0,
+                    lag_lo_ms=lag_lo,
                     lag_hi_ms=lag_hi,
+                    lead_ms=lead_ms,
+                    hz=ivc_hz,
                 )
             except Exception as e:
                 log.warning("IVC failed to start: %s (video path continues)", e)
@@ -1081,8 +1092,9 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         config.visual = replace(
             config.visual,
             enabled=True,
-            prefer_local=True,
+            prefer_local=bool(getattr(args, "visual_prefer_local", False)),
             local_fallback=True,
+            model_name="gemini-3.5-flash-lite",
             frame_sample_rate=args.visual_sample_rate,
             game_profile=args.game_profile or config.visual.game_profile,
         )
@@ -1194,8 +1206,9 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         config.visual = replace(
             config.visual,
             enabled=True,
-            prefer_local=True,
+            prefer_local=bool(getattr(args, "visual_prefer_local", False)),
             local_fallback=True,
+            model_name="gemini-3.5-flash-lite",
             frame_sample_rate=args.visual_sample_rate,
             game_profile=getattr(args, "game_profile", None) or config.visual.game_profile,
             **_vlm_extra,
@@ -1844,7 +1857,8 @@ def main():
                     )
                 except Exception:
                     pass
-            # visual live — LOCAL ONNX/heuristic only, never mock/cloud fallback
+            # visual live — Gemini sees the board/scene and locks confirm.
+            # --visual-prefer-local keeps the old ONNX/heuristic path.
             try:
                 _gp = getattr(args, "game_profile", None) or getattr(
                     config.outcome, "game_profile", None
@@ -1854,8 +1868,9 @@ def main():
                     visual=_rep_play(
                         config.visual,
                         enabled=True,
-                        prefer_local=True,
+                        prefer_local=bool(getattr(args, "visual_prefer_local", False)),
                         local_fallback=True,
+                        model_name="gemini-3.5-flash-lite",
                         frame_sample_rate=getattr(
                             args, "visual_sample_rate", config.visual.frame_sample_rate
                         ),
@@ -1865,7 +1880,11 @@ def main():
             except Exception:
                 try:
                     object.__setattr__(config.visual, "enabled", True)
-                    object.__setattr__(config.visual, "prefer_local", True)
+                    object.__setattr__(
+                        config.visual,
+                        "prefer_local",
+                        bool(getattr(args, "visual_prefer_local", False)),
+                    )
                 except Exception:
                     pass
             # HDMI / UVC capture card (PS5) — primary frame source for --play

@@ -1,7 +1,7 @@
 """DeepSeek chat agent via Quicksilver Pro for A2A.
 
 Default: stub. Live when QORESENCE_A2A_DEEPSEEK=1 and API key set.
-Reuses ClutchBot LLM path (deepseek-v4-flash @ quicksilverpro).
+Reuses ClutchBot LLM path (nemotron-3.5-lightning @ quicksilverpro).
 
 Supports Trio P3 bidirectional tool calls: the agent can invoke
 query-memory during chat proposal to reference recent events.
@@ -90,7 +90,18 @@ class DeepSeekChatAgent:
         if "armed" in (scene.tags or []) or scene.drive_phase == "armed":
             text = "Prediction window heating up — stay glued."
         elif "input_heat" in (scene.tags or []) or (scene.coupling or 0) >= 0.5:
-            text = "Controller heat on a live drive — eyes up."
+            heat_ok = False
+            try:
+                from qoresence.sync.coupling_ticket import get_coupling_book
+
+                heat_ok = get_coupling_book().latest_live() is not None
+            except Exception:
+                heat_ok = False
+            text = (
+                "Controller heat on a live drive — eyes up."
+                if heat_ok
+                else "Pressure building — this possession matters."
+            )
         elif scene.drive_phase == "pressure":
             text = "Pressure building — this possession matters."
         else:

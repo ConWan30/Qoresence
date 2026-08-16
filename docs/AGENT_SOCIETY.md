@@ -64,4 +64,11 @@ python -m qoresence.cli --society-propose-cuts
 
 ## Quicksilver
 
-Uses the same provider configuration style as A2A (`QORESENCE_QUICKSILVER_*` / `.secrets`). Models default to the project’s DeepSeek (reason) and Gemini-lite (scene) IDs — not Nvidia.
+Uses the same provider configuration style as A2A (`QORESENCE_QUICKSILVER_*` / `.secrets`).
+
+| Slot | Model | Job |
+|------|-------|-----|
+| **Vision / confirm** | `gemini-3.5-flash-lite` | See the board and scene. Lock `score_vlm_locked`. Society must not invent scores until that lock is set. |
+| **Reason / phrasing** | `nemotron-3.5-lightning` | Rewrite notes after Gemini has confirmed. Never the eyes. |
+
+Roles that do not need phrasing stay rules-only (`spam_warden`).
