@@ -52,6 +52,60 @@ def freeze_flag(streak: int) -> bool:
     return streak >= FREEZE_STREAK
 
 
+FREEZE_KINDS = ("card_stall", "graph_stall", "deck_lock", "unknown")
+
+
+def classify_freeze(
+    *,
+    has_frame: bool | None = None,
+    age_s: float | None = None,
+    frames: int | None = None,
+    prev_frames: int | None = None,
+    graph_stall: bool = False,
+    deck_down: bool = False,
+    health_err: bool = False,
+    situation_timeout: bool = False,
+) -> str:
+    """Best-effort FREEZE owner. Fail soft — unknown is valid.
+
+    card_stall: high video age and no frame progress.
+    graph_stall: situation/timeline error while video looks healthy.
+    deck_lock: health HTTP failed / DECK_DOWN.
+    """
+    if deck_down or health_err:
+        return "deck_lock"
+    age = None
+    try:
+        age = float(age_s) if age_s is not None else None
+    except (TypeError, ValueError):
+        age = None
+    no_progress = False
+    if prev_frames is not None and frames is not None:
+        try:
+            no_progress = int(frames) <= int(prev_frames)
+        except (TypeError, ValueError):
+            no_progress = False
+    if has_frame and age is not None and age > AGE_FREEZE_S and (
+        no_progress or prev_frames is None
+    ):
+        return "card_stall"
+    if (graph_stall or situation_timeout) and (
+        age is None or age < 1.5
+    ) and has_frame:
+        return "graph_stall"
+    if graph_stall or situation_timeout:
+        return "graph_stall"
+    return "unknown"
+
+
+def freeze_owner(kind: str) -> str:
+    return {
+        "card_stall": "capture_card",
+        "graph_stall": "situation_timeline",
+        "deck_lock": "deck_http",
+    }.get(str(kind or ""), "unknown")
+
+
 def no_frame_streak(has_frame: bool, frames: int | None, streak: int) -> int:
     empty = (not has_frame) or frames == 0 or frames is None
     return streak + 1 if empty else 0

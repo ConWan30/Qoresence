@@ -115,7 +115,11 @@ def summarize(
 
     lock_ratio = (locked_n / scored_n) if scored_n else None
     top = [f"{k}:{v}" for k, v in flags.most_common(8)]
-    return {
+    lock_tl = score_lock_timeline(samples, events)
+    climax = climax_chapters(samples, events, clips)
+    freezes = freeze_classified(samples)
+    amb_n = sum(1 for rec in samples if rec.get("nameplate_ambiguous"))
+    out = {
         "duration_s": round(duration_s, 1),
         "samples": len(samples),
         "freeze_events": freeze_events,
@@ -129,7 +133,263 @@ def summarize(
         "top_flags": top,
         "score_delta_lines": deltas,
         "clip_paths": clips,
+        "score_lock_timeline": lock_tl,
+        "climax_chapters": climax,
+        "freeze_classified": freezes,
+        "nameplate_ambiguous_n": amb_n,
     }
+    out["summary_metrics"] = {
+        k: out[k]
+        for k in (
+            "duration_s",
+            "samples",
+            "freeze_events",
+            "no_frame_events",
+            "score_deltas",
+            "score_lock_true_ratio",
+            "new_clips",
+            "producer_or_ghost_cuts",
+            "society_receipts",
+            "deck_unreachable_samples",
+        )
+    }
+    return out
+
+
+def score_lock_timeline(
+    samples: list[dict[str, Any]],
+    events: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Ordered lock/score transitions a stranger can audit without the JSONL."""
+    rows: list[dict[str, Any]] = []
+    prev: tuple[int, int] | None = None
+    prev_lock: bool | None = None
+    for rec in samples:
+        ts = rec.get("ts") or rec.get("clock_ns")
+        pair = None
+        try:
+            if rec.get("score_home") is not None and rec.get("score_away") is not None:
+                pair = (int(rec["score_home"]), int(rec["score_away"]))
+        except (TypeError, ValueError):
+            pair = None
+        locked = rec.get("score_vlm_locked")
+        if locked is None:
+            locked = rec.get("scoreboard_locked")
+        src = "sample"
+        if rec.get("flags") and "SCORE_DELTA" in [str(x) for x in rec.get("flags") or []]:
+            src = "score_delta"
+        if pair is not None and pair != prev:
+            rows.append(
+                {
+                    "ts": ts,
+                    "old": list(prev) if prev else None,
+                    "new": list(pair),
+                    "vlm_locked": bool(locked),
+                    "source": src,
+                }
+            )
+            prev = pair
+        elif locked is not None and bool(locked) != prev_lock and pair is not None:
+            rows.append(
+                {
+                    "ts": ts,
+                    "old": list(pair),
+                    "new": list(pair),
+                    "vlm_locked": bool(locked),
+                    "source": "lock_flip",
+                }
+            )
+        if locked is not None:
+            prev_lock = bool(locked)
+    for e in events or []:
+        if e.get("kind") != "SCORE_DELTA":
+            continue
+        cur = e.get("cur")
+        old = e.get("prev")
+        if cur is None:
+            continue
+        line = {
+            "ts": e.get("ts"),
+            "old": list(old) if old else None,
+            "new": list(cur) if cur else None,
+            "vlm_locked": True,
+            "source": "event",
+        }
+        if line not in rows:
+            rows.append(line)
+    return rows[:80]
+
+
+def _play_label(old: Any, new: Any) -> str:
+    try:
+        o0, o1 = int(old[0]), int(old[1])
+        n0, n1 = int(new[0]), int(new[1])
+    except (TypeError, ValueError, IndexError):
+        return "score_play"
+    d = max(n0 - o0, n1 - o1)
+    if d >= 6:
+        return "touchdown"
+    if d == 3:
+        return "field_goal"
+    if d == 2:
+        return "safety"
+    if d == 1:
+        return "score_play"
+    if d < 0:
+        return "rollback"
+    return "score_play"
+
+
+def climax_chapters(
+    samples: list[dict[str, Any]],
+    events: list[dict[str, Any]] | None = None,
+    clips: list[str] | None = None,
+    *,
+    top_n: int = 8,
+) -> list[dict[str, Any]]:
+    """Ranked match peaks. Confirmed score-plays beat t0 board dumps."""
+    chapters: list[dict[str, Any]] = []
+    t0 = None
+    if samples:
+        t0 = samples[0].get("clock_ns") or samples[0].get("ts")
+    for rec in samples:
+        flags = [str(x) for x in (rec.get("flags") or [])]
+        if "SCORE_DELTA" not in flags:
+            continue
+        old = rec.get("score_prev")
+        new = (rec.get("score_home"), rec.get("score_away"))
+        label = _play_label(old, new)
+        rollback = label == "rollback" or "SCORE_ROLLBACK" in flags
+        clock = rec.get("clock_ns")
+        t_s = 0.0
+        try:
+            if t0 is not None and clock is not None:
+                t_s = max(0.0, (int(clock) - int(t0)) / 1e9)
+        except (TypeError, ValueError):
+            t_s = 0.0
+        score = 0.15 if t_s < 1.5 else 0.4
+        if label in {"touchdown", "field_goal", "safety"}:
+            score = 0.95
+        if rollback:
+            score = 0.05
+        chapters.append(
+            {
+                "label": label,
+                "t0": round(t_s, 3),
+                "climax_score": score,
+                "source": "confirm" if score >= 0.9 else "board",
+                "stale_after_rollback": rollback,
+                "ts": rec.get("ts"),
+            }
+        )
+    for e in events or []:
+        if e.get("kind") != "SCORE_DELTA":
+            continue
+        label = _play_label(e.get("prev"), e.get("cur"))
+        if e.get("rollback"):
+            label = "rollback"
+        score = 0.95 if label in {"touchdown", "field_goal", "safety"} else 0.35
+        if label == "rollback":
+            score = 0.05
+        chapters.append(
+            {
+                "label": label,
+                "t0": 0.0,
+                "climax_score": score,
+                "source": "confirm" if score >= 0.9 else "event",
+                "stale_after_rollback": label == "rollback",
+                "ts": e.get("ts"),
+            }
+        )
+    for p in clips or []:
+        name = Path(p).name.lower()
+        if "hdmi" in name or "reel" in name or "_cut" in name:
+            chapters.append(
+                {
+                    "label": "clip_export",
+                    "t0": 0.0,
+                    "climax_score": 0.45,
+                    "source": "export",
+                    "stale_after_rollback": False,
+                    "ts": None,
+                    "path": p,
+                }
+            )
+    chapters.sort(key=lambda c: (-float(c.get("climax_score") or 0), float(c.get("t0") or 0)))
+    return chapters[: max(1, int(top_n))]
+
+
+def freeze_classified(samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    from qoresence.pilot.metrics import classify_freeze, freeze_owner
+
+    out: list[dict[str, Any]] = []
+    prev_frames = None
+    in_storm = False
+    for rec in samples:
+        flags = [str(x) for x in (rec.get("flags") or [])]
+        frames = rec.get("frames")
+        if "FREEZE" not in flags:
+            in_storm = False
+            prev_frames = frames
+            continue
+        if in_storm:
+            prev_frames = frames
+            continue
+        in_storm = True
+        kind = rec.get("freeze_kind")
+        if kind not in {"card_stall", "graph_stall", "deck_lock", "unknown"}:
+            kind = classify_freeze(
+                has_frame=rec.get("has_frame"),
+                age_s=rec.get("video_age_s"),
+                frames=frames,
+                prev_frames=prev_frames,
+                graph_stall="GRAPH_STALL" in flags,
+                deck_down="DECK_DOWN" in flags,
+                health_err=bool(rec.get("err")),
+            )
+        out.append(
+            {
+                "ts": rec.get("ts"),
+                "kind": kind,
+                "age_s": rec.get("video_age_s"),
+                "suspected_owner": freeze_owner(str(kind)),
+            }
+        )
+        prev_frames = frames
+    return out[:40]
+
+
+def _fmt_lock_tl(rows: list[dict[str, Any]]) -> str:
+    if not rows:
+        return "- (none)"
+    lines = []
+    for r in rows[:20]:
+        lines.append(
+            f"- `{r.get('ts')}` {r.get('old')}→{r.get('new')} locked={r.get('vlm_locked')} src={r.get('source')}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_climax(rows: list[dict[str, Any]]) -> str:
+    if not rows:
+        return "- (none)"
+    lines = []
+    for r in rows[:12]:
+        lines.append(
+            f"- {r.get('label')} score={r.get('climax_score')} t0={r.get('t0')} src={r.get('source')}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_freeze(rows: list[dict[str, Any]]) -> str:
+    if not rows:
+        return "- (none)"
+    lines = []
+    for r in rows[:12]:
+        lines.append(
+            f"- `{r.get('ts')}` kind={r.get('kind')} age_s={r.get('age_s')} owner={r.get('suspected_owner')}"
+        )
+    return "\n".join(lines)
 
 
 def render_markdown(summary: dict[str, Any], *, session_jsonl: str = "", events_jsonl: str = "") -> str:
@@ -177,6 +437,18 @@ def render_markdown(summary: dict[str, Any], *, session_jsonl: str = "", events_
 
 - Deltas (`t old→new`):
 {delta_block}
+
+## Score lock timeline
+
+{_fmt_lock_tl(summary.get("score_lock_timeline") or [])}
+
+## Climax chapters
+
+{_fmt_climax(summary.get("climax_chapters") or [])}
+
+## FREEZE classified
+
+{_fmt_freeze(summary.get("freeze_classified") or [])}
 
 ## Clips created
 

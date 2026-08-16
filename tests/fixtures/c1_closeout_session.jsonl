@@ -1,0 +1,3 @@
+{"ts": "2026-08-16T00:00:00Z", "clock_ns": 0, "video_age_s": 0.1, "frames": 10, "has_frame": true, "score_home": 0, "score_away": 0, "score_vlm_locked": true, "flags": []}
+{"ts": "2026-08-16T00:00:10Z", "clock_ns": 10000000000, "video_age_s": 0.1, "frames": 50, "has_frame": true, "score_home": 7, "score_away": 0, "score_prev": [0, 0], "score_vlm_locked": true, "flags": ["SCORE_DELTA"]}
+{"ts": "2026-08-16T00:00:20Z", "clock_ns": 20000000000, "video_age_s": 7.0, "frames": 50, "has_frame": true, "score_home": 7, "score_away": 0, "score_vlm_locked": true, "flags": ["FREEZE"], "freeze_kind": "card_stall"}

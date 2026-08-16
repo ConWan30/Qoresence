@@ -21,6 +21,23 @@ def test_freeze_consecutive_age():
     assert metrics.freeze_flag(s) is False
 
 
+def test_classify_freeze_three_kinds():
+    assert (
+        metrics.classify_freeze(
+            has_frame=True, age_s=8.0, frames=100, prev_frames=100
+        )
+        == "card_stall"
+    )
+    assert (
+        metrics.classify_freeze(
+            has_frame=True, age_s=0.2, frames=200, prev_frames=180, graph_stall=True
+        )
+        == "graph_stall"
+    )
+    assert metrics.classify_freeze(deck_down=True, has_frame=False) == "deck_lock"
+    assert metrics.classify_freeze(has_frame=True, age_s=0.1) == "unknown"
+
+
 def test_score_delta_and_decrease():
     assert metrics.score_changed((14, 7), (21, 7)) is True
     assert metrics.score_decreased((14, 7), (21, 7)) is False
@@ -88,6 +105,18 @@ def test_closeout_from_fixture_jsonl(tmp_path: Path):
     text = md.read_text(encoding="utf-8")
     assert "Capture stability" in text
     assert "Score lock" in text
+    assert "score_lock_timeline" in summary
+    assert "climax_chapters" in summary
+    assert "freeze_classified" in summary
+    assert "summary_metrics" in summary
+    assert summary["summary_metrics"]["freeze_events"] == summary["freeze_events"]
+    assert any(r.get("kind") for r in summary["freeze_classified"])
+    assert "## Score lock timeline" in text
+    assert "## Climax chapters" in text
+    assert "## FREEZE classified" in text
+    plays = [c for c in summary["climax_chapters"] if c.get("label") == "touchdown"]
+    assert plays, "7→14 should rank as touchdown"
+    assert plays[0]["climax_score"] >= 0.9
 
 
 def test_deck_down_no_raise(tmp_path: Path):
