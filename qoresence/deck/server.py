@@ -38,7 +38,7 @@ LIVE_FPS_MAX = 60.0
 # That is exactly OBS Browser Source FIN_WAIT_2 thrash + clients:0.
 try:
     from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
     _HAS_FASTAPI = True
 except ImportError:  # pragma: no cover
@@ -49,6 +49,7 @@ except ImportError:  # pragma: no cover
     FileResponse = None  # type: ignore[misc, assignment]
     HTMLResponse = None  # type: ignore[misc, assignment]
     JSONResponse = None  # type: ignore[misc, assignment]
+    Response = None  # type: ignore[misc, assignment]
     _HAS_FASTAPI = False
 
 # ---------------------------------------------------------------------------
@@ -686,6 +687,20 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.get("/api/glass-link")
     async def api_glass_link():  # type: ignore[no-untyped-def]
         return JSONResponse({"ok": True, **glass_link_info()})
+
+    @app.get("/api/glass-qr")
+    async def api_glass_qr():  # type: ignore[no-untyped-def]
+        """SVG QR of the honest glass URL. Empty 204 when localhost-only."""
+        info = glass_link_info()
+        if not info.get("lan"):
+            return Response(status_code=204)
+        try:
+            from qoresence.deck.glass_qr import url_to_svg
+
+            svg = url_to_svg(str(info["url"]))
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+        return Response(content=svg, media_type="image/svg+xml", headers={"Cache-Control": "no-cache"})
 
     @app.get("/api/timeline")
     async def api_timeline():  # type: ignore[no-untyped-def]

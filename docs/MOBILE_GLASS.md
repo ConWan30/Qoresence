@@ -24,7 +24,9 @@ python -m qoresence.cli --play --deck --deck-bind 0.0.0.0
 $env:QORESENCE_DECK_BIND="0.0.0.0"
 ```
 
-Then on Theater use **Copy glass link**, or open `http://<pc-lan-ip>:8765/mobile.html` on the phone.
+Then on Theater **scan the QR** (or Copy glass link) and open it on the phone.
+
+The PC **cannot** scan Wi‑Fi for phones or open Safari/Chrome remotely. Phones do not advertise a browser that other devices may launch. After the first open, leave the tab (or Add to Home Screen); it reconnects when `--play` is live.
 
 ## Verify
 

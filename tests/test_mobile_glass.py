@@ -39,6 +39,27 @@ def test_glass_link_wildcard_is_opt_in_lan():
     assert "8765/mobile.html" in info["url"]
 
 
+def test_glass_qr_has_finder_patterns():
+    from qoresence.deck.glass_qr import encode_modules
+
+    m = encode_modules("http://192.168.1.20:8765/mobile.html")
+    n = len(m)
+    assert n >= 21
+    # Finder corners are dark
+    assert m[0][0] == 1 and m[0][6] == 1 and m[6][0] == 1 and m[6][6] == 1
+    assert m[2][2] == 1 and m[3][3] == 1
+    assert m[0][n - 1] == 1 and m[6][n - 1] == 1
+    assert m[n - 1][0] == 1 and m[n - 1][6] == 1
+
+
+def test_glass_qr_svg_from_url():
+    from qoresence.deck.glass_qr import url_to_svg
+
+    svg = url_to_svg("http://10.0.0.4:8765/mobile.html")
+    assert svg.startswith("<svg")
+    assert "rect" in svg
+
+
 def test_mobile_routes_registered():
     app = create_app()
     if app is None:
