@@ -702,6 +702,47 @@ def create_app():  # type: ignore[no-untyped-def]
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
         return Response(content=svg, media_type="image/svg+xml", headers={"Cache-Control": "no-cache"})
 
+    @app.get("/api/discover")
+    async def api_discover():  # type: ignore[no-untyped-def]
+        """Local mDNS service info — used by the PWA first-run pairing screen."""
+        from qoresence.deck.mdns import discovery_info
+
+        return JSONResponse({"ok": True, **discovery_info(_deck_bind_port, _deck_bind_host)})
+
+    @app.get("/manifest.webmanifest")
+    async def manifest():  # type: ignore[no-untyped-def]
+        p = pathlib.Path(__file__).parent / "manifest.webmanifest"
+        if not p.is_file():
+            return Response(status_code=404)
+        return Response(
+            content=p.read_bytes(),
+            media_type="application/manifest+json",
+            headers={"Cache-Control": "no-cache, must-revalidate"},
+        )
+
+    @app.get("/sw.js")
+    async def service_worker():  # type: ignore[no-untyped-def]
+        p = pathlib.Path(__file__).parent / "sw.js"
+        if not p.is_file():
+            return Response(status_code=404)
+        return Response(
+            content=p.read_bytes(),
+            media_type="application/javascript",
+            headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache, must-revalidate"},
+        )
+
+    @app.get("/icons/{name}")
+    async def glass_icon(name: str):  # type: ignore[no-untyped-def]
+        # Strict allowlist — no path traversal.
+        if not name.endswith(".png") or "/" in name or "\\" in name or ".." in name:
+            return Response(status_code=404)
+        p = pathlib.Path(__file__).parent / "icons" / name
+        if not p.is_file():
+            return Response(status_code=404)
+        return FileResponse(
+            str(p), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"}
+        )
+
     @app.get("/api/timeline")
     async def api_timeline():  # type: ignore[no-untyped-def]
         """SessionTimeline snapshot — why-last, drives, recent causal events."""
@@ -1705,6 +1746,64 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": True, **glass_link_info()}).encode())
                 return
+            if self.path == "/api/discover":
+                from qoresence.deck.mdns import discovery_info
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(
+                    json.dumps(
+                        {"ok": True, **discovery_info(_deck_bind_port, _deck_bind_host)}
+                    ).encode()
+                )
+                return
+            if self.path == "/manifest.webmanifest":
+                _p = root / "manifest.webmanifest"
+                if _p.is_file():
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/manifest+json")
+                    self.send_header("Cache-Control", "no-cache, must-revalidate")
+                    self.end_headers()
+                    self.wfile.write(_p.read_bytes())
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+                return
+            if self.path == "/sw.js":
+                _p = root / "sw.js"
+                if _p.is_file():
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/javascript")
+                    self.send_header("Service-Worker-Allowed", "/")
+                    self.send_header("Cache-Control", "no-cache, must-revalidate")
+                    self.end_headers()
+                    self.wfile.write(_p.read_bytes())
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+                return
+            if self.path.startswith("/icons/"):
+                from urllib.parse import unquote
+
+                _name = unquote(self.path[len("/icons/"):])
+                if (
+                    _name.endswith(".png")
+                    and "/" not in _name
+                    and "\\" not in _name
+                    and ".." not in _name
+                ):
+                    _p = root / "icons" / _name
+                    if _p.is_file():
+                        self.send_response(200)
+                        self.send_header("Content-Type", "image/png")
+                        self.send_header("Cache-Control", "public, max-age=3600")
+                        self.end_headers()
+                        self.wfile.write(_p.read_bytes())
+                        return
+                self.send_response(404)
+                self.end_headers()
+                return
             if self.path == "/health":
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -1882,6 +1981,22 @@ def start_deck(
             boot_studio(config)
         except Exception:
             log.exception("Foundry Bay boot failed")
+    # mDNS auto-discovery — LAN only, no-op on loopback or if zeroconf absent.
+    # stop_mdns() is registered at exit for clean teardown.
+    try:
+        from qoresence.deck.mdns import start_mdns
+
+        start_mdns(_deck_bind_port, _deck_bind_host)
+    except Exception as e:
+        log.debug("mDNS start skipped: %s", e)
+    try:
+        import atexit
+
+        from qoresence.deck.mdns import stop_mdns
+
+        atexit.register(stop_mdns)
+    except Exception:
+        pass
     app = create_app()
     if app is not None:
         import uvicorn

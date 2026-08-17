@@ -1,0 +1,31 @@
+{
+  "name": "qoresence-glass",
+  "version": "1.0.0",
+  "description": "Qoresence Glass — native Android spectator app (Capacitor + PWA shell)",
+  "scripts": {
+    "cap:sync": "cap sync",
+    "cap:copy": "cap copy android",
+    "cap:add:android": "cap add android",
+    "cap:open:android": "cap open android",
+    "build:android": "cap copy android && cap sync android && cd android && .\\gradlew assembleDebug",
+    "build:release": "cap copy android && cap sync android && cd android && .\\gradlew assembleRelease"
+  },
+  "keywords": [
+    "qoresence",
+    "glass",
+    "android",
+    "capacitor"
+  ],
+  "author": "Qoresence Contributors",
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/haptics": "^8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
+    "typescript": "^7.0.2"
+  }
+}

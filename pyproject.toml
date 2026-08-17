@@ -104,6 +104,9 @@ webrtc = [
     "av>=12.0.0",
     "opencv-python>=4.8",
 ]
+glass = [
+    "zeroconf>=0.39",
+]
 test = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21",
@@ -147,7 +150,7 @@ where = ["."]
 include = ["qoresence*"]
 
 [tool.setuptools.package-data]
-qoresence = ["deck/*.html", "profiles/nfl_data/*.json"]
+qoresence = ["deck/*.html", "deck/*.webmanifest", "deck/*.js", "deck/icons/*.png", "profiles/nfl_data/*.json"]
 
 [project.scripts]
 qoresence = "qoresence.cli:main"

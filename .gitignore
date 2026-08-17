@@ -70,3 +70,10 @@ data/
 .secrets/
 .secrets/**
 .playwright-mcp/
+
+# Native Glass app (Capacitor / Android) build artifacts.
+# The native/android/ project source IS committed (Capacitor convention); its
+# own .gitignore handles gradle/build outputs. Ignore node deps + APKs here.
+native/node_modules/
+*.apk
+*.aab
