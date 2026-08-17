@@ -263,6 +263,7 @@ class GameAutoDetector:
     ):
         self.bus = bus
         self.session_head_ns = session_head_ns
+        self._game_profile = game_profile
 
         # VLM client: use provided, or create one from credentials, or None (OCR-only)
         if vlm_client is not None:
@@ -515,6 +516,29 @@ class GameAutoDetector:
         if vision is None:
             return
 
+        # Run the football scoreboard extractor so the game detector's
+        # visual_context has score_vlm_locked / quarter / down — without this,
+        # is_overlay_state() always sees locked_board=False and the title
+        # hysteresis can never promote menu→gameplay to claim.
+        if vision.visual_context is not None:
+            try:
+                cat = getattr(
+                    vision.visual_context.game_category, "value",
+                    vision.visual_context.game_category,
+                )
+                if str(cat) == "football" or self._game_profile in (
+                    GameProfileId.NCAA_FOOTBALL_27, GameProfileId.MADDEN_27,
+                ):
+                    from qoresence.vision.scoreboard_extractor import (
+                        extract_football_scoreboard,
+                    )
+
+                    vision.visual_context = extract_football_scoreboard(
+                        frame, vision.visual_context
+                    )
+            except Exception as e:
+                log.debug(f"scoreboard extract in game detector skipped: {e}")
+
         with self._lock():
             now_ns = clock_ns()
 
@@ -685,7 +709,7 @@ class GameAutoDetector:
 
         prompt = (
             "Identify the video game shown in this image. "
-            "Choose exactly one of these labels: ncaa_football_27, call_of_duty, menu, unknown.\n\n"
+            "Choose exactly one of these labels: ncaa_football_27, madden_27, call_of_duty, menu, unknown.\n\n"
             "Output format (no explanation):\n"
             "GAME: ncaa_football_27\n"
             "CONFIDENCE: 0.95\n\n"

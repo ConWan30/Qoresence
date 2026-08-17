@@ -110,6 +110,7 @@ def test_touchdown_7_points():
         assert len(td) == 1, f"Expected 1 touchdown, got {len(td)}"
         assert td[0]["fields"]["delta"] == 7
         assert td[0]["fields"]["pat_type"] == "kick"
+        bus.close()
 
 
 def test_touchdown_8_with_two_point():
@@ -124,6 +125,7 @@ def test_touchdown_8_with_two_point():
         assert len(td) == 1
         assert len(tpc) == 1
         assert td[0]["fields"]["pat_type"] == "two_point"
+        bus.close()
 
 
 def test_field_goal_3_points():
@@ -136,6 +138,7 @@ def test_field_goal_3_points():
         fg = [e for e in events if e["event_name"] == "field_goal"]
         assert len(fg) == 1
         assert fg[0]["fields"]["delta"] == 3
+        bus.close()
 
 
 def test_safety_2_points():
@@ -147,6 +150,7 @@ def test_safety_2_points():
         events = _read_events(jp)
         saf = [e for e in events if e["event_name"] == "safety"]
         assert len(saf) == 1
+        bus.close()
 
 
 # ── Red zone entry ───────────────────────────────────────────────────────────
@@ -162,6 +166,7 @@ def test_red_zone_entry():
         rz = [e for e in events if e["event_name"] == "red_zone_entry"]
         assert len(rz) == 1
         assert rz[0]["fields"]["yard_line"] == 85
+        bus.close()
 
 
 def test_red_zone_no_duplicate():
@@ -174,6 +179,7 @@ def test_red_zone_no_duplicate():
         events = _read_events(jp)
         rz = [e for e in events if e["event_name"] == "red_zone_entry"]
         assert len(rz) == 1
+        bus.close()
 
 
 # ── Two-minute warning ───────────────────────────────────────────────────────
@@ -189,6 +195,7 @@ def test_two_minute_warning_q2():
         tw = [e for e in events if e["event_name"] == "two_minute_warning"]
         assert len(tw) == 1
         assert tw[0]["fields"]["quarter"] == 2
+        bus.close()
 
 
 def test_two_minute_warning_q4():
@@ -200,6 +207,7 @@ def test_two_minute_warning_q4():
         events = _read_events(jp)
         tw = [e for e in events if e["event_name"] == "two_minute_warning"]
         assert len(tw) == 1
+        bus.close()
 
 
 def test_two_minute_warning_not_q1():
@@ -211,6 +219,7 @@ def test_two_minute_warning_not_q1():
         events = _read_events(jp)
         tw = [e for e in events if e["event_name"] == "two_minute_warning"]
         assert len(tw) == 0
+        bus.close()
 
 
 def test_two_minute_warning_once_per_quarter():
@@ -224,6 +233,7 @@ def test_two_minute_warning_once_per_quarter():
         events = _read_events(jp)
         tw = [e for e in events if e["event_name"] == "two_minute_warning"]
         assert len(tw) == 1
+        bus.close()
 
 
 # ── A2A orchestrator intervals ───────────────────────────────────────────────

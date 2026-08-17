@@ -196,6 +196,7 @@ def test_router_decision_emitted_on_fire():
         assert router_events[0]["payload"]["reason"] == "touchdown"
 
         reset_a2a_orchestrator()
+        retina_bus.close()
 
 
 def test_must_fire_bypasses_interval():
@@ -236,3 +237,4 @@ def test_must_fire_bypasses_interval():
         assert fired_events[0]["payload"]["must_fire_hit"] == "big_play"
 
         reset_a2a_orchestrator()
+        retina_bus.close()

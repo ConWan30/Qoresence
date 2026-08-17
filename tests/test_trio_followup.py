@@ -155,6 +155,7 @@ def test_tool_enrichment_in_run_cycle():
         # The scene summary should include the recent event
         # (via Gemini stub tool enrichment)
         reset_a2a_orchestrator()
+        retina_bus.close()
 
 
 # ── Audit CLI ────────────────────────────────────────────────────────────────

@@ -69,6 +69,8 @@ def test_cloud_analyze_merges_gemini_board_and_mints_ticket(monkeypatch):
         rt._client = Mock()
         rt._client.analyze_frame.return_value = classified
         rt._analyze_frame(_frame())
+        rt.stop()
+        bus.close()
 
     ctx = rt.get_last_context()
     assert ctx is not None

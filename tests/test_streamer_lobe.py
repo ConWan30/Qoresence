@@ -117,6 +117,8 @@ class TestStreamerRuntime:
             assert runtime.session_head_ns == identity.session_head_ns
             assert not runtime.is_running()
 
+            bus.close()
+
     @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_start_opens_capture(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
@@ -141,6 +143,7 @@ class TestStreamerRuntime:
             assert runtime.is_running()
 
             runtime.stop()
+            bus.close()
 
     @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_eye_check_snapshot_saved(self, mock_cap_class):
@@ -173,6 +176,8 @@ class TestStreamerRuntime:
             # Check eye-check snapshot was saved
             snap_path = Path(td) / "eye_check.png"
             assert snap_path.exists(), "Eye-check snapshot not saved"
+
+            bus.close()
 
     @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_activity_detection_emits_events(self, mock_cap_class):
@@ -232,6 +237,8 @@ class TestStreamerRuntime:
                 assert "level" in ae["payload"]
                 assert "presence_sync_ok" in ae["payload"]
 
+            bus.close()
+
     @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_zone_detection_emits_events(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
@@ -278,6 +285,8 @@ class TestStreamerRuntime:
                 assert "state" in ze["payload"]
                 assert "presence_sync_ok" in ze["payload"]
 
+            bus.close()
+
     @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_frame_stats_periodic(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
@@ -317,6 +326,8 @@ class TestStreamerRuntime:
                 assert "n" in fs["payload"]
                 assert "fps_meas" in fs["payload"]
                 assert "presence_sync_ok" in fs["payload"]
+
+            bus.close()
 
 
 class TestPresenceSync:
@@ -365,6 +376,8 @@ class TestPresenceSync:
                     assert e["payload"]["presence_sync_ok"] is True, (
                         f"Expected presence_sync_ok=true for {e['type']}"
                     )
+
+            bus.close()
 
     @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_presence_sync_false_when_touch_stale(self, mock_cap_class):
@@ -416,6 +429,8 @@ class TestPresenceSync:
                         f"Expected presence_sync_ok=false for {e['type']} (stale touch)"
                     )
 
+            bus.close()
+
     @patch("qoresence.lobes.streamer.cv2.VideoCapture")
     def test_presence_sync_false_when_no_touch_file(self, mock_cap_class):
         with tempfile.TemporaryDirectory() as td:
@@ -453,6 +468,8 @@ class TestPresenceSync:
             for e in events:
                 if e["type"] in ("activity", "frame_stats", "zone"):
                     assert e["payload"]["presence_sync_ok"] is False
+
+            bus.close()
 
 
 class TestZoneSpec:
@@ -526,6 +543,8 @@ class TestStreamerHardening:
             heartbeats = [json.loads(line) for line in events if line.strip()]
             heartbeats = [e for e in heartbeats if e.get("type") == "heartbeat"]
             assert len(heartbeats) >= 1, "watchdog should emit at least one heartbeat while stalled"
+
+            bus.close()
 
 
 if __name__ == "__main__":

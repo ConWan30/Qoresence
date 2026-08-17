@@ -219,9 +219,18 @@ class MotionTracker:
 
     def _sparse_object_velocity(self, prev_gray: np.ndarray, gray: np.ndarray) -> float:
         """Use KLT to estimate foreground / local object velocity."""
-        p0 = cv2.goodFeaturesToTrack(
-            prev_gray, maxCount=100, qualityLevel=0.3, minDistance=7, blockSize=7
-        )
+        # OpenCV 4 used maxCorners; some 4.x aliases accepted maxCount.
+        # OpenCV 5 bindings require maxCorners (pos 2). Fail-closed to 0.0
+        # if this still raises — title-presence must not die on motion.
+        try:
+            try:
+                p0 = cv2.goodFeaturesToTrack(
+                    prev_gray, maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7
+                )
+            except TypeError:
+                p0 = cv2.goodFeaturesToTrack(prev_gray, 100, 0.3, 7)
+        except Exception:
+            return 0.0
         if p0 is None:
             return 0.0
 

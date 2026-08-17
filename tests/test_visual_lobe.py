@@ -179,6 +179,8 @@ class TestVisualRuntime:
                 assert e["payload"]["game_category"] == "football"
                 assert e["payload"]["confidence"] == 0.9
 
+            bus.close()
+
     @patch("qoresence.lobes.visual.VLMClient")
     def test_cross_modal_verdict_emission(self, mock_client_class):
         with tempfile.TemporaryDirectory() as td:
@@ -249,6 +251,8 @@ class TestVisualRuntime:
                 assert e["payload"]["confidence"] == 0.95
                 assert "modalities_checked" in e["payload"]
 
+            bus.close()
+
     def test_session_start_and_end_events(self):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
@@ -279,6 +283,8 @@ class TestVisualRuntime:
 
             end_event = next(e for e in events if e["type"] == "session_end")
             assert "frames_analyzed" in end_event["payload"]
+
+            bus.close()
 
 
 class TestVisualConfigDefaults:
@@ -391,6 +397,8 @@ class TestVisualRuntimeIntegration:
             assert verdict["verdict"] == "confirmed"
             assert "outcome" in verdict["modalities_checked"]
             assert "controller" in verdict["modalities_checked"]
+
+            bus.close()
 
 
 if __name__ == "__main__":

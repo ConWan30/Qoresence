@@ -38,6 +38,7 @@ class TestOutcomeRuntimeVLM:
             assert runtime.is_running() is True
             runtime.stop()
             assert runtime.is_running() is False
+            bus.close()
 
     def test_game_detected_triggers_session_start(self):
         with tempfile.TemporaryDirectory() as td:
@@ -68,6 +69,7 @@ class TestOutcomeRuntimeVLM:
             start_events = [e for e in events if e["type"] == "session_start"]
             assert len(start_events) >= 1
             assert start_events[-1]["source_lobe"] == "outcome"
+            bus.close()
 
     def test_score_changed_emitted_from_visual_context(self):
         with tempfile.TemporaryDirectory() as td:
@@ -139,6 +141,7 @@ class TestOutcomeRuntimeVLM:
             ]
             assert len(score_events) == 1
             assert score_events[0]["payload"]["fields"]["home_score"] == 7
+            bus.close()
 
     def test_first_down_emitted_when_down_resets(self):
         with tempfile.TemporaryDirectory() as td:
@@ -200,6 +203,7 @@ class TestOutcomeRuntimeVLM:
                 if e["type"] == "outcome_event" and e["payload"].get("event_name") == "first_down"
             ]
             assert len(first_downs) == 1
+            bus.close()
 
     def test_quarter_changed_emitted(self):
         with tempfile.TemporaryDirectory() as td:
@@ -260,6 +264,7 @@ class TestOutcomeRuntimeVLM:
                 and e["payload"].get("event_name") == "quarter_changed"
             ]
             assert len(quarters) == 1
+            bus.close()
 
     def test_low_confidence_visual_context_ignored(self):
         with tempfile.TemporaryDirectory() as td:
@@ -304,6 +309,7 @@ class TestOutcomeRuntimeVLM:
             events = [json.loads(line) for line in lines if line.strip()]
             outcome = [e for e in events if e["type"] == "outcome_event"]
             assert len(outcome) == 0
+            bus.close()
 
     def test_menu_visual_context_ignored(self):
         with tempfile.TemporaryDirectory() as td:
@@ -348,6 +354,7 @@ class TestOutcomeRuntimeVLM:
             events = [json.loads(line) for line in lines if line.strip()]
             outcome = [e for e in events if e["type"] == "outcome_event"]
             assert len(outcome) == 0
+            bus.close()
 
     def test_profile_switches_on_game_detected(self):
         with tempfile.TemporaryDirectory() as td:
@@ -374,6 +381,7 @@ class TestOutcomeRuntimeVLM:
             assert runtime._profile.profile_id == GameProfileId.CALL_OF_DUTY
 
             runtime.stop()
+            bus.close()
 
 
 class TestOutcomeTrigger:
@@ -407,6 +415,7 @@ class TestOutcomeTrigger:
                 assert e["payload"]["profile_id"] == "ncaa_football_27"
                 assert "event_name" in e["payload"]
                 assert "fields" in e["payload"]
+            bus.close()
 
     def test_trigger_emits_valid_cod_events(self):
         with tempfile.TemporaryDirectory() as td:
@@ -429,6 +438,7 @@ class TestOutcomeTrigger:
 
             for e in outcome_events:
                 assert e["payload"]["profile_id"] == "call_of_duty"
+            bus.close()
 
     def test_trigger_rejects_invalid_event(self):
         with tempfile.TemporaryDirectory() as td:
@@ -441,6 +451,7 @@ class TestOutcomeTrigger:
             # Invalid event for NCAA
             assert trigger.emit("kill", {}) is False  # CoD event
             assert trigger.emit("spike_plant", {}) is False  # Valorant event
+            bus.close()
 
     def test_trigger_confidence_parameter(self):
         with tempfile.TemporaryDirectory() as td:
@@ -457,6 +468,7 @@ class TestOutcomeTrigger:
 
             outcome_events = [e for e in events if e["type"] == "outcome_event"]
             assert outcome_events[0]["payload"]["confidence"] == 0.95
+            bus.close()
 
 
 class TestScoreMergeInvariants:
@@ -531,6 +543,7 @@ class TestScoreMergeInvariants:
             assert runtime._possession == "home"
             assert runtime._field_position == "home 35"
             assert runtime._play_clock == 25
+            bus.close()
 
     def test_vlm_locked_score_overrides_bad_ocr(self):
         with tempfile.TemporaryDirectory() as td:
@@ -602,6 +615,7 @@ class TestScoreMergeInvariants:
             assert len(score_events) == 0
             assert runtime._home_score == 17
             assert runtime._away_score == 17
+            bus.close()
 
 
 class TestOutcomeConfigDefaults:

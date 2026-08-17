@@ -137,6 +137,7 @@ def test_evidence_chain_built_on_commit():
         assert len(presence_fields) == 1
         assert presence_fields[0]["source"] == "fusion"
 
+        retina_bus.close()
         reset_a2a_orchestrator()
 
 
@@ -180,6 +181,7 @@ def test_evidence_chain_emitted_to_retina_bus():
         assert ev_payload["trigger_reason"] == "touchdown"
         assert ev_payload["confidence"] > 0.0
 
+        retina_bus.close()
         reset_a2a_orchestrator()
 
 
@@ -293,4 +295,5 @@ def test_evidence_chain_in_agent_action_mirror():
         assert "evidence" in agent_events[0]["payload"]
         assert agent_events[0]["payload"]["evidence"] is not None
 
+        retina_bus.close()
         reset_a2a_orchestrator()

@@ -84,6 +84,8 @@ class TestScreenRuntime:
             assert runtime.session_head_ns == identity.session_head_ns
             assert not runtime.is_running()
 
+            bus.close()
+
     @patch("qoresence.lobes.screen.mss.mss", return_value=MockMSS())
     def test_start_opens_capture(self, mock_mss_class):
         with tempfile.TemporaryDirectory() as td:
@@ -103,6 +105,7 @@ class TestScreenRuntime:
             assert runtime.is_running()
 
             runtime.stop()
+            bus.close()
 
     @patch("qoresence.lobes.screen.mss.mss", return_value=MockMSS())
     def test_motion_detection_emits_cv_motion(self, mock_mss_class):
@@ -138,6 +141,8 @@ class TestScreenRuntime:
                 assert "clock_ns" in e
                 assert "motion" in e["payload"]
                 assert 0.0 <= e["payload"]["motion"] <= 1.0
+
+            bus.close()
 
     @patch("qoresence.lobes.screen.mss.mss", return_value=MockMSS())
     def test_coupling_score_with_controller_provider(self, mock_mss_class):
@@ -180,6 +185,8 @@ class TestScreenRuntime:
                 assert "best_lag_ms" in e["payload"]
                 assert -1.0 <= e["payload"]["coupling_score"] <= 1.0
 
+            bus.close()
+
     @patch("qoresence.lobes.screen.mss.mss", return_value=MockMSS())
     def test_ocr_hud_emits_events(self, mock_mss_class):
         with tempfile.TemporaryDirectory() as td:
@@ -215,6 +222,8 @@ class TestScreenRuntime:
                 assert "region" in e["payload"]
                 assert "text" in e["payload"]
 
+            bus.close()
+
     @patch("qoresence.lobes.screen.mss.mss", return_value=MockMSS())
     def test_session_start_and_end_events(self, mock_mss_class):
         with tempfile.TemporaryDirectory() as td:
@@ -249,6 +258,8 @@ class TestScreenRuntime:
             end_event = next(e for e in events if e["type"] == "session_end")
             assert "frames_captured" in end_event["payload"]
             assert end_event["payload"]["frames_captured"] > 0
+
+            bus.close()
 
 
 class TestScreenConfigDefaults:
@@ -332,6 +343,8 @@ class TestScreenRuntimeIntegration:
                 assert "coupling_score" in payload
                 assert "negative_control" in payload
                 assert "best_lag_ms" in payload
+
+            bus.close()
 
 
 class TestHUDRegions:

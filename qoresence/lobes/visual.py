@@ -97,9 +97,18 @@ class VLMClient:
         self._session.headers.update(headers)
 
     def analyze_frame_raw(
-        self, frame: np.ndarray, prompt: str, timeout: float = 30.0, max_tokens: int = 300
+        self,
+        frame: np.ndarray,
+        prompt: str,
+        timeout: float = 30.0,
+        max_tokens: int = 300,
+        **kwargs: object,
     ) -> str | None:
-        """Send frame to VLM and return the raw response content."""
+        """Send frame to VLM and return the raw response content.
+
+        Extra kwargs (e.g. game_profile from VisionStack) are ignored by this
+        transport — they only inform the prompt the caller already built.
+        """
         try:
             # Resize frame
             h, w = frame.shape[:2]

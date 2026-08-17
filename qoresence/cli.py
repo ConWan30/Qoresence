@@ -1911,19 +1911,25 @@ def main():
                 config = _rep_play(config, enable_ws=True)
             except Exception:
                 pass
-            # outcome live
+            # outcome live — honor --game-profile (setattr-only left ncaa as default)
             try:
-                object.__setattr__(config.outcome, "enabled", True)
+                _gp_out = getattr(args, "game_profile", None) or getattr(
+                    config.outcome, "game_profile", None
+                )
+                config = _rep_play(
+                    config,
+                    outcome=_rep_play(
+                        config.outcome,
+                        enabled=True,
+                        game_profile=_gp_out or config.outcome.game_profile,
+                    ),
+                )
             except Exception:
                 try:
-                    config = _rep_play(
-                        config,
-                        outcome=_rep_play(
-                            config.outcome,
-                            enabled=True,
-                            game_profile=getattr(args, "game_profile", config.outcome.game_profile),
-                        ),
-                    )
+                    object.__setattr__(config.outcome, "enabled", True)
+                    _gp_fb = getattr(args, "game_profile", None)
+                    if _gp_fb:
+                        object.__setattr__(config.outcome, "game_profile", _gp_fb)
                 except Exception:
                     pass
             # visual live — Gemini sees the board/scene and locks confirm.

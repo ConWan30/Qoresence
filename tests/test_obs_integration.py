@@ -173,6 +173,8 @@ class TestOBSOverlayIntegration:
                 assert "clock_ns" in e
                 assert "payload" in e
 
+            bus.close()
+
 
 class TestOBSOverlayHealthCheck:
     """Tests for health check integration."""

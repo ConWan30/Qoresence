@@ -115,6 +115,7 @@ class TestA2ARouterDecisionCascade:
             )
         )
         _wait_inflight_clear(orch)
+        bus.close()
 
     def test_suppressed_trigger_emits_outside_lock(self, tmp_path):
         """Even interval/in-flight-suppressed decisions must not emit under the lock."""
@@ -150,6 +151,7 @@ class TestA2ARouterDecisionCascade:
             "router_decision was emitted while A2AOrchestrator._lock was "
             "held — this recreates the 2026-08 live freeze."
         )
+        bus.close()
 
 
 class TestPresenceFusionLockDiscipline:
@@ -208,6 +210,7 @@ class TestPresenceFusionLockDiscipline:
             assert blocked, "presence_report was never emitted"
         finally:
             engine.stop()
+            bus.close()
 
     def test_full_cascade_streamer_event_with_a2a_loop(self, tmp_path):
         """End-to-end: streamer emit → presence report → A2A trigger →
@@ -246,3 +249,65 @@ class TestPresenceFusionLockDiscipline:
             _wait_inflight_clear(orch)
         finally:
             engine.stop()
+            bus.close()
+
+
+class TestJsonlSinkPersistentHandle:
+    """The JSONL sink must keep one append handle, not open/close per emit.
+
+    Regression for the 2026-08-16 incident: a 432 MB soak file caused every
+    lobe to block in ``pathlib.open`` under ``_jsonl_lock`` on each emit,
+    wedging the Deck /health endpoint. The fix is a persistent append handle
+    with per-write flush (same durability, no per-emit open syscall).
+    """
+
+    def test_handle_reused_across_emits(self, tmp_path):
+        bus = RetinaEventBus(
+            session_id="jsonl_sink_test",
+            jsonl_path=tmp_path / "events.jsonl",
+            enable_ws=False,
+        )
+        try:
+            bus.emit_raw(
+                source_lobe=SourceLobe.STREAMER,
+                event_type="frame_stats",
+                payload={"n": 1},
+            )
+            first_fh = bus._jsonl_fh
+            assert first_fh is not None, "handle should be open after first emit"
+            assert not first_fh.closed
+            # Many more emits must reuse the SAME handle (no per-emit open).
+            for i in range(200):
+                bus.emit_raw(
+                    source_lobe=SourceLobe.STREAMER,
+                    event_type="frame_stats",
+                    payload={"n": i},
+                )
+            assert bus._jsonl_fh is first_fh, (
+                "JSONL handle was reopened mid-stream — per-emit open() is the "
+                "wedge bug; the handle must persist for the life of the bus."
+            )
+            assert not first_fh.closed
+            # All events landed on disk (per-write flush).
+            lines = (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()
+            assert len(lines) == 201
+        finally:
+            bus.close()
+        assert bus._jsonl_fh is None, "close() must release the handle"
+
+    def test_close_releases_file_for_tmp_cleanup(self, tmp_path):
+        bus = RetinaEventBus(
+            session_id="jsonl_sink_close_test",
+            jsonl_path=tmp_path / "events.jsonl",
+            enable_ws=False,
+        )
+        bus.emit_raw(
+            source_lobe=SourceLobe.STREAMER,
+            event_type="frame_stats",
+            payload={"n": 1},
+        )
+        bus.close()
+        # After close, the file must be writable/truncatable by the OS — i.e.
+        # no lingering handle. This is what lets pytest clean up tmp_path on
+        # Windows and what lets a new session re-open the soak path.
+        (tmp_path / "events.jsonl").write_text("ok", encoding="utf-8")

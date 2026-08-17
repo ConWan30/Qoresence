@@ -34,9 +34,11 @@ DEFAULT_HZ = 30.0
 DEFAULT_ENERGY_SCALE = 2.5
 DEFAULT_EMA_ALPHA = 0.40
 DEFAULT_HOLD_FRESH_MS = 80.0
-# FrameHub age above this starts decaying coupling (stalled video ≠ live sync)
-_STALE_AGE_S = 0.20
-_STALE_TAU_S = 0.30
+# FrameHub age above this starts decaying coupling (stalled video ≠ live sync).
+# Kept in sync with play_phrase.STALE_VIDEO_S — at 6fps capture, frames are
+# ~167ms apart, so 0.20s decayed every non-stalled frame.
+_STALE_AGE_S = 0.35
+_STALE_TAU_S = 0.50
 
 
 class InputVideoCoupler:
@@ -283,7 +285,7 @@ class InputVideoCoupler:
             from qoresence.sync.play_phrase import LIVE_PHRASES
 
             book = get_coupling_book()
-            if ph.get("phrase") in LIVE_PHRASES and age_s <= 0.20:
+            if ph.get("phrase") in LIVE_PHRASES and age_s <= _STALE_AGE_S:
                 ticket = mint_coupling_ticket(
                     clock_ns=t_video,
                     frame_seq=seq,

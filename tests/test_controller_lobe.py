@@ -110,6 +110,8 @@ class TestControllerRuntime:
             assert runtime.session_head_ns == identity.session_head_ns
             assert not runtime.is_running()
 
+            bus.close()
+
     @patch("qoresence.lobes.controller.HIDDevice")
     def test_start_opens_device(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
@@ -137,6 +139,8 @@ class TestControllerRuntime:
 
             runtime.stop()
             assert get_controller_runtime() is None
+
+            bus.close()
 
     @patch("qoresence.lobes.controller.HIDDevice")
     def test_button_press_emits_events(self, mock_device_class):
@@ -188,6 +192,8 @@ class TestControllerRuntime:
                 assert "session_head_ns" in e
                 assert "causal_parent_ns" in e["payload"]
 
+            bus.close()
+
     @patch("qoresence.lobes.controller.HIDDevice")
     def test_trigger_onset_detection(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
@@ -228,6 +234,8 @@ class TestControllerRuntime:
             assert len(r2_events) == 1, f"Expected exactly one R2 onset, got {len(r2_events)}"
             assert r2_events[0]["payload"]["amplitude"] > 0.1
             assert "causal_parent_ns" in r2_events[0]["payload"]
+
+            bus.close()
 
     @patch("qoresence.lobes.controller.HIDDevice")
     def test_stick_motion_detection(self, mock_device_class):
@@ -271,6 +279,8 @@ class TestControllerRuntime:
                 assert "y" in e["payload"]
                 assert "causal_parent_ns" in e["payload"]
 
+            bus.close()
+
     @patch("qoresence.lobes.controller.HIDDevice")
     def test_imu_tremor_sample(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
@@ -311,6 +321,8 @@ class TestControllerRuntime:
                 assert len(e["payload"]["accel"]) == 3
                 assert "causal_parent_ns" in e["payload"]
 
+            bus.close()
+
     @patch("qoresence.lobes.controller.HIDDevice")
     def test_rolling_buffer_populated(self, mock_device_class):
         with tempfile.TemporaryDirectory() as td:
@@ -344,6 +356,8 @@ class TestControllerRuntime:
                 assert entry.source_lobe == SourceLobe.CONTROLLER
                 assert isinstance(entry.event_type, EventType)
                 assert isinstance(entry.payload, dict)
+
+            bus.close()
 
     @patch("qoresence.lobes.controller.HIDDevice")
     def test_causal_parent_ns_in_events(self, mock_device_class):
@@ -389,6 +403,8 @@ class TestControllerRuntime:
                     if parent is not None:
                         assert parent > 0
                         assert parent <= e["clock_ns"]  # Can be equal due to time resolution
+
+            bus.close()
 
 
 class TestControllerConfigDefaults:
@@ -460,6 +476,8 @@ class TestHotPlugAndFixture:
             assert stats["waiting"] is True
             runtime.stop()
 
+            bus.close()
+
     def test_fixture_bodied_r2_binds_score(self):
         from qoresence.sync.dualsense_fixture import feed_bodied_r2
 
@@ -479,6 +497,8 @@ class TestHotPlugAndFixture:
             assert out["last_bind"]["hid_name"] in {"R2", "r2_btn"}
             assert out["imu_bodied"] is True
             assert runtime.get_stats()["reports"] >= 4
+
+            bus.close()
 
     @patch("qoresence.lobes.controller.HIDDevice")
     def test_reconnect_after_drop(self, mock_device_class):
@@ -503,6 +523,8 @@ class TestHotPlugAndFixture:
             time.sleep(0.2)
             assert runtime.get_stats()["connected"] is True
             runtime.stop()
+
+            bus.close()
 
 
 class TestPresenceTouchFile:
@@ -541,6 +563,8 @@ class TestPresenceTouchFile:
             # Touch file should exist and have recent mtime
             assert touch_file.exists()
             assert time.time() - touch_file.stat().st_mtime < 1.0
+
+            bus.close()
 
 
 if __name__ == "__main__":

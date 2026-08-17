@@ -78,8 +78,13 @@ class RetinaEventBus:
         self._ws_server: asyncio.Server | None = None
         self._ws_task: asyncio.Task | None = None
 
-        # JSONL writer
+        # JSONL writer — persistent append handle to avoid a per-emit open()
+        # syscall. Re-opening a large soak file on every emit serializes all
+        # lobes on _jsonl_lock and wedges the pipeline (2026-08-16 incident:
+        # 432 MB soak file → every lobe blocked in pathlib.open under the lock
+        # → Deck /health unresponsive, looked like a dead capture card).
         self._jsonl_lock = threading.Lock()
+        self._jsonl_fh = None
         if jsonl_path:
             jsonl_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -270,13 +275,29 @@ class RetinaEventBus:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _write_jsonl(self, event: BaseEvent) -> None:
-        """Write event to JSONL file (thread-safe)."""
+        """Write event to JSONL file (thread-safe, persistent handle).
+
+        Keeps a single append handle open for the life of the bus instead of
+        opening/closing on every emit. Per-emit open() on a large soak file
+        serializes every lobe on this lock and wedges the pipeline. flush()
+        after each write preserves the same per-event durability as the old
+        close-per-emit path.
+        """
         try:
             with self._jsonl_lock:
-                with self.jsonl_path.open("a", encoding="utf-8") as f:
-                    f.write(json.dumps(event.to_dict(), separators=(",", ":")) + "\n")
+                if self._jsonl_fh is None:
+                    self._jsonl_fh = self.jsonl_path.open("a", encoding="utf-8")
+                self._jsonl_fh.write(json.dumps(event.to_dict(), separators=(",", ":")) + "\n")
+                self._jsonl_fh.flush()
         except Exception as e:
             log.error(f"JSONL write failed: {e}")
+            # Drop a bad handle so the next emit reopens cleanly.
+            try:
+                if self._jsonl_fh is not None:
+                    self._jsonl_fh.close()
+            except Exception:
+                pass
+            self._jsonl_fh = None
 
     # ──────────────────────────────────────────────────────────────────────────
     # IN-PROCESS SUBSCRIBERS
@@ -386,12 +407,34 @@ class RetinaEventBus:
             self.start_ws()
 
     def stop(self) -> None:
-        """Stop the bus."""
+        """Stop the bus and release the persistent JSONL handle.
+
+        Releasing the append handle here (not only in ``close()``) means any
+        caller that already calls ``bus.stop()`` or ``runtime.stop()`` releases
+        the soak file — critical on Windows where an open handle blocks tmp
+        cleanup and on hard stops that leave a stale lock on the file.
+        """
         self.stop_ws()
         # Note: trio validator stop is async, caller should call stop_trio_validator() before stop()
         # We can't await here, but we can schedule if there's a running loop
         if self._trio_validator and self._ws_loop and self._ws_loop.is_running():
             asyncio.run_coroutine_threadsafe(self._trio_validator.stop(), self._ws_loop)
+        with self._jsonl_lock:
+            if self._jsonl_fh is not None:
+                try:
+                    self._jsonl_fh.flush()
+                    self._jsonl_fh.close()
+                except Exception as e:
+                    log.debug("JSONL close on stop failed: %s", e)
+                self._jsonl_fh = None
+
+    def close(self) -> None:
+        """Stop the bus and release the persistent JSONL handle.
+
+        Alias for :meth:`stop` that ``cli.py`` calls on shutdown so the soak
+        file is released and a stale lock is not left behind on a hard stop.
+        """
+        self.stop()
 
     def stats(self) -> dict[str, Any]:
         """Return bus statistics."""

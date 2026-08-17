@@ -144,6 +144,7 @@ class TestRetinaEventBus:
             )
             assert bus.emit(event) is True
             assert bus.events_emitted == 1
+            bus.close()
 
     def test_bus_rejects_wrong_session_id(self):
         with tempfile.TemporaryDirectory() as td:
@@ -160,6 +161,7 @@ class TestRetinaEventBus:
             assert bus.emit(event) is False
             assert bus.events_rejected == 1
             assert bus.events_emitted == 0
+            bus.close()
 
     def test_bus_rejects_missing_required_fields(self):
         with tempfile.TemporaryDirectory() as td:
@@ -176,6 +178,7 @@ class TestRetinaEventBus:
             )
             assert bus.emit(event) is False
             assert bus.events_rejected == 1
+            bus.close()
 
     def test_bus_writes_jsonl(self):
         with tempfile.TemporaryDirectory() as td:
@@ -199,6 +202,7 @@ class TestRetinaEventBus:
             assert data["source_lobe"] == "streamer"
             assert data["type"] == "activity"
             assert data["payload"]["level"] == "high"
+            bus.close()
 
     def test_bus_in_process_subscription(self):
         with tempfile.TemporaryDirectory() as td:
@@ -228,6 +232,7 @@ class TestRetinaEventBus:
             unsubscribe()
             bus.emit(event)
             assert len(received) == 1  # Still 1
+            bus.close()
 
     def test_emit_raw_convenience(self):
         with tempfile.TemporaryDirectory() as td:
@@ -243,6 +248,7 @@ class TestRetinaEventBus:
                 is True
             )
             assert bus.events_emitted == 1
+            bus.close()
 
 
 class TestMultiLobeSharedIdentity:
@@ -301,6 +307,7 @@ class TestMultiLobeSharedIdentity:
                 assert data["source_lobe"] in ["streamer", "controller", "screen"]
                 assert "session_head_ns" in data
                 assert data["session_head_ns"] == head_ns
+            bus.close()
 
     def test_clock_ns_monotonic_across_lobes(self):
         """Verify clock_ns is monotonic and shared across lobes."""
@@ -325,6 +332,7 @@ class TestMultiLobeSharedIdentity:
             # All clock_ns should be strictly increasing (monotonic)
             for i in range(1, len(clocks)):
                 assert clocks[i] >= clocks[i - 1], "clock_ns not monotonic"
+            bus.close()
 
     def test_eventbus_stats(self):
         with tempfile.TemporaryDirectory() as td:
@@ -351,6 +359,7 @@ class TestMultiLobeSharedIdentity:
             assert stats["session_id"] == "stats_test"
             assert stats["events_emitted"] == 5
             assert stats["events_rejected"] == 1
+            bus.close()
 
 
 if __name__ == "__main__":

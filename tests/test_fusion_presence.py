@@ -71,6 +71,7 @@ class TestPresenceFusionEngine:
             assert engine.weights[SourceLobe.CONTROLLER] == 0.30
 
             engine.stop()
+            bus.close()
 
     def test_engine_emits_session_start_report(self):
         with tempfile.TemporaryDirectory() as td:
@@ -103,6 +104,8 @@ class TestPresenceFusionEngine:
                 "uncertain",
                 "absent",
             )
+
+            bus.close()
 
     def test_streamer_presence_sync_affects_verdict(self):
         with tempfile.TemporaryDirectory() as td:
@@ -146,6 +149,7 @@ class TestPresenceFusionEngine:
             assert report.lobe_contributions["streamer"] > 0.5
 
             engine.stop()
+            bus.close()
 
     def test_controller_causal_density_affects_verdict(self):
         with tempfile.TemporaryDirectory() as td:
@@ -190,6 +194,7 @@ class TestPresenceFusionEngine:
             assert report.lobe_contributions["controller"] > 0.2
 
             engine.stop()
+            bus.close()
 
     def test_outcome_coherence_affects_verdict(self):
         with tempfile.TemporaryDirectory() as td:
@@ -234,6 +239,7 @@ class TestPresenceFusionEngine:
             assert report.lobe_contributions["outcome"] > 0.5
 
             engine.stop()
+            bus.close()
 
     def test_temporal_desync_anomaly_detected(self):
         """Test temporal desync for lobe that emitted before but is now silent >5s."""
@@ -296,6 +302,7 @@ class TestPresenceFusionEngine:
             assert any(a.lobes_involved == [SourceLobe.CONTROLLER] for a in temporal)
 
             engine.stop()
+            bus.close()
 
     def test_missing_lobe_anomaly_when_enabled_but_silent(self):
         """Test missing_lobe for lobe that is enabled but never emits."""
@@ -332,6 +339,7 @@ class TestPresenceFusionEngine:
             assert any(a.lobes_involved == [SourceLobe.CONTROLLER] for a in missing)
 
             engine.stop()
+            bus.close()
 
     def test_contradiction_anomaly_streamer_sync_but_controller_stale(self):
         with tempfile.TemporaryDirectory() as td:
@@ -392,6 +400,7 @@ class TestPresenceFusionEngine:
             # The logic is tested at unit level
 
             engine.stop()
+            bus.close()
 
     def test_weighted_verdict_categories(self):
         """Test verdict mapping from score to category."""
@@ -437,6 +446,7 @@ class TestPresenceFusionEngine:
             assert report.weighted_verdict in ("present", "likely_present")
 
             engine.stop()
+            bus.close()
 
     def test_report_callback(self):
         with tempfile.TemporaryDirectory() as td:
@@ -475,6 +485,7 @@ class TestPresenceFusionEngine:
             assert isinstance(callback_reports[0], PresenceReport)
 
             engine.stop()
+            bus.close()
 
     def test_lobe_stats(self):
         with tempfile.TemporaryDirectory() as td:
@@ -517,6 +528,7 @@ class TestPresenceFusionEngine:
             assert "weights" in stats
 
             engine.stop()
+            bus.close()
 
 
 class TestPresenceReport:
@@ -600,6 +612,7 @@ class TestCreateFusionEngine:
 
             assert isinstance(engine, PresenceFusionEngine)
             engine.stop()
+            bus.close()
 
 
 class TestFusionWeights:
@@ -651,6 +664,7 @@ class TestFusionWeights:
             assert report.lobe_contributions["controller"] == 0.0
 
             engine.stop()
+            bus.close()
 
 
 class TestVisualHysteresis:

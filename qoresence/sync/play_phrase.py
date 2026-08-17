@@ -15,7 +15,10 @@ LIVE_PHRASES = frozenset({"SNAP", "SPRINT", "CUT", "RELEASE"})
 R2_FLOOR = 0.08
 STICK_FLOOR = 0.15
 MOTION_FLOOR = 1.2
-STALE_VIDEO_S = 0.20
+# At 6fps capture (stressed USB card), frames are ~167ms apart — the old
+# 0.20s threshold made every frame stale and forced phrase=IDLE even during
+# active gameplay. 0.35s tolerates 6fps with jitter margin.
+STALE_VIDEO_S = 0.35
 
 _MENU = frozenset({"menu", "lobby", "hub", "paused", "pause"})
 _PLAY = frozenset({"gameplay", "playing", "in_game"})

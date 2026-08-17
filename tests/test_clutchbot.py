@@ -338,6 +338,7 @@ class TestClutchBotAgent:
             assert agent.is_running() is True
             agent.stop()
             assert agent.is_running() is False
+            bus.close()
 
     def test_game_detected_emits_agent_action(self):
         with tempfile.TemporaryDirectory() as td:
@@ -362,6 +363,7 @@ class TestClutchBotAgent:
             agent_actions = [e for e in events if e["type"] == "agent_action"]
             assert len(agent_actions) >= 1
             assert agent_actions[0]["source_lobe"] == "agent"
+            bus.close()
 
     def test_outcome_event_triggers_chat_action(self):
         with tempfile.TemporaryDirectory() as td:
@@ -415,6 +417,7 @@ class TestClutchBotAgent:
             agent_actions = [e for e in events if e["type"] == "agent_action"]
             assert len(agent_actions) >= 1
             assert agent_actions[0]["payload"]["action"] == "chat"
+            bus.close()
 
 
 class TestTwitchHelixClient:
