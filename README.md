@@ -1,10 +1,19 @@
 # Qoresence
 
-**Local observation-plane engine for streamers and gamers.**
+**Gaming Streaming Observatory Engine** — local-first, one clock, many glasses.
 
-Qoresence turns HDMI/OBS video, DualSense HID, and game situation into a **single causal event bus** — then surfaces it through Retina Deck, native Retina Monitor, local HDMI clips, optional ClutchBot on Twitch, and now **AgentGlass / MCP** for any AI agent.
+Qoresence turns HDMI/OBS video, DualSense HID, and game situation into a **single causal event bus**, then surfaces it through Retina Deck, native Retina Monitor, local HDMI clips, optional ClutchBot on Twitch, and **AgentGlass / MCP** for any AI agent. The capture card is the brain; everything else is a glass.
 
-It does **not** claim humanity, act as anti-cheat, or write to chain by default. Every lobe is **OFF** until you opt in.
+| What it is | What it is not |
+|------------|----------------|
+| Observation of HDMI + DualSense on one monotonic clock | Anti-cheat, humanity, or eligibility claims |
+| Co-occurrence, coupling, presence evidence | Live path into QorTroller / PoAC / `*-truth` |
+| Local MP4 + button sidecars; optional Twitch agent | Dual-opening the same capture card |
+| Optional research wrap onto `qoresence-research` with a grant | On-chain by default |
+
+Docs: [GitHub Pages](https://conwan30.github.io/Qoresence/) · [Install guide](https://conwan30.github.io/Qoresence/install.html) · [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Download](https://github.com/ConWan30/Qoresence/releases/latest)
+
+Every lobe is **OFF** until you opt in.
 
 [![GitHub](https://img.shields.io/badge/github-ConWan30%2FQoresence-181717?logo=github)](https://github.com/ConWan30/Qoresence)
 [![Website](https://img.shields.io/badge/website-GitHub%20Pages-blue)](https://conwan30.github.io/Qoresence/)
