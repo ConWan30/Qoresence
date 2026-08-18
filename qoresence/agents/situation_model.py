@@ -90,6 +90,7 @@ class SituationModel:
         self._state = SituationState()
         self._controller_events: deque[tuple[int, str, dict[str, Any]]] = deque()
         self._last_visual_context_ns: int = 0
+        self._operator_pin: str | None = None
 
     @property
     def state(self) -> SituationState:
@@ -114,14 +115,22 @@ class SituationModel:
         elif event.type == EventType.PRESENCE_REPORT:
             self._handle_presence_report(event.payload)
 
-    def seed_profile(self, profile_id: str | None) -> None:
+    def seed_profile(self, profile_id: str | None, *, pinned: bool = False) -> None:
         if profile_id:
             self._state.game_profile = str(profile_id)
+            if pinned:
+                self._operator_pin = str(profile_id)
+
+    def _maybe_apply_profile(self, profile_id: Any) -> None:
+        if not profile_id:
+            return
+        got = str(profile_id)
+        if self._operator_pin and got != self._operator_pin:
+            return
+        self._state.game_profile = got
 
     def _handle_game_detected(self, payload: dict[str, Any]) -> None:
-        pid = payload.get("profile_id")
-        if pid:
-            self._state.game_profile = pid
+        self._maybe_apply_profile(payload.get("profile_id"))
 
     def _handle_title_presence(self, payload: dict[str, Any]) -> None:
         if not isinstance(payload, dict):
@@ -132,7 +141,7 @@ class SituationModel:
         if "claim" in payload:
             self._state.title_claim = bool(payload.get("claim"))
         if payload.get("claim") and payload.get("profile_id"):
-            self._state.game_profile = payload.get("profile_id")
+            self._maybe_apply_profile(payload.get("profile_id"))
 
     def _handle_visual_context(self, event: BaseEvent) -> None:
         try:
@@ -168,10 +177,13 @@ class SituationModel:
                 if hasattr(ctx.game_category, "value")
                 else str(ctx.game_category)
             )
-        if ctx.game_title:
-            self._state.game_title = ctx.game_title
         if ctx.game_profile:
-            self._state.game_profile = ctx.game_profile
+            rejected = bool(self._operator_pin and str(ctx.game_profile) != self._operator_pin)
+            self._maybe_apply_profile(ctx.game_profile)
+            if ctx.game_title and not rejected:
+                self._state.game_title = ctx.game_title
+        elif ctx.game_title:
+            self._state.game_title = ctx.game_title
         self._state.visual_confidence = ctx.confidence
         if ctx.game_category and ctx.game_category.value == "football":
             # Scores: only apply if plausible (OCR often emits 17-2 for a real 17-17)

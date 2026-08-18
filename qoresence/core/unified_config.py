@@ -609,6 +609,9 @@ class RetinaUnifiedConfig:
     ws_host: str = "127.0.0.1"
     ws_port: int = 8765
     enable_ws: bool = True
+    # True when CLI / env / last-session pinned a profile (optics may observe
+    # a stranger title but must not yank outcome/visual to it).
+    game_profile_pinned: bool = False
 
     # ─────────────────────────────────────────────────────────────────────────
     # VALIDATION

@@ -345,6 +345,16 @@ class FootballScoreboardExtractor:
         if _ocr_on:
             tokens = self._ocr_tokens(frame, profile=getattr(ctx, "game_profile", None))
         parsed: dict[str, Any] = {}
+        local_hud: tuple[int, int] | None = None
+        if not tokens:
+            try:
+                from qoresence.vision.local_hud_digits import read_score_pair
+
+                local_hud = read_score_pair(frame, getattr(ctx, "game_profile", None))
+            except Exception:
+                local_hud = None
+            if local_hud is not None:
+                parsed["home_score"], parsed["away_score"] = local_hud
         if tokens:
             joined = " ".join(t.text for t in tokens).upper()
             is_paused = any(
@@ -482,6 +492,13 @@ class FootballScoreboardExtractor:
                     log.info("scoreboard VLM lock %s-%s", sh, sa)
             else:
                 sh, sa = stab.update(raw_h, raw_a)
+                if (
+                    local_hud is not None
+                    and sh is not None
+                    and sa is not None
+                    and (sh, sa) == tuple(local_hud)
+                ):
+                    ctx.score_vlm_locked = True
             if sh is not None:
                 parsed["home_score"] = sh
             else:

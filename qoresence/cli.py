@@ -600,28 +600,27 @@ class QoresenceApp:
             if self.outcome:
 
                 def switch_profile(profile_id):
-                    # Honor an explicit --game-profile pin; still observe via title_presence.
+                    # Honor an operator pin (CLI / env / last session).
+                    # Title-presence still observes; it must not yank the pin.
                     try:
-                        import sys as _sys_pin
+                        from qoresence.core import normalize_game_profile
+                        from qoresence.core.operator_profile import load_last_profile
 
-                        pinned = any(
-                            a == "--game-profile" or str(a).startswith("--game-profile=")
-                            for a in _sys_pin.argv
+                        want = normalize_game_profile(
+                            getattr(self.config.outcome, "game_profile", None)
                         )
-                        if pinned:
-                            from qoresence.core import normalize_game_profile
-
-                            want = normalize_game_profile(
-                                getattr(self.config.outcome, "game_profile", None)
+                        got = normalize_game_profile(profile_id)
+                        pinned = bool(getattr(self.config, "game_profile_pinned", False))
+                        if not pinned:
+                            last = load_last_profile()
+                            pinned = bool(last) and last == want.value
+                        if pinned and want != got:
+                            log.info(
+                                "title-presence locked %s; keeping operator profile %s",
+                                got,
+                                want,
                             )
-                            got = normalize_game_profile(profile_id)
-                            if want != got:
-                                log.info(
-                                    "title-presence locked %s; keeping operator profile %s",
-                                    got,
-                                    want,
-                                )
-                                return
+                            return
                     except Exception:
                         pass
                     self.outcome.set_game_profile(profile_id)
@@ -806,7 +805,9 @@ class QoresenceApp:
                 if sit is not None:
                     pid = self.config.outcome.game_profile
                     pid_s = getattr(pid, "value", None) or str(pid)
-                    sit.seed_profile(pid_s)
+                    sit.seed_profile(
+                        pid_s, pinned=bool(getattr(self.config, "game_profile_pinned", False))
+                    )
             except Exception:
                 pass
 
@@ -1473,8 +1474,8 @@ def main():
             "modern_warfare",
             "warzone",
         ],
-        default="ncaa_football_27",
-        help="Game profile (supports common aliases)",
+        default=None,
+        help="Pin a game profile. Omit to reuse last pin / QORESENCE_GAME_PROFILE.",
     )
     parser.add_argument(
         "--scoreboard-home-left",
@@ -1776,6 +1777,12 @@ def main():
     )
 
     args = parser.parse_args()
+    from qoresence.core.operator_profile import resolve_operator_profile, save_last_profile
+
+    _gp, _gp_pinned = resolve_operator_profile(getattr(args, "game_profile", None))
+    args.game_profile = _gp
+    args.game_profile_pinned = _gp_pinned
+    save_last_profile(_gp)
     _bind = (getattr(args, "deck_bind", None) or os.environ.get("QORESENCE_DECK_BIND") or "").strip()
     if _bind:
         args.deck_host = _bind
@@ -1895,6 +1902,12 @@ def main():
 
     # Create config
     config = create_config_from_args(args)
+    try:
+        object.__setattr__(
+            config, "game_profile_pinned", bool(getattr(args, "game_profile_pinned", False))
+        )
+    except Exception:
+        pass
     # --play / --deck wiring (Retina Deck exquisite while playing) — LIVE FEED CONTRACT
     # --play: HDMI streamer (DShow) + visual(local) + outcome + clutchbot + deck.
     # Default frame source is USB/HDMI capture — NOT mss desktop (monitor 0).
