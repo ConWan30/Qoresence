@@ -6,6 +6,12 @@ from qoresence.deck import webrtc_hub
 from qoresence.deck.server import _html, create_app, glass_link_info
 
 
+def test_theater_shows_hdmi_age_not_just_vlm():
+    html = _html("deck.html")
+    assert "hdmi " in html and "ms" in html
+    assert "snap.video.age_s" in html or "snap.video && snap.video.age_s" in html
+
+
 def test_webrtc_stats_still_frame_hub():
     s = webrtc_hub.stats()
     assert s.get("source") == "frame_hub"
@@ -70,6 +76,8 @@ def test_mobile_routes_registered():
     assert "/api/glass-link" in paths
     assert "/api/webrtc/status" in paths
     assert "/api/webrtc/offer" in paths
+    assert "/live.jpg" in paths
+    assert "/glass.apk" in paths
     deck = _html("deck.html")
     assert "btnGlassCopy" in deck
     assert "/mobile.html" in deck

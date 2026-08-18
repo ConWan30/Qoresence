@@ -81,6 +81,19 @@ class DeckState:
             video["live_fps_default"] = DEFAULT_LIVE_FPS
         except Exception:
             pass
+        try:
+            from qoresence.monitor.frame_hub import get_frame_hub
+
+            hub = get_frame_hub().stats()
+            video["hub_age_s"] = hub.get("age_s")
+            video["hub_seq"] = hub.get("seq")
+            video["hub_has_frame"] = bool(hub.get("has_frame"))
+            if hub.get("has_frame") and hub.get("age_s") is not None:
+                if video.get("age_s") is None or float(hub["age_s"]) < float(video["age_s"] or 9e9):
+                    video["age_s"] = hub["age_s"]
+                    video["has_frame"] = True
+        except Exception:
+            pass
         controller: dict[str, Any] = {}
         try:
             from qoresence.lobes.controller import get_controller_runtime
@@ -167,6 +180,43 @@ class DeckState:
         except Exception:
             pass
         return out
+
+
+def _situation_payload() -> dict[str, Any]:
+    """Deck snapshot plus top-level coupling for Mobile / Native Glass.
+
+    Native Glass polls ``/api/situation`` for clutch haptics. Coupling used to
+    live only on ``/health`` and under ``controller`` — the app never saw a
+    climax and never fired. Keep digits fail-closed: this helper does not
+    invent scores.
+    """
+    out = _state.snapshot()
+    try:
+        from qoresence.sync.ivc import get_last_coupling
+
+        coup: dict[str, Any] = dict(get_last_coupling())
+    except Exception:
+        coup = {"imu_bodied": False, "coupling": 0.0, "binds": 0, "phrase": "IDLE"}
+    ctrl = out.get("controller") if isinstance(out.get("controller"), dict) else {}
+    if not coup.get("phrase"):
+        coup["phrase"] = (ctrl or {}).get("phrase") or "IDLE"
+    climax = 0.0
+    try:
+        tl = out.get("timeline") if isinstance(out.get("timeline"), dict) else {}
+        why = (tl or {}).get("why_last") if isinstance((tl or {}).get("why_last"), dict) else {}
+        if why and why.get("climax_score") is not None:
+            climax = float(why.get("climax_score") or 0.0)
+        graph = (
+            (tl or {}).get("drive_graph") if isinstance((tl or {}).get("drive_graph"), dict) else {}
+        )
+        cl = (graph or {}).get("climax") if isinstance((graph or {}).get("climax"), dict) else {}
+        if cl and cl.get("score") is not None:
+            climax = max(climax, float(cl.get("score") or 0.0))
+    except (TypeError, ValueError):
+        climax = 0.0
+    coup["climax_score"] = climax
+    out["coupling"] = coup
+    return out
 
 
 _state = DeckState()
@@ -478,7 +528,9 @@ def glass_link_info(host: str | None = None, port: int | None = None) -> dict[st
     if loopback:
         note = "Localhost only. Enable LAN bind (--deck-host 0.0.0.0 or --deck-bind) to open on a phone."
     elif wildcard and display in {"0.0.0.0", "::"}:
-        note = "LAN bind is on but this PC's LAN IP could not be guessed. Use the PC address on Wi-Fi."
+        note = (
+            "LAN bind is on but this PC's LAN IP could not be guessed. Use the PC address on Wi-Fi."
+        )
     else:
         note = "LAN opt-in. Same Wi-Fi only. Not a public stream."
     return {
@@ -492,6 +544,19 @@ def glass_link_info(host: str | None = None, port: int | None = None) -> dict[st
 
 
 _PLACEHOLDER_JPEG: bytes | None = None
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+_GLASS_APK_CANDIDATES = (
+    _REPO_ROOT / "qoresence-glass-debug.apk",
+    _REPO_ROOT / "native" / "android" / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk",
+)
+
+
+def _glass_apk_path() -> pathlib.Path | None:
+    """Newest debug APK for same-Wi-Fi sideload. View-only; never a capture owner."""
+    found = [p for p in _GLASS_APK_CANDIDATES if p.is_file()]
+    if not found:
+        return None
+    return max(found, key=lambda p: p.stat().st_mtime)
 
 
 def _placeholder_jpeg() -> bytes:
@@ -535,19 +600,24 @@ def _resolve_live_fps(query_fps: float | None = None) -> float:
 
 
 def _read_live_jpeg() -> bytes:
-    """In-memory read of latest HDMI JPEG (brief lock) — safe on event loop."""
+    """Latest HDMI JPEG, or empty bytes when nothing has been captured.
+
+    Used by ``/live.jpg`` (Native Glass cinema pump). MJPEG (``/video``) still
+    falls back to ``_placeholder_jpeg`` so the multipart stream stays open;
+    a still-JPEG client must not treat that placeholder as a live frame.
+    """
     try:
         from qoresence.vision.clip_buffer import get_latest_frame, get_latest_jpeg
 
         fr = get_latest_frame()
-        if fr is not None:
+        if fr is not None and fr[0]:
             return fr[0]
         jpg = get_latest_jpeg()
         if jpg:
             return jpg
     except Exception:
         pass
-    return _placeholder_jpeg()
+    return b""
 
 
 async def _mjpeg_stream(fps: float = DEFAULT_LIVE_FPS):  # type: ignore[no-untyped-def]
@@ -682,7 +752,28 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/api/situation")
     async def api_situation():  # type: ignore[no-untyped-def]
-        return JSONResponse(_state.snapshot())
+        return JSONResponse(
+            _situation_payload(),
+            headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "no-store"},
+        )
+
+    @app.get("/live.jpg")
+    async def live_jpeg():  # type: ignore[no-untyped-def]
+        """Single latest HDMI JPEG — Android WebView cannot play MJPEG.
+
+        Same FrameHub / ClipBuffer as /video. View only, no second capture.
+        """
+        jpg = _read_live_jpeg()
+        if not jpg:
+            return Response(status_code=503)
+        return Response(
+            content=jpg,
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
 
     @app.get("/api/glass-link")
     async def api_glass_link():  # type: ignore[no-untyped-def]
@@ -700,7 +791,9 @@ def create_app():  # type: ignore[no-untyped-def]
             svg = url_to_svg(str(info["url"]))
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
-        return Response(content=svg, media_type="image/svg+xml", headers={"Cache-Control": "no-cache"})
+        return Response(
+            content=svg, media_type="image/svg+xml", headers={"Cache-Control": "no-cache"}
+        )
 
     @app.get("/api/discover")
     async def api_discover():  # type: ignore[no-untyped-def]
@@ -708,6 +801,22 @@ def create_app():  # type: ignore[no-untyped-def]
         from qoresence.deck.mdns import discovery_info
 
         return JSONResponse({"ok": True, **discovery_info(_deck_bind_port, _deck_bind_host)})
+
+    @app.get("/glass.apk")
+    async def glass_apk():  # type: ignore[no-untyped-def]
+        """Sideload the Android cinema APK from the same LAN deck."""
+        p = _glass_apk_path()
+        if p is None:
+            return JSONResponse(
+                {"ok": False, "error": "debug APK not built — run native/build-apk.ps1"},
+                status_code=404,
+            )
+        return FileResponse(
+            str(p),
+            media_type="application/vnd.android.package-archive",
+            filename="qoresence-glass-debug.apk",
+            headers={"Cache-Control": "no-cache"},
+        )
 
     @app.get("/manifest.webmanifest")
     async def manifest():  # type: ignore[no-untyped-def]
@@ -1758,6 +1867,23 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     ).encode()
                 )
                 return
+            if self.path == "/glass.apk":
+                _apk = _glass_apk_path()
+                if _apk is None:
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                data = _apk.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/vnd.android.package-archive")
+                self.send_header(
+                    "Content-Disposition", 'attachment; filename="qoresence-glass-debug.apk"'
+                )
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(data)
+                return
             if self.path == "/manifest.webmanifest":
                 _p = root / "manifest.webmanifest"
                 if _p.is_file():
@@ -1786,7 +1912,7 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
             if self.path.startswith("/icons/"):
                 from urllib.parse import unquote
 
-                _name = unquote(self.path[len("/icons/"):])
+                _name = unquote(self.path[len("/icons/") :])
                 if (
                     _name.endswith(".png")
                     and "/" not in _name
@@ -1820,8 +1946,23 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
             if self.path == "/api/situation":
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Cache-Control", "no-store")
                 self.end_headers()
-                self.wfile.write(json.dumps(_state.snapshot()).encode())
+                self.wfile.write(json.dumps(_situation_payload()).encode())
+                return
+            if self.path == "/live.jpg" or self.path.startswith("/live.jpg?"):
+                jpg = _read_live_jpeg()
+                if not jpg:
+                    self.send_response(503)
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "image/jpeg")
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(jpg)
                 return
             if self.path.startswith("/api/agent/snapshot"):
                 self.send_response(200)

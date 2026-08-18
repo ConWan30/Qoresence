@@ -762,18 +762,18 @@ class StreamerRuntime:
 
             # Store current frame for cross-lobe integration
             self._current_frame = frame
-            # Rolling HDMI buffer for local Foundry / ClutchBot clips (true capture card)
-            try:
-                from qoresence.vision.clip_buffer import push_frame as _clip_push
-
-                _clip_push(frame)
-            except Exception:
-                pass
-            # FrameHub for monitor + IVC (same frames — never second capture)
+            # FrameHub FIRST — WebRTC / Monitor / IVC must not wait on JPEG encode.
             try:
                 from qoresence.monitor.frame_hub import publish as _hub_publish
 
                 _hub_publish(frame, clock_ns=clock_ns())
+            except Exception:
+                pass
+            # Rolling HDMI buffer off-thread (JPEG must not stall FrameHub)
+            try:
+                from qoresence.vision.clip_buffer import enqueue_frame as _clip_enqueue
+
+                _clip_enqueue(frame)
             except Exception:
                 pass
 

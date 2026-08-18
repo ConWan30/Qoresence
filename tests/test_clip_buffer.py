@@ -58,6 +58,24 @@ def test_latest_jpeg_after_push():
     assert st["seq"] >= 1
 
 
+def test_enqueue_does_not_block_on_jpeg():
+    buf = HdmiClipBuffer(seconds=2, target_fps=60, max_width=160)
+    frame = np.full((120, 160, 3), 80, dtype=np.uint8)
+    t0 = time.perf_counter()
+    buf.enqueue(frame)
+    elapsed_ms = (time.perf_counter() - t0) * 1000.0
+    assert elapsed_ms < 50.0
+    deadline = time.monotonic() + 2.0
+    jpg = None
+    while time.monotonic() < deadline:
+        jpg = buf.latest_jpeg()
+        if jpg:
+            break
+        time.sleep(0.02)
+    assert jpg is not None
+    assert jpg[:2] == b"\xff\xd8"
+
+
 def test_latest_frame_returns_seq():
     buf = HdmiClipBuffer(seconds=2, target_fps=1000, max_width=160)
     assert buf.latest_frame() is None

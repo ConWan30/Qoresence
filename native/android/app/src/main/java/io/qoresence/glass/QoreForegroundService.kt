@@ -36,13 +36,15 @@ class QoreForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val url = intent?.getStringExtra("url") ?: ""
-        val notif = buildNotification("Qoresence Glass monitoring", url)
+        val notif = buildNotification("Listening for clutch on this Wi-Fi", false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
             startForeground(NOTIF_ID, notif)
         }
 
+        running = false
+        thread?.interrupt()
         running = true
         thread = Thread {
             while (running) {
@@ -71,6 +73,7 @@ class QoreForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun pollSituation(baseUrl: String) {
+        if (baseUrl.isEmpty()) return
         val apiUrl = baseUrl.trimEnd('/') + "/api/situation"
         val conn = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
             connectTimeout = 3000
@@ -83,7 +86,6 @@ class QoreForegroundService : Service() {
             val body = BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
             val json = JSONObject(body)
 
-            // Check coupling for clutch moments
             val coupling = json.optJSONObject("coupling") ?: return
             val climax = coupling.optDouble("climax_score", coupling.optDouble("coupling", 0.0))
             val phrase = coupling.optString("phrase", "")
@@ -102,38 +104,50 @@ class QoreForegroundService : Service() {
 
     private fun showClutchNotification(phrase: String, score: Double) {
         val mgr = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        val label = if (phrase.isBlank()) "drive" else phrase
         val notif = buildNotification(
-            "Clutch: $phrase · climax ${"%.2f".format(score)}",
-            null
+            "Clutch · $label · ${"%.2f".format(score)}",
+            true
         )
         mgr.notify(NOTIF_ID + 1, notif)
     }
 
-    private fun buildNotification(text: String, url: String?): Notification {
+    private fun buildNotification(text: String, headsUp: Boolean): Notification {
+        val channel = if (headsUp) "qoresence_glass_fg" else CHANNEL_ID
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
+            Notification.Builder(this, channel)
         } else {
+            @Suppress("DEPRECATION")
             Notification.Builder(this)
         }
         builder.setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle("Qoresence Glass")
             .setContentText(text)
-            .setOngoing(true)
+            .setOngoing(!headsUp)
             .setColor(0xFFC6F26A.toInt())
         return builder.build()
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val mgr = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            val quiet = NotificationChannel(
                 CHANNEL_ID,
                 "Qoresence Glass Background",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Clutch moment monitoring while app is backgrounded"
             }
-            val mgr = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            mgr.createNotificationChannel(channel)
+            mgr.createNotificationChannel(quiet)
+            val clutch = NotificationChannel(
+                "qoresence_glass_fg",
+                "Qoresence Clutch",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Clutch moment alerts"
+                enableVibration(true)
+            }
+            mgr.createNotificationChannel(clutch)
         }
     }
 }

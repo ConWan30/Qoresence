@@ -73,18 +73,17 @@ if _HAS_AIORTC:
             self._last_send = 0.0
 
         async def recv(self) -> Any:
-            # Pull the latest FrameHub frame FIRST, then pace. This minimizes
-            # latency — the frame is as fresh as possible when we encode it.
-            img = self._pull_bgr()
-            if img is None:
-                img = self._placeholder()
-            # Pace to target_fps using a wall-clock latch (not a blind sleep)
+            # Pace first, THEN pull. Sleeping after a pull sent a stale
+            # FrameHub copy (up to 1/fps) while the next HDMI frame arrived.
             now = time.monotonic()
             elapsed = now - self._last_send
             wait = self._interval - elapsed
             if wait > 0:
                 await asyncio.sleep(wait)
             self._last_send = time.monotonic()
+            img = self._pull_bgr()
+            if img is None:
+                img = self._placeholder()
             # even dims for encoders
             h, w = img.shape[:2]
             if w % 2 or h % 2:

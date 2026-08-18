@@ -50,6 +50,18 @@ def test_module_helpers():
     assert get_frame_hub().stats()["has_frame"] is True
 
 
+def test_streamer_publishes_hub_before_jpeg_encode():
+    """WebRTC/Monitor must not wait on clip-buffer JPEG encode."""
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "qoresence" / "lobes" / "streamer.py").read_text(
+        encoding="utf-8"
+    )
+    hub = src.find("_hub_publish(frame")
+    clip = src.find("_clip_enqueue(frame)")
+    assert hub > 0 and clip > hub
+
+
 def test_publish_clock_ns_and_stamp():
     hub = FrameHub()
     f = np.zeros((8, 8, 3), dtype=np.uint8)

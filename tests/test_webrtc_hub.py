@@ -12,6 +12,16 @@ def test_stats_shape():
     assert "peers" in s
 
 
+def test_track_recv_paces_then_pulls():
+    """Pull after sleep so WebRTC encodes the newest FrameHub frame."""
+    import inspect
+
+    src = inspect.getsource(webrtc_hub)
+    pace = src.find("await asyncio.sleep(wait)")
+    pull = src.find("img = self._pull_bgr()")
+    assert pace > 0 and pull > pace
+
+
 def test_unavailable_handle_offer_raises():
     if webrtc_hub.webrtc_available():
         return  # skip when aiortc installed

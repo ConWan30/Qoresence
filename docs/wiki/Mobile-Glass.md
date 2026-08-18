@@ -2,6 +2,8 @@
 
 Phone-friendly view of the **same** LIVE session. Source is FrameHub only. The phone is a **view**, never a capture owner.
 
+iPhone: Safari `/mobile.html` (WebRTC, MJPEG fallback). Android cinema APK: [Native Glass](./Native-Glass) — `/live.jpg` pump, PiP, clutch HUD.
+
 | Path | Role |
 |------|------|
 | `/mobile.html` | Glass page (WebRTC primary, MJPEG fallback) |

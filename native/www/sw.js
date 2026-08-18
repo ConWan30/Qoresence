@@ -25,8 +25,12 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
-  // Never cache live video or situation API — always network.
-  if (url.pathname.startsWith('/video') || url.pathname.startsWith('/api/')) {
+  // Never cache live video, still JPEG, or situation API — always network.
+  if (
+    url.pathname.startsWith('/video') ||
+    url.pathname === '/live.jpg' ||
+    url.pathname.startsWith('/api/')
+  ) {
     return; // let the browser handle it
   }
   // Static shell: stale-while-revalidate.

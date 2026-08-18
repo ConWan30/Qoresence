@@ -48,7 +48,8 @@ class QoreMdnsPlugin : Plugin() {
                 // Resolve to get host + port
                 val resolveListener = object : NsdManager.ResolveListener {
                     override fun onServiceResolved(info: NsdServiceInfo) {
-                        val host = info.host?.hostAddress ?: ""
+                        val raw = info.host?.hostAddress ?: ""
+                        val host = if (raw.contains(":") && !raw.startsWith("[")) "[$raw]" else raw
                         val port = info.port
                         val name = info.serviceName
                         if (host.isNotEmpty()) {

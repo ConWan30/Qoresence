@@ -63,8 +63,9 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 ### Native Glass (Mobile Glass phase 2) ✓
 - [x] PWA shell: `manifest.webmanifest`, `sw.js`, maskable icons, deck routes (`/api/discover`, `/manifest.webmanifest`, `/sw.js`, `/icons/{name}`)
 - [x] Deck-side mDNS broadcaster `qoresence/deck/mdns.py` (`_qoresence._tcp`, loopback no-op, `zeroconf` optional)
-- [x] Android app (Capacitor, `io.qoresence.glass`) wrapping the PWA: bundled `www/` shell with absolute `hostUrl`
-- [x] Native plugins: `QoreMdnsPlugin` (NSD scan), `QoreBackgroundPlugin` + `QoreForegroundService` (background clutch notifications + haptics)
+- [x] Android cinema app (Capacitor, `io.qoresence.glass`): `/live.jpg` pump (WebView cannot play MJPEG), clutch HUD, PiP, keep-awake, Save clip → PC
+- [x] Native plugins: `QoreMdnsPlugin`, `QoreBackgroundPlugin` + `QoreForegroundService`, `QoreCinemaPlugin`
+- [x] `/api/situation` exposes top-level `coupling.climax_score` (clutch no longer silent)
 - [x] PWA pairing gate skips when served from the deck (localhost UX regression fixed)
 - [x] Docs: `docs/NATIVE_GLASS.md`; tests: `tests/test_mobile_glass_pwa.py`
 

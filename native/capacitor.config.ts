@@ -16,13 +16,6 @@ const config: CapacitorConfig = {
     // Required for LAN HTTP (the deck is http://, not https://)
     captureInput: true,
   },
-  plugins: {
-    LocalNotifications: {
-      smallIcon: 'ic_stat_glass',
-      iconColor: '#c6f26a',
-      sound: 'glass_chime.wav',
-    },
-  },
 };
 
 export default config;

@@ -77,9 +77,48 @@ class HdmiClipBuffer:
         self._live_jpeg: bytes | None = None
         self._live_seq: int = 0
         self._live_ts: float = 0.0
+        self._pending: np.ndarray | None = None
+        self._pending_lock = threading.Lock()
+        self._pending_event = threading.Event()
+        self._worker: threading.Thread | None = None
 
     def enable(self, on: bool = True) -> None:
         self._enabled = bool(on)
+
+    def enqueue(self, frame: np.ndarray | None) -> None:
+        """Copy latest BGR and encode on a worker. Capture loop must not JPEG."""
+        if not self._enabled or frame is None:
+            return
+        try:
+            if not hasattr(frame, "shape") or len(frame.shape) < 2:
+                return
+            snap = np.ascontiguousarray(frame)
+            if snap is frame:
+                snap = frame.copy()
+        except Exception:
+            return
+        with self._pending_lock:
+            self._pending = snap
+            if self._worker is None or not self._worker.is_alive():
+                self._worker = threading.Thread(
+                    target=self._encode_loop, name="clip-jpeg", daemon=True
+                )
+                self._worker.start()
+        self._pending_event.set()
+
+    def _encode_loop(self) -> None:
+        while self._enabled:
+            self._pending_event.wait(timeout=1.0)
+            self._pending_event.clear()
+            with self._pending_lock:
+                fr = self._pending
+                self._pending = None
+            if fr is None:
+                continue
+            try:
+                self.push(fr)
+            except Exception as e:
+                log.debug("ClipBuffer worker encode failed: %s", e)
 
     def push(self, frame: np.ndarray | None) -> None:
         """Ingest a BGR frame from the streamer (throttled + resized + JPEG)."""
@@ -383,6 +422,11 @@ def get_clip_buffer(
 
 def push_frame(frame: np.ndarray | None) -> None:
     get_clip_buffer().push(frame)
+
+
+def enqueue_frame(frame: np.ndarray | None) -> None:
+    """Non-blocking JPEG ingest for the streamer capture thread."""
+    get_clip_buffer().enqueue(frame)
 
 
 def get_latest_jpeg() -> bytes | None:

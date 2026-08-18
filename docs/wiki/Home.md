@@ -12,6 +12,7 @@
 | [Capture-Ownership](Capture-Ownership) | Qoresence owns card (recommended) vs legacy VCam |
 | [Retina-Deck-and-Monitor](Retina-Deck-and-Monitor) | Glasses: Lens, Theater, LIVE, Mobile Glass, FrameHub monitor |
 | [Mobile-Glass](Mobile-Glass) | Phone view of the same FrameHub session (WebRTC / MJPEG, QR on Theater) |
+| [Native-Glass](Native-Glass) | Android cinema APK — `/live.jpg`, PiP, clutch HUD (view only) |
 | [Title-Presence](Title-Presence) | Optical title lock; on with `--play`; observation plane only |
 | [Retina-Monitor](Retina-Monitor) | Native OpenCV monitor window |
 | [Controller-Video-Sync](Controller-Video-Sync) | InputRing + IVC |

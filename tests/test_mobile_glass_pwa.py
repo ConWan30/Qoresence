@@ -85,6 +85,7 @@ def test_pwa_routes_registered(app):
     assert "/manifest.webmanifest" in paths
     assert "/sw.js" in paths
     assert "/icons/{name}" in paths
+    assert "/live.jpg" in paths
 
 
 def test_discover_route_calls_mdns_discovery_info(app, monkeypatch):
@@ -152,6 +153,7 @@ def test_service_worker_is_a_real_sw():
     assert "addEventListener('fetch'" in sw or 'addEventListener("fetch"' in sw
     # live data must never be cached
     assert "/video" in sw and "/api/" in sw
+    assert "/live.jpg" in sw
     assert "qoresence-glass-v1" in sw
 
 
@@ -229,3 +231,82 @@ def test_icon_route_rejects_traversal(app):
     r = client.get("/icons/glass-192.png")
     assert r.status_code == 200
     assert r.headers["content-type"] == "image/png"
+
+
+def test_situation_payload_exposes_coupling_without_inventing_score():
+    """Native Glass polls /api/situation for clutch. Coupling must be present
+    even with no IVC; digits stay fail-closed (no invented home/away)."""
+    from qoresence.deck.server import _situation_payload
+
+    snap = _situation_payload()
+    assert "coupling" in snap
+    assert "phrase" in snap["coupling"]
+    assert "climax_score" in snap["coupling"]
+    sit = snap.get("situation") or {}
+    locked = bool(
+        sit.get("score_vlm_locked") or sit.get("scoreboard_locked") or sit.get("title_claim")
+    )
+    if not locked:
+        # Unlocked board must not present a painted score to the glass.
+        assert sit.get("home_score") is None or sit.get("home_score") == 0
+        assert sit.get("away_score") is None or sit.get("away_score") == 0
+
+
+def test_native_shell_is_cinema_not_mjpeg():
+    """Android WebView cannot play MJPEG. The bundled shell pumps /live.jpg."""
+    html = (
+        pathlib.Path(__file__).resolve().parents[1] / "native" / "www" / "index.html"
+    ).read_text(encoding="utf-8")
+    assert "/live.jpg" in html
+    assert "QoreCinema" in html
+    assert "enterPip" in html
+    assert "pipChanged" in html
+    assert "document.hidden && !inPip" in html
+    assert "POST" in html and "/api/clip" in html
+    assert "score_vlm_locked" in html
+    assert "multipart/x-mixed-replace" not in html
+    assert "mjpeg.src" not in html
+
+
+def test_live_jpeg_is_503_until_hdmi_frame(app):
+    """Cinema pump must not treat the MJPEG placeholder as a live still."""
+    try:
+        from fastapi.testclient import TestClient
+    except Exception:
+        pytest.skip("httpx/starlette TestClient not installed")
+    from qoresence.deck import server as deck_server
+
+    assert deck_server._read_live_jpeg() == b""
+    client = TestClient(app)
+    r = client.get("/live.jpg")
+    assert r.status_code == 503
+    r = client.get("/api/situation")
+    assert r.status_code == 200
+    assert "coupling" in r.json()
+
+
+def test_live_jpeg_serves_hdmi_bytes(app, monkeypatch):
+    """When ClipBuffer has a still, /live.jpg is that JPEG — no second capture."""
+    try:
+        from fastapi.testclient import TestClient
+    except Exception:
+        pytest.skip("httpx/starlette TestClient not installed")
+    from qoresence.deck import server as deck_server
+
+    fake = b"\xff\xd8fake-hdmi-jpeg\xff\xd9"
+    monkeypatch.setattr(deck_server, "_read_live_jpeg", lambda: fake)
+    client = TestClient(app)
+    r = client.get("/live.jpg")
+    assert r.status_code == 200
+    assert r.content == fake
+    assert r.headers["content-type"] == "image/jpeg"
+    assert "no-store" in r.headers.get("cache-control", "")
+
+
+def test_native_sw_never_caches_live_jpeg():
+    sw = (
+        pathlib.Path(__file__).resolve().parents[1] / "native" / "www" / "sw.js"
+    ).read_text(encoding="utf-8")
+    assert "/live.jpg" in sw
+    assert "/video" in sw
+    assert "/api/" in sw

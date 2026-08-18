@@ -1,10 +1,13 @@
 package io.qoresence.glass
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
-import com.getcapacitor.JSObject
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -16,26 +19,48 @@ class QoreBackgroundPlugin : Plugin() {
     companion object {
         private const val CHANNEL_ID = "qoresence_glass_fg"
         private const val NOTIF_BASE = 9100
+        private const val REQ_POST = 4201
     }
 
-    init {
-        createChannel()
-    }
-
-    private fun createChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val mgr = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE)
-                as NotificationManager
-            val ch = NotificationChannel(
-                CHANNEL_ID,
-                "Qoresence Clutch",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Clutch moment alerts"
-                enableVibration(true)
-            }
-            mgr.createNotificationChannel(ch)
+    private fun ensureChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val mgr = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE)
+            as NotificationManager
+        if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
+        val ch = NotificationChannel(
+            CHANNEL_ID,
+            "Qoresence Clutch",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Clutch moment alerts"
+            enableVibration(true)
         }
+        mgr.createNotificationChannel(ch)
+    }
+
+    @PluginMethod
+    fun requestNotify(call: PluginCall) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            call.resolve()
+            return
+        }
+        val granted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            call.resolve()
+            return
+        }
+        try {
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                REQ_POST
+            )
+        } catch (_: Exception) {
+        }
+        call.resolve()
     }
 
     @PluginMethod
@@ -46,6 +71,7 @@ class QoreBackgroundPlugin : Plugin() {
             return
         }
         try {
+            ensureChannel()
             val intent = Intent(context, QoreForegroundService::class.java)
             intent.putExtra("url", url)
             context.startForegroundService(intent)
@@ -72,11 +98,13 @@ class QoreBackgroundPlugin : Plugin() {
         val id = call.getInt("id", (System.currentTimeMillis() % 100000).toInt())
             ?: (System.currentTimeMillis() % 100000).toInt()
         try {
+            ensureChannel()
             val mgr = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE)
                 as NotificationManager
             val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 android.app.Notification.Builder(context, CHANNEL_ID)
             } else {
+                @Suppress("DEPRECATION")
                 android.app.Notification.Builder(context)
             }
             val notif = builder
@@ -93,4 +121,3 @@ class QoreBackgroundPlugin : Plugin() {
         }
     }
 }
-

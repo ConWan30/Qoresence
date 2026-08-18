@@ -595,8 +595,14 @@ function paintController(ctrl, sit){
 function applySnap(snap,latMs){
   if(snap && snap.situation && isLiveSit(snap.situation)){
     strip.textContent=fmt(snap.situation); strip.classList.remove('wait');
-    if(latMs!=null && latMs<5000) lat.textContent=latMs.toFixed(0)+' ms visual path';
-    else if(latMs!=null) lat.textContent='visual path warm / OCR heavy';
+    const ageS = snap.video && snap.video.age_s!=null ? Number(snap.video.age_s) : null;
+    if(ageS!=null && !Number.isNaN(ageS)){
+      lat.textContent='hdmi '+Math.round(ageS*1000)+' ms'+(latMs!=null && latMs<8000?' · vlm '+Math.round(latMs)+' ms':'');
+    } else if(latMs!=null && latMs<5000){
+      lat.textContent=latMs.toFixed(0)+' ms visual path';
+    } else if(latMs!=null){
+      lat.textContent='visual path warm / OCR heavy';
+    }
     if(mode==='live') t1.textContent='● LIVE';
   } else if(snap && snap.situation){
     strip.textContent='On field for scorebug…'; strip.classList.add('wait');
