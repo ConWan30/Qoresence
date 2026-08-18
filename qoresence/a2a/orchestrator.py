@@ -589,12 +589,12 @@ class A2AOrchestrator:
             return True
         now = time.time()
         for t, prev in self._recent_norms:
-            if now - t > 180.0:
+            if now - t > 120.0:
                 continue
             if n == prev:
                 return True
-            # shared prefix (same hype line variants)
-            if len(n) >= 24 and len(prev) >= 24 and (n[:24] == prev[:24]):
+            # shared prefix (same hype line variants) — 40 chars for specificity
+            if len(n) >= 40 and len(prev) >= 40 and (n[:40] == prev[:40]):
                 return True
         return False
 

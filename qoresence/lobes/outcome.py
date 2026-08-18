@@ -265,9 +265,11 @@ class OutcomeRuntime:
         if self._profile.category == "football":
             if ctx.game_category == GameCategory.FOOTBALL:
                 self._process_football(ctx)
+                self._emit_heartbeat(ctx)
         elif self._profile.category == "shooter":
             if ctx.game_category == GameCategory.SHOOTER:
                 self._process_shooter(ctx)
+                self._emit_heartbeat(ctx)
 
     # ──────────────────────────────────────────────────────────────────────────
     # FOOTBALL PROCESSING
@@ -618,6 +620,28 @@ class OutcomeRuntime:
     # ──────────────────────────────────────────────────────────────────────────
     # EMITTERS
     # ──────────────────────────────────────────────────────────────────────────
+
+    def _emit_heartbeat(self, ctx: VisualContext) -> None:
+        """Emit a lightweight heartbeat so fusion does not flag temporal_desync.
+
+        The outcome lobe is event-driven from visual context — when the game
+        state is stable (no score changes), it would otherwise go silent for
+        >5s and fusion would raise a temporal_desync anomaly even though the
+        lobe is healthy and processing frames.
+        """
+        self.bus.emit_raw(
+            source_lobe=SourceLobe.OUTCOME,
+            event_type=EventType.HEARTBEAT,
+            payload={
+                "profile_id": self._profile.profile_id.value,
+                "home_score": self._home_score,
+                "away_score": self._away_score,
+                "quarter": self._quarter,
+                "game_state": ctx.game_state.value if ctx.game_state else None,
+            },
+            clock_ns_override=clock_ns(),
+            session_head_ns=self.session_head_ns,
+        )
 
     def _emit_outcome_event(
         self, event_name: str, fields: dict[str, Any], confidence: float

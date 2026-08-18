@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import time
 from dataclasses import dataclass, field
@@ -25,13 +26,27 @@ def _norm(text: str) -> str:
 class A2APolicy:
     """Gate ChatProposal → CommitAct | Veto."""
 
-    # Soft chat floor — stop feed spam
-    chat_cooldown_s: float = 45.0
-    duplicate_window_s: float = 180.0
+    # Soft chat floor — stop feed spam. Tunable via env.
+    chat_cooldown_s: float = 25.0
+    duplicate_window_s: float = 120.0
     _last_commit_ts: float = 0.0
     _last_text: str = ""
     _recent_norms: list[tuple[float, str]] = field(default_factory=list)
     recent_vetos: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        env_cd = os.environ.get("QORESENCE_A2A_CHAT_COOLDOWN_S", "").strip()
+        if env_cd:
+            try:
+                self.chat_cooldown_s = float(env_cd)
+            except ValueError:
+                pass
+        env_dw = os.environ.get("QORESENCE_A2A_DUPLICATE_WINDOW_S", "").strip()
+        if env_dw:
+            try:
+                self.duplicate_window_s = float(env_dw)
+            except ValueError:
+                pass
 
     def evaluate(
         self,
@@ -54,7 +69,7 @@ class A2APolicy:
             (t, s) for t, s in self._recent_norms if now - t < self.duplicate_window_s
         ]
         for _t, prev in self._recent_norms:
-            if n == prev or (len(n) >= 24 and n[:24] == prev[:24]):
+            if n == prev or (len(n) >= 40 and n[:40] == prev[:40]):
                 return self._veto("near-duplicate chat", text)
 
         soft = proposal.soft_only or proposal.path == "fast"
@@ -119,20 +134,16 @@ class A2APolicy:
 
     @staticmethod
     def _invents_score_digits(text: str, situation: dict[str, Any] | None) -> bool:
+        """Flag only explicit scoreline patterns (X-Y) in soft path.
+
+        Bare multi-digit numbers (yardage, down, jersey numbers) are NOT
+        treated as invented scores — that was too aggressive and vetoed
+        natural football commentary like "gained 12 yards" or "3rd and 8".
+        The _SCORE_RE check above already catches "31-38" style scorelines.
+        """
         if _SCORE_RE.search(text):
             return True
-        sit = situation or {}
-        hs, aws = sit.get("home_score"), sit.get("away_score")
-        found = [int(x) for x in _DIGIT_RE.findall(text) if 0 <= int(x) <= 99]
-        if not found:
-            return False
-        multi = [n for n in found if n >= 10]
-        if not multi:
-            return False
-        if hs is None and aws is None:
-            return True  # soft path shouldn't invent board numbers
-        allowed = {int(x) for x in (hs, aws) if x is not None}
-        return any(n not in allowed for n in multi)
+        return False
 
     @staticmethod
     def _digits_match_situation(text: str, situation: dict[str, Any]) -> bool:
