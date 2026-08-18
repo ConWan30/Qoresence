@@ -9,7 +9,7 @@ Hardens `GameAutoDetector` with a hysteresis FSM and a hard `plane` tag.
 python -m qoresence.cli --play --deck --monitor --controller --streamer-device 0 --game-profile madden_27
 ```
 
-Title-presence starts with that stack. An explicit `--game-profile` is pinned: a locked optical title is observed but will not yank the operator profile.
+Title-presence starts with that stack. An explicit `--game-profile` is pinned: a locked optical title is observed but will not yank the operator profile. The pin is **persisted** to `~/.qoresence/last_game_profile` — next session reuses it automatically without re-passing the flag. `QORESENCE_GAME_PROFILE` env also pins. First-run with no pin falls back to `ncaa_football_27` (not pinned, so optics can still lock the live title).
 
 ## What you get
 

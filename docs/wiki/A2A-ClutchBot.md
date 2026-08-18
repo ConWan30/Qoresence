@@ -31,9 +31,9 @@ python -m qoresence.cli --play --deck --a2a --clutchbot --streamer-fps 30
 
 ## Policy guarantees
 
-- **No invented scores** on the fast path.
-- **45s chat cooldown** between messages.
-- **Duplicate / near-duplicate veto** for ~3 minutes.
+- **No invented scores** on the fast path. Only explicit scoreline patterns (`X-Y`) are vetoed; bare numbers like "gained 12 yards" or "3rd and 8" are allowed.
+- **25s chat cooldown** between messages (was 45s). Tunable via `QORESENCE_A2A_CHAT_COOLDOWN_S`.
+- **Duplicate / near-duplicate veto** for 120s with a 40-char prefix match (was 24-char / 180s — the old threshold over-vetoed natural variations like "Pressure building on this drive — defense" vs "— offense"). Tunable via `QORESENCE_A2A_DUPLICATE_WINDOW_S`.
 - Scoreboard OCR remains the source of truth.
 
 ## Check health

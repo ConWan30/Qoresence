@@ -67,9 +67,9 @@ reason fires
 
 | Path | Rule |
 |------|------|
-| `fast` / soft | **No** scorelines; no inventing multi-digit board numbers |
+| `fast` / soft | **No** explicit scorelines (`X-Y`); bare numbers like "gained 12 yards" are allowed |
 | `confirm` | Scoreline digits must match local `home_score`/`away_score` |
-| Always | 45s chat cooldown; exact + near-duplicate veto (~3 min window) |
+| Always | 25s chat cooldown (env: `QORESENCE_A2A_CHAT_COOLDOWN_S`); exact + near-duplicate veto 120s / 40-char prefix (env: `QORESENCE_A2A_DUPLICATE_WINDOW_S`) |
 
 ---
 

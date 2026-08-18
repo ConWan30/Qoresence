@@ -7,7 +7,7 @@ Optical title lock around `GameAutoDetector`. Observation plane only (`plane: "q
 - States: `unknown` → `transitioning` → `overlay-rejected` | `locked`
 - Only **locked** emits `game_detected` with a claim
 - Pause/menu/hub is no-claim; a huddle with a locked scorebug still counts as gameplay
-- An explicit `--game-profile` is **pinned** — optics will not yank it
+- An explicit `--game-profile` is **pinned** — optics will not yank it. The pin is **persisted** to `~/.qoresence/last_game_profile` so the next session reuses it automatically. `QORESENCE_GAME_PROFILE` env also pins. First-run with no pin falls back to `ncaa_football_27` (not pinned, so optics can still lock the live title).
 - No scores or player names in the title record
 - Re-wrap ceremony is live onto `qoresence-research` only (`QORESENCE_WRAP_GRANT_ID`); `qortroller-truth` is denied
 - Research ingredients link `source_hash` + decay; the optical record is not rewritten

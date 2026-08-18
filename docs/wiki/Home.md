@@ -13,11 +13,11 @@
 | [Retina-Deck-and-Monitor](Retina-Deck-and-Monitor) | Glasses: Lens, Theater, LIVE, Mobile Glass, FrameHub monitor |
 | [Mobile-Glass](Mobile-Glass) | Phone view of the same FrameHub session (WebRTC / MJPEG, QR on Theater) |
 | [Native-Glass](Native-Glass) | Android cinema APK — `/live.jpg`, PiP, clutch HUD (view only) |
-| [Title-Presence](Title-Presence) | Optical title lock; on with `--play`; observation plane only |
+| [Title-Presence](Title-Presence) | Optical title lock; on with `--play`; observation plane only; profile pin persisted |
 | [Retina-Monitor](Retina-Monitor) | Native OpenCV monitor window |
 | [Controller-Video-Sync](Controller-Video-Sync) | InputRing + IVC |
-| [Two-Speed-ClutchBot](Two-Speed-ClutchBot) | Fast video+input; OCR referee |
-| [A2A-ClutchBot](A2A-ClutchBot) | Gemini↔DeepSeek chat agent |
+| [Two-Speed-ClutchBot](Two-Speed-ClutchBot) | Fast video+input; OCR referee; local HUD digit lock (fail-closed) |
+| [A2A-ClutchBot](A2A-ClutchBot) | Gemini↔DeepSeek chat agent; 25s cooldown, env-tunable |
 | [Agent-Glass](Agent-Glass) | **Spectator API: HTTP/WS** |
 | [MCP-Glass](MCP-Glass) | **MCP adapter for Cursor/Claude** |
 | [Streamr](Streamr) | Experimental DePIN publishing |

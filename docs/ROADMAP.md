@@ -112,6 +112,14 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] Router must-fire predicates (P2): typed predicate set + decision log
 - [x] Tool registry (P3): query-memory + zoom-redetect with depth bound
 
+## Phase 7.5 — Profile pin + score lock + lobe health
+- [x] Operator profile pin persistence (`~/.qoresence/last_game_profile`, `QORESENCE_GAME_PROFILE` env)
+- [x] First-run NCAA fallback is not a pin (optics can still lock the live title)
+- [x] SituationModel honors operator pin — title-presence observes but does not yank
+- [x] Local HUD digit lock (fail-closed, template-free 0–9 classifier, no invented scores)
+- [x] Outcome lobe heartbeat (prevents temporal_desync on stable game state)
+- [x] A2A veto tuning (25s cooldown, 40-char near-duplicate, relaxed digit check)
+
 ## Phase 8 — Research (optional)
 - [ ] Fusion presence reports productization
 - [ ] Trio-retina WASM path hardening
