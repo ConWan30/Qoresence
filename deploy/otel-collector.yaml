@@ -40,7 +40,7 @@ processors:
       - name: routine-sample
         type: probabilistic
         probabilistic:
-          sampling_percentage: 10
+          sampling_percentage: 100
 
 exporters:
   otlp/jaeger:

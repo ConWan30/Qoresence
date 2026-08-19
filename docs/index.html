@@ -219,6 +219,7 @@
       <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="site-nav">MENU</button>
       <nav id="site-nav" class="nav-links" data-nav aria-label="Primary">
         <a href="#watch">Watch</a>
+        <a href="#otel">Trace</a>
         <a href="#plane">Plane</a>
         <a href="#spine">Spine</a>
         <a href="#glasses">Glasses</a>
@@ -289,6 +290,30 @@
           </video>
         </div>
         <p class="demo-cap">75s cut from a local NCAA 27 session · USB DualSense · scoreboard 0–0 Q1 · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
+      </div>
+    </section>
+
+    <section class="section" id="otel">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Proof / Trace</div><h2>One clip, three sidecars.</h2></div>
+          <p>OTel causal bus traces, DualSense button events, and IVC coupling history — all stamped on the same monotonic clock.</p>
+        </div>
+        <div class="demo-frame">
+          <div class="demo-chrome">
+            <span><strong>Madden 27</strong> · DualSense Edge · OTel causal traces</span>
+            <span>clip + .coupling.json + .buttons.json + .otel.json</span>
+          </div>
+          <video
+            controls
+            playsinline
+            preload="metadata"
+            poster="./assets/otel-controller-demo.jpg"
+            src="./assets/otel-controller-demo.mp4">
+            Your browser cannot play this MP4.
+          </video>
+        </div>
+        <p class="demo-cap">30s clip with controller input · sidecars: <a href="https://github.com/ConWan30/Qoresence/blob/main/docs/assets/otel-controller-demo.mp4">MP4</a> · press <code>square</code> + <code>L2</code> captured in <code>.buttons.json</code> · 56 coupling ticks in <code>.coupling.json</code> · 100% sampled OTel trace IDs in <code>.otel.json</code> · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
       </div>
     </section>
 
