@@ -1508,6 +1508,25 @@ def create_app():  # type: ignore[no-untyped-def]
             headers={"Accept-Ranges": "bytes", "Cache-Control": "no-cache"},
         )
 
+    @app.get("/api/jaeger/{path:path}")
+    async def api_jaeger_proxy(path: str):  # type: ignore[no-untyped-def]
+        """Proxy to the local Jaeger API so the trace viewer avoids CORS."""
+        try:
+            import requests
+
+            base = getattr(_deck_config, "jaeger_api_base", "http://127.0.0.1:16686")
+            url = f"{base.rstrip('/')}/api/{path}"
+            r = requests.get(url, timeout=10)
+            return Response(
+                content=r.content,
+                status_code=r.status_code,
+                media_type=r.headers.get("content-type", "application/json"),
+                headers={"Access-Control-Allow-Origin": "*"},
+            )
+        except Exception as e:
+            log.exception("GET /api/jaeger failed")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
+
     @app.get("/api/foundry/status")
     async def api_foundry_status():  # type: ignore[no-untyped-def]
         """Studio enablement + key presence. Never blocks capture."""
@@ -1621,6 +1640,18 @@ def create_app():  # type: ignore[no-untyped-def]
     async def deck():  # type: ignore[no-untyped-def]
         return HTMLResponse(
             _html("deck.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+        )
+
+    @app.get("/trace.html")
+    async def trace_viewer():  # type: ignore[no-untyped-def]
+        return HTMLResponse(
+            _html("trace.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+        )
+
+    @app.get("/trace")
+    async def trace_viewer_alias():  # type: ignore[no-untyped-def]
+        return HTMLResponse(
+            _html("trace.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
     @app.get("/studio.html")

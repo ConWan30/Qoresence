@@ -577,11 +577,13 @@ def _write_otel_sidecar(
 
         out = Path(mp4_path).with_name(Path(mp4_path).stem + ".otel.json")
         jaeger_base = "http://127.0.0.1:16686/trace"
+        deck_base = "http://127.0.0.1:8765/trace.html?id="
         payload = {
             "clip.clock_ns.start": start_ns,
             "clip.clock_ns.end": end_ns,
             "trace.ids": trace_ids,
             "jaeger_urls": [f"{jaeger_base}/{tid}" for tid in trace_ids],
+            "deck_trace_urls": [f"{deck_base}{tid}" for tid in trace_ids],
         }
         out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         log.info("otel sidecar: %s (%d trace ids)", out.name, len(trace_ids))
