@@ -76,6 +76,23 @@ Specifically:
 - `test_presence_lock_released_during_report_fanout`
 - `test_full_cascade_streamer_event_with_a2a_loop`
 
+### Rule 5: The OTel exporter subscribe callback must only enqueue (HARD RULE)
+
+`OtelExporter._on_event` (`qoresence/observability/otel.py`) runs
+synchronously on the emitting thread. It must ONLY enqueue into its bounded
+drop-oldest queue — never block, never emit bus events, never acquire a lobe
+lock. Enforced by `tests/test_otel_exporter.py`.
+
+### Rule 6: The OTel re-entrancy tracker is observation-only (HARD RULE)
+
+The causal re-entrancy detector in `OtelExporter` records per-thread
+`source_lobe` sequences from bus events. It may write small anomaly JSONL
+entries and increment metrics, but it must **never** take a lobe lock,
+**never** emit bus events, and **never** block the worker on network or disk.
+It is the same observation-plane class as Rule 5: a smoke detector, not a
+control loop. Any PR that makes the OTel path participate in backpressure,
+lock acquisition, or bus fan-out must be rejected.
+
 ## Capture Card / Streamer Notes
 
 - The USB3.0 capture card is stable at its **native 640x480 resolution** when

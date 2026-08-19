@@ -718,6 +718,36 @@ def create_app():  # type: ignore[no-untyped-def]
             "state": _state.snapshot(),
         }
         try:
+            from qoresence.observability.otel import get_otel_exporter
+
+            _ox = get_otel_exporter()
+            if _ox is not None:
+                _ostats = _ox.stats()
+                _last_ns = _ostats.get("last_export_ns") or 0
+                body["otel"] = {
+                    "enabled": bool(_ostats.get("enabled")),
+                    "exported": int(_ostats.get("exported", 0)),
+                    "dropped": int(_ostats.get("dropped", 0)),
+                    "last_export_age_s": round(
+                        (time.monotonic_ns() - _last_ns) / 1e9, 3
+                    )
+                    if _last_ns
+                    else None,
+                    "reentrant_cycles_total": int(
+                        _ostats.get("reentrant_cycles_total", 0)
+                    ),
+                    "reentrant_cycles_recent": int(
+                        _ostats.get("reentrant_cycles_recent", 0)
+                    ),
+                    "reentrant_lobe_counts": _ostats.get(
+                        "reentrant_lobe_counts", {}
+                    ),
+                }
+            else:
+                body["otel"] = {"enabled": False}
+        except Exception:
+            body["otel"] = {"enabled": False}
+        try:
             from qoresence.a2a.orchestrator import get_a2a_orchestrator
 
             body["a2a"] = get_a2a_orchestrator().stats()
@@ -1941,6 +1971,36 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     health["coupling"] = get_last_coupling()
                 except Exception:
                     health["coupling"] = {"imu_bodied": False, "coupling": 0.0, "binds": 0}
+                try:
+                    from qoresence.observability.otel import get_otel_exporter
+
+                    _ox = get_otel_exporter()
+                    if _ox is not None:
+                        _ostats = _ox.stats()
+                        _last_ns = _ostats.get("last_export_ns") or 0
+                        health["otel"] = {
+                            "enabled": bool(_ostats.get("enabled")),
+                            "exported": int(_ostats.get("exported", 0)),
+                            "dropped": int(_ostats.get("dropped", 0)),
+                            "last_export_age_s": round(
+                                (time.monotonic_ns() - _last_ns) / 1e9, 3
+                            )
+                            if _last_ns
+                            else None,
+                            "reentrant_cycles_total": int(
+                                _ostats.get("reentrant_cycles_total", 0)
+                            ),
+                            "reentrant_cycles_recent": int(
+                                _ostats.get("reentrant_cycles_recent", 0)
+                            ),
+                            "reentrant_lobe_counts": _ostats.get(
+                                "reentrant_lobe_counts", {}
+                            ),
+                        }
+                    else:
+                        health["otel"] = {"enabled": False}
+                except Exception:
+                    health["otel"] = {"enabled": False}
                 self.wfile.write(json.dumps(health).encode())
                 return
             if self.path == "/api/situation":

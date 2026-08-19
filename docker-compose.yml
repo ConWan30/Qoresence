@@ -88,6 +88,31 @@ services:
     #           count: 1
     #           capabilities: [gpu]
 
+  # OpenTelemetry observation plane (opt-in — does NOT start by default):
+  #   docker compose --profile otel up -d
+  # Collector owns host loopback 4317/4318 (the only OTLP entry point).
+  # Jaeger publishes only its UI (16686) on loopback; its OTLP port stays
+  # on the compose network to avoid colliding with the collector.
+  otel-collector:
+    profiles: ["otel"]
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: qoresence-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"  # OTLP gRPC (Qoresence --otel default endpoint)
+      - "127.0.0.1:4318:4318"  # OTLP HTTP (optional)
+
+  jaeger:
+    profiles: ["otel"]
+    image: jaegertracing/all-in-one:latest
+    container_name: qoresence-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "127.0.0.1:16686:16686"  # Jaeger UI (loopback only)
+
   # OBS Studio (optional - for local testing)
   # obs:
   #   image: obsproject/obs-studio:latest

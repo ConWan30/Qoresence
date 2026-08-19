@@ -566,6 +566,45 @@ class StreamrConfig:
 
 
 @dataclass
+class OtelConfig:
+    """OpenTelemetry exporter configuration (observation plane only).
+
+    Opt-in, default OFF — same gating as Streamr / A2A. Exports bus cascade
+    traces and capture-health metrics over OTLP gRPC to a local Collector.
+    Observation only: no payload dumps, no session-long mega-trace.
+    See docs/OTEL.md.
+    """
+
+    enabled: bool = False
+    # OTLP gRPC endpoint (local Collector). Loopback by default — nothing
+    # leaves the box unless the operator points this elsewhere.
+    endpoint: str = "http://127.0.0.1:4317"
+    insecure: bool = True
+    # Max queued events on the hot path (drop-oldest past this)
+    queue_size: int = 2048
+    # Max events grouped into one short cascade trace
+    cascade_max_events: int = 64
+    # Events with clock_ns gap beyond this close the current cascade trace
+    cascade_window_ns: int = 250_000_000
+
+    # Phase 2: causal re-entrancy detection. Default 500 ms window; a lobe
+    # that reappears on the same OS thread with other lobes between is a
+    # re-entrant fan-out candidate (see AGENTS.md Rule 6).
+    reentrancy_window_ns: int = 500_000_000
+    reentrancy_max_stack: int = 16
+    # Only count a re-entrant cycle when the re-entering (last) event has one
+    # of these event types. This suppresses the IVC/presence ping-pong while
+    # still catching the A2A router_decision re-entry pattern.
+    reentrancy_dangerous_event_types: tuple[str, ...] = (
+        "router_decision",
+        "evidence_chain",
+    )
+
+    # Phase 2: trace-ID ring used to annotate clips with their causal cascade.
+    trace_ring_size: int = 128
+
+
+@dataclass
 class RetinaUnifiedConfig:
     """
     Single source of truth for all Qoresence lobes.
@@ -596,6 +635,9 @@ class RetinaUnifiedConfig:
 
     # ── Network Publisher ────────────────────────────────────────────────────
     streamr: StreamrConfig = field(default_factory=StreamrConfig)
+
+    # ── Observation-plane OTel exporter (default OFF) ───────────────────────
+    otel: OtelConfig = field(default_factory=OtelConfig)
 
     # ── Fusion Engine ────────────────────────────────────────────────────────
     fusion_weights: FusionWeights = field(default_factory=FusionWeights)

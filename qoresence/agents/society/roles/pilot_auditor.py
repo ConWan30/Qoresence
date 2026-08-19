@@ -42,6 +42,9 @@ def run(packet: AgentPacket, *, complete=None) -> AgentReceipt | None:
         issues.append("chat volume high")
     if not m["score_locked"] and m["confirm_lines"] == 0 and not m.get("confirm_ticket_id"):
         issues.append("no confirm score lock this window")
+    otel_stats = (packet.health or {}).get("otel") or {}
+    if int(otel_stats.get("reentrant_cycles_recent", 0)) > 0:
+        issues.append("re_entrant_bus_cycle_detected")
     bullets = [
         f"capture_stable={m['capture_stable']} age={m['video_age_s']}",
         f"commits={m['commits']} confirm={m['confirm_lines']} clips={m['clip_hits']}",

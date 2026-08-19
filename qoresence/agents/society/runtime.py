@@ -73,6 +73,14 @@ def build_packet() -> AgentPacket:
             session_id = session_id or str((gs.get("session") or {}).get("session_id") or "")
     except Exception:
         pass
+    try:
+        from qoresence.observability.otel import get_otel_exporter
+
+        ox = get_otel_exporter()
+        if ox is not None:
+            health = {**(health or {}), "otel": ox.stats()}
+    except Exception:
+        pass
     sit_d = sit if isinstance(sit, dict) else {}
     try:
         from qoresence.vision.confirm_ticket import get_ticket_book

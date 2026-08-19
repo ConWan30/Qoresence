@@ -21,6 +21,7 @@ import logging
 import math
 import threading
 import time
+from collections import deque
 from typing import Any
 
 log = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ DEFAULT_HZ = 30.0
 DEFAULT_ENERGY_SCALE = 2.5
 DEFAULT_EMA_ALPHA = 0.40
 DEFAULT_HOLD_FRESH_MS = 80.0
+DEFAULT_HISTORY_SECONDS = 60.0
 # FrameHub age above this starts decaying coupling (stalled video ≠ live sync).
 # Kept in sync with play_phrase.STALE_VIDEO_S — at 6fps capture, frames are
 # ~167ms apart, so 0.20s decayed every non-stalled frame.
@@ -70,6 +72,9 @@ class InputVideoCoupler:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
+        # Per-frame coupling history for clip sidecars: one payload per IVC tick.
+        history_len = max(1, int(getattr(self, "hz", DEFAULT_HZ) * DEFAULT_HISTORY_SECONDS))
+        self._coupling_history: deque[dict[str, Any]] = deque(maxlen=history_len)
         self._last: dict[str, Any] = {
             "frame_seq": 0,
             "video_clock_ns": 0,
@@ -115,6 +120,17 @@ class InputVideoCoupler:
     def get_last_coupling(self) -> dict[str, Any]:
         with self._lock:
             return dict(self._last)
+
+    def coupling_history(
+        self, start_ns: int, end_ns: int
+    ) -> list[dict[str, Any]]:
+        """Return all coupling payloads whose video_clock_ns fall in [start, end]."""
+        with self._lock:
+            return [
+                dict(p)
+                for p in self._coupling_history
+                if start_ns <= int(p.get("video_clock_ns") or 0) <= end_ns
+            ]
 
     def tick_once(self) -> dict[str, Any] | None:
         """One coupling sample (for tests / manual). Returns payload or None if no frame."""
@@ -347,6 +363,7 @@ class InputVideoCoupler:
             payload["binds"] = 0
         with self._lock:
             self._last = payload
+            self._coupling_history.append(payload)
 
         if self.bus is not None:
             try:
@@ -422,6 +439,17 @@ def stop_ivc() -> None:
             except Exception:
                 pass
             _ivc = None
+
+
+def get_coupling_history(
+    start_ns: int,
+    end_ns: int,
+) -> list[dict[str, Any]]:
+    """Best-effort coupling payloads for a clip window."""
+    ivc = get_ivc()
+    if ivc is None:
+        return []
+    return ivc.coupling_history(start_ns, end_ns)
 
 
 def get_last_coupling() -> dict[str, Any]:
