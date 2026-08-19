@@ -508,7 +508,7 @@ def _write_coupling_sidecar(
         from qoresence.sync.input_ring import get_input_ring
         from qoresence.sync.ivc import get_coupling_history, get_last_coupling
 
-        events = get_input_ring().snapshot(seconds=float(end_s - start_s) + 0.1)
+        events = [e.to_dict() for e in get_input_ring().in_window(start_ns, end_ns)]
         coupling = get_last_coupling() or {}
         coupling_history = get_coupling_history(start_ns, end_ns)
         out = Path(mp4_path).with_name(Path(mp4_path).stem + ".coupling.json")
@@ -521,10 +521,12 @@ def _write_coupling_sidecar(
         }
         out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         log.info(
-            "coupling sidecar: %s (%d history ticks, %d input events)",
+            "coupling sidecar: %s (%d history ticks, %d input events, window %d-%d)",
             out.name,
             len(coupling_history),
             len(events),
+            start_ns,
+            end_ns,
         )
         return out
     except Exception as e:
