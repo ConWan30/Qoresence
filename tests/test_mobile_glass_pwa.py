@@ -275,7 +275,13 @@ def test_live_jpeg_is_503_until_hdmi_frame(app):
     except Exception:
         pytest.skip("httpx/starlette TestClient not installed")
     from qoresence.deck import server as deck_server
+    from qoresence.vision.clip_buffer import get_clip_buffer
 
+    # Ensure a previous test's clip buffer state doesn't leak into this hermetic test.
+    buf = get_clip_buffer()
+    buf._live_jpeg = None
+    buf._live_seq = 0
+    buf._frames.clear()
     assert deck_server._read_live_jpeg() == b""
     client = TestClient(app)
     r = client.get("/live.jpg")
