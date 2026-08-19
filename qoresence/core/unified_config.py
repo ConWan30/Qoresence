@@ -601,7 +601,9 @@ class OtelConfig:
     )
 
     # Phase 2: trace-ID ring used to annotate clips with their causal cascade.
-    trace_ring_size: int = 128
+    # Keep enough history to cover long clips and high-frequency coupling events
+    # without evicting the cascades that overlap a freshly-exported clip window.
+    trace_ring_size: int = 8192
 
 
 @dataclass

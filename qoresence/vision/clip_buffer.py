@@ -563,9 +563,16 @@ def _write_otel_sidecar(
         end_ns = int(end_s * 1_000_000_000)
         # Give the OTel worker a chance to emit the cascades for this window
         # before reading the trace ring.
-        exporter.flush(end_clock_ns=end_ns, timeout=2.0)
+        flushed = exporter.flush(end_clock_ns=end_ns, timeout=2.0)
         trace_ids = exporter.trace_ids_for_window(start_ns, end_ns)
         if not trace_ids:
+            log.debug(
+                "otel sidecar skipped: flush=%s start=%s end=%s ring_len=%d",
+                flushed,
+                start_ns,
+                end_ns,
+                len(exporter._trace_ring),
+            )
             return None
 
         out = Path(mp4_path).with_name(Path(mp4_path).stem + ".otel.json")
