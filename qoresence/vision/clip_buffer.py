@@ -492,8 +492,8 @@ def _write_coupling_sidecar(
 ) -> Path | None:
     """Write clips/<stem>.coupling.json with controller state and input events.
 
-    Combines the latest IVC coupling payload (synced to a video frame via
-    frame_seq / video_clock_ns) with the InputRing snapshot for the clip window.
+    Combines per-frame coupling history, the latest IVC coupling payload, and
+    the InputRing snapshot for the clip window, all keyed by `video_clock_ns`.
     """
     import json
 
@@ -506,19 +506,26 @@ def _write_coupling_sidecar(
         end_ns = int(end_s * 1_000_000_000)
 
         from qoresence.sync.input_ring import get_input_ring
-        from qoresence.sync.ivc import get_last_coupling
+        from qoresence.sync.ivc import get_coupling_history, get_last_coupling
 
         events = get_input_ring().snapshot(seconds=float(end_s - start_s) + 0.1)
         coupling = get_last_coupling() or {}
+        coupling_history = get_coupling_history(start_ns, end_ns)
         out = Path(mp4_path).with_name(Path(mp4_path).stem + ".coupling.json")
         payload = {
             "clip.clock_ns.start": start_ns,
             "clip.clock_ns.end": end_ns,
             "coupling": coupling,
-            "input_events": events,
+            "coupling_history": coupling_history,
+            "input_ring_events": events,
         }
         out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-        log.info("coupling sidecar: %s (%d events)", out.name, len(events))
+        log.info(
+            "coupling sidecar: %s (%d history ticks, %d input events)",
+            out.name,
+            len(coupling_history),
+            len(events),
+        )
         return out
     except Exception as e:
         log.debug("coupling sidecar write failed: %s", e)

@@ -467,6 +467,47 @@ class TestCouplingTelemetry:
             exporter.stop()
             bus.close()
 
+    def test_coupling_history_for_clip_window(self, tmp_path):
+        from qoresence.sync.ivc import start_ivc, get_coupling_history, stop_ivc
+
+        bus = _make_bus(tmp_path)
+        exporter, _ = _make_exporter(bus, tmp_path)
+        try:
+            ivc = start_ivc(bus=bus, hz=30.0)
+            t0 = time.monotonic_ns()
+            for i in range(10):
+                payload = {
+                    "frame_seq": i,
+                    "video_clock_ns": t0 + i * 33_000_000,
+                    "coupling": round(0.1 * (i % 3), 4),
+                    "phrase": ["IDLE", "SNAP", "SPRINT"][i % 3],
+                    "input_events": 0,
+                    "buttons": [],
+                    "input_energy": 0.0,
+                    "edge_energy": 0.0,
+                    "hold_energy": 0.0,
+                    "coupling_ema": 0.0,
+                    "lag_band_ms": [0.0, 120.0],
+                    "lead_ms": 24.0,
+                    "video_age_s": 0.0,
+                    "phrase_conf": 0.9,
+                    "coupling_ticket_id": "",
+                    "path": "fast",
+                    "stick_gyro_r": 0.0,
+                    "stick_motion_r": 0.0,
+                    "imu_bodied": False,
+                    "binds": 0,
+                }
+                ivc._coupling_history.append(payload)
+            history = get_coupling_history(t0, t0 + 500_000_000)
+            assert len(history) == 10
+            assert history[0]["video_clock_ns"] == t0
+            assert history[-1]["video_clock_ns"] == t0 + 9 * 33_000_000
+        finally:
+            stop_ivc()
+            exporter.stop()
+            bus.close()
+
     def test_clip_coupling_sidecar_written(self, tmp_path):
         from qoresence.vision.clip_buffer import HdmiClipBuffer
 
@@ -491,7 +532,8 @@ class TestCouplingTelemetry:
             data = json.loads(sidecar.read_text())
             assert "clip.clock_ns.start" in data
             assert "coupling" in data
-            assert "input_events" in data
+            assert "coupling_history" in data
+            assert "input_ring_events" in data
         finally:
             exporter.stop()
             bus.close()
