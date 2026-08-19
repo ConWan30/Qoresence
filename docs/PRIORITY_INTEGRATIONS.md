@@ -29,7 +29,8 @@ python -m qoresence.cli --play --deck --controller --monitor --streamer-device 0
 - Deck **Why it fired** strip updates on fast/confirm moments  
 - Fast arm appears as timeline `arm`; TTL (45s) → `prediction_cancel`  
 - OCR score → `prediction_resolve` + confirm chat  
-- Make Clip writes `clips/*.chapters.json` (chapters + buttons + why)  
+- Make Clip writes `clips/*.chapters.json` (chapters + buttons + why)
+- With `--otel`: clip export also writes `clips/*.otel.json` (trace IDs + Jaeger URLs) and `clips/*.coupling.json` (per-frame IVC history + InputRing events)  
 
 Optional: `$env:QORESENCE_TIMELINE_PERSIST = "1"` → JSONL under `logs/timeline/`.
 

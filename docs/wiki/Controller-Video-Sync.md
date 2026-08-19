@@ -25,6 +25,11 @@ VCam: `$env:QORESENCE_IVC_LAG_HI_MS = "200"`
 
 ## Sidecars
 
-On Foundry export success → `clips/<stem>.buttons.json` when ring non-empty.
+On Foundry export success:
 
-Full: [CONTROLLER_VIDEO_SYNC.md](https://github.com/ConWan30/Qoresence/blob/main/docs/CONTROLLER_VIDEO_SYNC.md)
+- `clips/<stem>.buttons.json` — button press/release summary (when ring non-empty)
+- `clips/<stem>.coupling.json` — latest IVC payload + per-frame `coupling_history`
+  keyed by `frame_seq` / `video_clock_ns` + `input_ring_events` in the exact clip window
+- `clips/<stem>.otel.json` — trace IDs + Jaeger URLs when `--otel` is enabled
+
+Full: [CONTROLLER_VIDEO_SYNC.md](https://github.com/ConWan30/Qoresence/blob/main/docs/CONTROLLER_VIDEO_SYNC.md) · [OTEL.md](https://github.com/ConWan30/Qoresence/blob/main/docs/OTEL.md)

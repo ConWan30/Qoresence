@@ -15,6 +15,7 @@ Pre-market gate for Qoresence. **Does not** change two-speed rules, capture owne
 | Latency opt-in | `QORESENCE_LATENCY_LOG=1` → JSONL under `logs/latency/` |
 | CI hardening | `.github/workflows/ci-hardening.yml` on `main` |
 | Local preflight | `python scripts/check_release_hardening.py` |
+| OTel non-blocking | `pytest tests/test_otel_exporter.py -q` — subscriber must only enqueue; no lock, no bus emit, no network on bus thread |
 
 ---
 

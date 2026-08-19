@@ -15,6 +15,7 @@ paths but are not part of the ClutchBot MVP.
 | **Capture** | Video, HID, screen, game events, visual context | Enabled per-lobe by operator |
 | **Situation** | Rolling score, state, APM, last outcomes | `SituationModel` |
 | **Stream/Social** | Twitch chat, clips, predictions, viewer panel | **ClutchBot** |
+| **Observation/OTel** | Causal bus traces, coupling/controller metrics, clip sidecars | `--otel` opt-in, local OTLP only |
 
 **Qoresence (ClutchBot MVP) never:**
 - Claims humanity, eligibility, or "anti-cheat"
@@ -147,6 +148,23 @@ All events emitted to `RetinaEventBus` must carry:
   - `tools/obs/presence_overlay.html` (OBS Browser Source)
   - `tools/twitch-extension/panel.html` (Twitch Extension / Browser Source)
   - `ClutchBot` agent
+
+### OpenTelemetry / observability (`qoresence/observability/otel.py`) — Optional
+
+When `--otel` is enabled, the `OtelExporter` subscribes to `RetinaEventBus`
+and forwards short causal cascades to a local OpenTelemetry Collector. It is
+non-blocking: the subscriber callback only enqueues, so a stalled Collector can
+never stall the bus. It produces:
+
+- `bus.cascade` spans in Jaeger (`http://127.0.0.1:16686`)
+- Controller / coupling gauges (`qoresence_coupling`, `qoresence_input_energy`, ...)
+- Per-clip sidecars:
+  - `.otel.json` with trace IDs + `jaeger_urls`
+  - `.coupling.json` with per-frame IVC history + InputRing events
+
+The re-entrancy tracker watches for the same `source_lobe` re-appearing on one
+OS thread with a different lobe between, surfacing potential A2A/Presence
+cascade deadlocks before they lock the process.
 
 ### Receipts (`outputs/receipt.py`) — Optional
 - Cryptographic receipts for event batches

@@ -33,6 +33,14 @@ Expires on `IDLE`/`HUDDLE` or ~400 ms.
 Licenses: “controller heat”, “pad and picture”, FastMoment `input_spike`/`clutch_window`, A2A `reason=coupling`.
 Confirm tickets still license score digits.
 
+## Telemetry
+
+With `--otel`, every `coupling_score` event emits gauges (`qoresence_coupling`,
+`qoresence_input_energy`, `qoresence_phrase_conf`, etc.) and a child span
+carrying `frame_seq`, `video_clock_ns`, `input_events`, `buttons`, `coupling`,
+`phrase`. Clip sidecars (`.coupling.json`) also contain a per-frame
+`coupling_history` so a replay can be tied to the exact IVC sample.
+
 ## Tests
 
 - Menu + idle → `IDLE`, no ticket

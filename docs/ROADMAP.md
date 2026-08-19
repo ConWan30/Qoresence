@@ -120,6 +120,15 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] Outcome lobe heartbeat (prevents temporal_desync on stable game state)
 - [x] A2A veto tuning (25s cooldown, 40-char near-duplicate, relaxed digit check)
 
+## Phase 7.6 — OpenTelemetry causal tracing (shipped)
+- [x] `OtelExporter` — non-blocking bus subscriber, bounded drop-oldest queue
+- [x] Causal `bus.cascade` spans to local OTLP / Jaeger
+- [x] DualSense / IVC coupling gauges and span attributes
+- [x] Re-entrancy smoke alarm for A2A/Presence deadlock class
+- [x] Trace-annotated clips (`.otel.json` sidecar with `jaeger_urls`)
+- [x] Per-frame coupling sidecars (`.coupling.json` with `coupling_history` + `input_ring_events`)
+- [x] Docs: `docs/OTEL.md`, `docs/CONTROLLER_VIDEO_SYNC.md`
+
 ## Phase 8 — Research (optional)
 - [ ] Fusion presence reports productization
 - [ ] Trio-retina WASM path hardening
@@ -136,8 +145,9 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 | 0.2.0 | Outcome + visual lobes |
 | 0.3.0 | ClutchBot MVP |
 | 0.4.0 | Packaging + `--stream` / `--play` |
-| **0.5.0** | **Deck LIVE + Qoresence owns card + FrameHub monitor + IVC** ← current main |
+| **0.5.0** | **Deck LIVE + Qoresence owns card + FrameHub monitor + IVC** |
 | 0.6.0 | Profile expansion + Edge HID polish + operator glass (Phase 4/6 done) |
+| **0.7.0** | **OpenTelemetry causal tracing + per-frame coupling sidecars + re-entrancy smoke alarm** ← current main |
 | 1.0.0 | Stable ClutchBot + operator glass release |
 
 ---

@@ -109,8 +109,19 @@ Each child span carries the scalar fields (`frame_seq`, `video_clock_ns`,
 `input_events`, `coupling`, `phrase`, `buttons`, etc.), so a frame in Jaeger can
 be linked to the exact controller state at that `clock_ns`.
 
-Clip sidecars: `clips/hdmi_clip_YYYYMMDD_HHMMSS.coupling.json` contains the
-latest IVC coupling payload (with `frame_seq` / `video_clock_ns`) plus the
-InputRing events that fall inside the clip window. This gives a local,
-frame-synced record of what the DualSense was doing for that replay — no cloud,
-no anti-cheat story.
+Clip sidecars:
+
+- `clips/hdmi_clip_YYYYMMDD_HHMMSS.otel.json` contains the trace IDs whose
+  cascade window overlaps the clip, plus `jaeger_urls` so a replay can be linked
+  to its causal bus cascade.
+- `clips/hdmi_clip_YYYYMMDD_HHMMSS.coupling.json` contains:
+  - `clip.clock_ns.start` / `end`
+  - `coupling` — the latest IVC payload at export
+  - `coupling_history` — every IVC payload whose `video_clock_ns` falls inside
+    the clip window, keyed by `frame_seq` / `video_clock_ns` (per-frame
+    DualSense↔video sync)
+  - `input_ring_events` — the DualSense press/release/trigger/stick events whose
+    `clock_ns` falls inside the exact clip window (`InputRing.in_window`)
+
+This gives a local, frame-synced record of what the DualSense was doing for that
+replay — no cloud, no anti-cheat story.

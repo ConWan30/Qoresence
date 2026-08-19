@@ -43,6 +43,8 @@ Closeout answers:
 | `GRAPH_STALL` | situation/health slower than 2s or repeated error |
 | `DECK_DOWN` | connection refused / timeout |
 | `SCORE_UNLOCKED_LONG` | scores present but lock false for >120s |
+| `OTEL_DROP` | `/health` `otel.dropped` > 0 (exporter queue backing up) |
+| `REENTRANT_SPIKE` | `/health` `reentrant_cycles_recent` rising while `video.age_s` healthy |
 
 ## Optional in-app hook
 

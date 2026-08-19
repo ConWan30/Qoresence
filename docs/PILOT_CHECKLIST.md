@@ -32,9 +32,22 @@ For Twitch chat (optional):
 python -m qoresence.cli --play --a2a --clutchbot --clutchbot-channel YOUR_CHANNEL --clutchbot-token oauth:XXXX --clutchbot-username YOUR_BOT_NAME
 ```
 
+For OpenTelemetry causal tracing / clip sidecars (optional):
+```
+python -m qoresence.cli --play --deck --controller --monitor --otel --streamer-device 0 --streamer-fps 60
+docker compose --profile otel up -d
+```
+
 ---
 
 ## During Session — Watch For
+
+### OpenTelemetry / clip sidecars (optional — `main` now)
+- [ ] Did clip export write `.otel.json` and `.coupling.json` sidecars? Check `clips/`.
+- [ ] Does `.coupling.json` contain `coupling_history` with `frame_seq` / `video_clock_ns`?
+- [ ] Does `.coupling.json` `input_ring_events` match the buttons actually pressed in that clip?
+- [ ] Is `otel.reentrant_cycles_total` in `/health` staying low/flat? (spikes mean a lobe is re-entering on the same thread)
+- [ ] Is `otel.dropped` staying at 0 (exporter queue is not backing up)?
 
 ### A2A Commentary Quality
 - [ ] Does A2A fire on touchdowns, field goals, red zone entry, 4th down, 2PC, OT start?

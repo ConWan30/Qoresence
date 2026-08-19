@@ -43,6 +43,7 @@ Every lobe is **OFF** until you opt in.
 | **Agent Society (optional, default OFF)** | Narrow ops agents (warden, auditor, coach, editor) on glass/Foundry; Quicksilver phrasing only |
 | **Local HDMI Foundry** | True capture-ring clips (`clips/*.mp4`) + optional `.buttons.json` sidecars — not Twitch Helix-only |
 | **Foundry RAG** | Search past clips by chapter/buttons/graph/timeline — software-only, no capture needed |
+| **OpenTelemetry (optional)** | Causal bus traces + metrics; per-clip `.otel.json` + `.coupling.json` sidecars — local OTLP, default OFF |
 | **Causal event bus** | Every event carries `session_id` + `clock_ns` + `source_lobe` |
 
 **Language:** *co-occurrence / coupling / presence evidence* — **not** legitimacy verification.
@@ -109,6 +110,7 @@ Every lobe is **OFF** until you opt in.
 | **Health + A2A soak loggers** | `scripts/soak_logger.py` and `scripts/a2a_soak_logger.py` for long pilot validation |
 | **Twitch ClutchBot smoke test** | IRC token → chat + optional auto-clips confirmed working |
 | **MCP universal glass** | `qoresence-mcp` exposes 12 tools including fail-closed `get_observation` and `wrap_observation` (research dest only) |
+| **OpenTelemetry integration** | `--otel` exports causal bus traces + controller/coupling metrics; `.otel.json` and `.coupling.json` clip sidecars; re-entrancy smoke alarm; Jaeger on localhost |
 | **Foundry RAG + proactive glass** | `search_clips`/`get_drive_graph` searchable session memory (clips+chapters+DriveGraph+timeline fallback) + `subscribe_events`/`diagnose_freeze` on `127.0.0.1:8765` — software-only, no capture card |
 
 Docs for each: [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md) · [clutchbot_setup](docs/clutchbot_setup.md)
@@ -294,6 +296,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | `--clutchbot` / Twitch flags | off | IRC + Helix (see clutchbot setup) |
 | `--agent-glass` | off | HTTP/WS spectator API (MCP-ready) |
 | `--agent-society` | off (on with `--play`) | Agent Society roles; `--no-agent-society` to opt out |
+| `--otel` | off | Causal traces + metrics to local OTLP; clip sidecars; Jaeger on `:16686` |
 
 ---
 
@@ -349,6 +352,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | [docs/NFL_ROSTER.md](docs/NFL_ROSTER.md) | Madden 27 local NFL team/player names (nflverse) |
 | [docs/WEBRTC_LIVE.md](docs/WEBRTC_LIVE.md) | WebRTC LIVE from FrameHub (optional) |
 | [docs/RETINA_MONITOR.md](docs/RETINA_MONITOR.md) | Native monitor / FrameHub |
+| [docs/OTEL.md](docs/OTEL.md) | OpenTelemetry traces, metrics, and clip sidecars |
 | [docs/CONTROLLER_VIDEO_SYNC.md](docs/CONTROLLER_VIDEO_SYNC.md) | IVC + InputRing |
 | [docs/TWO_SPEED_CLUTCHBOT.md](docs/TWO_SPEED_CLUTCHBOT.md) | Fast video+input path; OCR confirm |
 | [docs/PRIORITY_INTEGRATIONS.md](docs/PRIORITY_INTEGRATIONS.md) | Timeline · prediction lifecycle · clip chapters |

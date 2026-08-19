@@ -194,6 +194,12 @@ Acceptance: synthetic test passes; one JSONL file and one WebSocket stream conta
 - System-tray / status (minimal)
 - Optional adapter that can accept an external attested session
 
+#### Phase 8 — OpenTelemetry causal tracing (shipped on `main`)
+- `qoresence/observability/otel.py` non-blocking `RetinaEventBus` subscriber
+- Causal `bus.cascade` spans and coupling/controller gauges to local OTLP
+- Re-entrancy smoke alarm for A2A/Presence deadlock class
+- Trace-annotated clips (`.otel.json`) and per-frame coupling sidecars (`.coupling.json`)
+
 ---
 
 ### 6. QorTroller Synchronization Surface (compatibility only)

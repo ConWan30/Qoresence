@@ -11,7 +11,8 @@ It is an **observation-plane** instrument: it records co-occurrence, coupling, a
 - **Glasses** — Retina Deck (Lens + Theater), Mobile Glass (WebRTC / MJPEG, QR on Theater), native Retina Monitor, Foundry Ghost Cut, AgentGlass + 12 MCP tools
 - **Title-presence** — optical title lock with a hard `plane: qoresence-observation` tag; on with `--play`; menu/pause fail closed
 - **Two-speed ClutchBot** — `path=fast` video+input soft acts; OCR/outcome is `path=confirm` referee (never invents scores on fast)
-- **Foundry clips** — true capture-ring MP4 + `.chapters.json` + `.buttons.json` sidecars; searchable later, no Twitch Helix required
+- **Foundry clips** — true capture-ring MP4 + `.chapters.json` + `.buttons.json` + `.coupling.json` sidecars; searchable later, no Twitch Helix required
+- **OpenTelemetry (optional)** — `--otel` exports causal bus traces and DualSense↔video coupling metrics to a local Collector, plus trace-annotated clip sidecars; re-entrancy smoke alarm for the A2A/Presence deadlock class
 - **MCP witness pack** — `get_observation` licenses what an agent may say; `wrap_observation` is grant-gated onto `qoresence-research` only
 - **Wrap deny list** — truth-plane dests (`*-truth`, QorTroller / PoAC) are denied; no on-chain by default
 - **Deadlock hardening** — re-entrancy guard in A2A + presence; locking invariants in `AGENTS.md`; regression tests in `tests/test_deadlock_regression.py`
@@ -24,6 +25,7 @@ It is an **observation-plane** instrument: it records co-occurrence, coupling, a
 | Situation | What is the game state *now*? |
 | Operator glass | Can I *see* and *act* locally without cloud? |
 | Social | Should chat/clips fire? (optional) |
+| Observation/OTel | Causal bus traces + coupling metrics? (--otel, off) |
 | Research | Fusion / trio-retina validation? (optional, off) |
 
 ## Explicit non-goals

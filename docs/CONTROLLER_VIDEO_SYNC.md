@@ -56,4 +56,19 @@ curl http://127.0.0.1:8765/health
 # coupling.last_bind_kind / last_bind_hid after a score/kill/first-down
 ```
 
+## Clip sidecar: `.coupling.json`
+
+Every clip export writes `clips/<stem>.coupling.json` with a frame-synced
+record of the DualSense and IVC state during that replay:
+
+- `coupling` — the latest IVC payload at export time.
+- `coupling_history` — every IVC payload whose `video_clock_ns` falls inside
+  the clip window, keyed by `frame_seq` and `video_clock_ns`.
+- `input_ring_events` — DualSense press / release / trigger / stick events
+  whose `clock_ns` falls inside the exact clip window.
+
+When `--otel` is also enabled, the `.otel.json` sidecar links the same clip to
+its causal bus trace in Jaeger, so a replay can be correlated with the exact
+cascade that produced it.
+
 Language stays observation: **coupling / co-occurrence / precursor**. Not authorship, not anti-cheat.

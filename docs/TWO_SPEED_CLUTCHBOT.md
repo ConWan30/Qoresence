@@ -24,6 +24,8 @@ Observation-plane only. Controller default **OFF**. Without pad, IVC energy ≈ 
 Streamer ──► FrameHub (seq, clock_ns) ──► IVC ──► coupling_score (path:fast)
 DualSense ─► InputRing ──────────────────┘
                     │
+                    ├───► OtelExporter (when `--otel`) ──► local OTLP / Jaeger
+                    │
                     ▼
             FastMomentEngine.score_fast(situation, coupling)
                     │  soft chat · clip intent · arm_prediction
@@ -89,6 +91,7 @@ Deck moments may show `[fast]` / `[confirm]` in reason and `path` on payload.
 ## Related
 
 - [CONTROLLER_VIDEO_SYNC.md](CONTROLLER_VIDEO_SYNC.md)  
+- [OTEL.md](OTEL.md)  
 - [RETINA_MONITOR.md](RETINA_MONITOR.md)  
 - [OBS_OWNS_CARD.md](OBS_OWNS_CARD.md)  
 - [clutchbot_setup.md](clutchbot_setup.md)  

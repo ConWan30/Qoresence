@@ -32,6 +32,10 @@ gh repo edit ConWan30/Qoresence --enable-wiki --enable-discussions --homepage "h
 
 This clones `Qoresence.wiki.git`, copies `docs/wiki/*.md`, commits, and pushes.
 
+## Existing milestone discussions
+
+- [Discussion #21 — Qoresence: OpenTelemetry causal tracing for DualSense → capture card gameplay clips](https://github.com/ConWan30/Qoresence/discussions/21)
+
 ## 3. Publish Discussions
 
 After Discussions are enabled:
