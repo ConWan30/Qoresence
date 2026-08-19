@@ -587,6 +587,15 @@ class OtelConfig:
     # Events with clock_ns gap beyond this close the current cascade trace
     cascade_window_ns: int = 250_000_000
 
+    # Phase 2: causal re-entrancy detection. Default 500 ms window; a lobe
+    # that reappears on the same OS thread with other lobes between is a
+    # re-entrant fan-out candidate (see AGENTS.md Rule 6).
+    reentrancy_window_ns: int = 500_000_000
+    reentrancy_max_stack: int = 16
+
+    # Phase 2: trace-ID ring used to annotate clips with their causal cascade.
+    trace_ring_size: int = 128
+
 
 @dataclass
 class RetinaUnifiedConfig:

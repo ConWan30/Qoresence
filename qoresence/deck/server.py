@@ -733,6 +733,15 @@ def create_app():  # type: ignore[no-untyped-def]
                     )
                     if _last_ns
                     else None,
+                    "reentrant_cycles_total": int(
+                        _ostats.get("reentrant_cycles_total", 0)
+                    ),
+                    "reentrant_cycles_recent": int(
+                        _ostats.get("reentrant_cycles_recent", 0)
+                    ),
+                    "reentrant_lobe_counts": _ostats.get(
+                        "reentrant_lobe_counts", {}
+                    ),
                 }
             else:
                 body["otel"] = {"enabled": False}
@@ -1978,6 +1987,15 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                             )
                             if _last_ns
                             else None,
+                            "reentrant_cycles_total": int(
+                                _ostats.get("reentrant_cycles_total", 0)
+                            ),
+                            "reentrant_cycles_recent": int(
+                                _ostats.get("reentrant_cycles_recent", 0)
+                            ),
+                            "reentrant_lobe_counts": _ostats.get(
+                                "reentrant_lobe_counts", {}
+                            ),
                         }
                     else:
                         health["otel"] = {"enabled": False}

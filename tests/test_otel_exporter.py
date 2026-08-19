@@ -101,6 +101,10 @@ class TestConstruction:
             "exported": 0,
             "dropped": 0,
             "last_export_ns": 0,
+            "reentrant_cycles_total": 0,
+            "reentrant_cycles_recent": 0,
+            "reentrant_lobe_counts": {},
+            "recent_cycles": [],
         }
 
     def test_factory_returns_none_when_disabled(self, tmp_path):

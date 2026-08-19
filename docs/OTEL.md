@@ -62,3 +62,33 @@ If a lobe ever re-introduces the 2026-08 emit-under-lock class of bug:
 
 That combination (trace stops + dropped rising + healthy capture) points at
 the bus cascade, not the capture card. Capture `py-spy` stacks as usual.
+
+## Phase 2: Causal re-entrancy detection
+
+Phase 2 adds a per-thread lobe-sequence analyzer. Because bus subscribers run
+synchronously on the emitter's OS thread, a re-entrant fan-out appears as the
+same `source_lobe` appearing twice on the same thread with at least one
+different lobe between. This is the same failure family as the 2026-08
+A2A/Presence deadlock in `AGENTS.md`.
+
+When the OTel worker detects such a cycle, it:
+
+- Marks the span with `qoresence.cascade.re_entrant = true` and the cycle lobe list.
+- Increments the counter `qoresence_bus_reentrant_cycles_total{lobe,event_type}`.
+- Writes a small entry to `logs/otel/reentrant_YYYYMMDD.jsonl`.
+- Surfaces `reentrant_cycles_total` and `reentrant_cycles_recent` in `/health`.
+- Feeds the pilot auditor, which adds `re_entrant_bus_cycle_detected` to its issues.
+
+If `reentrant_cycles_recent` is rising while `video.age_s` stays healthy, the
+exporter has observed a re-entrant bus cascade before it fully deadlocked. Open
+Jaeger, search for `qoresence.cascade.re_entrant = true`, and use `py-spy` to
+confirm the lock ordering.
+
+## Trace-annotated clips
+
+When `--otel` is enabled, every local HDMI clip export also writes a
+`clips/hdmi_clip_YYYYMMDD_HHMMSS.otel.json` sidecar. It contains the trace IDs
+whose cascade window overlaps the clip, plus `jaeger_urls` so a highlight replay
+can be linked to its causal bus cascade.
+
+If OTel is disabled, no sidecar is written and clip export is unchanged.
