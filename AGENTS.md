@@ -76,6 +76,13 @@ Specifically:
 - `test_presence_lock_released_during_report_fanout`
 - `test_full_cascade_streamer_event_with_a2a_loop`
 
+### Rule 5: The OTel exporter subscribe callback must only enqueue (HARD RULE)
+
+`OtelExporter._on_event` (`qoresence/observability/otel.py`) runs
+synchronously on the emitting thread. It must ONLY enqueue into its bounded
+drop-oldest queue — never block, never emit bus events, never acquire a lobe
+lock. Enforced by `tests/test_otel_exporter.py`.
+
 ## Capture Card / Streamer Notes
 
 - The USB3.0 capture card is stable at its **native 640x480 resolution** when

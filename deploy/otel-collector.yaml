@@ -1,0 +1,60 @@
+# Qoresence local OpenTelemetry Collector — observation plane only.
+#
+# Started with:  docker compose --profile otel up -d
+# Receives OTLP from `qoresence --otel` (default http://127.0.0.1:4317) and
+# exports traces to the local Jaeger service on the compose network.
+# Nothing leaves the box.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+  tail_sampling:
+    # Keep 100% of interesting cascades (router_decision / anomaly / errors);
+    # probabilistic ~10% of routine traffic.
+    decision_wait: 5s
+    policies:
+      - name: keep-router-decision
+        type: string_attribute
+        string_attribute:
+          key: qoresence.event_type
+          values: [router_decision]
+          enabled_regex_matching: true
+      - name: keep-anomaly
+        type: string_attribute
+        string_attribute:
+          key: qoresence.event_type
+          values: [anomaly]
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: routine-sample
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch, tail_sampling]
+      exporters: [otlp/jaeger]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger]

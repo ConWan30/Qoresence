@@ -231,6 +231,17 @@ class QoresenceApp:
             first_session_id=self.identity.session_id,  # Use current as first for now
             device_key=None,  # TODO: load from config
         )
+        # Observation-plane OTel exporter (default OFF; env QORESENCE_OTEL=1)
+        self.otel_exporter = None
+        try:
+            from qoresence.observability.otel import make_otel_exporter_from_config
+
+            self.otel_exporter = make_otel_exporter_from_config(
+                config.otel, bus=self.bus, session_identity=self.identity
+            )
+        except Exception as e:
+            log.debug("OTel exporter not started: %s", e)
+
         # DECK_BRIDGE_MARKER: RetinaEventBus -> Deck ws live (LIVE FEED ONLY - no mock)
         try:
             from qoresence.core import EventType as _ET  # local import to avoid cycle
@@ -952,6 +963,13 @@ class QoresenceApp:
         if self.streamr_publisher:
             self.streamr_publisher.stop()
 
+        if getattr(self, "otel_exporter", None):
+            try:
+                self.otel_exporter.stop()
+            except Exception:
+                pass
+            self.otel_exporter = None
+
         self.bus.close()
 
         elapsed = time.time() - self._start_time
@@ -1241,6 +1259,12 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
                 event_types=_event_types,
                 max_eps=args.streamr_max_eps,
             )
+    if getattr(args, "otel", False):
+        config.otel = replace(
+            config.otel,
+            enabled=True,
+            endpoint=getattr(args, "otel_endpoint", None) or config.otel.endpoint,
+        )
     if args.controller:
         config.controller = replace(
             config.controller, enabled=True, poll_rate_hz=args.controller_rate
@@ -1413,6 +1437,19 @@ def main():
     )
     parser.add_argument("--streamer-width", type=int, default=1280, help="Capture width")
     parser.add_argument("--streamer-height", type=int, default=720, help="Capture height")
+
+    # OpenTelemetry exporter (observation plane, default OFF)
+    parser.add_argument(
+        "--otel",
+        action="store_true",
+        help="Export bus cascade traces + capture metrics via OTLP (local Collector)",
+    )
+    parser.add_argument(
+        "--otel-endpoint",
+        type=str,
+        default="http://127.0.0.1:4317",
+        help="OTLP gRPC endpoint (default: local collector on loopback)",
+    )
 
     # Streamr Network publisher
     parser.add_argument(

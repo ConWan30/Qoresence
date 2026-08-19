@@ -73,6 +73,11 @@ monitor = [
     "opencv-python>=4.8",
     "numpy>=1.24",
 ]
+otel = [
+    "opentelemetry-sdk>=1.24",
+    "opentelemetry-api>=1.24",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.24",
+]
 mcp = [
     "mcp>=1.0",
 ]
