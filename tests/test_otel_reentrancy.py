@@ -101,35 +101,44 @@ class TestReentrancyTracker:
     def test_detects_simple_reentrant_cycle(self):
         tracker = _ReentrancyTracker(window_ns=1_000_000, max_stack=16)
         base = 1_000_000
-        assert tracker.record(1, "a2a", base, "s") is None
-        assert tracker.record(1, "presence", base + 10_000, "s") is None
-        cycle = tracker.record(1, "a2a", base + 20_000, "s")
+        assert tracker.record(1, "a2a", base, "s", "router_decision") is None
+        assert tracker.record(1, "presence", base + 10_000, "s", "presence_report") is None
+        cycle = tracker.record(1, "a2a", base + 20_000, "s", "router_decision")
         assert cycle is not None
         assert cycle["cycle_lobes"] == ["a2a", "presence", "a2a"]
         assert cycle["thread_id"] == 1
 
+    def test_non_dangerous_event_suppressed(self):
+        tracker = _ReentrancyTracker(window_ns=1_000_000, max_stack=16)
+        base = 1_000_000
+        assert tracker.record(1, "a2a", base, "s", "router_decision") is None
+        assert tracker.record(1, "presence", base + 10_000, "s", "presence_report") is None
+        # This is the IVC/presence ping-pong pattern; not dangerous, so ignored.
+        assert tracker.record(1, "a2a", base + 20_000, "s", "coupling_score") is None
+        assert tracker.stats()["reentrant_cycles_total"] == 0
+
     def test_no_false_positive_for_consecutive_same_lobe(self):
         tracker = _ReentrancyTracker(window_ns=1_000_000, max_stack=16)
         base = 1_000_000
-        assert tracker.record(1, "a2a", base, "s") is None
-        assert tracker.record(1, "a2a", base + 10_000, "s") is None
-        assert tracker.record(1, "a2a", base + 20_000, "s") is None
+        assert tracker.record(1, "a2a", base, "s", "router_decision") is None
+        assert tracker.record(1, "a2a", base + 10_000, "s", "router_decision") is None
+        assert tracker.record(1, "a2a", base + 20_000, "s", "router_decision") is None
         assert tracker.stats()["reentrant_cycles_total"] == 0
 
     def test_window_eviction(self):
         tracker = _ReentrancyTracker(window_ns=100_000, max_stack=16)
-        assert tracker.record(1, "a2a", 0, "s") is None
-        assert tracker.record(1, "presence", 50_000, "s") is None
+        assert tracker.record(1, "a2a", 0, "s", "router_decision") is None
+        assert tracker.record(1, "presence", 50_000, "s", "presence_report") is None
         # Old a2a is outside the 100_000 ns window, so this is not re-entrant.
-        assert tracker.record(1, "a2a", 200_000, "s") is None
+        assert tracker.record(1, "a2a", 200_000, "s", "router_decision") is None
         assert tracker.stats()["reentrant_cycles_total"] == 0
 
     def test_same_thread_required(self):
         tracker = _ReentrancyTracker(window_ns=1_000_000, max_stack=16)
         base = 1_000_000
-        assert tracker.record(1, "a2a", base, "s") is None
-        assert tracker.record(2, "presence", base + 10_000, "s") is None
-        assert tracker.record(1, "a2a", base + 20_000, "s") is None
+        assert tracker.record(1, "a2a", base, "s", "router_decision") is None
+        assert tracker.record(2, "presence", base + 10_000, "s", "presence_report") is None
+        assert tracker.record(1, "a2a", base + 20_000, "s", "router_decision") is None
         # Thread 1 saw a2a, then thread 2 saw presence, then thread 1 saw a2a.
         # That is not a synchronous re-entry on the same thread.
         assert tracker.stats()["reentrant_cycles_total"] == 0
@@ -137,11 +146,11 @@ class TestReentrancyTracker:
     def test_tallies_lobe_counts(self):
         tracker = _ReentrancyTracker(window_ns=1_000_000, max_stack=16)
         base = 1_000_000
-        tracker.record(1, "a2a", base, "s")
-        tracker.record(1, "presence", base + 10_000, "s")
-        tracker.record(1, "a2a", base + 20_000, "s")
-        tracker.record(1, "visual", base + 30_000, "s")
-        tracker.record(1, "a2a", base + 40_000, "s")
+        tracker.record(1, "a2a", base, "s", "router_decision")
+        tracker.record(1, "presence", base + 10_000, "s", "presence_report")
+        tracker.record(1, "a2a", base + 20_000, "s", "router_decision")
+        tracker.record(1, "visual", base + 30_000, "s", "visual_context")
+        tracker.record(1, "a2a", base + 40_000, "s", "router_decision")
         stats = tracker.stats()
         assert stats["reentrant_cycles_total"] == 2
         # Both cycles end with the re-entrant lobe "a2a".
@@ -155,8 +164,8 @@ class TestReentrancySpans:
         try:
             base = 1_000_000
             bus.emit_raw(
-                source_lobe=SourceLobe.STREAMER,
-                event_type="frame_stats",
+                source_lobe=SourceLobe.AGENT,
+                event_type="router_decision",
                 payload={},
                 clock_ns_override=base,
             )
@@ -167,8 +176,8 @@ class TestReentrancySpans:
                 clock_ns_override=base + 10_000,
             )
             bus.emit_raw(
-                source_lobe=SourceLobe.STREAMER,
-                event_type="frame_stats",
+                source_lobe=SourceLobe.AGENT,
+                event_type="router_decision",
                 payload={},
                 clock_ns_override=base + 20_000,
             )
@@ -183,10 +192,10 @@ class TestReentrancySpans:
                 f"expected 1 re-entrant span, got {len(reentrant_spans)}"
             )
             span = reentrant_spans[0]
-            assert span.attributes.get("source_lobe") == "streamer"
+            assert span.attributes.get("source_lobe") == "agent"
             assert span.attributes.get("qoresence.cascade.risk") == "same-thread re-entry"
             cycle = span.attributes.get("qoresence.cascade.cycle_lobes")
-            assert list(cycle) == ["streamer", "fusion", "streamer"]
+            assert list(cycle) == ["agent", "fusion", "agent"]
 
             roots = [s for s in spans if s.name == "bus.cascade"]
             reentrant_roots = [
@@ -207,8 +216,8 @@ class TestReentrancySpans:
             base = 1_000_000
             for i in range(3):
                 bus.emit_raw(
-                    source_lobe=SourceLobe.STREAMER,
-                    event_type="frame_stats",
+                    source_lobe=SourceLobe.AGENT,
+                    event_type="router_decision",
                     payload={},
                     clock_ns_override=base + i * 10_000,
                 )
@@ -256,8 +265,8 @@ class TestReentrancyMetricsAndHealth:
         try:
             base = 1_000_000
             bus.emit_raw(
-                source_lobe=SourceLobe.STREAMER,
-                event_type="frame_stats",
+                source_lobe=SourceLobe.AGENT,
+                event_type="router_decision",
                 payload={},
                 clock_ns_override=base,
             )
@@ -268,8 +277,8 @@ class TestReentrancyMetricsAndHealth:
                 clock_ns_override=base + 10_000,
             )
             bus.emit_raw(
-                source_lobe=SourceLobe.STREAMER,
-                event_type="frame_stats",
+                source_lobe=SourceLobe.AGENT,
+                event_type="router_decision",
                 payload={},
                 clock_ns_override=base + 20_000,
             )
@@ -277,7 +286,7 @@ class TestReentrancyMetricsAndHealth:
             stats = exporter.stats()
             assert stats["reentrant_cycles_total"] == 1
             assert stats["reentrant_cycles_recent"] == 1
-            assert stats["reentrant_lobe_counts"].get("streamer") == 1
+            assert stats["reentrant_lobe_counts"].get("agent") == 1
         finally:
             exporter.stop()
             bus.close()
@@ -288,8 +297,8 @@ class TestReentrancyMetricsAndHealth:
         try:
             base = 1_000_000
             bus.emit_raw(
-                source_lobe=SourceLobe.STREAMER,
-                event_type="frame_stats",
+                source_lobe=SourceLobe.AGENT,
+                event_type="router_decision",
                 payload={},
                 clock_ns_override=base,
             )
@@ -300,8 +309,8 @@ class TestReentrancyMetricsAndHealth:
                 clock_ns_override=base + 10_000,
             )
             bus.emit_raw(
-                source_lobe=SourceLobe.STREAMER,
-                event_type="frame_stats",
+                source_lobe=SourceLobe.AGENT,
+                event_type="router_decision",
                 payload={},
                 clock_ns_override=base + 20_000,
             )

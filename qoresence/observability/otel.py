@@ -116,11 +116,13 @@ class _ReentrancyTracker:
         window_ns: int,
         max_stack: int,
         anomaly_dir: Path | None = None,
+        dangerous_event_types: tuple[str, ...] | None = None,
     ) -> None:
         self._window_ns = int(window_ns)
         self._max_stack = int(max_stack)
         self._anomaly_dir = anomaly_dir
-        self._stacks: dict[int, deque[tuple[str, int]]] = {}
+        self._dangerous = set(dangerous_event_types or ("router_decision", "evidence_chain"))
+        self._stacks: dict[int, deque[tuple[str, int, str]]] = {}
         self._total = 0
         self._recent = 0
         self._recent_cycles: deque[dict[str, Any]] = deque(maxlen=64)
@@ -128,7 +130,12 @@ class _ReentrancyTracker:
         self._anomaly_handle: Any = None
 
     def record(
-        self, thread_id: int, lobe: str, clock_ns: int, session_id: str
+        self,
+        thread_id: int,
+        lobe: str,
+        clock_ns: int,
+        session_id: str,
+        event_type: str = "",
     ) -> dict[str, Any] | None:
         """Record one lobe emit for a thread. Return a cycle dict if re-entrant."""
         with self._lock:
@@ -141,41 +148,38 @@ class _ReentrancyTracker:
             while stack and (clock_ns - stack[0][1]) > self._window_ns:
                 stack.popleft()
 
-            # Find the most recent prior occurrence of the same lobe that has
-            # at least one different lobe between it and the new event. That
-            # pattern is the definition of a re-entrant fan-out on this thread.
-            cycle_start_idx: int | None = None
-            for i in range(len(stack) - 1, -1, -1):
-                if stack[i][0] == lobe:
-                    # Is there a different lobe between i and the new position?
-                    for j in range(i + 1, len(stack) + 1):
-                        if j < len(stack):
-                            if stack[j][0] != lobe:
-                                cycle_start_idx = i
-                                break
-                        # j == len(stack) is the new event, same lobe, not different
-                    if cycle_start_idx is not None:
-                        break
-
             cycle: dict[str, Any] | None = None
-            if cycle_start_idx is not None:
-                cycle_lobes = [stack[k][0] for k in range(cycle_start_idx, len(stack))]
-                cycle_lobes.append(lobe)
-                cycle_window_ns = clock_ns - stack[cycle_start_idx][1]
-                cycle = {
-                    "session_id": str(session_id),
-                    "thread_id": int(thread_id),
-                    "lobe": str(lobe),
-                    "clock_ns": int(clock_ns),
-                    "cycle_lobes": cycle_lobes[:_MAX_ANOMALY_LOBES],
-                    "cycle_window_ns": int(cycle_window_ns),
-                }
-                self._total += 1
-                self._recent += 1
-                self._recent_cycles.append(cycle)
+
+            # Re-entrancy is only counted when the re-entering (new) event is
+            # one of the dangerous event types (A2A router_decision, etc.).
+            # This suppresses the IVC coupling_score -> presence_report ping-pong
+            # while still catching the actual 2026-08 deadlock pattern.
+            if event_type in self._dangerous:
+                # Find the most recent prior occurrence of the same lobe that has
+                # at least one different lobe between it and the new event.
+                for i in range(len(stack) - 1, -1, -1):
+                    if stack[i][0] == lobe:
+                        for j in range(i + 1, len(stack) + 1):
+                            if j < len(stack) and stack[j][0] != lobe:
+                                cycle_lobes = [stack[k][0] for k in range(i, len(stack))]
+                                cycle_lobes.append(lobe)
+                                cycle = {
+                                    "session_id": str(session_id),
+                                    "thread_id": int(thread_id),
+                                    "lobe": str(lobe),
+                                    "clock_ns": int(clock_ns),
+                                    "cycle_lobes": cycle_lobes[:_MAX_ANOMALY_LOBES],
+                                    "cycle_window_ns": int(clock_ns - stack[i][1]),
+                                }
+                                self._total += 1
+                                self._recent += 1
+                                self._recent_cycles.append(cycle)
+                                break
+                        if cycle is not None:
+                            break
 
             # Push the new event and trim.
-            stack.append((lobe, clock_ns))
+            stack.append((lobe, clock_ns, event_type))
             return cycle
 
     def reset_recent(self) -> None:
@@ -274,6 +278,9 @@ class OtelExporter:
             window_ns=int(getattr(config, "reentrancy_window_ns", 500_000_000)),
             max_stack=int(getattr(config, "reentrancy_max_stack", 16)),
             anomaly_dir=anomaly_dir,
+            dangerous_event_types=getattr(
+                config, "reentrancy_dangerous_event_types", None
+            ),
         )
 
         # Phase 2: trace-ID ring for clip sidecars (worker writes, clip export reads).
@@ -504,6 +511,7 @@ class OtelExporter:
                             lobe=str(rec.get("source_lobe", "")),
                             clock_ns=int(rec.get("clock_ns", 0)),
                             session_id=str(rec.get("session_id", "")),
+                            event_type=str(rec.get("event_type", "")),
                         )
                         if cycle is not None:
                             cycle_count += 1

@@ -592,6 +592,13 @@ class OtelConfig:
     # re-entrant fan-out candidate (see AGENTS.md Rule 6).
     reentrancy_window_ns: int = 500_000_000
     reentrancy_max_stack: int = 16
+    # Only count a re-entrant cycle when the re-entering (last) event has one
+    # of these event types. This suppresses the IVC/presence ping-pong while
+    # still catching the A2A router_decision re-entry pattern.
+    reentrancy_dangerous_event_types: tuple[str, ...] = (
+        "router_decision",
+        "evidence_chain",
+    )
 
     # Phase 2: trace-ID ring used to annotate clips with their causal cascade.
     trace_ring_size: int = 128
