@@ -50,6 +50,39 @@ PLANE = "qoresence-observation"
 # from there into gauges). Anything else in the payload is ignored.
 _VIDEO_KEYS = ("age_s", "frames", "pushes", "fps")
 
+# Coupling / controller telemetry scalars. "phrase" is used as a span and
+# metric attribute; it has low cardinality (IDLE, SNAP, SPRINT, ...).
+_COUPLING_KEYS = (
+    "coupling",
+    "coupling_ema",
+    "input_energy",
+    "edge_energy",
+    "hold_energy",
+    "input_events",
+    "video_age_s",
+    "phrase",
+    "phrase_conf",
+    "imu_bodied",
+    "buttons",
+    "stick_gyro_r",
+    "stick_motion_r",
+    "frame_seq",
+    "video_clock_ns",
+)
+
+# Controller event scalars to lift into span attributes.
+_CONTROLLER_EVENT_KEYS = (
+    "trigger",
+    "amplitude",
+    "stick",
+    "x",
+    "y",
+    "dx",
+    "dy",
+    "device_ts_ms",
+    "causal_parent_ns",
+)
+
 # Phase 2 attribute namespace for re-entrant cascade markers.
 _REENTRANT_ATTR = "qoresence.cascade.re_entrant"
 _REENTRANT_CYCLE_LOBES_ATTR = "qoresence.cascade.cycle_lobes"
@@ -365,6 +398,17 @@ class OtelExporter:
                     v = payload.get(k)
                     if isinstance(v, (int, float)):
                         rec[k] = float(v)
+                for k in _COUPLING_KEYS:
+                    v = payload.get(k)
+                    if isinstance(v, (int, float, bool, str)):
+                        rec[k] = v
+                    elif isinstance(v, (list, tuple)) and len(v) <= 16:
+                        # e.g. buttons, lag_band_ms
+                        rec[k] = list(v)
+                for k in _CONTROLLER_EVENT_KEYS:
+                    v = payload.get(k)
+                    if isinstance(v, (int, float, bool, str)):
+                        rec[k] = v
             try:
                 self._queue.put_nowait(rec)
             except queue.Full:
@@ -445,6 +489,15 @@ class OtelExporter:
                         if "frame_seq" in rec:
                             span.set_attribute("frame_seq", int(rec["frame_seq"]))
 
+                        # Coupling / controller telemetry on the span.
+                        for k in _COUPLING_KEYS + _CONTROLLER_EVENT_KEYS:
+                            if k in rec:
+                                v = rec[k]
+                                if isinstance(v, (int, float, bool, str)):
+                                    span.set_attribute(k, v)
+                                elif isinstance(v, (list, tuple)):
+                                    span.set_attribute(k, list(v))
+
                         # Phase 2: causal re-entrancy detection.
                         cycle = self._reentrancy.record(
                             thread_id=int(rec.get("thread_id", 0)),
@@ -515,6 +568,12 @@ class OtelExporter:
                 for k in _VIDEO_KEYS:
                     if k in rec:
                         self._video_last[k] = float(rec[k])
+
+            # Coupling / controller telemetry gauges from coupling_score events.
+            for rec in batch:
+                if rec.get("event_type") == "coupling_score" and self._meter is not None:
+                    self._update_coupling_gauges(rec)
+
             for k in ("age_s", "fps"):
                 if k in self._video_last:
                     g = self._instruments.get(f"video_{k}")
@@ -537,6 +596,54 @@ class OtelExporter:
                 self._video_counters[k] = v
         except Exception as e:
             log.debug("OTel metric update failed: %s", e)
+
+    def _update_coupling_gauges(self, rec: dict[str, Any]) -> None:
+        """Export controller/coupling scalars as gauges."""
+        if self._meter is None:
+            return
+        try:
+            phrase = str(rec.get("phrase", "IDLE"))
+            attrs = {"phrase": phrase}
+
+            _GAUGE_KEYS = {
+                "coupling": "qoresence_coupling",
+                "coupling_ema": "qoresence_coupling_ema",
+                "input_energy": "qoresence_input_energy",
+                "edge_energy": "qoresence_edge_energy",
+                "hold_energy": "qoresence_hold_energy",
+                "phrase_conf": "qoresence_phrase_conf",
+                "stick_gyro_r": "qoresence_stick_gyro_r",
+                "stick_motion_r": "qoresence_stick_motion_r",
+                "video_age_s": "qoresence_video_age_s",
+            }
+            for key, metric_name in _GAUGE_KEYS.items():
+                v = rec.get(key)
+                if isinstance(v, (int, float)):
+                    g = self._instruments.get(metric_name)
+                    if g is None:
+                        g = self._meter.create_gauge(metric_name)
+                        self._instruments[metric_name] = g
+                    g.set(float(v), attributes=attrs)
+
+            # imu_bodied as a 0/1 gauge.
+            imu = rec.get("imu_bodied")
+            if isinstance(imu, bool):
+                g = self._instruments.get("qoresence_imu_bodied")
+                if g is None:
+                    g = self._meter.create_gauge("qoresence_imu_bodied")
+                    self._instruments["qoresence_imu_bodied"] = g
+                g.set(1.0 if imu else 0.0, attributes=attrs)
+
+            # input_events as a counter (monotonically increasing total).
+            n = rec.get("input_events")
+            if isinstance(n, (int, float)):
+                c = self._instruments.get("qoresence_controller_input_events_total")
+                if c is None:
+                    c = self._meter.create_counter("qoresence_controller_input_events_total")
+                    self._instruments["qoresence_controller_input_events_total"] = c
+                c.add(float(n), attributes=attrs)
+        except Exception as e:
+            log.debug("OTel coupling gauge update failed: %s", e)
 
     def _periodic_tasks(self) -> None:
         now = time.monotonic_ns()

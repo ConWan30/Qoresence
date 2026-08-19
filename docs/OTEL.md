@@ -92,3 +92,25 @@ whose cascade window overlaps the clip, plus `jaeger_urls` so a highlight replay
 can be linked to its causal bus cascade.
 
 If OTel is disabled, no sidecar is written and clip export is unchanged.
+
+## DualSense / coupling telemetry
+
+Controller events (`controller.controller_event`, `controller.trigger_onset`,
+`controller.stick_motion`) and IVC `coupling_score` payloads are lifted into
+spans and metrics. On every `coupling_score` event the exporter emits:
+
+- Gauges: `qoresence_coupling`, `qoresence_coupling_ema`, `qoresence_input_energy`,
+  `qoresence_edge_energy`, `qoresence_hold_energy`, `qoresence_phrase_conf`,
+  `qoresence_stick_gyro_r`, `qoresence_stick_motion_r`, `qoresence_imu_bodied`,
+  `qoresence_video_age_s`.
+- Counter: `qoresence_controller_input_events_total{phrase}`.
+
+Each child span carries the scalar fields (`frame_seq`, `video_clock_ns`,
+`input_events`, `coupling`, `phrase`, `buttons`, etc.), so a frame in Jaeger can
+be linked to the exact controller state at that `clock_ns`.
+
+Clip sidecars: `clips/hdmi_clip_YYYYMMDD_HHMMSS.coupling.json` contains the
+latest IVC coupling payload (with `frame_seq` / `video_clock_ns`) plus the
+InputRing events that fall inside the clip window. This gives a local,
+frame-synced record of what the DualSense was doing for that replay — no cloud,
+no anti-cheat story.

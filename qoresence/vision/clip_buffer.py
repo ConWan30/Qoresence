@@ -347,6 +347,10 @@ class HdmiClipBuffer:
             _write_otel_sidecar(final_path, snapshot=snapshot)
         except Exception as e:
             log.debug("otel sidecar skipped: %s", e)
+        try:
+            _write_coupling_sidecar(final_path, snapshot=snapshot)
+        except Exception as e:
+            log.debug("coupling sidecar skipped: %s", e)
         return ClipExportResult(
             path=str(final_path.resolve()),
             frames=written,
@@ -479,6 +483,45 @@ def _write_buttons_sidecar(mp4_path: Path, duration_s: float) -> Path | None:
         return out
     except Exception as e:
         log.debug("buttons sidecar write failed: %s", e)
+        return None
+
+
+def _write_coupling_sidecar(
+    mp4_path: Path,
+    snapshot: list[tuple[float, bytes, int, int, int]],
+) -> Path | None:
+    """Write clips/<stem>.coupling.json with controller state and input events.
+
+    Combines the latest IVC coupling payload (synced to a video frame via
+    frame_seq / video_clock_ns) with the InputRing snapshot for the clip window.
+    """
+    import json
+
+    try:
+        if not snapshot:
+            return None
+        start_s = snapshot[0][0]
+        end_s = snapshot[-1][0]
+        start_ns = int(start_s * 1_000_000_000)
+        end_ns = int(end_s * 1_000_000_000)
+
+        from qoresence.sync.input_ring import get_input_ring
+        from qoresence.sync.ivc import get_last_coupling
+
+        events = get_input_ring().snapshot(seconds=float(end_s - start_s) + 0.1)
+        coupling = get_last_coupling() or {}
+        out = Path(mp4_path).with_name(Path(mp4_path).stem + ".coupling.json")
+        payload = {
+            "clip.clock_ns.start": start_ns,
+            "clip.clock_ns.end": end_ns,
+            "coupling": coupling,
+            "input_events": events,
+        }
+        out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        log.info("coupling sidecar: %s (%d events)", out.name, len(events))
+        return out
+    except Exception as e:
+        log.debug("coupling sidecar write failed: %s", e)
         return None
 
 

@@ -396,6 +396,98 @@ class TestTraceSidecar:
             bus.close()
 
 
+class TestCouplingTelemetry:
+    def test_coupling_score_span_attributes(self, tmp_path):
+        bus = _make_bus(tmp_path)
+        exporter, span_exporter = _make_exporter(bus, tmp_path)
+        try:
+            bus.emit_raw(
+                source_lobe=SourceLobe.CONTROLLER,
+                event_type="coupling_score",
+                payload={
+                    "frame_seq": 42,
+                    "video_clock_ns": 1_000_000_000,
+                    "coupling": 0.75,
+                    "coupling_ema": 0.70,
+                    "input_energy": 0.12,
+                    "edge_energy": 0.05,
+                    "hold_energy": 0.03,
+                    "input_events": 3,
+                    "phrase": "SNAP",
+                    "phrase_conf": 0.91,
+                    "imu_bodied": True,
+                    "stick_gyro_r": 0.88,
+                    "stick_motion_r": 0.45,
+                    "video_age_s": 0.04,
+                    "buttons": ["R2"],
+                },
+                clock_ns_override=1_000_000,
+            )
+            _wait_exported(exporter, 1)
+            span = [s for s in span_exporter.get_finished_spans() if s.name == "controller.coupling_score"][0]
+            assert span.attributes.get("coupling") == 0.75
+            assert span.attributes.get("phrase") == "SNAP"
+            assert span.attributes.get("imu_bodied") is True
+            assert span.attributes.get("frame_seq") == 42
+            assert "buttons" in span.attributes
+        finally:
+            exporter.stop()
+            bus.close()
+
+    def test_controller_trigger_onset_span_attributes(self, tmp_path):
+        bus = _make_bus(tmp_path)
+        exporter, span_exporter = _make_exporter(bus, tmp_path)
+        try:
+            bus.emit_raw(
+                source_lobe=SourceLobe.CONTROLLER,
+                event_type="trigger_onset",
+                payload={
+                    "trigger": "R2",
+                    "amplitude": 0.85,
+                    "device_ts_ms": 1234,
+                    "causal_parent_ns": 900_000,
+                },
+                clock_ns_override=1_000_000,
+            )
+            _wait_exported(exporter, 1)
+            span = [s for s in span_exporter.get_finished_spans() if s.name == "controller.trigger_onset"][0]
+            assert span.attributes.get("trigger") == "R2"
+            assert span.attributes.get("amplitude") == 0.85
+            assert span.attributes.get("causal_parent_ns") == 900_000
+        finally:
+            exporter.stop()
+            bus.close()
+
+    def test_clip_coupling_sidecar_written(self, tmp_path):
+        from qoresence.vision.clip_buffer import HdmiClipBuffer
+
+        bus = _make_bus(tmp_path)
+        exporter, _ = _make_exporter(bus, tmp_path)
+        try:
+            buf = HdmiClipBuffer(
+                seconds=2.0,
+                target_fps=30.0,
+                out_dir=tmp_path / "clips",
+            )
+            t0 = time.monotonic()
+            jpeg = _make_jpeg()
+            for i in range(20):
+                buf._frames.append((t0 + i * 0.025, jpeg, 640, 360, i))
+                buf._pushes += 1
+
+            result = buf.export(seconds=1.0)
+            assert result is not None
+            sidecar = Path(result.path).with_suffix(".coupling.json")
+            assert sidecar.exists(), f"expected coupling sidecar {sidecar}"
+            data = json.loads(sidecar.read_text())
+            assert "clip.clock_ns.start" in data
+            assert "coupling" in data
+            assert "input_events" in data
+        finally:
+            exporter.stop()
+            bus.close()
+
+
 class TestPilotAuditor:
     def test_flags_re_entrant_bus_cycle(self):
         from qoresence.agents.society.roles import pilot_auditor
