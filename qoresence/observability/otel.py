@@ -442,6 +442,18 @@ class OtelExporter:
             except queue.Empty:
                 self._periodic_tasks()
                 continue
+
+            # Flush request: emit any accumulated batch, then process all events
+            # currently ahead of this marker so clip sidecars can see up-to-date
+            # trace IDs for the exported window.
+            if rec.get("__flush__"):
+                # Drain the queue of events that arrived before/around the flush
+                # so clip sidecars can see up-to-date trace IDs for the window.
+                self._drain_for_flush(rec.get("clock_ns", 0))
+                if rec.get("_done") is not None:
+                    rec["_done"].set()
+                continue
+
             batch: list[dict[str, Any]] = [rec]
             # Group a short cascade: up to cascade_max_events events with
             # clock_ns gaps under cascade_window_ns.
@@ -453,6 +465,11 @@ class OtelExporter:
                     nxt = self._queue.get_nowait()
                 except queue.Empty:
                     break
+                # Flush markers interleaved in the queue take priority.
+                if nxt.get("__flush__"):
+                    if nxt.get("_done") is not None:
+                        nxt["_done"].set()
+                    continue
                 gap = abs(nxt.get("clock_ns", 0) - last_ns)
                 batch.append(nxt)
                 last_ns = nxt.get("clock_ns", 0)
@@ -463,6 +480,42 @@ class OtelExporter:
             except Exception as e:
                 log.debug("OTel cascade emit failed: %s", e)
             self._periodic_tasks()
+
+    def _drain_for_flush(self, end_clock_ns: int) -> None:
+        """Emit a short trailing batch of queued events during a clip flush.
+
+        This only drains what is already in the queue, with a bounded timeout,
+        so a live stream cannot keep us here forever.
+        """
+        max_events = int(getattr(self.config, "cascade_max_events", 64))
+        window_ns = int(getattr(self.config, "cascade_window_ns", 250_000_000))
+        deadline = time.monotonic() + 0.5
+        batch: list[dict[str, Any]] = []
+        last_ns = 0
+        while time.monotonic() < deadline:
+            try:
+                nxt = self._queue.get_nowait()
+            except queue.Empty:
+                if batch:
+                    self._emit_cascade(batch)
+                    batch = []
+                break
+            if nxt.get("__flush__"):
+                if nxt.get("_done") is not None:
+                    nxt["_done"].set()
+                continue
+            if not batch:
+                batch.append(nxt)
+                last_ns = nxt.get("clock_ns", 0)
+                continue
+            gap = abs(nxt.get("clock_ns", 0) - last_ns)
+            if gap > window_ns or len(batch) >= max_events:
+                self._emit_cascade(batch)
+                batch = []
+            batch.append(nxt)
+            last_ns = nxt.get("clock_ns", 0)
+        if batch:
+            self._emit_cascade(batch)
 
     def _emit_cascade(self, batch: list[dict[str, Any]]) -> None:
         if not batch:
@@ -703,6 +756,25 @@ class OtelExporter:
         }
         out.update(self._reentrancy.stats())
         return out
+
+    def flush(self, end_clock_ns: int, timeout: float = 2.0) -> bool:
+        """Signal the worker to drain the queue up to ``end_clock_ns``.
+
+        Blocks until the worker has processed the flush or ``timeout`` elapses.
+        Returns ``True`` if the flush completed, ``False`` if it timed out.
+        """
+        if self._worker is None or not self._worker.is_alive():
+            return False
+        done = threading.Event()
+        try:
+            self._queue.put(
+                {"__flush__": True, "clock_ns": int(end_clock_ns), "_done": done},
+                block=True,
+                timeout=timeout,
+            )
+        except queue.Full:
+            return False
+        return done.wait(timeout=timeout)
 
     def trace_ids_for_window(self, start_ns: int, end_ns: int) -> list[str]:
         """Return trace IDs whose cascade window overlaps [start_ns, end_ns].
