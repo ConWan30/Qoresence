@@ -84,6 +84,9 @@ def test_ivc_empty_inputs_zero_coupling(monkeypatch):
 
 
 def test_ivc_imu_bodied_names_precursor(monkeypatch):
+    from qoresence.sync.lag_estimator import get_lag_estimator
+
+    get_lag_estimator().reset()
     hub = FrameHub()
     ring = InputRing()
     t_video = time.monotonic_ns()
@@ -107,6 +110,9 @@ def test_ivc_imu_bodied_names_precursor(monkeypatch):
     assert payload["imu_precursor_ms"] == 18.0
     assert payload["imu_precursor_name"] == "R2"
     assert payload["coupling"] > 0.0
+    assert payload["lag_center_ms"] is not None
+    assert payload["pll_n"] >= 1
+    assert "bind_offset_ms" in payload
 
 
 def test_ivc_hold_couples_without_edge_in_window(monkeypatch):

@@ -48,6 +48,10 @@ Ghost Cut / Deck replay
 
 Default join is `lag_lo=0`, `lag_hi=120`, `lead=24` (one 60 fps frame of clock skew). Held R2 / stick still score after the onset edge leaves the window. Stale FrameHub stamps (`age_s > 200 ms`) decay coupling. Env: `QORESENCE_IVC_LAG_HI_MS`, `QORESENCE_IVC_LAG_LO_MS`, `QORESENCE_IVC_LEAD_MS`, `QORESENCE_IVC_HZ`.
 
+**Lag PLL (session lock).** IMU-bodied presses vs FrameHub `clock_ns` drive `lag_center_ms` / `lag_jitter_ms` / `pll_lock` on `/health` `coupling`. Frozen video (`age_s` stale) does not walk the PLL. EventBinder samples still only *widen* the envelope — they never shrink it.
+
+**Sub-frame bind.** FrameHub keeps a 16-deep 80×45 luma-energy ring at publish (not a second capture). IVC matches the latest IMU-bodied HID edge to the first luma onset in ±2 frames and stamps `bind_offset_ms` (−16…+16) + `bind_conf`. Observation / co-occurrence only.
+
 Live proof (no extra camera):
 
 ```powershell

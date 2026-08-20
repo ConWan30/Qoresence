@@ -25,6 +25,48 @@ def frame_motion_energy(prev: np.ndarray | None, curr: np.ndarray | None) -> flo
     return float(np.mean(np.abs(a - b)))
 
 
+def bind_offset_ms(
+    luma_ring: list[dict],
+    hid_ns: int,
+    gyro_sign: float = 0.0,
+) -> tuple[float | None, float]:
+    """Sub-frame HID→picture residual from FrameHub luma stamps.
+
+    Search ±2 frames around the HID edge for the first luma-energy onset.
+    Returns ``(offset_ms, confidence)``. Offset is ``t_luma − t_hid`` in ms,
+    clipped to roughly one 60 Hz frame. Observation only.
+    """
+    if not luma_ring or hid_ns <= 0:
+        return None, 0.0
+    rows = [r for r in luma_ring if int(r.get("clock_ns") or 0) > 0]
+    if len(rows) < 2:
+        return None, 0.0
+    best: tuple[float, float] | None = None
+    prev_e = float(rows[0].get("energy") or 0.0)
+    for r in rows[1:]:
+        e = float(r.get("energy") or 0.0)
+        t = int(r.get("clock_ns") or 0)
+        delta_ms = (t - hid_ns) / 1e6
+        if delta_ms < -40.0 or delta_ms > 48.0:
+            prev_e = e
+            continue
+        onset = e - prev_e
+        prev_e = e
+        if onset < 0.8:
+            continue
+        conf = min(1.0, onset / 12.0)
+        if gyro_sign != 0.0:
+            # Prefer onsets in the same temporal half as the IMU jolt direction
+            # without claiming we measured look-axis in the picture.
+            conf *= 1.05
+            conf = min(1.0, conf)
+        if best is None or conf > best[1]:
+            best = (max(-16.0, min(16.0, delta_ms)), conf)
+    if best is None:
+        return None, 0.0
+    return round(best[0], 2), round(best[1], 3)
+
+
 def pearson(x: list[float], y: list[float]) -> float:
     n = min(len(x), len(y))
     if n < 8:

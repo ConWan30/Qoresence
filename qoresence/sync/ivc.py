@@ -164,6 +164,12 @@ class InputVideoCoupler:
             return None
 
         lag_lo_ms, lag_hi_ms = self.lag_lo_ms, self.lag_hi_ms
+        pll: dict[str, Any] = {
+            "lag_center_ms": None,
+            "lag_jitter_ms": None,
+            "pll_lock": False,
+            "pll_n": 0,
+        }
         try:
             from qoresence.sync.event_bind import get_event_binder
             from qoresence.sync.lag_estimator import get_lag_estimator
@@ -173,6 +179,7 @@ class InputVideoCoupler:
             if last_lag is not None:
                 est.observe(last_lag)
             lag_lo_ms, lag_hi_ms = est.band(self.lag_lo_ms, self.lag_hi_ms)
+            pll = est.snapshot()
         except Exception:
             pass
         lag_lo_ns = int(lag_lo_ms * 1e6)
@@ -340,6 +347,8 @@ class InputVideoCoupler:
             payload["stick_gyro_r"] = opt.get("stick_gyro_r")
             payload["stick_motion_r"] = opt.get("stick_motion_r")
         prec_evs = [e for e in events if e.imu_precursor_ms is not None]
+        bind_offset = None
+        bind_conf = 0.0
         if prec_evs:
             payload["imu_precursor_ms"] = round(
                 sum(float(e.imu_precursor_ms or 0.0) for e in prec_evs) / len(prec_evs),
@@ -347,8 +356,41 @@ class InputVideoCoupler:
             )
             payload["imu_bodied"] = True
             payload["imu_precursor_name"] = str(prec_evs[-1].name)
+            hid_ns = int(prec_evs[-1].clock_ns)
+            try:
+                from qoresence.sync.lag_estimator import get_lag_estimator
+
+                get_lag_estimator().observe_phase(
+                    (t_video - hid_ns) / 1e6,
+                    video_stale=age_s > _STALE_AGE_S,
+                )
+                pll = get_lag_estimator().snapshot()
+            except Exception:
+                pass
+            try:
+                from qoresence.sync.optical import bind_offset_ms
+
+                luma = get_frame_hub().luma_ring()
+                gyro_sign = 0.0
+                try:
+                    from qoresence.sync.imu_ring import get_imu_ring
+
+                    last_imu = get_imu_ring().last()
+                    if last_imu is not None:
+                        gyro_sign = float(last_imu.gyro_z)
+                except Exception:
+                    gyro_sign = 0.0
+                bind_offset, bind_conf = bind_offset_ms(luma, hid_ns, gyro_sign)
+            except Exception:
+                bind_offset, bind_conf = None, 0.0
         else:
             payload["imu_bodied"] = False
+        payload["lag_center_ms"] = pll.get("lag_center_ms")
+        payload["lag_jitter_ms"] = pll.get("lag_jitter_ms")
+        payload["pll_lock"] = bool(pll.get("pll_lock"))
+        payload["pll_n"] = int(pll.get("pll_n") or 0)
+        payload["bind_offset_ms"] = bind_offset
+        payload["bind_conf"] = bind_conf
         try:
             from qoresence.sync.event_bind import get_event_binder
 

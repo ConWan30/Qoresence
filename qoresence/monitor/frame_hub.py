@@ -10,11 +10,17 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections import deque
 from typing import Any
 
 import numpy as np
 
 log = logging.getLogger(__name__)
+
+# Tiny luma thumb for sub-frame HID↔picture bind. Never YOLO. Never a second capture.
+_THUMB_W = 80
+_THUMB_H = 45
+_LUMA_RING = 16
 
 
 class FrameHub:
@@ -27,6 +33,8 @@ class FrameHub:
         self._ts: float = 0.0  # monotonic seconds (age)
         self._clock_ns: int = 0  # monotonic_ns at publish (join to inputs)
         self._publishes: int = 0
+        self._luma: deque[dict[str, Any]] = deque(maxlen=_LUMA_RING)
+        self._prev_thumb: np.ndarray | None = None
 
     def publish(
         self,
@@ -47,6 +55,7 @@ class FrameHub:
             # Copy so streamer can overwrite its capture buffer safely
             snap = np.ascontiguousarray(frame_bgr.copy())
             ts_ns = int(clock_ns) if clock_ns is not None else time.monotonic_ns()
+            thumb, energy = self._thumb_and_energy(snap)
             with self._lock:
                 self._frame = snap
                 if seq is not None:
@@ -56,6 +65,14 @@ class FrameHub:
                 self._ts = time.monotonic()
                 self._clock_ns = ts_ns
                 self._publishes += 1
+                self._luma.append(
+                    {
+                        "seq": self._seq,
+                        "clock_ns": ts_ns,
+                        "energy": energy,
+                    }
+                )
+                self._prev_thumb = thumb
         except Exception as e:
             log.debug("FrameHub.publish failed: %s", e)
 
@@ -107,12 +124,37 @@ class FrameHub:
                 "age_s": None if age is None else round(float(age), 3),
             }
 
+    def luma_ring(self) -> list[dict[str, Any]]:
+        """Copy of recent tiny luma-energy stamps (no frame pixels)."""
+        with self._lock:
+            return [dict(x) for x in self._luma]
+
+    def _thumb_and_energy(self, snap: np.ndarray) -> tuple[np.ndarray | None, float]:
+        """Downscale to 80×45 gray; mean abs-diff vs previous thumb."""
+        try:
+            import cv2
+
+            small = cv2.resize(snap, (_THUMB_W, _THUMB_H), interpolation=cv2.INTER_AREA)
+            if small.ndim == 3:
+                gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = small
+            prev = self._prev_thumb
+            energy = 0.0
+            if prev is not None and prev.shape == gray.shape:
+                energy = float(np.mean(np.abs(gray.astype(np.float32) - prev.astype(np.float32))))
+            return gray, energy
+        except Exception:
+            return None, 0.0
+
     def clear(self) -> None:
         with self._lock:
             self._frame = None
             self._seq = 0
             self._ts = 0.0
             self._clock_ns = 0
+            self._luma.clear()
+            self._prev_thumb = None
 
 
 # Process-wide hub (streamer + monitor + IVC share this process)

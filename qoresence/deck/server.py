@@ -144,6 +144,11 @@ class DeckState:
                         "stick_gyro_r": coup.get("stick_gyro_r"),
                         "stick_motion_r": coup.get("stick_motion_r"),
                         "path": coup.get("path") or "fast",
+                        "lag_center_ms": coup.get("lag_center_ms"),
+                        "lag_jitter_ms": coup.get("lag_jitter_ms"),
+                        "pll_lock": bool(coup.get("pll_lock")),
+                        "bind_offset_ms": coup.get("bind_offset_ms"),
+                        "bind_conf": coup.get("bind_conf"),
                     }
                 )
         except Exception:
