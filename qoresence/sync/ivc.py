@@ -308,7 +308,9 @@ class InputVideoCoupler:
             from qoresence.sync.play_phrase import LIVE_PHRASES
 
             book = get_coupling_book()
-            if ph.get("phrase") in LIVE_PHRASES and age_s <= _STALE_AGE_S:
+            pll_locked = bool(pll.get("pll_lock"))
+            video_fresh = age_s <= _STALE_AGE_S
+            if ph.get("phrase") in LIVE_PHRASES and video_fresh and pll_locked:
                 ticket = mint_coupling_ticket(
                     clock_ns=t_video,
                     frame_seq=seq,
@@ -316,6 +318,8 @@ class InputVideoCoupler:
                     coupling=coupling,
                     hold_energy=hold_energy,
                     imu_bodied=bool(any(e.imu_precursor_ms is not None for e in events)),
+                    pll_lock=True,
+                    video_fresh=True,
                 )
                 book.put(ticket)
                 couple_tid = ticket.ticket_id if ticket is not None else ""

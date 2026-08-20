@@ -120,6 +120,7 @@ class A2AOrchestrator:
         self._recent_norms: list[tuple[float, str]] = []  # (ts, norm_text)
         self._inflight = False
         self._last_sit_key: tuple[Any, ...] | None = None
+        self._last_must_fire_key: tuple[Any, ...] | None = None
 
     def stats(self) -> dict[str, Any]:
         return {
@@ -209,6 +210,19 @@ class A2AOrchestrator:
 
         # Trio P2: Evaluate must-fire predicates early so ambient gating can use them.
         must_fire, must_fire_pred = evaluate_must_fire(sit)
+        # Edge-trigger only. last_outcome_event is sticky on the snapshot, so a
+        # lingering "score_changed" must not zero the interval on every drive tick.
+        mf_key = (
+            (must_fire_pred, str(sit.get("last_outcome_event") or ""))
+            if must_fire
+            else None
+        )
+        if must_fire and mf_key == self._last_must_fire_key:
+            must_fire = False
+            must_fire_pred = None
+            mf_key = None
+        elif not must_fire:
+            self._last_must_fire_key = None
 
         # Sparse heartbeat reasons only fire when there is real pressure, coupling,
         # or a high-climax must-fire predicate. No idle gameplay spam.
@@ -237,6 +251,14 @@ class A2AOrchestrator:
 
         now = time.time()
         last_age = now - self._last_trigger if self._last_trigger > 0 else 0.0
+        coupling_ticket_ok = True
+        if not force and reason == "coupling":
+            try:
+                from qoresence.sync.coupling_ticket import get_coupling_book
+
+                coupling_ticket_ok = get_coupling_book().latest_live() is not None
+            except Exception:
+                coupling_ticket_ok = False
         # ── LOCKING INVARIANT — DO NOT CHANGE (see AGENTS.md + tests/test_deadlock_regression.py)
         # Re-entrancy guard: emitting router_decision fans out synchronously on
         # this thread (bus → presence → clutchbot → back here). Without this,
@@ -259,7 +281,10 @@ class A2AOrchestrator:
                         interval_s=interval,
                         last_trigger_age_s=last_age,
                     )
-                elif not force and not must_fire and (now - self._last_trigger) < interval:
+                elif not force and (
+                    (not must_fire and (now - self._last_trigger) < interval)
+                    or not coupling_ticket_ok
+                ):
                     # Suppressed by interval
                     decision = build_router_decision(
                         fired=False,
@@ -273,6 +298,8 @@ class A2AOrchestrator:
                     self._inflight = True
                     self._last_trigger = now
                     self._last_reason = reason
+                    if mf_key is not None:
+                        self._last_must_fire_key = mf_key
                     fired = True
                     decision = build_router_decision(
                         fired=True,

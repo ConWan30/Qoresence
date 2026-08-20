@@ -61,6 +61,8 @@ def test_soft_allows_heat_with_ticket():
         phrase="SPRINT",
         coupling=0.5,
         hold_energy=1.0,
+        pll_lock=True,
+        video_fresh=True,
     )
     get_coupling_book().put(t)
     p = A2APolicy(chat_cooldown_s=0)
@@ -243,6 +245,29 @@ def test_video_ambient_fires_on_must_fire_climax():
 
     time.sleep(0.25)
     assert called, "video_ambient should fire when must-fire predicate (big play) is true"
+
+
+def test_coupling_reason_without_ticket_does_not_fire():
+    from qoresence.sync.coupling_ticket import reset_coupling_book
+
+    reset_a2a_orchestrator()
+    reset_coupling_book()
+    orch = A2AOrchestrator(enabled=True, min_interval_s=0)
+    called = []
+    orch.on_commit = lambda c: called.append(c)
+    orch.gemini.live = False
+    orch.deepseek.live = False
+    orch.policy.chat_cooldown_s = 0
+    orch.maybe_trigger_from_drive(
+        situation={"game_category": "football", "game_state": "gameplay"},
+        reason="coupling",
+        coupling=0.9,
+    )
+    import time
+
+    time.sleep(0.15)
+    assert called == []
+    reset_a2a_orchestrator()
 
 
 def test_near_duplicate_policy():

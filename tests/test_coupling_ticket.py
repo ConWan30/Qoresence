@@ -31,6 +31,8 @@ def test_sprint_mints_and_licenses_heat():
         phrase="SPRINT",
         coupling=0.4,
         hold_energy=1.1,
+        pll_lock=True,
+        video_fresh=True,
     )
     assert t is not None
     assert t.phrase == "SPRINT"
@@ -56,6 +58,29 @@ def test_latest_live_expires():
         phrase="CUT",
         coupling=0.5,
         hold_energy=0.4,
+        pll_lock=True,
+        video_fresh=True,
     )
     get_coupling_book().put(t)
     assert get_coupling_book().latest_live() is None
+
+
+def test_sprint_without_pll_does_not_mint():
+    assert mint_coupling_ticket(
+        clock_ns=1,
+        frame_seq=1,
+        phrase="SPRINT",
+        coupling=0.4,
+        hold_energy=1.0,
+        pll_lock=False,
+        video_fresh=True,
+    ) is None
+    assert mint_coupling_ticket(
+        clock_ns=1,
+        frame_seq=1,
+        phrase="SPRINT",
+        coupling=0.4,
+        hold_energy=1.0,
+        pll_lock=True,
+        video_fresh=False,
+    ) is None

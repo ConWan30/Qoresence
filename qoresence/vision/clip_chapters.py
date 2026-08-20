@@ -226,16 +226,30 @@ def chapters_after_export(mp4_path: str | Path, duration_s: float) -> Path | Non
         try:
             from qoresence.sync.coupling_ticket import get_coupling_book, why_strip_coupling
             from qoresence.sync.ivc import get_last_coupling
+            from qoresence.sync.play_phrase import LIVE_PHRASES
             from qoresence.vision.confirm_ticket import get_ticket_book, why_strip
 
             coup = get_last_coupling() or {}
             why = dict(why)
-            why["phrase"] = coup.get("phrase") or "IDLE"
+            phrase = str(coup.get("phrase") or "IDLE")
+            why["phrase"] = phrase
             why["coupling_ticket_id"] = coup.get("coupling_ticket_id") or ""
             why["confirm"] = why_strip(get_ticket_book().latest())
             why["couple"] = why_strip_coupling(get_coupling_book().latest_live())
-            extra = f"{why['confirm']} · {why['couple']} · phrase={why['phrase']}"
+            extra = f"{why['confirm']} · {why['couple']} · phrase={phrase}"
             why["line"] = f"{why.get('line') or extra} · {extra}" if why.get("line") else extra
+            if phrase in LIVE_PHRASES and why.get("coupling_ticket_id"):
+                chapters.append(
+                    {
+                        "t_s": round(max(0.0, float(duration_s) * 0.5), 3),
+                        "label": phrase,
+                        "kind": "phrase",
+                        "path": "fast",
+                        "frame_seq": coup.get("frame_seq"),
+                        "source": "coupling_ticket",
+                    }
+                )
+                chapters.sort(key=lambda c: float(c.get("t_s") or 0))
         except Exception:
             pass
         return write_clip_sidecar(

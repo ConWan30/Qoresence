@@ -49,10 +49,17 @@ def mint_coupling_ticket(
     coupling: float,
     hold_energy: float,
     imu_bodied: bool = False,
+    pll_lock: bool = False,
+    video_fresh: bool = True,
 ) -> CouplingTicket | None:
-    """Mint only for live phrases. Returns None for IDLE/HUDDLE/unknown."""
+    """Mint only for live phrases with PLL lock and fresh video.
+
+    Fail-closed: IDLE/HUDDLE/unknown, unlocked PLL, or stale video → None.
+    """
     ph = str(phrase or "").upper()
     if ph not in LIVE_PHRASES:
+        return None
+    if not pll_lock or not video_fresh:
         return None
     payload = {
         "v": DOMAIN,

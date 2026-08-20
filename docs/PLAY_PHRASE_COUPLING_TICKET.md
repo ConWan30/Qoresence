@@ -27,7 +27,8 @@ Closed vocab: `IDLE` `HUDDLE` `SNAP` `SPRINT` `CUT` `RELEASE`.
 
 Domain `QORESENCE-COUPLING-TICKET-v0`.
 
-Mint only when video is fresh and phrase ∈ {SNAP, SPRINT, CUT, RELEASE}.
+Mint only when **`pll_lock`**, video is fresh, and phrase ∈ {SNAP, SPRINT, CUT, RELEASE}.
+Without the lag lock, SNAP is a lag-smeared coincidence — fail closed.
 Expires on `IDLE`/`HUDDLE` or ~400 ms.
 
 Licenses: “controller heat”, “pad and picture”, FastMoment `input_spike`/`clutch_window`, A2A `reason=coupling`.

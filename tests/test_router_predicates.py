@@ -238,3 +238,40 @@ def test_must_fire_bypasses_interval():
 
         reset_a2a_orchestrator()
         retina_bus.close()
+
+
+def test_sticky_must_fire_does_not_bypass_interval_twice():
+    """Sticky last_outcome_event must not zero the interval on every tick."""
+    with tempfile.TemporaryDirectory() as td:
+        jsonl_path = Path(td) / "events.jsonl"
+        retina_bus = RetinaEventBus(
+            session_id="sticky_mf", jsonl_path=jsonl_path, enable_ws=False
+        )
+        orch = A2AOrchestrator(enabled=True, min_interval_s=999.0)
+        orch.bus.set_retina_mirror(retina_bus, session_id="sticky_mf")
+        situation = {
+            "game_state": "gameplay",
+            "game_category": "football",
+            "last_outcome_event": "score_changed",
+            "visual_confidence": 0.9,
+        }
+        orch.maybe_trigger_from_drive(
+            situation=situation, reason="drive_pressure", drive_phase="pressure"
+        )
+        import time as _t
+
+        _t.sleep(0.05)
+        orch.maybe_trigger_from_drive(
+            situation=situation, reason="drive_pressure", drive_phase="pressure"
+        )
+        _t.sleep(0.05)
+        lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
+        events = [json.loads(line) for line in lines if line.strip()]
+        fired = [
+            e
+            for e in events
+            if e["type"] == "router_decision" and e["payload"]["fired"]
+        ]
+        assert len(fired) == 1, f"expected 1 fire, got {len(fired)}"
+        reset_a2a_orchestrator()
+        retina_bus.close()

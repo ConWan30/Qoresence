@@ -184,9 +184,38 @@ def test_ivc_lead_includes_slightly_after_frame(monkeypatch):
 
 def test_ivc_sprint_hold_mints_coupling_ticket(monkeypatch):
     from qoresence.sync.coupling_ticket import reset_coupling_book
+    from qoresence.sync.lag_estimator import get_lag_estimator
     from qoresence.sync.play_phrase import note_game_state
 
     reset_coupling_book()
+    note_game_state("gameplay")
+    est = get_lag_estimator()
+    est.reset()
+    for i in range(10):
+        est.observe_phase(40.0 + 0.1 * i)
+    hub = FrameHub()
+    ring = InputRing()
+    t_video = time.monotonic_ns()
+    ring.set_hold(clock_ns=t_video, r2=0.95, l2=0.0, left=0.0, right=0.0)
+    hub.publish(np.zeros((8, 8, 3), dtype=np.uint8), clock_ns=t_video)
+    monkeypatch.setattr("qoresence.monitor.frame_hub.get_frame_hub", lambda: hub)
+    monkeypatch.setattr("qoresence.sync.input_ring.get_input_ring", lambda: ring)
+    ivc = InputVideoCoupler(bus=None)
+    payload = ivc.tick_once()
+    assert payload is not None
+    assert payload["phrase"] == "SPRINT"
+    assert payload["pll_lock"] is True
+    assert payload["coupling_ticket_id"]
+    assert payload["hold_energy"] > 0.0
+
+
+def test_ivc_sprint_without_pll_does_not_mint(monkeypatch):
+    from qoresence.sync.coupling_ticket import reset_coupling_book
+    from qoresence.sync.lag_estimator import get_lag_estimator
+    from qoresence.sync.play_phrase import note_game_state
+
+    reset_coupling_book()
+    get_lag_estimator().reset()
     note_game_state("gameplay")
     hub = FrameHub()
     ring = InputRing()
@@ -199,8 +228,8 @@ def test_ivc_sprint_hold_mints_coupling_ticket(monkeypatch):
     payload = ivc.tick_once()
     assert payload is not None
     assert payload["phrase"] == "SPRINT"
-    assert payload["coupling_ticket_id"]
-    assert payload["hold_energy"] > 0.0
+    assert payload["pll_lock"] is False
+    assert not payload["coupling_ticket_id"]
 
 
 def test_ivc_ema_rises_on_repeat(monkeypatch):
