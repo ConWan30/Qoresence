@@ -364,13 +364,19 @@
     $('load-btn').onclick = loadTrace;
     $('trace-id').addEventListener('keydown', e => { if (e.key === 'Enter') loadTrace(); });
 
-    // auto-load from query params
+    // auto-load from query params or hash fragment
     const params = new URLSearchParams(window.location.search);
-    const id = params.get('id');
+    let hashParams = new URLSearchParams();
+    try {
+      if (window.location.hash && window.location.hash.length > 1) {
+        hashParams = new URLSearchParams(window.location.hash.slice(1));
+      }
+    } catch (_) {}
+    const id = params.get('id') || hashParams.get('id');
+    const jaeger = params.get('jaeger') || hashParams.get('jaeger');
     if (id) {
       $('trace-id').value = id;
-      const base = params.get('jaeger');
-      if (base) $('jaeger-base').value = base;
+      if (jaeger) $('jaeger-base').value = jaeger;
       loadTrace();
     }
   </script>
