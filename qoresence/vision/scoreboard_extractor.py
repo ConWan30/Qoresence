@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from collections import deque
 from dataclasses import dataclass
 from typing import Any
@@ -1079,8 +1080,17 @@ class FootballScoreboardExtractor:
             return None
 
 
+_football_extractor: FootballScoreboardExtractor | None = None
+_football_extractor_lock = threading.Lock()
+
+
 def extract_football_scoreboard(
     frame: np.ndarray, ctx: VisualContext | None = None
 ) -> VisualContext:
-    """Convenience entry point."""
-    return FootballScoreboardExtractor().extract(frame, ctx)
+    """Convenience entry point. Reuses a single extractor to avoid repeated
+    warmup threads (Paddle/EasyOCR) and repeated allocation of stabilizers."""
+    global _football_extractor
+    with _football_extractor_lock:
+        if _football_extractor is None:
+            _football_extractor = FootballScoreboardExtractor()
+        return _football_extractor.extract(frame, ctx)

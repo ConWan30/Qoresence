@@ -73,12 +73,13 @@ class VisionStack:
         self,
         vlm_client: VLMClientLike,
         ocr_provider: BaseOCRProvider | None = None,
-        enable_motion: bool = True,
-        enable_hud: bool = True,
+        enable_motion: bool = False,
+        enable_hud: bool = False,
         model_dir: Path | None = None,
         ocr_on_crops: bool = True,
         max_workers: int = 3,
         game_profile: GameProfileId = GameProfileId.NCAA_FOOTBALL_27,
+        max_input_dim: int = 640,
     ):
         self._vlm_client = vlm_client
 
@@ -90,6 +91,7 @@ class VisionStack:
         self._ocr_on_crops = ocr_on_crops
         self._max_workers = max_workers
         self._game_profile = game_profile
+        self._max_input_dim = max_input_dim
 
         self._motion = MotionTracker() if enable_motion else None
         self._hud_detector = HUDDetector(model_dir=model_dir) if enable_hud else None
@@ -126,6 +128,14 @@ class VisionStack:
     def analyze(self, frame: np.ndarray) -> VisionEvidence | None:
         """Run the full synchronized stack on one frame."""
         from qoresence.core import clock_ns
+
+        # Clamp input resolution.  The heavy local models (YOLO, OCR) were
+        # allocating multi-MB float32 tensors on full-res HDMI frames and
+        # exhausting OpenCV's allocator.
+        h, w = frame.shape[:2]
+        if max(h, w) > self._max_input_dim:
+            scale = self._max_input_dim / max(h, w)
+            frame = cv2.resize(frame, (int(w * scale), int(h * scale)))
 
         timestamp_ns = clock_ns()
 

@@ -525,6 +525,14 @@ class VisualRuntime:
 
     def _analyze_frame(self, frame: np.ndarray) -> None:
         """Classify, then always merge Gemini scoreboard lock/ticket on football."""
+        # Keep local vision processing bounded; the local ONNX classifier runs at
+        # 224x224 anyway, and downstream scoreboard extractors should not have to
+        # allocate on full-res HDMI frames.
+        h, w = frame.shape[:2]
+        if max(h, w) > self.config.max_frame_dim:
+            scale = self.config.max_frame_dim / max(h, w)
+            frame = cv2.resize(frame, (int(w * scale), int(h * scale)))
+
         # 1. Game state classification
         context = self._client.analyze_frame(
             frame,

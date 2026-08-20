@@ -316,7 +316,14 @@ class GameAutoDetector:
         self._ocr_weight = ocr_weight
         self._motion_weight = motion_weight
 
-        # Vision Stack: synchronized VLM + OCR + motion + HUD detection
+        # Vision Stack: synchronized VLM + OCR + motion + HUD detection.
+        # HUD and motion are expensive for the local path (multi-MB YOLO / optical
+        # flow per tick); only enable them when a cloud-backed key is present and
+        # the heavy pipeline can actually be useful. Local game detection only
+        # needs VLM classification.
+        _local = getattr(self._vlm_client, "api_key", None) is None
+        _enable_hud = not _local
+        _enable_motion = not _local
         self._use_vision_stack = use_vision_stack and self._vlm_client is not None
         if self._use_vision_stack:
             from qoresence.vision import create_ocr_provider
@@ -324,8 +331,8 @@ class GameAutoDetector:
             self._vision_stack = VisionStack(
                 vlm_client=self._vlm_client,
                 ocr_provider=create_ocr_provider(ocr_provider, vlm_client=self._vlm_client),
-                enable_motion=True,
-                enable_hud=True,
+                enable_motion=_enable_motion,
+                enable_hud=_enable_hud,
                 model_dir=model_dir,
                 game_profile=game_profile,
             )
@@ -504,6 +511,14 @@ class GameAutoDetector:
             if self._title_presence:
                 self._note_no_frame()
             return
+
+        # Clamp the analysis resolution so local VLM / OCR never allocate on
+        # full-res HDMI frames (the local classifier resizes to 224x224 anyway).
+        h, w = frame.shape[:2]
+        max_dim = getattr(self._vlm_client, "max_frame_dim", 640)
+        if max(h, w) > max_dim:
+            scale = max_dim / max(h, w)
+            frame = cv2.resize(frame, (int(w * scale), int(h * scale)))
 
         if self._use_vision_stack and self._vision_stack:
             self._tick_vision_stack(frame)
