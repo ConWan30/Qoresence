@@ -1,0 +1,150 @@
+{
+  "data": [
+    {
+      "traceID": "3a5eccb7b3be30cd982248073996f101",
+      "spans": [
+        {
+          "traceID": "3a5eccb7b3be30cd982248073996f101",
+          "spanID": "a1b2c3d4e5f6a7b8",
+          "operationName": "qoresence.session",
+          "references": [],
+          "startTime": 1000000000000000,
+          "duration": 5000000,
+          "tags": [
+            {"key": "clock_ns_first", "value": "1000000000000000", "type": "string"},
+            {"key": "clock_ns_last", "value": "1000000005000000", "type": "string"},
+            {"key": "clock_ns", "value": "1000000000000000", "type": "string"},
+            {"key": "events", "value": "7", "type": "string"}
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": []
+        },
+        {
+          "traceID": "3a5eccb7b3be30cd982248073996f101",
+          "spanID": "b2c3d4e5f6a7b8c9",
+          "operationName": "streamer.grab",
+          "references": [
+            {"refType": "CHILD_OF", "traceID": "3a5eccb7b3be30cd982248073996f101", "spanID": "a1b2c3d4e5f6a7b8"}
+          ],
+          "startTime": 1000000000100000,
+          "duration": 16000,
+          "tags": [
+            {"key": "clock_ns", "value": "1000000000100000", "type": "string"},
+            {"key": "source_lobe", "value": "streamer", "type": "string"},
+            {"key": "event_type", "value": "frame", "type": "string"},
+            {"key": "frame_seq", "value": "1234", "type": "string"}
+          ],
+          "logs": [],
+          "processID": "p2",
+          "warnings": []
+        },
+        {
+          "traceID": "3a5eccb7b3be30cd982248073996f101",
+          "spanID": "c3d4e5f6a7b8c9d0",
+          "operationName": "controller.poll",
+          "references": [
+            {"refType": "CHILD_OF", "traceID": "3a5eccb7b3be30cd982248073996f101", "spanID": "a1b2c3d4e5f6a7b8"}
+          ],
+          "startTime": 1000000000200000,
+          "duration": 8000,
+          "tags": [
+            {"key": "clock_ns", "value": "1000000000200000", "type": "string"},
+            {"key": "source_lobe", "value": "controller", "type": "string"},
+            {"key": "event_type", "value": "input", "type": "string"},
+            {"key": "input_energy", "value": "0.42", "type": "string"}
+          ],
+          "logs": [],
+          "processID": "p3",
+          "warnings": []
+        },
+        {
+          "traceID": "3a5eccb7b3be30cd982248073996f101",
+          "spanID": "d4e5f6a7b8c9d0e1",
+          "operationName": "ivc.coupling",
+          "references": [
+            {"refType": "CHILD_OF", "traceID": "3a5eccb7b3be30cd982248073996f101", "spanID": "a1b2c3d4e5f6a7b8"}
+          ],
+          "startTime": 1000000000500000,
+          "duration": 32000,
+          "tags": [
+            {"key": "clock_ns", "value": "1000000000500000", "type": "string"},
+            {"key": "source_lobe", "value": "ivc", "type": "string"},
+            {"key": "event_type", "value": "coupling", "type": "string"},
+            {"key": "coupling", "value": "0.91", "type": "string"}
+          ],
+          "logs": [],
+          "processID": "p4",
+          "warnings": []
+        },
+        {
+          "traceID": "3a5eccb7b3be30cd982248073996f101",
+          "spanID": "e5f6a7b8c9d0e1f2",
+          "operationName": "visual.classify",
+          "references": [
+            {"refType": "CHILD_OF", "traceID": "3a5eccb7b3be30cd982248073996f101", "spanID": "a1b2c3d4e5f6a7b8"}
+          ],
+          "startTime": 1000000001000000,
+          "duration": 120000,
+          "tags": [
+            {"key": "clock_ns", "value": "1000000001000000", "type": "string"},
+            {"key": "source_lobe", "value": "visual", "type": "string"},
+            {"key": "event_type", "value": "visual_context", "type": "string"},
+            {"key": "game_state", "value": "football", "type": "string"}
+          ],
+          "logs": [],
+          "processID": "p5",
+          "warnings": []
+        },
+        {
+          "traceID": "3a5eccb7b3be30cd982248073996f101",
+          "spanID": "f6a7b8c9d0e1f2a3",
+          "operationName": "clip.export",
+          "references": [
+            {"refType": "CHILD_OF", "traceID": "3a5eccb7b3be30cd982248073996f101", "spanID": "a1b2c3d4e5f6a7b8"}
+          ],
+          "startTime": 1000000002000000,
+          "duration": 180000,
+          "tags": [
+            {"key": "clock_ns", "value": "1000000002000000", "type": "string"},
+            {"key": "source_lobe", "value": "foundry", "type": "string"},
+            {"key": "event_type", "value": "clip", "type": "string"},
+            {"key": "duration_s", "value": "5", "type": "string"}
+          ],
+          "logs": [],
+          "processID": "p6",
+          "warnings": []
+        },
+        {
+          "traceID": "3a5eccb7b3be30cd982248073996f101",
+          "spanID": "a7b8c9d0e1f2a3b4",
+          "operationName": "deck.health",
+          "references": [
+            {"refType": "CHILD_OF", "traceID": "3a5eccb7b3be30cd982248073996f101", "spanID": "a1b2c3d4e5f6a7b8"}
+          ],
+          "startTime": 1000000003000000,
+          "duration": 4000,
+          "tags": [
+            {"key": "clock_ns", "value": "1000000003000000", "type": "string"},
+            {"key": "source_lobe", "value": "deck", "type": "string"},
+            {"key": "event_type", "value": "health", "type": "string"},
+            {"key": "video_age_s", "value": "0.03", "type": "string"}
+          ],
+          "logs": [],
+          "processID": "p7",
+          "warnings": []
+        }
+      ],
+      "processes": {
+        "p1": {"serviceName": "qoresence-session", "tags": []},
+        "p2": {"serviceName": "streamer", "tags": []},
+        "p3": {"serviceName": "controller", "tags": []},
+        "p4": {"serviceName": "ivc", "tags": []},
+        "p5": {"serviceName": "visual", "tags": []},
+        "p6": {"serviceName": "foundry", "tags": []},
+        "p7": {"serviceName": "deck", "tags": []}
+      },
+      "warnings": []
+    }
+  ]
+}

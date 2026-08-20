@@ -242,6 +242,28 @@
       }
     }
 
+    async function loadDemo() {
+      const status = $('status');
+      const result = $('result');
+      result.style.display = 'none';
+      status.style.display = 'none';
+      status.className = 'card trace-empty';
+      try {
+        const res = await fetch('./assets/demo-trace.json');
+        if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+        const data = await res.json();
+        const trace = (data.data && data.data[0]) || null;
+        if (!trace || !trace.spans) throw new Error('Demo trace not found or empty.');
+        $('trace-id').value = trace.traceID;
+        $('jaeger-base').value = 'demo';
+        render(trace);
+      } catch (e) {
+        status.style.display = 'block';
+        status.className = 'card trace-error';
+        status.textContent = 'Failed to load demo: ' + e.message;
+      }
+    }
+
     function render(trace) {
       $('status').style.display = 'none';
       $('result').style.display = 'block';
@@ -374,7 +396,10 @@
     } catch (_) {}
     const id = params.get('id') || hashParams.get('id');
     const jaeger = params.get('jaeger') || hashParams.get('jaeger');
-    if (id) {
+    const demo = params.get('demo') || hashParams.get('demo');
+    if (demo === '1' || demo === 'true') {
+      loadDemo();
+    } else if (id) {
       $('trace-id').value = id;
       if (jaeger) $('jaeger-base').value = jaeger;
       loadTrace();

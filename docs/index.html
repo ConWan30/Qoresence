@@ -102,6 +102,7 @@
     .demo-chrome{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);background:rgba(8,18,12,.92);font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
     .demo-chrome strong{color:var(--phosphor)}
     .demo-frame video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#000}
+    .demo-frame img{display:block;width:100%;height:auto;background:#000}
     .demo-cap{margin-top:14px;color:var(--dim);font:500 12px/1.55 "IBM Plex Mono",monospace}
     .demo-cap a{color:var(--signal);text-decoration:none}
     .demo-cap a:hover{color:var(--phosphor)}
@@ -314,6 +315,23 @@
           </video>
         </div>
         <p class="demo-cap">30s clip with controller input · sidecars: <a href="https://github.com/ConWan30/Qoresence/blob/main/docs/assets/otel-controller-demo.mp4">MP4</a> · press <code>square</code> + <code>L2</code> captured in <code>.buttons.json</code> · 56 coupling ticks in <code>.coupling.json</code> · 100% sampled OTel trace IDs in <code>.otel.json</code> · open any trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
+      </div>
+    </section>
+
+    <section class="section" id="trace-viewer">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Proof / Why</div><h2>Trace why a clip fired.</h2></div>
+          <p>The Qoresence Trace Viewer reads the same OTel causal trace that ships in every <code>.otel.json</code> sidecar. No account, no cloud dashboard, no jumping between tools.</p>
+        </div>
+        <div class="demo-frame">
+          <div class="demo-chrome">
+            <span><strong>Qoresence Trace Viewer</strong> · Jaeger trace · local</span>
+            <span>summary · timeline · spans</span>
+          </div>
+          <img src="./assets/trace-viewer-screenshot.png" alt="Qoresence Trace Viewer showing a causal session trace with streamer, controller, IVC, visual, clip export, and deck health spans on a shared monotonic clock." loading="lazy">
+        </div>
+        <p class="demo-cap">One session trace shows the causal chain: <code>streamer.grab</code> → <code>controller.poll</code> → <code>ivc.coupling</code> → <code>clip.export</code> · each span is tagged with <code>clock_ns</code>, source lobe, and event type · open any <code>.otel.json</code> trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="./trace.html?demo=1">View demo trace</a></p>
       </div>
     </section>
 
