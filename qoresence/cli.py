@@ -2281,7 +2281,7 @@ def main():
             log.exception("Ghost Cut failed: %s", e)
             sys.exit(1)
 
-    if getattr(args, "deck", False) or (
+    if getattr(args, "deck", False) or getattr(args, "play", False) or (
         getattr(args, "studio", False) and not _is_reel_one_shot
     ):
         try:
