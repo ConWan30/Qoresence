@@ -1,0 +1,361 @@
+/** Situation harvest — HDMI scorebug + title presence. Digits fail-closed. */
+
+import type { Phrase } from "./engine";
+
+const PHRASES: readonly Phrase[] = ["IDLE", "HUDDLE", "SNAP", "SPRINT", "CUT", "RELEASE"];
+const LIVE = new Set<Phrase>(["SNAP", "SPRINT", "CUT", "RELEASE"]);
+
+export type DeckIngest = {
+  phrase: Phrase;
+  phraseConf: number;
+  coupling: number;
+  holdEnergy: number;
+  pllLock: boolean;
+  ticketId: string;
+  frameSeq: number;
+  padConnected: boolean;
+  padName: string;
+  padHeld: string[];
+  bindLagMs: number;
+  bindKind: string;
+  hdmi: "live" | "menu" | "stale";
+  videoAgeS: number;
+  homeScore: number | null;
+  awayScore: number | null;
+  quarter: number | null;
+  down: number | null;
+  distance: number | null;
+  clock: string;
+  boardLocked: boolean;
+  climax: number;
+  drivePhase: string;
+  clipWorth: number;
+  winProb: number | null;
+  scorePlay: boolean;
+  gameTitle: string;
+  homeTeam: string;
+  awayTeam: string;
+  fieldPos: string;
+  why: string;
+};
+
+function asPhrase(raw: unknown): Phrase {
+  const u = String(raw || "IDLE").toUpperCase();
+  return (PHRASES as readonly string[]).includes(u) ? (u as Phrase) : "IDLE";
+}
+
+function rec(v: unknown): Record<string, unknown> {
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+}
+
+function num(v: unknown, fallback = 0): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function intOrNull(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
+function firstNum(o: Record<string, unknown>, keys: string[]): number | null {
+  for (const k of keys) {
+    if (o[k] == null || o[k] === "") continue;
+    const n = intOrNull(o[k]);
+    if (n != null) return n;
+  }
+  return null;
+}
+
+function firstStr(o: Record<string, unknown>, keys: string[]): string {
+  for (const k of keys) {
+    const v = o[k];
+    if (v == null || v === "") continue;
+    const s = String(v).trim();
+    if (s) return s;
+  }
+  return "";
+}
+
+function parsePair(raw: unknown): [number, number] | null {
+  const s = String(raw ?? "");
+  const m = s.match(/\b(\d{1,2})\s*[-–—]\s*(\d{1,2})\b/);
+  if (!m) return null;
+  return [Number(m[1]), Number(m[2])];
+}
+
+function fmtClock(o: Record<string, unknown>): string {
+  if (o.clock != null && String(o.clock) !== "") return String(o.clock);
+  const sec = intOrNull(o.game_clock_seconds ?? o.clock_seconds);
+  if (sec == null) return "";
+  const s = Math.max(0, sec);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+export function pickBoard(...bags: Record<string, unknown>[]): {
+  home: number | null;
+  away: number | null;
+  quarter: number | null;
+  down: number | null;
+  distance: number | null;
+  clock: string;
+  locked: boolean;
+} {
+  let home: number | null = null;
+  let away: number | null = null;
+  let quarter: number | null = null;
+  let down: number | null = null;
+  let distance: number | null = null;
+  let clock = "";
+  let locked = false;
+
+  const walk = (o: Record<string, unknown>, forceLocked = false) => {
+    if (!o || !Object.keys(o).length) return;
+    const h = firstNum(o, ["home_score", "score_home", "homeScore"]);
+    const a = firstNum(o, ["away_score", "score_away", "awayScore"]);
+    const pair = h != null && a != null ? ([h, a] as const) : parsePair(o.score ?? o.scoreline ?? o.board);
+    const thisLocked = forceLocked || Boolean(o.score_vlm_locked || o.scoreboard_locked || o.confirm_ticket_id);
+    if (pair) {
+      if (thisLocked) {
+        home = pair[0];
+        away = pair[1];
+        locked = true;
+      } else if (!locked && home == null) {
+        home = pair[0];
+        away = pair[1];
+      }
+    }
+    if (thisLocked) locked = true;
+    if (quarter == null) quarter = firstNum(o, ["quarter", "period"]);
+    if (down == null) down = firstNum(o, ["down"]);
+    if (distance == null) distance = firstNum(o, ["yards_to_go", "distance", "togo", "to_go"]);
+    if (!clock) clock = fmtClock(o);
+  };
+
+  for (const bag of bags) {
+    const confirm = rec(bag.confirm);
+    walk(rec(confirm.last_confirm), true);
+    walk(rec(bag.last_confirm), true);
+    walk(bag);
+    walk(rec(bag.situation));
+    walk(rec(bag.payload));
+    walk(rec(bag.visual_context));
+    walk(rec(bag.scoreboard));
+    walk(rec(confirm.last_fast));
+    walk(rec(bag.last_fast));
+  }
+
+  return { home, away, quarter, down, distance, clock, locked };
+}
+
+function pickClutch(...bags: Record<string, unknown>[]): {
+  climax: number;
+  phase: string;
+  clipWorth: number;
+  winProb: number | null;
+  scorePlay: boolean;
+} {
+  let climax = 0;
+  let phase = "";
+  let clipWorth = 0;
+  let winProb: number | null = null;
+  let scorePlay = false;
+  const n = (v: unknown) => {
+    const x = Number(v);
+    return Number.isFinite(x) ? x : 0;
+  };
+  const walk = (o: Record<string, unknown>) => {
+    if (!o || !Object.keys(o).length) return;
+    const coup = rec(o.coupling);
+    const tl = rec(o.timeline);
+    const why = rec(tl.why_last);
+    const graph = rec(tl.drive_graph).phase ? rec(tl.drive_graph) : rec(o.drive_graph);
+    const cl = rec(graph.climax);
+    climax = Math.max(climax, n(coup.climax_score), n(o.climax_score), n(why.climax_score), n(cl.score));
+    if (!phase) phase = String(graph.phase || o.drive_phase || coup.phase || "");
+    clipWorth = Math.max(clipWorth, n(o.clip_worthiness), n(rec(o.situation).clip_worthiness));
+    const wp = o.win_prob ?? rec(o.situation).win_prob;
+    if (wp != null && winProb == null) {
+      const x = Number(wp);
+      if (Number.isFinite(x)) winProb = x;
+    }
+    const kind = String(o.kind || o.type || o.last_event || "").toLowerCase();
+    if (/touchdown|score_changed|field_goal|safety|two_point|confirm_score|clutch/.test(kind)) {
+      scorePlay = true;
+    }
+  };
+  for (const bag of bags) {
+    walk(bag);
+    walk(rec(bag.situation));
+    walk(rec(bag.payload));
+    walk(rec(bag.coupling));
+  }
+  return { climax, phase, clipWorth, winProb, scorePlay };
+}
+
+function pickIdentity(...bags: Record<string, unknown>[]): {
+  title: string;
+  homeTeam: string;
+  awayTeam: string;
+  fieldPos: string;
+} {
+  let title = "";
+  let homeTeam = "";
+  let awayTeam = "";
+  let fieldPos = "";
+  const walk = (o: Record<string, unknown>) => {
+    if (!o || !Object.keys(o).length) return;
+    if (!title) title = firstStr(o, ["game_title", "title_claim", "game_profile"]);
+    if (!homeTeam) homeTeam = firstStr(o, ["home_team", "home_team_name", "homeTeam"]);
+    if (!awayTeam) awayTeam = firstStr(o, ["away_team", "away_team_name", "awayTeam"]);
+    if (!fieldPos) fieldPos = firstStr(o, ["field_position", "fieldPos"]);
+  };
+  for (const bag of bags) {
+    walk(bag);
+    walk(rec(bag.situation));
+    walk(rec(bag.payload));
+    walk(rec(bag.visual_context));
+  }
+  return { title, homeTeam, awayTeam, fieldPos };
+}
+
+function situationOf(m: Record<string, unknown>): Record<string, unknown> {
+  const snap =
+    m.type === "snapshot"
+      ? m
+      : rec(m.state).situation
+        ? rec(m.state)
+        : rec(m.snapshot).situation
+          ? rec(m.snapshot)
+          : rec(m.state).game_state != null
+            ? rec(m.state)
+            : rec(m.snapshot);
+  if (rec(snap).situation && Object.keys(rec(rec(snap).situation)).length) return rec(rec(snap).situation);
+  if (m.situation && typeof m.situation === "object") return rec(m.situation);
+  if (m.payload && typeof m.payload === "object" && !Array.isArray(m.payload)) return rec(m.payload);
+  if (m.game_state != null || m.home_score != null || m.score_home != null) return m;
+  return rec(snap);
+}
+
+export function parseDeckMessage(raw: unknown): DeckIngest | null {
+  if (!raw || typeof raw !== "object") return null;
+  const m = raw as Record<string, unknown>;
+  const snap =
+    m.type === "snapshot"
+      ? m
+      : rec(m.state).situation || rec(m.state).controller
+        ? rec(m.state)
+        : rec(m.snapshot).situation || rec(m.snapshot).controller
+          ? rec(m.snapshot)
+          : m;
+  const sit = situationOf(m);
+  const ctrl =
+    rec(snap.controller).connected != null || rec(snap.controller).phrase
+      ? rec(snap.controller)
+      : rec(m.controller);
+  const video =
+    rec(snap.video).has_frame != null || rec(snap.video).age_s != null ? rec(snap.video) : rec(m.video);
+  const coup = Object.keys(rec(m.coupling)).length ? rec(m.coupling) : rec(snap.coupling);
+
+  const gs = String(sit.game_state || sit.game_category || "").toLowerCase();
+  const age = num(video.age_s, 0.04);
+  const hasFrame = Boolean(video.has_frame ?? video.hub_has_frame);
+  let hdmi: DeckIngest["hdmi"] = "live";
+  if (["menu", "lobby", "hub", "paused", "pause"].includes(gs)) hdmi = "menu";
+  else if (hasFrame && age > 0.35) hdmi = "stale";
+  else if (!hasFrame && video.age_s != null) hdmi = "stale";
+
+  const board = pickBoard(m, snap, sit, rec(m.confirm), rec(snap.confirm));
+  const clutch = pickClutch(m, snap, sit, coup);
+  const ident = pickIdentity(m, snap, sit);
+  const phrase = asPhrase(ctrl.phrase || coup.phrase);
+
+  const whyBits = [
+    ident.title,
+    ident.homeTeam && ident.awayTeam ? `${ident.homeTeam}-${ident.awayTeam}` : "",
+    board.home != null && board.away != null ? `${board.home}-${board.away}` : "",
+    board.quarter != null ? `Q${board.quarter}` : "",
+    board.clock,
+    ctrl.phrase ? String(ctrl.phrase) : "",
+  ].filter(Boolean);
+
+  return {
+    phrase,
+    phraseConf: num(ctrl.phrase_conf ?? coup.phrase_conf, LIVE.has(phrase) ? 0.8 : 0.4),
+    coupling: num(ctrl.coupling ?? coup.coupling),
+    holdEnergy: num(ctrl.hold_energy ?? ctrl.input_energy),
+    pllLock: Boolean(ctrl.pll_lock ?? coup.pll_lock),
+    ticketId: String(ctrl.coupling_ticket_id || coup.coupling_ticket_id || ""),
+    frameSeq: num(ctrl.frame_seq, 0),
+    padConnected: Boolean(ctrl.connected),
+    padName: String(ctrl.device || "DualSense"),
+    padHeld: Array.isArray(ctrl.buttons) ? ctrl.buttons.map(String).slice(0, 8) : [],
+    bindLagMs: num(ctrl.last_bind_ms ?? coup.last_bind_ms),
+    bindKind: String(ctrl.last_bind_kind || coup.last_bind_kind || ""),
+    hdmi,
+    videoAgeS: age,
+    homeScore: board.home,
+    awayScore: board.away,
+    quarter: board.quarter,
+    down: board.down,
+    distance: board.distance,
+    clock: board.clock,
+    boardLocked: board.locked,
+    climax: clutch.climax,
+    drivePhase: clutch.phase,
+    clipWorth: clutch.clipWorth,
+    winProb: clutch.winProb,
+    scorePlay: clutch.scorePlay,
+    gameTitle: ident.title,
+    homeTeam: ident.homeTeam,
+    awayTeam: ident.awayTeam,
+    fieldPos: ident.fieldPos,
+    why: whyBits.join(" · ") || "deck snapshot",
+  };
+}
+
+export function situationLine(ing: {
+  homeScore: number | null;
+  awayScore: number | null;
+  quarter: number | null;
+  down: number | null;
+  distance: number | null;
+  clock: string;
+  homeTeam?: string;
+  awayTeam?: string;
+  fieldPos?: string;
+  winProb?: number | null;
+  gameTitle?: string;
+}): string {
+  const parts: string[] = [];
+  if (ing.homeScore != null && ing.awayScore != null) {
+    if (ing.homeTeam || ing.awayTeam) {
+      parts.push(`${ing.homeTeam || "HOME"} ${ing.homeScore} - ${ing.awayTeam || "AWAY"} ${ing.awayScore}`);
+    } else {
+      parts.push(`${ing.homeScore}-${ing.awayScore}`);
+    }
+  }
+  if (ing.quarter != null) parts.push(`Q${ing.quarter}${ing.clock ? ` ${ing.clock}` : ""}`);
+  else if (ing.clock) parts.push(ing.clock);
+  if (ing.down != null) {
+    const ord = ing.down === 1 ? "1st" : ing.down === 2 ? "2nd" : ing.down === 3 ? "3rd" : ing.down === 4 ? "4th" : String(ing.down);
+    const dist = ing.distance != null ? String(ing.distance) : "?";
+    const at = ing.fieldPos ? ` @ ${ing.fieldPos}` : "";
+    parts.push(`${ord} & ${dist}${at}`);
+  }
+  if (ing.winProb != null) parts.push(`WP ${Math.round(ing.winProb * 100)}%`);
+  if (!parts.length && ing.gameTitle) return ing.gameTitle;
+  return parts.join(" · ");
+}
+
+export function boardLine(ing: {
+  homeScore: number | null;
+  awayScore: number | null;
+  quarter: number | null;
+  down: number | null;
+  distance: number | null;
+  clock: string;
+}): string {
+  return situationLine(ing);
+}

@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #050a08;
+  --color-surface: #0c1612;
+  --color-subtle: #122018;
+  --color-fg: #e8f2ec;
+  --color-foreground: #e8f2ec;
+  --color-muted-foreground: #8ea396;
+  --color-subtle-foreground: #5d7166;
+  --color-primary: #c6f26a;
+  --color-primary-foreground: #050a08;
+  --color-border: color-mix(in oklab, #c6f26a 14%, transparent);
+  --color-ring: #4fe0d4;
+  --color-field: #17332b;
+  --color-live: #c6f26a;
+  --color-sync: #4fe0d4;
+  --color-fast: #ffc14a;
+  --color-veto: #ff7d91;
+  --color-card: #0c1612;
+  --color-card-foreground: #e8f2ec;
+  --color-background: #050a08;
+  --color-muted: #8ea396;
+
+  --font-display: "Syne", "IBM Plex Sans", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius: 12px;
+
+  --shadow-border: 0 0 0 1px color-mix(in oklab, #c6f26a 14%, transparent);
+  --shadow-border-hover: 0 0 0 1px color-mix(in oklab, #4fe0d4 32%, transparent);
+  --shadow-live: 0 0 28px color-mix(in oklab, #c6f26a 18%, transparent);
+  --shadow-sync: 0 0 22px color-mix(in oklab, #4fe0d4 22%, transparent);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-micro: 80ms;
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+  --motion-slow: 400ms;
+  --motion-emphasis: 500ms;
+  --motion-scale-modal: 0.96;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    background: var(--color-bg);
+    color: var(--color-fg);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    background:
+      radial-gradient(900px 520px at 72% -12%, rgba(79, 224, 212, 0.1), transparent 65%),
+      radial-gradient(720px 520px at -12% 20%, rgba(198, 242, 106, 0.08), transparent 64%),
+      var(--color-bg);
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.28;
+    background-image:
+      linear-gradient(rgba(190, 214, 232, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(190, 214, 232, 0.045) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: linear-gradient(to bottom, black, transparent 85%);
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    font-family: var(--font-display);
+    letter-spacing: -0.03em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+html.obs-lens,
+html.obs-lens body {
+  background: transparent !important;
+}
+
+html.obs-lens body::before {
+  display: none;
+}
