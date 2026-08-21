@@ -38,7 +38,11 @@ class SocietyQuicksilver:
             if not self._key:
                 self._key = _read_key(CLUTCHBOT_KEY_FILE)
         if not self._key:
-            for env in ("QUICKSILVER_API_KEY", "QUICKSILVERPRO_API_KEY", "QORESENCE_QUICKSILVER_API_KEY"):
+            for env in (
+                "QUICKSILVER_API_KEY",
+                "QUICKSILVERPRO_API_KEY",
+                "QORESENCE_QUICKSILVER_API_KEY",
+            ):
                 v = os.environ.get(env)
                 if v and v.strip():
                     self._key = v.strip()

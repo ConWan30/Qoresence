@@ -81,7 +81,9 @@ def render_reels(
         if bt_path.is_file():
             try:
                 bt = json.loads(bt_path.read_text(encoding="utf-8"))
-                data["button_onsets"] = button_onsets_from_sidecar(bt if isinstance(bt, dict) else None)
+                data["button_onsets"] = button_onsets_from_sidecar(
+                    bt if isinstance(bt, dict) else None
+                )
             except Exception:
                 pass
         ch = pick_play_chapter(chs, data)
@@ -107,8 +109,12 @@ def render_reels(
         situation = _situation_from_clip(cp) or {}
         gs = cand.get("graph_summary")
         if isinstance(gs, dict) and isinstance(gs.get("climax"), dict):
-            situation["home_score"] = gs["climax"].get("home_score") or situation.get("home_score", 0)
-            situation["away_score"] = gs["climax"].get("away_score") or situation.get("away_score", 0)
+            situation["home_score"] = gs["climax"].get("home_score") or situation.get(
+                "home_score", 0
+            )
+            situation["away_score"] = gs["climax"].get("away_score") or situation.get(
+                "away_score", 0
+            )
 
         game_profile = config.outcome.game_profile.value
         try:

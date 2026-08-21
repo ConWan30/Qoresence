@@ -19,9 +19,9 @@ from .ocr_providers import (
     VLMOCRProvider,
     create_ocr_provider,
 )
-from .vision_stack import VisionEvidence, VisionStack
 from .title_presence import PLANE as TITLE_PRESENCE_PLANE
 from .title_presence_wrap import wrap_observation_for_plane
+from .vision_stack import VisionEvidence, VisionStack
 from .visual_context import GameCategory, GameState, VisualContext, build_vlm_prompt
 
 __all__ = [
