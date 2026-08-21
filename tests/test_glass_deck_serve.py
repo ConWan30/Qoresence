@@ -29,7 +29,9 @@ def test_html_uses_glass_index_when_dist_present(monkeypatch, tmp_path):
 
     dist = tmp_path / "dist"
     dist.mkdir()
-    (dist / "index.html").write_text("<!doctype html><div id='root'>glass-spa</div>", encoding="utf-8")
+    (dist / "index.html").write_text(
+        "<!doctype html><div id='root'>glass-spa</div>", encoding="utf-8"
+    )
     monkeypatch.setattr(deck, "_glass_dist", lambda: dist)
     assert "glass-spa" in deck._html("deck.html")
     assert "glass-spa" in deck._html("overlay.html")

@@ -7,9 +7,7 @@ from qoresence.sync.play_phrase import classify_phrase, note_game_state
 
 def test_menu_idle_even_with_r2():
     note_game_state("menu")
-    phrase, _ = classify_phrase(
-        game_state="menu", r2=0.9, hold_fresh=True, video_age_s=0.05
-    )
+    phrase, _ = classify_phrase(game_state="menu", r2=0.9, hold_fresh=True, video_age_s=0.05)
     assert phrase == "IDLE"
 
 
