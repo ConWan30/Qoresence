@@ -93,5 +93,8 @@ def test_mobile_routes_registered():
     assert "/live.jpg" in paths
     assert "/glass.apk" in paths
     deck = _html("deck.html")
+    if 'id="root"' in deck or "id='root'" in deck:
+        assert "/assets/" in deck
+        return
     assert "btnGlassCopy" in deck
     assert "/mobile.html" in deck

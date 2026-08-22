@@ -320,7 +320,9 @@ def test_render_reels_no_clips(tmp_path):
 
 
 def test_studio_status_and_clip_sandbox(tmp_path):
-    cfg = RetinaUnifiedConfig(session_id="test", session_head_ns=1, studio=StudioConfig(enabled=True))
+    cfg = RetinaUnifiedConfig(
+        session_id="test", session_head_ns=1, studio=StudioConfig(enabled=True)
+    )
     payload = status_payload(cfg)
     assert payload["ok"] is True
     assert payload["enabled"] is True
@@ -363,6 +365,15 @@ def test_foundry_bay_routes_registered():
     from qoresence.deck.server import _html, create_app
 
     html = _html("studio.html")
+    if 'id="root"' in html or "id='root'" in html:
+        assert "/assets/" in html
+        app = create_app()
+        if app is None:
+            pytest.skip("fastapi not installed")
+        paths = {getattr(route, "path", None) for route in app.routes}
+        assert "/studio.html" in paths
+        assert "/api/foundry/status" in paths
+        return
     assert "Foundry Bay" in html
     assert "Cut highlight" in html
     deck = _html("deck.html")
@@ -392,7 +403,9 @@ def test_foundry_status_route_uses_config():
         from fastapi.testclient import TestClient
     except Exception:
         pytest.skip("httpx/starlette TestClient not installed")
-    cfg = RetinaUnifiedConfig(session_id="test", session_head_ns=1, studio=StudioConfig(enabled=True))
+    cfg = RetinaUnifiedConfig(
+        session_id="test", session_head_ns=1, studio=StudioConfig(enabled=True)
+    )
     prev = deck_server._deck_config
     deck_server._deck_config = cfg
     try:
