@@ -1,9 +1,13 @@
-"""HTTP smoke for Deck glass SPA routes."""
+﻿"""HTTP smoke for Deck glass SPA routes."""
 
 from __future__ import annotations
 
 import runpy
 from pathlib import Path
+
+import pytest
+
+pytest.importorskip("fastapi")
 
 ROOT = Path(__file__).resolve().parents[1]
 
