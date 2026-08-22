@@ -29,8 +29,9 @@ export function hidAt(t: number): HidSample {
   return best;
 }
 
-/** Prefer IVC bind lag (HID↔luma). Fall back to FrameHub age. Clamp to one-frame..~4 frames @60. */
-export function measureLag(videoAgeS: number, bindMs: number): number {
+/** Prefer IVC PLL center, then luma bind, then FrameHub age. Clamp 16–220 ms. */
+export function measureLag(videoAgeS: number, bindMs: number, pllMs = 0): number {
+  if (pllMs >= 16 && pllMs <= 220) return Math.round(pllMs);
   if (bindMs >= 16 && bindMs <= 220) return Math.round(bindMs);
   const age = videoAgeS * 1000;
   if (age >= 8 && age <= 220) return Math.round(age);

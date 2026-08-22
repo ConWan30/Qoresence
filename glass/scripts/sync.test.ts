@@ -6,6 +6,7 @@ test("bind lag wins over video age when it looks like IVC", () => {
   assert.equal(measureLag(0.04, 84), 84);
   assert.equal(measureLag(0.12, 0), 120);
   assert.equal(measureLag(0, 0), 80);
+  assert.equal(measureLag(0.04, 84, 48), 48);
 });
 
 test("HID retimes onto the video clock", () => {

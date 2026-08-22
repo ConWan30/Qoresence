@@ -28,7 +28,11 @@ def set_ghost_stick_enabled(on: bool) -> None:
 
 def ghost_stick_enabled() -> bool:
     env = os.environ.get("QORESENCE_GHOST_STICK", "").strip().lower()
-    return _enabled or env in {"1", "true", "yes", "on"}
+    if env in {"0", "false", "no", "off"}:
+        return False
+    if env in {"1", "true", "yes", "on"}:
+        return True
+    return True
 
 
 @dataclass(frozen=True)

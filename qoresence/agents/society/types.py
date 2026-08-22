@@ -11,6 +11,7 @@ Role = Literal[
     "drive_coach",
     "ghost_editor",
     "prediction_steward",
+    "sync_warden",
 ]
 
 KNOWN_ROLES: tuple[str, ...] = (
@@ -19,6 +20,7 @@ KNOWN_ROLES: tuple[str, ...] = (
     "drive_coach",
     "ghost_editor",
     "prediction_steward",
+    "sync_warden",
 )
 
 Action = Literal["advise", "propose_cut", "veto", "note", "audit", "allow"]

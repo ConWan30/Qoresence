@@ -26,8 +26,11 @@ def _ok(**kw):
     return decide_ghost_stick(pose=pose, **base)
 
 
-def test_default_off():
+def test_default_on_unless_explicit_off(monkeypatch):
+    monkeypatch.delenv("QORESENCE_GHOST_STICK", raising=False)
     set_ghost_stick_enabled(False)
+    assert ghost_stick_enabled() is True
+    monkeypatch.setenv("QORESENCE_GHOST_STICK", "0")
     assert ghost_stick_enabled() is False
     d_off = decide_ghost_stick(
         enabled=False,

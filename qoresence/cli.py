@@ -1636,8 +1636,13 @@ def main():
     parser.add_argument(
         "--ghost-stick",
         action="store_true",
-        help="Opt-in Ghost Stick overlay (DualSense locus delayed onto LIVE). "
-        "Default OFF. Also QORESENCE_GHOST_STICK=1.",
+        help="Ghost Stick overlay on LIVE (default ON under --play). "
+        "Disable with --no-ghost-stick or QORESENCE_GHOST_STICK=0.",
+    )
+    parser.add_argument(
+        "--no-ghost-stick",
+        action="store_true",
+        help="Disable Ghost Stick overlay.",
     )
 
     # Trio-retina (w3bstream validation)
@@ -1833,8 +1838,16 @@ def main():
     # Scoreboard orientation override: env is authoritative for the extractor.
     if getattr(args, "scoreboard_home_left", False):
         os.environ["QORESENCE_SCOREBOARD_HOME_LEFT"] = "1"
-    if getattr(args, "ghost_stick", False):
-        os.environ["QORESENCE_GHOST_STICK"] = "1"
+    if getattr(args, "no_ghost_stick", False):
+        os.environ["QORESENCE_GHOST_STICK"] = "0"
+        try:
+            from qoresence.sync.ghost_stick import set_ghost_stick_enabled
+
+            set_ghost_stick_enabled(False)
+        except Exception:
+            pass
+    elif getattr(args, "ghost_stick", False) or getattr(args, "play", False):
+        os.environ.setdefault("QORESENCE_GHOST_STICK", "1")
         try:
             from qoresence.sync.ghost_stick import set_ghost_stick_enabled
 
