@@ -92,7 +92,9 @@ def test_confirmed_td_outranks_t0_board():
     g.started_ns = t0
     ranked = g.ranked_chapter_nodes(k=3)
     labels = [n.label.lower() for n in ranked]
-    assert any("touchdown" in x or n.kind == "confirm_score" for n, x in zip(ranked, labels))
+    assert any(
+        "touchdown" in x or n.kind == "confirm_score" for n, x in zip(ranked, labels, strict=True)
+    )
     cl = g.climax_score()
     assert cl["best_kind"] in {"confirm_score", "prediction_resolve"}
     assert "board" not in str(cl.get("best_label") or "").lower() or cl["best_kind"] != "fast_chat"

@@ -29,10 +29,10 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
 )
 
 from qoresence.observability.otel import (
-    OtelExporter,
-    make_otel_exporter_from_config,
     PLANE,
     PLANE_ATTRIBUTE,
+    OtelExporter,
+    make_otel_exporter_from_config,
 )
 
 DEADLINE_S = 10.0
@@ -59,9 +59,7 @@ def _make_exporter(bus, tmp_path):
     """Enabled exporter with in-memory span capture and a no-op meter."""
     span_exporter = InMemorySpanExporter()
     tracer_provider = TracerProvider(
-        resource=Resource.create(
-            {"service.name": "qoresence", PLANE_ATTRIBUTE: PLANE}
-        )
+        resource=Resource.create({"service.name": "qoresence", PLANE_ATTRIBUTE: PLANE})
     )
     tracer_provider.add_span_processor(SimpleSpanProcessor(span_exporter))
     meter_provider = MeterProvider(metric_readers=[])
