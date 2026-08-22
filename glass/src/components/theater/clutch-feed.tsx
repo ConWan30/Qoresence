@@ -40,7 +40,11 @@ export function ClutchFeed() {
               data-clutch-path={e.path || "none"}
               className={cn(
                 "flex min-h-16 w-56 shrink-0 flex-col justify-center rounded-lg px-3 py-2 shadow-[var(--shadow-border)]",
-                e.path === "confirm" ? "text-live" : e.path === "fast" ? "text-fast" : "text-fg",
+                e.path === "confirm"
+                  ? "border border-live/40 bg-live/10 text-live"
+                  : e.path === "fast"
+                    ? "border border-fast/45 bg-fast/10 text-fast"
+                    : "bg-bg/50 text-fg",
               )}
             >
               <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
