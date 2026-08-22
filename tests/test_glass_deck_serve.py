@@ -5,6 +5,17 @@ from __future__ import annotations
 from pathlib import Path
 
 
+def test_clip_dock_assets_ship_next_to_deck():
+    here = Path(__file__).resolve().parents[1] / "qoresence" / "deck"
+    assert (here / "clip-dock.js").is_file()
+    assert (here / "clip-dock.css").is_file()
+    from qoresence.deck.server import _with_clip_dock
+
+    out = _with_clip_dock("<html><body>x</body></html>")
+    assert "clip-dock.js" in out
+    assert "clip-dock.css" in out
+
+
 def test_glass_dist_is_under_repo_glass():
     from qoresence.deck.server import _glass_candidates, _glass_dist, _html
 
@@ -16,6 +27,7 @@ def test_glass_dist_is_under_repo_glass():
     assert (p / "index.html").is_file()
     body = _html("deck.html")
     assert 'id="root"' in body
+    assert "clip-dock.js" in body
 
 
 def test_packaged_spa_wins_over_stale_dist(monkeypatch, tmp_path):
@@ -43,7 +55,9 @@ def test_html_falls_back_to_deck_files_without_dist(monkeypatch, tmp_path):
     monkeypatch.setattr(deck, "_glass_candidates", lambda: [tmp_path / "missing"])
     body = deck._html("deck.html")
     original = Path(deck.__file__).with_name("deck.html").read_text(encoding="utf-8")
-    assert body == original
+    assert "btnClip" in original
+    assert "clip-dock.js" in body
+    assert "btnClip" in body
 
 
 def test_html_uses_glass_index_when_dist_present(monkeypatch, tmp_path):

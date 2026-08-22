@@ -605,16 +605,50 @@ def _glass_index_path() -> pathlib.Path | None:
     return None
 
 
+_CLIP_DOCK_JS = "clip-dock.js"
+_CLIP_DOCK_CSS = "clip-dock.css"
+
+
+def _clip_dock_snippet() -> str:
+    return (
+        f'<link rel="stylesheet" href="/{_CLIP_DOCK_CSS}">'
+        f'<script src="/{_CLIP_DOCK_JS}" defer></script>'
+    )
+
+
+def _with_clip_dock(html: str) -> str:
+    """Pin HDMI clip tiles on every Theater page, even if the SPA is stale."""
+    if _CLIP_DOCK_JS in html:
+        return html
+    inject = _clip_dock_snippet()
+    if "</body>" in html:
+        return html.replace("</body>", inject + "</body>", 1)
+    return html + inject
+
+
 def _html(name: str) -> str:
     """Prefer built Retina Deck glass SPA; fall back to qoresence/deck/*.html."""
+    body = ""
     if name in _GLASS_HTML_NAMES:
         gi = _glass_index_path()
         if gi is not None:
-            return gi.read_text(encoding="utf-8")
-    p = pathlib.Path(__file__).with_name(name)
-    if p.exists():
-        return p.read_text(encoding="utf-8")
-    return f"<h1>{name} missing</h1>"
+            body = gi.read_text(encoding="utf-8")
+    if not body:
+        p = pathlib.Path(__file__).with_name(name)
+        if p.exists():
+            body = p.read_text(encoding="utf-8")
+        else:
+            body = f"<h1>{name} missing</h1>"
+    if name in _GLASS_HTML_NAMES:
+        return _with_clip_dock(body)
+    return body
+
+
+def _glass_js_name() -> str:
+    import re
+
+    m = re.search(r"/assets/(index-[A-Za-z0-9_-]+\.js)", _html("deck.html"))
+    return m.group(1) if m else "none"
 
 
 def _guess_lan_ip() -> str | None:
@@ -846,12 +880,18 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/health")
     async def health():  # type: ignore[no-untyped-def]
+        gi = _glass_index_path()
         body: dict[str, Any] = {
             "ok": True,
             "schema_version": SCHEMA_VERSION,
             "clients": len(_ws_clients),
             "fanout": _fanout_stats(),
             "state": _state.snapshot(),
+            "glass": {
+                "js": _glass_js_name(),
+                "path": str(gi) if gi is not None else "",
+                "clip_dock": True,
+            },
         }
         try:
             from qoresence.observability.otel import get_otel_exporter
@@ -1790,14 +1830,26 @@ def create_app():  # type: ignore[no-untyped-def]
             _html("overlay.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
+    @app.get("/clip-dock.js")
+    async def clip_dock_js():  # type: ignore[no-untyped-def]
+        p = pathlib.Path(__file__).with_name(_CLIP_DOCK_JS)
+        return FileResponse(
+            p,
+            media_type="text/javascript",
+            headers={"Cache-Control": "no-cache, must-revalidate"},
+        )
+
+    @app.get("/clip-dock.css")
+    async def clip_dock_css():  # type: ignore[no-untyped-def]
+        p = pathlib.Path(__file__).with_name(_CLIP_DOCK_CSS)
+        return FileResponse(
+            p,
+            media_type="text/css",
+            headers={"Cache-Control": "no-cache, must-revalidate"},
+        )
+
     @app.get("/deck.html")
     async def deck():  # type: ignore[no-untyped-def]
-        # Prefer packaged Glass SPA Theater; legacy Rail only if SPA missing.
-        spa = _glass_index_path()
-        if spa is not None and spa.is_file():
-            return FileResponse(
-                spa, headers={"Cache-Control": "no-cache, must-revalidate"}
-            )
         return HTMLResponse(
             _html("deck.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
         )
@@ -2470,6 +2522,7 @@ def start_deck(
         t = threading.Thread(target=_run, name="retina-deck", daemon=daemon)
         t.start()
         log.info("Retina Deck http://%s:%s  ws://%s:%s%s", host, port, host, port, WS_PATH)
+        log.info("Theater glass %s clip-dock on", _glass_js_name())
         log.info(
             "Lens /overlay.html  Theater /deck.html  Foundry /studio.html  "
             "Mobile /mobile.html  LIVE /video default %.0ffps "
