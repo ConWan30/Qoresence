@@ -63,7 +63,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
   }, []);
 
   const livePaint = useTheater((s) => s.livePaint);
-  const frozen = jpgOk && ageMs > 1500;
+  const frozen = jpgOk && ageMs > 3000;
   const showLive = jpgOk && livePaint && !frozen;
 
   return (

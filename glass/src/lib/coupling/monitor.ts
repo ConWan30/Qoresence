@@ -4,10 +4,14 @@ import { fetchAgentPlane, parseAgentPlane, type AgentPlane } from "./agent-plane
 import { parseDeckMessage, type DeckIngest } from "./board";
 import { parseFeedMoment, parseSnapshotMoments, type FeedMoment } from "./clutch";
 import { getDeckOrigin, probeDeck } from "./qoresence-deck";
+import { useTheater } from "./store";
 
 export type { DeckIngest } from "./board";
 export { boardLine, parseDeckMessage, pickBoard, situationLine } from "./board";
 export type { FeedMoment } from "./clutch";
+
+/** While WS is fresh, poll must not own paint/sameSeq/planeDim or wipe the board. */
+const WS_OPTICS_HOLD_MS = 2000;
 
 export function startDeckMonitor(
   onSnap: (ing: DeckIngest) => void,
@@ -33,7 +37,7 @@ export function startDeckMonitor(
     }
   };
 
-  const ingestRaw = (raw: unknown) => {
+  const ingestRaw = (raw: unknown, via: "ws" | "poll") => {
     const rec = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
     if (rec?.type === "moment") {
       const fm = parseFeedMoment(rec);
@@ -41,7 +45,7 @@ export function startDeckMonitor(
       return;
     }
     const ing = parseDeckMessage(raw);
-    if (ing) onSnap(ing);
+    if (ing) onSnap({ ...ing, via });
     for (const fm of parseSnapshotMoments(raw)) onMoment?.(fm);
   };
 
@@ -53,7 +57,7 @@ export function startDeckMonitor(
       ws = new WebSocket(url);
       ws.onmessage = (ev) => {
         try {
-          ingestRaw(JSON.parse(String(ev.data)));
+          ingestRaw(JSON.parse(String(ev.data)), "ws");
         } catch {
           /* ignore bad frames */
         }
@@ -85,8 +89,24 @@ export function startDeckMonitor(
       readJson(`${probe.origin}/api/agent/events?limit=12`),
       readJson(`${probe.origin}/api/agent/plane`),
     ]);
-    if (body) ingestRaw(body);
-    if (snap) ingestRaw(snap);
+    const st = useTheater.getState();
+    const wsOpen = ws != null && ws.readyState === WebSocket.OPEN;
+    const wsFresh = wsOpen && st.deckLive && Date.now() - st.deckAt < WS_OPTICS_HOLD_MS;
+    // Rule B: WS fresh → poll refreshes plane/moments/events only (no optics/board ingest).
+    if (body) {
+      if (wsFresh) {
+        for (const fm of parseSnapshotMoments(body)) onMoment?.(fm);
+      } else {
+        ingestRaw(body, "poll");
+      }
+    }
+    if (snap) {
+      if (wsFresh) {
+        for (const fm of parseSnapshotMoments(snap)) onMoment?.(fm);
+      } else {
+        ingestRaw(snap, "poll");
+      }
+    }
     const evBag = events && typeof events === "object" ? (events as Record<string, unknown>) : null;
     const list = evBag && Array.isArray(evBag.events) ? evBag.events : [];
     for (const ev of list) {

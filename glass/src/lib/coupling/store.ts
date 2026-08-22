@@ -113,6 +113,9 @@ export type TheaterState = {
   livePaint: boolean;
   sameSeq: boolean;
   planeDim: boolean;
+  /** Last WS optics timestamp (promote-only poll while fresh). */
+  opticsAt: number;
+  opticsFromWs: boolean;
   ghostStick: GhostStick;
   ingestAgentPlane: (plane: AgentPlane) => void;
   ingestMoment: (m: FeedMoment) => void;
@@ -231,6 +234,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
   livePaint: true,
   sameSeq: true,
   planeDim: false,
+  opticsAt: 0,
+  opticsFromWs: false,
   ghostStick: EMPTY_GHOST,
 
   setR2: (v) => set({ r2: Math.max(0, Math.min(1, v)), throwAttempt: false }),
@@ -350,16 +355,34 @@ export const useTheater = create<TheaterState>((set, get) => ({
       winProb: ing.winProb,
       gameTitle: ing.gameTitle,
     });
-    const widgetsOk = ing.paint && ing.sameSeq && !ing.planeDim;
+    // Sticky optics: poll may promote only while last WS optics within TTL;
+    // demote paint/sameSeq/planeDim only from WS or TTL expiry.
+    const OPTICS_TTL_MS = 2500;
+    const via = ing.via || "ws";
+    const opticsFresh =
+      s.deckLive && s.opticsFromWs && Date.now() - s.opticsAt < OPTICS_TTL_MS;
+    let paint = ing.paint;
+    let sameSeq = ing.sameSeq;
+    let planeDim = ing.planeDim;
+    if (via === "poll" && opticsFresh) {
+      paint = s.livePaint || paint;
+      sameSeq = s.sameSeq || sameSeq;
+      // planeDim true = demote; poll cannot raise dim while sticky.
+      planeDim = s.planeDim && planeDim;
+    }
+    const widgetsOk = paint && sameSeq && !planeDim;
     // Video-less situation: keep last board. Optics demote: still keep locked scores.
     // Never wipe a VLM-locked board for plane_dim alone.
+    // Poll under sticky TTL: never wipe board on momentary paint:false.
     const board = widgetsOk
       ? sit || (ing.boardLocked ? boardLine(ing) : s.boardLine)
-      : ing.boardLocked
-        ? sit || boardLine(ing) || s.boardLine
-        : ing.videoOptics
-          ? ""
-          : s.boardLine;
+      : via === "poll" && opticsFresh
+        ? sit || s.boardLine
+        : ing.boardLocked
+          ? sit || boardLine(ing) || s.boardLine
+          : ing.videoOptics
+            ? ""
+            : s.boardLine;
     // Spine sole mint: adopt confirm.last_confirm.ticket_id + clock_ns (no FNV remint).
     if (ing.confirmTicketId && ing.homeScore != null && ing.awayScore != null) {
       if (
@@ -412,11 +435,13 @@ export const useTheater = create<TheaterState>((set, get) => ({
       coupling: ing.coupling,
       r2: ing.holdEnergy > 0 ? ing.holdEnergy : s.r2,
       pllLock: ing.pllLock,
-      hdmi: ing.paint ? ing.hdmi : "stale",
+      hdmi: paint ? ing.hdmi : "stale",
       videoAgeS: ing.videoAgeS,
-      livePaint: ing.paint,
-      sameSeq: ing.sameSeq,
-      planeDim: ing.planeDim,
+      livePaint: paint,
+      sameSeq,
+      planeDim,
+      opticsAt: via === "ws" ? Date.now() : s.opticsAt,
+      opticsFromWs: via === "ws" ? true : s.opticsFromWs,
       ghostStick: ing.ghostStick,
       heatLine: licensed,
       heatVetoed,
@@ -424,11 +449,13 @@ export const useTheater = create<TheaterState>((set, get) => ({
       boardLine: board,
       situation: widgetsOk
         ? sit || s.situation
-        : ing.boardLocked
+        : via === "poll" && opticsFresh
           ? sit || s.situation
-          : ing.videoOptics
-            ? ""
-            : s.situation,
+          : ing.boardLocked
+            ? sit || s.situation
+            : ing.videoOptics
+              ? ""
+              : s.situation,
       gameTitle: ing.gameTitle || s.gameTitle,
       clutch,
       why,

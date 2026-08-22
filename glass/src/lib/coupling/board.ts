@@ -55,6 +55,8 @@ export type DeckIngest = {
   paint: boolean;
   /** True when WS carried video live_paint optics (paint/same_seq/has_frame/live_seq). */
   videoOptics: boolean;
+  /** ws = /retina; poll = /api/situation (sticky optics apply). */
+  via: "ws" | "poll";
   ghostStick: GhostStick;
 };
 
@@ -434,6 +436,7 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     planeDim,
     paint,
     videoOptics,
+    via: "ws",
     ghostStick: parseGhostStick(snap.ghost_stick || m.ghost_stick, widgetsOk),
   };
 }
