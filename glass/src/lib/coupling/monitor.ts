@@ -1,6 +1,6 @@
 /** Live Deck monitor — /retina WS + /api/situation poll. Observation only. */
 
-import { fetchAgentPlane, type AgentPlane } from "./agent-plane";
+import { fetchAgentPlane, parseAgentPlane, type AgentPlane } from "./agent-plane";
 import { parseDeckMessage, type DeckIngest } from "./board";
 import { parseFeedMoment, parseSnapshotMoments, type FeedMoment } from "./clutch";
 import { getDeckOrigin, probeDeck } from "./qoresence-deck";
@@ -21,7 +21,7 @@ export function startDeckMonitor(
 
   const readJson = async (url: string) => {
     const ctrl = new AbortController();
-    const t = window.setTimeout(() => ctrl.abort(), 1200);
+    const t = window.setTimeout(() => ctrl.abort(), 5000);
     try {
       const res = await fetch(url, { cache: "no-store", mode: "cors", signal: ctrl.signal });
       if (!res.ok) return null;
@@ -79,10 +79,11 @@ export function startDeckMonitor(
   const tickPoll = async () => {
     const probe = await probeDeck();
     if (!probe.up) return;
-    const [body, snap, events] = await Promise.all([
+    const [body, snap, events, planeBody] = await Promise.all([
       readJson(`${probe.origin}/api/situation`),
       readJson(`${probe.origin}/api/agent/snapshot`),
       readJson(`${probe.origin}/api/agent/events?limit=12`),
+      readJson(`${probe.origin}/api/agent/plane`),
     ]);
     if (body) ingestRaw(body);
     if (snap) ingestRaw(snap);
@@ -93,7 +94,9 @@ export function startDeckMonitor(
       if (fm) onMoment?.(fm);
     }
     if (onPlane) {
-      const plane = await fetchAgentPlane();
+      const plane = planeBody
+        ? parseAgentPlane({ health: planeBody, agentHealth: planeBody, snapshot: snap || planeBody })
+        : await fetchAgentPlane();
       if (plane) onPlane(plane);
     }
   };

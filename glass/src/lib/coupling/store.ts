@@ -7,7 +7,6 @@ import {
   licenseHeatText,
   licenseScoreText,
   mintConfirmTicket,
-  mintCouplingTicket,
   motionFromPad,
   nowNs,
   SOFT,
@@ -294,21 +293,23 @@ export const useTheater = create<TheaterState>((set, get) => ({
       confidence: ing.phraseConf,
       live: LIVE_PHRASES.has(ing.phrase),
     };
+    // Spine sole mint: adopt controller.coupling_ticket_id + video_clock_ns.
     let ticket = s.ticket;
     if (ing.ticketId) {
       ticket = {
         ticketId: ing.ticketId,
-        clockNs: clock,
+        clockNs: ing.couplingClockNs || clock,
         frameSeq: ing.frameSeq || null,
         phrase: ing.phrase,
         coupling: ing.coupling,
         holdEnergy: ing.holdEnergy,
         imuBodied: true,
       };
-    } else if (!phrase.live || !ing.pllLock) {
+    } else {
       ticket = null;
     }
-    const liveTicket = isTicketLive(ticket, clock) ? ticket : null;
+    // Spine id present this frame ⇒ live (do not TTL against browser performance.now).
+    const liveTicket = ing.ticketId ? ticket : null;
     const clutch = scoreClutch({
       coupling: ing.coupling,
       climax: ing.climax,
@@ -350,18 +351,35 @@ export const useTheater = create<TheaterState>((set, get) => ({
       gameTitle: ing.gameTitle,
     });
     const widgetsOk = ing.paint && ing.sameSeq && !ing.planeDim;
-    const board = widgetsOk ? sit || (ing.boardLocked ? boardLine(ing) : s.boardLine) : "";
-    if (ing.boardLocked && ing.homeScore != null && ing.awayScore != null) {
-      if (!confirm || confirm.homeScore !== ing.homeScore || confirm.awayScore !== ing.awayScore) {
-        confirm = mintConfirmTicket({
-          clockNs: clock,
+    // Video-less situation: keep last board. Optics demote: still keep locked scores.
+    // Never wipe a VLM-locked board for plane_dim alone.
+    const board = widgetsOk
+      ? sit || (ing.boardLocked ? boardLine(ing) : s.boardLine)
+      : ing.boardLocked
+        ? sit || boardLine(ing) || s.boardLine
+        : ing.videoOptics
+          ? ""
+          : s.boardLine;
+    // Spine sole mint: adopt confirm.last_confirm.ticket_id + clock_ns (no FNV remint).
+    if (ing.confirmTicketId && ing.homeScore != null && ing.awayScore != null) {
+      if (
+        !confirm ||
+        confirm.ticketId !== ing.confirmTicketId ||
+        confirm.homeScore !== ing.homeScore ||
+        confirm.awayScore !== ing.awayScore
+      ) {
+        confirm = {
+          ticketId: ing.confirmTicketId,
+          clockNs: ing.confirmClockNs || 0,
           homeScore: ing.homeScore,
           awayScore: ing.awayScore,
           frameSeq: ing.frameSeq || null,
-        });
+        };
         log = pushLog(log, "score", board || `${ing.homeScore}-${ing.awayScore}`);
-        log = pushLog(log, "confirm", "Gemini VLM board lock");
+        log = pushLog(log, "confirm", `spine ${ing.confirmTicketId}`);
       }
+    } else if (!ing.boardLocked && !ing.confirmTicketId) {
+      // Do not invent confirm digits without spine lock.
     }
     const scoreLine = confirm ? whyStripConfirm(confirm) : licenseScoreText(SOFT.scoreLine, confirm);
     const why = ing.why || `${whyStripConfirm(confirm)} · ${whyStripCoupling(liveTicket)} · phrase=${phrase.phrase}`;
@@ -404,7 +422,13 @@ export const useTheater = create<TheaterState>((set, get) => ({
       heatVetoed,
       scoreLine,
       boardLine: board,
-      situation: widgetsOk ? sit || s.situation : "",
+      situation: widgetsOk
+        ? sit || s.situation
+        : ing.boardLocked
+          ? sit || s.situation
+          : ing.videoOptics
+            ? ""
+            : s.situation,
       gameTitle: ing.gameTitle || s.gameTitle,
       clutch,
       why,
@@ -641,27 +665,11 @@ export const useTheater = create<TheaterState>((set, get) => ({
     });
     const coupling = couplingFromPad(s.r2, s.left, motion);
     const videoFresh = videoAgeS <= 0.35;
-    const minted = mintCouplingTicket({
-      clockNs: clock,
-      frameSeq: s.frameSeq + 1,
-      phrase: phrase.phrase,
-      coupling,
-      holdEnergy: s.r2,
-      pllLock: s.pllLock,
-      videoFresh,
-    });
-
+    // Offline tick: never remint ticket identity — spine is sole mint authority.
     let ticket = s.ticket;
     let log = s.log;
-    if (minted) {
-      const changed = !s.ticket || s.ticket.phrase !== minted.phrase;
-      ticket = minted;
-      if (changed) log = pushLog(log, "ticket", `mint ${minted.phrase} ${minted.ticketId}`);
-    } else if (!phrase.live || !s.pllLock || !videoFresh) {
-      ticket = null;
-    }
-
-    const liveTicket = isTicketLive(ticket, clock) ? ticket : null;
+    if (!s.deckLive) ticket = null;
+    const liveTicket = ticket && isTicketLive(ticket, clock) ? ticket : null;
     const clutch = scoreClutch({
       coupling,
       climax: 0,

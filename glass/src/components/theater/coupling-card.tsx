@@ -29,7 +29,7 @@ export function CouplingCard() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Kv label="Phrase" value={phrase.phrase} hot={phrase.live} />
+        <Kv label="Phrase" value="off" hot={false} />
         <Kv label="PLL" value={pllLock ? "lock" : "open"} hot={pllLock} bad={!pllLock} />
         <Kv
           label="Ticket"

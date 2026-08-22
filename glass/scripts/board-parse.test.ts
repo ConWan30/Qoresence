@@ -193,3 +193,78 @@ test("ghost stick paints on same-seq LIVE and vanishes on seq skew", () => {
   assert.ok(skew);
   assert.equal(skew.ghostStick.paint, false);
 });
+
+
+test("video-less situation does not demote board after snapshot optics", () => {
+  const snap = parseDeckMessage({
+    type: "snapshot",
+    situation: {
+      game_state: "gameplay",
+      home_score: 28,
+      away_score: 21,
+      quarter: 3,
+      score_vlm_locked: true,
+      frame_seq: 40,
+    },
+    video: {
+      has_frame: true,
+      live_seq: 40,
+      hub_seq: 40,
+      same_seq: true,
+      paint: true,
+      plane_dim: false,
+    },
+  });
+  assert.ok(snap);
+  assert.equal(snap.videoOptics, true);
+  assert.equal(snap.paint, true);
+  assert.equal(snap.homeScore, 28);
+
+  const sit = parseDeckMessage({
+    type: "situation",
+    payload: {
+      game_state: "gameplay",
+      home_score: 28,
+      away_score: 21,
+      quarter: 3,
+      down: 2,
+      yards_to_go: 7,
+      score_vlm_locked: true,
+      latency_ms: 12,
+      updated_ns: 123,
+    },
+  });
+  assert.ok(sit);
+  assert.equal(sit.videoOptics, false);
+  assert.equal(sit.paint, true);
+  assert.equal(sit.sameSeq, true);
+  assert.equal(sit.planeDim, false);
+  assert.equal(sit.homeScore, 28);
+  assert.equal(sit.awayScore, 21);
+  assert.ok(boardLine(sit).includes("28-21"));
+});
+
+test("snapshot with plane_dim still gates the board", () => {
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    situation: {
+      game_state: "gameplay",
+      home_score: 10,
+      away_score: 3,
+      score_vlm_locked: true,
+      frame_seq: 9,
+    },
+    video: {
+      has_frame: true,
+      live_seq: 9,
+      same_seq: true,
+      paint: false,
+      plane_dim: true,
+    },
+  });
+  assert.ok(ing);
+  assert.equal(ing.videoOptics, true);
+  assert.equal(ing.planeDim, true);
+  assert.equal(ing.homeScore, null);
+  assert.equal(ing.awayScore, null);
+});

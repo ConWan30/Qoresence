@@ -1,8 +1,8 @@
 """Dark Theater + Same-Seq — render rules, not a new lobe.
 
 LIVE paints only a current FrameHub frame. Last-good BGR is a bug.
-Widgets (situation / lockbug / controller) paint only when
-``widget.frame_seq == live.frame_seq``. Plane Dim sleeps the board on menu/pause.
+Widgets (situation / lockbug / controller) paint when
+``|widget.frame_seq - live.frame_seq| <= SAME_SEQ_SLACK``. Plane Dim sleeps the board on menu/pause.
 """
 
 from __future__ import annotations
@@ -13,6 +13,9 @@ from typing import Any
 OVERLAY_STATES = frozenset({"menu", "lobby", "hub", "paused", "pause"})
 GAMEPLAY_STATES = frozenset({"gameplay", "playing", "in_game", "replay", "spectating"})
 BLANK_LUMA_STD = 1.0
+# Situation updates slower than the 30 fps hub. Exact seq match blacks the
+# picture and ghosts a live VLM lock. ~0.4s slack keeps Same-Seq honest.
+SAME_SEQ_SLACK = 12
 
 
 @dataclass(frozen=True)
@@ -49,12 +52,57 @@ def is_blank_bgr(frame: Any) -> bool:
         return False
 
 
-def is_play_state(game_state: str | None, hysteresis: str | None) -> bool:
-    """Title-presence play vs menu/pause. Missing optics do not force dark."""
+def _locked_board_live(
+    *,
+    locked: bool,
+    quarter: Any = None,
+    down: Any = None,
+    home_score: Any = None,
+    away_score: Any = None,
+) -> bool:
+    """Locked scorebug is live with quarter/down OR a home+away pair."""
+    if not locked:
+        return False
+    if quarter is not None or down is not None:
+        return True
+    return home_score is not None and away_score is not None
+
+
+def is_play_state(
+    game_state: str | None,
+    hysteresis: str | None,
+    *,
+    locked: bool = False,
+    quarter: Any = None,
+    down: Any = None,
+    home_score: Any = None,
+    away_score: Any = None,
+) -> bool:
+    """Title-presence play vs menu/pause. Missing optics do not force dark.
+
+    Locked scorebug stays play even when title hysteresis is ``overlay`` /
+    ``overlay-rejected``, including menu/huddle mislabels (cfb27 effective_game_state
+    intent). Real pause without treating locked digits as huddle still dims;
+    menu/lobby with locked digits lights the board.
+    """
     gs = str(game_state or "").lower().strip()
     hyst = str(hysteresis or "").lower().strip()
-    if gs in OVERLAY_STATES:
+    locked_board = _locked_board_live(
+        locked=bool(locked),
+        quarter=quarter,
+        down=down,
+        home_score=home_score,
+        away_score=away_score,
+    )
+    # Pause is always overlay. Menu/lobby/hub with a locked board → gameplay.
+    if gs in {"paused", "pause"}:
         return False
+    if locked_board and gs in {"menu", "lobby", "hub", "unknown", ""}:
+        gs = "gameplay"
+    elif gs in OVERLAY_STATES:
+        return False
+    if locked_board and gs in GAMEPLAY_STATES:
+        return True
     if hyst in ("overlay-rejected", "overlay"):
         return False
     if gs in GAMEPLAY_STATES or hyst == "locked":
@@ -75,15 +123,31 @@ def decide_live_paint(
     title_hysteresis: str | None = None,
     frame: Any = None,
     blank: bool | None = None,
+    score_vlm_locked: bool | None = None,
+    scoreboard_locked: bool | None = None,
+    quarter: Any = None,
+    down: Any = None,
+    home_score: Any = None,
+    away_score: Any = None,
 ) -> LivePaint:
     """Single gate for Theater LIVE + widget ghosting.
 
     Reasons: ``ok`` | ``no_frame`` | ``blank`` | ``not_play`` | ``seq_skew``.
-    Seq-skewed and blank LIVE go dark — never last-good BGR.
+    Missing / blank / not-play LIVE go dark — never last-good BGR.
+    Seq skew ghosts widgets only; the current hub frame still paints.
     """
     live_seq = int(live_seq or 0)
     wseq = int(widget_seq or 0)
-    plane_dim = not is_play_state(game_state, title_hysteresis)
+    locked = bool(score_vlm_locked) or bool(scoreboard_locked)
+    plane_dim = not is_play_state(
+        game_state,
+        title_hysteresis,
+        locked=locked,
+        quarter=quarter,
+        down=down,
+        home_score=home_score,
+        away_score=away_score,
+    )
     if not has_frame:
         return LivePaint(False, live_seq, wseq, False, True, "no_frame", False)
     if blank is None:
@@ -92,9 +156,9 @@ def decide_live_paint(
         return LivePaint(False, live_seq, wseq, False, True, "blank", True)
     if plane_dim:
         return LivePaint(False, live_seq, wseq, False, True, "not_play", True)
-    same = live_seq > 0 and wseq == live_seq
+    same = live_seq > 0 and (wseq == live_seq or abs(live_seq - wseq) <= SAME_SEQ_SLACK)
     if not same:
-        return LivePaint(False, live_seq, wseq, False, False, "seq_skew", True)
+        return LivePaint(True, live_seq, wseq, False, False, "seq_skew", True)
     return LivePaint(True, live_seq, wseq, True, False, "ok", True)
 
 
@@ -103,15 +167,15 @@ def snapshot_live_paint(situation: dict[str, Any] | None = None) -> LivePaint:
     sit = situation if isinstance(situation, dict) else {}
     has_frame = False
     live_seq = 0
-    frame = None
+    stamp_blank: bool | None = None
     try:
-        from qoresence.monitor.frame_hub import get_frame_hub, get_latest
+        from qoresence.monitor.frame_hub import get_frame_hub
 
         st = get_frame_hub().get_latest_stamp()
         has_frame = bool(st.get("has_frame"))
         live_seq = int(st.get("seq") or 0)
-        if has_frame:
-            frame = get_latest()
+        if "blank" in st:
+            stamp_blank = bool(st.get("blank"))
     except Exception:
         pass
     widget_seq = sit.get("frame_seq")
@@ -133,5 +197,11 @@ def snapshot_live_paint(situation: dict[str, Any] | None = None) -> LivePaint:
         widget_seq=widget_seq,
         game_state=str(gs) if gs is not None else None,
         title_hysteresis=str(hyst) if hyst is not None else None,
-        frame=frame,
+        blank=stamp_blank,
+        score_vlm_locked=sit.get("score_vlm_locked"),
+        scoreboard_locked=sit.get("scoreboard_locked"),
+        quarter=sit.get("quarter"),
+        down=sit.get("down"),
+        home_score=sit.get("home_score", sit.get("score_home")),
+        away_score=sit.get("away_score", sit.get("score_away")),
     )
