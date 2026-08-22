@@ -44,6 +44,7 @@ jobs:
         run: |
           python scripts/check_glass_spa.py
           python scripts/check_heavy_modules.py
+          python -m pip install -q fastapi httpx
           python scripts/smoke_deck_spa_http.py
 
       - name: pip-audit (advisory)

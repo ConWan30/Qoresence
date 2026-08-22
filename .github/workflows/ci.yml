@@ -87,6 +87,7 @@ jobs:
         run: |
           python scripts/check_glass_spa.py
           python scripts/check_heavy_modules.py
+          python -m pip install -q fastapi httpx
           python scripts/smoke_deck_spa_http.py
           python -m pytest tests/test_glass_spa_ship.py tests/test_heavy_modules.py tests/test_deck_spa_http_smoke.py -q --tb=short
 

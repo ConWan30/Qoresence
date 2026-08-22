@@ -31,9 +31,9 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
 )
 
 from qoresence.observability.otel import (
-    OtelExporter,
     PLANE,
     PLANE_ATTRIBUTE,
+    OtelExporter,
     _ReentrancyTracker,
 )
 
@@ -468,7 +468,7 @@ class TestCouplingTelemetry:
             bus.close()
 
     def test_coupling_history_for_clip_window(self, tmp_path):
-        from qoresence.sync.ivc import start_ivc, get_coupling_history, stop_ivc
+        from qoresence.sync.ivc import get_coupling_history, start_ivc, stop_ivc
 
         bus = _make_bus(tmp_path)
         exporter, _ = _make_exporter(bus, tmp_path)
