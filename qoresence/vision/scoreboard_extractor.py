@@ -448,7 +448,8 @@ class FootballScoreboardExtractor:
                 stab._recent.clear()
                 stab._recent.append((int(raw_h), int(raw_a)))
                 sh, sa = stab._stable
-                ctx.score_vlm_locked = True
+                # Fail-closed: score_vlm_locked only after ConfirmTicket mint succeeds.
+                locked_ok = False
                 try:
                     import time as _time_ticket
 
@@ -473,6 +474,7 @@ class FootballScoreboardExtractor:
                         home_score=int(sh),
                         away_score=int(sa),
                         model=str(getattr(ctx, "model", "") or "gemini-3.5-flash-lite"),
+                        source="gemini_scoreboard",
                         frame_seq=_ti(stamp.get("seq")),
                         crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
                         quarter=_ti(parsed.get("quarter")),
@@ -482,6 +484,8 @@ class FootballScoreboardExtractor:
                     ctx.confirm_ticket_id = ticket.ticket_id
                     if isinstance(ctx.details, dict):
                         ctx.details["confirm_ticket"] = ticket.to_dict()
+                    ctx.score_vlm_locked = True
+                    locked_ok = True
                     log.info(
                         "scoreboard VLM lock %s-%s ticket=%s",
                         sh,
@@ -489,8 +493,11 @@ class FootballScoreboardExtractor:
                         ticket.ticket_id,
                     )
                 except Exception as e:
-                    log.debug("confirm ticket mint skipped: %s", e)
-                    log.info("scoreboard VLM lock %s-%s", sh, sa)
+                    log.warning("confirm ticket mint failed — refuse score_vlm_locked: %s", e)
+                    ctx.score_vlm_locked = False
+                if not locked_ok:
+                    # Keep stabilized digits for OCR continuity, but unlicensed.
+                    pass
             else:
                 sh, sa = stab.update(raw_h, raw_a)
                 if (
@@ -499,7 +506,56 @@ class FootballScoreboardExtractor:
                     and sa is not None
                     and (sh, sa) == tuple(local_hud)
                 ):
-                    ctx.score_vlm_locked = True
+                    # Local HUD match must still mint — never lock without ticket.
+                    try:
+                        import time as _time_hud
+
+                        from qoresence.monitor.frame_hub import get_latest_stamp
+                        from qoresence.vision.confirm_ticket import (
+                            get_ticket_book,
+                            mint_confirm_ticket,
+                        )
+
+                        stamp = {}
+                        try:
+                            stamp = get_latest_stamp() or {}
+                        except Exception:
+                            stamp = {}
+
+                        def _ti_hud(v: Any) -> int | None:
+                            try:
+                                return int(v) if v is not None and v != "" else None
+                            except (TypeError, ValueError):
+                                return None
+
+                        ticket = mint_confirm_ticket(
+                            session_id=str(getattr(ctx, "session_id", "") or ""),
+                            clock_ns=int(stamp.get("clock_ns") or _time_hud.monotonic_ns()),
+                            home_score=int(sh),
+                            away_score=int(sa),
+                            model=str(getattr(ctx, "model", "") or "local_hud"),
+                            source="local_hud",
+                            frame_seq=_ti_hud(stamp.get("seq")),
+                            crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
+                            quarter=_ti_hud(parsed.get("quarter")),
+                            down=_ti_hud(parsed.get("down")),
+                        )
+                        get_ticket_book().put(ticket)
+                        ctx.confirm_ticket_id = ticket.ticket_id
+                        if isinstance(ctx.details, dict):
+                            ctx.details["confirm_ticket"] = ticket.to_dict()
+                        ctx.score_vlm_locked = True
+                        log.info(
+                            "scoreboard HUD lock %s-%s ticket=%s",
+                            sh,
+                            sa,
+                            ticket.ticket_id,
+                        )
+                    except Exception as e:
+                        log.warning(
+                            "local HUD lock refused — mint failed: %s", e
+                        )
+                        ctx.score_vlm_locked = False
             if sh is not None:
                 parsed["home_score"] = sh
             else:
