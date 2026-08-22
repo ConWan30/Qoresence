@@ -84,17 +84,19 @@ export function startDeckMonitor(
   const tickPoll = async () => {
     const probe = await probeDeck();
     if (!probe.up) return;
-    const [body, snap, events, planeBody, clipsBody] = await Promise.all([
+    const st0 = useTheater.getState();
+    const wsOpen = ws != null && ws.readyState === WebSocket.OPEN;
+    const wsFresh = wsOpen && st0.deckLive && Date.now() - st0.deckAt < WS_OPTICS_HOLD_MS;
+    const clipsBody = await readJson(`${probe.origin}/api/clips`);
+    useTheater.getState().ingestClips(parseHdmiClipList(clipsBody, probe.origin));
+    // WS already carries optics/moments — skip the 4 extra HTTP hits that jank LIVE.
+    if (wsFresh) return;
+    const [body, snap, events, planeBody] = await Promise.all([
       readJson(`${probe.origin}/api/situation`),
       readJson(`${probe.origin}/api/agent/snapshot`),
       readJson(`${probe.origin}/api/agent/events?limit=12`),
       readJson(`${probe.origin}/api/agent/plane`),
-      readJson(`${probe.origin}/api/clips`),
     ]);
-    useTheater.getState().ingestClips(parseHdmiClipList(clipsBody, probe.origin));
-    const st = useTheater.getState();
-    const wsOpen = ws != null && ws.readyState === WebSocket.OPEN;
-    const wsFresh = wsOpen && st.deckLive && Date.now() - st.deckAt < WS_OPTICS_HOLD_MS;
     // Rule B: WS fresh → poll refreshes plane/moments/events only (no optics/board ingest).
     if (body) {
       if (wsFresh) {

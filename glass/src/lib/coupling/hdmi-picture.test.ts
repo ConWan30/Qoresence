@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { HDMI_LIVE_FEED } from "./qoresence-deck.ts";
 import { HDMI_JPEG_KEEP, hdmiPictureVisible } from "./hdmi-picture.ts";
 
 test("picture stays up when JPEG arrived even if livePaint flickers", () => {
@@ -15,4 +16,5 @@ test("picture hides only when no JPEG has arrived", () => {
 
 test("hygiene marker is the ship token", () => {
   assert.equal(HDMI_JPEG_KEEP, "hdmiJpegKeep");
+  assert.equal(HDMI_LIVE_FEED, "mjpeg");
 });

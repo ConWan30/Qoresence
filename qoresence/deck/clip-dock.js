@@ -193,6 +193,12 @@
   }
 
   async function refresh() {
+    if (glassOwnsStage()) {
+      player.remove();
+      dock.remove();
+      document.body.classList.remove("qore-has-clip-dock");
+      return;
+    }
     try {
       const r = await fetch("/api/clips", { cache: "no-store" });
       const j = await r.json();

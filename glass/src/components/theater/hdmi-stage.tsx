@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getCaptureVideo } from "@/lib/coupling/hardware";
-import { deckLiveJpgUrl } from "@/lib/coupling/qoresence-deck";
+import { deckLiveJpgUrl, deckMjpegUrl, HDMI_LIVE_FEED } from "@/lib/coupling/qoresence-deck";
 import { HDMI_JPEG_KEEP, hdmiPictureVisible } from "@/lib/coupling/hdmi-picture";
 import { clipHref } from "@/lib/coupling/clip";
 import { scoreLiveHealth } from "@/lib/coupling/live-health";
@@ -18,38 +18,68 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
   const [jpgOk, setJpgOk] = useState(false);
   const [ageMs, setAgeMs] = useState(0);
 
+  const stageMode = useTheater((s) => s.stageMode);
+
   useEffect(() => {
-    let timer = 0;
-    let lastOk = 0;
     const img = imgRef.current;
     if (!img) return;
+    let timer = 0;
+    let lastOk = 0;
+    let stopped = false;
+    let mode: "mjpeg" | "jpeg" = "mjpeg";
 
-    const tick = () => {
-      if (!img) return;
-      const url = deckLiveJpgUrl();
+    if (stageMode === "replay") {
+      img.removeAttribute("src");
+      return () => {
+        stopped = true;
+        window.clearTimeout(timer);
+      };
+    }
+
+    const pumpJpeg = () => {
+      if (stopped || !img) return;
+      mode = "jpeg";
       img.onload = () => {
         lastOk = performance.now();
         setJpgOk(true);
         setAgeMs(0);
-        timer = window.setTimeout(tick, 40);
+        timer = window.setTimeout(pumpJpeg, 100);
       };
       img.onerror = () => {
         const age = lastOk ? performance.now() - lastOk : 9999;
         setAgeMs(Math.round(age));
         if (age > 2000) setJpgOk(false);
-        timer = window.setTimeout(tick, 200);
+        timer = window.setTimeout(pumpJpeg, 250);
       };
-      img.src = url;
+      img.src = deckLiveJpgUrl();
     };
-    tick();
+
+    img.onload = () => {
+      lastOk = performance.now();
+      setJpgOk(true);
+      setAgeMs(0);
+    };
+    img.onerror = () => {
+      if (!stopped) pumpJpeg();
+    };
+    img.src = deckMjpegUrl();
+
     const ageWatch = window.setInterval(() => {
-      if (lastOk) setAgeMs(Math.round(performance.now() - lastOk));
+      if (stopped) return;
+      if (mode === "mjpeg" && img.naturalWidth > 0) {
+        setJpgOk(true);
+        setAgeMs(0);
+      } else if (lastOk) {
+        setAgeMs(Math.round(performance.now() - lastOk));
+      }
     }, 400);
+
     return () => {
+      stopped = true;
       window.clearTimeout(timer);
       window.clearInterval(ageWatch);
     };
-  }, []);
+  }, [stageMode]);
 
   useEffect(() => {
     const host = videoHostRef.current;
@@ -68,7 +98,6 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
     return () => window.clearInterval(id);
   }, []);
 
-  const stageMode = useTheater((s) => s.stageMode);
   const lastClipUrl = useTheater((s) => s.lastClipUrl);
   const lastClipName = useTheater((s) => s.lastClipName);
   const videoAgeS = useTheater((s) => s.videoAgeS);
@@ -113,6 +142,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
           alt=""
           decoding="async"
           data-hdmi-keep={HDMI_JPEG_KEEP}
+          data-hdmi-feed={HDMI_LIVE_FEED}
           data-hdmi-picture={showLive ? "on" : "off"}
           className={cn(
             "absolute inset-0 h-full w-full object-contain bg-bg",
