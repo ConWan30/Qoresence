@@ -69,6 +69,9 @@ export type TheaterState = {
   /** Raw board digits for Phosphor Lockbug / Down Pill (fail-closed). */
   homeScore: number | null;
   awayScore: number | null;
+  homeTeam: string;
+  awayTeam: string;
+  homeLeft: boolean;
   down: number | null;
   distance: number | null;
   boardLocked: boolean;
@@ -210,6 +213,9 @@ export const useTheater = create<TheaterState>((set, get) => ({
   situation: "",
   homeScore: null,
   awayScore: null,
+  homeTeam: "",
+  awayTeam: "",
+  homeLeft: false,
   down: null,
   distance: null,
   boardLocked: false,
@@ -365,6 +371,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       clock: ing.clock,
       homeTeam: ing.homeTeam,
       awayTeam: ing.awayTeam,
+      homeLeft: ing.homeLeft,
       fieldPos: ing.fieldPos,
       winProb: ing.winProb,
       gameTitle: ing.gameTitle,
@@ -467,6 +474,9 @@ export const useTheater = create<TheaterState>((set, get) => ({
       // Prefer fresh locked board; otherwise retain prior store values — never invent.
       homeScore: widgetsOk ? ing.homeScore : ing.boardLocked ? ing.homeScore : s.homeScore,
       awayScore: widgetsOk ? ing.awayScore : ing.boardLocked ? ing.awayScore : s.awayScore,
+      homeTeam: widgetsOk || ing.boardLocked ? ing.homeTeam : s.homeTeam,
+      awayTeam: widgetsOk || ing.boardLocked ? ing.awayTeam : s.awayTeam,
+      homeLeft: widgetsOk || ing.boardLocked ? Boolean(ing.homeLeft) : s.homeLeft,
       down: widgetsOk ? ing.down : ing.boardLocked ? ing.down : s.down,
       distance: widgetsOk ? ing.distance : ing.boardLocked ? ing.distance : s.distance,
       boardLocked: widgetsOk ? Boolean(ing.boardLocked) : Boolean(ing.boardLocked) || s.boardLocked,

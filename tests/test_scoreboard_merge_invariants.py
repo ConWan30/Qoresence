@@ -398,6 +398,50 @@ def test_situation_model_refuses_lock_without_confirm_ticket():
     assert snap.get("score_vlm_locked") is False
 
 
+def test_situation_model_holds_locked_sides_when_home_left_flickers():
+    """Same clubs swapped (VLM home_left flicker) must not invert the lock."""
+    sm = SituationModel()
+    sm.update(
+        _visual_context_event(
+            {
+                "game_category": "football",
+                "game_profile": "madden_27",
+                "game_state": "gameplay",
+                "home_score": 14,
+                "away_score": 7,
+                "home_team": "KC",
+                "away_team": "PHI",
+                "home_left": False,
+                "score_vlm_locked": True,
+                "confirm_ticket_id": "cafecafecafecafe",
+            }
+        )
+    )
+    assert (sm.state.home_team, sm.state.away_team) == ("KC", "PHI")
+    assert sm.state.home_left is False
+
+    sm.update(
+        _visual_context_event(
+            {
+                "game_category": "football",
+                "game_profile": "madden_27",
+                "game_state": "gameplay",
+                "home_score": 14,
+                "away_score": 7,
+                "home_team": "PHI",
+                "away_team": "KC",
+                "home_left": True,
+                "score_vlm_locked": True,
+                "confirm_ticket_id": "cafecafecafecafe",
+            }
+        )
+    )
+    assert (sm.state.home_team, sm.state.away_team) == ("KC", "PHI")
+    assert sm.state.home_left is False
+    assert (sm.state.home_score, sm.state.away_score) == (14, 7)
+    assert sm.to_dict()["home_left"] is False
+
+
 def test_deck_html_fmt_gates_unlocked_digits():
     """Legacy Rail fmt() must omit score pair unless locked."""
     from pathlib import Path

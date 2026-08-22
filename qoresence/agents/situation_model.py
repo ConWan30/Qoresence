@@ -55,6 +55,8 @@ class SituationState:
     away_team: str | None = None
     home_team_name: str | None = None
     away_team_name: str | None = None
+    # Madden / NFL / CFB scorebug: AWAY left, HOME right unless true.
+    home_left: bool | None = None
     home_color: str | None = None
     away_color: str | None = None
     home_logo: str | None = None
@@ -205,9 +207,14 @@ class SituationModel:
                 if aws is not None and not self._score_plausible(self._state.away_score, aws):
                     aws = None
             id_ok = True
+            sides_ok = True
             try:
-                from qoresence.profiles.cfb27_product import identity_compatible
+                from qoresence.profiles.cfb27_product import (
+                    identity_compatible,
+                    identity_sides_stable,
+                )
 
+                profile = self._state.game_profile or getattr(ctx, "game_profile", None)
                 if self._state.score_vlm_locked and (
                     self._state.home_team or self._state.away_team
                 ):
@@ -216,12 +223,20 @@ class SituationModel:
                         self._state.away_team,
                         getattr(ctx, "home_team", None),
                         getattr(ctx, "away_team", None),
-                        profile=self._state.game_profile or getattr(ctx, "game_profile", None),
+                        profile=profile,
+                    )
+                    sides_ok = identity_sides_stable(
+                        self._state.home_team,
+                        self._state.away_team,
+                        getattr(ctx, "home_team", None),
+                        getattr(ctx, "away_team", None),
+                        profile=profile,
                     )
             except Exception:
                 id_ok = True
+                sides_ok = True
             ident: dict[str, Any] = {}
-            if id_ok:
+            if id_ok and sides_ok:
                 ident = {
                     "home_team": getattr(ctx, "home_team", None),
                     "away_team": getattr(ctx, "away_team", None),
@@ -234,9 +249,14 @@ class SituationModel:
                     "home_hex": getattr(ctx, "home_hex", None),
                     "away_hex": getattr(ctx, "away_hex", None),
                 }
-            elif not ctx.score_vlm_locked:
+            elif not id_ok and not ctx.score_vlm_locked:
                 # Stranger ticker pair — do not take its scores either
                 hs, aws = None, None
+            incoming_home_left = getattr(ctx, "home_left", None)
+            if incoming_home_left is not None and (
+                sides_ok or not (self._state.home_team or self._state.away_team)
+            ):
+                ident["home_left"] = bool(incoming_home_left)
             self._apply_if_set(
                 home_score=hs,
                 away_score=aws,
@@ -367,6 +387,7 @@ class SituationModel:
             "game_clock_seconds": s.game_clock_seconds,
             "home_team": s.home_team,
             "away_team": s.away_team,
+            "home_left": s.home_left,
             "home_team_name": s.home_team_name,
             "away_team_name": s.away_team_name,
             "home_color": s.home_color,
