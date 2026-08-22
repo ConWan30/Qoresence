@@ -12,9 +12,7 @@ from qoresence.profiles.cfb27_product import (
 
 
 def test_huddle_menu_becomes_gameplay_when_board_locked():
-    assert (
-        effective_game_state("menu", locked=True, quarter=1, down=1) == "gameplay"
-    )
+    assert effective_game_state("menu", locked=True, quarter=1, down=1) == "gameplay"
     assert effective_game_state("replay", locked=True, quarter=1, down=1) == "replay"
     assert effective_game_state("paused", locked=True, quarter=1) == "paused"
     assert effective_game_state("menu", locked=False) == "menu"
@@ -28,18 +26,12 @@ def test_identity_sticks_against_ticker_pair():
 
 
 def test_madden_identity_sticks_against_nfl_ticker():
-    assert (
-        identity_compatible("KC", "PHI", "Chiefs", "Eagles", profile="madden_27") is True
-    )
-    assert (
-        identity_compatible("KC", "PHI", "Ravens", "Bengals", profile="madden_27") is False
-    )
+    assert identity_compatible("KC", "PHI", "Chiefs", "Eagles", profile="madden_27") is True
+    assert identity_compatible("KC", "PHI", "Ravens", "Bengals", profile="madden_27") is False
 
 
 def test_vlm_home_away_names_respects_home_left():
-    home, away = vlm_home_away_names(
-        {"home_left": False, "left_team": "OU", "right_team": "LOU"}
-    )
+    home, away = vlm_home_away_names({"home_left": False, "left_team": "OU", "right_team": "LOU"})
     assert home == "LOU" and away == "OU"
 
 

@@ -17,7 +17,10 @@ def test_play_enables_society_all_roles():
 
     cfg = RetinaUnifiedConfig(session_id="s", session_head_ns=1)
     assert getattr(cfg.society, "enabled", True) is False
-    on = apply_society_cli(cfg, Namespace(play=True, agent_society=False, agent_society_roles=None, no_agent_society=False))
+    on = apply_society_cli(
+        cfg,
+        Namespace(play=True, agent_society=False, agent_society_roles=None, no_agent_society=False),
+    )
     assert on.society.enabled is True
     assert set(on.society.roles) >= {
         "spam_warden",
@@ -26,7 +29,10 @@ def test_play_enables_society_all_roles():
         "ghost_editor",
         "prediction_steward",
     }
-    off = apply_society_cli(cfg, Namespace(play=True, no_agent_society=True, agent_society=False, agent_society_roles=None))
+    off = apply_society_cli(
+        cfg,
+        Namespace(play=True, no_agent_society=True, agent_society=False, agent_society_roles=None),
+    )
     assert off.society.enabled is False
 
 
@@ -59,7 +65,10 @@ def test_society_config_default_off():
     assert cfg.model_scene == "gemini-3.5-flash-lite"
     env = AgentSocietyConfig.from_env()
     # env may be on if operator exported the flag; still valid roles
-    assert all(r in {"spam_warden", "pilot_auditor", "drive_coach", "ghost_editor", "prediction_steward"} for r in env.roles)
+    assert all(
+        r in {"spam_warden", "pilot_auditor", "drive_coach", "ghost_editor", "prediction_steward"}
+        for r in env.roles
+    )
 
 
 def test_unified_config_society_off():
@@ -99,7 +108,9 @@ def test_receipt_round_trip():
 
 def test_rules_only_no_key():
     rt = SocietyRuntime(
-        AgentSocietyConfig(enabled=True, roles=("spam_warden",), api_key_file="no/such.key", cooldown_s=0)
+        AgentSocietyConfig(
+            enabled=True, roles=("spam_warden",), api_key_file="no/such.key", cooldown_s=0
+        )
     )
     assert rt.qs.available() is False
     recs = rt.tick(
