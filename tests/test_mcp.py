@@ -36,7 +36,6 @@ def test_mcp_initialize_and_tools_list():
         "get_events",
         "get_health",
         "get_frame",
-        "export_clip",
         "get_situation",
         "search_clips",
         "get_drive_graph",
@@ -45,6 +44,7 @@ def test_mcp_initialize_and_tools_list():
         "get_observation",
         "wrap_observation",
     }
+    assert "export_clip" not in names
 
 
 def test_mcp_resources_and_prompts_list():
@@ -90,7 +90,8 @@ def test_mcp_tools_call_in_process_snapshot_and_events():
         g.stop()
 
 
-def test_mcp_export_clip_and_unknown():
+def test_mcp_export_clip_removed_and_unknown():
+    """MCP is observation-only — export_clip must not be callable."""
     reqs = [
         {
             "jsonrpc": "2.0",
@@ -112,7 +113,8 @@ def test_mcp_export_clip_and_unknown():
         },
     ]
     resps = _rpc(reqs)
-    assert resps[0]["result"]["content"][0]["type"] == "text"
+    # export_clip removed from HANDLERS → unknown tool (-32601)
+    assert resps[0]["error"]["code"] == -32601
     assert resps[1]["result"]["content"][0]["type"] == "text"
     assert resps[2]["error"]["code"] == -32601
 

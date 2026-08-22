@@ -78,7 +78,7 @@ python examples/agent_watch.py --ws   # needs `pip install websockets`
 
 ## MCP — universal glass (stdio + SSE via AgentGlass)
 
-Glass D is reused as **N glasses** via `qoresence/mcp` — 12 tools wrapping `AgentGlass` HTTP/in-process on `127.0.0.1:8765` without opening capture.
+Glass D is reused as **N glasses** via `qoresence/mcp` — 11 observation-only tools wrapping `AgentGlass` HTTP/in-process on `127.0.0.1:8765` without opening capture.
 
 | tool | what it does | throttle |
 |------|-------------|----------|
@@ -86,7 +86,6 @@ Glass D is reused as **N glasses** via `qoresence/mcp` — 12 tools wrapping `Ag
 | `get_events` | cursor-paginated `RetinaEventBus` (`since=_agent_seq`, `types` csv, `limit` 1..500) | `max_eps_per_client` |
 | `get_health` | fast liveness (`running`, `seq`, `video{age_s,frames}`, `coupling`) | — |
 | `get_frame` | latest JPEG as `data:image/jpeg;base64,...` from `ClipBuffer` | **10 fps/client** (`429 frame_throttled`) |
-| `export_clip` | local `clips/*.mp4` + chapter/`.buttons.json` sidecars (`seconds` 1..30) | **1 per 10 s global** (`429 clip_rate_limited`) |
 | `get_situation` | merged `situation + coupling + last visual_context` | — |
 | `get_observation` | **Witness pack**: plane-tagged title/score/phrase/glass the agent *may* say; unlocked digits and localhost phone URLs stay silent | — |
 | `wrap_observation` | **Research wrap**: last `title_presence` → `qoresence-research` envelope. Needs `QORESENCE_WRAP_GRANT_ID`. Refuses `qortroller-truth`. | — |
