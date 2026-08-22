@@ -39,6 +39,14 @@ jobs:
       - name: Release checklist script
         run: python scripts/check_release_hardening.py
 
+
+      - name: Deck SPA smoke + heavy-module gate
+        run: |
+          python scripts/check_glass_spa.py
+          python scripts/check_heavy_modules.py
+          python -m pip install -q fastapi httpx
+          python scripts/smoke_deck_spa_http.py
+
       - name: pip-audit (advisory)
         continue-on-error: true
         run: |

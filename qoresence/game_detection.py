@@ -1130,7 +1130,10 @@ class GameAutoDetector:
         if not (self._title_presence and self._learning_enabled):
             return
         try:
-            from qoresence.vision.title_presence_ingredient import append_ingredient, make_ingredient
+            from qoresence.vision.title_presence_ingredient import (
+                append_ingredient,
+                make_ingredient,
+            )
 
             ing = make_ingredient(rec, created_ns=clock_ns())
             if ing is None:

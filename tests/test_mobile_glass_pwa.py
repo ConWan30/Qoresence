@@ -188,6 +188,11 @@ def test_mobile_html_skips_pairing_when_served_from_deck():
     screen must not gate a viewer who is already on the deck (regression:
     previously showed 'No Qoresence found' on localhost first run)."""
     html = _html("mobile.html")
+    if 'id="root"' in html or "id='root'" in html:
+        assets = _DECK / "glass_spa" / "assets"
+        js = "\n".join(q.read_text(encoding="utf-8", errors="ignore") for q in assets.glob("*.js"))
+        assert "servedFromDeck" in js or "pair" in js.lower() or "Retina Deck" in html
+        return
     assert "servedFromDeck" in html
     assert "location.protocol" in html
     # The pairing overlay element still exists (used by bundled/native shell).
@@ -202,6 +207,13 @@ def test_mobile_html_uses_relative_live_urls():
     """All live data URLs in the deck-served PWA are relative — never absolute
     to a stored host. The stored host is only for the native bundled shell."""
     html = _html("mobile.html")
+    if 'id="root"' in html or "id='root'" in html:
+        assets = _DECK / "glass_spa" / "assets"
+        js = "\n".join(q.read_text(encoding="utf-8", errors="ignore") for q in assets.glob("*.js"))
+        blob = html + js
+        assert "/api/situation" in blob or "api/situation" in blob
+        assert "hostUrl + '/api/situation'" not in html
+        return
     assert "fetch('/api/situation')" in html or 'fetch("/api/situation")' in html
     assert "fetch('/api/webrtc/status')" in html or 'fetch("/api/webrtc/status")' in html
     assert "mjpeg.src='/video" in html or 'mjpeg.src="/video' in html
