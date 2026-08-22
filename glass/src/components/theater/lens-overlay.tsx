@@ -19,9 +19,11 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
   const left = useTheater((s) => s.left);
   const r2Frame = useTheater((s) => s.r2Frame);
   const leftFrame = useTheater((s) => s.leftFrame);
-  const confirm = useTheater((s) => s.confirm);
   const boardLine = useTheater((s) => s.boardLine);
   const situation = useTheater((s) => s.situation);
+  const livePaint = useTheater((s) => s.livePaint);
+  const sameSeq = useTheater((s) => s.sameSeq);
+  const planeDim = useTheater((s) => s.planeDim);
   const clutch = useTheater((s) => s.clutch);
   const padConnected = useTheater((s) => s.padConnected);
   const padName = useTheater((s) => s.padName);
@@ -44,7 +46,10 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
       ? `${phrase.phrase} · ticket ${ticket.ticketId.slice(0, 8)} · heat licensed`
       : `${phrase.phrase} · couple: none`;
 
-  const board = situation || boardLine || (confirm ? `${confirm.homeScore}-${confirm.awayScore}` : null);
+  // Digits fail-closed: only licensed board text when Dark Theater widgets may paint.
+  const widgetsOk = livePaint && sameSeq && !planeDim;
+  const boardText = situation || boardLine || null;
+  const board = widgetsOk && boardText ? boardText : null;
   const ribbonOpacity = 0.08 + Math.max(coupling, clutch.score) * 0.55;
 
   return (
