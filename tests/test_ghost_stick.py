@@ -2,22 +2,26 @@
 
 from __future__ import annotations
 
-from qoresence.sync.ghost_stick import decide_ghost_stick, ghost_stick_enabled, set_ghost_stick_enabled
+from qoresence.sync.ghost_stick import (
+    decide_ghost_stick,
+    ghost_stick_enabled,
+    set_ghost_stick_enabled,
+)
 from qoresence.sync.input_ring import AnalogPose, InputRing
 
 
 def _ok(**kw):
     pose = kw.pop("pose", AnalogPose(clock_ns=1, lx=0.4, ly=-0.2, r2=0.8, l2=0.0))
-    base = dict(
-        enabled=True,
-        paint_reason="ok",
-        same_seq=True,
-        plane_dim=False,
-        live_seq=10,
-        widget_seq=10,
-        coupling=0.4,
-        lag_ms=48.0,
-    )
+    base = {
+        "enabled": True,
+        "paint_reason": "ok",
+        "same_seq": True,
+        "plane_dim": False,
+        "live_seq": 10,
+        "widget_seq": 10,
+        "coupling": 0.4,
+        "lag_ms": 48.0,
+    }
     base.update(kw)
     return decide_ghost_stick(pose=pose, **base)
 
