@@ -5,6 +5,7 @@ import { deckLiveJpgUrl } from "@/lib/coupling/qoresence-deck";
 import { HDMI_JPEG_KEEP, hdmiPictureVisible } from "@/lib/coupling/hdmi-picture";
 import { clipHref } from "@/lib/coupling/clip";
 import { useTheater } from "@/lib/coupling/store";
+import { StageClipDock } from "./clip-rack";
 import { GhostStickOverlay } from "./ghost-stick";
 import { LensOverlay } from "./lens-overlay";
 
@@ -121,6 +122,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
         ) : null}
         <GhostStickOverlay />
         <LensOverlay variant={variant} />
+        {variant === "deck" ? <StageClipDock /> : null}
       </div>
     </section>
   );

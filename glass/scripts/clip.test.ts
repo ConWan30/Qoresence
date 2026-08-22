@@ -60,6 +60,24 @@ test("moment feed keeps clip chips", () => {
   assert.equal(m!.url, "/media/clips/hdmi_clip_abc.mp4");
 });
 
+test("windows clip path in reason becomes a playable moment not a raw path title", () => {
+  const m = parseFeedMoment({
+    type: "moment",
+    payload: {
+      title: "HDMI CLIP 12s",
+      action: "clip",
+      icon: "🎬",
+      reason: String.raw`C:\Users\Contr\Qoresence\clips\hdmi_clip_20260822_101224.mp4`,
+      path: String.raw`C:\Users\Contr\Qoresence\clips\hdmi_clip_20260822_101224.mp4`,
+      name: "hdmi_clip_20260822_101224.mp4",
+    },
+  });
+  assert.ok(m);
+  assert.equal(m!.url, "/media/clips/hdmi_clip_20260822_101224.mp4");
+  assert.equal(m!.name, "hdmi_clip_20260822_101224.mp4");
+  assert.doesNotMatch(m!.title, /C:\\Users/);
+});
+
 test("agent filesystem path becomes a clickable /media/clips href", () => {
   assert.equal(
     clipPublicPath(String.raw`C:\Users\con\Qoresence\clips\hdmi_clip_xyz.mp4`),

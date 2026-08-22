@@ -39,7 +39,7 @@ export function ClutchFeed() {
           {moments.slice(0, 8).map((e) => {
             const href = momentPlayHref(e, lastClipUrl);
             const className = cn(
-              "flex min-h-14 w-full items-center rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
+              "flex min-h-14 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
               href ? "cursor-pointer hover:opacity-90" : "",
               e.path === "confirm"
                 ? "border border-live/40 bg-live/10 text-live"
@@ -48,16 +48,23 @@ export function ClutchFeed() {
                   : "bg-bg/50 text-fg",
             );
             const inner = (
-              <span className="min-w-0">
-                <span className="block font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
-                  {e.path ? `[${e.path}]` : "moment"} · {e.clock}
-                  {href ? " · play" : ""}
+              <>
+                <span className="min-w-0">
+                  <span className="block font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
+                    {e.path ? `[${e.path}]` : "moment"} · {e.clock}
+                    {href ? " · play" : ""}
+                  </span>
+                  <span className="block truncate text-xs">
+                    {e.icon === "🎬" || href ? "🎬 " : ""}
+                    {e.title}
+                  </span>
                 </span>
-                <span className="block truncate text-xs">
-                  {e.icon === "🎬" || href ? "🎬 " : ""}
-                  {e.title}
-                </span>
-              </span>
+                {href ? (
+                  <span className="shrink-0 rounded-md bg-live px-2 py-1 font-mono text-[10px] font-extrabold text-primary-foreground uppercase">
+                    ▶ Play
+                  </span>
+                ) : null}
+              </>
             );
             return href ? (
               <button

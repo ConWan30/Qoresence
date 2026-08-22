@@ -31,7 +31,18 @@ import { boardLine, situationLine, EMPTY_GHOST, type DeckIngest, type GhostStick
 import { clutchAdvanced, scoreClutch, QUIET_CLUTCH, type ClutchSnap, type FeedMoment } from "./clutch";
 import { measureLag } from "./sync";
 import { qsEnhance, qsProbe } from "./quicksilver";
-import { clipHref, clipSeconds, momentLooksLikeClip, requestDeckClip, shouldClip, type HdmiClipFile } from "./clip";
+import { clipHref, clipPublicPath, clipSeconds, momentLooksLikeClip, requestDeckClip, shouldClip, type HdmiClipFile } from "./clip";
+
+function mergeClipFile(clips: HdmiClipFile[], href: string, name: string): HdmiClipFile[] {
+  const file = name || href.replace(/\\/g, "/").split("/").pop() || "";
+  const path = clipPublicPath(href || file);
+  if (!path || !file) return clips;
+  if (clips.some((c) => c.name === file)) return clips;
+  return [
+    { name: file, url: path, href: clipHref(path), sizeBytes: 0, mtime: Date.now() / 1000 },
+    ...clips,
+  ].slice(0, 40);
+}
 
 let qsAt = 0;
 let qsKey = "";
@@ -588,6 +599,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
         moments,
         lastClipUrl: href || s.lastClipUrl,
         lastClipName: row.name || s.lastClipName,
+        hdmiClips: href ? mergeClipFile(s.hdmiClips, href, row.name || "") : s.hdmiClips,
       });
       return;
     }
@@ -607,6 +619,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       moments: [row, ...backfilled].slice(0, 20),
       lastClipUrl: href || s.lastClipUrl,
       lastClipName: href ? row.name || row.url.replace(/\\/g, "/").split("/").pop() || s.lastClipName : s.lastClipName,
+      hdmiClips: href ? mergeClipFile(s.hdmiClips, href, row.name || "") : s.hdmiClips,
     });
   },
   probeQuicksilver: async () => {

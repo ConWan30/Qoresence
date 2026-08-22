@@ -22,6 +22,7 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
   const r2Frame = useTheater((s) => s.r2Frame);
   const leftFrame = useTheater((s) => s.leftFrame);
   const clutch = useTheater((s) => s.clutch);
+  const stageMode = useTheater((s) => s.stageMode);
   const padConnected = useTheater((s) => s.padConnected);
   const padName = useTheater((s) => s.padName);
   const captureStatus = useTheater((s) => s.captureStatus);
@@ -98,9 +99,11 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
         >
           {throwAttempt
             ? "—"
-            : clutch.kind === "climax" || clutch.kind === "score_play" || clutch.kind === "window"
-              ? clutch.label
-              : "LIVE"}
+            : stageMode === "replay"
+              ? "REPLAY"
+              : clutch.kind === "climax" || clutch.kind === "score_play" || clutch.kind === "window"
+                ? clutch.label
+                : "LIVE"}
         </p>
         {/* play-phrase lattice removed — DualSense floors OFF */}
         {throwAttempt ? (
