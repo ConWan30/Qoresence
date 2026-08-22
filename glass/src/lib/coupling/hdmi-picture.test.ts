@@ -16,5 +16,5 @@ test("picture hides only when no JPEG has arrived", () => {
 
 test("hygiene marker is the ship token", () => {
   assert.equal(HDMI_JPEG_KEEP, "hdmiJpegKeep");
-  assert.equal(HDMI_LIVE_FEED, "mjpeg");
+  assert.equal(HDMI_LIVE_FEED, "jpeg");
 });

@@ -23,8 +23,8 @@ export function deckMjpegUrl(): string {
   return `${getDeckOrigin()}/video?fps=30`;
 }
 
-/** Theater live picture: one MJPEG socket. JPEG pump is fallback only. */
-export const HDMI_LIVE_FEED = "mjpeg";
+/** Theater live picture: still JPEG keep-alive. MJPEG /video can sit pending with no onload. */
+export const HDMI_LIVE_FEED = "jpeg";
 
 export function deckLiveJpgUrl(): string {
   return `${getDeckOrigin()}/live.jpg?t=${Date.now()}`;
