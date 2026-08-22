@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from qoresence.vision.title_presence_ingredient import make_ingredient, append_ingredient
+from qoresence.vision.title_presence_ingredient import append_ingredient, make_ingredient
 from qoresence.vision.title_presence_wrap import (
     RESEARCH_DEST,
     OperatorGrant,
