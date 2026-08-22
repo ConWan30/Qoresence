@@ -1,4 +1,4 @@
-/* HDMI clip dock — vanilla, always on top of Theater glass. */
+/* HDMI clip dock — click a clip to REPLAY on the stage, LIVE returns to HDMI. */
 (function () {
   if (window.__qoreClipDock) return;
   window.__qoreClipDock = true;
@@ -9,58 +9,124 @@
     return t.content.firstElementChild;
   }
 
+  function mediaHref(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return "";
+    if (/^https?:\/\//i.test(s) && s.indexOf("/media/clips/") >= 0) {
+      try {
+        return new URL(s).pathname;
+      } catch (e) {
+        return "";
+      }
+    }
+    if (s.indexOf("/media/clips/") === 0) return s.split("?")[0];
+    const m = s.replace(/\\/g, "/").match(/hdmi_clip_[\w.\-]+\.(mp4|avi)/i);
+    return m ? "/media/clips/" + m[0] : "";
+  }
+
+  window.qoreClipHref = mediaHref;
+
   const player = el(
     '<div id="qore-clip-player" data-qore-clip-dock="player">' +
-      '<button type="button" class="back" data-action="live">LIVE</button>' +
+      '<div class="hud">' +
+      '<button type="button" class="back" data-action="live">← LIVE feed</button>' +
+      '<span class="label" data-label>REPLAY</span></div>' +
       "<video controls playsinline></video></div>",
   );
   const dock = el(
     '<div id="qore-clip-dock" data-qore-clip-dock="bar">' +
       '<div class="row">' +
-      '<button type="button" class="live" data-action="live">LIVE</button>' +
+      '<button type="button" class="live" data-action="live">LIVE feed</button>' +
+      '<button type="button" class="replay" data-action="replay">REPLAY last</button>' +
       '<button type="button" class="make" data-action="clip">▶ Make HDMI Clip (30s)</button>' +
       '<span class="meta" data-count>HDMI clips · 00</span></div>' +
       '<div class="tiles" data-tiles></div></div>',
   );
 
-  function mount() {
-    if (!document.body) return;
-    if (!document.getElementById("qore-clip-player")) document.body.appendChild(player);
-    if (!document.getElementById("qore-clip-dock")) document.body.appendChild(dock);
-  }
-
   const video = player.querySelector("video");
   const tiles = dock.querySelector("[data-tiles]");
   const count = dock.querySelector("[data-count]");
   const makeBtn = dock.querySelector("[data-action=clip]");
+  const label = player.querySelector("[data-label]");
+  let lastHref = "";
+  let lastName = "";
+
+  function findStage() {
+    return (
+      document.querySelector("[data-stage-mode]") ||
+      document.querySelector("#playerWrap") ||
+      document.querySelector("img[data-hdmi-keep]") &&
+        document.querySelector("img[data-hdmi-keep]").closest("div.relative, section")
+    );
+  }
+
+  function attachPlayer() {
+    const stage = findStage();
+    if (stage) {
+      const cs = window.getComputedStyle(stage);
+      if (cs.position === "static") stage.style.position = "relative";
+      if (player.parentElement !== stage) stage.appendChild(player);
+      player.setAttribute("data-on-stage", "1");
+    } else if (!player.parentElement) {
+      document.body.appendChild(player);
+    }
+  }
+
+  function mount() {
+    if (!document.body) return;
+    if (!document.getElementById("qore-clip-dock")) {
+      document.body.appendChild(dock);
+      document.body.classList.add("qore-has-clip-dock");
+    }
+    attachPlayer();
+  }
 
   function goLive() {
     player.classList.remove("on");
+    document.body.classList.remove("qore-replay");
+    const stage = findStage();
+    if (stage) stage.setAttribute("data-stage-mode", "live");
     try {
       video.pause();
     } catch (e) {}
     video.removeAttribute("src");
+    try {
+      video.load();
+    } catch (e) {}
+    count.textContent =
+      "LIVE · HDMI clips · " + String(tiles.querySelectorAll(".tile").length).padStart(2, "0");
   }
 
   function playClip(url, name) {
-    if (!url) return;
-    const src = url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + Date.now();
+    const href = mediaHref(url) || url;
+    if (!href || href.indexOf("/media/clips/") !== 0) return;
+    attachPlayer();
+    lastHref = href;
+    lastName = name || href.split("/").pop() || "clip";
+    const src = href + (href.indexOf("?") >= 0 ? "&" : "?") + "v=" + Date.now();
     video.src = src;
     player.classList.add("on");
+    document.body.classList.add("qore-replay");
+    const stage = findStage();
+    if (stage) stage.setAttribute("data-stage-mode", "replay");
+    label.textContent = "REPLAY · " + lastName;
     const go = function () {
       video.play().catch(function () {});
     };
     if (video.readyState >= 2) go();
-    else video.oncanplay = function () {
-      video.oncanplay = null;
-      go();
-    };
-    count.textContent = "REPLAY · " + (name || url.split("/").pop() || "clip");
+    else
+      video.oncanplay = function () {
+        video.oncanplay = null;
+        go();
+      };
+    count.textContent = "REPLAY · " + lastName;
   }
 
   function render(clips) {
     const list = Array.isArray(clips) ? clips : [];
-    count.textContent = "HDMI clips · " + String(list.length).padStart(2, "0");
+    if (!player.classList.contains("on")) {
+      count.textContent = "HDMI clips · " + String(list.length).padStart(2, "0");
+    }
     tiles.innerHTML = "";
     if (!list.length) {
       const p = document.createElement("p");
@@ -70,17 +136,16 @@
       return;
     }
     list.slice(0, 20).forEach(function (c) {
-      const href = c.url || c.href || (c.name ? "/media/clips/" + c.name : "");
-      const name = c.name || (href.split("/").pop() || "clip");
+      const href = mediaHref(c.url || c.href || c.path || c.name);
+      if (!href) return;
+      const name = c.name || href.split("/").pop() || "clip";
       const b = document.createElement("button");
       b.type = "button";
       b.className = "tile";
       b.setAttribute("data-clip-href", href);
       b.setAttribute("data-clip-name", name);
       b.innerHTML =
-        '<span class="go">▶</span><span>' +
-        name.replace(/[<>]/g, "") +
-        "</span>";
+        '<span class="go">▶</span><span>' + name.replace(/[<>]/g, "") + "<small>replay in deck</small></span>";
       b.onclick = function (ev) {
         ev.preventDefault();
         ev.stopPropagation();
@@ -88,6 +153,29 @@
       };
       tiles.appendChild(b);
     });
+  }
+
+  function hydratePaths() {
+    const re = /hdmi_clip_[\w.\-]+\.(mp4|avi)/i;
+    const nodes = document.querySelectorAll("article, button, p, span, li, div");
+    for (let i = 0; i < nodes.length && i < 400; i++) {
+      const n = nodes[i];
+      if (n.closest("#qore-clip-dock, #qore-clip-player")) continue;
+      if (n.getAttribute("data-qore-hydrated") === "1") continue;
+      const text = (n.textContent || "").trim();
+      if (!re.test(text) || text.length > 240) continue;
+      const href = mediaHref(text);
+      if (!href) continue;
+      n.setAttribute("data-qore-hydrated", "1");
+      n.setAttribute("data-clip-href", href);
+      n.style.cursor = "pointer";
+      if (!/\bplay\b/i.test(text)) {
+        const hint = document.createElement("span");
+        hint.className = "qore-play-hint";
+        hint.textContent = " ▶ Replay";
+        n.appendChild(hint);
+      }
+    }
   }
 
   async function refresh() {
@@ -98,6 +186,8 @@
     } catch (e) {
       /* Deck down */
     }
+    hydratePaths();
+    attachPlayer();
   }
 
   async function makeClip() {
@@ -129,9 +219,37 @@
     const t = ev.target.closest("[data-action]");
     if (!t) return;
     if (t.getAttribute("data-action") === "live") goLive();
+    if (t.getAttribute("data-action") === "replay") playClip(lastHref, lastName);
     if (t.getAttribute("data-action") === "clip") void makeClip();
   });
-  player.querySelector("[data-action=live]").onclick = goLive;
+  player.querySelector("[data-action=live]").onclick = function (ev) {
+    ev.preventDefault();
+    goLive();
+  };
+
+  document.addEventListener(
+    "click",
+    function (ev) {
+      if (ev.target.closest("#qore-clip-dock, #qore-clip-player")) return;
+      const hit = ev.target.closest("[data-clip-href]");
+      if (hit) {
+        const href = mediaHref(hit.getAttribute("data-clip-href"));
+        if (href) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          playClip(href, hit.getAttribute("data-clip-name") || "");
+        }
+        return;
+      }
+      const href = mediaHref((ev.target.textContent || "").trim());
+      if (href && /hdmi_clip/i.test(ev.target.textContent || "")) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        playClip(href);
+      }
+    },
+    true,
+  );
 
   window.addEventListener("keydown", function (e) {
     const tag = e.target && e.target.tagName;
@@ -143,6 +261,10 @@
     if (e.key === "l" || e.key === "L") {
       e.preventDefault();
       goLive();
+    }
+    if (e.key === "r" || e.key === "R") {
+      e.preventDefault();
+      if (lastHref) playClip(lastHref, lastName);
     }
   });
 
