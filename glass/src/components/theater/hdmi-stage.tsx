@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getCaptureVideo } from "@/lib/coupling/hardware";
-import { deckLiveJpgUrl, deckMjpegUrl, HDMI_LIVE_FEED } from "@/lib/coupling/qoresence-deck";
+import { deckLiveJpgUrl, HDMI_LIVE_FEED } from "@/lib/coupling/qoresence-deck";
 import { HDMI_JPEG_KEEP, hdmiPictureVisible } from "@/lib/coupling/hdmi-picture";
 import { clipHref } from "@/lib/coupling/clip";
 import { scoreLiveHealth } from "@/lib/coupling/live-health";
@@ -26,10 +26,9 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
     let timer = 0;
     let lastOk = 0;
     let stopped = false;
-    let mode: "mjpeg" | "jpeg" = "mjpeg";
+    let inFlight = false;
 
     if (stageMode === "replay") {
-      img.removeAttribute("src");
       return () => {
         stopped = true;
         window.clearTimeout(timer);
@@ -37,41 +36,30 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
     }
 
     const pumpJpeg = () => {
-      if (stopped || !img) return;
-      mode = "jpeg";
+      if (stopped || !img || inFlight) return;
+      inFlight = true;
       img.onload = () => {
+        inFlight = false;
         lastOk = performance.now();
         setJpgOk(true);
         setAgeMs(0);
-        timer = window.setTimeout(pumpJpeg, 100);
+        timer = window.setTimeout(pumpJpeg, 80);
       };
       img.onerror = () => {
+        inFlight = false;
         const age = lastOk ? performance.now() - lastOk : 9999;
         setAgeMs(Math.round(age));
         if (age > 2000) setJpgOk(false);
-        timer = window.setTimeout(pumpJpeg, 250);
+        timer = window.setTimeout(pumpJpeg, 200);
       };
       img.src = deckLiveJpgUrl();
     };
 
-    img.onload = () => {
-      lastOk = performance.now();
-      setJpgOk(true);
-      setAgeMs(0);
-    };
-    img.onerror = () => {
-      if (!stopped) pumpJpeg();
-    };
-    img.src = deckMjpegUrl();
+    pumpJpeg();
 
     const ageWatch = window.setInterval(() => {
       if (stopped) return;
-      if (mode === "mjpeg" && img.naturalWidth > 0) {
-        setJpgOk(true);
-        setAgeMs(0);
-      } else if (lastOk) {
-        setAgeMs(Math.round(performance.now() - lastOk));
-      }
+      if (lastOk) setAgeMs(Math.round(performance.now() - lastOk));
     }, 400);
 
     return () => {
