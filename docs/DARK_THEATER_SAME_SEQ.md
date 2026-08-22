@@ -9,7 +9,7 @@ Implemented in `qoresence/deck/live_paint.py`. Render rule, not a new lobe.
 Render rule, not a new lobe. Widgets carry `frame_seq`. Paint only if `widget.frame_seq == live.frame_seq`. Mismatch ghosts (opacity 0 / empty). No stale digits.
 
 ## Out of scope
-Ghost Stick, Clutch Ring, Glance Glyph. No new lobe flags. No QorTroller / PoAC / *-truth path. No invented scores. Optional lobes stay OFF.
+Clutch Ring, Glance Glyph. Ghost Stick is a separate opt-in overlay (default OFF). No new lobe flags. No QorTroller / PoAC / *-truth path. No invented scores. Optional lobes stay OFF.
 
 ## Done when
 Blank or seq-skewed LIVE goes dark; scorebug from seq N cannot sit on frame N+k; tests for blank, seq skew, plane dim; freeze_events_excluding_deck_lock no longer treats last-good LIVE paint as accepted; short doc note in RETINA_DECK_UIUX / WEBRTC_LIVE / TITLE_PRESENCE.

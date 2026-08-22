@@ -173,3 +173,23 @@ test("situation strip matches original Deck scorebug line", () => {
     "KC 14 - PHI 7 · Q3 3:12 · 2nd & 6 @ PHI34 · WP 58%",
   );
 });
+
+test("ghost stick paints on same-seq LIVE and vanishes on seq skew", () => {
+  const live = parseDeckMessage({
+    type: "snapshot",
+    situation: { game_state: "gameplay", frame_seq: 10 },
+    video: { has_frame: true, live_seq: 10, widget_seq: 10, same_seq: true, paint: true, plane_dim: false },
+    ghost_stick: { enabled: true, paint: true, lx: 0.4, ly: -0.2, r2: 0.8, l2: 0, lag_ms: 48, frame_seq: 10, reason: "ok" },
+  });
+  assert.ok(live);
+  assert.equal(live.ghostStick.paint, true);
+  assert.equal(live.ghostStick.lx, 0.4);
+  const skew = parseDeckMessage({
+    type: "snapshot",
+    situation: { game_state: "gameplay", frame_seq: 7 },
+    video: { has_frame: true, live_seq: 10, widget_seq: 7, same_seq: false, paint: false, plane_dim: false },
+    ghost_stick: { enabled: true, paint: true, lx: 0.4, ly: 0, r2: 0.8, l2: 0, lag_ms: 48, frame_seq: 10, reason: "ok" },
+  });
+  assert.ok(skew);
+  assert.equal(skew.ghostStick.paint, false);
+});

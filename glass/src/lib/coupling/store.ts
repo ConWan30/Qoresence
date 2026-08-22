@@ -27,7 +27,7 @@ import {
 } from "./agents";
 import { EMPTY_PLANE, type AgentPlane } from "./agent-plane";
 import { armCapture as armCaptureDevice, armShare as armShareDevice, getDeckSrc, thawDeck as thawDeckDevice, wakePad as wakePadDevice, sampleCapture, type CaptureStatus, type VideoDevice } from "./hardware";
-import { boardLine, situationLine, type DeckIngest } from "./board";
+import { boardLine, situationLine, EMPTY_GHOST, type DeckIngest, type GhostStick } from "./board";
 import { clutchAdvanced, scoreClutch, QUIET_CLUTCH, type ClutchSnap, type FeedMoment } from "./clutch";
 import { measureLag } from "./sync";
 import { qsEnhance, qsProbe } from "./quicksilver";
@@ -114,6 +114,7 @@ export type TheaterState = {
   livePaint: boolean;
   sameSeq: boolean;
   planeDim: boolean;
+  ghostStick: GhostStick;
   ingestAgentPlane: (plane: AgentPlane) => void;
   ingestMoment: (m: FeedMoment) => void;
   probeQuicksilver: () => Promise<void>;
@@ -231,6 +232,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
   livePaint: true,
   sameSeq: true,
   planeDim: false,
+  ghostStick: EMPTY_GHOST,
 
   setR2: (v) => set({ r2: Math.max(0, Math.min(1, v)), throwAttempt: false }),
   setLeft: (v) => set({ left: Math.max(0, Math.min(1, v)) }),
@@ -397,6 +399,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       livePaint: ing.paint,
       sameSeq: ing.sameSeq,
       planeDim: ing.planeDim,
+      ghostStick: ing.ghostStick,
       heatLine: licensed,
       heatVetoed,
       scoreLine,

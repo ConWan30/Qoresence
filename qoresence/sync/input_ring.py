@@ -22,6 +22,8 @@ DEFAULT_CAPACITY = 4096
 DEFAULT_MAX_AGE_S = 5.0
 # Hold is "live" only while HID is still writing (controller throttles ~60 Hz)
 DEFAULT_HOLD_FRESH_MS = 80.0
+# ~3 s of analog poses at 60 Hz — Ghost Stick samples by delayed clock_ns
+_POSE_CAP = 180
 
 # Energy weights for simple activity score
 _WEIGHT = {
@@ -61,6 +63,17 @@ class InputEvent:
         return {k: v for k, v in d.items() if v is not None}
 
 
+@dataclass(frozen=True)
+class AnalogPose:
+    """One analog sample for Ghost Stick (lx/ly are -1..+1, +ly is down)."""
+
+    clock_ns: int
+    lx: float = 0.0
+    ly: float = 0.0
+    r2: float = 0.0
+    l2: float = 0.0
+
+
 @dataclass
 class HoldState:
     """Latest analog / digital hold (not an edge). clock_ns = last HID write."""
@@ -97,6 +110,7 @@ class InputRing:
         self._events: deque[InputEvent] = deque(maxlen=self._capacity)
         self._latest_buttons: list[str] = []
         self._hold = HoldState()
+        self._poses: deque[AnalogPose] = deque(maxlen=_POSE_CAP)
 
     def push(self, ev: InputEvent | dict[str, Any]) -> None:
         """Append an edge. Never raises into HID poll loop."""
@@ -135,22 +149,46 @@ class InputRing:
         left: float = 0.0,
         right: float = 0.0,
         buttons: list[str] | tuple[str, ...] | None = None,
+        lx: float = 0.0,
+        ly: float = 0.0,
     ) -> None:
         """Overwrite analog hold. Never raises into HID poll loop."""
         try:
             ts = int(clock_ns) if clock_ns and int(clock_ns) > 0 else time.monotonic_ns()
             btns = tuple(str(b) for b in buttons) if buttons is not None else None
+            r2_c = max(0.0, min(1.5, float(r2)))
+            l2_c = max(0.0, min(1.5, float(l2)))
+            lx_c = max(-1.0, min(1.0, float(lx)))
+            ly_c = max(-1.0, min(1.0, float(ly)))
             with self._lock:
                 self._hold = HoldState(
                     clock_ns=ts,
-                    r2=max(0.0, min(1.5, float(r2))),
-                    l2=max(0.0, min(1.5, float(l2))),
+                    r2=r2_c,
+                    l2=l2_c,
                     left=max(0.0, min(1.5, float(left))),
                     right=max(0.0, min(1.5, float(right))),
                     buttons=btns if btns is not None else tuple(self._latest_buttons[:8]),
                 )
+                self._poses.append(AnalogPose(clock_ns=ts, lx=lx_c, ly=ly_c, r2=r2_c, l2=l2_c))
         except Exception as e:
             log.debug("InputRing.set_hold failed: %s", e)
+
+    def pose_at(self, clock_ns: int, max_age_ms: float = DEFAULT_HOLD_FRESH_MS) -> AnalogPose | None:
+        """Latest pose with clock_ns <= target. None if missing or stale — no interpolate."""
+        target = int(clock_ns)
+        max_age_ns = int(max(1.0, float(max_age_ms)) * 1e6)
+        with self._lock:
+            best: AnalogPose | None = None
+            for p in self._poses:
+                if p.clock_ns <= target:
+                    best = p
+                else:
+                    break
+            if best is None:
+                return None
+            if target - best.clock_ns > max_age_ns:
+                return None
+            return best
 
     def hold(self) -> HoldState:
         with self._lock:
@@ -225,6 +263,7 @@ class InputRing:
             self._events.clear()
             self._latest_buttons.clear()
             self._hold = HoldState()
+            self._poses.clear()
 
     def stats(self) -> dict[str, Any]:
         with self._lock:
@@ -266,6 +305,8 @@ def set_hold(
     left: float = 0.0,
     right: float = 0.0,
     buttons: list[str] | tuple[str, ...] | None = None,
+    lx: float = 0.0,
+    ly: float = 0.0,
 ) -> None:
     """Module helper — best-effort analog hold for controller path."""
     try:
@@ -276,6 +317,8 @@ def set_hold(
             left=left,
             right=right,
             buttons=buttons,
+            lx=lx,
+            ly=ly,
         )
     except Exception:
         pass

@@ -176,6 +176,14 @@ class DeckState:
             # Last-good BGR is not an accepted LIVE frame.
             if not lp.paint:
                 video["has_frame"] = False
+            try:
+                from qoresence.sync.ghost_stick import snapshot_ghost_stick
+
+                out["ghost_stick"] = snapshot_ghost_stick(
+                    live_paint=lp, situation=self.situation
+                )
+            except Exception:
+                out["ghost_stick"] = {"enabled": False, "paint": False, "reason": "off"}
         except Exception:
             pass
         try:

@@ -1633,6 +1633,12 @@ def main():
         help="Enable A2A bus (Gemini scene ↔ DeepSeek chat via Quicksilver). "
         "Also QORESENCE_A2A=1. Live agents: QORESENCE_A2A_GEMINI=1 QORESENCE_A2A_DEEPSEEK=1.",
     )
+    parser.add_argument(
+        "--ghost-stick",
+        action="store_true",
+        help="Opt-in Ghost Stick overlay (DualSense locus delayed onto LIVE). "
+        "Default OFF. Also QORESENCE_GHOST_STICK=1.",
+    )
 
     # Trio-retina (w3bstream validation)
     parser.add_argument(
@@ -1827,6 +1833,14 @@ def main():
     # Scoreboard orientation override: env is authoritative for the extractor.
     if getattr(args, "scoreboard_home_left", False):
         os.environ["QORESENCE_SCOREBOARD_HOME_LEFT"] = "1"
+    if getattr(args, "ghost_stick", False):
+        os.environ["QORESENCE_GHOST_STICK"] = "1"
+        try:
+            from qoresence.sync.ghost_stick import set_ghost_stick_enabled
+
+            set_ghost_stick_enabled(True)
+        except Exception:
+            pass
 
     # Load community game profiles from profiles/ directory
     try:
