@@ -3,6 +3,7 @@ import { Separator } from "@/components/ui/separator";
 import { useTheater } from "@/lib/coupling/store";
 
 export function CouplingCard() {
+  const widgetsOk = useTheater((s) => s.livePaint && s.sameSeq && !s.planeDim);
   const phrase = useTheater((s) => s.phrase);
   const ticket = useTheater((s) => s.ticket);
   const ticketLive = useTheater((s) => s.ticketLive);
@@ -17,7 +18,7 @@ export function CouplingCard() {
   const heat = ticketLive ? "licensed" : heatVetoed ? "veto" : "quiet";
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+    <section className={"flex flex-col gap-3 rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]" + (widgetsOk ? "" : " opacity-0")}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
           Coupling

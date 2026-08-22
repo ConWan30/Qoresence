@@ -70,6 +70,7 @@ After UNKNOWN->FOOTBALL transition (play end), Deck shows 3s scrub bar with reti
 - **Motion:** spring(0.8s mass 0.9 damping 12) — ESPN lower-third, not PowerPoint. Ribbon heartbeat 0.9s during 2-min drill.
 - **Sound:** Optional 80ms tick at wp_swing >0.15, -22dB. Hear clutch without looking.
 - **A11y:** 7:1 contrast over field green (tested eye_verify.jpg mean 67.9). D-pad navigable.
+- **Dark Theater + Same-Seq:** LIVE never paints last-good BGR. Blank, `!has_frame`, title-presence not-play, or `widget.frame_seq != live.frame_seq` go dark; Plane Dim sleeps the board on menu/pause. See `docs/DARK_THEATER_SAME_SEQ.md`.
 
 ## UX While Playing (Controller in Hand)
 

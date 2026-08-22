@@ -164,6 +164,21 @@ class DeckState:
             "video": video,
         }
         try:
+            from qoresence.deck.live_paint import snapshot_live_paint
+
+            lp = snapshot_live_paint(self.situation)
+            video["paint"] = lp.paint
+            video["live_seq"] = lp.live_seq
+            video["widget_seq"] = lp.widget_seq
+            video["same_seq"] = lp.same_seq
+            video["plane_dim"] = lp.plane_dim
+            video["paint_reason"] = lp.reason
+            # Last-good BGR is not an accepted LIVE frame.
+            if not lp.paint:
+                video["has_frame"] = False
+        except Exception:
+            pass
+        try:
             from qoresence.vision.confirm_ticket import get_ticket_book
 
             out["confirm"] = get_ticket_book().mismatch()
@@ -256,14 +271,22 @@ def update_situation(situation: dict[str, Any], latency_ms: float | None = None)
         return
     import time as _t
 
-    _state.situation = situation
+    sit = dict(situation)
+    if sit.get("frame_seq") is None:
+        try:
+            from qoresence.monitor.frame_hub import get_frame_hub
+
+            sit["frame_seq"] = int(get_frame_hub().get_latest_stamp().get("seq") or 0)
+        except Exception:
+            sit["frame_seq"] = 0
+    _state.situation = sit
     _state.updated_ns = _t.monotonic_ns()
     if latency_ms is not None:
         _state.latency_ms = latency_ms
     _broadcast(
         {
             "type": "situation",
-            "payload": situation,
+            "payload": sit,
             "latency_ms": _state.latency_ms,
             "updated_ns": _state.updated_ns,
         }
@@ -624,12 +647,19 @@ def _resolve_live_fps(query_fps: float | None = None) -> float:
 
 
 def _read_live_jpeg() -> bytes:
-    """Latest HDMI JPEG, or empty bytes when nothing has been captured.
+    """Latest HDMI JPEG, or empty bytes when Dark Theater says do not paint.
 
-    Used by ``/live.jpg`` (Native Glass cinema pump). MJPEG (``/video``) still
-    falls back to ``_placeholder_jpeg`` so the multipart stream stays open;
-    a still-JPEG client must not treat that placeholder as a live frame.
+    Last-good JPEG is not returned. MJPEG (``/video``) may send a dark
+    placeholder to keep the multipart stream open; a still-JPEG client
+    must not treat that as a live frame.
     """
+    try:
+        from qoresence.deck.live_paint import snapshot_live_paint
+
+        if not snapshot_live_paint(_state.situation).paint:
+            return b""
+    except Exception:
+        pass
     try:
         from qoresence.vision.clip_buffer import get_latest_frame, get_latest_jpeg
 
@@ -677,13 +707,8 @@ async def _mjpeg_stream(fps: float = DEFAULT_LIVE_FPS):  # type: ignore[no-untyp
                 pass
             now = _time.monotonic()
             if now >= deadline:
-                # Timeout: still emit latest (or placeholder) to keep connection alive
-                try:
-                    fr = get_latest_frame()
-                    if fr is not None:
-                        jpg, last_seq = fr[0], fr[1]
-                except Exception:
-                    jpg = None
+                # Timeout: dark, never last-good BGR/JPEG.
+                jpg = None
                 break
             await asyncio.sleep(min(0.002, deadline - now))
         if not jpg:

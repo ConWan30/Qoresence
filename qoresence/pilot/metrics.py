@@ -61,13 +61,17 @@ def classify_freeze(
     deck_down: bool = False,
     health_err: bool = False,
     situation_timeout: bool = False,
+    last_good_live: bool = False,
 ) -> str:
     """Best-effort FREEZE owner. Fail soft — unknown is valid.
 
     card_stall: high video age and no frame progress.
     graph_stall: situation/timeline error while video looks healthy.
     deck_lock: health HTTP failed / DECK_DOWN.
+    last_good_live: Theater still showing a stale JPEG — not accepted LIVE.
     """
+    if last_good_live:
+        return "card_stall"
     if deck_down or health_err:
         return "deck_lock"
     age = None

@@ -111,6 +111,9 @@ export type TheaterState = {
   armShare: () => Promise<void>;
   wakePad: () => Promise<void>;
   ingestDeck: (ing: DeckIngest) => void;
+  livePaint: boolean;
+  sameSeq: boolean;
+  planeDim: boolean;
   ingestAgentPlane: (plane: AgentPlane) => void;
   ingestMoment: (m: FeedMoment) => void;
   probeQuicksilver: () => Promise<void>;
@@ -225,6 +228,9 @@ export const useTheater = create<TheaterState>((set, get) => ({
   lastClipName: "",
   lastClipError: "",
   framed: false,
+  livePaint: true,
+  sameSeq: true,
+  planeDim: false,
 
   setR2: (v) => set({ r2: Math.max(0, Math.min(1, v)), throwAttempt: false }),
   setLeft: (v) => set({ left: Math.max(0, Math.min(1, v)) }),
@@ -341,7 +347,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
       winProb: ing.winProb,
       gameTitle: ing.gameTitle,
     });
-    const board = sit || (ing.boardLocked ? boardLine(ing) : s.boardLine);
+    const widgetsOk = ing.paint && ing.sameSeq && !ing.planeDim;
+    const board = widgetsOk ? sit || (ing.boardLocked ? boardLine(ing) : s.boardLine) : "";
     if (ing.boardLocked && ing.homeScore != null && ing.awayScore != null) {
       if (!confirm || confirm.homeScore !== ing.homeScore || confirm.awayScore !== ing.awayScore) {
         confirm = mintConfirmTicket({
@@ -385,13 +392,16 @@ export const useTheater = create<TheaterState>((set, get) => ({
       coupling: ing.coupling,
       r2: ing.holdEnergy > 0 ? ing.holdEnergy : s.r2,
       pllLock: ing.pllLock,
-      hdmi: ing.hdmi,
+      hdmi: ing.paint ? ing.hdmi : "stale",
       videoAgeS: ing.videoAgeS,
+      livePaint: ing.paint,
+      sameSeq: ing.sameSeq,
+      planeDim: ing.planeDim,
       heatLine: licensed,
       heatVetoed,
       scoreLine,
       boardLine: board,
-      situation: sit || s.situation,
+      situation: widgetsOk ? sit || s.situation : "",
       gameTitle: ing.gameTitle || s.gameTitle,
       clutch,
       why,

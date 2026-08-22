@@ -22,6 +22,8 @@ Title-presence starts with that stack. An explicit `--game-profile` is pinned: a
 
 `claim==false` → `profile_id` is null (`no_claim_reason` set). Prefer no claim over an unstable title.
 
+Theater Plane Dim: menu / pause / overlay-rejected sleeps the scorebug. LIVE goes dark when title-presence is not play (`docs/DARK_THEATER_SAME_SEQ.md`).
+
 ## Feature OFF
 
 Incumbent `game_detected` timing is unchanged (no plane, no `title_presence` events).

@@ -11,6 +11,7 @@ const DRILLS: { id: DrillId; label: string; hint: string }[] = [
 ];
 
 export function Controls() {
+  const widgetsOk = useTheater((s) => s.livePaint && s.sameSeq && !s.planeDim);
   const r2 = useTheater((s) => s.r2);
   const left = useTheater((s) => s.left);
   const hdmi = useTheater((s) => s.hdmi);
@@ -28,7 +29,7 @@ export function Controls() {
   const padConnected = useTheater((s) => s.padConnected);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className={"flex flex-col gap-5" + (widgetsOk ? "" : " opacity-0")}>
       <div className="grid gap-4 sm:grid-cols-2">
         <HoldControl
           label={padConnected ? "R2 · DualSense" : "R2"}

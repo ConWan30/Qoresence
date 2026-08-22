@@ -37,6 +37,11 @@ export type DeckIngest = {
   awayTeam: string;
   fieldPos: string;
   why: string;
+  liveSeq: number;
+  widgetSeq: number;
+  sameSeq: boolean;
+  planeDim: boolean;
+  paint: boolean;
 };
 
 function asPhrase(raw: unknown): Phrase {
@@ -270,6 +275,17 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
   const clutch = pickClutch(m, snap, sit, coup);
   const ident = pickIdentity(m, snap, sit);
   const phrase = asPhrase(ctrl.phrase || coup.phrase);
+  const liveSeq = num(video.live_seq ?? video.hub_seq ?? video.seq ?? ctrl.frame_seq, 0);
+  const widgetSeq = num(sit.frame_seq ?? ctrl.frame_seq ?? coup.frame_seq, 0);
+  const planeDim = Boolean(video.plane_dim) || hdmi === "menu";
+  const sameSeq =
+    video.same_seq != null
+      ? Boolean(video.same_seq)
+      : liveSeq === 0 && widgetSeq === 0
+        ? true
+        : liveSeq > 0 && widgetSeq === liveSeq;
+  const paint = video.paint != null ? Boolean(video.paint) : hasFrame && !planeDim && sameSeq;
+  const widgetsOk = paint && sameSeq && !planeDim;
 
   const whyBits = [
     ident.title,
@@ -295,8 +311,8 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     bindKind: String(ctrl.last_bind_kind || coup.last_bind_kind || ""),
     hdmi,
     videoAgeS: age,
-    homeScore: board.home,
-    awayScore: board.away,
+    homeScore: widgetsOk ? board.home : null,
+    awayScore: widgetsOk ? board.away : null,
     quarter: board.quarter,
     down: board.down,
     distance: board.distance,
@@ -312,6 +328,11 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     awayTeam: ident.awayTeam,
     fieldPos: ident.fieldPos,
     why: whyBits.join(" · ") || "deck snapshot",
+    liveSeq,
+    widgetSeq,
+    sameSeq,
+    planeDim,
+    paint,
   };
 }
 
