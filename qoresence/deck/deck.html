@@ -51,6 +51,7 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opa
 #ghostBody.show{display:block}
 #player,#liveFeed,#liveRtc{position:absolute;inset:0;z-index:1;width:100%;height:100%;max-width:100%;max-height:100%;min-width:0;min-height:0;object-fit:contain;object-position:center;background:#000;display:none}
 body.mode-live #liveFeed{display:block}body.mode-live.webrtc-on #liveFeed{display:none}body.mode-live.webrtc-on #liveRtc{display:block}body.mode-replay #player{display:block}#liveRtc{background:#000}
+body.dark-theater #liveFeed,body.dark-theater #liveRtc{opacity:0}body.dark-theater #strip,body.dark-theater #ctrlStrip,body.dark-theater #ctrlPlane,body.dark-theater #ctrlDetail,body.dark-theater #ghostPad{opacity:0}
 .stageHud{position:absolute;z-index:3;color:var(--dim);font:700 9px/1 JetBrains Mono,monospace;letter-spacing:.12em;text-transform:uppercase;pointer-events:none}.stageHudTop{top:25px;left:30px}.stageHudBottom{right:30px;bottom:25px}.stageHud strong{color:var(--gold)}
 #playerEmpty{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;color:var(--muted);font:500 13px/1.5 Inter,sans-serif;text-align:center;padding:24px;pointer-events:none}
 #playerEmpty strong{color:var(--gold);font-size:17px;letter-spacing:-.02em}#playerWrap.has-video #playerEmpty{display:none}
@@ -508,6 +509,18 @@ function addMoment(p){
   if(feedCount) feedCount.textContent=String(feed.children.length).padStart(2,'0');
   return true;
 }
+function liveWidgetsOk(video){
+  const v=video||lastVideo||{};
+  if(v.plane_dim) return false;
+  if(v.paint===false) return false;
+  if(v.same_seq===false) return false;
+  return true;
+}
+function applyDarkTheater(video){
+  const v=video||{};
+  const dark=v.paint===false;
+  document.body.classList.toggle('dark-theater', dark);
+}
 function dash(v){ return (v==null||v==='')?'—':String(v); }
 function fmtNum(v, d){
   if(v==null||v==='') return '—';
@@ -536,6 +549,15 @@ function paintVideo(video){
 }
 function paintController(ctrl, sit){
   lastCtrl=ctrl||{};
+  if(!liveWidgetsOk(lastVideo)){
+    paintLivePad({});
+    ctrlStrip.textContent='';
+    ctrlStrip.classList.add('wait');
+    ctrlStrip.classList.remove('sync-ok','sync-bad');
+    if(ctrlDetail) ctrlDetail.innerHTML='';
+    if(ctrlPlane) ctrlPlane.innerHTML='';
+    return;
+  }
   paintLivePad(lastCtrl);
   const s=sit||{};
   const c=lastCtrl;
@@ -593,7 +615,9 @@ function paintController(ctrl, sit){
   }
 }
 function applySnap(snap,latMs){
-  if(snap && snap.situation && isLiveSit(snap.situation)){
+  applyDarkTheater(snap&&snap.video);
+  const widgets=liveWidgetsOk(snap&&snap.video);
+  if(snap && snap.situation && isLiveSit(snap.situation) && widgets){
     strip.textContent=fmt(snap.situation); strip.classList.remove('wait');
     const ageS = snap.video && snap.video.age_s!=null ? Number(snap.video.age_s) : null;
     if(ageS!=null && !Number.isNaN(ageS)){
@@ -605,9 +629,9 @@ function applySnap(snap,latMs){
     }
     if(mode==='live') t1.textContent='● LIVE';
   } else if(snap && snap.situation){
-    strip.textContent='On field for scorebug…'; strip.classList.add('wait');
+    strip.textContent=widgets?'On field for scorebug…':''; strip.classList.add('wait');
   }
-  if(snap && snap.video && (snap.video.has_frame || (snap.video.frames||0)>0)){
+  if(snap && snap.video && snap.video.paint!==false && (snap.video.has_frame || (snap.video.frames||0)>0)){
     if(mode==='live') markHasVideo(true);
   }
   paintVideo(snap&&snap.video);
