@@ -1,29 +1,33 @@
-body.qore-has-clip-dock{padding-bottom:132px}
+/* Overlay only — do not push the HDMI stage off-screen. */
+body.qore-has-clip-dock{padding-bottom:0}
 #qore-clip-dock{
-  position:fixed;left:0;right:0;bottom:0;z-index:2147483000;
-  display:flex;flex-direction:column;gap:8px;
-  padding:10px 12px 12px;background:linear-gradient(180deg,transparent,rgba(5,10,8,.94) 22%);
+  position:fixed;left:12px;right:12px;bottom:10px;z-index:2147483000;
+  display:flex;align-items:center;gap:6px;
+  max-width:min(72rem,calc(100vw - 24px));margin:0 auto;
+  padding:6px 8px;border-radius:999px;
+  background:rgba(5,10,8,.72);backdrop-filter:blur(10px);
   font-family:ui-sans-serif,system-ui,sans-serif;pointer-events:auto;
 }
-#qore-clip-dock .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+#qore-clip-dock .row{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;flex:0 0 auto}
 #qore-clip-dock button,#qore-clip-player button{
-  border:0;border-radius:999px;padding:8px 14px;font:700 11px/1 ui-monospace,monospace;
-  text-transform:uppercase;cursor:pointer;
+  border:0;border-radius:999px;padding:5px 10px;font:700 10px/1 ui-monospace,monospace;
+  text-transform:uppercase;cursor:pointer;white-space:nowrap;
 }
 #qore-clip-dock .live,#qore-clip-player .back{background:#c8f26a;color:#050a08}
 #qore-clip-dock .replay{background:#1b2a14;color:#c8f26a}
 #qore-clip-dock .make{background:#c8f26a;color:#050a08}
+#qore-clip-dock .toggle{background:#111;color:#c8f26a}
 #qore-clip-dock .tile{
-  display:flex;align-items:center;gap:8px;min-height:48px;min-width:220px;
-  border-radius:12px;padding:6px 10px;background:#111;color:#e8edf0;text-align:left;
+  display:flex;align-items:center;gap:4px;height:26px;min-width:0;
+  border-radius:999px;padding:0 8px;background:#111;color:#e8edf0;
 }
-#qore-clip-dock .tile .go{
-  width:34px;height:34px;border-radius:8px;background:#c8f26a;color:#050a08;
-  display:grid;place-items:center;font-size:14px;flex:0 0 auto;
+#qore-clip-dock .tile .go{display:none}
+#qore-clip-dock .tile small{display:none}
+#qore-clip-dock .tiles{
+  display:none;flex:1 1 auto;gap:4px;overflow-x:auto;min-width:0;
 }
-#qore-clip-dock .tile small{display:block;font:700 9px/1.2 ui-monospace,monospace;color:#c8f26a;letter-spacing:.08em}
-#qore-clip-dock .tiles{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
-#qore-clip-dock .meta{color:#c8f26a;font:700 10px/1.2 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase}
+#qore-clip-dock.open .tiles{display:flex}
+#qore-clip-dock .meta{color:#c8f26a;font:700 9px/1 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase}
 #qore-clip-player{
   display:none;position:absolute;inset:0;z-index:40;background:#000;
 }

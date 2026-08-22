@@ -38,8 +38,9 @@
       '<div class="row">' +
       '<button type="button" class="live" data-action="live">LIVE feed</button>' +
       '<button type="button" class="replay" data-action="replay">REPLAY last</button>' +
-      '<button type="button" class="make" data-action="clip">▶ Make HDMI Clip (30s)</button>' +
-      '<span class="meta" data-count>HDMI clips · 00</span></div>' +
+      '<button type="button" class="make" data-action="clip">▶ Clip 30s</button>' +
+      '<button type="button" class="toggle" data-action="toggle">Clips</button>' +
+      '<span class="meta" data-count>00</span></div>' +
       '<div class="tiles" data-tiles></div></div>',
   );
 
@@ -154,8 +155,11 @@
       b.className = "tile";
       b.setAttribute("data-clip-href", href);
       b.setAttribute("data-clip-name", name);
-      b.innerHTML =
-        '<span class="go">▶</span><span>' + name.replace(/[<>]/g, "") + "<small>replay in deck</small></span>";
+      const m = name.match(/hdmi_clip_(\d{8})_(\d{6})/i);
+      const stamp = m
+        ? m[2].slice(0, 2) + ":" + m[2].slice(2, 4) + ":" + m[2].slice(4, 6)
+        : "▶";
+      b.textContent = "▶ " + stamp;
       b.onclick = function (ev) {
         ev.preventDefault();
         ev.stopPropagation();
@@ -231,6 +235,7 @@
     if (t.getAttribute("data-action") === "live") goLive();
     if (t.getAttribute("data-action") === "replay") playClip(lastHref, lastName);
     if (t.getAttribute("data-action") === "clip") void makeClip();
+    if (t.getAttribute("data-action") === "toggle") dock.classList.toggle("open");
   });
   player.querySelector("[data-action=live]").onclick = function (ev) {
     ev.preventDefault();

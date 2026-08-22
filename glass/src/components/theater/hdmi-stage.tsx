@@ -94,7 +94,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
       data-stage-mode={stageMode}
       data-clip-owner="hdmi-stage"
       className={cn(
-        "relative overflow-hidden bg-surface",
+        "relative bg-surface",
         variant === "lens"
           ? "h-full min-h-0 w-full"
           : "rounded-xl shadow-[var(--shadow-border),var(--shadow-sync)]",
@@ -148,8 +148,8 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
         <LiveHealthGlyph health={health} />
         <GhostStickOverlay />
         <LensOverlay variant={variant} />
-        {variant === "deck" ? <StageClipDock /> : null}
       </div>
+      {variant === "deck" ? <StageClipDock /> : null}
     </section>
   );
 }
