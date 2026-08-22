@@ -1646,12 +1646,12 @@ def create_app():  # type: ignore[no-untyped-def]
         return FileResponse(
             path,
             media_type=media,
-            filename=safe,
             content_disposition_type="inline",
             headers={
                 "Accept-Ranges": "bytes",
                 "Cache-Control": "no-cache",
                 "Access-Control-Allow-Origin": "*",
+                "Content-Disposition": f'inline; filename="{safe}"',
             },
         )
 

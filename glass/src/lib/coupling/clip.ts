@@ -53,6 +53,30 @@ export function clipHref(raw: string, origin?: string): string {
   return `${base}${path}`;
 }
 
+export function momentLooksLikeClip(m: {
+  url?: string;
+  name?: string;
+  icon?: string;
+  title?: string;
+  key?: string;
+}): boolean {
+  if (m.url || (m.name && CLIP_NAME.test(m.name))) return true;
+  if (m.icon === "🎬") return true;
+  if (m.key?.startsWith("clip:")) return true;
+  return /clip/i.test(m.title || "");
+}
+
+/** Chip href: own file first, else last HDMI clip for clip/clutch rows. */
+export function momentPlayHref(
+  m: { url?: string; name?: string; icon?: string; title?: string; key?: string },
+  lastClipUrl = "",
+): string {
+  const own = clipHref(m.url || m.name || "");
+  if (own) return own;
+  if (momentLooksLikeClip(m) || m.key?.startsWith("clutch:")) return clipHref(lastClipUrl);
+  return "";
+}
+
 function rec(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 }

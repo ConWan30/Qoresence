@@ -85,10 +85,18 @@ def test_last_clip_and_society_roles():
         drive_graph={"phase": "red_zone", "climax": {"score": 0.81, "best_label": "score_play"}},
     )
     assert pack["clip"]["last"]["path"] == "fast"
+    assert pack["clip"]["last"]["url"] == "/media/clips/hdmi_clip_x.mp4"
     assert pack["coach"]["text"] == "Drive phase red_zone."
     assert pack["cut"]["title"] == "TOUCHDOWN"
     assert pack["cut"]["t_s_in"] == 4.0
     assert pack["drive"]["climax"] == 0.81
+
+
+def test_failed_clip_moment_is_not_last_clip():
+    pack = build_companion(
+        moments=[{"title": "CLIP failed — buffer empty", "action": "clip", "reason": "wait for HDMI frames"}]
+    )
+    assert pack["clip"]["last"] is None
 
 
 def test_does_not_invent_unlocked_score_in_may_say():

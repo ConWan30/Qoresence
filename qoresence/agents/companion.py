@@ -104,6 +104,14 @@ def _last_clip(moments: list[Any], last_moment: dict[str, Any] | None) -> dict[s
         name = str(m.get("name") or "")
         if not url and name:
             url = f"/media/clips/{name}"
+        if not url:
+            blob = f"{m.get('reason') or ''} {m.get('path') or ''} {name}"
+            hit = re.search(r"hdmi_clip_[\w.\-]+\.(mp4|avi)", blob, flags=re.I)
+            if hit:
+                name = hit.group(0)
+                url = f"/media/clips/{name}"
+        if not url:
+            continue
         return {
             "title": title[:80],
             "path": path,

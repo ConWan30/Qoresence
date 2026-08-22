@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clipHref, clipPublicPath, clipSeconds, parseClipResult, shouldClip } from "../src/lib/coupling/clip.ts";
+import { clipHref, clipPublicPath, clipSeconds, momentPlayHref, parseClipResult, shouldClip } from "../src/lib/coupling/clip.ts";
 import { parseFeedMoment } from "../src/lib/coupling/clutch.ts";
 
 test("clips on climax and high worth, not quiet", () => {
@@ -72,4 +72,13 @@ test("clutchbot moment with url+name is a playable media path", () => {
   assert.equal(m!.name, "hdmi_clip_live.mp4");
   assert.equal(m!.path, "fast");
   assert.match(clipHref(m!.url || ""), /\/media\/clips\/hdmi_clip_live\.mp4$/);
+});
+
+test("clutch chip without url still plays last HDMI clip", () => {
+  const href = momentPlayHref(
+    { key: "clutch:window:red zone", title: "CLUTCH WINDOW · red zone", icon: "⚡" },
+    "http://127.0.0.1:8765/media/clips/hdmi_clip_live.mp4",
+  );
+  assert.equal(href, "http://127.0.0.1:8765/media/clips/hdmi_clip_live.mp4");
+  assert.equal(momentPlayHref({ key: "chat:hello", title: "nice throw" }, href), "");
 });

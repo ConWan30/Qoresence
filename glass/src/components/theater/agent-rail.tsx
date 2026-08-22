@@ -52,15 +52,14 @@ export function AgentRail() {
         )}
       >
         {clipOpen ? (
-          <a
-            href={clipOpen}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             data-clip-href={clipOpen}
-            className="text-live no-underline hover:underline"
+            className="text-left text-live hover:underline"
+            onClick={() => useTheater.getState().playClip(clipOpen, companion.lastClip?.name)}
           >
             {companionDutyLine(companion)}
-          </a>
+          </button>
         ) : (
           companionDutyLine(companion)
         )}

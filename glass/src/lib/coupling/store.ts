@@ -31,7 +31,7 @@ import { boardLine, situationLine, EMPTY_GHOST, type DeckIngest, type GhostStick
 import { clutchAdvanced, scoreClutch, QUIET_CLUTCH, type ClutchSnap, type FeedMoment } from "./clutch";
 import { measureLag } from "./sync";
 import { qsEnhance, qsProbe } from "./quicksilver";
-import { clipHref, clipSeconds, requestDeckClip, shouldClip } from "./clip";
+import { clipHref, clipSeconds, momentLooksLikeClip, requestDeckClip, shouldClip } from "./clip";
 
 let qsAt = 0;
 let qsKey = "";
@@ -130,6 +130,7 @@ export type TheaterState = {
   ghostStick: GhostStick;
   ingestAgentPlane: (plane: AgentPlane) => void;
   ingestMoment: (m: FeedMoment) => void;
+  playClip: (url: string, name?: string) => void;
   probeQuicksilver: () => Promise<void>;
   requestEnhance: () => Promise<void>;
   requestClip: () => Promise<void>;
@@ -518,17 +519,47 @@ export const useTheater = create<TheaterState>((set, get) => ({
       if (shouldClip(clutch.kind, ing.clipWorth)) void get().requestClip();
     }
   },
+  playClip: (url, name) => {
+    const href = clipHref(url || name || "");
+    if (!href) return;
+    const file = name || href.replace(/\\/g, "/").split("/").pop() || "";
+    set({ lastClipUrl: href, lastClipName: file || get().lastClipName, lastClipError: "" });
+  },
   ingestMoment: (m) => {
     const s = get();
-    if (s.moments.some((x) => x.key === m.key)) return;
+    const row = { url: "", name: "", ...m };
+    const href = clipHref(row.url || row.name || "");
+    const existing = s.moments.find((x) => x.key === m.key);
+    if (existing) {
+      if (!href || existing.url) return;
+      const now = Date.now();
+      const moments = s.moments.map((x) => {
+        if (x.key === m.key || (!x.url && (momentLooksLikeClip(x) || (x.key.startsWith("clutch:") && now - x.at < 30000)))) {
+          return { ...x, url: row.url || href, name: row.name || x.name };
+        }
+        return x;
+      });
+      set({
+        moments,
+        lastClipUrl: href || s.lastClipUrl,
+        lastClipName: row.name || s.lastClipName,
+      });
+      return;
+    }
     if (m.key.startsWith("chat:")) {
       const dup = s.moments.find((x) => x.key === m.key && Date.now() - x.at < 120000);
       if (dup) return;
     }
-    const row = { url: "", name: "", ...m };
-    const href = clipHref(row.url || row.name || "");
+    const now = Date.now();
+    const backfilled = href
+      ? s.moments.map((x) =>
+          !x.url && (momentLooksLikeClip(x) || (x.key.startsWith("clutch:") && now - x.at < 30000))
+            ? { ...x, url: row.url || href, name: row.name || x.name }
+            : x,
+        )
+      : s.moments;
     set({
-      moments: [row, ...s.moments].slice(0, 20),
+      moments: [row, ...backfilled].slice(0, 20),
       lastClipUrl: href || s.lastClipUrl,
       lastClipName: href ? row.name || row.url.replace(/\\/g, "/").split("/").pop() || s.lastClipName : s.lastClipName,
     });

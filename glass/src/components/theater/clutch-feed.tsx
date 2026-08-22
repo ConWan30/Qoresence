@@ -1,4 +1,4 @@
-import { clipHref } from "@/lib/coupling/clip";
+import { clipHref, momentPlayHref } from "@/lib/coupling/clip";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
@@ -7,7 +7,9 @@ export function ClutchFeed() {
   const moments = useTheater((s) => s.moments);
   const lastClipUrl = useTheater((s) => s.lastClipUrl);
   const lastClipName = useTheater((s) => s.lastClipName);
+  const playClip = useTheater((s) => s.playClip);
   const live = clutch.kind !== "quiet";
+  const playerSrc = lastClipUrl ? clipHref(lastClipUrl) : "";
 
   return (
     <section className="flex flex-col gap-2 rounded-xl bg-surface p-3 shadow-[var(--shadow-border)] sm:p-4">
@@ -31,16 +33,16 @@ export function ClutchFeed() {
       </div>
       {moments.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          Watching HDMI + DualSense + scorebug. Fast chat, score locks, and clips land here —
-          new MP4s play in this panel. Click a 🎬 chip or Open for a full tab.
+          Watching HDMI + DualSense + scorebug. Fast chat, score locks, and clips land here.
+          Click a chip to play the MP4 in this panel.
         </p>
       ) : (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {moments.slice(0, 8).map((e) => {
-            const href = e.url ? clipHref(e.url) : "";
+            const href = momentPlayHref(e, lastClipUrl);
             const className = cn(
-              "flex min-h-16 w-56 shrink-0 flex-col justify-center rounded-lg px-3 py-2 shadow-[var(--shadow-border)]",
-              href ? "cursor-pointer no-underline hover:opacity-90" : "",
+              "flex min-h-16 w-56 shrink-0 flex-col justify-center rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
+              href ? "cursor-pointer hover:opacity-90" : "",
               e.path === "confirm"
                 ? "border border-live/40 bg-live/10 text-live"
                 : e.path === "fast"
@@ -51,6 +53,7 @@ export function ClutchFeed() {
               <>
                 <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
                   {e.path ? `[${e.path}]` : "moment"} · {e.clock}
+                  {href ? " · play" : ""}
                 </p>
                 <p className="truncate text-xs">
                   {e.icon === "🎬" || href ? "🎬 " : ""}
@@ -62,17 +65,16 @@ export function ClutchFeed() {
               </>
             );
             return href ? (
-              <a
+              <button
                 key={e.key}
-                href={href}
-                target="_blank"
-                rel="noreferrer"
+                type="button"
                 data-clutch-path={e.path || "none"}
                 data-clip-href={href}
                 className={className}
+                onClick={() => playClip(href, e.name)}
               >
                 {inner}
-              </a>
+              </button>
             ) : (
               <article key={e.key} data-clutch-path={e.path || "none"} className={className}>
                 {inner}
@@ -81,11 +83,11 @@ export function ClutchFeed() {
           })}
         </div>
       )}
-      {lastClipUrl ? (
+      {playerSrc ? (
         <div className="overflow-hidden rounded-lg bg-bg" data-clip-follow="on">
           <video
-            key={clipHref(lastClipUrl)}
-            src={clipHref(lastClipUrl)}
+            key={playerSrc}
+            src={playerSrc}
             controls
             playsInline
             muted
@@ -94,15 +96,9 @@ export function ClutchFeed() {
             data-clip-player="follow"
             className="aspect-video w-full bg-black"
           />
-          <a
-            href={clipHref(lastClipUrl)}
-            target="_blank"
-            rel="noreferrer"
-            data-clip-href={clipHref(lastClipUrl)}
-            className="block px-3 py-2 font-mono text-[10px] tracking-wide text-live uppercase no-underline hover:underline"
-          >
-            open · {lastClipName || lastClipUrl.split("/").pop()}
-          </a>
+          <p className="px-3 py-2 font-mono text-[10px] tracking-wide text-live uppercase">
+            playing · {lastClipName || playerSrc.split("/").pop()}
+          </p>
         </div>
       ) : null}
     </section>
