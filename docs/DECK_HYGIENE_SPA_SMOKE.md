@@ -29,3 +29,5 @@ Wired in `.github/workflows/ci.yml` and `.github/workflows/ci-hardening.yml`.
 ## Out of scope here
 
 Lint/deck-smoke split and shell-only guard ride in follow-up hygiene steps.
+
+Refresh vendored SPA: `python scripts/vendor_glass_spa.py` (copies glass/dist -> qoresence/deck/glass_spa).

@@ -45,6 +45,9 @@ def _candidates() -> list[Path]:
 
 
 def resolve_spa() -> Path | None:
+    packaged = ROOT / "qoresence" / "deck" / "glass_spa"
+    if (packaged / "index.html").is_file():
+        return packaged
     for p in _candidates():
         if (p / "index.html").is_file():
             return p

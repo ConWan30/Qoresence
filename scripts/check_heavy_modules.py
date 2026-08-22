@@ -14,7 +14,11 @@ ROOT = Path(__file__).resolve().parents[1]
 # (relpath, min_bytes, required ClassDef names)
 GATES: list[tuple[str, int, tuple[str, ...]]] = [
     ("qoresence/agents/clutchbot.py", 20_000, ("ClutchBotAgent",)),
-    ("qoresence/agents/moment_scorer.py", 15_000, ("MomentScorer",)),
+    (
+        "qoresence/agents/moment_scorer.py",
+        15_000,
+        ("MomentScorer", "ClipWorthinessModel", "ScoredMoment"),
+    ),
 ]
 
 FAILURES: list[str] = []
@@ -36,8 +40,10 @@ def _class_names(tree: ast.AST) -> set[str]:
 def _is_docstring_stub(tree: ast.Module) -> bool:
     """True if module body is only a docstring and/or pass/ellipsis."""
     body = list(tree.body)
-    if body and isinstance(body[0], ast.Expr) and isinstance(
-        getattr(body[0], "value", None), (ast.Constant, ast.Str)
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(getattr(body[0], "value", None), (ast.Constant, ast.Str))
     ):
         body = body[1:]
     if not body:
@@ -45,9 +51,11 @@ def _is_docstring_stub(tree: ast.Module) -> bool:
     for node in body:
         if isinstance(node, ast.Pass):
             continue
-        if isinstance(node, ast.Expr) and isinstance(
-            getattr(node, "value", None), ast.Constant
-        ) and node.value.value is Ellipsis:
+        if (
+            isinstance(node, ast.Expr)
+            and isinstance(getattr(node, "value", None), ast.Constant)
+            and node.value.value is Ellipsis
+        ):
             continue
         return False
     return True
