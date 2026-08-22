@@ -527,13 +527,25 @@ _GLASS_HTML_NAMES = frozenset(
 )
 
 
+def _glass_candidates() -> list[pathlib.Path]:
+    here = pathlib.Path(__file__).resolve()
+    repo = here.parents[2]
+    return [repo / "glass" / "dist", here.with_name("glass_spa")]
+
+
 def _glass_dist() -> pathlib.Path:
-    return pathlib.Path(__file__).resolve().parents[2] / "glass" / "dist"
+    for p in _glass_candidates():
+        if (p / "index.html").is_file():
+            return p
+    return _glass_candidates()[0]
 
 
 def _glass_index_path() -> pathlib.Path | None:
-    p = _glass_dist() / "index.html"
-    return p if p.is_file() else None
+    for p in _glass_candidates():
+        idx = p / "index.html"
+        if idx.is_file():
+            return idx
+    return None
 
 
 def _html(name: str) -> str:
