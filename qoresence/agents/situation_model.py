@@ -165,8 +165,12 @@ class SituationModel:
             self._state.game_state = effective_game_state(
                 self._state.game_state,
                 locked=bool(self._state.score_vlm_locked),
-                quarter=self._state.quarter if self._state.quarter is not None else getattr(ctx, "quarter", None),
-                down=self._state.down if self._state.down is not None else getattr(ctx, "down", None),
+                quarter=self._state.quarter
+                if self._state.quarter is not None
+                else getattr(ctx, "quarter", None),
+                down=self._state.down
+                if self._state.down is not None
+                else getattr(ctx, "down", None),
             )
             note_game_state(self._state.game_state)
         except Exception:
@@ -199,7 +203,9 @@ class SituationModel:
             try:
                 from qoresence.profiles.cfb27_product import identity_compatible
 
-                if self._state.score_vlm_locked and (self._state.home_team or self._state.away_team):
+                if self._state.score_vlm_locked and (
+                    self._state.home_team or self._state.away_team
+                ):
                     id_ok = identity_compatible(
                         self._state.home_team,
                         self._state.away_team,

@@ -28,7 +28,9 @@ def test_extractor_empty_hud_stays_unlocked(monkeypatch):
     monkeypatch.delenv("QORESENCE_EASY_OCR", raising=False)
     monkeypatch.setattr(
         "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm",
-        lambda: type("V", (), {"schedule": lambda *a, **k: None, "get_last": lambda *a, **k: None})(),
+        lambda: type(
+            "V", (), {"schedule": lambda *a, **k: None, "get_last": lambda *a, **k: None}
+        )(),
     )
     ext = FootballScoreboardExtractor()
     ctx = VisualContext(game_category=GameCategory.FOOTBALL, game_profile="madden_27")

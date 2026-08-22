@@ -327,13 +327,9 @@ class NflRosterIndex:
         team_hint = poss_team.abbr if poss_team else None
         player, rule = self.match_player_explained(nameplate, jersey=jersey, team=team_hint)
         if player is None and home:
-            player, rule = self.match_player_explained(
-                nameplate, jersey=jersey, team=home.abbr
-            )
+            player, rule = self.match_player_explained(nameplate, jersey=jersey, team=home.abbr)
         if player is None and away:
-            player, rule = self.match_player_explained(
-                nameplate, jersey=jersey, team=away.abbr
-            )
+            player, rule = self.match_player_explained(nameplate, jersey=jersey, team=away.abbr)
         if player is None:
             player, rule = self.match_player_explained(nameplate, jersey=jersey)
 
@@ -396,8 +392,10 @@ def apply_roster_to_context(ctx: Any, parsed: dict[str, Any] | None = None) -> A
     left = parsed.get("left_team")
     right = parsed.get("right_team")
     if left or right:
-        home_left = bool(parsed.get("home_left")) if parsed.get("home_left") is not None else bool(
-            getattr(ctx, "home_left", False)
+        home_left = (
+            bool(parsed.get("home_left"))
+            if parsed.get("home_left") is not None
+            else bool(getattr(ctx, "home_left", False))
         )
         if home_left:
             home_raw = home_raw or left

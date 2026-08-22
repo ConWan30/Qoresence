@@ -417,7 +417,9 @@ def _fmt_freeze(rows: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def render_markdown(summary: dict[str, Any], *, session_jsonl: str = "", events_jsonl: str = "") -> str:
+def render_markdown(
+    summary: dict[str, Any], *, session_jsonl: str = "", events_jsonl: str = ""
+) -> str:
     freeze_n = int(summary.get("freeze_events") or 0)
     by_kind = summary.get("freeze_events_by_kind") or {}
     excluding = summary.get("freeze_events_excluding_deck_lock")

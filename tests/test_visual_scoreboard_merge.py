@@ -51,9 +51,7 @@ def test_cloud_analyze_merges_gemini_board_and_mints_ticket(monkeypatch):
     monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
 
     with tempfile.TemporaryDirectory() as td:
-        bus = RetinaEventBus(
-            session_id="t", jsonl_path=Path(td) / "e.jsonl", enable_ws=False
-        )
+        bus = RetinaEventBus(session_id="t", jsonl_path=Path(td) / "e.jsonl", enable_ws=False)
         ident = SessionAuthority.mint(session_id="t")
         rt = VisualRuntime(
             VisualConfig(enabled=True, game_category="football", game_profile="ncaa_football_27"),

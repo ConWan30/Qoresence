@@ -36,6 +36,7 @@ def resolve_max_nodes(explicit: int | None = None) -> int:
             n = DEFAULT_MAX_DRIVE_GRAPH_NODES
     return max(MIN_DRIVE_GRAPH_NODES, min(HARD_CEILING_DRIVE_GRAPH_NODES, n))
 
+
 # Kind families
 _FAST_KINDS = frozenset({"fast_chat", "fast_clip", "arm", "prediction_open"})
 _CONFIRM_KINDS = frozenset(
@@ -179,7 +180,7 @@ class DriveGraph:
     nodes_truncated: bool = False
     raw_node_count: int = 0
 
-    # ── builders ──────────────────────────────────────────────────────────
+    # ── builders ──────────────────────────────────────────
 
     @classmethod
     def from_events(
@@ -319,7 +320,7 @@ class DriveGraph:
                     if b.kind not in _CANCEL_KINDS:
                         self.edges.append(GraphEdge(a.node_id, b.node_id, "boosts", lag_ms=lag))
 
-    # ── analytics ─────────────────────────────────────────────────────────
+    # ── analytics ────────────────────────────────────────
 
     def phase(self) -> str:
         """empty|pressure|armed|open|resolved|cancelled|active"""
@@ -452,8 +453,10 @@ class DriveGraph:
                 roll_ns = n.clock_ns if roll_ns is None else min(roll_ns, n.clock_ns)
         if roll_ns is None:
             return
-        start = self.started_ns if self.started_ns is not None else (
-            self.nodes[0].clock_ns if self.nodes else 0
+        start = (
+            self.started_ns
+            if self.started_ns is not None
+            else (self.nodes[0].clock_ns if self.nodes else 0)
         )
         for n in self.nodes:
             if n.clock_ns >= roll_ns:
@@ -466,8 +469,10 @@ class DriveGraph:
         self.mark_stale_after_rollback()
         pairs = self.match_fast_confirm()
         pair_ids = {p.confirm_id for p in pairs} | {p.fast_id for p in pairs}
-        start = self.started_ns if self.started_ns is not None else (
-            self.nodes[0].clock_ns if self.nodes else 0
+        start = (
+            self.started_ns
+            if self.started_ns is not None
+            else (self.nodes[0].clock_ns if self.nodes else 0)
         )
         scored: list[tuple[float, GraphNode]] = []
         for n in self.nodes:

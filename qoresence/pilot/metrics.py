@@ -21,17 +21,13 @@ def score_pair(home: Any, away: Any) -> tuple[int, int] | None:
         return None
 
 
-def score_changed(
-    prev: tuple[int, int] | None, cur: tuple[int, int] | None
-) -> bool:
+def score_changed(prev: tuple[int, int] | None, cur: tuple[int, int] | None) -> bool:
     if prev is None or cur is None:
         return False
     return prev != cur
 
 
-def score_decreased(
-    prev: tuple[int, int] | None, cur: tuple[int, int] | None
-) -> bool:
+def score_decreased(prev: tuple[int, int] | None, cur: tuple[int, int] | None) -> bool:
     """Football scores only go up in a game. A drop is flicker, not a clip."""
     if prev is None or cur is None:
         return False
@@ -85,13 +81,14 @@ def classify_freeze(
             no_progress = int(frames) <= int(prev_frames)
         except (TypeError, ValueError):
             no_progress = False
-    if has_frame and age is not None and age > AGE_FREEZE_S and (
-        no_progress or prev_frames is None
+    if (
+        has_frame
+        and age is not None
+        and age > AGE_FREEZE_S
+        and (no_progress or prev_frames is None)
     ):
         return "card_stall"
-    if (graph_stall or situation_timeout) and (
-        age is None or age < 1.5
-    ) and has_frame:
+    if (graph_stall or situation_timeout) and (age is None or age < 1.5) and has_frame:
         return "graph_stall"
     if graph_stall or situation_timeout:
         return "graph_stall"

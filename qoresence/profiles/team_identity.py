@@ -40,7 +40,12 @@ class TeamLook:
     def keys(self) -> tuple[str, ...]:
         return tuple(
             k
-            for k in (_norm(self.abbr), _norm(self.name), _norm(self.nick), *(_norm(a) for a in self.aliases))
+            for k in (
+                _norm(self.abbr),
+                _norm(self.name),
+                _norm(self.nick),
+                *(_norm(a) for a in self.aliases),
+            )
             if k
         )
 
@@ -99,7 +104,9 @@ def match_team(
     logo_t = _tokens(logo)
     logo_teams = [t for t in load_teams() if _logo_hit(t, logo_t)]
     name_teams = [t for t in load_teams() if _name_hit(t, name_n)]
-    color_ok = lambda t: bool(color_t and any(c in color_t for c in t.colors))
+
+    def color_ok(t):
+        return bool(color_t and any(c in color_t for c in t.colors))
 
     if len(logo_teams) == 1:
         vis = logo_teams[0]
@@ -216,18 +223,24 @@ def apply_identity_to_context(ctx: Any, parsed: dict[str, Any]) -> None:
         )
     ):
         return
-    home_left = bool(parsed.get("home_left")) if parsed.get("home_left") is not None else bool(
-        getattr(ctx, "home_left", False)
+    home_left = (
+        bool(parsed.get("home_left"))
+        if parsed.get("home_left") is not None
+        else bool(getattr(ctx, "home_left", False))
     )
     bound = bind_scoreboard_sides(
         left_name=left_name,
         left_color=parsed.get("left_color"),
         left_logo=parsed.get("left_logo"),
-        left_score=parsed.get("left_score", parsed.get("away_score") if not home_left else parsed.get("home_score")),
+        left_score=parsed.get(
+            "left_score", parsed.get("away_score") if not home_left else parsed.get("home_score")
+        ),
         right_name=right_name,
         right_color=parsed.get("right_color"),
         right_logo=parsed.get("right_logo"),
-        right_score=parsed.get("right_score", parsed.get("home_score") if not home_left else parsed.get("away_score")),
+        right_score=parsed.get(
+            "right_score", parsed.get("home_score") if not home_left else parsed.get("away_score")
+        ),
         home_left=home_left,
     )
     ctx.home_team = bound["home_team"] or ctx.home_team

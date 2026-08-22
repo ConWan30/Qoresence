@@ -310,9 +310,9 @@ def test_live_jpeg_serves_hdmi_bytes(app, monkeypatch):
 
 
 def test_native_sw_never_caches_live_jpeg():
-    sw = (
-        pathlib.Path(__file__).resolve().parents[1] / "native" / "www" / "sw.js"
-    ).read_text(encoding="utf-8")
+    sw = (pathlib.Path(__file__).resolve().parents[1] / "native" / "www" / "sw.js").read_text(
+        encoding="utf-8"
+    )
     assert "/live.jpg" in sw
     assert "/video" in sw
     assert "/api/" in sw

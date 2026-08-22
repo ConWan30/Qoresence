@@ -218,7 +218,9 @@ class PilotMonitor:
             if locked is None and isinstance(sit, dict):
                 locked = sit.get("scoreboard_locked")
             pair = metrics.score_pair(home, away)
-            unlocked_s = metrics.unlocked_tick(pair is not None, locked, unlocked_s, self.interval_s)
+            unlocked_s = metrics.unlocked_tick(
+                pair is not None, locked, unlocked_s, self.interval_s
+            )
             if metrics.unlocked_flag(unlocked_s):
                 flags.append("SCORE_UNLOCKED_LONG")
             old_score = prev_score

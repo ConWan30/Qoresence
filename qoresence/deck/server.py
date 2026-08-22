@@ -499,7 +499,26 @@ def _fanout_stats() -> dict[str, int]:
 # ---------------------------------------------------------------------------
 
 
+_GLASS_HTML_NAMES = frozenset(
+    {"deck.html", "overlay.html", "studio.html", "mobile.html", "index.html"}
+)
+
+
+def _glass_dist() -> pathlib.Path:
+    return pathlib.Path(__file__).resolve().parents[2] / "glass" / "dist"
+
+
+def _glass_index_path() -> pathlib.Path | None:
+    p = _glass_dist() / "index.html"
+    return p if p.is_file() else None
+
+
 def _html(name: str) -> str:
+    """Prefer built Retina Deck glass SPA; fall back to qoresence/deck/*.html."""
+    if name in _GLASS_HTML_NAMES:
+        gi = _glass_index_path()
+        if gi is not None:
+            return gi.read_text(encoding="utf-8")
     p = pathlib.Path(__file__).with_name(name)
     if p.exists():
         return p.read_text(encoding="utf-8")
@@ -713,6 +732,11 @@ def create_app():  # type: ignore[no-untyped-def]
     from fastapi.responses import StreamingResponse
 
     app = FastAPI(title="Retina Deck", version="0.1.0")
+    _gassets = _glass_dist() / "assets"
+    if _gassets.is_dir():
+        from fastapi.staticfiles import StaticFiles
+
+        app.mount("/assets", StaticFiles(directory=str(_gassets)), name="glass-assets")
 
     @app.get("/health")
     async def health():  # type: ignore[no-untyped-def]
@@ -1683,8 +1707,19 @@ def create_app():  # type: ignore[no-untyped-def]
             _html("mobile.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
+    @app.get("/favicon.svg")
+    async def glass_favicon():  # type: ignore[no-untyped-def]
+        p = _glass_dist() / "favicon.svg"
+        if p.is_file():
+            return FileResponse(p, media_type="image/svg+xml")
+        return Response(status_code=404)
+
     @app.get("/")
     async def index():  # type: ignore[no-untyped-def]
+        if _glass_index_path() is not None:
+            return HTMLResponse(
+                _html("index.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+            )
         return HTMLResponse(
             "<!doctype html><meta charset=utf-8><title>Retina Deck</title>"
             "<body style='font:14px/1.5 system-ui;background:#0a0e14;color:#e8edf0;padding:24px'>"
@@ -1866,6 +1901,57 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
 
     class H(http.server.SimpleHTTPRequestHandler):
         def do_GET(self):  # type: ignore[no-untyped-def]
+            path_only = self.path.split("?", 1)[0]
+            if path_only.startswith("/assets/"):
+                rel = path_only[len("/assets/") :].replace("\\", "/")
+                parts = [p for p in rel.split("/") if p and p not in (".", "..")]
+                fp = (_glass_dist() / "assets").joinpath(*parts)
+                try:
+                    resolved = fp.resolve()
+                    root = _glass_dist().resolve()
+                    if root not in resolved.parents:
+                        raise ValueError("escape")
+                except Exception:
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                if resolved.is_file():
+                    data = resolved.read_bytes()
+                    ctype = {
+                        ".js": "application/javascript",
+                        ".css": "text/css",
+                        ".svg": "image/svg+xml",
+                        ".map": "application/json",
+                    }.get(resolved.suffix, "application/octet-stream")
+                    self.send_response(200)
+                    self.send_header("Content-Type", ctype)
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
+                self.send_response(404)
+                self.end_headers()
+                return
+            if path_only in (
+                "/",
+                "/index.html",
+                "/deck.html",
+                "/overlay.html",
+                "/studio.html",
+                "/studio",
+                "/mobile.html",
+                "/glass",
+            ):
+                gi = _glass_index_path()
+                if gi is not None:
+                    data = gi.read_bytes()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Cache-Control", "no-cache, must-revalidate")
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
             if self.path in ("/", "/index.html"):
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html")

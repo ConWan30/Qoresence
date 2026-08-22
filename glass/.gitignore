@@ -5,3 +5,4 @@ node_modules/
 *.key
 dist/
 .output/
+src/routeTree.gen.ts

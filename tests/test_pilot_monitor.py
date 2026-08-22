@@ -23,9 +23,7 @@ def test_freeze_consecutive_age():
 
 def test_classify_freeze_three_kinds():
     assert (
-        metrics.classify_freeze(
-            has_frame=True, age_s=8.0, frames=100, prev_frames=100
-        )
+        metrics.classify_freeze(has_frame=True, age_s=8.0, frames=100, prev_frames=100)
         == "card_stall"
     )
     assert (
@@ -148,8 +146,12 @@ def test_closeout_schema_v2_mixed_freeze_kinds():
         _freeze_row("t3", []),
         _freeze_row("t4", ["FREEZE", "GRAPH_STALL"], freeze_kind="graph_stall"),
         _freeze_row("t5", []),
-        _freeze_row("t6", ["FREEZE", "DECK_DOWN"], freeze_kind="deck_lock", err="timeout", has_frame=False),
-        _freeze_row("t7", ["FREEZE", "DECK_DOWN"], freeze_kind="deck_lock", err="timeout", has_frame=False),
+        _freeze_row(
+            "t6", ["FREEZE", "DECK_DOWN"], freeze_kind="deck_lock", err="timeout", has_frame=False
+        ),
+        _freeze_row(
+            "t7", ["FREEZE", "DECK_DOWN"], freeze_kind="deck_lock", err="timeout", has_frame=False
+        ),
         _freeze_row("t8", []),
         _freeze_row("t9", ["FREEZE"], freeze_kind="unknown"),
     ]

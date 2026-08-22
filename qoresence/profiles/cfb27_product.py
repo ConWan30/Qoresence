@@ -65,7 +65,12 @@ def _team_keys(name: Any, *, league: str | None = None) -> set[str]:
 
             for team in load_teams():
                 abbr = _norm(team.abbr)
-                names = {_norm(team.name), _norm(team.nick), *(_norm(a) for a in team.aliases), abbr}
+                names = {
+                    _norm(team.name),
+                    _norm(team.nick),
+                    *(_norm(a) for a in team.aliases),
+                    abbr,
+                }
                 if raw == abbr or raw in names:
                     keys.add(abbr)
                 elif len(raw) >= 5 and any(raw in n for n in names if len(n) >= 5):

@@ -34,10 +34,16 @@ def build_observation(
     glass = glass_link if isinstance(glass_link, dict) else {}
     silence: list[str] = []
 
-    title_locked = bool(sit.get("title_claim")) or str(sit.get("title_hysteresis") or "") == "locked"
+    title_locked = (
+        bool(sit.get("title_claim")) or str(sit.get("title_hysteresis") or "") == "locked"
+    )
     profile = sit.get("game_profile") or sit.get("game_title")
     if title_locked and profile:
-        title = {"claim": True, "profile": str(profile), "hysteresis": sit.get("title_hysteresis") or "locked"}
+        title = {
+            "claim": True,
+            "profile": str(profile),
+            "hysteresis": sit.get("title_hysteresis") or "locked",
+        }
     else:
         title = {"claim": False, "profile": None, "hysteresis": sit.get("title_hysteresis") or None}
         if sit.get("title_hysteresis") == "overlay-rejected":
@@ -66,7 +72,11 @@ def build_observation(
             "frame_seq": coup.get("frame_seq") or vid.get("seq"),
         }
     else:
-        pad = {"phrase": None, "coupling": None, "frame_seq": coup.get("frame_seq") or vid.get("seq")}
+        pad = {
+            "phrase": None,
+            "coupling": None,
+            "frame_seq": coup.get("frame_seq") or vid.get("seq"),
+        }
         silence.append("no_coupling")
 
     lan = bool(glass.get("lan"))

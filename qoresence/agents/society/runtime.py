@@ -175,7 +175,9 @@ class SocietyRuntime:
             return ""
         return self.qs.complete(system, user, model=self.config.model_reason)
 
-    def tick(self, packet: AgentPacket | None = None, *, roles: tuple[str, ...] | None = None) -> list[AgentReceipt]:
+    def tick(
+        self, packet: AgentPacket | None = None, *, roles: tuple[str, ...] | None = None
+    ) -> list[AgentReceipt]:
         """One pass. Safe without start(). Rules-only if no key."""
         packet = packet or build_packet()
         want = roles or self.config.roles

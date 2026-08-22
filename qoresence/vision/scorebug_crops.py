@@ -8,7 +8,7 @@ the white full-width HUD strip measures y=0.9361–0.9375 .. 1.00
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 # (x1, x2, y1, y2) normalized. CFB list is byte-stable vs prior _ocr_tokens.
 CFB_SCOREBUG_CROPS: tuple[tuple[float, float, float, float], ...] = (

@@ -90,7 +90,9 @@ class ImuRing:
         if not window:
             return None
         baseline = (
-            sum(s.gyro_mag for s in prior) / len(prior) if prior else sum(s.gyro_mag for s in window) / len(window)
+            sum(s.gyro_mag for s in prior) / len(prior)
+            if prior
+            else sum(s.gyro_mag for s in window) / len(window)
         )
         best: ImuSample | None = None
         best_excess = 0.0

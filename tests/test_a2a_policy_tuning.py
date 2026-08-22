@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import time
-
 from qoresence.a2a.policy import A2APolicy
 from qoresence.a2a.types import ChatProposal
 
@@ -16,6 +14,7 @@ def test_cooldown_lowered_from_45s():
     """Default cooldown should be 25s, not the old 45s."""
     # Reset env to default
     import os
+
     os.environ.pop("QORESENCE_A2A_CHAT_COOLDOWN_S", None)
     os.environ.pop("QORESENCE_A2A_DUPLICATE_WINDOW_S", None)
     p = A2APolicy()
@@ -71,6 +70,7 @@ def test_near_duplicate_requires_40_char_match():
 def test_cooldown_env_override():
     """QORESENCE_A2A_CHAT_COOLDOWN_S should override default."""
     import os
+
     old = os.environ.get("QORESENCE_A2A_CHAT_COOLDOWN_S")
     try:
         os.environ["QORESENCE_A2A_CHAT_COOLDOWN_S"] = "60.0"

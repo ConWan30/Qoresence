@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from qoresence.core import EventType, SourceLobe
 from qoresence.core.types import BaseEvent
-from qoresence.lobes.outcome import OutcomeRuntime
 from qoresence.core.unified_config import OutcomeConfig
+from qoresence.lobes.outcome import OutcomeRuntime
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
 
 
@@ -30,14 +30,14 @@ class _FakeBus:
 
 
 def _football_ctx(**kw):
-    defaults = dict(
-        game_category=GameCategory.FOOTBALL,
-        game_state=GameState.GAMEPLAY,
-        confidence=0.9,
-        home_score=17,
-        away_score=17,
-        quarter=2,
-    )
+    defaults = {
+        "game_category": GameCategory.FOOTBALL,
+        "game_state": GameState.GAMEPLAY,
+        "confidence": 0.9,
+        "home_score": 17,
+        "away_score": 17,
+        "quarter": 2,
+    }
     defaults.update(kw)
     return VisualContext(**defaults)
 
@@ -51,17 +51,27 @@ def test_heartbeat_emitted_on_stable_state():
 
     # First visual context — syncs state, no heartbeat yet (prev_context is None)
     ctx1 = _football_ctx()
-    rt._on_event(BaseEvent(
-        session_id="s", clock_ns=1, source_lobe=SourceLobe.VISUAL,
-        type=EventType.VISUAL_CONTEXT, payload=ctx1.to_dict(),
-    ))
+    rt._on_event(
+        BaseEvent(
+            session_id="s",
+            clock_ns=1,
+            source_lobe=SourceLobe.VISUAL,
+            type=EventType.VISUAL_CONTEXT,
+            payload=ctx1.to_dict(),
+        )
+    )
 
     # Second visual context — same scores, no state change
     bus.events.clear()
-    rt._on_event(BaseEvent(
-        session_id="s", clock_ns=2, source_lobe=SourceLobe.VISUAL,
-        type=EventType.VISUAL_CONTEXT, payload=ctx1.to_dict(),
-    ))
+    rt._on_event(
+        BaseEvent(
+            session_id="s",
+            clock_ns=2,
+            source_lobe=SourceLobe.VISUAL,
+            type=EventType.VISUAL_CONTEXT,
+            payload=ctx1.to_dict(),
+        )
+    )
 
     heartbeats = [e for e in bus.events if e.type == EventType.HEARTBEAT]
     assert len(heartbeats) == 1
@@ -78,10 +88,15 @@ def test_heartbeat_not_emitted_on_menu():
 
     ctx = _football_ctx(game_state=GameState.MENU)
     bus.events.clear()
-    rt._on_event(BaseEvent(
-        session_id="s", clock_ns=1, source_lobe=SourceLobe.VISUAL,
-        type=EventType.VISUAL_CONTEXT, payload=ctx.to_dict(),
-    ))
+    rt._on_event(
+        BaseEvent(
+            session_id="s",
+            clock_ns=1,
+            source_lobe=SourceLobe.VISUAL,
+            type=EventType.VISUAL_CONTEXT,
+            payload=ctx.to_dict(),
+        )
+    )
     assert not any(e.type == EventType.HEARTBEAT for e in bus.events)
 
 
@@ -93,17 +108,27 @@ def test_score_change_still_emits_outcome_event_and_heartbeat():
     rt.start()
 
     ctx1 = _football_ctx(home_score=17, away_score=17)
-    rt._on_event(BaseEvent(
-        session_id="s", clock_ns=1, source_lobe=SourceLobe.VISUAL,
-        type=EventType.VISUAL_CONTEXT, payload=ctx1.to_dict(),
-    ))
+    rt._on_event(
+        BaseEvent(
+            session_id="s",
+            clock_ns=1,
+            source_lobe=SourceLobe.VISUAL,
+            type=EventType.VISUAL_CONTEXT,
+            payload=ctx1.to_dict(),
+        )
+    )
 
     bus.events.clear()
     ctx2 = _football_ctx(home_score=24, away_score=17)
-    rt._on_event(BaseEvent(
-        session_id="s", clock_ns=2, source_lobe=SourceLobe.VISUAL,
-        type=EventType.VISUAL_CONTEXT, payload=ctx2.to_dict(),
-    ))
+    rt._on_event(
+        BaseEvent(
+            session_id="s",
+            clock_ns=2,
+            source_lobe=SourceLobe.VISUAL,
+            type=EventType.VISUAL_CONTEXT,
+            payload=ctx2.to_dict(),
+        )
+    )
 
     outcomes = [e for e in bus.events if e.type == EventType.OUTCOME_EVENT]
     heartbeats = [e for e in bus.events if e.type == EventType.HEARTBEAT]

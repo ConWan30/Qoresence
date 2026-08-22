@@ -182,11 +182,40 @@ def _format_bits(mask: int) -> int:
 def _draw_format(m: list[list[int]], mask: int) -> None:
     bits = _format_bits(mask)
     size = len(m)
-    pos_a = [(8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (8, 7), (8, 8),
-             (7, 8), (5, 8), (4, 8), (3, 8), (2, 8), (1, 8), (0, 8)]
-    pos_b = [(size - 1, 8), (size - 2, 8), (size - 3, 8), (size - 4, 8), (size - 5, 8),
-             (size - 6, 8), (size - 7, 8), (8, size - 8), (8, size - 7), (8, size - 6),
-             (8, size - 5), (8, size - 4), (8, size - 3), (8, size - 2), (8, size - 1)]
+    pos_a = [
+        (8, 0),
+        (8, 1),
+        (8, 2),
+        (8, 3),
+        (8, 4),
+        (8, 5),
+        (8, 7),
+        (8, 8),
+        (7, 8),
+        (5, 8),
+        (4, 8),
+        (3, 8),
+        (2, 8),
+        (1, 8),
+        (0, 8),
+    ]
+    pos_b = [
+        (size - 1, 8),
+        (size - 2, 8),
+        (size - 3, 8),
+        (size - 4, 8),
+        (size - 5, 8),
+        (size - 6, 8),
+        (size - 7, 8),
+        (8, size - 8),
+        (8, size - 7),
+        (8, size - 6),
+        (8, size - 5),
+        (8, size - 4),
+        (8, size - 3),
+        (8, size - 2),
+        (8, size - 1),
+    ]
     for i, (r, c) in enumerate(pos_a):
         m[r][c] = (bits >> (14 - i)) & 1
     for i, (r, c) in enumerate(pos_b):
@@ -240,7 +269,9 @@ def modules_to_svg(mod: list[list[int]], scale: int = 8, quiet: int = 4) -> str:
             if v:
                 x = (c + quiet) * scale
                 y = (r + quiet) * scale
-                parts.append(f'<rect x="{x}" y="{y}" width="{scale}" height="{scale}" fill="#000"/>')
+                parts.append(
+                    f'<rect x="{x}" y="{y}" width="{scale}" height="{scale}" fill="#000"/>'
+                )
     parts.append("</svg>")
     return "".join(parts)
 

@@ -212,11 +212,7 @@ class A2AOrchestrator:
         must_fire, must_fire_pred = evaluate_must_fire(sit)
         # Edge-trigger only. last_outcome_event is sticky on the snapshot, so a
         # lingering "score_changed" must not zero the interval on every drive tick.
-        mf_key = (
-            (must_fire_pred, str(sit.get("last_outcome_event") or ""))
-            if must_fire
-            else None
-        )
+        mf_key = (must_fire_pred, str(sit.get("last_outcome_event") or "")) if must_fire else None
         if must_fire and mf_key == self._last_must_fire_key:
             must_fire = False
             must_fire_pred = None
@@ -499,9 +495,9 @@ class A2AOrchestrator:
         self._recent_norms.append((now, n))
         self._recent_norms = [(t, s) for t, s in self._recent_norms if now - t < 300.0][-20:]
 
-    # ──────────────────────────────────────────────────────────────────────────
+    # ──────────────────────────────────────────────────────────
     # EVIDENCE CHAIN (Trio Principle 4)
-    # ──────────────────────────────────────────────────────────────────────────
+    # ──────────────────────────────────────────────────────────
 
     def _build_evidence(
         self,

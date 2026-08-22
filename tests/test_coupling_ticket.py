@@ -15,12 +15,16 @@ from qoresence.sync.coupling_ticket import (
 
 
 def test_idle_does_not_mint():
-    assert mint_coupling_ticket(
-        clock_ns=1, frame_seq=1, phrase="IDLE", coupling=0.0, hold_energy=0.0
-    ) is None
-    assert mint_coupling_ticket(
-        clock_ns=1, frame_seq=1, phrase="HUDDLE", coupling=0.1, hold_energy=0.0
-    ) is None
+    assert (
+        mint_coupling_ticket(clock_ns=1, frame_seq=1, phrase="IDLE", coupling=0.0, hold_energy=0.0)
+        is None
+    )
+    assert (
+        mint_coupling_ticket(
+            clock_ns=1, frame_seq=1, phrase="HUDDLE", coupling=0.1, hold_energy=0.0
+        )
+        is None
+    )
 
 
 def test_sprint_mints_and_licenses_heat():
@@ -66,21 +70,27 @@ def test_latest_live_expires():
 
 
 def test_sprint_without_pll_does_not_mint():
-    assert mint_coupling_ticket(
-        clock_ns=1,
-        frame_seq=1,
-        phrase="SPRINT",
-        coupling=0.4,
-        hold_energy=1.0,
-        pll_lock=False,
-        video_fresh=True,
-    ) is None
-    assert mint_coupling_ticket(
-        clock_ns=1,
-        frame_seq=1,
-        phrase="SPRINT",
-        coupling=0.4,
-        hold_energy=1.0,
-        pll_lock=True,
-        video_fresh=False,
-    ) is None
+    assert (
+        mint_coupling_ticket(
+            clock_ns=1,
+            frame_seq=1,
+            phrase="SPRINT",
+            coupling=0.4,
+            hold_energy=1.0,
+            pll_lock=False,
+            video_fresh=True,
+        )
+        is None
+    )
+    assert (
+        mint_coupling_ticket(
+            clock_ns=1,
+            frame_seq=1,
+            phrase="SPRINT",
+            coupling=0.4,
+            hold_energy=1.0,
+            pll_lock=True,
+            video_fresh=False,
+        )
+        is None
+    )
