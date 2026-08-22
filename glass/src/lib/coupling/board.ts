@@ -459,6 +459,16 @@ function parseGhostStick(raw: unknown, widgetsOk: boolean): GhostStick {
   };
 }
 
+
+/** Ordinal down & distance for Lockbug / Down Pill. Unlocked → "— & —". */
+export function downDistanceLabel(down: number | null, distance: number | null): string {
+  if (down == null) return "— & —";
+  const ord =
+    down === 1 ? "1st" : down === 2 ? "2nd" : down === 3 ? "3rd" : down === 4 ? "4th" : String(down);
+  const dist = distance != null ? String(distance) : "—";
+  return `${ord} & ${dist}`;
+}
+
 export function situationLine(ing: {
   homeScore: number | null;
   awayScore: number | null;

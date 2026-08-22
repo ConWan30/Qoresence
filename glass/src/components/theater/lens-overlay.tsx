@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 import { DualSensePad } from "./dualsense-pad";
+import { DownPill } from "./down-pill";
+import { GlanceGlyph } from "./glance-glyph";
+import { LockbugStrip } from "./lockbug-strip";
 
 export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
   const hdmi = useTheater((s) => s.hdmi);
@@ -18,15 +21,16 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
   const left = useTheater((s) => s.left);
   const r2Frame = useTheater((s) => s.r2Frame);
   const leftFrame = useTheater((s) => s.leftFrame);
-  const confirm = useTheater((s) => s.confirm);
-  const boardLine = useTheater((s) => s.boardLine);
-  const situation = useTheater((s) => s.situation);
   const clutch = useTheater((s) => s.clutch);
   const padConnected = useTheater((s) => s.padConnected);
   const padName = useTheater((s) => s.padName);
   const captureStatus = useTheater((s) => s.captureStatus);
   const captureLabel = useTheater((s) => s.captureLabel);
+  const livePaint = useTheater((s) => s.livePaint);
+  const sameSeq = useTheater((s) => s.sameSeq);
+  const planeDim = useTheater((s) => s.planeDim);
 
+  const widgetsOk = livePaint && sameSeq && !planeDim;
   const hdmiLabel =
     captureStatus === "live"
       ? `HDMI ${captureLabel || "LIVE"}`
@@ -43,8 +47,8 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
       ? `ticket ${ticket.ticketId.slice(0, 8)} · heat licensed`
       : "couple: none";
 
-  const board = situation || boardLine || (confirm ? `${confirm.homeScore}-${confirm.awayScore}` : null);
   const ribbonOpacity = 0.08 + Math.max(coupling, clutch.score) * 0.55;
+  const mobileCompact = variant === "lens";
 
   return (
     <div className="pointer-events-none absolute inset-0 flex flex-col">
@@ -55,17 +59,22 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
       />
 
       <div className="flex items-start justify-between gap-3 p-3 sm:p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Chip>{hdmiLabel}</Chip>
-          <Chip hot={padConnected}>
-            {padConnected ? `PAD ${padName}` : "PAD WAIT"}
-          </Chip>
-          <Chip hot={pllLock} cold={!pllLock}>
-            {pllLock ? "PLL LOCK" : "PLL OPEN"}
-          </Chip>
-          {board && <Chip>{board}</Chip>}
+        <div className="flex flex-col gap-2">
+          <GlanceGlyph compact={mobileCompact} />
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip>{hdmiLabel}</Chip>
+            <Chip hot={padConnected}>
+              {padConnected ? `PAD ${padName}` : "PAD WAIT"}
+            </Chip>
+            <Chip hot={pllLock} cold={!pllLock}>
+              {pllLock ? "PLL LOCK" : "PLL OPEN"}
+            </Chip>
+            <DownPill />
+          </div>
+          <LockbugStrip />
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {/* soft: lowercase c — F·C·L·P collision CLEAR vs Glance Glyph C */}
           <Chip>
             c {coupling.toFixed(2)}
             <span className="mx-1.5 text-subtle-foreground">·</span>m {motion.toFixed(1)}
@@ -87,7 +96,11 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
             phrase.live && ticketLive ? "opacity-100" : "opacity-50",
           )}
         >
-          {throwAttempt ? "—" : clutch.kind === "climax" || clutch.kind === "score_play" || clutch.kind === "window" ? clutch.label : "LIVE"}
+          {throwAttempt
+            ? "—"
+            : clutch.kind === "climax" || clutch.kind === "score_play" || clutch.kind === "window"
+              ? clutch.label
+              : "LIVE"}
         </p>
         {/* play-phrase lattice removed — DualSense floors OFF */}
         {throwAttempt ? (
@@ -104,7 +117,7 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
           </p>
         ) : (
           <p className="font-mono text-xs tabular-nums tracking-wide text-muted-foreground">
-            observation
+            {widgetsOk ? "observation" : "plane dark"}
           </p>
         )}
       </div>
@@ -122,7 +135,11 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
           data-heat={heatKey}
           className={cn(
             "max-w-[70%] truncate rounded-full px-3 py-2 font-mono text-xs tabular-nums tracking-wide shadow-[var(--shadow-border)]",
-            ticketLive ? "bg-live/15 text-live" : heatVetoed ? "bg-veto/15 text-veto" : "bg-surface/80 text-muted-foreground",
+            ticketLive
+              ? "bg-live/15 text-live"
+              : heatVetoed
+                ? "bg-veto/15 text-veto"
+                : "bg-surface/80 text-muted-foreground",
           )}
         >
           {pill}

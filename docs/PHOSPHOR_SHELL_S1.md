@@ -1,34 +1,24 @@
 # Phosphor Shell §1 — Glance Glyph + Lockbug Strip + Down Pill
 
-Shell-only placeholder until implement fills Theater.
+Observation-plane chrome on Retina Deck Theater (Clock Glass / Retina Core only).
 
-## Intent
+## Landed
 
-Phosphor Shell §1 lands three observation-plane chrome pieces on Retina Deck Theater:
+1. **Glance Glyph** (`glass/src/components/theater/glance-glyph.tsx`) — F·C·L·P ice `#4FE0D4` solid when on; text-subtle hollow/40% when off. `data-frame|couple|lock|plane="on|off"`. Mobile/Lens compact = F·L only. Fail-closed when `!sameSeq` / `plane_dim` / `!paint`. SYNC trail ice `SYNC {syncLagMs}ms` (never forced 0).
+2. **Lockbug Strip** (`lockbug-strip.tsx`) — unlocked `□–□ · — & —`; licensed `home–away · down & distance` only when widgets ok + board lock. Never paints unlocked OCR while dark.
+3. **Down Pill** (`down-pill.tsx`) — unlocked `— & —` muted; locked e.g. `3rd & 7` lime `#C6F26A` when ticket-coupled lock ok.
+4. **board.ts** — `downDistanceLabel`. **store.ts** — raw `homeScore`/`awayScore`/`down`/`distance`/`boardLocked` for fail-closed UI.
+5. Fixture: `glass/fixtures/phosphor-shell-s1.json`. Soft collision CLEAR: lens chip stays lowercase `c` for coupling.
 
-1. **Glance Glyph** — compact presence / lock affordance on the LIVE stage.
-2. **Lockbug Strip** — scoreboard / VLM lock strip that honors Same-Seq + Dark Theater paint gates.
-3. **Down Pill** — down-and-distance (or sport-equivalent) pill tied to locked board optics.
+## Wire
 
-## Scope (implement later; not this PR's commits yet)
-
-- `glass/src` Theater components (glyph, strip, pill) wired into the existing stage / situation chrome.
-- `glass/src/lib/coupling/board.ts` (and store ingest as needed) for any strip/pill fields from Deck snapshot.
-- Docs/allowlist updates OK in this shell track.
+- `lens-overlay.tsx` — Glyph + Lockbug + Down Pill on LIVE stage (`/live.jpg` only via hdmi-stage).
+- `command-bar.tsx` — Lockbug in chrome; no unlocked confirm-pair fallback.
 
 ## Out of scope
 
-- No new capture owner. No dual-open of the card.
-- No invented scores. No QorTroller / PoAC / *-truth.
-- Not Clutch Ring / Ghost Stick / full Phosphor Shell beyond §1.
-- Optional lobes stay OFF unless already on main.
+Clutch Ring, Seq License, moment genetics, keep-last rewrite, Rail resurrection, MJPEG-as-img, invent scores, secrets, dual-open, authorship. Amber=fast / lime=confirm clutch semantics → Qoreglass later.
 
-## Done when (for the implementer)
+## Done when
 
-- Glance Glyph, Lockbug Strip, and Down Pill render on `/deck.html` (and related Theater surfaces as designed).
-- Paint honors `paint_reason=ok` + Same-Seq; veto on `seq_skew` / `not_play` / `no_frame` / plane dim.
-- Tests + RETINA_DECK_UIUX notes for §1.
-
-## Status
-
-**Shell only.** Placeholder doc. Implement fills glass Theater + board.ts on this branch.
+Glyph + strip + pill on `/deck.html`; paint gates honored; hygiene markers (`score_vlm_locked`, `boardLocked`) survive vite+vendor.

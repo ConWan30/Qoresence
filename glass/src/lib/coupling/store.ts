@@ -65,6 +65,12 @@ export type TheaterState = {
   scoreLine: string;
   boardLine: string;
   situation: string;
+  /** Raw board digits for Phosphor Lockbug / Down Pill (fail-closed). */
+  homeScore: number | null;
+  awayScore: number | null;
+  down: number | null;
+  distance: number | null;
+  boardLocked: boolean;
   gameTitle: string;
   clutch: ClutchSnap;
   moments: FeedMoment[];
@@ -200,6 +206,11 @@ export const useTheater = create<TheaterState>((set, get) => ({
   scoreLine: licenseScoreText(SOFT.scoreLine, null),
   boardLine: "",
   situation: "",
+  homeScore: null,
+  awayScore: null,
+  down: null,
+  distance: null,
+  boardLocked: false,
   gameTitle: "",
   clutch: QUIET_CLUTCH,
   moments: [],
@@ -447,6 +458,12 @@ export const useTheater = create<TheaterState>((set, get) => ({
       heatVetoed,
       scoreLine,
       boardLine: board,
+      // Fail-closed raw digits: only locked board survives Dark Theater.
+      homeScore: widgetsOk || ing.boardLocked ? ing.homeScore : s.boardLocked ? s.homeScore : null,
+      awayScore: widgetsOk || ing.boardLocked ? ing.awayScore : s.boardLocked ? s.awayScore : null,
+      down: widgetsOk || ing.boardLocked ? ing.down : s.boardLocked ? s.down : null,
+      distance: widgetsOk || ing.boardLocked ? ing.distance : s.boardLocked ? s.distance : null,
+      boardLocked: widgetsOk ? Boolean(ing.boardLocked) : Boolean(ing.boardLocked) || s.boardLocked,
       situation: widgetsOk
         ? sit || s.situation
         : via === "poll" && opticsFresh
