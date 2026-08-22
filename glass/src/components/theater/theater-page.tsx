@@ -1,5 +1,4 @@
 import { AgentRail } from "@/components/theater/agent-rail";
-import { ClipRack } from "@/components/theater/clip-rack";
 import { ClutchFeed } from "@/components/theater/clutch-feed";
 import { CommandBar } from "@/components/theater/command-bar";
 import { ConnectCard } from "@/components/theater/connect-card";
@@ -16,10 +15,7 @@ export function TheaterPage() {
     <main className="min-h-dvh bg-bg text-fg">
       <CommandBar />
       <div className="mx-auto max-w-[88rem] px-4 py-4 sm:px-5 sm:py-5">
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)] xl:gap-5">
-          <HdmiStage variant="deck" />
-          <ClipRack />
-        </div>
+        <HdmiStage variant="deck" />
         <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] lg:gap-5">
           <ClutchFeed />
           <aside className="flex flex-col gap-4">

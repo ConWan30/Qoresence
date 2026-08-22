@@ -15,8 +15,8 @@ function clipStamp(name: string, mtime: number): string {
   return "";
 }
 
-/** Disk-backed HDMI clip rack — large play targets, not moment chips. */
-export function ClipRack() {
+/** Sticky chrome under the command bar — always on screen, disk-backed ▶ tiles. */
+export function ClipBar() {
   const clips = useTheater((s) => s.hdmiClips);
   const lastClipUrl = useTheater((s) => s.lastClipUrl);
   const lastClipName = useTheater((s) => s.lastClipName);
@@ -25,19 +25,67 @@ export function ClipRack() {
   const active = lastClipName || (playerSrc.split("/").pop() ?? "");
 
   return (
-    <section
+    <div
+      id="hdmi-clips"
       data-clip-rack={CLIP_RACK}
-      className="relative z-20 flex min-h-0 flex-col gap-3 rounded-xl bg-surface p-3 shadow-[var(--shadow-border)] pointer-events-auto sm:p-4 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-5.5rem)]"
+      className="relative z-30 border-t border-border bg-bg/90 px-3 py-2 pointer-events-auto sm:px-5"
     >
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-          HDMI clips
-        </h2>
-        <span className="font-mono text-[10px] tabular-nums text-subtle-foreground">
-          {String(clips.length).padStart(2, "0")} on disk
-        </span>
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <p className="shrink-0 font-mono text-[10px] tracking-[0.14em] text-live uppercase">
+          HDMI clips · {String(clips.length).padStart(2, "0")}
+        </p>
+        {clips.length === 0 ? (
+          <p className="shrink-0 text-xs text-muted-foreground">
+            waiting for <span className="font-mono">hdmi_clip_*.mp4</span> in clips/
+          </p>
+        ) : (
+          clips.slice(0, 16).map((c) => {
+            const on = c.name === active;
+            const stamp = clipStamp(c.name, c.mtime);
+            return (
+              <button
+                key={c.name}
+                type="button"
+                data-clip-href={c.href}
+                data-clip-name={c.name}
+                className={cn(
+                  "flex min-h-12 min-w-52 shrink-0 items-center gap-2 rounded-xl px-3 text-left shadow-[var(--shadow-border)]",
+                  on
+                    ? "bg-live text-primary-foreground shadow-[var(--shadow-live)]"
+                    : "bg-surface text-fg hover:shadow-[var(--shadow-border-hover)]",
+                )}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  playClip(c.href, c.name);
+                }}
+              >
+                <span
+                  className={cn(
+                    "grid size-9 shrink-0 place-items-center rounded-md font-display text-sm font-extrabold",
+                    on ? "bg-primary-foreground text-primary" : "bg-live text-primary-foreground",
+                  )}
+                >
+                  ▶
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-medium">{c.name}</span>
+                  <span
+                    className={cn(
+                      "block font-mono text-[10px] uppercase",
+                      on ? "text-primary-foreground/70" : "text-subtle-foreground",
+                    )}
+                  >
+                    {stamp ? `${stamp} · ` : ""}
+                    play
+                  </span>
+                </span>
+              </button>
+            );
+          })
+        )}
       </div>
-
       {playerSrc ? (
         <video
           key={playerSrc}
@@ -47,42 +95,42 @@ export function ClipRack() {
           muted
           autoPlay
           preload="metadata"
-          data-clip-player="rack"
-          className="aspect-video w-full rounded-lg bg-black"
+          data-clip-player="bar"
+          className="mt-2 max-h-48 w-full max-w-2xl rounded-lg bg-black"
         />
-      ) : (
-        <div className="grid aspect-video w-full place-items-center rounded-lg bg-bg px-4 text-center text-sm text-muted-foreground">
-          Clips land here as ClutchBot writes <span className="font-mono">hdmi_clip_*.mp4</span>
-        </div>
-      )}
-
-      {playerSrc ? (
-        <p className="font-mono text-[10px] tracking-wide text-live uppercase">
-          playing · {active}
-        </p>
       ) : null}
+    </div>
+  );
+}
 
+/** Foundry / tall column list — same disk source as ClipBar. */
+export function ClipRack() {
+  const clips = useTheater((s) => s.hdmiClips);
+  const lastClipName = useTheater((s) => s.lastClipName);
+  const playClip = useTheater((s) => s.playClip);
+
+  return (
+    <section
+      data-clip-rack={CLIP_RACK}
+      className="relative z-20 flex min-h-0 flex-col gap-2 rounded-xl bg-surface p-3 shadow-[var(--shadow-border)] pointer-events-auto sm:p-4"
+    >
+      <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+        HDMI clips · {String(clips.length).padStart(2, "0")}
+      </h2>
       {clips.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          No files in <span className="font-mono">clips/</span> yet. Keep playing — the rack
-          polls the Deck every second.
-        </p>
+        <p className="text-xs text-muted-foreground">No hdmi_clip_*.mp4 on disk yet.</p>
       ) : (
-        <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+        <ul className="flex flex-col gap-2">
           {clips.slice(0, 16).map((c) => {
-            const on = c.name === active;
-            const stamp = clipStamp(c.name, c.mtime);
+            const on = c.name === lastClipName;
             return (
               <li key={c.name}>
                 <button
                   type="button"
                   data-clip-href={c.href}
-                  data-clip-name={c.name}
                   className={cn(
-                    "flex min-h-16 w-full items-center gap-3 rounded-xl px-3 py-2 text-left shadow-[var(--shadow-border)]",
-                    on
-                      ? "bg-live text-primary-foreground shadow-[var(--shadow-live)]"
-                      : "bg-bg text-fg hover:shadow-[var(--shadow-border-hover)]",
+                    "flex min-h-14 w-full items-center gap-3 rounded-xl px-3 text-left shadow-[var(--shadow-border)]",
+                    on ? "bg-live text-primary-foreground" : "bg-bg text-fg",
                   )}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
@@ -91,26 +139,8 @@ export function ClipRack() {
                     playClip(c.href, c.name);
                   }}
                 >
-                  <span
-                    className={cn(
-                      "grid size-12 shrink-0 place-items-center rounded-lg font-display text-lg font-extrabold",
-                      on ? "bg-primary-foreground text-primary" : "bg-live text-primary-foreground",
-                    )}
-                  >
-                    ▶
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{c.name}</span>
-                    <span
-                      className={cn(
-                        "block font-mono text-[10px] tracking-wide uppercase",
-                        on ? "text-primary-foreground/70" : "text-subtle-foreground",
-                      )}
-                    >
-                      {stamp ? `${stamp} · ` : ""}
-                      play
-                    </span>
-                  </span>
+                  <span className="grid size-10 place-items-center rounded-lg bg-live text-primary-foreground">▶</span>
+                  <span className="truncate text-sm">{c.name}</span>
                 </button>
               </li>
             );

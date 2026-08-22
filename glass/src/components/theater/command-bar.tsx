@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
+import { ClipBar } from "./clip-rack";
 import { LockbugStrip } from "./lockbug-strip";
 
 const GLASSES = [
@@ -70,7 +71,8 @@ export function CommandBar() {
   const active = pathname;
 
   return (
-    <header className="flex flex-wrap items-center gap-3 border-b border-border bg-surface/80 px-4 py-3 backdrop-blur-xl sm:gap-4 sm:px-5">
+    <header className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur-xl">
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:gap-4 sm:px-5">
       <div className="flex items-center gap-2.5">
         <span className="grid size-8 place-items-center rounded-lg border border-live/50 font-mono text-xs font-extrabold text-live shadow-[var(--shadow-live)]">
           Q
@@ -144,6 +146,8 @@ export function CommandBar() {
           {captureStatus === "arming" ? "Arming…" : "Arm HDMI"}
         </Button>
       ) : null}
+    </div>
+    <ClipBar />
     </header>
   );
 }
