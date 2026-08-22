@@ -38,6 +38,7 @@ let qsKey = "";
 let clipAt = 0;
 
 export type HdmiMode = "live" | "menu" | "stale";
+export type StageMode = "live" | "replay";
 export type DrillId = "idle" | "sprint" | "veto" | "score" | null;
 export type ViewMode = "deck" | "lens";
 
@@ -107,6 +108,9 @@ export type TheaterState = {
   lastClipError: string;
   hdmiClips: HdmiClipFile[];
   clipFollow: boolean;
+  /** Legacy Deck: LIVE = HDMI JPEG, REPLAY = clip MP4 on the stage. */
+  stageMode: StageMode;
+  clipBusy: boolean;
   companion: AgentCompanion;
   framed: boolean;
   setR2: (v: number) => void;
@@ -134,9 +138,13 @@ export type TheaterState = {
   ingestMoment: (m: FeedMoment) => void;
   ingestClips: (clips: HdmiClipFile[]) => void;
   playClip: (url: string, name?: string) => void;
+  goLive: () => void;
+  goReplay: () => void;
   probeQuicksilver: () => Promise<void>;
   requestEnhance: () => Promise<void>;
   requestClip: () => Promise<void>;
+  /** Legacy `POST /api/clip` 30s, then play on the HDMI stage. */
+  requestHdmiClip: () => Promise<void>;
   tick: (prevR2: number) => void;
   runDrill: (id: DrillId) => void;
   mintConfirm: () => void;
@@ -255,6 +263,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
   lastClipError: "",
   hdmiClips: [],
   clipFollow: true,
+  stageMode: "live",
+  clipBusy: false,
   companion: EMPTY_COMPANION,
   framed: false,
   livePaint: true,
@@ -528,13 +538,20 @@ export const useTheater = create<TheaterState>((set, get) => ({
     const href = clipHref(url || name || "");
     if (!href) return;
     const file = name || href.replace(/\\/g, "/").split("/").pop() || "";
-    const newest = get().hdmiClips[0]?.name;
     set({
       lastClipUrl: href,
       lastClipName: file || get().lastClipName,
       lastClipError: "",
-      clipFollow: !file || !newest || file === newest,
+      clipFollow: false,
+      stageMode: "replay",
     });
+  },
+  goLive: () => set({ stageMode: "live", clipFollow: true }),
+  goReplay: () => {
+    const s = get();
+    const href = clipHref(s.lastClipUrl || s.hdmiClips[0]?.href || "");
+    if (!href) return;
+    get().playClip(href, s.lastClipName || s.hdmiClips[0]?.name);
   },
   ingestClips: (clips) => {
     const s = get();
@@ -542,14 +559,16 @@ export const useTheater = create<TheaterState>((set, get) => ({
     const same =
       clips.length === s.hdmiClips.length && clips.every((c, i) => c.name === s.hdmiClips[i]?.name);
     if (same) {
-      if (newest && !s.lastClipUrl) get().playClip(newest.href, newest.name);
-      else set({ hdmiClips: clips });
+      if (newest && !s.lastClipUrl) {
+        set({ hdmiClips: clips, lastClipUrl: newest.href, lastClipName: newest.name });
+      }
       return;
     }
-    set({ hdmiClips: clips });
-    if (newest && (s.clipFollow || !s.lastClipUrl)) {
-      get().playClip(newest.href, newest.name);
-    }
+    set({
+      hdmiClips: clips,
+      lastClipUrl: s.lastClipUrl || newest?.href || "",
+      lastClipName: s.lastClipName || newest?.name || "",
+    });
   },
   ingestMoment: (m) => {
     const s = get();
@@ -724,6 +743,38 @@ export const useTheater = create<TheaterState>((set, get) => ({
       icon: "🎬",
       at: Date.now(),
       url: out.url || abs,
+      name: out.name,
+    });
+  },
+  requestHdmiClip: async () => {
+    if (get().clipBusy) return;
+    set({ clipBusy: true, lastClipError: "" });
+    const out = await requestDeckClip(30, "/api/clip");
+    set({ clipBusy: false });
+    if (!out.ok) {
+      set({ lastClipError: out.error });
+      get().ingestMoment({
+        key: `clip:fail:${out.error}`,
+        title: `CLIP wait — ${out.error}`,
+        path: "",
+        reason: "hdmi ring",
+        clock: "now",
+        icon: "🎬",
+        at: Date.now(),
+      });
+      return;
+    }
+    const href = clipHref(out.url || out.name);
+    get().playClip(href || out.url, out.name);
+    get().ingestMoment({
+      key: `clip:${out.url || out.name}`,
+      title: `HDMI CLIP ${out.seconds}s`,
+      path: "confirm",
+      reason: out.name,
+      clock: "now",
+      icon: "🎬",
+      at: Date.now(),
+      url: out.url,
       name: out.name,
     });
   },

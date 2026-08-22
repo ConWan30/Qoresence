@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useTheater } from "@/lib/coupling/store";
@@ -32,6 +33,33 @@ export function CommandBar() {
   const syncLagMs = useTheater((s) => s.syncLagMs);
   const bindKind = useTheater((s) => s.bindKind);
   const armCapture = useTheater((s) => s.armCapture);
+  const stageMode = useTheater((s) => s.stageMode);
+  const lastClipUrl = useTheater((s) => s.lastClipUrl);
+  const clipBusy = useTheater((s) => s.clipBusy);
+  const goLive = useTheater((s) => s.goLive);
+  const goReplay = useTheater((s) => s.goReplay);
+  const requestHdmiClip = useTheater((s) => s.requestHdmiClip);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.key === "c" || e.key === "C") {
+        e.preventDefault();
+        if (!useTheater.getState().clipBusy) void useTheater.getState().requestHdmiClip();
+      }
+      if (e.key === "l" || e.key === "L") {
+        e.preventDefault();
+        useTheater.getState().goLive();
+      }
+      if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        useTheater.getState().goReplay();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const status = heatVetoed
     ? "heat veto"
@@ -136,16 +164,54 @@ export function CommandBar() {
         </div>
       </div>
 
-      {captureStatus !== "live" ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex rounded-full bg-bg p-1 shadow-[var(--shadow-border)]" data-mode-bar="hdmi">
+          <button
+            type="button"
+            data-action="stage-live"
+            aria-pressed={stageMode === "live"}
+            className={cn(
+              "inline-flex h-9 min-w-16 items-center justify-center rounded-full px-3 text-xs font-extrabold",
+              stageMode === "live" ? "bg-live text-primary-foreground shadow-[var(--shadow-live)]" : "text-muted-foreground",
+            )}
+            onClick={() => goLive()}
+          >
+            LIVE
+          </button>
+          <button
+            type="button"
+            data-action="stage-replay"
+            aria-pressed={stageMode === "replay"}
+            disabled={!lastClipUrl}
+            className={cn(
+              "inline-flex h-9 min-w-16 items-center justify-center rounded-full px-3 text-xs font-extrabold",
+              stageMode === "replay" ? "bg-live text-primary-foreground shadow-[var(--shadow-live)]" : "text-muted-foreground",
+            )}
+            onClick={() => goReplay()}
+          >
+            REPLAY
+          </button>
+        </div>
         <Button
           size="sm"
-          data-action="arm-hdmi"
-          onClick={() => void armCapture()}
-          disabled={captureStatus === "arming"}
+          data-action="make-hdmi-clip"
+          className="min-w-[11rem] bg-live text-primary-foreground shadow-[var(--shadow-live)]"
+          disabled={clipBusy}
+          onClick={() => void requestHdmiClip()}
         >
-          {captureStatus === "arming" ? "Arming…" : "Arm HDMI"}
+          {clipBusy ? "Encoding…" : "▶ Make HDMI Clip (30s)"}
         </Button>
-      ) : null}
+        {captureStatus !== "live" ? (
+          <Button
+            size="sm"
+            data-action="arm-hdmi"
+            onClick={() => void armCapture()}
+            disabled={captureStatus === "arming"}
+          >
+            {captureStatus === "arming" ? "Arming…" : "Arm HDMI"}
+          </Button>
+        ) : null}
+      </div>
     </div>
     <ClipBar />
     </header>

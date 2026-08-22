@@ -30,6 +30,24 @@ test("parses Deck export payload", () => {
   assert.equal(r.url, "/media/clips/hdmi_clip_abc.mp4");
 });
 
+test("parses legacy POST /api/clip nested clip object", () => {
+  const r = parseClipResult(
+    {
+      ok: true,
+      clip: {
+        path: "clips/hdmi_clip_20260822_143015.mp4",
+        name: "hdmi_clip_20260822_143015.mp4",
+        url: "/media/clips/hdmi_clip_20260822_143015.mp4",
+        duration_s: 30,
+      },
+    },
+    30,
+  );
+  assert.equal(r.ok, true);
+  assert.equal(r.name, "hdmi_clip_20260822_143015.mp4");
+  assert.equal(r.url, "/media/clips/hdmi_clip_20260822_143015.mp4");
+});
+
 test("moment feed keeps clip chips", () => {
   const m = parseFeedMoment({
     type: "moment",

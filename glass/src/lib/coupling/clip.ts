@@ -118,8 +118,9 @@ function rec(v: unknown): Record<string, unknown> {
 export function parseClipResult(raw: unknown, seconds: number): ClipResult {
   const d = rec(raw);
   const inner = rec(d.result);
-  const bag = Object.keys(inner).length ? { ...d, ...inner } : d;
-  const file = String(bag.path || bag.file || bag.clip || "");
+  const nested = rec(d.clip);
+  const bag = { ...d, ...inner, ...nested };
+  const file = String(bag.path || bag.file || "");
   const name = String(bag.name || file.split(/[/\\]/).pop() || "");
   const url = String(bag.url || (name ? `/media/clips/${name}` : ""));
   const ok = bag.ok !== false && Boolean(url || file);
@@ -133,13 +134,16 @@ export function parseClipResult(raw: unknown, seconds: number): ClipResult {
   };
 }
 
-export async function requestDeckClip(seconds = 10): Promise<ClipResult> {
+export async function requestDeckClip(
+  seconds = 10,
+  route: "/api/agent/clip" | "/api/clip" = "/api/agent/clip",
+): Promise<ClipResult> {
   const sec = Math.max(2, Math.min(30, seconds));
   const { getDeckOrigin, probeDeck } = await import("./qoresence-deck");
   const probe = await probeDeck();
   const origin = probe.up ? probe.origin : getDeckOrigin();
   try {
-    const res = await fetch(`${origin}/api/agent/clip`, {
+    const res = await fetch(`${origin}${route}`, {
       method: "POST",
       mode: "cors",
       cache: "no-store",

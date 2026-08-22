@@ -1,4 +1,4 @@
-import { CLIP_RACK, clipHref } from "@/lib/coupling/clip";
+import { CLIP_RACK } from "@/lib/coupling/clip";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
@@ -18,11 +18,10 @@ function clipStamp(name: string, mtime: number): string {
 /** Sticky chrome under the command bar — always on screen, disk-backed ▶ tiles. */
 export function ClipBar() {
   const clips = useTheater((s) => s.hdmiClips);
-  const lastClipUrl = useTheater((s) => s.lastClipUrl);
   const lastClipName = useTheater((s) => s.lastClipName);
+  const stageMode = useTheater((s) => s.stageMode);
   const playClip = useTheater((s) => s.playClip);
-  const playerSrc = lastClipUrl ? clipHref(lastClipUrl) : "";
-  const active = lastClipName || (playerSrc.split("/").pop() ?? "");
+  const active = lastClipName;
 
   return (
     <div
@@ -40,12 +39,13 @@ export function ClipBar() {
           </p>
         ) : (
           clips.slice(0, 16).map((c) => {
-            const on = c.name === active;
+            const on = stageMode === "replay" && c.name === active;
             const stamp = clipStamp(c.name, c.mtime);
             return (
               <button
                 key={c.name}
                 type="button"
+                title={c.href}
                 data-clip-href={c.href}
                 data-clip-name={c.name}
                 className={cn(
@@ -86,19 +86,6 @@ export function ClipBar() {
           })
         )}
       </div>
-      {playerSrc ? (
-        <video
-          key={playerSrc}
-          src={playerSrc}
-          controls
-          playsInline
-          muted
-          autoPlay
-          preload="metadata"
-          data-clip-player="bar"
-          className="mt-2 max-h-48 w-full max-w-2xl rounded-lg bg-black"
-        />
-      ) : null}
     </div>
   );
 }
