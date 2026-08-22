@@ -3,6 +3,7 @@
  *  THROW is forbidden. No authorship. */
 
 import type { AgentPlane } from "./agent-plane";
+import { companionDutyLine, type AgentCompanion } from "./companion.ts";
 import {
   heatSpeech,
   licenseScoreText,
@@ -115,6 +116,7 @@ export type AgentContext = {
   confirm: ConfirmTicket | null;
   pllLock: boolean;
   hdmiLive: boolean;
+  companion?: AgentCompanion | null;
 };
 
 export function evaluateAgents(ctx: AgentContext): AgentReceipt[] {
@@ -124,7 +126,7 @@ export function evaluateAgents(ctx: AgentContext): AgentReceipt[] {
     deepseek: deepseek(ctx),
     drive_coach: coach(ctx),
     spam_warden: warden(ctx),
-    ghost_editor: quiet("ghost_editor", "society wait"),
+    ghost_editor: ghost(ctx),
     pilot_auditor: quiet("pilot_auditor", "society wait"),
     prediction_steward: quiet("prediction_steward", "society wait"),
   };
@@ -269,6 +271,37 @@ function clutchbot(ctx: AgentContext): AgentReceipt {
       };
     }
   }
+  const duty = ctx.companion ? companionDutyLine(ctx.companion) : "";
+  if (ctx.companion?.armed) {
+    return {
+      role: "clutchbot",
+      action: "note",
+      text: duty,
+      model: "rules",
+      policyOk: true,
+      reason: "auto-clip armed",
+    };
+  }
+  if (ctx.companion?.lastClip?.title) {
+    return {
+      role: "clutchbot",
+      action: "note",
+      text: duty,
+      model: "rules",
+      policyOk: true,
+      reason: "auto-clip last",
+    };
+  }
+  if (ctx.companion?.autoClip !== false) {
+    return {
+      role: "clutchbot",
+      action: "note",
+      text: duty || "AUTO CLIP — watching for clutch",
+      model: "rules",
+      policyOk: true,
+      reason: "auto-clip duty",
+    };
+  }
   return quiet("clutchbot", "invisible when boring");
 }
 
@@ -308,7 +341,32 @@ function deepseek(ctx: AgentContext): AgentReceipt {
   return commitHeat("deepseek", text, ctx.ticketLive);
 }
 
+function ghost(ctx: AgentContext): AgentReceipt {
+  const cut = ctx.companion?.cut;
+  if (cut?.title || cut?.text) {
+    return {
+      role: "ghost_editor",
+      action: "note",
+      text: cut.text || `propose_cut ${cut.title}`,
+      model: "rules",
+      policyOk: true,
+      reason: "ghost propose_cut — operator exports",
+    };
+  }
+  return quiet("ghost_editor", "society wait");
+}
+
 function coach(ctx: AgentContext): AgentReceipt {
+  if (ctx.companion?.coach) {
+    return {
+      role: "drive_coach",
+      action: "note",
+      text: ctx.companion.coach,
+      model: "rules",
+      policyOk: true,
+      reason: "society drive coach",
+    };
+  }
   if (!ctx.hdmiLive || ctx.phrase === "IDLE" || (ctx.phrase === "HUDDLE" && !ctx.ticketLive)) {
     return quiet("drive_coach", "no drive");
   }

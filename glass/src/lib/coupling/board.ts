@@ -5,6 +5,7 @@ export const DECK_SCHEMA_VERSION = "qoresence-deck-v0";
 let _schemaMissingWarned = false;
 let _schemaMismatchWarned = false;
 
+import { parseCompanion, type AgentCompanion } from "./companion.ts";
 import type { Phrase } from "./engine";
 
 const PHRASES: readonly Phrase[] = ["IDLE", "HUDDLE", "SNAP", "SPRINT", "CUT", "RELEASE"];
@@ -58,6 +59,7 @@ export type DeckIngest = {
   /** ws = /retina; poll = /api/situation (sticky optics apply). */
   via: "ws" | "poll";
   ghostStick: GhostStick;
+  companion: AgentCompanion;
 };
 
 export type GhostStick = {
@@ -438,6 +440,7 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     videoOptics,
     via: "ws",
     ghostStick: parseGhostStick(snap.ghost_stick || m.ghost_stick, widgetsOk),
+    companion: parseCompanion(snap.companion || m.companion || m),
   };
 }
 

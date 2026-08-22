@@ -25,6 +25,7 @@ import {
   type AgentReceipt,
 } from "./agents";
 import { EMPTY_PLANE, type AgentPlane } from "./agent-plane";
+import { EMPTY_COMPANION, type AgentCompanion } from "./companion.ts";
 import { armCapture as armCaptureDevice, armShare as armShareDevice, getDeckSrc, thawDeck as thawDeckDevice, wakePad as wakePadDevice, sampleCapture, type CaptureStatus, type VideoDevice } from "./hardware";
 import { boardLine, situationLine, EMPTY_GHOST, type DeckIngest, type GhostStick } from "./board";
 import { clutchAdvanced, scoreClutch, QUIET_CLUTCH, type ClutchSnap, type FeedMoment } from "./clutch";
@@ -101,6 +102,7 @@ export type TheaterState = {
   lastClipUrl: string;
   lastClipName: string;
   lastClipError: string;
+  companion: AgentCompanion;
   framed: boolean;
   setR2: (v: number) => void;
   setLeft: (v: number) => void;
@@ -241,6 +243,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
   lastClipUrl: "",
   lastClipName: "",
   lastClipError: "",
+  companion: EMPTY_COMPANION,
   framed: false,
   livePaint: true,
   sameSeq: true,
@@ -417,6 +420,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
     }
     const scoreLine = confirm ? whyStripConfirm(confirm) : licenseScoreText(SOFT.scoreLine, confirm);
     const why = ing.why || `${whyStripConfirm(confirm)} · ${whyStripCoupling(liveTicket)} · phrase=${phrase.phrase}`;
+    const companion = ing.companion?.ok ? ing.companion : s.companion;
     const agents = mergeAgentPlane(evaluateAgents({
       phrase: phrase.phrase,
       phraseLive: phrase.live,
@@ -428,6 +432,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       confirm,
       pllLock: ing.pllLock,
       hdmiLive: ing.hdmi === "live",
+      companion,
     }), s.agentPlane, liveTicket !== null);
     if (phrase.phrase !== s.phrase.phrase) log = pushLog(log, "phrase", phrase.phrase);
     if (liveTicket && (!s.ticket || s.ticket.ticketId !== liveTicket.ticketId)) {
@@ -478,6 +483,9 @@ export const useTheater = create<TheaterState>((set, get) => ({
       clutch,
       why,
       confirm,
+      companion,
+      lastClipUrl: companion.lastClip?.url || s.lastClipUrl,
+      lastClipName: companion.lastClip?.name || s.lastClipName,
       agents,
       log,
       padConnected: ing.padConnected || s.padConnected,
@@ -658,6 +666,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
         confirm: s.confirm,
         pllLock: s.pllLock,
         hdmiLive: s.hdmi === "live",
+        companion: s.companion,
       }),
       plane,
       s.ticketLive,
@@ -766,6 +775,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       confirm: s.confirm,
       pllLock: s.pllLock,
       hdmiLive: live,
+      companion: s.companion,
     }), s.agentPlane, liveTicket !== null);
     if (agentsSignature(agents) !== agentsSignature(s.agents)) {
       const bot = agents.find((a) => a.role === "clutchbot");

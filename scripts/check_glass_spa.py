@@ -102,6 +102,10 @@ def check_spa(spa: Path) -> None:
             ok("JS contains videoOptics")
         else:
             ok("JS videoOptics absent (ok until optics SPA ships)")
+        if "agentCompanion" in blob:
+            ok("JS contains agentCompanion")
+        else:
+            ok("JS agentCompanion absent (ok until companion SPA ships)")
 
     for ref in css_refs:
         p = spa / ref.lstrip("/")
