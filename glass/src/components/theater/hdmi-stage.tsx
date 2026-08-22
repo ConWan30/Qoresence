@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { getCaptureVideo } from "@/lib/coupling/hardware";
 import { deckLiveJpgUrl } from "@/lib/coupling/qoresence-deck";
 import { useTheater } from "@/lib/coupling/store";
+import { GhostStickOverlay } from "./ghost-stick";
 import { LensOverlay } from "./lens-overlay";
 
 export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
@@ -96,6 +97,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
             HDMI freeze · pumping JPEG
           </p>
         ) : null}
+        <GhostStickOverlay />
         <LensOverlay variant={variant} />
       </div>
     </section>

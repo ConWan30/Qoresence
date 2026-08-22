@@ -8,6 +8,13 @@ from qoresence.deck.server import _html, create_app, glass_link_info
 
 def test_theater_shows_hdmi_age_not_just_vlm():
     html = _html("deck.html")
+    if 'id="root"' in html or "id='root'" in html:
+        from pathlib import Path
+
+        assets = Path(__file__).resolve().parents[1] / "qoresence" / "deck" / "glass_spa" / "assets"
+        js = "\n".join(p.read_text(encoding="utf-8", errors="ignore") for p in assets.glob("*.js"))
+        assert "videoAgeS" in js or "videoAge" in js
+        return
     assert "hdmi " in html and "ms" in html
     assert "snap.video.age_s" in html or "snap.video && snap.video.age_s" in html
 

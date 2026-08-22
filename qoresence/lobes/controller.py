@@ -621,12 +621,21 @@ class ControllerRuntime:
 
             r2 = (state.r2 / 255.0) if state.r2 > self._trigger_threshold else 0.0
             l2 = (state.l2 / 255.0) if state.l2 > self._trigger_threshold else 0.0
+
+            def _axis(v: int) -> float:
+                d = int(v) - 128
+                if abs(d) <= stick_floor:
+                    return 0.0
+                return max(-1.0, min(1.0, d / 127.0))
+
             _set_hold(
                 clock_ns=now_ns,
                 r2=r2,
                 l2=l2,
                 left=_mag(state.lx, state.ly),
                 right=_mag(state.rx, state.ry),
+                lx=_axis(state.lx),
+                ly=_axis(state.ly),
             )
         except Exception:
             pass

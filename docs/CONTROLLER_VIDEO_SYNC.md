@@ -44,6 +44,10 @@ Ghost Cut / Deck replay
   → pad lights + BODY -XXms precursor
   → Foundry ranks chapters by HID-near-score bind
   → receipt.metadata.binds = TEMPORAL (clip-relative)
+Ghost Stick (opt-in, default OFF)
+  → InputRing analog pose sampled at video_clock_ns − lag_center_ms
+  → Theater locus on LIVE only if Same-Seq + paint_reason=ok + coupling
+  → gone on idle HID / menu / seq_skew (no last-good pose)
 ```
 
 Default join is `lag_lo=0`, `lag_hi=120`, `lead=24` (one 60 fps frame of clock skew). Held R2 / stick still score after the onset edge leaves the window. Stale FrameHub stamps (`age_s > 200 ms`) decay coupling. Env: `QORESENCE_IVC_LAG_HI_MS`, `QORESENCE_IVC_LAG_LO_MS`, `QORESENCE_IVC_LEAD_MS`, `QORESENCE_IVC_HZ`.

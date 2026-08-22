@@ -42,6 +42,31 @@ export type DeckIngest = {
   sameSeq: boolean;
   planeDim: boolean;
   paint: boolean;
+  ghostStick: GhostStick;
+};
+
+export type GhostStick = {
+  enabled: boolean;
+  paint: boolean;
+  lx: number;
+  ly: number;
+  r2: number;
+  l2: number;
+  lagMs: number;
+  frameSeq: number;
+  reason: string;
+};
+
+export const EMPTY_GHOST: GhostStick = {
+  enabled: false,
+  paint: false,
+  lx: 0,
+  ly: 0,
+  r2: 0,
+  l2: 0,
+  lagMs: 80,
+  frameSeq: 0,
+  reason: "off",
 };
 
 function asPhrase(raw: unknown): Phrase {
@@ -333,6 +358,25 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     sameSeq,
     planeDim,
     paint,
+    ghostStick: parseGhostStick(snap.ghost_stick || m.ghost_stick, widgetsOk),
+  };
+}
+
+function parseGhostStick(raw: unknown, widgetsOk: boolean): GhostStick {
+  const g = rec(raw);
+  const enabled = Boolean(g.enabled);
+  const reason = firstStr(g, ["reason"]) || (enabled ? "idle" : "off");
+  const paint = enabled && widgetsOk && Boolean(g.paint) && reason === "ok";
+  return {
+    enabled,
+    paint,
+    lx: num(g.lx),
+    ly: num(g.ly),
+    r2: num(g.r2),
+    l2: num(g.l2),
+    lagMs: num(g.lag_ms ?? g.lagMs, 80),
+    frameSeq: num(g.frame_seq ?? g.frameSeq),
+    reason: paint ? "ok" : reason,
   };
 }
 
