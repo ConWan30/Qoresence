@@ -129,7 +129,9 @@ def _read_side(bin_full: np.ndarray, x0: int, x1: int) -> int | None:
     return None
 
 
-def read_score_pair(frame: np.ndarray, profile: str | object | None = None) -> tuple[int, int] | None:
+def read_score_pair(
+    frame: np.ndarray, profile: str | object | None = None
+) -> tuple[int, int] | None:
     """Return (home, away) or None. Away is left, home is right (ops convention)."""
     if frame is None or getattr(frame, "size", 0) == 0 or len(frame.shape) < 2:
         return None
