@@ -102,8 +102,14 @@ if _HAS_AIORTC:
                 st = get_latest_stamp()
                 if not st.get("has_frame"):
                     return None
+                try:
+                    from qoresence.deck.live_paint import snapshot_live_paint
+
+                    if not snapshot_live_paint().paint:
+                        return None
+                except Exception:
+                    pass
                 seq = int(st.get("seq") or 0)
-                # Always take latest (even if same seq once) so first frame paints
                 fr = get_latest()
                 if fr is None:
                     return None
@@ -128,10 +134,9 @@ if _HAS_AIORTC:
                 return bgr
 
         def _placeholder(self) -> np.ndarray:
+            # Dark Theater: true black. A gold bar was last-good-adjacent chrome.
             if self._black is None:
                 self._black = np.zeros((360, 640, 3), dtype=np.uint8)
-                # dim gold bar so user knows track is alive without frames
-                self._black[170:190, 200:440] = (40, 160, 200)
             return self._black
 
 

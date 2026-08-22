@@ -61,7 +61,9 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
     return () => window.clearInterval(id);
   }, []);
 
+  const livePaint = useTheater((s) => s.livePaint);
   const frozen = jpgOk && ageMs > 1500;
+  const showLive = jpgOk && livePaint && !frozen;
 
   return (
     <section
@@ -86,7 +88,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
           decoding="async"
           className={cn(
             "absolute inset-0 h-full w-full object-contain bg-bg",
-            jpgOk ? "opacity-100" : "opacity-0",
+            showLive ? "opacity-100" : "opacity-0",
           )}
         />
         {frozen ? (

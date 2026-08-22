@@ -1,6 +1,6 @@
 # Dark Theater + Same-Seq
 
-Placeholder for Grok Build on `feat/dark-theater-same-seq`. This file is not the implementation.
+Implemented in `qoresence/deck/live_paint.py`. Render rule, not a new lobe.
 
 ## Dark Theater
 `/deck.html` LIVE rides FrameHub/WebRTC like Mobile Glass (MJPEG fallback). Dark on `!has_frame`, blank/uniform frame, or title-presence not play. Never paint last-good BGR. Plane Dim sleeps the board on menu/pause.

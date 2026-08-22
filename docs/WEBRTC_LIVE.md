@@ -31,6 +31,7 @@ pip install -e ".[webrtc]"
 | `GET /video?fps=60` | MJPEG fallback |
 
 Deck Theater auto-tries WebRTC on LIVE, then falls back to MJPEG.  
+Dark Theater: no last-good BGR. Missing/blank/not-play/seq-skew frames are black (`live_paint.py`). Last-good JPEG is not an accepted LIVE sample for `freeze_events_excluding_deck_lock`.  
 **Mobile glass:** `http://127.0.0.1:8765/mobile.html` — same FrameHub track, phone is a view only. See `docs/MOBILE_GLASS.md`.
 
 ---

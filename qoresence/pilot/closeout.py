@@ -48,7 +48,8 @@ def summarize(
         fl = [str(x) for x in (rec.get("flags") or [])]
         for f in fl:
             flags[f] += 1
-        if "FREEZE" in fl:
+        last_good = rec.get("live_paint") is False and rec.get("has_frame")
+        if "FREEZE" in fl or last_good:
             if not prev_freeze:
                 freeze_events += 1
             prev_freeze = True
@@ -351,7 +352,8 @@ def freeze_classified(
     for rec in samples:
         flags = [str(x) for x in (rec.get("flags") or [])]
         frames = rec.get("frames")
-        if "FREEZE" not in flags:
+        last_good = rec.get("live_paint") is False and rec.get("has_frame")
+        if "FREEZE" not in flags and not last_good:
             in_storm = False
             prev_frames = frames
             continue
@@ -360,6 +362,7 @@ def freeze_classified(
             continue
         in_storm = True
         kind = rec.get("freeze_kind")
+        last_good = rec.get("live_paint") is False and rec.get("has_frame")
         if kind not in {"card_stall", "graph_stall", "deck_lock", "unknown"}:
             kind = classify_freeze(
                 has_frame=rec.get("has_frame"),
@@ -369,7 +372,10 @@ def freeze_classified(
                 graph_stall="GRAPH_STALL" in flags,
                 deck_down="DECK_DOWN" in flags,
                 health_err=bool(rec.get("err")),
+                last_good_live=bool(last_good),
             )
+        elif last_good and kind == "deck_lock":
+            kind = "card_stall"
         out.append(
             {
                 "ts": rec.get("ts"),

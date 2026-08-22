@@ -101,6 +101,41 @@ test("score_vlm_locked situation is an honest board", () => {
   assert.equal(boardLine(ing), "14-7 · Q3 1:30 · 1st & 10");
 });
 
+test("seq-skew ghosts digits so scorebug N cannot sit on frame N+k", () => {
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    situation: {
+      game_state: "gameplay",
+      home_score: 21,
+      away_score: 14,
+      score_vlm_locked: true,
+      frame_seq: 7,
+    },
+    video: { has_frame: true, live_seq: 10, widget_seq: 7, same_seq: false, paint: false, plane_dim: false },
+  });
+  assert.ok(ing);
+  assert.equal(ing.paint, false);
+  assert.equal(ing.sameSeq, false);
+  assert.equal(ing.homeScore, null);
+  assert.equal(ing.awayScore, null);
+});
+
+test("plane dim on menu sleeps the board", () => {
+  const ing = parseDeckMessage({
+    type: "situation",
+    payload: {
+      game_state: "menu",
+      home_score: 14,
+      away_score: 7,
+      score_vlm_locked: true,
+    },
+    video: { has_frame: true, paint: false, plane_dim: true, live_seq: 3, same_seq: true },
+  });
+  assert.ok(ing);
+  assert.equal(ing.planeDim, true);
+  assert.equal(ing.homeScore, null);
+});
+
 test("unlocked OCR pair is not a VLM lock", () => {
   const ing = parseDeckMessage({
     situation: { game_state: "gameplay", home_score: 21, away_score: 14 },
