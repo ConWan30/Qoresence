@@ -90,47 +90,19 @@ export function ClipBar() {
   );
 }
 
-/** On the 16:9 HDMI picture — cannot miss these ▶ tiles. */
+/** Clip picker under the 16:9 box. Does not own a player. */
 export function StageClipDock() {
   const clips = useTheater((s) => s.hdmiClips);
   const lastClipName = useTheater((s) => s.lastClipName);
   const stageMode = useTheater((s) => s.stageMode);
-  const clipBusy = useTheater((s) => s.clipBusy);
   const playClip = useTheater((s) => s.playClip);
-  const goLive = useTheater((s) => s.goLive);
-  const requestHdmiClip = useTheater((s) => s.requestHdmiClip);
 
   return (
     <div
-      data-clip-dock="stage"
-      className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-2 pb-2 pt-8"
+      data-clip-dock="picker"
+      className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 px-2 pb-2"
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          data-action="stage-live"
-          className={cn(
-            "rounded-full px-3 py-1.5 font-mono text-[10px] font-extrabold uppercase",
-            stageMode === "live" ? "bg-live text-primary-foreground" : "bg-surface/90 text-fg",
-          )}
-          onClick={() => goLive()}
-        >
-          LIVE
-        </button>
-        <button
-          type="button"
-          data-action="make-hdmi-clip"
-          disabled={clipBusy}
-          className="rounded-full bg-live px-3 py-1.5 font-mono text-[10px] font-extrabold text-primary-foreground uppercase"
-          onClick={() => void requestHdmiClip()}
-        >
-          {clipBusy ? "Encoding…" : "▶ Make HDMI Clip (30s)"}
-        </button>
-        <span className="font-mono text-[10px] tracking-wide text-white/80 uppercase">
-          HDMI clips · {String(clips.length).padStart(2, "0")}
-        </span>
-      </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {clips.length === 0 ? (
           <p className="text-xs text-white/70">No clip yet — tap Make HDMI Clip or wait for auto-cut.</p>

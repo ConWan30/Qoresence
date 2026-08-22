@@ -2,6 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { boardLine, parseDeckMessage, pickBoard, scorebugPair, situationLine } from "../src/lib/coupling/board.ts";
 
+test("snapshot video frames and pushes land on ingest", () => {
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    schema_version: "qoresence-deck-v0",
+    situation: { game_state: "gameplay" },
+    video: { has_frame: true, age_s: 0.12, frames: 440, pushes: 438 },
+  });
+  assert.ok(ing);
+  assert.equal(ing.videoAgeS, 0.12);
+  assert.equal(ing.videoFrames, 440);
+  assert.equal(ing.videoPushes, 438);
+});
+
 test("snapshot controller carries frame-clock DualSense pose", () => {
   const ing = parseDeckMessage({
     type: "snapshot",

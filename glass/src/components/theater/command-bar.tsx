@@ -3,7 +3,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
-import { ClipBar } from "./clip-rack";
 import { LockbugStrip } from "./lockbug-strip";
 
 const GLASSES = [
@@ -213,7 +212,6 @@ export function CommandBar() {
         ) : null}
       </div>
     </div>
-    <ClipBar />
     </header>
   );
 }

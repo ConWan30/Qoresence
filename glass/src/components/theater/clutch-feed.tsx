@@ -2,7 +2,7 @@ import { momentPlayHref } from "@/lib/coupling/clip";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
-/** Clutch / chat moments. HDMI files live on the Clip Rack. */
+/** Clutch / chat moments. Clicking a clip only asks the HDMI stage to replay. */
 export function ClutchFeed() {
   const clutch = useTheater((s) => s.clutch);
   const moments = useTheater((s) => s.moments);
@@ -32,7 +32,7 @@ export function ClutchFeed() {
       </div>
       {moments.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          Fast chat and score locks land here. HDMI files are the big ▶ tiles in HDMI clips.
+          Fast chat and score locks land here. Clip chips replay on the HDMI stage — LIVE kills the player.
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -60,8 +60,8 @@ export function ClutchFeed() {
                   </span>
                 </span>
                 {href ? (
-                  <span className="shrink-0 rounded-md bg-live px-2 py-1 font-mono text-[10px] font-extrabold text-primary-foreground uppercase">
-                    ▶ Play
+                  <span className="shrink-0 font-mono text-[10px] tracking-wide text-live uppercase">
+                    on stage
                   </span>
                 ) : null}
               </>
