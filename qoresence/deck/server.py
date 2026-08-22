@@ -229,7 +229,7 @@ def _situation_payload() -> dict[str, Any]:
         coup: dict[str, Any] = dict(get_last_coupling())
     except Exception:
         coup = {"imu_bodied": False, "coupling": 0.0, "binds": 0, "phrase": None}
-    ctrl = out.get("controller") if isinstance(out.get("controller"), dict) else {}
+    out.get("controller") if isinstance(out.get("controller"), dict) else {}
     # play-phrase DELETED — never emit IDLE/HUDDLE/SPRINT into situation
     coup["phrase"] = None
     coup["phrase_conf"] = 0.0
@@ -716,6 +716,7 @@ def _read_live_jpeg() -> bytes:
         pass
     try:
         import cv2
+
         from qoresence.monitor.frame_hub import get_latest
 
         frame = get_latest()

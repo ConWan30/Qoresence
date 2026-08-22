@@ -182,7 +182,8 @@ def test_ivc_lead_includes_slightly_after_frame(monkeypatch):
     assert payload["coupling"] > 0.0
 
 
-def test_ivc_sprint_hold_mints_coupling_ticket(monkeypatch):
+def test_ivc_sprint_hold_phrase_off_no_ticket(monkeypatch):
+    """Phrase lattice OFF: hold still couples, but no SPRINT mint."""
     from qoresence.sync.coupling_ticket import reset_coupling_book
     from qoresence.sync.lag_estimator import get_lag_estimator
     from qoresence.sync.play_phrase import note_game_state
@@ -203,10 +204,10 @@ def test_ivc_sprint_hold_mints_coupling_ticket(monkeypatch):
     ivc = InputVideoCoupler(bus=None)
     payload = ivc.tick_once()
     assert payload is not None
-    assert payload["phrase"] == "SPRINT"
+    assert payload["phrase"] == "IDLE"
     assert payload["pll_lock"] is True
-    assert payload["coupling_ticket_id"]
-    assert payload["hold_energy"] > 0.0
+    assert not payload["coupling_ticket_id"]
+    assert payload.get("coupling", 0) >= 0.0
 
 
 def test_ivc_sprint_without_pll_does_not_mint(monkeypatch):
@@ -227,7 +228,7 @@ def test_ivc_sprint_without_pll_does_not_mint(monkeypatch):
     ivc = InputVideoCoupler(bus=None)
     payload = ivc.tick_once()
     assert payload is not None
-    assert payload["phrase"] == "SPRINT"
+    assert payload["phrase"] == "IDLE"
     assert payload["pll_lock"] is False
     assert not payload["coupling_ticket_id"]
 

@@ -6,7 +6,6 @@ Observation plane only. Closed vocab, deterministic rules, no LLM.
 
 from __future__ import annotations
 
-import os
 import threading
 import time
 from typing import Any
