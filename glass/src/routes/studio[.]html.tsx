@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AgentRail } from "@/components/theater/agent-rail";
+import { ClipRack } from "@/components/theater/clip-rack";
 import { ClutchFeed } from "@/components/theater/clutch-feed";
 import { CommandBar } from "@/components/theater/command-bar";
 import { CouplingCard } from "@/components/theater/coupling-card";
@@ -15,9 +16,8 @@ function StudioPage() {
       <div className="mx-auto grid max-w-5xl gap-4 px-4 py-5 lg:grid-cols-2">
         <CouplingCard />
         <AgentRail />
-        <div className="lg:col-span-2">
-          <ClutchFeed />
-        </div>
+        <ClipRack />
+        <ClutchFeed />
       </div>
     </main>
   );

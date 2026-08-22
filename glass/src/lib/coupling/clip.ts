@@ -24,6 +24,17 @@ export function clipSeconds(kind: ClutchKind): number {
 
 const CLIP_NAME = /^hdmi_clip_[\w.\-]+\.(mp4|avi)$/i;
 
+/** Hygiene: Theater Clip Rack reads disk via GET /api/clips. */
+export const CLIP_RACK = "clipRackDisk";
+
+export type HdmiClipFile = {
+  name: string;
+  url: string;
+  href: string;
+  sizeBytes: number;
+  mtime: number;
+};
+
 /** Public /media/clips path from a Deck url, name, or local filesystem path. */
 export function clipPublicPath(raw: string): string {
   const s = String(raw || "").trim();
@@ -75,6 +86,29 @@ export function momentPlayHref(
   if (own) return own;
   if (momentLooksLikeClip(m) || m.key?.startsWith("clutch:")) return clipHref(lastClipUrl);
   return "";
+}
+
+export function parseHdmiClipList(raw: unknown, origin?: string): HdmiClipFile[] {
+  const bag = rec(raw);
+  const list = Array.isArray(bag.clips) ? bag.clips : Array.isArray(raw) ? raw : [];
+  const out: HdmiClipFile[] = [];
+  const seen = new Set<string>();
+  for (const item of list) {
+    const o = rec(item);
+    const path = clipPublicPath(String(o.url || o.name || o.path || ""));
+    const file = String(o.name || path.split("/").pop() || "").trim();
+    if (!path || !CLIP_NAME.test(file)) continue;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    out.push({
+      name: file,
+      url: path,
+      href: clipHref(path, origin),
+      sizeBytes: Number(o.size_bytes ?? o.sizeBytes) || 0,
+      mtime: Number(o.mtime) || 0,
+    });
+  }
+  return out;
 }
 
 function rec(v: unknown): Record<string, unknown> {

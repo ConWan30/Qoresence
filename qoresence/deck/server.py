@@ -1601,7 +1601,9 @@ def create_app():  # type: ignore[no-untyped-def]
                         root.glob("hdmi_clip_*.*"),
                         key=lambda x: x.stat().st_mtime,
                         reverse=True,
-                    )[:40]:
+                    ):
+                        if p.suffix.lower() not in {".mp4", ".avi"}:
+                            continue
                         items.append(
                             {
                                 "name": p.name,
@@ -1611,10 +1613,15 @@ def create_app():  # type: ignore[no-untyped-def]
                                 "mtime": p.stat().st_mtime,
                             }
                         )
+                        if len(items) >= 40:
+                            break
                 return items
 
             items = await asyncio.to_thread(_list_clips)
-            return JSONResponse({"ok": True, "clips": items})
+            return JSONResponse(
+                {"ok": True, "clips": items},
+                headers={"Access-Control-Allow-Origin": "*"},
+            )
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 

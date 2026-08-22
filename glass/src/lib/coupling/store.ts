@@ -31,7 +31,7 @@ import { boardLine, situationLine, EMPTY_GHOST, type DeckIngest, type GhostStick
 import { clutchAdvanced, scoreClutch, QUIET_CLUTCH, type ClutchSnap, type FeedMoment } from "./clutch";
 import { measureLag } from "./sync";
 import { qsEnhance, qsProbe } from "./quicksilver";
-import { clipHref, clipSeconds, momentLooksLikeClip, requestDeckClip, shouldClip } from "./clip";
+import { clipHref, clipSeconds, momentLooksLikeClip, requestDeckClip, shouldClip, type HdmiClipFile } from "./clip";
 
 let qsAt = 0;
 let qsKey = "";
@@ -105,6 +105,8 @@ export type TheaterState = {
   lastClipUrl: string;
   lastClipName: string;
   lastClipError: string;
+  hdmiClips: HdmiClipFile[];
+  clipFollow: boolean;
   companion: AgentCompanion;
   framed: boolean;
   setR2: (v: number) => void;
@@ -130,6 +132,7 @@ export type TheaterState = {
   ghostStick: GhostStick;
   ingestAgentPlane: (plane: AgentPlane) => void;
   ingestMoment: (m: FeedMoment) => void;
+  ingestClips: (clips: HdmiClipFile[]) => void;
   playClip: (url: string, name?: string) => void;
   probeQuicksilver: () => Promise<void>;
   requestEnhance: () => Promise<void>;
@@ -250,6 +253,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
   lastClipUrl: "",
   lastClipName: "",
   lastClipError: "",
+  hdmiClips: [],
+  clipFollow: true,
   companion: EMPTY_COMPANION,
   framed: false,
   livePaint: true,
@@ -523,7 +528,28 @@ export const useTheater = create<TheaterState>((set, get) => ({
     const href = clipHref(url || name || "");
     if (!href) return;
     const file = name || href.replace(/\\/g, "/").split("/").pop() || "";
-    set({ lastClipUrl: href, lastClipName: file || get().lastClipName, lastClipError: "" });
+    const newest = get().hdmiClips[0]?.name;
+    set({
+      lastClipUrl: href,
+      lastClipName: file || get().lastClipName,
+      lastClipError: "",
+      clipFollow: !file || !newest || file === newest,
+    });
+  },
+  ingestClips: (clips) => {
+    const s = get();
+    const newest = clips[0];
+    const same =
+      clips.length === s.hdmiClips.length && clips.every((c, i) => c.name === s.hdmiClips[i]?.name);
+    if (same) {
+      if (newest && !s.lastClipUrl) get().playClip(newest.href, newest.name);
+      else set({ hdmiClips: clips });
+      return;
+    }
+    set({ hdmiClips: clips });
+    if (newest && (s.clipFollow || !s.lastClipUrl)) {
+      get().playClip(newest.href, newest.name);
+    }
   },
   ingestMoment: (m) => {
     const s = get();

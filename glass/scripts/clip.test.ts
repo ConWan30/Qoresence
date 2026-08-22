@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clipHref, clipPublicPath, clipSeconds, momentPlayHref, parseClipResult, shouldClip } from "../src/lib/coupling/clip.ts";
+import {
+  CLIP_RACK,
+  clipHref,
+  clipPublicPath,
+  clipSeconds,
+  momentPlayHref,
+  parseClipResult,
+  parseHdmiClipList,
+  shouldClip,
+} from "../src/lib/coupling/clip.ts";
 import { parseFeedMoment } from "../src/lib/coupling/clutch.ts";
 
 test("clips on climax and high worth, not quiet", () => {
@@ -81,4 +90,22 @@ test("clutch chip without url still plays last HDMI clip", () => {
   );
   assert.equal(href, "http://127.0.0.1:8765/media/clips/hdmi_clip_live.mp4");
   assert.equal(momentPlayHref({ key: "chat:hello", title: "nice throw" }, href), "");
+});
+
+test("disk clip list skips sidecars and builds playable hrefs", () => {
+  const clips = parseHdmiClipList(
+    {
+      ok: true,
+      clips: [
+        { name: "hdmi_clip_20260822_143015.mp4", url: "/media/clips/hdmi_clip_20260822_143015.mp4", size_bytes: 12 },
+        { name: "hdmi_clip_20260822_143015.chapters.json", url: "/media/clips/hdmi_clip_20260822_143015.chapters.json" },
+        { name: "notes.txt", url: "/media/clips/notes.txt" },
+      ],
+    },
+    "http://127.0.0.1:8765",
+  );
+  assert.equal(clips.length, 1);
+  assert.equal(clips[0].name, "hdmi_clip_20260822_143015.mp4");
+  assert.equal(clips[0].href, "http://127.0.0.1:8765/media/clips/hdmi_clip_20260822_143015.mp4");
+  assert.equal(CLIP_RACK, "clipRackDisk");
 });

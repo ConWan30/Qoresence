@@ -1,4 +1,5 @@
 import { AgentRail } from "@/components/theater/agent-rail";
+import { ClipRack } from "@/components/theater/clip-rack";
 import { ClutchFeed } from "@/components/theater/clutch-feed";
 import { CommandBar } from "@/components/theater/command-bar";
 import { ConnectCard } from "@/components/theater/connect-card";
@@ -14,26 +15,29 @@ export function TheaterPage() {
   return (
     <main className="min-h-dvh bg-bg text-fg">
       <CommandBar />
-      <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.7fr)] lg:items-start lg:gap-5 lg:px-5 lg:py-5">
-        <div className="flex min-w-0 flex-col gap-4">
+      <div className="mx-auto max-w-[88rem] px-4 py-4 sm:px-5 sm:py-5">
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)] xl:gap-5">
           <HdmiStage variant="deck" />
-          <ClutchFeed />
+          <ClipRack />
         </div>
-        <aside className="flex flex-col gap-4">
-          <ConnectCard />
-          <SituationCard />
-          <CouplingCard />
-          <AgentRail />
-          <section className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
-            <h2 className="mb-1 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-              Pad
-            </h2>
-            <p className="mb-4 text-xs text-muted-foreground">
-              DualSense stays on the PS5. This laptop only sees HDMI through the capture card.
-            </p>
-            <Controls />
-          </section>
-        </aside>
+        <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] lg:gap-5">
+          <ClutchFeed />
+          <aside className="flex flex-col gap-4">
+            <ConnectCard />
+            <SituationCard />
+            <CouplingCard />
+            <AgentRail />
+            <section className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <h2 className="mb-1 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                Pad
+              </h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                DualSense stays on the PS5. This laptop only sees HDMI through the capture card.
+              </p>
+              <Controls />
+            </section>
+          </aside>
+        </div>
       </div>
     </main>
   );

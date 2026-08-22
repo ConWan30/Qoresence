@@ -1,15 +1,14 @@
-import { clipHref, momentPlayHref } from "@/lib/coupling/clip";
+import { momentPlayHref } from "@/lib/coupling/clip";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
+/** Clutch / chat moments. HDMI files live on the Clip Rack. */
 export function ClutchFeed() {
   const clutch = useTheater((s) => s.clutch);
   const moments = useTheater((s) => s.moments);
   const lastClipUrl = useTheater((s) => s.lastClipUrl);
-  const lastClipName = useTheater((s) => s.lastClipName);
   const playClip = useTheater((s) => s.playClip);
   const live = clutch.kind !== "quiet";
-  const playerSrc = lastClipUrl ? clipHref(lastClipUrl) : "";
 
   return (
     <section className="flex flex-col gap-2 rounded-xl bg-surface p-3 shadow-[var(--shadow-border)] sm:p-4">
@@ -33,15 +32,14 @@ export function ClutchFeed() {
       </div>
       {moments.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          Watching HDMI + DualSense + scorebug. Fast chat, score locks, and clips land here.
-          Click a chip to play the MP4 in this panel.
+          Fast chat and score locks land here. HDMI files are the big ▶ tiles in HDMI clips.
         </p>
       ) : (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex flex-col gap-2">
           {moments.slice(0, 8).map((e) => {
             const href = momentPlayHref(e, lastClipUrl);
             const className = cn(
-              "flex min-h-16 w-56 shrink-0 flex-col justify-center rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
+              "flex min-h-14 w-full items-center rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
               href ? "cursor-pointer hover:opacity-90" : "",
               e.path === "confirm"
                 ? "border border-live/40 bg-live/10 text-live"
@@ -50,19 +48,16 @@ export function ClutchFeed() {
                   : "bg-bg/50 text-fg",
             );
             const inner = (
-              <>
-                <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
+              <span className="min-w-0">
+                <span className="block font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
                   {e.path ? `[${e.path}]` : "moment"} · {e.clock}
                   {href ? " · play" : ""}
-                </p>
-                <p className="truncate text-xs">
+                </span>
+                <span className="block truncate text-xs">
                   {e.icon === "🎬" || href ? "🎬 " : ""}
                   {e.title}
-                </p>
-                {e.reason ? (
-                  <p className="truncate font-mono text-[10px] text-subtle-foreground">{e.reason}</p>
-                ) : null}
-              </>
+                </span>
+              </span>
             );
             return href ? (
               <button
@@ -71,6 +66,7 @@ export function ClutchFeed() {
                 data-clutch-path={e.path || "none"}
                 data-clip-href={href}
                 className={className}
+                onPointerDown={(ev) => ev.stopPropagation()}
                 onClick={() => playClip(href, e.name)}
               >
                 {inner}
@@ -83,24 +79,6 @@ export function ClutchFeed() {
           })}
         </div>
       )}
-      {playerSrc ? (
-        <div className="overflow-hidden rounded-lg bg-bg" data-clip-follow="on">
-          <video
-            key={playerSrc}
-            src={playerSrc}
-            controls
-            playsInline
-            muted
-            autoPlay
-            preload="metadata"
-            data-clip-player="follow"
-            className="aspect-video w-full bg-black"
-          />
-          <p className="px-3 py-2 font-mono text-[10px] tracking-wide text-live uppercase">
-            playing · {lastClipName || playerSrc.split("/").pop()}
-          </p>
-        </div>
-      ) : null}
     </section>
   );
 }
