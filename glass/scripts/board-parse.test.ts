@@ -27,6 +27,28 @@ test("WS situation payload carries Madden board", () => {
   assert.equal(boardLine(ing), "21-14 · Q3 3:12 · 2nd & 6");
 });
 
+test("boolean game_title does not paint as true on the sit strip", () => {
+  const ing = parseDeckMessage({
+    type: "situation",
+    payload: {
+      game_title: true,
+      home_left: true,
+      home_score: 7,
+      away_score: 0,
+      home_team: "CHI",
+      away_team: "IND",
+      quarter: 1,
+      down: 1,
+      yards_to_go: 10,
+      game_clock_seconds: 152,
+      score_vlm_locked: true,
+    },
+  });
+  assert.ok(ing);
+  assert.equal(ing.gameTitle, "");
+  assert.doesNotMatch(situationLine(ing), /\btrue\b/);
+});
+
 test("snapshot.situation + score_home aliases", () => {
   const ing = parseDeckMessage({
     type: "snapshot",

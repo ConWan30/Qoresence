@@ -120,9 +120,9 @@ function firstNum(o: Record<string, unknown>, keys: string[]): number | null {
 function firstStr(o: Record<string, unknown>, keys: string[]): string {
   for (const k of keys) {
     const v = o[k];
-    if (v == null || v === "") continue;
-    const s = String(v).trim();
-    if (s) return s;
+    if (typeof v !== "string") continue;
+    const s = v.trim();
+    if (s && s !== "true" && s !== "false") return s;
   }
   return "";
 }
