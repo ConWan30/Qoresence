@@ -33,3 +33,4 @@ def test_glass_spa_or_dist_shape():
     assert gate.MIN_CSS_BYTES <= css_path.stat().st_size <= gate.MAX_CSS_BYTES
     blob = js_path.read_text(encoding="utf-8", errors="ignore")
     assert "score_vlm_locked" in blob and "boardLocked" in blob
+    assert "hdmiJpegKeep" in blob

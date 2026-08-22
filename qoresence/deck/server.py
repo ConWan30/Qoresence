@@ -567,7 +567,9 @@ _GLASS_HTML_NAMES = frozenset(
 def _glass_candidates() -> list[pathlib.Path]:
     here = pathlib.Path(__file__).resolve()
     repo = here.parents[2]
-    return [repo / "glass" / "dist", here.with_name("glass_spa")]
+    # Packaged SPA first. A stale gitignored glass/dist (older Vite ship)
+    # hid HDMI on livePaint flicker while /live.jpg was 200.
+    return [here.with_name("glass_spa"), repo / "glass" / "dist"]
 
 
 def _glass_dist() -> pathlib.Path:

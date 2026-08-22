@@ -4,8 +4,8 @@ Guards what reaches `main` for Retina Deck glass shipping (PR implement track).
 
 ## (1) Vendored SPA + smoke
 
-- Ship the Vite build under `qoresence/deck/glass_spa/` (packaged fallback when
-  `glass/dist` is absent). Do not rely on gitignored `glass/dist` alone for `:8765`.
+- Ship the Vite build under `qoresence/deck/glass_spa/` (preferred on `:8765`).
+  A stale gitignored `glass/dist` must not win — it hid HDMI on livePaint flicker.
 - Static land check: `python scripts/check_glass_spa.py`
   - `#root`, hashed `/assets/*` present, JS/CSS size bounds, ship markers
 - HTTP smoke: `python scripts/smoke_deck_spa_http.py`
