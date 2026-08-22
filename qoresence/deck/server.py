@@ -1754,6 +1754,12 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/deck.html")
     async def deck():  # type: ignore[no-untyped-def]
+        # Prefer packaged Glass SPA Theater; legacy Rail only if SPA missing.
+        spa = _glass_index_path()
+        if spa is not None and spa.is_file():
+            return FileResponse(
+                spa, headers={"Cache-Control": "no-cache, must-revalidate"}
+            )
         return HTMLResponse(
             _html("deck.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
         )

@@ -295,7 +295,9 @@ function isLiveSit(s){
 }
 function fmt(s){
   if(!isLiveSit(s)) return null;
-  const sc=s.home_score!=null?(s.home_score+'-'+s.away_score):(s.score||'');
+  // Fail-closed: never paint unlocked OCR digits on legacy Rail.
+  const locked=!!(s.score_vlm_locked||s.scoreboard_locked||s.confirm_ticket_id);
+  const sc=locked&&s.home_score!=null?(s.home_score+'-'+s.away_score):'';
   const q=s.quarter!=null?('Q'+s.quarter):'';
   const clock=s.game_clock_seconds!=null?(Math.floor(s.game_clock_seconds/60)+':'+String(s.game_clock_seconds%60).padStart(2,'0')):'';
   const down=s.down!=null?(s.down+' & '+(s.yards_to_go!=null?s.yards_to_go:'?')):'';

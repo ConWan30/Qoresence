@@ -154,10 +154,15 @@ class SituationModel:
             self._state.game_state = (
                 ctx.game_state.value if hasattr(ctx.game_state, "value") else str(ctx.game_state)
             )
-        if ctx.score_vlm_locked:
+        # Fail-closed: never adopt score_vlm_locked without a ConfirmTicket id.
+        tid = str(getattr(ctx, "confirm_ticket_id", "") or "")
+        if tid:
+            self._state.confirm_ticket_id = tid
+        if ctx.score_vlm_locked and tid:
             self._state.score_vlm_locked = True
-        if getattr(ctx, "confirm_ticket_id", ""):
-            self._state.confirm_ticket_id = str(ctx.confirm_ticket_id)
+        elif ctx.score_vlm_locked and not tid:
+            # Unlicensed lock claim — ignore.
+            pass
         try:
             from qoresence.profiles.cfb27_product import effective_game_state
             from qoresence.sync.play_phrase import note_game_state

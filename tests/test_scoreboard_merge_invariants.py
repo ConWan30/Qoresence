@@ -133,6 +133,7 @@ def test_vlm_20_0_overrides_ocr_20_20(monkeypatch):
     assert ctx.home_score == 20
     assert ctx.away_score == 0  # VLM 0, not OCR 20
     assert ctx.score_vlm_locked is True
+    assert getattr(ctx, "confirm_ticket_id", "")  # fail-closed mint
 
 
 def test_vlm_lock_persists_when_ocr_keeps_misreading(monkeypatch):
@@ -371,3 +372,38 @@ def test_ocr_home_left_override(monkeypatch):
     assert out.home_score == 20
     assert out.away_score == 0
     assert out.home_left is True
+
+
+# ── fail-closed: lock requires ConfirmTicket ──────────────────────────────────
+
+
+def test_situation_model_refuses_lock_without_confirm_ticket():
+    """score_vlm_locked without ticket_id must not license digits."""
+    sm = SituationModel()
+    sm.update(
+        _visual_context_event(
+            {
+                "game_category": "football",
+                "game_state": "gameplay",
+                "home_score": 21,
+                "away_score": 14,
+                "score_vlm_locked": True,
+                "confirm_ticket_id": "",
+            }
+        )
+    )
+    assert sm.state.score_vlm_locked is False
+    assert not (sm.state.confirm_ticket_id or "")
+    snap = sm.to_dict()
+    assert snap.get("score_vlm_locked") is False
+
+
+def test_deck_html_fmt_gates_unlocked_digits():
+    """Legacy Rail fmt() must omit score pair unless locked."""
+    from pathlib import Path
+
+    html = (Path(__file__).resolve().parents[1] / "qoresence" / "deck" / "deck.html").read_text(
+        encoding="utf-8"
+    )
+    assert "score_vlm_locked||s.scoreboard_locked||s.confirm_ticket_id" in html
+    assert "locked&&s.home_score!=null" in html.replace(" ", "")
