@@ -21,6 +21,7 @@ from .receipt import ReelReceipt, now_ns, write_receipt
 
 log = logging.getLogger(__name__)
 
+
 def _norm_btn(name: str) -> str:
     n = name.lower().replace("-", "_").strip()
     for suffix in ("_btn", "_button", "_key"):
@@ -223,7 +224,9 @@ def buttons_from_sidecar(clip_path: str | Path) -> dict[str, Any]:
     return names
 
 
-def _draw_ps_face(frame: np.ndarray, name: str, x: int, y: int, color: tuple[int, int, int]) -> None:
+def _draw_ps_face(
+    frame: np.ndarray, name: str, x: int, y: int, color: tuple[int, int, int]
+) -> None:
     """PlayStation face glyphs. Hershey cannot draw △□○✕ reliably."""
     if name == "triangle":
         pts = np.array([[x, y - 5], [x - 5, y + 4], [x + 5, y + 4]], np.int32)
@@ -275,7 +278,9 @@ def _draw_pad(
         _draw_ps_face(frame, name, x, y, color)
     extras = [n for n in sorted(held | body) if n not in _FACE and n not in _SHOULDERS]
     if extras:
-        cv2.putText(frame, " ".join(extras[:4]).upper(), (ox, oy + 96), font, 0.36, on, 1, cv2.LINE_AA)
+        cv2.putText(
+            frame, " ".join(extras[:4]).upper(), (ox, oy + 96), font, 0.36, on, 1, cv2.LINE_AA
+        )
 
 
 def _draw_hud(
@@ -302,16 +307,29 @@ def _draw_hud(
     cv2.rectangle(frame, (0, h - 4), (tick_w, h), (106, 242, 200), -1)
 
     font = cv2.FONT_HERSHEY_SIMPLEX
-    cv2.putText(frame, "QORESENCE  GHOST CUT", (18, 24), font, 0.48, (200, 242, 106), 1, cv2.LINE_AA)
+    cv2.putText(
+        frame, "QORESENCE  GHOST CUT", (18, 24), font, 0.48, (200, 242, 106), 1, cv2.LINE_AA
+    )
     cv2.putText(frame, f"{t_s:05.2f}s", (w - 118, 24), font, 0.48, (145, 161, 173), 1, cv2.LINE_AA)
-    cv2.putText(frame, (kind or "chapter").upper()[:18], (18, h - 52), font, 0.62, (104, 217, 232), 1, cv2.LINE_AA)
+    cv2.putText(
+        frame,
+        (kind or "chapter").upper()[:18],
+        (18, h - 52),
+        font,
+        0.62,
+        (104, 217, 232),
+        1,
+        cv2.LINE_AA,
+    )
     if score:
         cv2.putText(frame, score, (18, h - 24), font, 0.72, (238, 245, 244), 2, cv2.LINE_AA)
     lab = (label or "")[:56]
     if lab:
         cv2.putText(frame, lab, (200, h - 24), font, 0.48, (145, 161, 173), 1, cv2.LINE_AA)
     if body_line:
-        cv2.putText(frame, body_line, (w - 210, h - 52), font, 0.42, (232, 217, 104), 1, cv2.LINE_AA)
+        cv2.putText(
+            frame, body_line, (w - 210, h - 52), font, 0.42, (232, 217, 104), 1, cv2.LINE_AA
+        )
     _draw_pad(frame, held, (w - 210, h - 168), body=body)
     return frame
 
@@ -381,7 +399,9 @@ def cut_highlight(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    writer = cv2.VideoWriter(str(output_path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
+    writer = cv2.VideoWriter(
+        str(output_path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height)
+    )
     if not writer.isOpened():
         cap.release()
         raise RuntimeError(f"cannot write {output_path}")
@@ -455,5 +475,13 @@ def cut_highlight(
         },
     )
     receipt_path = write_receipt(output_path, receipt)
-    log.info("Ghost Cut: %s -> %s (%d frames, %d ghosts)", clip_path.name, output_path.name, written, len(timeline))
-    return GhostCutResult(output_path=output_path, receipt_path=receipt_path, frames=written, duration_s=duration_out)
+    log.info(
+        "Ghost Cut: %s -> %s (%d frames, %d ghosts)",
+        clip_path.name,
+        output_path.name,
+        written,
+        len(timeline),
+    )
+    return GhostCutResult(
+        output_path=output_path, receipt_path=receipt_path, frames=written, duration_s=duration_out
+    )
