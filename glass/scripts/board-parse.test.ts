@@ -2,6 +2,28 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { boardLine, parseDeckMessage, pickBoard, scorebugPair, situationLine } from "../src/lib/coupling/board.ts";
 
+test("snapshot controller carries frame-clock DualSense pose", () => {
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    schema_version: "qoresence-deck-v0",
+    situation: { game_state: "gameplay" },
+    controller: {
+      connected: true,
+      device: "DualSense Edge",
+      pad_r2: 0.72,
+      pad_left: 0.31,
+      sync_lag_ms: 52,
+      lag_center_ms: 52,
+      buttons: ["r2"],
+    },
+  });
+  assert.ok(ing);
+  assert.equal(ing.padR2, 0.72);
+  assert.equal(ing.padLeft, 0.31);
+  assert.equal(ing.syncLagMs, 52);
+  assert.equal(ing.padConnected, true);
+});
+
 test("WS situation payload carries Madden board", () => {
   const ing = parseDeckMessage({
     type: "situation",

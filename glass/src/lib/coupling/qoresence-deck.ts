@@ -20,7 +20,7 @@ export function getDeckOrigin(): string {
 }
 
 export function deckMjpegUrl(): string {
-  return `${getDeckOrigin()}/video?fps=60&t=${Date.now()}`;
+  return `${getDeckOrigin()}/video?fps=30`;
 }
 
 export function deckLiveJpgUrl(): string {

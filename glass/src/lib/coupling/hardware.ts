@@ -115,8 +115,6 @@ export async function cameraGranted(): Promise<boolean> {
 export function keepVideoPlaying() {
   if (feedKind === "deck") {
     if (stream) stopTracks();
-    const now = performance.now();
-    if (now - lastMjpegBump > 5000) bumpDeckMjpeg();
     return;
   }
   if (video?.paused) void video.play().catch(() => undefined);
@@ -129,7 +127,8 @@ export function keepVideoPlaying() {
 export function captureNeedsRebind(): boolean {
   keepVideoPlaying();
   if (feedKind === "deck") {
-    return captureStatus === "live" && performance.now() - lastAdvanceAt > 2200;
+    // Theater owns a single MJPEG <img>. JPEG thaw/rebind flickers the stage.
+    return false;
   }
   if (captureStatus === "live" || captureStatus === "arming") return false;
   if (captureStatus === "blocked" || captureStatus === "framed") return false;
@@ -149,8 +148,7 @@ export function bumpDeckMjpeg(): string {
 
 export function thawDeck(): string {
   if (feedKind !== "deck") return deckSrc;
-  startDeckPump();
-  return bumpDeckMjpeg();
+  return deckSrc;
 }
 
 export function getDeckSrc(): string {
@@ -528,7 +526,7 @@ function startDeckPump() {
       lastAdvanceAt = performance.now();
     };
     next.src = deckLiveJpgUrl();
-    deckPump = window.setTimeout(tick, 90);
+    deckPump = window.setTimeout(tick, 400);
   };
   tick();
 }

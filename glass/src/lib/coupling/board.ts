@@ -30,6 +30,9 @@ export type DeckIngest = {
   padHeld: string[];
   bindLagMs: number;
   bindKind: string;
+  padR2: number;
+  padLeft: number;
+  syncLagMs: number;
   hdmi: "live" | "menu" | "stale";
   videoAgeS: number;
   homeScore: number | null;
@@ -455,6 +458,12 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     padHeld: Array.isArray(ctrl.buttons) ? ctrl.buttons.map(String).slice(0, 8) : [],
     bindLagMs: num(ctrl.last_bind_ms ?? coup.last_bind_ms),
     bindKind: String(ctrl.last_bind_kind || coup.last_bind_kind || ""),
+    padR2: num(ctrl.pad_r2 ?? rec(ctrl.hold).r2),
+    padLeft: num(ctrl.pad_left ?? rec(ctrl.hold).left),
+    syncLagMs: num(
+      ctrl.sync_lag_ms ?? ctrl.lag_center_ms ?? coup.lag_center_ms ?? rec(ctrl.lag_band_ms)[0],
+      0,
+    ),
     hdmi,
     videoAgeS: age,
     // Locked digits only from spine last_confirm / score_vlm_locked (pickBoard).

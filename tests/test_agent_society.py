@@ -28,6 +28,7 @@ def test_play_enables_society_all_roles():
         "drive_coach",
         "ghost_editor",
         "prediction_steward",
+        "sync_warden",
     }
     off = apply_society_cli(
         cfg,
@@ -66,7 +67,7 @@ def test_society_config_default_off():
     env = AgentSocietyConfig.from_env()
     # env may be on if operator exported the flag; still valid roles
     assert all(
-        r in {"spam_warden", "pilot_auditor", "drive_coach", "ghost_editor", "prediction_steward"}
+        r in {"spam_warden", "pilot_auditor", "drive_coach", "ghost_editor", "prediction_steward", "sync_warden"}
         for r in env.roles
     )
 
@@ -145,6 +146,23 @@ def test_spam_warden_vetoes_near_duplicate():
     )
     assert rec is not None
     assert rec.action == "veto"
+
+
+def test_sync_warden_flags_stale_hdmi():
+    from qoresence.agents.society.roles.sync_warden import run as sw
+
+    rec = sw(
+        AgentPacket(
+            health={
+                "video": {"has_frame": True, "age_s": 2.4},
+                "coupling": {"coupling": 0.4, "pll_lock": False, "lag_center_ms": 180},
+            }
+        )
+    )
+    assert rec is not None
+    assert rec.role == "sync_warden"
+    assert rec.action == "audit"
+    assert "hdmi_stale" in rec.refs["sync"]["issues"]
 
 
 def test_ghost_editor_proposes_window():

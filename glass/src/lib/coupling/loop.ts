@@ -16,8 +16,16 @@ export function useTheaterLoop() {
     useTheater.getState().noteFramed(env.framed);
 
     const ingestPad = () => {
-      const pad = readPad();
       const st = useTheater.getState();
+      // Deck HID (PS5 DualSense via Qoresence) is the source of truth.
+      // Browser Gamepad is a local stand-in only when Deck has no pad.
+      if (st.deckLive && st.padConnected && Date.now() - st.deckAt < 2500) {
+        const now = performance.now();
+        pushHid({ t: now, r2: st.r2, left: st.left, held: st.padHeld });
+        st.setFramePad({ r2: st.r2Frame, left: st.leftFrame, lagMs: st.syncLagMs });
+        return;
+      }
+      const pad = readPad();
       if (pad.connected !== st.padConnected || pad.name !== st.padName || pad.held.join() !== st.padHeld.join()) {
         st.setPad({ connected: pad.connected, name: pad.name, held: pad.held });
       }

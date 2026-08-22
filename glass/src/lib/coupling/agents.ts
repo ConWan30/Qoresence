@@ -19,7 +19,8 @@ export type AgentRole =
   | "spam_warden"
   | "ghost_editor"
   | "pilot_auditor"
-  | "prediction_steward";
+  | "prediction_steward"
+  | "sync_warden";
 
 export type AgentAction = "chat" | "note" | "veto" | "allow" | "quiet";
 
@@ -41,6 +42,7 @@ const ROLE_ORDER: AgentRole[] = [
   "ghost_editor",
   "pilot_auditor",
   "prediction_steward",
+  "sync_warden",
 ];
 
 export const ROLE_LABEL: Record<AgentRole, string> = {
@@ -52,6 +54,7 @@ export const ROLE_LABEL: Record<AgentRole, string> = {
   ghost_editor: "Ghost editor",
   pilot_auditor: "Auditor",
   prediction_steward: "Steward",
+  sync_warden: "Sync warden",
 };
 
 const SOCIETY_ROLES: AgentRole[] = [
@@ -60,6 +63,7 @@ const SOCIETY_ROLES: AgentRole[] = [
   "ghost_editor",
   "pilot_auditor",
   "prediction_steward",
+  "sync_warden",
 ];
 
 function quiet(role: AgentRole, reason: string): AgentReceipt {
@@ -129,6 +133,7 @@ export function evaluateAgents(ctx: AgentContext): AgentReceipt[] {
     ghost_editor: ghost(ctx),
     pilot_auditor: quiet("pilot_auditor", "society wait"),
     prediction_steward: quiet("prediction_steward", "society wait"),
+    sync_warden: quiet("sync_warden", "society wait"),
   };
   return ROLE_ORDER.map((r) => receipts[r]);
 }

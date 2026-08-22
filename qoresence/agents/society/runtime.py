@@ -11,7 +11,7 @@ from .bus import SocietyBus
 from .config import AgentSocietyConfig
 from .policy import SocietyPolicy
 from .quicksilver import SocietyQuicksilver
-from .roles import drive_coach, ghost_editor, pilot_auditor, prediction_steward, spam_warden
+from .roles import drive_coach, ghost_editor, pilot_auditor, prediction_steward, spam_warden, sync_warden
 from .types import AgentPacket, AgentReceipt
 
 log = logging.getLogger(__name__)
@@ -22,6 +22,7 @@ _ROLE_RUN = {
     "drive_coach": drive_coach.run,
     "ghost_editor": ghost_editor.run,
     "prediction_steward": prediction_steward.run,
+    "sync_warden": sync_warden.run,
 }
 
 _runtime: SocietyRuntime | None = None
@@ -97,11 +98,17 @@ def build_packet() -> AgentPacket:
     try:
         from qoresence.sync.ivc import get_last_coupling
 
-        coup = get_last_coupling() or {}
+        coup = dict(get_last_coupling() or {})
         phrase = str(coup.get("phrase") or sit_d.get("phrase") or "IDLE")
         couple_tid = str(coup.get("coupling_ticket_id") or "")
-        if isinstance(health, dict) and "coupling" not in health:
-            health = {**health, "coupling": coup}
+        try:
+            from qoresence.sync.ghost_stick import ghost_stick_enabled
+
+            coup["ghost_stick"] = ghost_stick_enabled()
+        except Exception:
+            pass
+        if isinstance(health, dict):
+            health = {**health, "coupling": {**(health.get("coupling") or {}), **coup}}
     except Exception:
         pass
     tid = str(sit_d.get("confirm_ticket_id") or "")
