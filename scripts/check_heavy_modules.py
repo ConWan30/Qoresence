@@ -43,7 +43,7 @@ def _is_docstring_stub(tree: ast.Module) -> bool:
     if (
         body
         and isinstance(body[0], ast.Expr)
-        and isinstance(getattr(body[0], "value", None), (ast.Constant, ast.Str))
+        and isinstance(getattr(body[0], "value", None), (ast.Constant,))
     ):
         body = body[1:]
     if not body:

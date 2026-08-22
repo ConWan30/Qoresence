@@ -27,6 +27,13 @@ def test_webrtc_stats_still_frame_hub():
 
 def test_mobile_page_is_glass_not_capture():
     html = _html("mobile.html")
+    # SPA ship (#25): mobile.html is the Retina Deck glass index, not the old
+    # FrameHub capture page. Prefer #root + assets; keep legacy asserts only
+    # when the packaged SPA is absent.
+    if 'id="root"' in html or "id='root'" in html:
+        assert "Retina Deck" in html or "/assets/" in html
+        assert "capture" not in html.lower() or "no second capture" in html.lower()
+        return
     assert "playsinline" in html
     assert "autoplay" in html
     assert "muted" in html

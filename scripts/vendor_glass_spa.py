@@ -19,7 +19,7 @@ DST = ROOT / "qoresence" / "deck" / "glass_spa"
 
 def main() -> int:
     if not (SRC / "index.html").is_file():
-        print(f"FAIL: missing {SRC `/ index.html` } — build glass first", file=sys.stderr)
+        print(f"FAIL: missing {SRC / 'index.html'} - build glass first", file=sys.stderr)
         return 1
     assets_src = SRC / "assets"
     if not assets_src.is_dir():
@@ -29,7 +29,7 @@ def main() -> int:
     DST.mkdir(parents=True, exist_ok=True)
     dst_assets = DST / "assets"
     if dst_assets.is_dir():
-        for child in list(dst_assets.iteridir()):
+        for child in list(dst_assets.iterdir()):
             if child.is_file():
                 child.unlink()
     else:
