@@ -90,7 +90,7 @@ export function ClipBar() {
   );
 }
 
-/** Clip picker under the 16:9 box. Does not own a player. */
+/** Thin strip under the 16:9 box — never overlays the HDMI picture. */
 export function StageClipDock() {
   const clips = useTheater((s) => s.hdmiClips);
   const lastClipName = useTheater((s) => s.lastClipName);
@@ -100,25 +100,29 @@ export function StageClipDock() {
   return (
     <div
       data-clip-dock="picker"
-      className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 px-2 pb-2"
+      className="pointer-events-auto border-t border-border bg-surface/95 px-2 py-1"
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex items-center gap-1.5 overflow-x-auto">
+        <span className="shrink-0 font-mono text-[10px] tracking-wide text-live uppercase">
+          clips {String(clips.length).padStart(2, "0")}
+        </span>
         {clips.length === 0 ? (
-          <p className="text-xs text-white/70">No clip yet — tap Make HDMI Clip or wait for auto-cut.</p>
+          <p className="text-[11px] text-muted-foreground">Make Clip in the bar above</p>
         ) : (
           clips.slice(0, 16).map((c) => {
             const on = stageMode === "replay" && c.name === lastClipName;
+            const stamp = clipStamp(c.name, c.mtime) || "▶";
             return (
               <button
                 key={c.name}
                 type="button"
-                title={c.href}
+                title={c.name}
                 data-clip-href={c.href}
                 data-clip-name={c.name}
                 className={cn(
-                  "flex min-h-11 min-w-44 shrink-0 items-center gap-2 rounded-lg px-2.5 text-left",
-                  on ? "bg-live text-primary-foreground" : "bg-black/70 text-white hover:bg-black/90",
+                  "flex h-7 shrink-0 items-center gap-1 rounded-full px-2 font-mono text-[10px] uppercase",
+                  on ? "bg-live text-primary-foreground" : "bg-bg text-fg hover:opacity-90",
                 )}
                 onClick={(e) => {
                   e.preventDefault();
@@ -126,15 +130,8 @@ export function StageClipDock() {
                   playClip(c.href, c.name);
                 }}
               >
-                <span className="grid size-8 shrink-0 place-items-center rounded-md bg-live text-sm font-extrabold text-primary-foreground">
-                  ▶
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-[11px] font-medium">{c.name}</span>
-                  <span className="block font-mono text-[10px] uppercase opacity-70">
-                    {clipStamp(c.name, c.mtime) || "play"}
-                  </span>
-                </span>
+                <span aria-hidden>▶</span>
+                {stamp}
               </button>
             );
           })
