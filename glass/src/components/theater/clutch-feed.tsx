@@ -1,3 +1,4 @@
+import { clipHref } from "@/lib/coupling/clip";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
@@ -34,38 +35,57 @@ export function ClutchFeed() {
         </p>
       ) : (
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {moments.slice(0, 8).map((e) => (
-            <article
-              key={e.key}
-              data-clutch-path={e.path || "none"}
-              className={cn(
-                "flex min-h-16 w-56 shrink-0 flex-col justify-center rounded-lg px-3 py-2 shadow-[var(--shadow-border)]",
-                e.path === "confirm"
-                  ? "border border-live/40 bg-live/10 text-live"
-                  : e.path === "fast"
-                    ? "border border-fast/45 bg-fast/10 text-fast"
-                    : "bg-bg/50 text-fg",
-              )}
-            >
-              <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
-                {e.path ? `[${e.path}]` : "moment"} · {e.clock}
-              </p>
-              <p className="truncate text-xs">
-                {e.icon === "🎬" ? "🎬 " : ""}
-                {e.title}
-              </p>
-              {e.reason ? (
-                <p className="truncate font-mono text-[10px] text-subtle-foreground">{e.reason}</p>
-              ) : null}
-            </article>
-          ))}
+          {moments.slice(0, 8).map((e) => {
+            const href = e.url ? clipHref(e.url) : "";
+            const className = cn(
+              "flex min-h-16 w-56 shrink-0 flex-col justify-center rounded-lg px-3 py-2 shadow-[var(--shadow-border)]",
+              href ? "cursor-pointer no-underline hover:opacity-90" : "",
+              e.path === "confirm"
+                ? "border border-live/40 bg-live/10 text-live"
+                : e.path === "fast"
+                  ? "border border-fast/45 bg-fast/10 text-fast"
+                  : "bg-bg/50 text-fg",
+            );
+            const inner = (
+              <>
+                <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
+                  {e.path ? `[${e.path}]` : "moment"} · {e.clock}
+                </p>
+                <p className="truncate text-xs">
+                  {e.icon === "🎬" || href ? "🎬 " : ""}
+                  {e.title}
+                </p>
+                {e.reason ? (
+                  <p className="truncate font-mono text-[10px] text-subtle-foreground">{e.reason}</p>
+                ) : null}
+              </>
+            );
+            return href ? (
+              <a
+                key={e.key}
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                data-clutch-path={e.path || "none"}
+                data-clip-href={href}
+                className={className}
+              >
+                {inner}
+              </a>
+            ) : (
+              <article key={e.key} data-clutch-path={e.path || "none"} className={className}>
+                {inner}
+              </article>
+            );
+          })}
         </div>
       )}
       {lastClipUrl ? (
         <a
-          href={lastClipUrl}
+          href={clipHref(lastClipUrl)}
           target="_blank"
           rel="noreferrer"
+          data-clip-href={clipHref(lastClipUrl)}
           className="font-mono text-[10px] tracking-wide text-live uppercase"
         >
           last clip · {lastClipName || lastClipUrl.split("/").pop()}

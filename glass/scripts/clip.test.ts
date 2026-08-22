@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clipSeconds, parseClipResult, shouldClip } from "../src/lib/coupling/clip.ts";
+import { clipHref, clipPublicPath, clipSeconds, parseClipResult, shouldClip } from "../src/lib/coupling/clip.ts";
 import { parseFeedMoment } from "../src/lib/coupling/clutch.ts";
 
 test("clips on climax and high worth, not quiet", () => {
@@ -30,4 +30,26 @@ test("moment feed keeps clip chips", () => {
   assert.match(m!.key, /^clip:/);
   assert.equal(m!.icon, "🎬");
   assert.equal(m!.path, "fast");
+  assert.equal(m!.url, "/media/clips/hdmi_clip_abc.mp4");
+});
+
+test("agent filesystem path becomes a clickable /media/clips href", () => {
+  assert.equal(
+    clipPublicPath(String.raw`C:\Users\con\Qoresence\clips\hdmi_clip_xyz.mp4`),
+    "/media/clips/hdmi_clip_xyz.mp4",
+  );
+  const m = parseFeedMoment({
+    type: "moment",
+    payload: {
+      title: "FAST HDMI CLIP 8s",
+      action: "clip",
+      path: String.raw`C:\Users\con\clips\hdmi_clip_xyz.mp4`,
+      moment_path: "fast",
+      name: "hdmi_clip_xyz.mp4",
+    },
+  });
+  assert.ok(m);
+  assert.equal(m!.url, "/media/clips/hdmi_clip_xyz.mp4");
+  assert.equal(m!.path, "fast");
+  assert.equal(clipHref(m!.url || "", "http://127.0.0.1:8765"), "http://127.0.0.1:8765/media/clips/hdmi_clip_xyz.mp4");
 });

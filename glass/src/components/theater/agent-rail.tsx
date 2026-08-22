@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { ROLE_LABEL, type AgentReceipt } from "@/lib/coupling/agents";
+import { clipHref } from "@/lib/coupling/clip";
 import { AGENT_COMPANION, companionDutyLine } from "@/lib/coupling/companion.ts";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,12 @@ export function AgentRail() {
   const qsModel = useTheater((s) => s.qsModel);
   const qsError = useTheater((s) => s.qsError);
   const companion = useTheater((s) => s.companion);
+  const lastClipUrl = useTheater((s) => s.lastClipUrl);
+  const clipOpen = companion.lastClip?.url
+    ? clipHref(companion.lastClip.url)
+    : lastClipUrl
+      ? clipHref(lastClipUrl)
+      : "";
 
   const armed = plane.clutchbot || plane.society || qsLive || companion.autoClip;
   const badge = heatVetoed
@@ -44,7 +51,19 @@ export function AgentRail() {
           companion.armed ? "text-live" : "text-subtle-foreground",
         )}
       >
-        {companionDutyLine(companion)}
+        {clipOpen ? (
+          <a
+            href={clipOpen}
+            target="_blank"
+            rel="noreferrer"
+            data-clip-href={clipOpen}
+            className="text-live no-underline hover:underline"
+          >
+            {companionDutyLine(companion)}
+          </a>
+        ) : (
+          companionDutyLine(companion)
+        )}
       </p>
       {companion.why || companion.phase ? (
         <p className="font-mono text-[10px] tracking-wide text-muted-foreground">

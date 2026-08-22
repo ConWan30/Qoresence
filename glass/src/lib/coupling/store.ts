@@ -31,7 +31,7 @@ import { boardLine, situationLine, EMPTY_GHOST, type DeckIngest, type GhostStick
 import { clutchAdvanced, scoreClutch, QUIET_CLUTCH, type ClutchSnap, type FeedMoment } from "./clutch";
 import { measureLag } from "./sync";
 import { qsEnhance, qsProbe } from "./quicksilver";
-import { clipSeconds, requestDeckClip, shouldClip } from "./clip";
+import { clipHref, clipSeconds, requestDeckClip, shouldClip } from "./clip";
 
 let qsAt = 0;
 let qsKey = "";
@@ -484,7 +484,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       why,
       confirm,
       companion,
-      lastClipUrl: companion.lastClip?.url || s.lastClipUrl,
+      lastClipUrl: companion.lastClip?.url ? clipHref(companion.lastClip.url) : s.lastClipUrl,
       lastClipName: companion.lastClip?.name || s.lastClipName,
       agents,
       log,
@@ -515,7 +515,13 @@ export const useTheater = create<TheaterState>((set, get) => ({
       const dup = s.moments.find((x) => x.key === m.key && Date.now() - x.at < 120000);
       if (dup) return;
     }
-    set({ moments: [m, ...s.moments].slice(0, 20) });
+    const row = { url: "", name: "", ...m };
+    const href = row.url ? clipHref(row.url) : "";
+    set({
+      moments: [row, ...s.moments].slice(0, 20),
+      lastClipUrl: href || s.lastClipUrl,
+      lastClipName: href ? row.name || row.url.replace(/\\/g, "/").split("/").pop() || s.lastClipName : s.lastClipName,
+    });
   },
   probeQuicksilver: async () => {
     try {

@@ -22,6 +22,37 @@ export function clipSeconds(kind: ClutchKind): number {
   return 8;
 }
 
+const CLIP_NAME = /^hdmi_clip_[\w.\-]+\.(mp4|avi)$/i;
+
+/** Public /media/clips path from a Deck url, name, or local filesystem path. */
+export function clipPublicPath(raw: string): string {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const u = new URL(s);
+      return u.pathname.startsWith("/media/clips/") ? u.pathname : "";
+    } catch {
+      return "";
+    }
+  }
+  if (s.startsWith("/media/clips/")) return s.split("?")[0];
+  const name = s.replace(/\\/g, "/").split("/").pop() || "";
+  return CLIP_NAME.test(name) ? `/media/clips/${name}` : "";
+}
+
+export function clipHref(raw: string, origin?: string): string {
+  const path = clipPublicPath(raw);
+  if (!path) return "";
+  if (/^https?:\/\//i.test(path)) return path;
+  const base =
+    origin ||
+    (typeof window !== "undefined" && window.location?.origin && window.location.origin !== "null"
+      ? window.location.origin
+      : "http://127.0.0.1:8765");
+  return `${base}${path}`;
+}
+
 function rec(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 }

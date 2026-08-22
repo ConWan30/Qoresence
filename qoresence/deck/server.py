@@ -1647,7 +1647,12 @@ def create_app():  # type: ignore[no-untyped-def]
             path,
             media_type=media,
             filename=safe,
-            headers={"Accept-Ranges": "bytes", "Cache-Control": "no-cache"},
+            content_disposition_type="inline",
+            headers={
+                "Accept-Ranges": "bytes",
+                "Cache-Control": "no-cache",
+                "Access-Control-Allow-Origin": "*",
+            },
         )
 
     @app.get("/api/jaeger/{path:path}")
