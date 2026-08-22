@@ -1,5 +1,10 @@
 /** Situation harvest — HDMI scorebug + title presence. Digits fail-closed. */
 
+/** Wire contract — must match qoresence.deck.server.SCHEMA_VERSION. */
+export const DECK_SCHEMA_VERSION = "qoresence-deck-v0";
+let _schemaMissingWarned = false;
+let _schemaMismatchWarned = false;
+
 import type { Phrase } from "./engine";
 
 const PHRASES: readonly Phrase[] = ["IDLE", "HUDDLE", "SNAP", "SPRINT", "CUT", "RELEASE"];
@@ -12,6 +17,12 @@ export type DeckIngest = {
   holdEnergy: number;
   pllLock: boolean;
   ticketId: string;
+  /** Spine coupling video_clock_ns when present. */
+  couplingClockNs: number;
+  /** Spine confirm.last_confirm.ticket_id. */
+  confirmTicketId: string;
+  confirmClockNs: number;
+  path: "fast" | "confirm" | "";
   frameSeq: number;
   padConnected: boolean;
   padName: string;
@@ -42,6 +53,10 @@ export type DeckIngest = {
   sameSeq: boolean;
   planeDim: boolean;
   paint: boolean;
+  /** True when WS carried video live_paint optics (paint/same_seq/has_frame/live_seq). */
+  videoOptics: boolean;
+  /** ws = /retina; poll = /api/situation (sticky optics apply). */
+  via: "ws" | "poll";
   ghostStick: GhostStick;
 };
 
@@ -268,9 +283,33 @@ function situationOf(m: Record<string, unknown>): Record<string, unknown> {
   return rec(snap);
 }
 
+
+function assertDeckSchema(m: Record<string, unknown>): boolean {
+  const nested = rec(m.state);
+  const v = m.schema_version ?? nested.schema_version;
+  if (v == null || v === "") {
+    if (!_schemaMissingWarned) {
+      console.warn("[deck] schema_version missing — soft continue (old build)");
+      _schemaMissingWarned = true;
+    }
+    return true;
+  }
+  if (String(v) !== DECK_SCHEMA_VERSION) {
+    if (!_schemaMismatchWarned) {
+      console.error(
+        `[deck] schema_version mismatch got=${v} want=${DECK_SCHEMA_VERSION} — HOLD ingest`,
+      );
+      _schemaMismatchWarned = true;
+    }
+    return false;
+  }
+  return true;
+}
+
 export function parseDeckMessage(raw: unknown): DeckIngest | null {
   if (!raw || typeof raw !== "object") return null;
   const m = raw as Record<string, unknown>;
+  if (!assertDeckSchema(m)) return null;
   const snap =
     m.type === "snapshot"
       ? m
@@ -302,14 +341,32 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
   const phrase = asPhrase(ctrl.phrase || coup.phrase);
   const liveSeq = num(video.live_seq ?? video.hub_seq ?? video.seq ?? ctrl.frame_seq, 0);
   const widgetSeq = num(sit.frame_seq ?? ctrl.frame_seq ?? coup.frame_seq, 0);
-  const planeDim = Boolean(video.plane_dim) || hdmi === "menu";
-  const sameSeq =
-    video.same_seq != null
-      ? Boolean(video.same_seq)
-      : liveSeq === 0 && widgetSeq === 0
-        ? true
-        : liveSeq > 0 && widgetSeq === liveSeq;
-  const paint = video.paint != null ? Boolean(video.paint) : hasFrame && !planeDim && sameSeq;
+  // Situation flood often omits video optics — do not demote the board on those.
+  const videoOptics =
+    video.paint != null ||
+    video.same_seq != null ||
+    video.has_frame != null ||
+    video.hub_has_frame != null ||
+    video.live_seq != null ||
+    video.hub_seq != null ||
+    video.plane_dim != null;
+  let planeDim: boolean;
+  let sameSeq: boolean;
+  let paint: boolean;
+  if (!videoOptics) {
+    planeDim = false;
+    sameSeq = true;
+    paint = true;
+  } else {
+    planeDim = Boolean(video.plane_dim) || hdmi === "menu";
+    sameSeq =
+      video.same_seq != null
+        ? Boolean(video.same_seq)
+        : liveSeq === 0 && widgetSeq === 0
+          ? true
+          : liveSeq > 0 && widgetSeq === liveSeq;
+    paint = video.paint != null ? Boolean(video.paint) : hasFrame && !planeDim && sameSeq;
+  }
   const widgetsOk = paint && sameSeq && !planeDim;
 
   const whyBits = [
@@ -328,7 +385,25 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     holdEnergy: num(ctrl.hold_energy ?? ctrl.input_energy),
     pllLock: Boolean(ctrl.pll_lock ?? coup.pll_lock),
     ticketId: String(ctrl.coupling_ticket_id || coup.coupling_ticket_id || ""),
-    frameSeq: num(ctrl.frame_seq, 0),
+    couplingClockNs: num(ctrl.video_clock_ns ?? coup.video_clock_ns ?? coup.clock_ns, 0),
+    confirmTicketId: (() => {
+      const lc = rec(rec(snap.confirm).last_confirm);
+      const lc2 = rec(rec(m.confirm).last_confirm);
+      return String(lc.ticket_id || lc2.ticket_id || sit.confirm_ticket_id || "");
+    })(),
+    confirmClockNs: (() => {
+      const lc = rec(rec(snap.confirm).last_confirm);
+      const lc2 = rec(rec(m.confirm).last_confirm);
+      return num(lc.clock_ns ?? lc2.clock_ns, 0);
+    })(),
+    path: ((): "fast" | "confirm" | "" => {
+      const p = String(ctrl.path || coup.path || "").toLowerCase();
+      return p === "fast" || p === "confirm" ? p : "";
+    })(),
+    frameSeq: num(
+      rec(rec(snap.confirm).last_confirm).frame_seq ?? ctrl.frame_seq ?? coup.frame_seq,
+      0,
+    ),
     padConnected: Boolean(ctrl.connected),
     padName: String(ctrl.device || "DualSense"),
     padHeld: Array.isArray(ctrl.buttons) ? ctrl.buttons.map(String).slice(0, 8) : [],
@@ -336,8 +411,10 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     bindKind: String(ctrl.last_bind_kind || coup.last_bind_kind || ""),
     hdmi,
     videoAgeS: age,
-    homeScore: widgetsOk ? board.home : null,
-    awayScore: widgetsOk ? board.away : null,
+    // Locked digits only from spine last_confirm / score_vlm_locked (pickBoard).
+    // Unlocked OCR never surfaces when widgets are dark.
+    homeScore: board.locked || widgetsOk ? board.home : null,
+    awayScore: board.locked || widgetsOk ? board.away : null,
     quarter: board.quarter,
     down: board.down,
     distance: board.distance,
@@ -358,6 +435,8 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     sameSeq,
     planeDim,
     paint,
+    videoOptics,
+    via: "ws",
     ghostStick: parseGhostStick(snap.ghost_stick || m.ghost_stick, widgetsOk),
   };
 }

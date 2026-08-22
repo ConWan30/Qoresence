@@ -25,6 +25,9 @@ log = logging.getLogger(__name__)
 DECK_HOST = "127.0.0.1"
 DECK_PORT = 8765
 WS_PATH = "/retina"
+
+# Wire contract — bump only on breaking field changes.
+SCHEMA_VERSION = "qoresence-deck-v0"
 # Ghost Theater LIVE default: full PS5 HDMI rate when Qoresence owns the card
 DEFAULT_LIVE_FPS = 60.0
 LIVE_FPS_MIN = 5.0
@@ -126,8 +129,8 @@ class DeckState:
                         "coupling_ema": coup.get("coupling_ema", coup.get("coupling", 0.0)),
                         "hold_energy": coup.get("hold_energy", 0.0),
                         "edge_energy": coup.get("edge_energy", 0.0),
-                        "phrase": coup.get("phrase") or "IDLE",
-                        "phrase_conf": coup.get("phrase_conf") or 0.0,
+                        "phrase": None,
+                        "phrase_conf": 0.0,
                         "coupling_ticket_id": coup.get("coupling_ticket_id") or "",
                         "frame_seq": coup.get("frame_seq", 0),
                         "input_energy": coup.get("input_energy", 0.0),
@@ -155,6 +158,7 @@ class DeckState:
             pass
         out: dict[str, Any] = {
             "type": "snapshot",
+            "schema_version": SCHEMA_VERSION,
             "situation": self.situation,
             "last_moment": self.last_moment,
             "moments": self.moments[-3:],
@@ -224,10 +228,13 @@ def _situation_payload() -> dict[str, Any]:
 
         coup: dict[str, Any] = dict(get_last_coupling())
     except Exception:
-        coup = {"imu_bodied": False, "coupling": 0.0, "binds": 0, "phrase": "IDLE"}
-    ctrl = out.get("controller") if isinstance(out.get("controller"), dict) else {}
-    if not coup.get("phrase"):
-        coup["phrase"] = (ctrl or {}).get("phrase") or "IDLE"
+        coup = {"imu_bodied": False, "coupling": 0.0, "binds": 0, "phrase": None}
+    out.get("controller") if isinstance(out.get("controller"), dict) else {}
+    # play-phrase DELETED — never emit IDLE/HUDDLE/SPRINT into situation
+    coup["phrase"] = None
+    coup["phrase_conf"] = 0.0
+    if "phrase_live" in coup:
+        coup["phrase_live"] = False
     climax = 0.0
     try:
         tl = out.get("timeline") if isinstance(out.get("timeline"), dict) else {}
@@ -244,6 +251,7 @@ def _situation_payload() -> dict[str, Any]:
         climax = 0.0
     coup["climax_score"] = climax
     out["coupling"] = coup
+    out["schema_version"] = SCHEMA_VERSION
     return out
 
 
@@ -291,14 +299,32 @@ def update_situation(situation: dict[str, Any], latency_ms: float | None = None)
     _state.updated_ns = _t.monotonic_ns()
     if latency_ms is not None:
         _state.latency_ms = latency_ms
-    _broadcast(
-        {
-            "type": "situation",
-            "payload": sit,
-            "latency_ms": _state.latency_ms,
-            "updated_ns": _state.updated_ns,
+    video: dict[str, Any] = {}
+    try:
+        from qoresence.deck.live_paint import snapshot_live_paint
+
+        lp = snapshot_live_paint(sit)
+        video = {
+            "paint": lp.paint,
+            "live_seq": lp.live_seq,
+            "widget_seq": lp.widget_seq,
+            "same_seq": lp.same_seq,
+            "plane_dim": lp.plane_dim,
+            "paint_reason": lp.reason,
+            "has_frame": bool(lp.has_frame),
         }
-    )
+    except Exception:
+        pass
+    msg: dict[str, Any] = {
+        "type": "situation",
+        "schema_version": SCHEMA_VERSION,
+        "payload": sit,
+        "latency_ms": _state.latency_ms,
+        "updated_ns": _state.updated_ns,
+    }
+    if video:
+        msg["video"] = video
+    _broadcast(msg)
 
 
 def _norm_title(title: Any) -> str:
@@ -413,7 +439,9 @@ def _agent_snapshot_payload() -> dict[str, Any]:
 
         g = get_agent_glass()
         if g is not None:
-            return g.snapshot()
+            snap = dict(g.snapshot())
+            snap.setdefault("schema_version", SCHEMA_VERSION)
+            return snap
     except Exception:
         pass
     # fallback: minimal snapshot from DeckState + clip buffer
@@ -433,6 +461,7 @@ def _agent_snapshot_payload() -> dict[str, Any]:
         coupling = {"coupling": 0.0}
     return {
         "ok": True,
+        "schema_version": SCHEMA_VERSION,
         "enabled": True,
         "state": _state.snapshot(),
         "video": video,
@@ -667,19 +696,13 @@ def _resolve_live_fps(query_fps: float | None = None) -> float:
 
 
 def _read_live_jpeg() -> bytes:
-    """Latest HDMI JPEG, or empty bytes when Dark Theater says do not paint.
+    """Latest HDMI JPEG bytes for ``/live.jpg`` / MJPEG.
 
-    Last-good JPEG is not returned. MJPEG (``/video``) may send a dark
-    placeholder to keep the multipart stream open; a still-JPEG client
-    must not treat that as a live frame.
+    Always serve the clip-buffer JPEG when present. Dark Theater dimming is a
+    Glass ``livePaint`` concern — returning empty here marks the deck dead and
+    the stage opacity-0 black even though FrameHub is fine.
+    Last-good BGR re-encode is still a last resort only.
     """
-    try:
-        from qoresence.deck.live_paint import snapshot_live_paint
-
-        if not snapshot_live_paint(_state.situation).paint:
-            return b""
-    except Exception:
-        pass
     try:
         from qoresence.vision.clip_buffer import get_latest_frame, get_latest_jpeg
 
@@ -689,6 +712,18 @@ def _read_live_jpeg() -> bytes:
         jpg = get_latest_jpeg()
         if jpg:
             return jpg
+    except Exception:
+        pass
+    try:
+        import cv2
+
+        from qoresence.monitor.frame_hub import get_latest
+
+        frame = get_latest()
+        if frame is not None:
+            ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 48])
+            if ok:
+                return buf.tobytes()
     except Exception:
         pass
     return b""
@@ -722,6 +757,12 @@ async def _mjpeg_stream(fps: float = DEFAULT_LIVE_FPS):  # type: ignore[no-untyp
                     if seq != last_seq:
                         jpg = candidate
                         last_seq = seq
+                        break
+                else:
+                    hub_jpg = _read_live_jpeg()
+                    if hub_jpg:
+                        jpg = hub_jpg
+                        last_seq += 1
                         break
             except Exception:
                 pass
@@ -787,6 +828,7 @@ def create_app():  # type: ignore[no-untyped-def]
     async def health():  # type: ignore[no-untyped-def]
         body: dict[str, Any] = {
             "ok": True,
+            "schema_version": SCHEMA_VERSION,
             "clients": len(_ws_clients),
             "fanout": _fanout_stats(),
             "state": _state.snapshot(),

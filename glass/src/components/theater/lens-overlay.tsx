@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { PHRASES } from "@/lib/coupling/engine";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 import { DualSensePad } from "./dualsense-pad";
@@ -19,11 +18,9 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
   const left = useTheater((s) => s.left);
   const r2Frame = useTheater((s) => s.r2Frame);
   const leftFrame = useTheater((s) => s.leftFrame);
+  const confirm = useTheater((s) => s.confirm);
   const boardLine = useTheater((s) => s.boardLine);
   const situation = useTheater((s) => s.situation);
-  const livePaint = useTheater((s) => s.livePaint);
-  const sameSeq = useTheater((s) => s.sameSeq);
-  const planeDim = useTheater((s) => s.planeDim);
   const clutch = useTheater((s) => s.clutch);
   const padConnected = useTheater((s) => s.padConnected);
   const padName = useTheater((s) => s.padName);
@@ -43,13 +40,10 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
   const pill = throwAttempt
     ? "THROW forbidden · authorship"
     : ticketLive && ticket
-      ? `${phrase.phrase} · ticket ${ticket.ticketId.slice(0, 8)} · heat licensed`
-      : `${phrase.phrase} · couple: none`;
+      ? `ticket ${ticket.ticketId.slice(0, 8)} · heat licensed`
+      : "couple: none";
 
-  // Digits fail-closed: only licensed board text when Dark Theater widgets may paint.
-  const widgetsOk = livePaint && sameSeq && !planeDim;
-  const boardText = situation || boardLine || null;
-  const board = widgetsOk && boardText ? boardText : null;
+  const board = situation || boardLine || (confirm ? `${confirm.homeScore}-${confirm.awayScore}` : null);
   const ribbonOpacity = 0.08 + Math.max(coupling, clutch.score) * 0.55;
 
   return (
@@ -84,8 +78,8 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
 
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4">
         <p
-          key={throwAttempt ? "throw" : phrase.phrase}
-          data-phrase={phrase.phrase}
+          key={throwAttempt ? "throw" : clutch.kind}
+          data-phrase="off"
           className={cn(
             "font-display font-extrabold leading-none tracking-tight text-live",
             variant === "lens" ? "text-6xl sm:text-8xl" : "text-5xl sm:text-7xl",
@@ -93,11 +87,9 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
             phrase.live && ticketLive ? "opacity-100" : "opacity-50",
           )}
         >
-          {throwAttempt ? "—" : clutch.kind === "climax" || clutch.kind === "score_play" || clutch.kind === "window" ? clutch.label : phrase.phrase}
+          {throwAttempt ? "—" : clutch.kind === "climax" || clutch.kind === "score_play" || clutch.kind === "window" ? clutch.label : "LIVE"}
         </p>
-        {variant === "deck" && (
-          <Lattice current={phrase.phrase} />
-        )}
+        {/* play-phrase lattice removed — DualSense floors OFF */}
         {throwAttempt ? (
           <p className="font-mono text-xs tracking-wide text-veto">
             THROW forbidden · authorship
@@ -112,7 +104,7 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
           </p>
         ) : (
           <p className="font-mono text-xs tabular-nums tracking-wide text-muted-foreground">
-            conf {phrase.confidence.toFixed(2)}
+            observation
           </p>
         )}
       </div>
@@ -158,23 +150,5 @@ function Chip({
     >
       {children}
     </span>
-  );
-}
-
-function Lattice({ current }: { current: string }) {
-  return (
-    <div className="flex flex-wrap items-center justify-center gap-1.5">
-      {PHRASES.map((p) => (
-        <span
-          key={p}
-          className={cn(
-            "rounded-full px-2 py-0.5 font-mono text-[10px] tracking-wide",
-            p === current ? "bg-primary text-primary-foreground" : "text-subtle-foreground",
-          )}
-        >
-          {p}
-        </span>
-      ))}
-    </div>
   );
 }

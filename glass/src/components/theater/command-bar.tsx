@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 const GLASSES = [
   { href: "/", label: "Home" },
-  { href: "/deck.html", label: "Rail" },
+  { href: "/deck.html", label: "Theater" },
   { href: "/overlay.html", label: "Lens" },
   { href: "/studio.html", label: "Foundry" },
   { href: "/mobile.html", label: "Mobile" },
@@ -15,13 +15,10 @@ export function CommandBar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hdmi = useTheater((s) => s.hdmi);
   const pllLock = useTheater((s) => s.pllLock);
-  const phrase = useTheater((s) => s.phrase);
   const ticketLive = useTheater((s) => s.ticketLive);
+  const confirm = useTheater((s) => s.confirm);
   const boardLine = useTheater((s) => s.boardLine);
   const situation = useTheater((s) => s.situation);
-  const livePaint = useTheater((s) => s.livePaint);
-  const sameSeq = useTheater((s) => s.sameSeq);
-  const planeDim = useTheater((s) => s.planeDim);
   const gameTitle = useTheater((s) => s.gameTitle);
   const vlmLocked = useTheater((s) => s.agentPlane.vlmLocked);
   const heatVetoed = useTheater((s) => s.heatVetoed);
@@ -38,16 +35,13 @@ export function CommandBar() {
   const status = heatVetoed
     ? "heat veto"
     : ticketLive
-      ? `phrase ${phrase.phrase} · ticket live`
-      : `phrase ${phrase.phrase} · couple none`;
+      ? "ticket live"
+      : "couple none";
 
-  const widgetsOk = livePaint && sameSeq && !planeDim;
-  const boardText = situation || boardLine;
-  // Prefer empty over unlocked confirm digits when Dark Theater keeps widgets dark.
-  const sit = !widgetsOk
-    ? ""
-    : boardText
-      ? [gameTitle, boardText].filter(Boolean).join(" · ")
+  const sit = situation || boardLine
+    ? [gameTitle, situation || boardLine].filter(Boolean).join(" · ")
+    : confirm
+      ? `${confirm.homeScore}-${confirm.awayScore}`
       : vlmLocked
         ? "VLM lock · board"
         : hdmi === "menu"
@@ -113,9 +107,7 @@ export function CommandBar() {
           <span className="truncate" data-pll={pllLock ? "lock" : "open"}>
             {pllLock ? "PLL lock" : "PLL open"} · {status}
           </span>
-          {sit ? (
-            <span className="hidden truncate text-subtle-foreground sm:inline">· {sit}</span>
-          ) : null}
+          <span className="hidden truncate text-subtle-foreground sm:inline">· {sit}</span>
         </div>
         <div className="flex flex-wrap gap-x-3 font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
           <span data-pad={padConnected ? "live" : "wait"} className={padConnected ? "text-live" : ""}>

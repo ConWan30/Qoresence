@@ -278,26 +278,34 @@ class InputVideoCoupler:
             e.kind == "trigger" and str(e.name).upper() == "R2" for e in events
         )
         phrase, phrase_conf = "IDLE", 0.0
+        ph = {"phrase": "IDLE", "phrase_conf": 0.0, "phrase_live": False}
         try:
-            from qoresence.sync.play_phrase import classify_phrase, phrase_payload
-
-            phrase, phrase_conf = classify_phrase(
-                r2=r2_now,
-                prev_r2=float(getattr(self, "_prev_r2", 0.0) or 0.0),
-                left=left_now,
-                motion=motion,
-                r2_onset_edge=r2_onset,
-                video_age_s=age_s,
-                hold_fresh=hold_energy > 0.0,
+            from qoresence.sync.play_phrase import (
+                PLAY_PHRASE_ENABLED,
+                classify_phrase,
+                phrase_payload,
             )
-            ph = phrase_payload(phrase, phrase_conf)
-            if phrase in {"SNAP", "SPRINT"}:
-                try:
-                    from qoresence.vision.title_presence import request_lock_verify
 
-                    request_lock_verify("phrase_snap" if phrase == "SNAP" else "phrase_sprint")
-                except Exception:
-                    pass
+            if PLAY_PHRASE_ENABLED:
+                phrase, phrase_conf = classify_phrase(
+                    r2=r2_now,
+                    prev_r2=float(getattr(self, "_prev_r2", 0.0) or 0.0),
+                    left=left_now,
+                    motion=motion,
+                    r2_onset_edge=r2_onset,
+                    video_age_s=age_s,
+                    hold_fresh=hold_energy > 0.0,
+                )
+                ph = phrase_payload(phrase, phrase_conf)
+                if phrase in {"SNAP", "SPRINT"}:
+                    try:
+                        from qoresence.vision.title_presence import request_lock_verify
+
+                        request_lock_verify(
+                            "phrase_snap" if phrase == "SNAP" else "phrase_sprint"
+                        )
+                    except Exception:
+                        pass
         except Exception:
             ph = {"phrase": "IDLE", "phrase_conf": 0.0, "phrase_live": False}
         self._prev_r2 = r2_now

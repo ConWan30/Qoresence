@@ -4,6 +4,8 @@
 export const PHRASES = ["IDLE", "HUDDLE", "SNAP", "SPRINT", "CUT", "RELEASE"] as const;
 export type Phrase = (typeof PHRASES)[number];
 export const LIVE_PHRASES = new Set<Phrase>(["SNAP", "SPRINT", "CUT", "RELEASE"]);
+/** OFF by default — DualSense floors must not chatter Theater labels. */
+export const PLAY_PHRASE_ENABLED = false;
 
 export const R2_FLOOR = 0.08;
 export const STICK_FLOOR = 0.15;
@@ -82,6 +84,7 @@ function sortedJson(obj: Record<string, unknown>): string {
 }
 
 export function classifyPhrase(s: PhraseSample): PhraseResult {
+  if (!PLAY_PHRASE_ENABLED) return { phrase: "IDLE", confidence: 0, live: false };
   const gst = s.gameState;
   const r2 = Math.max(0, s.r2);
   const prev = Math.max(0, s.prevR2);
@@ -111,6 +114,7 @@ export function classifyPhrase(s: PhraseSample): PhraseResult {
   return pack("IDLE", 0.5);
 }
 
+/** @deprecated Spine (Python) is sole mint — Glass must adopt coupling_ticket_id. */
 export function mintCouplingTicket(args: {
   clockNs: number;
   frameSeq: number | null;
@@ -164,6 +168,7 @@ export function whyStripCoupling(ticket: CouplingTicket | null): string {
   return `couple ${ticket.phrase} ticket=${ticket.ticketId}${seq}`;
 }
 
+/** @deprecated Spine (Python) is sole mint — Glass must adopt last_confirm.ticket_id. */
 export function mintConfirmTicket(args: {
   clockNs: number;
   homeScore: number;
