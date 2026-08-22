@@ -611,8 +611,8 @@ _CLIP_DOCK_CSS = "clip-dock.css"
 
 def _clip_dock_snippet() -> str:
     return (
-        f'<link rel="stylesheet" href="/{_CLIP_DOCK_CSS}?v=compact1">'
-        f'<script src="/{_CLIP_DOCK_JS}?v=compact1" defer></script>'
+        f'<link rel="stylesheet" href="/{_CLIP_DOCK_CSS}?v=compact2">'
+        f'<script src="/{_CLIP_DOCK_JS}?v=compact2" defer></script>'
     )
 
 
