@@ -52,10 +52,6 @@ def _get_fastmcp():
         return handle_get_frame()
 
     @mcp.tool()  # type: ignore
-    def export_clip(seconds: int = 15) -> dict:  # type: ignore
-        return handle_export_clip(seconds=seconds)
-
-    @mcp.tool()  # type: ignore
     def search_clips(
         query: str = "",
         limit: int = 8,
@@ -304,54 +300,6 @@ def handle_get_frame() -> dict[str, Any]:
         "clock_ns": time.monotonic_ns(),
     }
 
-
-def handle_export_clip(seconds: int = 15) -> dict[str, Any]:
-    seconds = max(1, min(30, int(seconds)))
-    hr = _http_post("/api/agent/clip", {"seconds": seconds})
-    if hr.get("ok"):
-        return hr
-    if hr.get("error") == "http_unreachable":
-        try:
-            from qoresence.vision.clip_buffer import get_clip_buffer
-
-            cb = get_clip_buffer()
-            fn = getattr(cb, "export", None) or getattr(cb, "export_clip", None)
-            if fn is None:
-                return {
-                    "ok": False,
-                    "error": "clip_failed",
-                    "hint": "no export method on ClipBuffer",
-                    "http_hint": hr.get("hint"),
-                }
-            res = (
-                fn(seconds=seconds)
-                if "seconds" in fn.__code__.co_varnames
-                else fn(path=None, seconds=seconds)
-            )
-            if res is None:
-                return {
-                    "ok": False,
-                    "error": "clip_no_frames",
-                    "hint": "ring empty (is streamer running?)",
-                    "http_hint": hr.get("hint"),
-                }
-            if hasattr(res, "path"):
-                return {
-                    "ok": True,
-                    "path": str(res.path),
-                    "frames": res.frames,
-                    "duration_s": res.duration_s,
-                    "seconds": seconds,
-                }
-            return {"ok": True, "result": str(res)}
-        except Exception as e:
-            return {
-                "ok": False,
-                "error": "clip_failed",
-                "hint": str(e),
-                "http_hint": hr.get("hint"),
-            }
-    return hr
 
 
 def handle_get_observation() -> dict[str, Any]:
@@ -615,17 +563,6 @@ TOOL_DEFS = [
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
-        "name": "export_clip",
-        "description": "Export local HDMI ring to MP4+sidecar. seconds 1..30. Throttled 1 per 10s.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "seconds": {"type": "integer", "minimum": 1, "maximum": 30, "default": 15}
-            },
-            "additionalProperties": False,
-        },
-    },
-    {
         "name": "search_clips",
         "description": "Foundry RAG: keyword search over clips chapters+buttons+graph+timeline. query free text, limit 1..20, kinds csv, coupling_min 0..1, drive_id.",
         "inputSchema": {
@@ -727,7 +664,6 @@ HANDLERS = {
     ),
     "get_health": lambda a: handle_get_health(),
     "get_frame": lambda a: handle_get_frame(),
-    "export_clip": lambda a: handle_export_clip(seconds=int(a.get("seconds", 15))),
     "search_clips": lambda a: handle_search_clips(
         query=str(a.get("query", "")),
         limit=int(a.get("limit", 8)),
@@ -873,7 +809,7 @@ def _handle_request(msg: dict[str, Any]) -> dict[str, Any] | None:
                             "role": "user",
                             "content": {
                                 "type": "text",
-                                "text": "You are Qoresence clutch coach. Call get_snapshot then get_events(types=presence_report) then export_clip if clutch. Cite clock_ns.",
+                                "text": "You are Qoresence clutch coach. Call get_snapshot then get_events(types=presence_report) then search_clips / get_drive_graph. Cite clock_ns. Do not write clips via MCP — operator uses POST /api/agent/clip.",
                             },
                         }
                     ],

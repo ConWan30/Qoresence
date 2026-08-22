@@ -14,7 +14,7 @@ MCP means that program can be **any AI assistant** speaking the standard [Model 
 
 **In use:**
 
-- "Claude, clip that touchdown" → `export_clip(seconds=10)` → `clips/*.mp4` + `*.buttons.json` + chapters
+- "Claude, clip that touchdown" → MCP **cannot** write — operator uses Foundry/clutch `POST /api/agent/clip` (licensed write outside MCP)
 - "What's my clutch factor?" → `get_situation` → `coupling` + `situation` + `last visual_context`
 - "Summarize the last red-zone drive" → `get_events(since, types=presence_report,visual_context)` → causal timeline
 
@@ -34,7 +34,10 @@ PS5 HDMI → Qoresence Streamer (owns card) → FrameHub / ClipBuffer / IVC / A2
 
 `mcp` reuses Glass D — no new port, no second capture open, no `0.0.0.0`.
 
-## 12 tools (7 glass + 4 foundry/proactive + wrap)
+## 11 tools (observation-only — eyes not hands)
+
+MCP never writes MP4/sidecars. Clip export stays on licensed `POST /api/agent/clip` / clutch Foundry path, not the MCP façade.
+
 
 | tool | what it does | throttle / error |
 |------|--------------|------------------|
@@ -42,7 +45,6 @@ PS5 HDMI → Qoresence Streamer (owns card) → FrameHub / ClipBuffer / IVC / A2
 | `get_events` | cursor-paginated `RetinaEventBus` (`since=_agent_seq`, `types` csv, `limit` 1..500) | `max_eps_per_client` |
 | `get_health` | fast liveness (`running`, `seq`, `video{age_s,frames}`, `coupling`) | — |
 | `get_frame` | latest JPEG as `data:image/jpeg;base64,...` from `ClipBuffer` | **10 fps/client** → `429 frame_throttled` |
-| `export_clip` | local `clips/*.mp4` + chapter/`.buttons.json` sidecars (`seconds` 1..30) | **1 per 10 s global** → `429 clip_rate_limited` |
 | `get_situation` | merged `situation + coupling + last visual_context` | — |
 | `get_observation` | **Witness pack** — plane-tagged title/score/phrase/glass the agent *may* say; unlocked digits and localhost phone URLs stay silent | — |
 | `wrap_observation` | **Research wrap** — last `title_presence` → `qoresence-research`. Grant env required. Refuses `qortroller-truth`. | — |
@@ -114,7 +116,8 @@ With token: `{ "env": { "QORESENCE_AGENT_GLASS_TOKEN_FILE": ".secrets/agent_glas
 - **Never opens capture** — reads `ClipBuffer.latest_jpeg` / `RetinaEventBus` only; falls back to in-process `ClipBuffer` only when `http_unreachable`.
 - **Respects Deck policy** — `allow_frame=false → 403`, `allow_clip=false → 403`; throttles `429` pass through.
 - **AGENTS.md R1/R3/R4 hold** — AgentGlass appends under `RLock` but fans out outside lock; slow MCP client cannot deadlock streamer/watchdog/IVC.
-- **Timeouts:** HTTP 2 s so `export_clip` never blocks stdio forever.
+- **Observation-only:** no `export_clip` on MCP — eyes not hands; no Truth-plane / authorship via MCP.
+- **Timeouts:** HTTP 2 s so reads never block stdio forever.
 
 ## Troubleshooting
 
@@ -122,7 +125,7 @@ With token: `{ "env": { "QORESENCE_AGENT_GLASS_TOKEN_FILE": ".secrets/agent_glas
 |---------|-----|
 | `http_unreachable` / "is Qoresence running with --agent-glass?" | start `python -m qoresence.cli --play --deck --agent-glass` and retry `get_health` |
 | `frame_throttled` (429) | `get_frame` is 10 fps/client — back off 100 ms |
-| `clip_rate_limited` (429) | `export_clip` is 1/10 s global — wait |
+| `clip_rate_limited` (429) | only on licensed `POST /api/agent/clip` (not MCP) |
 | `video.age_s` climbs, `frames` stalled | not the card — capture thread deadlocked; `py-spy dump --pid <pid>`, see `AGENTS.md` |
 | Token 401 | `cat .secrets/agent_glass.token` present and `QORESENCE_AGENT_GLASS_REQUIRE_TOKEN=1` on Deck side |
 
@@ -133,7 +136,7 @@ With token: `{ "env": { "QORESENCE_AGENT_GLASS_TOKEN_FILE": ".secrets/agent_glas
 # then from MCP client:
 # get_snapshot  → verify video.age_s <1s, frames climbing
 # get_events    → presence_report / visual_context flowing
-# export_clip   → clips/*.mp4 appears locally
+# POST /api/agent/clip → clips/*.mp4 (operator/Foundry — not MCP)
 curl http://127.0.0.1:8765/health        # video.age_s, fps
 curl http://127.0.0.1:8765/api/agent/health
 ```
