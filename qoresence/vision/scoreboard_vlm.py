@@ -295,7 +295,13 @@ class ScoreboardVlmReferee:
         if isinstance(home_left, bool):
             out["home_left"] = home_left
         elif isinstance(home_left, (int, float, str)):
-            out["home_left"] = bool(home_left) and str(home_left).lower() not in {"0", "false", "no", "null", "none"}
+            out["home_left"] = bool(home_left) and str(home_left).lower() not in {
+                "0",
+                "false",
+                "no",
+                "null",
+                "none",
+            }
         else:
             out["home_left"] = None
         # clock "4:51" → seconds
