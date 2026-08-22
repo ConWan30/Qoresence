@@ -5,6 +5,7 @@ export const DECK_SCHEMA_VERSION = "qoresence-deck-v0";
 let _schemaMissingWarned = false;
 let _schemaMismatchWarned = false;
 
+import { parseCompanion, type AgentCompanion } from "./companion.ts";
 import type { Phrase } from "./engine";
 
 const PHRASES: readonly Phrase[] = ["IDLE", "HUDDLE", "SNAP", "SPRINT", "CUT", "RELEASE"];
@@ -46,6 +47,8 @@ export type DeckIngest = {
   gameTitle: string;
   homeTeam: string;
   awayTeam: string;
+  /** True when HOME is the left scorebug. Madden/NFL/CFB default is away-left. */
+  homeLeft: boolean;
   fieldPos: string;
   why: string;
   liveSeq: number;
@@ -58,6 +61,7 @@ export type DeckIngest = {
   /** ws = /retina; poll = /api/situation (sticky optics apply). */
   via: "ws" | "poll";
   ghostStick: GhostStick;
+  companion: AgentCompanion;
 };
 
 export type GhostStick = {
@@ -121,6 +125,20 @@ function firstStr(o: Record<string, unknown>, keys: string[]): string {
     if (s) return s;
   }
   return "";
+}
+
+function firstBool(o: Record<string, unknown>, keys: string[]): boolean | null {
+  for (const k of keys) {
+    const v = o[k];
+    if (v === true || v === false) return v;
+    if (v === 1 || v === 0) return Boolean(v);
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase();
+      if (s === "true" || s === "yes" || s === "on") return true;
+      if (s === "false" || s === "no" || s === "off") return false;
+    }
+  }
+  return null;
 }
 
 function parsePair(raw: unknown): [number, number] | null {
@@ -239,30 +257,58 @@ function pickClutch(...bags: Record<string, unknown>[]): {
   return { climax, phase, clipWorth, winProb, scorePlay };
 }
 
-function pickIdentity(...bags: Record<string, unknown>[]): {
+function teamPair(o: Record<string, unknown>): { home: string; away: string } | null {
+  if (!o || !Object.keys(o).length) return null;
+  const home = firstStr(o, ["home_team", "homeTeam"]);
+  const away = firstStr(o, ["away_team", "awayTeam"]);
+  if (home && away) return { home, away };
+  return null;
+}
+
+function pickIdentity(m: Record<string, unknown>, snap: Record<string, unknown>, sit: Record<string, unknown>): {
   title: string;
   homeTeam: string;
   awayTeam: string;
+  homeLeft: boolean;
   fieldPos: string;
 } {
   let title = "";
   let homeTeam = "";
   let awayTeam = "";
   let fieldPos = "";
-  const walk = (o: Record<string, unknown>) => {
+  let homeLeft: boolean | null = null;
+  const walkMeta = (o: Record<string, unknown>) => {
     if (!o || !Object.keys(o).length) return;
     if (!title) title = firstStr(o, ["game_title", "title_claim", "game_profile"]);
-    if (!homeTeam) homeTeam = firstStr(o, ["home_team", "home_team_name", "homeTeam"]);
-    if (!awayTeam) awayTeam = firstStr(o, ["away_team", "away_team_name", "awayTeam"]);
     if (!fieldPos) fieldPos = firstStr(o, ["field_position", "fieldPos"]);
+    if (homeLeft == null) homeLeft = firstBool(o, ["home_left", "homeLeft"]);
   };
-  for (const bag of bags) {
-    walk(bag);
-    walk(rec(bag.situation));
-    walk(rec(bag.payload));
-    walk(rec(bag.visual_context));
+  // Spine situation first — do not let a flickering visual_context swap sides.
+  const preferred = [sit, rec(snap.situation), rec(m.payload), rec(m.situation), snap, m];
+  for (const o of preferred) {
+    walkMeta(o);
+    if (!homeTeam && !awayTeam) {
+      const pair = teamPair(o);
+      if (pair) {
+        homeTeam = pair.home;
+        awayTeam = pair.away;
+      }
+    }
   }
-  return { title, homeTeam, awayTeam, fieldPos };
+  if (!homeTeam && !awayTeam) {
+    for (const o of [rec(sit.visual_context), rec(snap.visual_context), rec(m.visual_context)]) {
+      walkMeta(o);
+      const pair = teamPair(o);
+      if (pair) {
+        homeTeam = pair.home;
+        awayTeam = pair.away;
+        break;
+      }
+    }
+  } else {
+    for (const o of preferred) walkMeta(o);
+  }
+  return { title, homeTeam, awayTeam, homeLeft: homeLeft === true, fieldPos };
 }
 
 function situationOf(m: Record<string, unknown>): Record<string, unknown> {
@@ -428,6 +474,7 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     gameTitle: ident.title,
     homeTeam: ident.homeTeam,
     awayTeam: ident.awayTeam,
+    homeLeft: ident.homeLeft,
     fieldPos: ident.fieldPos,
     why: whyBits.join(" · ") || "deck snapshot",
     liveSeq,
@@ -438,6 +485,7 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     videoOptics,
     via: "ws",
     ghostStick: parseGhostStick(snap.ghost_stick || m.ghost_stick, widgetsOk),
+    companion: parseCompanion(snap.companion || m.companion || m),
   };
 }
 
@@ -469,6 +517,38 @@ export function downDistanceLabel(down: number | null, distance: number | null):
   return `${ord} & ${dist}`;
 }
 
+/** Named sides paint left→right as HDMI (away left unless homeLeft). Bare digits stay home–away. */
+export function scorebugPair(ing: {
+  homeScore: number | null;
+  awayScore: number | null;
+  homeTeam?: string;
+  awayTeam?: string;
+  homeLeft?: boolean | null;
+  dash?: string;
+}): string {
+  if (ing.homeScore == null || ing.awayScore == null) return "";
+  const dash = ing.dash ?? "-";
+  const leftTeam = ing.homeLeft === true ? ing.homeTeam || "" : ing.awayTeam || "";
+  const rightTeam = ing.homeLeft === true ? ing.awayTeam || "" : ing.homeTeam || "";
+  const named = Boolean(leftTeam && rightTeam);
+  const leftScore = named
+    ? ing.homeLeft === true
+      ? ing.homeScore
+      : ing.awayScore
+    : ing.homeScore;
+  const rightScore = named
+    ? ing.homeLeft === true
+      ? ing.awayScore
+      : ing.homeScore
+    : ing.awayScore;
+  if (named) {
+    return dash === "–"
+      ? `${leftTeam} ${leftScore}–${rightScore} ${rightTeam}`
+      : `${leftTeam} ${leftScore} - ${rightTeam} ${rightScore}`;
+  }
+  return dash === "–" ? `${leftScore}–${rightScore}` : `${leftScore}-${rightScore}`;
+}
+
 export function situationLine(ing: {
   homeScore: number | null;
   awayScore: number | null;
@@ -478,18 +558,14 @@ export function situationLine(ing: {
   clock: string;
   homeTeam?: string;
   awayTeam?: string;
+  homeLeft?: boolean | null;
   fieldPos?: string;
   winProb?: number | null;
   gameTitle?: string;
 }): string {
   const parts: string[] = [];
-  if (ing.homeScore != null && ing.awayScore != null) {
-    if (ing.homeTeam || ing.awayTeam) {
-      parts.push(`${ing.homeTeam || "HOME"} ${ing.homeScore} - ${ing.awayTeam || "AWAY"} ${ing.awayScore}`);
-    } else {
-      parts.push(`${ing.homeScore}-${ing.awayScore}`);
-    }
-  }
+  const pair = scorebugPair(ing);
+  if (pair) parts.push(pair);
   if (ing.quarter != null) parts.push(`Q${ing.quarter}${ing.clock ? ` ${ing.clock}` : ""}`);
   else if (ing.clock) parts.push(ing.clock);
   if (ing.down != null) {

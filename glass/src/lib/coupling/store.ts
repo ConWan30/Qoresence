@@ -25,18 +25,20 @@ import {
   type AgentReceipt,
 } from "./agents";
 import { EMPTY_PLANE, type AgentPlane } from "./agent-plane";
+import { EMPTY_COMPANION, type AgentCompanion } from "./companion.ts";
 import { armCapture as armCaptureDevice, armShare as armShareDevice, getDeckSrc, thawDeck as thawDeckDevice, wakePad as wakePadDevice, sampleCapture, type CaptureStatus, type VideoDevice } from "./hardware";
 import { boardLine, situationLine, EMPTY_GHOST, type DeckIngest, type GhostStick } from "./board";
 import { clutchAdvanced, scoreClutch, QUIET_CLUTCH, type ClutchSnap, type FeedMoment } from "./clutch";
 import { measureLag } from "./sync";
 import { qsEnhance, qsProbe } from "./quicksilver";
-import { clipSeconds, requestDeckClip, shouldClip } from "./clip";
+import { clipHref, clipSeconds, momentLooksLikeClip, requestDeckClip, shouldClip, type HdmiClipFile } from "./clip";
 
 let qsAt = 0;
 let qsKey = "";
 let clipAt = 0;
 
 export type HdmiMode = "live" | "menu" | "stale";
+export type StageMode = "live" | "replay";
 export type DrillId = "idle" | "sprint" | "veto" | "score" | null;
 export type ViewMode = "deck" | "lens";
 
@@ -68,6 +70,9 @@ export type TheaterState = {
   /** Raw board digits for Phosphor Lockbug / Down Pill (fail-closed). */
   homeScore: number | null;
   awayScore: number | null;
+  homeTeam: string;
+  awayTeam: string;
+  homeLeft: boolean;
   down: number | null;
   distance: number | null;
   boardLocked: boolean;
@@ -101,6 +106,12 @@ export type TheaterState = {
   lastClipUrl: string;
   lastClipName: string;
   lastClipError: string;
+  hdmiClips: HdmiClipFile[];
+  clipFollow: boolean;
+  /** Legacy Deck: LIVE = HDMI JPEG, REPLAY = clip MP4 on the stage. */
+  stageMode: StageMode;
+  clipBusy: boolean;
+  companion: AgentCompanion;
   framed: boolean;
   setR2: (v: number) => void;
   setLeft: (v: number) => void;
@@ -125,9 +136,15 @@ export type TheaterState = {
   ghostStick: GhostStick;
   ingestAgentPlane: (plane: AgentPlane) => void;
   ingestMoment: (m: FeedMoment) => void;
+  ingestClips: (clips: HdmiClipFile[]) => void;
+  playClip: (url: string, name?: string) => void;
+  goLive: () => void;
+  goReplay: () => void;
   probeQuicksilver: () => Promise<void>;
   requestEnhance: () => Promise<void>;
   requestClip: () => Promise<void>;
+  /** Legacy `POST /api/clip` 30s, then play on the HDMI stage. */
+  requestHdmiClip: () => Promise<void>;
   tick: (prevR2: number) => void;
   runDrill: (id: DrillId) => void;
   mintConfirm: () => void;
@@ -208,6 +225,9 @@ export const useTheater = create<TheaterState>((set, get) => ({
   situation: "",
   homeScore: null,
   awayScore: null,
+  homeTeam: "",
+  awayTeam: "",
+  homeLeft: false,
   down: null,
   distance: null,
   boardLocked: false,
@@ -241,6 +261,11 @@ export const useTheater = create<TheaterState>((set, get) => ({
   lastClipUrl: "",
   lastClipName: "",
   lastClipError: "",
+  hdmiClips: [],
+  clipFollow: true,
+  stageMode: "live",
+  clipBusy: false,
+  companion: EMPTY_COMPANION,
   framed: false,
   livePaint: true,
   sameSeq: true,
@@ -362,6 +387,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       clock: ing.clock,
       homeTeam: ing.homeTeam,
       awayTeam: ing.awayTeam,
+      homeLeft: ing.homeLeft,
       fieldPos: ing.fieldPos,
       winProb: ing.winProb,
       gameTitle: ing.gameTitle,
@@ -417,6 +443,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
     }
     const scoreLine = confirm ? whyStripConfirm(confirm) : licenseScoreText(SOFT.scoreLine, confirm);
     const why = ing.why || `${whyStripConfirm(confirm)} · ${whyStripCoupling(liveTicket)} · phrase=${phrase.phrase}`;
+    const companion = ing.companion?.ok ? ing.companion : s.companion;
     const agents = mergeAgentPlane(evaluateAgents({
       phrase: phrase.phrase,
       phraseLive: phrase.live,
@@ -428,6 +455,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       confirm,
       pllLock: ing.pllLock,
       hdmiLive: ing.hdmi === "live",
+      companion,
     }), s.agentPlane, liveTicket !== null);
     if (phrase.phrase !== s.phrase.phrase) log = pushLog(log, "phrase", phrase.phrase);
     if (liveTicket && (!s.ticket || s.ticket.ticketId !== liveTicket.ticketId)) {
@@ -462,6 +490,9 @@ export const useTheater = create<TheaterState>((set, get) => ({
       // Prefer fresh locked board; otherwise retain prior store values — never invent.
       homeScore: widgetsOk ? ing.homeScore : ing.boardLocked ? ing.homeScore : s.homeScore,
       awayScore: widgetsOk ? ing.awayScore : ing.boardLocked ? ing.awayScore : s.awayScore,
+      homeTeam: widgetsOk || ing.boardLocked ? ing.homeTeam : s.homeTeam,
+      awayTeam: widgetsOk || ing.boardLocked ? ing.awayTeam : s.awayTeam,
+      homeLeft: widgetsOk || ing.boardLocked ? Boolean(ing.homeLeft) : s.homeLeft,
       down: widgetsOk ? ing.down : ing.boardLocked ? ing.down : s.down,
       distance: widgetsOk ? ing.distance : ing.boardLocked ? ing.distance : s.distance,
       boardLocked: widgetsOk ? Boolean(ing.boardLocked) : Boolean(ing.boardLocked) || s.boardLocked,
@@ -478,6 +509,9 @@ export const useTheater = create<TheaterState>((set, get) => ({
       clutch,
       why,
       confirm,
+      companion,
+      lastClipUrl: companion.lastClip?.url ? clipHref(companion.lastClip.url) : s.lastClipUrl,
+      lastClipName: companion.lastClip?.name || s.lastClipName,
       agents,
       log,
       padConnected: ing.padConnected || s.padConnected,
@@ -500,14 +534,80 @@ export const useTheater = create<TheaterState>((set, get) => ({
       if (shouldClip(clutch.kind, ing.clipWorth)) void get().requestClip();
     }
   },
+  playClip: (url, name) => {
+    const href = clipHref(url || name || "");
+    if (!href) return;
+    const file = name || href.replace(/\\/g, "/").split("/").pop() || "";
+    set({
+      lastClipUrl: href,
+      lastClipName: file || get().lastClipName,
+      lastClipError: "",
+      clipFollow: false,
+      stageMode: "replay",
+    });
+  },
+  goLive: () => set({ stageMode: "live", clipFollow: true }),
+  goReplay: () => {
+    const s = get();
+    const href = clipHref(s.lastClipUrl || s.hdmiClips[0]?.href || "");
+    if (!href) return;
+    get().playClip(href, s.lastClipName || s.hdmiClips[0]?.name);
+  },
+  ingestClips: (clips) => {
+    const s = get();
+    const newest = clips[0];
+    const same =
+      clips.length === s.hdmiClips.length && clips.every((c, i) => c.name === s.hdmiClips[i]?.name);
+    if (same) {
+      if (newest && !s.lastClipUrl) {
+        set({ hdmiClips: clips, lastClipUrl: newest.href, lastClipName: newest.name });
+      }
+      return;
+    }
+    set({
+      hdmiClips: clips,
+      lastClipUrl: s.lastClipUrl || newest?.href || "",
+      lastClipName: s.lastClipName || newest?.name || "",
+    });
+  },
   ingestMoment: (m) => {
     const s = get();
-    if (s.moments.some((x) => x.key === m.key)) return;
+    const row = { url: "", name: "", ...m };
+    const href = clipHref(row.url || row.name || "");
+    const existing = s.moments.find((x) => x.key === m.key);
+    if (existing) {
+      if (!href || existing.url) return;
+      const now = Date.now();
+      const moments = s.moments.map((x) => {
+        if (x.key === m.key || (!x.url && (momentLooksLikeClip(x) || (x.key.startsWith("clutch:") && now - x.at < 30000)))) {
+          return { ...x, url: row.url || href, name: row.name || x.name };
+        }
+        return x;
+      });
+      set({
+        moments,
+        lastClipUrl: href || s.lastClipUrl,
+        lastClipName: row.name || s.lastClipName,
+      });
+      return;
+    }
     if (m.key.startsWith("chat:")) {
       const dup = s.moments.find((x) => x.key === m.key && Date.now() - x.at < 120000);
       if (dup) return;
     }
-    set({ moments: [m, ...s.moments].slice(0, 20) });
+    const now = Date.now();
+    const backfilled = href
+      ? s.moments.map((x) =>
+          !x.url && (momentLooksLikeClip(x) || (x.key.startsWith("clutch:") && now - x.at < 30000))
+            ? { ...x, url: row.url || href, name: row.name || x.name }
+            : x,
+        )
+      : s.moments;
+    set({
+      moments: [row, ...backfilled].slice(0, 20),
+      lastClipUrl: href || s.lastClipUrl,
+      lastClipName: href ? row.name || row.url.replace(/\\/g, "/").split("/").pop() || s.lastClipName : s.lastClipName,
+    });
   },
   probeQuicksilver: async () => {
     try {
@@ -642,6 +742,40 @@ export const useTheater = create<TheaterState>((set, get) => ({
       clock: "now",
       icon: "🎬",
       at: Date.now(),
+      url: out.url || abs,
+      name: out.name,
+    });
+  },
+  requestHdmiClip: async () => {
+    if (get().clipBusy) return;
+    set({ clipBusy: true, lastClipError: "" });
+    const out = await requestDeckClip(30, "/api/clip");
+    set({ clipBusy: false });
+    if (!out.ok) {
+      set({ lastClipError: out.error });
+      get().ingestMoment({
+        key: `clip:fail:${out.error}`,
+        title: `CLIP wait — ${out.error}`,
+        path: "",
+        reason: "hdmi ring",
+        clock: "now",
+        icon: "🎬",
+        at: Date.now(),
+      });
+      return;
+    }
+    const href = clipHref(out.url || out.name);
+    get().playClip(href || out.url, out.name);
+    get().ingestMoment({
+      key: `clip:${out.url || out.name}`,
+      title: `HDMI CLIP ${out.seconds}s`,
+      path: "confirm",
+      reason: out.name,
+      clock: "now",
+      icon: "🎬",
+      at: Date.now(),
+      url: out.url,
+      name: out.name,
     });
   },
   ingestAgentPlane: (plane) => {
@@ -658,6 +792,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
         confirm: s.confirm,
         pllLock: s.pllLock,
         hdmiLive: s.hdmi === "live",
+        companion: s.companion,
       }),
       plane,
       s.ticketLive,
@@ -766,6 +901,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       confirm: s.confirm,
       pllLock: s.pllLock,
       hdmiLive: live,
+      companion: s.companion,
     }), s.agentPlane, liveTicket !== null);
     if (agentsSignature(agents) !== agentsSignature(s.agents)) {
       const bot = agents.find((a) => a.role === "clutchbot");

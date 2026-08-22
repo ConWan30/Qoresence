@@ -111,6 +111,34 @@ def identity_compatible(
     return bool(cur & new)
 
 
+def identity_sides_stable(
+    cur_home: Any,
+    cur_away: Any,
+    new_home: Any,
+    new_away: Any,
+    *,
+    profile: Any = None,
+) -> bool:
+    """True unless incoming names invert the locked home/away assignment.
+
+    ``identity_compatible`` treats KC/PHI and PHI/KC as the same game — a
+    ticker pair is rejected, but a ``home_left`` flicker still applies and
+    swaps the scoreboard. Once a pair is locked, hold the sides.
+    """
+    league = _league(profile)
+    cur_h = _team_keys(cur_home, league=league)
+    cur_a = _team_keys(cur_away, league=league)
+    new_h = _team_keys(new_home, league=league)
+    new_a = _team_keys(new_away, league=league)
+    if not cur_h or not cur_a:
+        return True
+    if not new_h and not new_a:
+        return True
+    home_flipped = bool(new_h) and bool(new_h & cur_a) and not bool(new_h & cur_h)
+    away_flipped = bool(new_a) and bool(new_a & cur_h) and not bool(new_a & cur_a)
+    return not (home_flipped or away_flipped)
+
+
 def vlm_home_away_names(vlm: dict[str, Any] | None) -> tuple[str, str]:
     if not vlm:
         return "", ""

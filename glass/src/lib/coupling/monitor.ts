@@ -2,6 +2,7 @@
 
 import { fetchAgentPlane, parseAgentPlane, type AgentPlane } from "./agent-plane";
 import { parseDeckMessage, type DeckIngest } from "./board";
+import { parseHdmiClipList } from "./clip";
 import { parseFeedMoment, parseSnapshotMoments, type FeedMoment } from "./clutch";
 import { getDeckOrigin, probeDeck } from "./qoresence-deck";
 import { useTheater } from "./store";
@@ -83,12 +84,14 @@ export function startDeckMonitor(
   const tickPoll = async () => {
     const probe = await probeDeck();
     if (!probe.up) return;
-    const [body, snap, events, planeBody] = await Promise.all([
+    const [body, snap, events, planeBody, clipsBody] = await Promise.all([
       readJson(`${probe.origin}/api/situation`),
       readJson(`${probe.origin}/api/agent/snapshot`),
       readJson(`${probe.origin}/api/agent/events?limit=12`),
       readJson(`${probe.origin}/api/agent/plane`),
+      readJson(`${probe.origin}/api/clips`),
     ]);
+    useTheater.getState().ingestClips(parseHdmiClipList(clipsBody, probe.origin));
     const st = useTheater.getState();
     const wsOpen = ws != null && ws.readyState === WebSocket.OPEN;
     const wsFresh = wsOpen && st.deckLive && Date.now() - st.deckAt < WS_OPTICS_HOLD_MS;

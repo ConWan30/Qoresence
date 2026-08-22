@@ -1,4 +1,4 @@
-import { downDistanceLabel } from "@/lib/coupling/board";
+import { downDistanceLabel, scorebugPair } from "@/lib/coupling/board";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,9 @@ export function LockbugStrip({ className }: { className?: string }) {
   const boardLocked = useTheater((s) => s.boardLocked);
   const homeScore = useTheater((s) => s.homeScore);
   const awayScore = useTheater((s) => s.awayScore);
+  const homeTeam = useTheater((s) => s.homeTeam);
+  const awayTeam = useTheater((s) => s.awayTeam);
+  const homeLeft = useTheater((s) => s.homeLeft);
   const down = useTheater((s) => s.down);
   const distance = useTheater((s) => s.distance);
   const confirm = useTheater((s) => s.confirm);
@@ -22,7 +25,16 @@ export function LockbugStrip({ className }: { className?: string }) {
     awayScore != null &&
     (confirm != null || boardLocked);
 
-  const score = licensed ? `${homeScore}–${awayScore}` : "□–□";
+  const score = licensed
+    ? scorebugPair({
+        homeScore,
+        awayScore,
+        homeTeam,
+        awayTeam,
+        homeLeft,
+        dash: "–",
+      }) || "□–□"
+    : "□–□";
   const downLine = licensed ? downDistanceLabel(down, distance) : "— & —";
   const text = `${score} · ${downLine}`;
 

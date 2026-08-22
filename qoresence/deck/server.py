@@ -211,6 +211,24 @@ class DeckState:
             }
         except Exception:
             pass
+        try:
+            from qoresence.agents.companion import build_companion
+            from qoresence.agents.society import get_society
+            from qoresence.sync.ivc import get_last_coupling
+
+            soc = get_society()
+            tl = out.get("timeline") if isinstance(out.get("timeline"), dict) else {}
+            out["companion"] = build_companion(
+                situation=self.situation if isinstance(self.situation, dict) else {},
+                coupling=get_last_coupling(),
+                moments=list(self.moments[-8:]),
+                last_moment=self.last_moment if isinstance(self.last_moment, dict) else None,
+                society=soc.stats() if soc is not None else {"enabled": False},
+                drive_graph=(tl or {}).get("drive_graph"),
+                why_last=(tl or {}).get("why_last"),
+            )
+        except Exception:
+            pass
         return out
 
 
@@ -896,6 +914,12 @@ def create_app():  # type: ignore[no-untyped-def]
             body["coupling"] = get_last_coupling()
         except Exception:
             body["coupling"] = {"imu_bodied": False, "coupling": 0.0, "binds": 0}
+        try:
+            from qoresence.agents.companion import snapshot_companion
+
+            body["companion"] = snapshot_companion()
+        except Exception:
+            body["companion"] = {"ok": False, "auto_clip": True, "plane": "qoresence-observation"}
         return JSONResponse(body)
 
     @app.get("/api/situation")
@@ -1577,7 +1601,9 @@ def create_app():  # type: ignore[no-untyped-def]
                         root.glob("hdmi_clip_*.*"),
                         key=lambda x: x.stat().st_mtime,
                         reverse=True,
-                    )[:40]:
+                    ):
+                        if p.suffix.lower() not in {".mp4", ".avi"}:
+                            continue
                         items.append(
                             {
                                 "name": p.name,
@@ -1587,10 +1613,15 @@ def create_app():  # type: ignore[no-untyped-def]
                                 "mtime": p.stat().st_mtime,
                             }
                         )
+                        if len(items) >= 40:
+                            break
                 return items
 
             items = await asyncio.to_thread(_list_clips)
-            return JSONResponse({"ok": True, "clips": items})
+            return JSONResponse(
+                {"ok": True, "clips": items},
+                headers={"Access-Control-Allow-Origin": "*"},
+            )
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
@@ -1622,8 +1653,13 @@ def create_app():  # type: ignore[no-untyped-def]
         return FileResponse(
             path,
             media_type=media,
-            filename=safe,
-            headers={"Accept-Ranges": "bytes", "Cache-Control": "no-cache"},
+            content_disposition_type="inline",
+            headers={
+                "Accept-Ranges": "bytes",
+                "Cache-Control": "no-cache",
+                "Access-Control-Allow-Origin": "*",
+                "Content-Disposition": f'inline; filename="{safe}"',
+            },
         )
 
     @app.get("/api/jaeger/{path:path}")

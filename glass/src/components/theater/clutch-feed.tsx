@@ -1,11 +1,13 @@
+import { momentPlayHref } from "@/lib/coupling/clip";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
+/** Clutch / chat moments. HDMI files live on the Clip Rack. */
 export function ClutchFeed() {
   const clutch = useTheater((s) => s.clutch);
   const moments = useTheater((s) => s.moments);
   const lastClipUrl = useTheater((s) => s.lastClipUrl);
-  const lastClipName = useTheater((s) => s.lastClipName);
+  const playClip = useTheater((s) => s.playClip);
   const live = clutch.kind !== "quiet";
 
   return (
@@ -30,47 +32,53 @@ export function ClutchFeed() {
       </div>
       {moments.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          Watching HDMI + DualSense + scorebug. Fast chat, score locks, and clips land here.
+          Fast chat and score locks land here. HDMI files are the big ▶ tiles in HDMI clips.
         </p>
       ) : (
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {moments.slice(0, 8).map((e) => (
-            <article
-              key={e.key}
-              data-clutch-path={e.path || "none"}
-              className={cn(
-                "flex min-h-16 w-56 shrink-0 flex-col justify-center rounded-lg px-3 py-2 shadow-[var(--shadow-border)]",
-                e.path === "confirm"
-                  ? "border border-live/40 bg-live/10 text-live"
-                  : e.path === "fast"
-                    ? "border border-fast/45 bg-fast/10 text-fast"
-                    : "bg-bg/50 text-fg",
-              )}
-            >
-              <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
-                {e.path ? `[${e.path}]` : "moment"} · {e.clock}
-              </p>
-              <p className="truncate text-xs">
-                {e.icon === "🎬" ? "🎬 " : ""}
-                {e.title}
-              </p>
-              {e.reason ? (
-                <p className="truncate font-mono text-[10px] text-subtle-foreground">{e.reason}</p>
-              ) : null}
-            </article>
-          ))}
+        <div className="flex flex-col gap-2">
+          {moments.slice(0, 8).map((e) => {
+            const href = momentPlayHref(e, lastClipUrl);
+            const className = cn(
+              "flex min-h-14 w-full items-center rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
+              href ? "cursor-pointer hover:opacity-90" : "",
+              e.path === "confirm"
+                ? "border border-live/40 bg-live/10 text-live"
+                : e.path === "fast"
+                  ? "border border-fast/45 bg-fast/10 text-fast"
+                  : "bg-bg/50 text-fg",
+            );
+            const inner = (
+              <span className="min-w-0">
+                <span className="block font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
+                  {e.path ? `[${e.path}]` : "moment"} · {e.clock}
+                  {href ? " · play" : ""}
+                </span>
+                <span className="block truncate text-xs">
+                  {e.icon === "🎬" || href ? "🎬 " : ""}
+                  {e.title}
+                </span>
+              </span>
+            );
+            return href ? (
+              <button
+                key={e.key}
+                type="button"
+                data-clutch-path={e.path || "none"}
+                data-clip-href={href}
+                className={className}
+                onPointerDown={(ev) => ev.stopPropagation()}
+                onClick={() => playClip(href, e.name)}
+              >
+                {inner}
+              </button>
+            ) : (
+              <article key={e.key} data-clutch-path={e.path || "none"} className={className}>
+                {inner}
+              </article>
+            );
+          })}
         </div>
       )}
-      {lastClipUrl ? (
-        <a
-          href={lastClipUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="font-mono text-[10px] tracking-wide text-live uppercase"
-        >
-          last clip · {lastClipName || lastClipUrl.split("/").pop()}
-        </a>
-      ) : null}
     </section>
   );
 }

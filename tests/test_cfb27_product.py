@@ -7,6 +7,7 @@ from qoresence.agents.society.types import AgentPacket
 from qoresence.profiles.cfb27_product import (
     effective_game_state,
     identity_compatible,
+    identity_sides_stable,
     vlm_home_away_names,
 )
 
@@ -28,6 +29,14 @@ def test_identity_sticks_against_ticker_pair():
 def test_madden_identity_sticks_against_nfl_ticker():
     assert identity_compatible("KC", "PHI", "Chiefs", "Eagles", profile="madden_27") is True
     assert identity_compatible("KC", "PHI", "Ravens", "Bengals", profile="madden_27") is False
+
+
+def test_locked_pair_does_not_swap_sides_on_home_left_flicker():
+    assert identity_compatible("KC", "PHI", "Eagles", "Chiefs", profile="madden_27") is True
+    assert identity_sides_stable("KC", "PHI", "Chiefs", "Eagles", profile="madden_27") is True
+    assert identity_sides_stable("KC", "PHI", "Eagles", "Chiefs", profile="madden_27") is False
+    assert identity_sides_stable("KC", "PHI", None, None, profile="madden_27") is True
+    assert identity_sides_stable("LOU", "SMU", "SMU", "Louisville") is False
 
 
 def test_vlm_home_away_names_respects_home_left():

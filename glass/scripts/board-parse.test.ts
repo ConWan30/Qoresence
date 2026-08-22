@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { boardLine, parseDeckMessage, pickBoard, situationLine } from "../src/lib/coupling/board.ts";
+import { boardLine, parseDeckMessage, pickBoard, scorebugPair, situationLine } from "../src/lib/coupling/board.ts";
 
 test("WS situation payload carries Madden board", () => {
   const ing = parseDeckMessage({
@@ -172,10 +172,62 @@ test("situation strip matches original Deck scorebug line", () => {
   assert.ok(ing);
   assert.equal(ing.gameTitle, "Madden NFL 27");
   assert.equal(ing.homeTeam, "KC");
+  assert.equal(ing.awayTeam, "PHI");
+  assert.equal(ing.homeLeft, false);
+  // Madden scorebug is AWAY left, HOME right — paint HDMI order, not home-first.
   assert.equal(
     situationLine(ing),
-    "KC 14 - PHI 7 · Q3 3:12 · 2nd & 6 @ PHI34 · WP 58%",
+    "PHI 7 - KC 14 · Q3 3:12 · 2nd & 6 @ PHI34 · WP 58%",
   );
+});
+
+test("home_left true keeps home on the left of the scorebug", () => {
+  const ing = parseDeckMessage({
+    type: "situation",
+    payload: {
+      game_state: "gameplay",
+      home_team: "KC",
+      away_team: "PHI",
+      home_score: 14,
+      away_score: 7,
+      home_left: true,
+      score_vlm_locked: true,
+    },
+  });
+  assert.ok(ing);
+  assert.equal(ing.homeLeft, true);
+  assert.equal(situationLine(ing), "KC 14 - PHI 7");
+  assert.equal(
+    scorebugPair({ homeScore: 14, awayScore: 7, homeTeam: "KC", awayTeam: "PHI", homeLeft: true, dash: "–" }),
+    "KC 14–7 PHI",
+  );
+});
+
+test("situation identity beats swapped visual_context", () => {
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    situation: {
+      game_state: "gameplay",
+      home_team: "KC",
+      away_team: "PHI",
+      home_score: 14,
+      away_score: 7,
+      home_left: false,
+      score_vlm_locked: true,
+    },
+    visual_context: {
+      home_team: "PHI",
+      away_team: "KC",
+      home_score: 14,
+      away_score: 7,
+      home_left: true,
+    },
+  });
+  assert.ok(ing);
+  assert.equal(ing.homeTeam, "KC");
+  assert.equal(ing.awayTeam, "PHI");
+  assert.equal(ing.homeLeft, false);
+  assert.equal(situationLine(ing), "PHI 7 - KC 14");
 });
 
 test("ghost stick paints on same-seq LIVE and vanishes on seq skew", () => {

@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { getCaptureVideo } from "@/lib/coupling/hardware";
 import { deckLiveJpgUrl } from "@/lib/coupling/qoresence-deck";
 import { HDMI_JPEG_KEEP, hdmiPictureVisible } from "@/lib/coupling/hdmi-picture";
+import { clipHref } from "@/lib/coupling/clip";
 import { useTheater } from "@/lib/coupling/store";
 import { GhostStickOverlay } from "./ghost-stick";
 import { LensOverlay } from "./lens-overlay";
@@ -66,9 +67,14 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
   const frozen = jpgOk && ageMs > 3000;
   // JPEG arriving keeps HDMI up. livePaint flickers must not black the stage.
   const showLive = hdmiPictureVisible(jpgOk);
+  const stageMode = useTheater((s) => s.stageMode);
+  const lastClipUrl = useTheater((s) => s.lastClipUrl);
+  const lastClipName = useTheater((s) => s.lastClipName);
+  const replaySrc = stageMode === "replay" ? clipHref(lastClipUrl) : "";
 
   return (
     <section
+      data-stage-mode={stageMode}
       className={cn(
         "relative overflow-hidden bg-surface",
         variant === "lens"
@@ -89,13 +95,26 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
           alt=""
           decoding="async"
           data-hdmi-keep={HDMI_JPEG_KEEP}
-          data-hdmi-picture={showLive ? "on" : "off"}
+          data-hdmi-picture={showLive && !replaySrc ? "on" : "off"}
           className={cn(
             "absolute inset-0 h-full w-full object-contain bg-bg",
-            showLive ? "opacity-100" : "opacity-0",
+            showLive && !replaySrc ? "opacity-100" : "opacity-0",
           )}
         />
-        {frozen ? (
+        {replaySrc ? (
+          <video
+            key={replaySrc}
+            src={`${replaySrc}${replaySrc.includes("?") ? "&" : "?"}v=${encodeURIComponent(lastClipName || "clip")}`}
+            controls
+            playsInline
+            autoPlay
+            preload="auto"
+            data-clip-player="stage"
+            data-clip-href={replaySrc}
+            className="absolute inset-0 z-10 h-full w-full bg-black object-contain"
+          />
+        ) : null}
+        {frozen && !replaySrc ? (
           <p className="absolute bottom-3 left-3 font-mono text-[10px] tracking-wide text-veto uppercase">
             HDMI freeze · pumping JPEG
           </p>

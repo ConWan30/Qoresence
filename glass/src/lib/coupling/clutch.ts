@@ -1,5 +1,6 @@
 /** Clutch monitor — DriveGraph climax + original Deck moment feed. Observation only. */
 
+import { clipPublicPath } from "./clip.ts";
 import type { Phrase } from "./engine";
 
 export type ClutchKind = "quiet" | "pressure" | "window" | "climax" | "score_play";
@@ -135,6 +136,8 @@ export type FeedMoment = {
   clock: string;
   icon: string;
   at: number;
+  url?: string;
+  name?: string;
 };
 
 function rec(v: unknown): Record<string, unknown> {
@@ -152,12 +155,13 @@ export function parseFeedMoment(raw: unknown): FeedMoment | null {
     m.type === "moment" && m.payload && typeof m.payload === "object"
       ? rec(m.payload)
       : rec(m);
-  const url = String(p.url || p.media_url || "");
+  const url = clipPublicPath(String(p.url || p.media_url || p.name || p.path || p.reason || ""));
+  const name = String(p.name || url.replace(/\\/g, "/").split("/").pop() || "");
   const action = String(p.action || p.kind || "").toLowerCase();
-  const isClip = action === "clip" || Boolean(url && /clip/i.test(url));
+  const isClip = action === "clip" || Boolean(url);
   const title = String(p.title || p.message || p.reason || p.text || p.name || (isClip ? "HDMI CLIP" : "")).trim();
   if (!title) return null;
-  const pathRaw = String(p.moment_path || p.path || "").toLowerCase();
+  const pathRaw = String(p.moment_path || "").toLowerCase() || String(p.path || "").toLowerCase();
   const path: FeedMoment["path"] = pathRaw === "confirm" || pathRaw === "fast" ? pathRaw : "";
   const key = url ? `clip:${url}` : isClip ? `clip:${normTitle(title)}` : `chat:${normTitle(title)}`;
   return {
@@ -168,6 +172,8 @@ export function parseFeedMoment(raw: unknown): FeedMoment | null {
     clock: String(p.clock || "now"),
     icon: String(p.icon || (isClip ? "🎬" : path === "fast" ? "⚡" : "●")),
     at: Date.now(),
+    url,
+    name,
   };
 }
 
