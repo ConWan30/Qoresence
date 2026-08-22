@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """SPA land hygiene: smoke + size/shape gate for shipped Theater glass.
 
-Checks the served Vite build under ``glass/dist`` (preferred) or
-``qoresence/deck/glass_spa`` (packaged fallback). No network. No secrets.
+Checks the served Vite build under ``qoresence/deck/glass_spa`` (preferred)
+or ``glass/dist`` (local Vite leftover). No network. No secrets.
 
 Exit 0 on pass, 1 on fail.
 """
@@ -39,8 +39,8 @@ def fail(msg: str) -> None:
 
 def _candidates() -> list[Path]:
     return [
-        ROOT / "glass" / "dist",
         ROOT / "qoresence" / "deck" / "glass_spa",
+        ROOT / "glass" / "dist",
     ]
 
 
@@ -93,7 +93,7 @@ def check_spa(spa: Path) -> None:
             ok(f"JS size {ref} = {n} bytes")
         # Smoke markers that survive Vite minify on current ships.
         blob = p.read_text(encoding="utf-8", errors="ignore")
-        for token in ("score_vlm_locked", "boardLocked"):
+        for token in ("score_vlm_locked", "boardLocked", "hdmiJpegKeep"):
             if token in blob:
                 ok(f"JS contains {token}")
             else:
@@ -148,7 +148,7 @@ def main() -> int:
     print("=" * 48)
     spa = resolve_spa()
     if spa is None:
-        fail("no glass/dist or qoresence/deck/glass_spa with index.html")
+        fail("no qoresence/deck/glass_spa or glass/dist with index.html")
     else:
         check_spa(spa)
 

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --experimental-strip-types --test scripts/*.test.ts src/lib/coupling/capture-resolve.test.ts"
+    "test": "node --experimental-strip-types --test scripts/*.test.ts src/lib/coupling/capture-resolve.test.ts src/lib/coupling/hdmi-picture.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",

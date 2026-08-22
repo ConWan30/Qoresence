@@ -24,7 +24,8 @@ npm install
 npm run build
 ```
 
-Deck serves `glass/dist` at the same URLs when `index.html` is present:
+Deck serves packaged `qoresence/deck/glass_spa` at the same URLs (a stale
+local `glass/dist` leftover must not win):
 
 ```powershell
 .\qoresence.bat --play --deck --agent-glass --streamer-fps 30
@@ -35,7 +36,7 @@ Deck serves `glass/dist` at the same URLs when `index.html` is present:
 - `/studio.html` — Foundry
 - `/mobile.html` — Mobile glass
 
-If `glass/dist` is missing, Python falls back to `qoresence/deck/*.html`.
+If `glass_spa` is missing, Python tries `glass/dist`, then `qoresence/deck/*.html`.
 
 Dev (Vite on :5173, proxies APIs to Deck):
 

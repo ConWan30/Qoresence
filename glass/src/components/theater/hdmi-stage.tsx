@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getCaptureVideo } from "@/lib/coupling/hardware";
 import { deckLiveJpgUrl } from "@/lib/coupling/qoresence-deck";
+import { HDMI_JPEG_KEEP, hdmiPictureVisible } from "@/lib/coupling/hdmi-picture";
 import { useTheater } from "@/lib/coupling/store";
 import { GhostStickOverlay } from "./ghost-stick";
 import { LensOverlay } from "./lens-overlay";
@@ -62,9 +63,9 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
     return () => window.clearInterval(id);
   }, []);
 
-  const livePaint = useTheater((s) => s.livePaint);
   const frozen = jpgOk && ageMs > 3000;
-  const showLive = jpgOk && livePaint && !frozen;
+  // JPEG arriving keeps HDMI up. livePaint flickers must not black the stage.
+  const showLive = hdmiPictureVisible(jpgOk);
 
   return (
     <section
@@ -87,6 +88,8 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
           ref={imgRef}
           alt=""
           decoding="async"
+          data-hdmi-keep={HDMI_JPEG_KEEP}
+          data-hdmi-picture={showLive ? "on" : "off"}
           className={cn(
             "absolute inset-0 h-full w-full object-contain bg-bg",
             showLive ? "opacity-100" : "opacity-0",

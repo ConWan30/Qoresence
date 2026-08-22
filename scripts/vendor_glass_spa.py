@@ -1,7 +1,7 @@
 """Copy glass/dist (Vite build) into packaged qoresence/deck/glass_spa.
 
-glass/dist is gitignored; Theater on :8765 prefers glass_spa when dist is
-absent. Run after: cd glass && npm run build
+glass/dist is gitignored; Theater on :8765 prefers glass_spa so a stale
+local Vite leftover cannot hide HDMI. Run after: cd glass && npm run build
 Then: python scripts/vendor_glass_spa.py
 Then commit qoresence/deck/glass_spa.
 """
