@@ -526,7 +526,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       if (dup) return;
     }
     const row = { url: "", name: "", ...m };
-    const href = row.url ? clipHref(row.url) : "";
+    const href = clipHref(row.url || row.name || "");
     set({
       moments: [row, ...s.moments].slice(0, 20),
       lastClipUrl: href || s.lastClipUrl,
@@ -666,6 +666,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
       clock: "now",
       icon: "🎬",
       at: Date.now(),
+      url: out.url || abs,
+      name: out.name,
     });
   },
   ingestAgentPlane: (plane) => {

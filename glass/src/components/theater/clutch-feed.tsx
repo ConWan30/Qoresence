@@ -31,7 +31,8 @@ export function ClutchFeed() {
       </div>
       {moments.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          Watching HDMI + DualSense + scorebug. Fast chat, score locks, and clips land here.
+          Watching HDMI + DualSense + scorebug. Fast chat, score locks, and clips land here —
+          new MP4s play in this panel. Click a 🎬 chip or Open for a full tab.
         </p>
       ) : (
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -81,15 +82,28 @@ export function ClutchFeed() {
         </div>
       )}
       {lastClipUrl ? (
-        <a
-          href={clipHref(lastClipUrl)}
-          target="_blank"
-          rel="noreferrer"
-          data-clip-href={clipHref(lastClipUrl)}
-          className="font-mono text-[10px] tracking-wide text-live uppercase"
-        >
-          last clip · {lastClipName || lastClipUrl.split("/").pop()}
-        </a>
+        <div className="overflow-hidden rounded-lg bg-bg" data-clip-follow="on">
+          <video
+            key={clipHref(lastClipUrl)}
+            src={clipHref(lastClipUrl)}
+            controls
+            playsInline
+            muted
+            autoPlay
+            preload="metadata"
+            data-clip-player="follow"
+            className="aspect-video w-full bg-black"
+          />
+          <a
+            href={clipHref(lastClipUrl)}
+            target="_blank"
+            rel="noreferrer"
+            data-clip-href={clipHref(lastClipUrl)}
+            className="block px-3 py-2 font-mono text-[10px] tracking-wide text-live uppercase no-underline hover:underline"
+          >
+            open · {lastClipName || lastClipUrl.split("/").pop()}
+          </a>
+        </div>
       ) : null}
     </section>
   );

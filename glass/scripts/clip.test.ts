@@ -53,3 +53,23 @@ test("agent filesystem path becomes a clickable /media/clips href", () => {
   assert.equal(m!.path, "fast");
   assert.equal(clipHref(m!.url || "", "http://127.0.0.1:8765"), "http://127.0.0.1:8765/media/clips/hdmi_clip_xyz.mp4");
 });
+
+test("clutchbot moment with url+name is a playable media path", () => {
+  const m = parseFeedMoment({
+    type: "moment",
+    payload: {
+      title: "FAST HDMI CLIP 8s",
+      action: "clip",
+      icon: "🎬",
+      url: "/media/clips/hdmi_clip_live.mp4",
+      name: "hdmi_clip_live.mp4",
+      moment_path: "fast",
+      path: String.raw`C:\Users\con\clips\hdmi_clip_live.mp4`,
+    },
+  });
+  assert.ok(m);
+  assert.equal(m!.url, "/media/clips/hdmi_clip_live.mp4");
+  assert.equal(m!.name, "hdmi_clip_live.mp4");
+  assert.equal(m!.path, "fast");
+  assert.match(clipHref(m!.url || ""), /\/media\/clips\/hdmi_clip_live\.mp4$/);
+});
