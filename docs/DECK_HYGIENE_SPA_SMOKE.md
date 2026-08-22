@@ -1,11 +1,31 @@
 # Deck hygiene: SPA smoke + heavy-module size gate
 
-Placeholder for implement PR. Shell-only until Grok / implement lands.
+Guards what reaches `main` for Retina Deck glass shipping (PR implement track).
 
-## Intent
-1. Keep shipping the Retina Deck glass SPA the #25 way (`glass_spa` / vendored dist), never rely on gitignored `glass/dist` alone for live `:8765`.
-2. HTTP smoke CI: load `/` (and Deck routes as needed), assert `#root` and `/assets/*.js` 200 for Theater / Lens / Foundry / Mobile.
-3. Heavy-module size/shape gate: fail CI if known-heavy modules (`clutchbot.py`, `moment_scorer.py`, …) drop below a min byte count or collapse to a docstring stub (#23 class failure).
+## (1) Vendored SPA + smoke
 
-## Out of scope (this shell)
-Feature code, lint quarantine implementation, shell-only label bot. Those ride in the implement PR or follow-ups.
+- Ship the Vite build under `qoresence/deck/glass_spa/` (packaged fallback when
+  `glass/dist` is absent). Do not rely on gitignored `glass/dist` alone for `:8765`.
+- Static land check: `python scripts/check_glass_spa.py`
+  - `#root`, hashed `/assets/*` present, JS/CSS size bounds, ship markers
+- HTTP smoke: `python scripts/smoke_deck_spa_http.py`
+  - `GET /deck.html` `/overlay.html` `/studio.html` `/mobile.html` → 200 + `#root`
+  - every referenced `/assets/*` → 200
+
+Pytest: `tests/test_glass_spa_ship.py`, `tests/test_deck_spa_http_smoke.py`
+
+## (2) Heavy-module size/shape gate
+
+- `python scripts/check_heavy_modules.py`
+- Fails if `clutchbot.py` / `moment_scorer.py` drop below min bytes, lose required
+  AST classes, or collapse to a docstring stub (#23 class failure).
+
+Pytest: `tests/test_heavy_modules.py`
+
+## CI
+
+Wired in `.github/workflows/ci.yml` and `.github/workflows/ci-hardening.yml`.
+
+## Out of scope here
+
+Lint/deck-smoke split and shell-only guard ride in follow-up hygiene steps.

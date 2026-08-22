@@ -82,6 +82,15 @@ jobs:
           python -c "from qoresence.trio import TrioRetinaConfig, EvmLogPayload, build_evm_log_payload, WasmtimeRunner, TrioRetinaValidator; print('All trio imports OK')"
           python -c "from qoresence.cli import create_config_from_args, QoresenceApp; print('CLI imports OK')"
 
+
+      - name: Glass SPA land hygiene
+        run: |
+          python scripts/check_glass_spa.py
+          python scripts/check_heavy_modules.py
+          python scripts/smoke_deck_spa_http.py
+          python -m pytest tests/test_glass_spa_ship.py tests/test_heavy_modules.py tests/test_deck_spa_http_smoke.py -q --tb=short
+
+
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
