@@ -1,0 +1,12 @@
+{
+  "name": "phosphor-shell-s1",
+  "plane": "qoresence-observation",
+  "contract": {
+    "glanceGlyph": { "bits": ["F", "C", "L", "P"], "on": "#4FE0D4", "off": "text-subtle/40", "mobile": ["F", "L"] },
+    "lockbug": { "unlocked": "□–□ · — & —", "locked": "home–away · down & distance", "failClosed": true },
+    "downPill": { "unlocked": "— & —", "locked": "3rd & 7", "lockedColor": "#C6F26A" },
+    "syncTrail": { "format": "SYNC {syncLagMs}ms", "neverForceZero": true },
+    "gates": ["livePaint", "sameSeq", "!planeDim", "boardLocked"]
+  },
+  "outOfScope": ["clutchRing", "seqLicense", "momentGenetics", "mjpegAsImg", "inventScores"]
+}

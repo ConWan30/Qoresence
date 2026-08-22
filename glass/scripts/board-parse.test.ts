@@ -101,7 +101,7 @@ test("score_vlm_locked situation is an honest board", () => {
   assert.equal(boardLine(ing), "14-7 · Q3 1:30 · 1st & 10");
 });
 
-test("seq-skew ghosts digits so scorebug N cannot sit on frame N+k", () => {
+test("seq-skew dims paint but locked digits stay for keep-last (UI gates paint)", () => {
   const ing = parseDeckMessage({
     type: "snapshot",
     situation: {
@@ -116,11 +116,13 @@ test("seq-skew ghosts digits so scorebug N cannot sit on frame N+k", () => {
   assert.ok(ing);
   assert.equal(ing.paint, false);
   assert.equal(ing.sameSeq, false);
-  assert.equal(ing.homeScore, null);
-  assert.equal(ing.awayScore, null);
+  // Locked board survives parse for store keep-last; Lockbug/DownPill still fail-closed on !widgetsOk.
+  assert.equal(ing.boardLocked, true);
+  assert.equal(ing.homeScore, 21);
+  assert.equal(ing.awayScore, 14);
 });
 
-test("plane dim on menu sleeps the board", () => {
+test("plane dim on menu keeps locked digits; UI sleeps paint", () => {
   const ing = parseDeckMessage({
     type: "situation",
     payload: {
@@ -133,7 +135,9 @@ test("plane dim on menu sleeps the board", () => {
   });
   assert.ok(ing);
   assert.equal(ing.planeDim, true);
-  assert.equal(ing.homeScore, null);
+  assert.equal(ing.boardLocked, true);
+  assert.equal(ing.homeScore, 14);
+  assert.equal(ing.awayScore, 7);
 });
 
 test("unlocked OCR pair is not a VLM lock", () => {
@@ -244,7 +248,7 @@ test("video-less situation does not demote board after snapshot optics", () => {
   assert.ok(boardLine(sit).includes("28-21"));
 });
 
-test("snapshot with plane_dim still gates the board", () => {
+test("snapshot with plane_dim keeps locked digits; paint stays gated", () => {
   const ing = parseDeckMessage({
     type: "snapshot",
     situation: {
@@ -265,6 +269,25 @@ test("snapshot with plane_dim still gates the board", () => {
   assert.ok(ing);
   assert.equal(ing.videoOptics, true);
   assert.equal(ing.planeDim, true);
+  assert.equal(ing.paint, false);
+  assert.equal(ing.boardLocked, true);
+  assert.equal(ing.homeScore, 10);
+  assert.equal(ing.awayScore, 3);
+});
+
+test("seq-skew ghosts unlocked OCR digits", () => {
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    situation: {
+      game_state: "gameplay",
+      home_score: 21,
+      away_score: 14,
+      frame_seq: 7,
+    },
+    video: { has_frame: true, live_seq: 10, widget_seq: 7, same_seq: false, paint: false, plane_dim: false },
+  });
+  assert.ok(ing);
+  assert.equal(ing.boardLocked, false);
   assert.equal(ing.homeScore, null);
   assert.equal(ing.awayScore, null);
 });

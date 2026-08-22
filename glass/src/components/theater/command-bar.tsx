@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
+import { LockbugStrip } from "./lockbug-strip";
 
 const GLASSES = [
   { href: "/", label: "Home" },
@@ -16,7 +17,6 @@ export function CommandBar() {
   const hdmi = useTheater((s) => s.hdmi);
   const pllLock = useTheater((s) => s.pllLock);
   const ticketLive = useTheater((s) => s.ticketLive);
-  const confirm = useTheater((s) => s.confirm);
   const boardLine = useTheater((s) => s.boardLine);
   const situation = useTheater((s) => s.situation);
   const gameTitle = useTheater((s) => s.gameTitle);
@@ -38,15 +38,18 @@ export function CommandBar() {
       ? "ticket live"
       : "couple none";
 
-  const sit = situation || boardLine
+  const livePaint = useTheater((s) => s.livePaint);
+  const sameSeq = useTheater((s) => s.sameSeq);
+  const planeDim = useTheater((s) => s.planeDim);
+  const widgetsOk = livePaint && sameSeq && !planeDim;
+  // Prefer LockbugStrip in chrome; never fall back to unlocked confirm pair.
+  const sit = widgetsOk && (situation || boardLine)
     ? [gameTitle, situation || boardLine].filter(Boolean).join(" · ")
-    : confirm
-      ? `${confirm.homeScore}-${confirm.awayScore}`
-      : vlmLocked
-        ? "VLM lock · board"
-        : hdmi === "menu"
-          ? "menu"
-          : "Waiting for scoreboard…";
+    : widgetsOk && vlmLocked
+      ? "VLM lock · board"
+      : hdmi === "menu"
+        ? "menu"
+        : "";
 
   const dot = heatVetoed ? "bg-veto" : ticketLive ? "bg-live" : pllLock ? "bg-sync" : "bg-muted-foreground";
 
@@ -107,7 +110,10 @@ export function CommandBar() {
           <span className="truncate" data-pll={pllLock ? "lock" : "open"}>
             {pllLock ? "PLL lock" : "PLL open"} · {status}
           </span>
-          <span className="hidden truncate text-subtle-foreground sm:inline">· {sit}</span>
+          <span className="hidden items-center gap-2 sm:inline-flex">
+            {sit ? <span className="truncate text-subtle-foreground">· {sit}</span> : null}
+            <LockbugStrip className="truncate" />
+          </span>
         </div>
         <div className="flex flex-wrap gap-x-3 font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
           <span data-pad={padConnected ? "live" : "wait"} className={padConnected ? "text-live" : ""}>
