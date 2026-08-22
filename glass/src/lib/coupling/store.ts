@@ -73,6 +73,8 @@ export type TheaterState = {
   coupling: number;
   motion: number;
   videoAgeS: number;
+  videoFrames: number;
+  videoPushes: number;
   heatLine: string;
   heatVetoed: boolean;
   scoreLine: string;
@@ -229,6 +231,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
   coupling: 0,
   motion: 0,
   videoAgeS: 0,
+  videoFrames: 0,
+  videoPushes: 0,
   heatLine: "",
   heatVetoed: false,
   scoreLine: licenseScoreText(SOFT.scoreLine, null),
@@ -487,6 +491,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
       pllLock: ing.pllLock,
       hdmi: paint ? ing.hdmi : "stale",
       videoAgeS: ing.videoAgeS,
+      videoFrames: ing.videoFrames,
+      videoPushes: ing.videoPushes,
       livePaint: paint,
       sameSeq,
       planeDim,

@@ -30,3 +30,5 @@ def test_clip_dock_js_has_replay_and_live():
     assert "function goLive" in blob
     assert "LIVE feed" in blob
     assert "qoreClipHref" in blob
+    assert "glassOwnsStage" in blob
+    assert 'data-clip-owner="hdmi-stage"' in blob

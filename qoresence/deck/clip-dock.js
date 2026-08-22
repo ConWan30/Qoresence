@@ -72,8 +72,18 @@
     }
   }
 
+  function glassOwnsStage() {
+    return Boolean(document.querySelector('[data-clip-owner="hdmi-stage"]'));
+  }
+
   function mount() {
     if (!document.body) return;
+    if (glassOwnsStage()) {
+      player.remove();
+      dock.remove();
+      document.body.classList.remove("qore-has-clip-dock");
+      return;
+    }
     if (!document.getElementById("qore-clip-dock")) {
       document.body.appendChild(dock);
       document.body.classList.add("qore-has-clip-dock");

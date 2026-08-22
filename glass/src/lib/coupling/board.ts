@@ -35,6 +35,8 @@ export type DeckIngest = {
   syncLagMs: number;
   hdmi: "live" | "menu" | "stale";
   videoAgeS: number;
+  videoFrames: number;
+  videoPushes: number;
   homeScore: number | null;
   awayScore: number | null;
   quarter: number | null;
@@ -466,6 +468,8 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     ),
     hdmi,
     videoAgeS: age,
+    videoFrames: num(video.frames ?? video.hub_seq ?? video.live_seq, 0),
+    videoPushes: num(video.pushes ?? video.hub_seq ?? video.frames, 0),
     // Locked digits only from spine last_confirm / score_vlm_locked (pickBoard).
     // Unlocked OCR never surfaces when widgets are dark.
     homeScore: board.locked || widgetsOk ? board.home : null,

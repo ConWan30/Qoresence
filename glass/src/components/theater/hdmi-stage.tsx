@@ -4,14 +4,17 @@ import { getCaptureVideo } from "@/lib/coupling/hardware";
 import { deckLiveJpgUrl } from "@/lib/coupling/qoresence-deck";
 import { HDMI_JPEG_KEEP, hdmiPictureVisible } from "@/lib/coupling/hdmi-picture";
 import { clipHref } from "@/lib/coupling/clip";
+import { scoreLiveHealth } from "@/lib/coupling/live-health";
 import { useTheater } from "@/lib/coupling/store";
-import { StageClipDock } from "./clip-rack";
 import { GhostStickOverlay } from "./ghost-stick";
 import { LensOverlay } from "./lens-overlay";
+import { LiveHealthGlyph } from "./live-health-glyph";
+import { StageClipDock } from "./clip-rack";
 
 export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
   const imgRef = useRef<HTMLImageElement>(null);
   const videoHostRef = useRef<HTMLDivElement>(null);
+  const prevRef = useRef({ frames: 0, pushes: 0 });
   const [jpgOk, setJpgOk] = useState(false);
   const [ageMs, setAgeMs] = useState(0);
 
@@ -65,17 +68,31 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
     return () => window.clearInterval(id);
   }, []);
 
-  const frozen = jpgOk && ageMs > 3000;
-  // JPEG arriving keeps HDMI up. livePaint flickers must not black the stage.
-  const showLive = hdmiPictureVisible(jpgOk);
   const stageMode = useTheater((s) => s.stageMode);
   const lastClipUrl = useTheater((s) => s.lastClipUrl);
   const lastClipName = useTheater((s) => s.lastClipName);
+  const videoAgeS = useTheater((s) => s.videoAgeS);
+  const videoFrames = useTheater((s) => s.videoFrames);
+  const videoPushes = useTheater((s) => s.videoPushes);
+  const goLive = useTheater((s) => s.goLive);
   const replaySrc = stageMode === "replay" ? clipHref(lastClipUrl) : "";
+  const showLive = hdmiPictureVisible(jpgOk) && !replaySrc;
+  const health = scoreLiveHealth({
+    ageS: videoAgeS,
+    frames: videoFrames,
+    pushes: videoPushes,
+    prevFrames: prevRef.current.frames,
+    prevPushes: prevRef.current.pushes,
+    jpgOk,
+    jpgAgeMs: ageMs,
+    stageMode,
+  });
+  prevRef.current = { frames: videoFrames, pushes: videoPushes };
 
   return (
     <section
       data-stage-mode={stageMode}
+      data-clip-owner="hdmi-stage"
       className={cn(
         "relative overflow-hidden bg-surface",
         variant === "lens"
@@ -96,10 +113,10 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
           alt=""
           decoding="async"
           data-hdmi-keep={HDMI_JPEG_KEEP}
-          data-hdmi-picture={showLive && !replaySrc ? "on" : "off"}
+          data-hdmi-picture={showLive ? "on" : "off"}
           className={cn(
             "absolute inset-0 h-full w-full object-contain bg-bg",
-            showLive && !replaySrc ? "opacity-100" : "opacity-0",
+            showLive ? "opacity-100" : "opacity-0",
           )}
         />
         {replaySrc ? (
@@ -115,11 +132,20 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
             className="absolute inset-0 z-10 h-full w-full bg-black object-contain"
           />
         ) : null}
-        {frozen && !replaySrc ? (
-          <p className="absolute bottom-3 left-3 font-mono text-[10px] tracking-wide text-veto uppercase">
-            HDMI freeze · pumping JPEG
-          </p>
+        {replaySrc ? (
+          <button
+            type="button"
+            data-action="stage-live"
+            className="absolute top-3 left-3 z-30 rounded-full bg-live px-3 py-1.5 font-mono text-[10px] font-extrabold text-primary-foreground uppercase"
+            onClick={(e) => {
+              e.stopPropagation();
+              goLive();
+            }}
+          >
+            LIVE
+          </button>
         ) : null}
+        <LiveHealthGlyph health={health} />
         <GhostStickOverlay />
         <LensOverlay variant={variant} />
         {variant === "deck" ? <StageClipDock /> : null}
