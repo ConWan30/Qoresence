@@ -458,11 +458,12 @@ export const useTheater = create<TheaterState>((set, get) => ({
       heatVetoed,
       scoreLine,
       boardLine: board,
-      // Fail-closed raw digits: only locked board survives Dark Theater.
-      homeScore: widgetsOk || ing.boardLocked ? ing.homeScore : s.boardLocked ? s.homeScore : null,
-      awayScore: widgetsOk || ing.boardLocked ? ing.awayScore : s.boardLocked ? s.awayScore : null,
-      down: widgetsOk || ing.boardLocked ? ing.down : s.boardLocked ? s.down : null,
-      distance: widgetsOk || ing.boardLocked ? ing.distance : s.boardLocked ? s.distance : null,
+      // Keep-last raw digits across !widgetsOk (UI Lockbug/DownPill still gate paint).
+      // Prefer fresh locked board; otherwise retain prior store values — never invent.
+      homeScore: widgetsOk ? ing.homeScore : ing.boardLocked ? ing.homeScore : s.homeScore,
+      awayScore: widgetsOk ? ing.awayScore : ing.boardLocked ? ing.awayScore : s.awayScore,
+      down: widgetsOk ? ing.down : ing.boardLocked ? ing.down : s.down,
+      distance: widgetsOk ? ing.distance : ing.boardLocked ? ing.distance : s.distance,
       boardLocked: widgetsOk ? Boolean(ing.boardLocked) : Boolean(ing.boardLocked) || s.boardLocked,
       situation: widgetsOk
         ? sit || s.situation
