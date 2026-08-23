@@ -75,6 +75,17 @@ def _fix_digits_in(token: str) -> str:
     return token.translate(mapping)
 
 
+def _may_mint_lock(ctx: VisualContext | None) -> bool:
+    """New locks only during gameplay. Menu/end screens invented 3-2."""
+    if ctx is None:
+        return False
+    try:
+        gst = str(getattr(ctx.game_state, "value", None) or ctx.game_state or "").lower()
+    except Exception:
+        gst = ""
+    return gst in {"", "gameplay", "playing", "in_game"}
+
+
 def _normalize_clock(token: str) -> int | None:
     """Return clock_seconds from tokens like '1:41', '141', '1341'."""
     t = _fix_digits_in(token).strip()
@@ -274,7 +285,13 @@ class FootballScoreboardExtractor:
         except Exception as e:
             log.debug("scoreboard engine init: %s", e)
 
-    def extract(self, frame: np.ndarray, ctx: VisualContext | None = None) -> VisualContext:
+    def extract(
+        self,
+        frame: np.ndarray,
+        ctx: VisualContext | None = None,
+        *,
+        allow_ocr: bool | None = None,
+    ) -> VisualContext:
         """Return a VisualContext populated with scoreboard fields.
 
         Pipeline:
@@ -326,7 +343,7 @@ class FootballScoreboardExtractor:
         # standard convention.
         import os as _os_ocr
 
-        _ocr_on = _os_ocr.environ.get("QORESENCE_EASY_OCR", "0").strip().lower() in {
+        _ocr_on = bool(allow_ocr) or _os_ocr.environ.get("QORESENCE_EASY_OCR", "0").strip().lower() in {
             "1",
             "true",
             "yes",
@@ -376,6 +393,12 @@ class FootballScoreboardExtractor:
                     if is_paused:
                         log.debug("scoreboard pause-menu large pair %s-%s", big[0], big[1])
 
+        local_board = local_hud is not None or (
+            bool(tokens)
+            and parsed.get("home_score") is not None
+            and parsed.get("away_score") is not None
+        )
+
         # Merge VLM referee (higher trust for gaming fonts)
         vlm_scores = False
         try:
@@ -383,6 +406,10 @@ class FootballScoreboardExtractor:
 
             vlm = get_scoreboard_vlm().get_last()
         except Exception:
+            vlm = None
+        if vlm and not local_board:
+            # Empty HUD + no OCR tokens: a lone VLM pair invented this
+            # morning's 3-2 lock. Digits stay null until a local board exists.
             vlm = None
         if vlm:
             # Only merge when VLM actually read a board — never wipe a good
@@ -450,7 +477,12 @@ class FootballScoreboardExtractor:
         raw_h, raw_a = parsed.get("home_score"), parsed.get("away_score")
         stab = FootballScoreboardExtractor._stabilizer
         if stab is not None and (raw_h is not None or raw_a is not None):
-            if vlm_scores and not _ScoreStabilizer._looks_suspicious_pair((raw_h, raw_a)):
+            if (
+                vlm_scores
+                and local_board
+                and _may_mint_lock(ctx)
+                and not _ScoreStabilizer._looks_suspicious_pair((raw_h, raw_a))
+            ):
                 # Vision referee is trusted — force lock after a single coherent pair
                 stab._stable = (int(raw_h), int(raw_a))
                 stab._recent.clear()
@@ -510,6 +542,7 @@ class FootballScoreboardExtractor:
                 sh, sa = stab.update(raw_h, raw_a)
                 if (
                     local_hud is not None
+                    and _may_mint_lock(ctx)
                     and sh is not None
                     and sa is not None
                     and (sh, sa) == tuple(local_hud)
@@ -1185,17 +1218,14 @@ class FootballScoreboardExtractor:
             return None
 
 
-_football_extractor: FootballScoreboardExtractor | None = None
-_football_extractor_lock = threading.Lock()
-
-
 def extract_football_scoreboard(
     frame: np.ndarray, ctx: VisualContext | None = None
 ) -> VisualContext:
-    """Convenience entry point. Reuses a single extractor to avoid repeated
-    warmup threads (Paddle/EasyOCR) and repeated allocation of stabilizers."""
-    global _football_extractor
-    with _football_extractor_lock:
-        if _football_extractor is None:
-            _football_extractor = FootballScoreboardExtractor()
-        return _football_extractor.extract(frame, ctx)
+    """Live entry: enqueue a frame copy and apply the last worker result.
+
+    Heavy extract stays on ``scoreboard-lock``. Tests that need a synchronous
+    read should call ``FootballScoreboardExtractor.extract`` directly.
+    """
+    from qoresence.vision.scoreboard_lock import offer_scoreboard_frame
+
+    return offer_scoreboard_frame(frame, ctx)

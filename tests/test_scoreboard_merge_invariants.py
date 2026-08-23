@@ -120,6 +120,7 @@ def _visual_context_event(payload: dict) -> BaseEvent:
 def test_vlm_20_0_overrides_ocr_20_20(monkeypatch):
     """VLM reads 20-0 while OCR misreads 20-20; VLM must win (invariant #4)."""
     _reset_stabilizer()
+    monkeypatch.setenv("QORESENCE_EASY_OCR", "1")
     monkeypatch.setattr(
         "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
         lambda: _FakeOcrEngine(_ocr_boxes_20_20()),
@@ -139,6 +140,7 @@ def test_vlm_20_0_overrides_ocr_20_20(monkeypatch):
 def test_vlm_lock_persists_when_ocr_keeps_misreading(monkeypatch):
     """After VLM locks 20-0, continued OCR 20-20 frames must not flip back."""
     _reset_stabilizer()
+    monkeypatch.setenv("QORESENCE_EASY_OCR", "1")
     monkeypatch.setattr(
         "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
         lambda: _FakeOcrEngine(_ocr_boxes_20_20()),
@@ -161,6 +163,7 @@ def test_vlm_lock_persists_when_ocr_keeps_misreading(monkeypatch):
 def test_null_vlm_holds_prior_lock(monkeypatch):
     """VLM locks 20-0, then VLM returns null; stabilizer must hold 20-0."""
     _reset_stabilizer()
+    monkeypatch.setenv("QORESENCE_EASY_OCR", "1")
     monkeypatch.setattr(
         "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
         lambda: _FakeOcrEngine(_ocr_boxes_20_0()),
@@ -187,6 +190,7 @@ def test_null_vlm_holds_prior_lock(monkeypatch):
 def test_partial_vlm_does_not_wipe_lock(monkeypatch):
     """VLM returns only home (away=None); must not wipe a locked away score."""
     _reset_stabilizer()
+    monkeypatch.setenv("QORESENCE_EASY_OCR", "1")
     monkeypatch.setattr(
         "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
         lambda: _FakeOcrEngine(_ocr_boxes_20_0()),
@@ -316,11 +320,10 @@ def test_score_vlm_locked_defaults_false_in_round_trip():
 
 
 def test_vlm_only_merge_without_ocr(monkeypatch):
-    """When QORESENCE_EASY_OCR is off (default), VLM scores still merge.
+    """VLM without a local HUD/OCR board must not invent a lock.
 
-    This is the production bug: the extractor was never called when OCR was
-    off, so VLM results were scheduled but never merged into the context.
-    Now extract() always runs; only heavy OCR tokens are gated.
+    Extract still runs when EasyOCR is off so a later local pair can merge.
+    A lone Gemini pair on an empty HUD is how 3-2 locked after this morning's match.
     """
     _reset_stabilizer()
     monkeypatch.delenv("QORESENCE_EASY_OCR", raising=False)
@@ -333,10 +336,10 @@ def test_vlm_only_merge_without_ocr(monkeypatch):
     monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     ext = FootballScoreboardExtractor()
     ctx = ext.extract(_blank_frame(), _football_ctx())
-    # VLM must merge even though OCR is off
-    assert ctx.home_score == 20
-    assert ctx.away_score == 0
-    assert ctx.score_vlm_locked is True
+    # VLM-only on an empty HUD invented 3-2 this morning. No local board → no lock.
+    assert ctx.score_vlm_locked is False
+    assert ctx.home_score is None
+    assert ctx.away_score is None
 
 
 # ── Orientation: home team on the left ────────────────────────────────────────

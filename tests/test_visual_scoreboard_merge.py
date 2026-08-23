@@ -49,6 +49,10 @@ def test_cloud_analyze_merges_gemini_board_and_mints_ticket(monkeypatch):
         }
     )
     monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
+    monkeypatch.setattr(
+        "qoresence.vision.local_hud_digits.read_score_pair",
+        lambda *a, **k: (14, 10),
+    )
 
     with tempfile.TemporaryDirectory() as td:
         bus = RetinaEventBus(session_id="t", jsonl_path=Path(td) / "e.jsonl", enable_ws=False)
@@ -67,6 +71,14 @@ def test_cloud_analyze_merges_gemini_board_and_mints_ticket(monkeypatch):
         rt._client = Mock()
         rt._client.analyze_frame.return_value = classified
         rt._analyze_frame(_frame())
+        from qoresence.vision.scoreboard_lock import (
+            apply_scoreboard_lock,
+            wait_scoreboard_lock,
+        )
+
+        wait_scoreboard_lock(timeout_s=2.0)
+        if rt._last_context is not None:
+            rt._last_context = apply_scoreboard_lock(rt._last_context)
         rt.stop()
         bus.close()
 
