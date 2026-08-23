@@ -8,7 +8,7 @@ One title. Observation plane only. This match, these hands, this clip.
 | Lock | Confirm ticket licenses score digits. Stranger identity (Oregon/Wisconsin crawl) cannot replace the locked pair. |
 | Huddle | Locked board + down/quarter is **gameplay**, even if the VLM says menu. |
 | Hands | Phrases `SNAP`/`SPRINT`/`CUT`/`RELEASE` mint a coupling ticket. Heat-speech needs that ticket. |
-| Society | Auditor reads confirm ticket + phrase. Coach cites phrase. |
+| Society | Leftover opt-in stub. Confirm ticket + phrase live on License / situation — not coworker personas. |
 | Foundry | `*.chapters.json` why-strip: confirm ticket · couple ticket · phrase. |
 
 Madden: start with `--game-profile madden_27`. Identity uses the NFL club catalog (KC/PHI), not NCAA schools. NCAA `apply_identity` is skipped on Madden so a Chiefs bug cannot become a college cardinal.

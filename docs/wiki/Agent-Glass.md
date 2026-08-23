@@ -43,4 +43,8 @@ python examples/agent_watch.py --once
 - Enable token auth with `--agent-glass-require-token` or `QORESENCE_AGENT_GLASS_REQUIRE_TOKEN=1`.
 - It is a **glass** — it cannot control the capture card.
 
+## Actuators, not coworkers
+
+AgentGlass is a spectator surface. Product control is **Aperture / Bind / License / Arm** on the ticket-clock — not Agent Society personalities. Society stays default OFF; `--play` does not start it.
+
 For the MCP adapter, see [MCP-Glass](MCP-Glass).

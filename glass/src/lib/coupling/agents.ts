@@ -1,4 +1,4 @@
-/** Agent Society + ClutchBot — Quicksilver phrasing, observation plane only.
+/** ClutchBot + A2A on glass. Actuators, not Society coworkers.
  *  Heat requires a live coupling ticket. Score digits require a confirm ticket.
  *  THROW is forbidden. No authorship. */
 
@@ -20,7 +20,7 @@ export type AgentRole =
   | "ghost_editor"
   | "pilot_auditor"
   | "prediction_steward"
-  | "sync_warden";
+  | "sync_warden"; // leftover names only — no Society persona chips
 
 export type AgentAction = "chat" | "note" | "veto" | "allow" | "quiet";
 
@@ -33,17 +33,7 @@ export type AgentReceipt = {
   reason: string;
 };
 
-const ROLE_ORDER: AgentRole[] = [
-  "clutchbot",
-  "gemini",
-  "deepseek",
-  "drive_coach",
-  "spam_warden",
-  "ghost_editor",
-  "pilot_auditor",
-  "prediction_steward",
-  "sync_warden",
-];
+const ROLE_ORDER: AgentRole[] = ["clutchbot", "gemini", "deepseek"];
 
 export const ROLE_LABEL: Record<AgentRole, string> = {
   clutchbot: "ClutchBot",
@@ -56,15 +46,6 @@ export const ROLE_LABEL: Record<AgentRole, string> = {
   prediction_steward: "Steward",
   sync_warden: "Sync warden",
 };
-
-const SOCIETY_ROLES: AgentRole[] = [
-  "drive_coach",
-  "spam_warden",
-  "ghost_editor",
-  "pilot_auditor",
-  "prediction_steward",
-  "sync_warden",
-];
 
 function quiet(role: AgentRole, reason: string): AgentReceipt {
   return {
@@ -117,12 +98,6 @@ function commitHeat(
   };
 }
 
-function asAction(raw: string): AgentAction {
-  if (raw === "veto" || raw === "chat" || raw === "note" || raw === "allow" || raw === "quiet") return raw;
-  if (raw === "advise" || raw === "audit" || raw === "propose_cut") return "note";
-  return "note";
-}
-
 export type AgentContext = {
   phrase: Phrase;
   phraseLive: boolean;
@@ -138,18 +113,12 @@ export type AgentContext = {
 };
 
 export function evaluateAgents(ctx: AgentContext): AgentReceipt[] {
-  const receipts: Record<AgentRole, AgentReceipt> = {
+  const receipts: Partial<Record<AgentRole, AgentReceipt>> = {
     clutchbot: clutchbot(ctx),
     gemini: gemini(ctx),
     deepseek: deepseek(ctx),
-    drive_coach: coach(ctx),
-    spam_warden: warden(ctx),
-    ghost_editor: ghost(ctx),
-    pilot_auditor: quiet("pilot_auditor", "society wait"),
-    prediction_steward: quiet("prediction_steward", "society wait"),
-    sync_warden: quiet("sync_warden", "society wait"),
   };
-  return ROLE_ORDER.map((r) => receipts[r]);
+  return ROLE_ORDER.map((r) => receipts[r]!);
 }
 
 export function mergeAgentPlane(
@@ -158,16 +127,18 @@ export function mergeAgentPlane(
   ticketLive: boolean,
 ): AgentReceipt[] {
   if (!plane) return local;
-  const byRole = Object.fromEntries(local.map((r) => [r.role, r])) as Record<AgentRole, AgentReceipt>;
+  const byRole = Object.fromEntries(local.map((r) => [r.role, r])) as Partial<
+    Record<AgentRole, AgentReceipt>
+  >;
 
   if (plane.clutchbot) {
     const commit = plane.commits[0];
     if (commit?.text) {
       byRole.clutchbot = commitHeat("clutchbot", commit.text, ticketLive, "quicksilver");
-      if (byRole.clutchbot.action === "chat") {
+      if (byRole.clutchbot?.action === "chat") {
         byRole.clutchbot = { ...byRole.clutchbot, reason: commit.reason || "a2a commit" };
       }
-    } else if (byRole.clutchbot.action === "quiet") {
+    } else if (byRole.clutchbot?.action === "quiet") {
       byRole.clutchbot = {
         role: "clutchbot",
         action: "note",
@@ -190,7 +161,7 @@ export function mergeAgentPlane(
       policyOk: true,
       reason: "gemini-3.5-flash-lite scoreboard VLM",
     };
-  } else if (plane.geminiLive && byRole.gemini.action === "quiet") {
+  } else if (plane.geminiLive && byRole.gemini?.action === "quiet") {
     byRole.gemini = {
       role: "gemini",
       action: "note",
@@ -200,7 +171,7 @@ export function mergeAgentPlane(
       reason: "a2a gemini",
     };
   }
-  if (plane.deepseekLive && byRole.deepseek.action === "quiet") {
+  if (plane.deepseekLive && byRole.deepseek?.action === "quiet") {
     byRole.deepseek = {
       role: "deepseek",
       action: "note",
@@ -211,49 +182,7 @@ export function mergeAgentPlane(
     };
   }
 
-  if (plane.society) {
-    for (const note of plane.societyLast) {
-      const role = note.role as AgentRole;
-      if (!SOCIETY_ROLES.includes(role)) continue;
-      const text = note.text;
-      if (heatSpeech(text) && !ticketLive) {
-        byRole[role] = {
-          role,
-          action: "veto",
-          text: "",
-          model: "rules",
-          policyOk: false,
-          reason: "heat speech requires coupling ticket",
-        };
-        continue;
-      }
-      byRole[role] = {
-        role,
-        action: asAction(note.action),
-        text,
-        model: /quick|nemo|gemini|deep/i.test(note.reason) ? "quicksilver" : "rules",
-        policyOk: true,
-        reason: note.reason || "society",
-      };
-    }
-    for (const role of SOCIETY_ROLES) {
-      if (byRole[role].action === "quiet") {
-        const named = plane.societyRoles.includes(role);
-        if (named || plane.society) {
-          byRole[role] = {
-            role,
-            action: "note",
-            text: "Society armed",
-            model: "rules",
-            policyOk: true,
-            reason: "agent society live",
-          };
-        }
-      }
-    }
-  }
-
-  return ROLE_ORDER.map((r) => byRole[r]);
+  return ROLE_ORDER.map((r) => byRole[r]).filter((r): r is AgentReceipt => Boolean(r));
 }
 
 function clutchbot(ctx: AgentContext): AgentReceipt {
@@ -358,80 +287,6 @@ function deepseek(ctx: AgentContext): AgentReceipt {
   const text = lines[ctx.phrase];
   if (!text) return quiet("deepseek", "phrase not live");
   return commitHeat("deepseek", text, ctx.ticketLive);
-}
-
-function ghost(ctx: AgentContext): AgentReceipt {
-  const cut = ctx.companion?.cut;
-  if (cut?.title || cut?.text) {
-    return {
-      role: "ghost_editor",
-      action: "note",
-      text: cut.text || `propose_cut ${cut.title}`,
-      model: "rules",
-      policyOk: true,
-      reason: "ghost propose_cut — operator exports",
-    };
-  }
-  return quiet("ghost_editor", "society wait");
-}
-
-function coach(ctx: AgentContext): AgentReceipt {
-  if (ctx.companion?.coach) {
-    return {
-      role: "drive_coach",
-      action: "note",
-      text: ctx.companion.coach,
-      model: "rules",
-      policyOk: true,
-      reason: "society drive coach",
-    };
-  }
-  if (!ctx.hdmiLive || ctx.phrase === "IDLE" || (ctx.phrase === "HUDDLE" && !ctx.ticketLive)) {
-    return quiet("drive_coach", "no drive");
-  }
-  const ticketBit = ctx.ticketLive
-    ? "Coupling ticket live. Heat is licensed."
-    : "Couple: none.";
-  const text = `Phrase ${ctx.phrase}. ${ticketBit}`;
-  return {
-    role: "drive_coach",
-    action: "note",
-    text,
-    model: "rules",
-    policyOk: true,
-    reason: "observation-plane coach",
-  };
-}
-
-function warden(ctx: AgentContext): AgentReceipt {
-  if (ctx.heatVetoed || (!ctx.ticketLive && ctx.phraseLive && !ctx.pllLock)) {
-    return {
-      role: "spam_warden",
-      action: "veto",
-      text: "Heat stripped. Coupling ticket required.",
-      model: "rules",
-      policyOk: false,
-      reason: "heat speech requires coupling ticket",
-    };
-  }
-  if (ctx.ticketLive) {
-    return {
-      role: "spam_warden",
-      action: "allow",
-      text: `Ticket ${ctx.ticketId.slice(0, 8)} live.`,
-      model: "rules",
-      policyOk: true,
-      reason: "coupling ticket live",
-    };
-  }
-  return {
-    role: "spam_warden",
-    action: "allow",
-    text: "Quiet. Nothing to license.",
-    model: "rules",
-    policyOk: true,
-    reason: "no heat proposal",
-  };
 }
 
 export function agentsSignature(list: AgentReceipt[]): string {

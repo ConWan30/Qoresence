@@ -8,6 +8,8 @@ ClutchBot evolved purpose: **act on video + controller in realtime**; **OCR conf
 
 Full doc: [docs/TWO_SPEED_CLUTCHBOT.md](https://github.com/ConWan30/Qoresence/blob/main/docs/TWO_SPEED_CLUTCHBOT.md)
 
+Actuators, not coworkers: heat needs a coupling ticket; digits need a confirm ticket. `--play` does not start Agent Society.
+
 ```text
 python -m qoresence.cli --play --deck --controller --streamer-device 0 --streamer-fps 60
 ```

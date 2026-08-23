@@ -5,23 +5,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
-Role = Literal[
-    "spam_warden",
-    "pilot_auditor",
-    "drive_coach",
-    "ghost_editor",
-    "prediction_steward",
-    "sync_warden",
-]
+Role = str
 
-KNOWN_ROLES: tuple[str, ...] = (
-    "spam_warden",
-    "pilot_auditor",
-    "drive_coach",
-    "ghost_editor",
-    "prediction_steward",
-    "sync_warden",
-)
+KNOWN_ROLES: tuple[str, ...] = ()
 
 Action = Literal["advise", "propose_cut", "veto", "note", "audit", "allow"]
 

@@ -84,7 +84,7 @@ Every lobe is **OFF** until you opt in.
 | Clutch (local) | `--play` | Deck feed + local HDMI clips (Twitch leftover, default-OFF) |
 | Stem | conductor on `--play` | Situation-directed program; `--stem-program` / `--stem-audio` / `--stem-record` default OFF |
 | Spectator | `--agent-glass` | HTTP/WS API + MCP for AI agents |
-| Society | `--agent-society` | Ops agents on glass (default OFF; no Twitch, no capture) |
+| Society | `--agent-society` | Leftover stub (default OFF; `--play` does not enable; actuators, not coworkers) |
 | Research | Off | Fusion, trio-retina / WASM |
 
 ---
@@ -189,7 +189,7 @@ Start-Process http://127.0.0.1:8765/deck.html
 
 **Note:** `python -m qoresence.cli --play ...` keeps running in that window (log lines only). Deck is a **browser** URL — it does not pop up by itself. Hard-refresh if the tab was open before restart.
 
-Session notes: [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md). While playing, `python scripts/pilot_monitor.py` writes `logs/pilot/closeout_*.md` ([docs/PILOT_MONITOR.md](docs/PILOT_MONITOR.md)).
+Session notes: [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md). While playing, `python scripts/pilot_monitor.py` writes `logs/pilot/closeout_*.md` ([docs/PILOT_MONITOR.md](docs/PILOT_MONITOR.md)). After the session stops, optional one-shot `python -m qoresence.cli --logbook` writes a short debrief from JSONL + chapters ([docs/LOGBOOK.md](docs/LOGBOOK.md); default OFF).
 
 **Gameplay eye:** TV / Retina Monitor (Pattern B) or OBS Preview (Pattern A). Shared `clock_ns` — not a stream-delay clock.
 
@@ -260,7 +260,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |
 | `--clutchbot` / leftover Twitch flags | off | Deck feed is already on with `--play`. Channel/token flags are leftover IRC/Helix — not the local route |
 | `--agent-glass` | off | HTTP/WS spectator API (MCP-ready) |
-| `--agent-society` | off | Agent Society roles; opt-in only (`--no-agent-society` still honored) |
+| `--agent-society` | off | Leftover Society stub; opt-in only — `--play` does not enable (`--no-agent-society` still honored) |
 | `--otel` | off | Causal traces + metrics to local OTLP; clip sidecars; Jaeger on `:16686` |
 
 ---

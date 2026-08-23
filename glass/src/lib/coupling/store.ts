@@ -812,19 +812,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
     }
     const origin = (await import("./qoresence-deck")).getDeckOrigin();
     const abs = out.url.startsWith("http") ? out.url : `${origin}${out.url.startsWith("/") ? "" : "/"}${out.url}`;
-    const agents = get().agents.map((a) =>
-      a.role === "ghost_editor"
-        ? {
-            ...a,
-            action: "note" as const,
-            text: `Cut candidate · ${out.name || `${out.seconds}s HDMI`}`,
-            model: "rules" as const,
-            policyOk: true,
-            reason: "ghost editor clip",
-          }
-        : a,
-    );
-    set({ lastClipUrl: abs, lastClipName: out.name, lastClipError: "", agents });
+    set({ lastClipUrl: abs, lastClipName: out.name, lastClipError: "" });
     get().ingestMoment({
       key: `clip:${abs}`,
       title: `HDMI CLIP ${out.seconds}s`,

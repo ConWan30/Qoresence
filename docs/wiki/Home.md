@@ -2,6 +2,8 @@
 
 **Gaming Streaming Observatory Engine** — local-first, one clock, many glasses. HDMI/OBS frames + DualSense HID + situation model → Retina Deck, native monitor, Foundry clips, ClutchBot, and now **AgentGlass / MCP** for any AI agent. The capture card is the brain; everything else is a glass.
 
+**Actuators, not coworkers.** Aperture / Bind / License / Arm are clock-licensed receipts. Agent Society is leftover opt-in (`--agent-society`); `--play` does not enable it. Do not treat persona roles as the product path.
+
 ## Start here
 
 | Page | Contents |

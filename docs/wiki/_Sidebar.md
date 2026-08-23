@@ -12,7 +12,7 @@
 - [Controller-Video Sync](./Controller-Video-Sync)
 - [Two-Speed ClutchBot](./Two-Speed-ClutchBot)
 - [A2A ClutchBot](./A2A-ClutchBot)
-- **[Agent Glass](./Agent-Glass)** — spectator API
+- **[Agent Glass](./Agent-Glass)** — spectator API (actuators, not coworkers)
 - **[MCP Glass](./MCP-Glass)** — new AI agent adapter
 - [Retina Stem](./Retina-Stem) — local program (not OBS)
 - [Streamr](./Streamr) — experimental

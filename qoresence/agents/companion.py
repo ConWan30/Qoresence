@@ -3,8 +3,8 @@
 ClutchBot still autonomously clips clutch gameplay (fast coupling +
 red/late, confirm on locked score change). This pack does not write
 MP4s, invent scores, open capture, or emit bus events. MCP stays
-read-only. Society ghost_editor remains propose-only; the operator
-exports via existing ``POST /api/clip``.
+read-only. Society personalities are deleted; leftover receipts may
+still appear in the pack. The operator exports via ``POST /api/clip``.
 """
 
 from __future__ import annotations
