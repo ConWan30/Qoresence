@@ -10,15 +10,17 @@ import json
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
+import numpy as np
 import pytest
 
 from qoresence.core import (
     RetinaEventBus,
     SessionAuthority,
+    StreamerConfig,
 )
-from qoresence.lobes import StreamerRuntime
+from qoresence.lobes.streamer import StreamerRuntime
 
 
 class TestOBSOverlayIntegration:
@@ -95,57 +97,47 @@ class TestOBSOverlayIntegration:
         assert "not eligibility" in content, "Missing disclaimer text"
         assert "not anti-cheat" in content, "Missing disclaimer text"
 
+    @patch(
+        "qoresence.lobes.streamer.list_dshow_devices",
+        return_value=[(0, "USB3.0 Video", True, "dshow")],
+    )
+    @patch("qoresence.lobes.streamer._get_dshow_device_name", return_value="USB3.0 Video")
     @patch("qoresence.lobes.streamer.cv2.VideoCapture")
-    def test_streamer_emits_events_for_overlay(self, mock_cv2_class):
+    def test_streamer_emits_events_for_overlay(self, mock_cv2_class, _name, _devs):
         """Test that streamer emits events that overlay can consume."""
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
             bus = RetinaEventBus(session_id="overlay_test", jsonl_path=jsonl_path, enable_ws=False)
             identity = SessionAuthority.mint(session_id="overlay_test")
 
-            # Mock camera
-            mock_cap = Mock()
+            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            mock_cap = mock_cv2_class.return_value
             mock_cap.isOpened.return_value = True
             mock_cap.get.return_value = 30.0
-            mock_cap.read.return_value = (True, Mock())
-            mock_cv2_class.return_value = mock_cap
-
-            # Create a simple frame
-            import numpy as np
-
-            frame = np.zeros((480, 640, 3), dtype=np.uint8)
-
             read_count = [0]
 
             def mock_read():
                 read_count[0] += 1
-                if read_count[0] <= 3:
+                if read_count[0] <= 8:
                     return True, frame
                 return False, None
 
             mock_cap.read.side_effect = mock_read
 
-            config = Mock()
-            config.device_index = 0
-            config.backend = "auto"
-            config.width = 640
-            config.height = 480
-            config.fps_target = 30.0
-            config.process_scale = 0.5
-            config.motion_low = 5.0
-            config.motion_high = 15.0
-            config.activity_hysteresis_s = 0.5
-            config.stats_every_s = 1.0
-            config.heartbeat_every_s = 5.0
-            config.zones_enabled = True
-            config.eye_check_required = True
-            config.snapshot_path = None
-            config.source_kind = "uvc_card"
-            config.device_name = "Test Capture Card"
-            config.enable_ws = False
-            config.ws_port = 8765
-            config.presence_touch_file = None
-            config.presence_timeout_s = 5.0
+            config = StreamerConfig(
+                enabled=True,
+                device_index=0,
+                device_name="USB3.0 Video",
+                source_kind="uvc_card",
+                width=640,
+                height=480,
+                fps_target=30.0,
+                eye_check_required=True,
+                snapshot_path=str(Path(td) / "eye_check.png"),
+                enable_ws=False,
+                zones_enabled=True,
+                presence_touch_file=None,
+            )
 
             runtime = StreamerRuntime(
                 config=config,
@@ -154,9 +146,13 @@ class TestOBSOverlayIntegration:
             )
 
             runtime.start()
-            time.sleep(0.2)
+            time.sleep(0.5)
             runtime.stop()
 
+            assert jsonl_path.exists(), (
+                f"streamer wrote no JSONL rejected={bus.events_rejected} "
+                f"emitted={bus.events_emitted}"
+            )
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
 
