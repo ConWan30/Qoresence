@@ -274,7 +274,17 @@ class FootballScoreboardExtractor:
     def __init__(self) -> None:
         if FootballScoreboardExtractor._stabilizer is None:
             FootballScoreboardExtractor._stabilizer = _ScoreStabilizer(window=6, need=2)
-        # Kick preferred engine warm-up without blocking
+        # Heavy Paddle/EasyOCR warmup is opt-in. Auto-start fights DShow and
+        # freezes LIVE (age_s climbs → watchdog rebind → native crash).
+        import os
+
+        ocr_on = os.environ.get("QORESENCE_EASY_OCR", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        if not ocr_on:
+            return
         try:
             from qoresence.vision.scoreboard_ocr_engine import get_scoreboard_engine
 

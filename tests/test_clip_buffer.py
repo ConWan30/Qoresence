@@ -117,17 +117,31 @@ def test_latest_frame_returns_seq():
     buf = HdmiClipBuffer(seconds=2, target_fps=1000, max_width=160)
     assert buf.latest_frame() is None
     f = np.full((100, 160, 3), 40, dtype=np.uint8)
-    buf.push(f)
+    buf._publish_live(f)
     fr = buf.latest_frame()
     assert fr is not None
     jpg, seq = fr
     assert jpg[:2] == b"\xff\xd8"
     assert seq == 1
-    buf._last_push = 0.0  # bypass throttle for deterministic seq++
-    buf.push(f)
+    buf._publish_live(f)
     fr2 = buf.latest_frame()
     assert fr2 is not None
     assert fr2[1] == 2
+
+
+def test_clip_ring_push_does_not_bump_live_seq():
+    """Clip encode used to bump the shared seq; /live WS re-sent the same JPEG."""
+    buf = HdmiClipBuffer(seconds=2, target_fps=1000, max_width=160)
+    f = np.full((100, 160, 3), 40, dtype=np.uint8)
+    buf._publish_live(f)
+    first = buf.latest_frame()
+    assert first is not None
+    buf._last_push = 0.0
+    buf.push(f)
+    second = buf.latest_frame()
+    assert second is not None
+    assert second[1] == first[1]
+    assert second[0] == first[0]
 
 
 def test_export_writes_mp4_and_chapters(tmp_path: Path, monkeypatch):

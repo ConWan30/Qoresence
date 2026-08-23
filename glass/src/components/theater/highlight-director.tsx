@@ -55,7 +55,7 @@ export function HighlightDirector() {
   const holdLeft = Math.max(0, Math.ceil((holdUntil - now) / 1000));
 
   return (
-    <section className="holo-plate flex flex-col gap-3 rounded-xl p-4" data-director={brief.mode}>
+    <section className="holo-plate flex flex-col gap-2.5 rounded-xl p-3.5" data-director={brief.mode}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
           Director
@@ -73,7 +73,7 @@ export function HighlightDirector() {
         </span>
       </div>
 
-      <p data-director-why={brief.why} className="font-display text-xl font-extrabold leading-snug tracking-tight text-fg">
+      <p data-director-why={brief.why} className="font-display text-lg font-extrabold leading-snug tracking-tight text-fg">
         {brief.why}
       </p>
 

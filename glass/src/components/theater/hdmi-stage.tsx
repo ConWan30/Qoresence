@@ -8,6 +8,7 @@ import {
   HDMI_JPEG_PUMP_MS,
   HDMI_JPEG_PUSH,
   HDMI_JPEG_RETRY_MS,
+  HDMI_LIVE_PAINT,
   hdmiPictureVisible,
 } from "@/lib/coupling/hdmi-picture";
 import { clipHref } from "@/lib/coupling/clip";
@@ -21,8 +22,7 @@ import { SignalPrism } from "./signal-prism";
 import { StageClipDock } from "./clip-rack";
 
 export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
-  const imgARef = useRef<HTMLImageElement>(null);
-  const imgBRef = useRef<HTMLImageElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoHostRef = useRef<HTMLDivElement>(null);
   const prevRef = useRef({ frames: 0, pushes: 0, climbedAt: 0 });
   const jpgOkRef = useRef(false);
@@ -32,16 +32,12 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
   const stageMode = useTheater((s) => s.stageMode);
 
   useEffect(() => {
-    const a = imgARef.current;
-    const b = imgBRef.current;
-    if (!a || !b) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     let timer = 0;
     let lastOk = 0;
     let stopped = false;
-    let front = 0;
     let liveWs: WebSocket | null = null;
-    const bufs = [a, b];
-    const blobs: string[] = ["", ""];
 
     if (stageMode === "replay") {
       return () => {
@@ -57,49 +53,28 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
       }
     };
 
-    const revoke = (i: number) => {
-      if (blobs[i]) {
-        URL.revokeObjectURL(blobs[i]);
-        blobs[i] = "";
-      }
-    };
-
     const pullBlob = () =>
       fetch(deckLiveJpgUrl(), { cache: "no-store" }).then((res) => {
         if (!res.ok) throw new Error("live.jpg");
         return res.blob();
       });
 
-    const paintBack = (blob: Blob) =>
-      new Promise<void>((resolve, reject) => {
-        const back = bufs[1 - front];
-        const slot = 1 - front;
-        const url = URL.createObjectURL(blob);
-        const onLoad = () => {
-          back.removeEventListener("load", onLoad);
-          back.removeEventListener("error", onErr);
-          revoke(slot);
-          blobs[slot] = url;
-          resolve();
-        };
-        const onErr = () => {
-          back.removeEventListener("load", onLoad);
-          back.removeEventListener("error", onErr);
-          URL.revokeObjectURL(url);
-          reject(new Error("decode"));
-        };
-        back.addEventListener("load", onLoad);
-        back.addEventListener("error", onErr);
-        back.src = url;
-      });
-
-    const swapToBack = () => {
-      const back = bufs[1 - front];
-      back.style.opacity = "1";
-      bufs[front].style.opacity = "0";
-      front = 1 - front;
-      lastOk = performance.now();
-      markOk();
+    const paintBlob = async (blob: Blob) => {
+      const bmp = await createImageBitmap(blob);
+      try {
+        if (stopped) return;
+        if (canvas.width !== bmp.width || canvas.height !== bmp.height) {
+          canvas.width = bmp.width;
+          canvas.height = bmp.height;
+        }
+        const ctx = canvas.getContext("2d", { alpha: false });
+        if (!ctx) return;
+        ctx.drawImage(bmp, 0, 0);
+        lastOk = performance.now();
+        markOk();
+      } finally {
+        bmp.close();
+      }
     };
 
     let painting = false;
@@ -114,8 +89,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
           const next = newest;
           newest = null;
           try {
-            await paintBack(next);
-            if (!stopped) swapToBack();
+            await paintBlob(next);
           } catch {
             /* decode miss — keep last good still */
           }
@@ -237,8 +211,6 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
         }
         liveWs = null;
       }
-      revoke(0);
-      revoke(1);
     };
   }, [stageMode]);
 
@@ -325,23 +297,13 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
           ref={videoHostRef}
           className={cn("absolute inset-0 z-0", jpgOk || replaySrc ? "opacity-0" : "")}
         />
-        <img
-          ref={imgARef}
-          alt=""
-          decoding="async"
+        <canvas
+          ref={canvasRef}
           data-hdmi-keep={HDMI_JPEG_KEEP}
           data-hdmi-feed={HDMI_LIVE_FEED}
+          data-hdmi-paint={HDMI_LIVE_PAINT}
           data-hdmi-picture={showLive ? "on" : "off"}
           className="hdmi-picture pointer-events-none absolute inset-0 z-0 h-full w-full bg-bg object-contain"
-          style={{ opacity: 0 }}
-        />
-        <img
-          ref={imgBRef}
-          alt=""
-          decoding="async"
-          data-hdmi-feed={HDMI_LIVE_FEED}
-          className="hdmi-picture pointer-events-none absolute inset-0 z-0 h-full w-full bg-bg object-contain"
-          style={{ opacity: 0 }}
         />
         {replaySrc ? (
           <video

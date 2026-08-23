@@ -208,8 +208,9 @@ class DeckState:
             video["same_seq"] = lp.same_seq
             video["plane_dim"] = lp.plane_dim
             video["paint_reason"] = lp.reason
-            # Last-good BGR is not an accepted LIVE frame.
-            if not lp.paint:
+            # Last-good BGR is not an accepted LIVE frame. Keep hub occupancy
+            # when Dark Theater only ghosts widgets (menu / overlay-rejected).
+            if not lp.paint and lp.reason in {"no_frame", "blank"}:
                 video["has_frame"] = False
             try:
                 from qoresence.sync.ghost_stick import snapshot_ghost_stick

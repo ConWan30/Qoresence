@@ -133,15 +133,23 @@ class ScoreboardLockWorker:
 
                 allow_ocr = False
                 now = time.time()
-                try:
-                    from qoresence.vision.scoreboard_ocr_engine import get_scoreboard_engine
+                import os
 
-                    eng = get_scoreboard_engine()
-                    if eng.is_ready() and (now - self._last_ocr) >= _OCR_INTERVAL_S:
-                        allow_ocr = True
-                        self._last_ocr = now
-                except Exception:
-                    allow_ocr = False
+                ocr_on = os.environ.get("QORESENCE_EASY_OCR", "0").strip().lower() in {
+                    "1",
+                    "true",
+                    "yes",
+                }
+                if ocr_on:
+                    try:
+                        from qoresence.vision.scoreboard_ocr_engine import get_scoreboard_engine
+
+                        eng = get_scoreboard_engine()
+                        if eng.is_ready() and (now - self._last_ocr) >= _OCR_INTERVAL_S:
+                            allow_ocr = True
+                            self._last_ocr = now
+                    except Exception:
+                        allow_ocr = False
                 ext = FootballScoreboardExtractor()
                 out = ext.extract(frame, seed, allow_ocr=allow_ocr)
             except Exception as e:

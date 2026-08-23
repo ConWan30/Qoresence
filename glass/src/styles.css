@@ -149,10 +149,10 @@ html.obs-lens body::after {
   display: none;
 }
 
-/* Luma expand is in clip_buffer._publish_live. Never filter this <img> —
-   contrast/brightness on JPEG blocks made Theater look specky. */
+/* Never filter this <img> — contrast/brightness on JPEG blocks looks specky. */
 .hdmi-picture {
   image-rendering: auto;
+  transition: none !important;
 }
 
 .holo-deck {
