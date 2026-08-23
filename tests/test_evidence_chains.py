@@ -19,6 +19,7 @@ from qoresence.a2a.types import (
     FieldProvenance,
 )
 from qoresence.core import RetinaEventBus
+from tests.conftest import put_live_coupling_ticket
 
 # ── EvidenceChain dataclass ──────────────────────────────────────────────────
 
@@ -74,6 +75,7 @@ def test_commit_act_evidence_defaults_none():
 
 def test_evidence_chain_built_on_commit():
     """A committed A2A cycle should produce an evidence chain."""
+    put_live_coupling_ticket()
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = Path(td) / "events.jsonl"
         retina_bus = RetinaEventBus(session_id="ev_test", jsonl_path=jsonl_path, enable_ws=False)
@@ -143,6 +145,7 @@ def test_evidence_chain_built_on_commit():
 
 def test_evidence_chain_emitted_to_retina_bus():
     """An EVIDENCE_CHAIN event should be emitted to the RetinaEventBus."""
+    put_live_coupling_ticket()
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = Path(td) / "events.jsonl"
         retina_bus = RetinaEventBus(session_id="ev_emit", jsonl_path=jsonl_path, enable_ws=False)
@@ -187,6 +190,7 @@ def test_evidence_chain_emitted_to_retina_bus():
 
 def test_evidence_chain_shooter_fields():
     """Evidence chain should cite shooter fields for shooter games."""
+    put_live_coupling_ticket()
     orch = A2AOrchestrator(enabled=True, min_interval_s=0.0)
 
     situation = {
@@ -221,6 +225,7 @@ def test_evidence_chain_shooter_fields():
 
 def test_evidence_chain_confidence_blend():
     """Confidence should be a blend of visual confidence and scene tension."""
+    put_live_coupling_ticket()
     orch = A2AOrchestrator(enabled=True, min_interval_s=0.0)
 
     situation = {
@@ -245,6 +250,7 @@ def test_evidence_chain_confidence_blend():
 
 def test_evidence_chain_no_crash_on_empty_situation():
     """Evidence chain building should not crash on an empty situation."""
+    put_live_coupling_ticket()
     orch = A2AOrchestrator(enabled=True, min_interval_s=0.0)
 
     result = orch.run_cycle(
@@ -265,6 +271,7 @@ def test_evidence_chain_no_crash_on_empty_situation():
 
 def test_evidence_chain_in_agent_action_mirror():
     """The AGENT_ACTION event mirrored to RetinaEventBus should include evidence."""
+    put_live_coupling_ticket()
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = Path(td) / "events.jsonl"
         retina_bus = RetinaEventBus(

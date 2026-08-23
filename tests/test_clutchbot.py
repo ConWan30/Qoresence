@@ -340,7 +340,10 @@ class TestClutchBotAgent:
             assert agent.is_running() is False
             bus.close()
 
-    def test_game_detected_emits_agent_action(self):
+    def test_game_detected_silent_without_ticket(self):
+        from qoresence.sync.coupling_ticket import reset_coupling_book
+
+        reset_coupling_book()
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
             bus = RetinaEventBus(session_id="clutch", jsonl_path=jsonl_path, enable_ws=False)
@@ -361,11 +364,19 @@ class TestClutchBotAgent:
             lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
             events = [json.loads(line) for line in lines if line.strip()]
             agent_actions = [e for e in events if e["type"] == "agent_action"]
-            assert len(agent_actions) >= 1
-            assert agent_actions[0]["source_lobe"] == "agent"
+            assert agent_actions == []
             bus.close()
 
     def test_outcome_event_triggers_chat_action(self):
+        from qoresence.vision.confirm_ticket import get_ticket_book, mint_confirm_ticket
+
+        ticket = mint_confirm_ticket(
+            session_id="clutch",
+            clock_ns=4,
+            home_score=21,
+            away_score=14,
+        )
+        get_ticket_book().put(ticket)
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
             bus = RetinaEventBus(session_id="clutch", jsonl_path=jsonl_path, enable_ws=False)

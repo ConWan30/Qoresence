@@ -12,16 +12,6 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 
 
-class SourceLobe(StrEnum):
-    """Enumeration of all observation lobes."""
-
-    STREAMER = "streamer"  # UVC / OBS Virtual Cam
-    CONTROLLER = "controller"  # Local HID
-    SCREEN = "screen"  # WGC / DXGI / mss
-    OUTCOME = "outcome"  # Game-specific events
-    VISUAL = "visual"  # VLM visual context
-
-
 class GameProfileId(StrEnum):
     """First-class game profiles (equal citizens)."""
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+from enum import StrEnum
 from pathlib import Path
 
 import pytest
@@ -248,6 +249,19 @@ class TestRetinaEventBus:
                 is True
             )
             assert bus.events_emitted == 1
+
+            class _TwinLobe(StrEnum):
+                STREAMER = "streamer"
+
+            assert (
+                bus.emit_raw(
+                    source_lobe=_TwinLobe.STREAMER,
+                    event_type="session_start",
+                    payload={"advisory": True},
+                )
+                is True
+            )
+            assert jsonl_path.exists()
             bus.close()
 
 

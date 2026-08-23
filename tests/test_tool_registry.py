@@ -15,6 +15,7 @@ from qoresence.a2a.tools import (
     make_query_memory_tool,
     make_zoom_redetect_tool,
 )
+from tests.conftest import put_live_coupling_ticket
 
 # ── ToolRegistry basics ──────────────────────────────────────────────────────
 
@@ -390,6 +391,7 @@ def test_orchestrator_tool_depth_reset_per_cycle():
     assert orch.tools.call_count > 0
 
     # Run a cycle — should reset depth
+    put_live_coupling_ticket()
     orch.run_cycle(situation={"game_category": "football"}, reason="force")
     assert orch.tools.call_count == 0  # reset at start of cycle
 

@@ -22,6 +22,7 @@ from qoresence.a2a.router import (
 from qoresence.a2a.tools import ToolRegistry, create_default_registry
 from qoresence.a2a.types import CommitAct, SceneProposal
 from qoresence.core import RetinaEventBus
+from tests.conftest import put_live_coupling_ticket
 
 # ── Agent tool wiring ────────────────────────────────────────────────────────
 
@@ -122,6 +123,7 @@ def test_orchestrator_passes_tools_to_agents():
 
 def test_tool_enrichment_in_run_cycle():
     """A full run_cycle should use query-memory for enrichment."""
+    put_live_coupling_ticket()
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = Path(td) / "events.jsonl"
         # Write an event to the log

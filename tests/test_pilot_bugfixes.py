@@ -23,6 +23,7 @@ from qoresence.agents.situation_model import SituationModel
 from qoresence.core.types import EventType
 from qoresence.vision.local_vlm import LocalVLMClient
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
+from tests.conftest import put_live_coupling_ticket
 
 # ── Bug #1: A2A menu guard ───────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ def test_scene_looks_like_menu_does_not_fire_on_gameplay():
 
 def test_orchestrator_vetoes_menu_scene_summary():
     """When Gemini describes a menu but game_state says gameplay, veto it."""
+    put_live_coupling_ticket()
     reset_a2a_orchestrator()
     orch = A2AOrchestrator(enabled=True, min_interval_s=0)
     orch.gemini.live = False
@@ -74,6 +76,7 @@ def test_orchestrator_vetoes_menu_scene_summary():
 
 def test_orchestrator_does_not_veto_menu_exit_reason():
     """menu_exit reason should bypass the post-hoc guard (it's a valid transition)."""
+    put_live_coupling_ticket()
     reset_a2a_orchestrator()
     orch = A2AOrchestrator(enabled=True, min_interval_s=0)
     orch.gemini.live = False
