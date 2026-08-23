@@ -8,22 +8,70 @@ from qoresence.a2a.types import ChatProposal
 
 
 def test_soft_vetoes_scoreline():
+    t = _live_coupling_ticket()
     p = A2APolicy(chat_cooldown_s=0)
     r = p.evaluate(
         ChatProposal(text="Huge stop! 21-17 now!", path="fast", soft_only=True),
-        situation={"home_score": 21, "away_score": 17},
+        situation={
+            "home_score": 21,
+            "away_score": 17,
+            "coupling_ticket_id": t.ticket_id,
+        },
     )
     assert r.__class__.__name__ == "Veto"
     assert "digit" in r.reason.lower() or "score" in r.reason.lower()
 
 
-def test_soft_allows_no_digits():
+def _live_coupling_ticket():
+    import time
+
+    from qoresence.sync.coupling_ticket import (
+        get_coupling_book,
+        mint_coupling_ticket,
+        reset_coupling_book,
+    )
+
+    reset_coupling_book()
+    t = mint_coupling_ticket(
+        clock_ns=time.monotonic_ns(),
+        frame_seq=3,
+        phrase="SPRINT",
+        coupling=0.5,
+        hold_energy=1.0,
+        pll_lock=True,
+        video_fresh=True,
+    )
+    get_coupling_book().put(t)
+    return t
+
+
+def test_soft_vetoes_without_coupling_ticket():
+    from qoresence.sync.coupling_ticket import reset_coupling_book
+
+    reset_coupling_book()
     p = A2APolicy(chat_cooldown_s=0)
     r = p.evaluate(
         ChatProposal(
             text="Pressure building — this possession matters.", path="fast", soft_only=True
         ),
         situation={"home_score": 31, "away_score": 38},
+    )
+    assert r.__class__.__name__ == "Veto"
+    assert "coupling ticket" in r.reason.lower()
+
+
+def test_soft_allows_no_digits():
+    t = _live_coupling_ticket()
+    p = A2APolicy(chat_cooldown_s=0)
+    r = p.evaluate(
+        ChatProposal(
+            text="Pressure building — this possession matters.", path="fast", soft_only=True
+        ),
+        situation={
+            "home_score": 31,
+            "away_score": 38,
+            "coupling_ticket_id": t.ticket_id,
+        },
     )
     assert r.__class__.__name__ == "CommitAct"
     assert r.path == "fast"
@@ -84,7 +132,7 @@ def test_confirm_digits_must_match_situation():
     assert bad.__class__.__name__ == "Veto"
     good = p.evaluate(
         ChatProposal(text="Score update: 31-38", path="confirm", soft_only=False),
-        situation={"home_score": 31, "away_score": 38},
+        situation={"home_score": 31, "away_score": 38, "score_vlm_locked": True},
     )
     assert good.__class__.__name__ == "CommitAct"
     assert good.factual is True
@@ -102,8 +150,14 @@ def test_stub_cycle_produces_commit_without_api():
     orch.gemini.live = False
     orch.deepseek.live = False
     orch.policy.chat_cooldown_s = 0
+    t = _live_coupling_ticket()
     result = orch.run_cycle(
-        situation={"game_state": "gameplay", "home_score": 31, "away_score": 38},
+        situation={
+            "game_state": "gameplay",
+            "home_score": 31,
+            "away_score": 38,
+            "coupling_ticket_id": t.ticket_id,
+        },
         coupling=0.7,
         drive_phase="pressure",
         path="fast",
@@ -151,12 +205,15 @@ def test_score_changed_reason_triggers():
     orch.gemini.live = False
     orch.deepseek.live = False
     orch.policy.chat_cooldown_s = 0
+    t = _live_coupling_ticket()
     orch.maybe_trigger_from_drive(
         situation={
             "game_category": "football",
             "game_state": "gameplay",
             "home_score": 7,
             "away_score": 0,
+            "score_vlm_locked": True,
+            "coupling_ticket_id": t.ticket_id,
         },
         reason="score_changed",
     )
@@ -193,8 +250,13 @@ def test_scene_tick_fires_with_pressure():
     orch.gemini.live = False
     orch.deepseek.live = False
     orch.policy.chat_cooldown_s = 0
+    t = _live_coupling_ticket()
     orch.maybe_trigger_from_drive(
-        situation={"game_category": "football", "game_state": "gameplay"},
+        situation={
+            "game_category": "football",
+            "game_state": "gameplay",
+            "coupling_ticket_id": t.ticket_id,
+        },
         reason="scene_tick",
         coupling=0.5,
         drive_phase="pressure",
@@ -231,11 +293,13 @@ def test_video_ambient_fires_on_must_fire_climax():
     orch.gemini.live = False
     orch.deepseek.live = False
     orch.policy.chat_cooldown_s = 0
+    t = _live_coupling_ticket()
     orch.maybe_trigger_from_drive(
         situation={
             "game_category": "football",
             "game_state": "gameplay",
             "last_outcome_event": "touchdown",
+            "coupling_ticket_id": t.ticket_id,
         },
         reason="video_ambient",
         coupling=0.0,
@@ -273,12 +337,14 @@ def test_coupling_reason_without_ticket_does_not_fire():
 def test_near_duplicate_policy():
     p = A2APolicy(chat_cooldown_s=0)
     t = "Big moment energy — stay with it on this drive."
-    r1 = p.evaluate(ChatProposal(text=t, path="fast", soft_only=True), situation={})
+    ticket = _live_coupling_ticket()
+    sit = {"coupling_ticket_id": ticket.ticket_id}
+    r1 = p.evaluate(ChatProposal(text=t, path="fast", soft_only=True), situation=sit)
     assert r1.__class__.__name__ == "CommitAct"
     r2 = p.evaluate(
         ChatProposal(
             text="Big moment energy — stay with it on this drive!!", path="fast", soft_only=True
         ),
-        situation={},
+        situation=sit,
     )
     assert r2.__class__.__name__ == "Veto"

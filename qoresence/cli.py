@@ -1140,7 +1140,7 @@ def setup_logging(level: str = "INFO") -> None:
 
 
 def apply_society_cli(config: RetinaUnifiedConfig, args) -> RetinaUnifiedConfig:
-    """--play turns Agent Society on (all roles). --no-agent-society opts out."""
+    """Agent Society stays OFF unless --agent-society or --agent-society-roles."""
     from dataclasses import replace
 
     from qoresence.agents.society.config import AgentSocietyConfig, _csv_roles, resolve_key_file
@@ -1151,18 +1151,9 @@ def apply_society_cli(config: RetinaUnifiedConfig, args) -> RetinaUnifiedConfig:
         base = AgentSocietyConfig.from_env()
     if getattr(args, "no_agent_society", False):
         return replace(config, society=replace(base, enabled=False))
-    if (
-        getattr(args, "play", False)
-        or getattr(args, "agent_society", False)
-        or getattr(args, "agent_society_roles", None)
-    ):
+    if getattr(args, "agent_society", False) or getattr(args, "agent_society_roles", None):
         raw = getattr(args, "agent_society_roles", None)
-        if raw:
-            roles = _csv_roles(raw)
-        elif getattr(args, "play", False):
-            roles = KNOWN_ROLES
-        else:
-            roles = base.roles
+        roles = _csv_roles(raw) if raw else KNOWN_ROLES
         key_file = resolve_key_file(getattr(base, "api_key_file", None))
         return replace(config, society=replace(base, enabled=True, roles=roles, api_key_file=key_file))
     return config
@@ -1812,7 +1803,7 @@ def main():
     parser.add_argument(
         "--agent-society",
         action="store_true",
-        help="Enable Agent Society (also auto-on with --play)",
+        help="Enable Agent Society (default OFF; opt-in only)",
     )
     parser.add_argument(
         "--no-agent-society",

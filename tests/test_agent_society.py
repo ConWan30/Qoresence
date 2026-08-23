@@ -10,16 +10,29 @@ from qoresence.agents.society.types import AgentPacket, AgentReceipt
 from qoresence.core.unified_config import RetinaUnifiedConfig
 
 
-def test_play_enables_society_all_roles():
+def test_play_leaves_society_off():
     from argparse import Namespace
 
     from qoresence.cli import apply_society_cli
 
     cfg = RetinaUnifiedConfig(session_id="s", session_head_ns=1)
     assert getattr(cfg.society, "enabled", True) is False
-    on = apply_society_cli(
+    play = apply_society_cli(
         cfg,
         Namespace(play=True, agent_society=False, agent_society_roles=None, no_agent_society=False),
+    )
+    assert play.society.enabled is False
+
+
+def test_agent_society_flag_enables_roles():
+    from argparse import Namespace
+
+    from qoresence.cli import apply_society_cli
+
+    cfg = RetinaUnifiedConfig(session_id="s", session_head_ns=1)
+    on = apply_society_cli(
+        cfg,
+        Namespace(play=True, agent_society=True, agent_society_roles=None, no_agent_society=False),
     )
     assert on.society.enabled is True
     assert set(on.society.roles) >= {
@@ -32,7 +45,7 @@ def test_play_enables_society_all_roles():
     }
     off = apply_society_cli(
         cfg,
-        Namespace(play=True, no_agent_society=True, agent_society=False, agent_society_roles=None),
+        Namespace(play=True, no_agent_society=True, agent_society=True, agent_society_roles=None),
     )
     assert off.society.enabled is False
 

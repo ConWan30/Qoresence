@@ -394,6 +394,29 @@ class ClutchBotAgent:
             if not self._rate_limit_ok(moment):
                 continue
 
+            if moment.action == "chat":
+                try:
+                    from qoresence.agents.chat_license import outbound_chat_allowed
+                    from qoresence.sync.coupling_ticket import get_coupling_book
+                    from qoresence.vision.confirm_ticket import get_ticket_book
+
+                    sit = {}
+                    try:
+                        sit = self._situation.to_dict()
+                    except Exception:
+                        sit = {}
+                    if not outbound_chat_allowed(
+                        path=path_label,
+                        coupling_ticket=get_coupling_book().latest_live(),
+                        confirm_ticket=get_ticket_book().latest(),
+                        score_vlm_locked=bool(
+                            sit.get("score_vlm_locked") or sit.get("scoreboard_locked")
+                        ),
+                    ):
+                        continue
+                except Exception:
+                    continue
+
             if path_label == "fast":
                 try:
                     from qoresence.vision.confirm_ticket import get_ticket_book

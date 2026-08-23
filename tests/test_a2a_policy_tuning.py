@@ -10,6 +10,31 @@ def _soft(text: str) -> ChatProposal:
     return ChatProposal(text=text, path="fast", soft_only=True, model="test")
 
 
+def _licensed_sit(**extra):
+    import time
+
+    from qoresence.sync.coupling_ticket import (
+        get_coupling_book,
+        mint_coupling_ticket,
+        reset_coupling_book,
+    )
+
+    reset_coupling_book()
+    t = mint_coupling_ticket(
+        clock_ns=time.monotonic_ns(),
+        frame_seq=3,
+        phrase="SPRINT",
+        coupling=0.5,
+        hold_energy=1.0,
+        pll_lock=True,
+        video_fresh=True,
+    )
+    get_coupling_book().put(t)
+    sit = {"coupling_ticket_id": t.ticket_id}
+    sit.update(extra)
+    return sit
+
+
 def test_cooldown_lowered_from_45s():
     """Default cooldown should be 25s, not the old 45s."""
     # Reset env to default
@@ -28,7 +53,7 @@ def test_natural_commentary_not_vetoed():
     p._last_commit_ts = 0.0  # bypass cooldown
     result = p.evaluate(
         _soft("Gained 12 yards on that carry — nice run."),
-        situation={"home_score": 17, "away_score": 14},
+        situation=_licensed_sit(home_score=17, away_score=14),
     )
     # Should be accepted (CommitAct), not Veto
     assert not hasattr(result, "rejected_text"), f"Unexpectedly vetoed: {result}"
@@ -40,7 +65,7 @@ def test_explicit_scoreline_still_vetoed_in_soft():
     p._last_commit_ts = 0.0
     result = p.evaluate(
         _soft("Looking at a 31-38 game here"),
-        situation={"home_score": 17, "away_score": 14},
+        situation=_licensed_sit(home_score=17, away_score=14),
     )
     assert hasattr(result, "rejected_text"), "Scoreline should be vetoed in soft path"
 
@@ -52,7 +77,7 @@ def test_near_duplicate_requires_40_char_match():
     p._last_commit_ts = 0.0
     r1 = p.evaluate(
         _soft("Pressure building on this drive — defense stepping up now"),
-        situation={},
+        situation=_licensed_sit(),
     )
     assert not hasattr(r1, "rejected_text")
     # Reset cooldown to test near-duplicate, not cooldown
@@ -60,7 +85,7 @@ def test_near_duplicate_requires_40_char_match():
     # Second chat shares prefix "pressure building on this d" (24 chars) but not 40
     r2 = p.evaluate(
         _soft("Pressure building on this drive — offense looking sharp"),
-        situation={},
+        situation=_licensed_sit(),
     )
     assert not hasattr(r2, "rejected_text"), (
         f"24-char prefix match should not veto, got: {getattr(r2, 'reason', '?')}"

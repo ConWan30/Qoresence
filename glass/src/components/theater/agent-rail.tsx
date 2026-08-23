@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { ROLE_LABEL, type AgentReceipt } from "@/lib/coupling/agents";
+import { ROLE_LABEL, visibleAgentReceipts, type AgentReceipt } from "@/lib/coupling/agents";
 import { clipHref } from "@/lib/coupling/clip";
 import { AGENT_COMPANION, companionDutyLine } from "@/lib/coupling/companion.ts";
 import { useTheater } from "@/lib/coupling/store";
@@ -11,8 +11,6 @@ export function AgentRail() {
   const heatVetoed = useTheater((s) => s.heatVetoed);
   const plane = useTheater((s) => s.agentPlane);
   const qsLive = useTheater((s) => s.qsLive);
-  const qsModel = useTheater((s) => s.qsModel);
-  const qsError = useTheater((s) => s.qsError);
   const companion = useTheater((s) => s.companion);
   const lastClipUrl = useTheater((s) => s.lastClipUrl);
   const clipOpen = companion.lastClip?.url
@@ -36,7 +34,7 @@ export function AgentRail() {
     <section className="holo-plate flex flex-col gap-3 rounded-xl p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-          Agents
+          Receipt
         </h2>
         <Badge variant={companion.armed || ticketLive || armed ? "live" : heatVetoed ? "veto" : "ticket"}>
           {badge}
@@ -90,43 +88,15 @@ export function AgentRail() {
           </button>
         </div>
       ) : null}
-      <div className="flex flex-wrap gap-2 font-mono text-[10px] tracking-wide uppercase">
-        <span className={plane.clutchbot || companion.autoClip ? "text-live" : "text-subtle-foreground"}>
-          {plane.clutchbot || companion.autoClip ? "ClutchBot live" : "ClutchBot wait"}
-        </span>
-        <span className="text-subtle-foreground">·</span>
-        <span className={plane.society ? "text-live" : "text-subtle-foreground"}>
-          {plane.society ? "Society live" : "Society wait"}
-        </span>
-        <span className="text-subtle-foreground">·</span>
-        <span className={plane.vlmLocked || plane.geminiLive ? "text-live" : "text-subtle-foreground"}>
-          {plane.vlmLocked
-            ? `Gemini VLM lock${plane.vlmBoard ? ` ${plane.vlmBoard}` : ""}`
-            : plane.geminiLive
-              ? "Gemini VLM live"
-              : "Gemini VLM wait"}
-        </span>
-        {plane.a2a ? (
-          <>
-            <span className="text-subtle-foreground">·</span>
-            <span className="text-live">A2A</span>
-          </>
-        ) : null}
-        <span className="text-subtle-foreground">·</span>
-        <span className={qsLive || plane.a2a ? "text-live" : "text-subtle-foreground"}>
-          {qsLive
-            ? `QS ${qsModel || "nemotron-3.5-lightning"}`
-            : plane.a2a
-              ? "QS via Deck"
-              : qsError || "QS wait"}
-        </span>
-      </div>
+      <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
+        {ticketLive ? "ticket live" : "ticket none"}
+        {plane.vlmLocked ? " · board locked" : ""}
+      </p>
       <p className="text-xs text-muted-foreground">
-        ClutchBot still auto-clips clutch. Society coaches and proposes cuts — Export is the operator
-        write. MCP never writes. Digits only after a Gemini board lock. Heat needs a coupling ticket.
+        Chat only with a ticket. Digits only after a board lock. Society is opt-in.
       </p>
       <ul className="flex flex-col gap-2">
-        {agents.map((a) => (
+        {visibleAgentReceipts(agents).map((a) => (
           <AgentRow key={a.role} agent={a} />
         ))}
       </ul>

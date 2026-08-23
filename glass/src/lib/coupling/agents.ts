@@ -9,7 +9,7 @@ import {
   licenseScoreText,
   type ConfirmTicket,
   type Phrase,
-} from "./engine";
+} from "./engine.ts";
 
 export type AgentRole =
   | "clutchbot"
@@ -75,6 +75,20 @@ function quiet(role: AgentRole, reason: string): AgentReceipt {
     policyOk: true,
     reason,
   };
+}
+
+/** Phase 1: hide persona rows. Show the last real receipt only. */
+export function visibleAgentReceipts(agents: AgentReceipt[]): AgentReceipt[] {
+  for (let i = agents.length - 1; i >= 0; i--) {
+    const a = agents[i];
+    if (a.action === "quiet") continue;
+    if (a.action === "note" && /society (armed|wait|live)/i.test(`${a.text} ${a.reason}`)) {
+      continue;
+    }
+    if (!a.text && a.action !== "veto" && a.action !== "chat") continue;
+    return [a];
+  }
+  return [];
 }
 
 function commitHeat(

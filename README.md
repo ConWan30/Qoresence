@@ -260,7 +260,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |
 | `--clutchbot` / leftover Twitch flags | off | Deck feed is already on with `--play`. Channel/token flags are leftover IRC/Helix — not the local route |
 | `--agent-glass` | off | HTTP/WS spectator API (MCP-ready) |
-| `--agent-society` | off (on with `--play`) | Agent Society roles; `--no-agent-society` to opt out |
+| `--agent-society` | off | Agent Society roles; opt-in only (`--no-agent-society` still honored) |
 | `--otel` | off | Causal traces + metrics to local OTLP; clip sidecars; Jaeger on `:16686` |
 
 ---
