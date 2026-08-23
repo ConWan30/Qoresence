@@ -8,7 +8,6 @@ import time
 from pathlib import Path
 
 from qoresence.a2a.orchestrator import A2AOrchestrator, reset_a2a_orchestrator
-from tests.conftest import put_live_coupling_ticket
 from qoresence.a2a.tools import (
     ToolDef,
     ToolRegistry,
@@ -16,6 +15,7 @@ from qoresence.a2a.tools import (
     make_query_memory_tool,
     make_zoom_redetect_tool,
 )
+from tests.conftest import put_live_coupling_ticket
 
 # ── ToolRegistry basics ──────────────────────────────────────────────────────
 

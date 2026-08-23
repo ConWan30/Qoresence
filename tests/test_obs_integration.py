@@ -141,7 +141,7 @@ class TestOBSOverlayIntegration:
             config.eye_check_required = True
             config.snapshot_path = None
             config.source_kind = "uvc_card"
-            config.device_name = "Test Camera"
+            config.device_name = "Test Capture Card"
             config.enable_ws = False
             config.ws_port = 8765
             config.presence_touch_file = None

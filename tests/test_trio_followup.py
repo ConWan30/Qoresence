@@ -12,7 +12,6 @@ from pathlib import Path
 from qoresence.a2a.deepseek_agent import DeepSeekChatAgent
 from qoresence.a2a.gemini_agent import GeminiSceneAgent
 from qoresence.a2a.orchestrator import A2AOrchestrator, reset_a2a_orchestrator
-from tests.conftest import put_live_coupling_ticket
 from qoresence.a2a.router import (
     _FourthDownPredicate,
     _OvertimeStartPredicate,
@@ -23,6 +22,7 @@ from qoresence.a2a.router import (
 from qoresence.a2a.tools import ToolRegistry, create_default_registry
 from qoresence.a2a.types import CommitAct, SceneProposal
 from qoresence.core import RetinaEventBus
+from tests.conftest import put_live_coupling_ticket
 
 # ── Agent tool wiring ────────────────────────────────────────────────────────
 

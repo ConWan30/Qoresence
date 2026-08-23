@@ -18,12 +18,12 @@ from qoresence.a2a.orchestrator import (
     _scene_looks_like_menu,
     reset_a2a_orchestrator,
 )
-from tests.conftest import put_live_coupling_ticket
 from qoresence.a2a.types import SceneProposal
 from qoresence.agents.situation_model import SituationModel
 from qoresence.core.types import EventType
 from qoresence.vision.local_vlm import LocalVLMClient
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
+from tests.conftest import put_live_coupling_ticket
 
 # ── Bug #1: A2A menu guard ───────────────────────────────────────────────────
 
