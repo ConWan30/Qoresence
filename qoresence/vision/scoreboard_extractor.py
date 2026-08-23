@@ -690,30 +690,20 @@ class FootballScoreboardExtractor:
             digitish.append((area, t.x, val, t.conf))
         if len(digitish) < 2:
             return None
-        # Top by area, then take leftmost and rightmost among top-4
+        # Two largest digit boxes, then left/right. A far-right badge must not
+        # become the right edge of a top-4 span (that returned None on 20|0).
         digitish.sort(key=lambda z: (-z[0], -z[3]))
-        top = digitish[:4]
-        top.sort(key=lambda z: z[1])  # by x
-        left = top[0]
-        right = top[-1]
+        two = list(digitish[:2])
+        two.sort(key=lambda z: z[1])
+        left, right = two[0], two[1]
         if abs(left[1] - right[1]) < 0.08:
             return None
-        if right[1] > 0.78 and left[1] < 0.45:
-            return None
-        # Reject same-digit double-count when right is a badge (tiny area, same val)
-        pair = (right[2], left[2])
         if left[2] == right[2] and right[0] < left[0] * 0.35:
-            # look for a zero or smaller score on right among top
-            for cand in sorted(digitish, key=lambda z: z[1]):
-                if cand[1] > 0.5 and cand[2] != left[2]:
-                    pair = (cand[2], left[2])
+            for cand in digitish:
+                if cand[1] > left[1] + 0.08 and cand[2] != left[2]:
+                    right = cand if cand[1] > left[1] else right
                     break
-            # Prefer 0 if we only see one big score left of center
-            if left[1] < 0.55:
-                for cand in digitish:
-                    if cand[2] == 0 and cand[1] > left[1]:
-                        pair = (0, left[2])
-                        break
+        pair = (right[2], left[2])
 
         # Orient (home, away) according to which side the home team is on.
         if home_left:
