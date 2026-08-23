@@ -12,6 +12,7 @@ from pathlib import Path
 from qoresence.a2a.deepseek_agent import DeepSeekChatAgent
 from qoresence.a2a.gemini_agent import GeminiSceneAgent
 from qoresence.a2a.orchestrator import A2AOrchestrator, reset_a2a_orchestrator
+from tests.conftest import put_live_coupling_ticket
 from qoresence.a2a.router import (
     _FourthDownPredicate,
     _OvertimeStartPredicate,
@@ -122,6 +123,7 @@ def test_orchestrator_passes_tools_to_agents():
 
 def test_tool_enrichment_in_run_cycle():
     """A full run_cycle should use query-memory for enrichment."""
+    put_live_coupling_ticket()
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = Path(td) / "events.jsonl"
         # Write an event to the log

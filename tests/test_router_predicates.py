@@ -13,6 +13,7 @@ from qoresence.a2a.router import (
     get_predicates_for_category,
 )
 from qoresence.core import RetinaEventBus
+from tests.conftest import put_live_coupling_ticket
 
 # ── Predicate evaluation ─────────────────────────────────────────────────────
 
@@ -159,6 +160,7 @@ def test_router_decision_suppressed():
 
 def test_router_decision_emitted_on_fire():
     """A ROUTER_DECISION event should be emitted when the router fires."""
+    put_live_coupling_ticket()
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = Path(td) / "events.jsonl"
         retina_bus = RetinaEventBus(
@@ -201,6 +203,7 @@ def test_router_decision_emitted_on_fire():
 
 def test_must_fire_bypasses_interval():
     """A must-fire predicate should bypass the interval check."""
+    put_live_coupling_ticket()
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = Path(td) / "events.jsonl"
         retina_bus = RetinaEventBus(
@@ -242,6 +245,7 @@ def test_must_fire_bypasses_interval():
 
 def test_sticky_must_fire_does_not_bypass_interval_twice():
     """Sticky last_outcome_event must not zero the interval on every tick."""
+    put_live_coupling_ticket()
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = Path(td) / "events.jsonl"
         retina_bus = RetinaEventBus(session_id="sticky_mf", jsonl_path=jsonl_path, enable_ws=False)

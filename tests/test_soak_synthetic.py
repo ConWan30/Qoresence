@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 
 from qoresence.a2a.orchestrator import A2AOrchestrator
+from tests.conftest import put_live_coupling_ticket
 from qoresence.agents.drive_graph import DriveGraph
 from qoresence.agents.session_timeline import SessionTimeline, reset_session_timeline
 from qoresence.observability import get_latency_stats, record_latency, reset_latency_stats
@@ -71,6 +72,7 @@ def test_synthetic_soak_timeline_and_graph():
 
 
 def test_a2a_stub_soak_under_policy():
+    put_live_coupling_ticket()
     commits = []
     orch = A2AOrchestrator(enabled=True, min_interval_s=0, on_commit=lambda c: commits.append(c))
     orch.gemini.live = False
