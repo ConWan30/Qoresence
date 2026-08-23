@@ -25,6 +25,7 @@ import {
   type AgentReceipt,
 } from "./agents";
 import { EMPTY_PLANE, type AgentPlane } from "./agent-plane";
+import type { ActuatorReceipt } from "./actuators.ts";
 import { EMPTY_COMPANION, type AgentCompanion } from "./companion.ts";
 import { armCapture as armCaptureDevice, armShare as armShareDevice, getDeckSrc, thawDeck as thawDeckDevice, wakePad as wakePadDevice, sampleCapture, type CaptureStatus, type VideoDevice } from "./hardware";
 import { boardLine, situationLine, EMPTY_GHOST, type DeckIngest, type GhostStick } from "./board";
@@ -141,6 +142,7 @@ export type TheaterState = {
   /** Bus stem_program when Conductor is on; null = use local director. */
   stemProgram: StemProgram | null;
   companion: AgentCompanion;
+  actuators: ActuatorReceipt[];
   framed: boolean;
   setR2: (v: number) => void;
   setLeft: (v: number) => void;
@@ -311,6 +313,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
   clipHoldUntil: 0,
   stemProgram: null,
   companion: EMPTY_COMPANION,
+  actuators: [],
   framed: false,
   livePaint: true,
   sameSeq: true,
@@ -489,6 +492,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
     const scoreLine = confirm ? whyStripConfirm(confirm) : licenseScoreText(SOFT.scoreLine, confirm);
     const why = ing.why || `${whyStripConfirm(confirm)} · ${whyStripCoupling(liveTicket)} · phrase=${phrase.phrase}`;
     const companion = ing.companion?.ok ? ing.companion : s.companion;
+    const actuators = ing.actuators?.length ? ing.actuators : s.actuators;
     const agents = mergeAgentPlane(evaluateAgents({
       phrase: phrase.phrase,
       phraseLive: phrase.live,
@@ -564,6 +568,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       why,
       confirm,
       companion,
+      actuators,
       lastClipUrl: companion.lastClip?.url ? clipHref(companion.lastClip.url) : s.lastClipUrl,
       lastClipName: companion.lastClip?.name || s.lastClipName,
       agents,
@@ -807,19 +812,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
     }
     const origin = (await import("./qoresence-deck")).getDeckOrigin();
     const abs = out.url.startsWith("http") ? out.url : `${origin}${out.url.startsWith("/") ? "" : "/"}${out.url}`;
-    const agents = get().agents.map((a) =>
-      a.role === "ghost_editor"
-        ? {
-            ...a,
-            action: "note" as const,
-            text: `Cut candidate · ${out.name || `${out.seconds}s HDMI`}`,
-            model: "rules" as const,
-            policyOk: true,
-            reason: "ghost editor clip",
-          }
-        : a,
-    );
-    set({ lastClipUrl: abs, lastClipName: out.name, lastClipError: "", agents });
+    set({ lastClipUrl: abs, lastClipName: out.name, lastClipError: "" });
     get().ingestMoment({
       key: `clip:${abs}`,
       title: `HDMI CLIP ${out.seconds}s`,

@@ -74,6 +74,8 @@ class A2APolicy:
 
         soft = proposal.soft_only or proposal.path == "fast"
         if soft:
+            if not self._fast_licensed(situation):
+                return self._veto("fast chat requires coupling ticket", text)
             if _SCORE_RE.search(text):
                 return self._veto("soft path forbids score digits", text)
             if self._invents_score_digits(text, situation):
@@ -90,7 +92,9 @@ class A2APolicy:
                 payload={"model": proposal.model, "persona": proposal.persona},
             )
 
-        # Confirm path: any score digits must match local situation
+        # Confirm path: ticket or VLM lock, then digits must match the board
+        if not self._confirm_licensed(situation):
+            return self._veto("confirm chat requires ticket or score lock", text)
         if not self._digits_match_situation(text, situation or {}):
             return self._veto("confirm digits mismatch local OCR situation", text)
 
@@ -116,6 +120,35 @@ class A2APolicy:
         if len(self.recent_vetos) > 40:
             self.recent_vetos = self.recent_vetos[-40:]
         return Veto(reason=reason, rejected_text=text[:120])
+
+    @staticmethod
+    def _fast_licensed(situation: dict[str, Any] | None) -> bool:
+        try:
+            from qoresence.sync.coupling_ticket import get_coupling_book
+        except Exception:
+            return False
+        sit = situation or {}
+        tid = str(sit.get("coupling_ticket_id") or "")
+        book = get_coupling_book()
+        if tid and book.get(tid) is not None:
+            return True
+        return book.latest_live() is not None
+
+    @staticmethod
+    def _confirm_licensed(situation: dict[str, Any] | None) -> bool:
+        sit = situation or {}
+        if sit.get("score_vlm_locked") or sit.get("scoreboard_locked"):
+            return True
+        tid = str(sit.get("confirm_ticket_id") or "")
+        try:
+            from qoresence.vision.confirm_ticket import get_ticket_book
+
+            book = get_ticket_book()
+            if tid and book.get(tid) is not None:
+                return True
+            return book.latest() is not None
+        except Exception:
+            return False
 
     @staticmethod
     def _heat_unlicensed(text: str, situation: dict[str, Any] | None) -> bool:

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --experimental-strip-types --test scripts/*.test.ts src/lib/coupling/capture-resolve.test.ts src/lib/coupling/hdmi-picture.test.ts src/lib/coupling/companion.test.ts src/lib/coupling/live-health.test.ts src/lib/coupling/director.test.ts src/lib/coupling/pad-sync.test.ts src/lib/coupling/clutch-pulse.test.ts src/lib/coupling/stem.test.ts"
+    "test": "node --experimental-strip-types --test scripts/*.test.ts src/lib/coupling/capture-resolve.test.ts src/lib/coupling/hdmi-picture.test.ts src/lib/coupling/companion.test.ts src/lib/coupling/live-health.test.ts src/lib/coupling/director.test.ts src/lib/coupling/pad-sync.test.ts src/lib/coupling/clutch-pulse.test.ts src/lib/coupling/stem.test.ts src/lib/coupling/agent-rail-view.test.ts src/lib/coupling/actuators.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",

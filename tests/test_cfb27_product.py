@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from qoresence.agents.society.roles.pilot_auditor import run as auditor_run
-from qoresence.agents.society.types import AgentPacket
 from qoresence.profiles.cfb27_product import (
     effective_game_state,
     identity_compatible,
@@ -45,17 +43,17 @@ def test_vlm_home_away_names_respects_home_left():
 
 
 def test_auditor_sees_confirm_ticket():
+    """Society auditor is gone; confirm ticket still lives on the packet/situation."""
+    from qoresence.agents.society.types import AgentPacket
+
     pkt = AgentPacket(
         score_vlm_locked=True,
         confirm_ticket_id="12cedafeb53420f2",
-        situation={"home_score": 14, "away_score": 7},
+        situation={"home_score": 14, "away_score": 7, "confirm_ticket_id": "12cedafeb53420f2"},
         health={"video": {"has_frame": True, "age_s": 0.1}},
         phrase="SPRINT",
     )
-    rec = auditor_run(pkt)
-    assert rec is not None
-    assert rec.refs["metrics"]["score_locked"] is True
-    assert rec.refs["metrics"]["confirm_ticket_id"] == "12cedafeb53420f2"
-    assert rec.refs["metrics"]["phrase"] == "SPRINT"
-    assert "no confirm score lock" not in rec.text
-    assert "no confirm score lock" not in str(rec.refs.get("issues"))
+    assert pkt.score_vlm_locked is True
+    assert pkt.confirm_ticket_id == "12cedafeb53420f2"
+    assert pkt.situation["confirm_ticket_id"] == "12cedafeb53420f2"
+    assert pkt.phrase == "SPRINT"

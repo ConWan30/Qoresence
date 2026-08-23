@@ -129,3 +129,13 @@ score lock, local HDMI clips) is proven. **Retina Stem** (conductor / program-ou
 / card audio / session record) is a local glass on FrameHub — never a stream
 ingest. Stem audio/record stay default-OFF until that same local pilot is proven.
 
+## Ticket-clock law
+
+Chat, heat, and score digits are licensed by the **shared clock plus tickets** — not by coworker personas.
+
+- **Coupling ticket** licenses heat / pad–picture join (fast path).
+- **Confirm ticket** + `score_vlm_locked` licenses score digits (confirm path).
+- **Actuators** (Aperture / Bind / License / Arm) are clock-licensed receipts. They are not Agent Society coworkers. Bind owns DualSense↔HDMI join; do not revive a Society Sync Warden.
+- Agent Society is leftover opt-in (`--agent-society`). Default `--play` does not start it. Personality roles are deleted. Do not treat Society as the product path.
+
+

@@ -39,20 +39,21 @@ def _bool(name: str, default: bool = False) -> bool:
 
 
 def _csv_roles(raw: str | None) -> tuple[str, ...]:
+    """Personality roles are deleted. Unknown names are ignored."""
     if not raw or not raw.strip():
-        return ("spam_warden", "pilot_auditor")
+        return ()
     out: list[str] = []
     for part in raw.split(","):
         r = part.strip().lower()
         if r in KNOWN_ROLES and r not in out:
             out.append(r)
-    return tuple(out) if out else ("spam_warden", "pilot_auditor")
+    return tuple(out)
 
 
 @dataclass(frozen=True)
 class AgentSocietyConfig:
     enabled: bool = False
-    roles: tuple[str, ...] = ("spam_warden", "pilot_auditor")
+    roles: tuple[str, ...] = ()
     quicksilver_base: str = DEFAULT_BASE
     api_key_file: str = DEFAULT_KEY_FILE
     model_reason: str = DEFAULT_REASON

@@ -1,4 +1,4 @@
-"""Agent Society — narrow ops agents on the local glass. Default OFF."""
+"""Agent Society — leftover opt-in stub. Default OFF. Actuators, not coworkers."""
 
 from .config import AgentSocietyConfig
 from .runtime import (

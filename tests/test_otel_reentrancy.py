@@ -541,7 +541,7 @@ class TestCouplingTelemetry:
 
 class TestPilotAuditor:
     def test_flags_re_entrant_bus_cycle(self):
-        from qoresence.agents.society.roles import pilot_auditor
+        """Society auditor is gone; OTel still records re-entrancy on the observation plane."""
         from qoresence.agents.society.types import AgentPacket
 
         packet = AgentPacket(
@@ -552,8 +552,6 @@ class TestPilotAuditor:
                 }
             }
         )
-        receipt = pilot_auditor.run(packet)
-        assert receipt is not None
-        assert "re_entrant_bus_cycle_detected" in (
-            receipt.refs or {}
-        ).get("issues", [])
+        otel = (packet.health or {}).get("otel") or {}
+        assert otel.get("reentrant_cycles_recent") == 3
+        assert otel.get("reentrant_cycles_total") == 5

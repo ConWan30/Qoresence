@@ -5,6 +5,7 @@ export const DECK_SCHEMA_VERSION = "qoresence-deck-v0";
 let _schemaMissingWarned = false;
 let _schemaMismatchWarned = false;
 
+import { parseActuatorReceipts, type ActuatorReceipt } from "./actuators.ts";
 import { parseCompanion, type AgentCompanion } from "./companion.ts";
 import type { Phrase } from "./engine";
 
@@ -73,6 +74,7 @@ export type DeckIngest = {
   via: "ws" | "poll";
   ghostStick: GhostStick;
   companion: AgentCompanion;
+  actuators: ActuatorReceipt[];
 };
 
 export type GhostStick = {
@@ -511,6 +513,7 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     via: "ws",
     ghostStick: parseGhostStick(snap.ghost_stick || m.ghost_stick, widgetsOk),
     companion: parseCompanion(snap.companion || m.companion || m),
+    actuators: parseActuatorReceipts(snap.actuators || m.actuators),
   };
 }
 

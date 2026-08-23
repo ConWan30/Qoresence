@@ -43,9 +43,15 @@ class DirectorBrief:
     mode: DirectorMode
     why: str
     arm_hot: bool
+    suggested: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {"mode": self.mode, "why": self.why, "arm_hot": self.arm_hot}
+        return {
+            "mode": self.mode,
+            "why": self.why,
+            "arm_hot": self.arm_hot,
+            "suggested": self.suggested,
+        }
 
 
 def should_clip(kind: str, clip_worth: float) -> bool:
@@ -290,6 +296,7 @@ class StemConductor:
                 "mode": brief.mode,
                 "why": brief.why,
                 "arm_hot": brief.arm_hot,
+                "suggested": brief.suggested,
             }
 
     def _emit(self, payload: dict[str, Any]) -> None:

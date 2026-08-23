@@ -11,19 +11,12 @@ from .bus import SocietyBus
 from .config import AgentSocietyConfig
 from .policy import SocietyPolicy
 from .quicksilver import SocietyQuicksilver
-from .roles import drive_coach, ghost_editor, pilot_auditor, prediction_steward, spam_warden, sync_warden
 from .types import AgentPacket, AgentReceipt
 
 log = logging.getLogger(__name__)
 
-_ROLE_RUN = {
-    "spam_warden": spam_warden.run,
-    "pilot_auditor": pilot_auditor.run,
-    "drive_coach": drive_coach.run,
-    "ghost_editor": ghost_editor.run,
-    "prediction_steward": prediction_steward.run,
-    "sync_warden": sync_warden.run,
-}
+# Phase 5: personality roles deleted. Bind covers DualSense↔HDMI; no Society Sync Warden.
+_ROLE_RUN: dict[str, Any] = {}
 
 _runtime: SocietyRuntime | None = None
 
@@ -246,33 +239,10 @@ def get_society() -> SocietyRuntime | None:
 
 
 def run_audit_once() -> AgentReceipt | None:
-    cfg = AgentSocietyConfig.from_env()
-    rt = SocietyRuntime(
-        AgentSocietyConfig(
-            enabled=True,
-            roles=("pilot_auditor",),
-            quicksilver_base=cfg.quicksilver_base,
-            api_key_file=cfg.api_key_file,
-            model_reason=cfg.model_reason,
-            model_scene=cfg.model_scene,
-            cooldown_s=0.0,
-        )
-    )
-    recs = rt.tick(roles=("pilot_auditor",))
-    return recs[0] if recs else None
+    """Leftover CLI one-shot. Personalities are gone; no-op."""
+    return None
 
 
 def run_propose_cuts_once() -> AgentReceipt | None:
-    cfg = AgentSocietyConfig.from_env()
-    rt = SocietyRuntime(
-        AgentSocietyConfig(
-            enabled=True,
-            roles=("ghost_editor",),
-            quicksilver_base=cfg.quicksilver_base,
-            api_key_file=cfg.api_key_file,
-            model_reason=cfg.model_reason,
-            cooldown_s=0.0,
-        )
-    )
-    recs = rt.tick(roles=("ghost_editor",))
-    return recs[0] if recs else None
+    """Leftover CLI one-shot. Personalities are gone; no-op."""
+    return None

@@ -1140,7 +1140,7 @@ def setup_logging(level: str = "INFO") -> None:
 
 
 def apply_society_cli(config: RetinaUnifiedConfig, args) -> RetinaUnifiedConfig:
-    """--play turns Agent Society on (all roles). --no-agent-society opts out."""
+    """Agent Society stays OFF unless --agent-society or --agent-society-roles."""
     from dataclasses import replace
 
     from qoresence.agents.society.config import AgentSocietyConfig, _csv_roles, resolve_key_file
@@ -1151,18 +1151,9 @@ def apply_society_cli(config: RetinaUnifiedConfig, args) -> RetinaUnifiedConfig:
         base = AgentSocietyConfig.from_env()
     if getattr(args, "no_agent_society", False):
         return replace(config, society=replace(base, enabled=False))
-    if (
-        getattr(args, "play", False)
-        or getattr(args, "agent_society", False)
-        or getattr(args, "agent_society_roles", None)
-    ):
+    if getattr(args, "agent_society", False) or getattr(args, "agent_society_roles", None):
         raw = getattr(args, "agent_society_roles", None)
-        if raw:
-            roles = _csv_roles(raw)
-        elif getattr(args, "play", False):
-            roles = KNOWN_ROLES
-        else:
-            roles = base.roles
+        roles = _csv_roles(raw) if raw else KNOWN_ROLES
         key_file = resolve_key_file(getattr(base, "api_key_file", None))
         return replace(config, society=replace(base, enabled=True, roles=roles, api_key_file=key_file))
     return config
@@ -1428,6 +1419,21 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         )
 
     return config
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Minimal parser for one-shot flags (tests + --logbook default-OFF probe)."""
+    parser = argparse.ArgumentParser(
+        prog="qoresence",
+        description="Qoresence - Local game-state capture + Deck ClutchBot",
+    )
+    parser.add_argument(
+        "--logbook",
+        action="store_true",
+        help="Session-end logbook debrief from JSONL + chapters, then exit (default OFF)",
+    )
+    parser.add_argument("--jsonl-path", help="Path to JSONL output file")
+    return parser
 
 
 def main():
@@ -1812,7 +1818,7 @@ def main():
     parser.add_argument(
         "--agent-society",
         action="store_true",
-        help="Enable Agent Society (also auto-on with --play)",
+        help="Enable Agent Society (default OFF; opt-in only)",
     )
     parser.add_argument(
         "--no-agent-society",
@@ -1822,17 +1828,22 @@ def main():
     parser.add_argument(
         "--agent-society-roles",
         default=None,
-        help="CSV roles: spam_warden,pilot_auditor,drive_coach,ghost_editor,prediction_steward",
+        help="CSV leftover Society roles (personalities deleted; names ignored)",
+    )
+    parser.add_argument(
+        "--logbook",
+        action="store_true",
+        help="Session-end logbook debrief from JSONL + chapters, then exit (default OFF)",
     )
     parser.add_argument(
         "--society-audit",
         action="store_true",
-        help="One-shot pilot_auditor closeout (no --play) then exit",
+        help="Leftover one-shot; Society personalities deleted (prints no audit)",
     )
     parser.add_argument(
         "--society-propose-cuts",
         action="store_true",
-        help="One-shot ghost_editor proposals (no --play) then exit",
+        help="Leftover one-shot; Society personalities deleted (prints no proposal)",
     )
     parser.add_argument(
         "--profiles-list",
@@ -1963,6 +1974,15 @@ def main():
             or "logs/events.jsonl"
         )
         _run_audit(_audit_path, args.audit)
+        sys.exit(0)
+
+    if getattr(args, "logbook", False) and not getattr(args, "play", False):
+        from qoresence.foundry.logbook import write_debrief
+
+        _jsonl = Path(getattr(args, "jsonl_path", None) or "logs/events.jsonl")
+        _clips = Path(os.environ.get("QORESENCE_CLIPS_DIR") or "clips")
+        _md, _ = write_debrief(events_jsonl=_jsonl, clips_dir=_clips)
+        print(_md)  # noqa: T201
         sys.exit(0)
 
     # Single-instance guard for play/deck — dual processes freeze DShow capture

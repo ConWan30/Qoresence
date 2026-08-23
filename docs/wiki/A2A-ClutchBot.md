@@ -43,3 +43,5 @@ Invoke-RestMethod http://127.0.0.1:8765/health | Select-Object a2a
 ```
 
 See [Two-Speed-ClutchBot](Two-Speed-ClutchBot) for the broader chat architecture.
+
+A2A is licensed chat on the ticket-clock. It is not Agent Society. Society is leftover opt-in (`--agent-society`); `--play` does not enable coworker personas.
