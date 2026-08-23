@@ -10,8 +10,9 @@ category: Announcements
 - HDMI capture card frames (Qoresence owns physical DShow; VCam is legacy)  
 - Optional **DualSense Edge** HID  
 - **Situation model** + causal **event bus**  
-- Glasses: **Retina Deck** (Lens + Theater), **native Retina Monitor**, Foundry clips  
+- Glasses: **Retina Deck** (Lens + Theater), **native Retina Monitor / Stem Program**, Foundry clips  
 - **ClutchBot** on `--play` = Deck feed + local HDMI clips (Twitch leftover, default-OFF)  
+- **Retina Stem** Conductor on `--play`; `--stem-program` replaces OBS Preview for ops  
 
 ### Principles
 

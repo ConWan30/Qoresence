@@ -97,9 +97,9 @@ Sparse chat (not identical spam); score moments on real flips.
 
 Deck **Make HDMI Clip** or API → `clips/hdmi_clip_*.mp4` (+ optional chapters).
 
-### Monitor
+### Monitor / Stem Program
 
-Retina Monitor window = FrameHub (not Twitch delay).
+Retina Monitor / `--stem-program` = FrameHub blit (not Twitch delay, not OBS Preview). Check `/health` → `stem.mode` when Conductor is on.
 
 Optional **10–15 min A2A** window:
 

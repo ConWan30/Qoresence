@@ -54,6 +54,7 @@ export function useTheaterLoop() {
       },
       (plane) => useTheater.getState().ingestAgentPlane(plane),
       (m) => useTheater.getState().ingestMoment(m),
+      (p) => useTheater.getState().ingestStemProgram(p),
     );
 
     const frame = (t: number) => {

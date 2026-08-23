@@ -82,6 +82,7 @@ Every lobe is **OFF** until you opt in.
 | Situation | With `--play` | Score, down, clutch context |
 | Operator glass | `--deck` / `--monitor` | Theater, Lens, Mobile Glass, native monitor |
 | Clutch (local) | `--play` | Deck feed + local HDMI clips (Twitch leftover, default-OFF) |
+| Stem | conductor on `--play` | Situation-directed program; `--stem-program` / `--stem-audio` / `--stem-record` default OFF |
 | Spectator | `--agent-glass` | HTTP/WS API + MCP for AI agents |
 | Society | `--agent-society` | Ops agents on glass (default OFF; no Twitch, no capture) |
 | Research | Off | Fusion, trio-retina / WASM |
@@ -252,6 +253,9 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | `--deck` | off | Retina Deck HTTP/WS on `:8765` |
 | `--deck-bind` | unset (host `127.0.0.1`) | Opt-in LAN listen (`0.0.0.0`) for `/mobile.html` phone glass |
 | `--monitor` | off | Native FrameHub window |
+| `--stem-program` | off | Stem Program-out (implies `--monitor`; replaces OBS Preview) |
+| `--stem-audio` | off | Capture-card audio only; never a laptop mic |
+| `--stem-record` | off | Session mux to `clips/stem_*.mp4` (disk; not a 1.0 gate) |
 | `--controller` | off | DualSense HID + InputRing + IVC |
 | `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |
 | `--clutchbot` / leftover Twitch flags | off | Deck feed is already on with `--play`. Channel/token flags are leftover IRC/Helix — not the local route |
@@ -320,6 +324,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | [docs/DRIVE_GRAPH.md](docs/DRIVE_GRAPH.md) | DriveGraph climax · fast↔confirm match · Why/chapters |
 | [docs/AGENT_GLASS.md](docs/AGENT_GLASS.md) | AgentGlass / MCP spectator API |
 | [docs/AGENT_SOCIETY.md](docs/AGENT_SOCIETY.md) | Agent Society (default OFF; ops roles) |
+| [docs/STEM.md](docs/STEM.md) | Retina Stem (conductor / program-out; not OBS) |
 | [docs/STREAMR.md](docs/STREAMR.md) | Experimental Streamr (default OFF) |
 | [docs/A2A_CLUTCHBOT.md](docs/A2A_CLUTCHBOT.md) | Gemini↔DeepSeek A2A bus · Quicksilver Pro |
 | [docs/RELEASE_HARDENING.md](docs/RELEASE_HARDENING.md) | CI localhost · latency · soak preflight |

@@ -359,3 +359,34 @@ class TestStreamerWatchdogLockRelease:
             f"heartbeat/rebind — peer acquire results={peer_got_lock}"
         )
         bus.close()
+
+
+class TestStemConductorEmitOutsideLock:
+    """stem_program must be emitted after the conductor lock is released."""
+
+    def test_reentrant_stem_program_does_not_deadlock(self, tmp_path):
+        from qoresence.core import EventType, SourceLobe
+        from qoresence.stem.conductor import StemConductor
+
+        bus = RetinaEventBus(
+            session_id="stem_deadlock",
+            jsonl_path=tmp_path / "events.jsonl",
+            enable_ws=False,
+        )
+        cond = StemConductor(bus)
+        hits: list[int] = []
+
+        def _reenter(event) -> None:
+            if getattr(event.type, "value", event.type) != EventType.STEM_PROGRAM.value:
+                return
+            hits.append(1)
+            cond.note_clip_busy(False)
+
+        bus.subscribe(_reenter)
+        try:
+            _run_with_deadline(lambda: cond.note_clip_busy(True))
+            assert hits, "stem_program was never emitted"
+            assert SourceLobe.STEM.value == "stem"
+        finally:
+            cond.stop()
+            bus.close()

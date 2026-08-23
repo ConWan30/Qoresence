@@ -25,6 +25,7 @@ It is an **observation-plane** instrument: it records co-occurrence, coupling, a
 | Situation | What is the game state *now*? |
 | Operator glass | Can I *see* and *act* locally without cloud? |
 | Clutch (local) | Should Deck feed / local HDMI clips fire? |
+| Stem | Which program should glasses show? (conductor on `--play`; not OBS) |
 | Observation/OTel | Causal bus traces + coupling metrics? (--otel, off) |
 | Research | Fusion / trio-retina validation? (optional, off) |
 
@@ -34,6 +35,7 @@ It is an **observation-plane** instrument: it records co-occurrence, coupling, a
 - Anti-cheat or legitimacy verification
 - A live path into QorTroller / PoAC / `*-truth` (truth-plane dests are denied)
 - Dual-opening the same physical DirectShow device as OBS
+- Rebuilding OBS (scenes, RTMP, Virtual Cam, Browser Source host)
 - Using Twitch stream delay as the sync master clock
 - Requiring blockchain / on-chain for the MVP
 

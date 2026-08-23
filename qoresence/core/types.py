@@ -23,6 +23,7 @@ class SourceLobe(StrEnum):
     VISUAL = "visual"  # VLM visual context
     FUSION = "fusion"  # Cross-lobe fusion / game detection
     AGENT = "agent"  # Autonomous agents (ClutchBot, etc.)
+    STEM = "stem"  # Retina Stem conductor / audio / record
 
 
 class EventType(StrEnum):
@@ -61,6 +62,11 @@ class EventType(StrEnum):
 
     # Fusion
     PRESENCE_REPORT = "presence_report"
+
+    # Retina Stem (situation-directed program; not OBS scenes)
+    STEM_PROGRAM = "stem_program"
+    STEM_AUDIO = "stem_audio"
+    STEM_RECORD = "stem_record"
 
     # Agent actions
     AGENT_ACTION = "agent_action"

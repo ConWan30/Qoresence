@@ -9,7 +9,7 @@
 | Job | Owner | Notes |
 |-----|--------|--------|
 | **Physical HDMI capture** | **Qoresence** StreamerRuntime | `--streamer-device` = physical card (e.g. `USB3.0 Video` index **0**) |
-| **Low-lag operator eye** | **Retina Monitor** (`--monitor`) and/or Deck LIVE | Native FrameHub blit; not Twitch delay |
+| **Low-lag operator eye** | **Stem Program** / Retina Monitor (`--stem-program` / `--monitor`) | FrameHub blit; replaces OBS Preview. HUD burn-in is Monitor-only |
 | **On-stream HUD** | **Lens** Browser Source in OBS | `http://127.0.0.1:8765/overlay.html` — **Browser only**, no Video Capture on the same card |
 | **Audience stream** | OBS (optional) | Window/Display/Game capture of the gameplay monitor, **or** NDI/other — **not** the same DShow device Qoresence holds |
 | **Situation, clips, ClutchBot** | Qoresence | True HDMI ring + OCR + agents |

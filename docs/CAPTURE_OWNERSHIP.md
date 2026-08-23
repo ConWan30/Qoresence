@@ -60,7 +60,8 @@ OBS (optional stream): Browser Source for Lens only
 | Job | Owner |
 |-----|--------|
 | Physical card | **Qoresence** |
-| OBS | Lens Browser Source + non-DShow stream capture |
+| Operator eye | **Stem Program** / Retina Monitor (`--stem-program` / `--monitor`) — replaces OBS Preview |
+| OBS | Optional platform stream only: Lens Browser Source + non-DShow capture |
 | Lag | Lowest for Qoresence glass / OCR |
 
 ```powershell

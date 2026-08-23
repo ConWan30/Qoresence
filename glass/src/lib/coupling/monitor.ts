@@ -4,6 +4,7 @@ import { fetchAgentPlane, parseAgentPlane, type AgentPlane } from "./agent-plane
 import { parseDeckMessage, type DeckIngest } from "./board";
 import { parseHdmiClipList } from "./clip";
 import { parseFeedMoment, parseSnapshotMoments, type FeedMoment } from "./clutch";
+import { parseStemProgram, type StemProgram } from "./stem";
 import { getDeckOrigin, probeDeck } from "./qoresence-deck";
 import { useTheater } from "./store";
 
@@ -18,6 +19,7 @@ export function startDeckMonitor(
   onSnap: (ing: DeckIngest) => void,
   onPlane?: (plane: AgentPlane) => void,
   onMoment?: (m: FeedMoment) => void,
+  onStem?: (p: StemProgram) => void,
 ): () => void {
   let ws: WebSocket | null = null;
   let closed = false;
@@ -40,6 +42,11 @@ export function startDeckMonitor(
 
   const ingestRaw = (raw: unknown, via: "ws" | "poll") => {
     const rec = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+    if (rec?.type === "stem_program") {
+      const p = parseStemProgram(rec);
+      if (p) onStem?.(p);
+      return;
+    }
     if (rec?.type === "moment") {
       const fm = parseFeedMoment(rec);
       if (fm) onMoment?.(fm);

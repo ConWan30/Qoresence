@@ -422,6 +422,10 @@ class HdmiClipBuffer:
             _write_coupling_sidecar(final_path, snapshot=snapshot)
         except Exception as e:
             log.debug("coupling sidecar skipped: %s", e)
+        try:
+            _write_stem_audio_sidecar(final_path)
+        except Exception as e:
+            log.debug("stem audio sidecar skipped: %s", e)
         return ClipExportResult(
             path=str(final_path.resolve()),
             frames=written,
@@ -434,8 +438,11 @@ class HdmiClipBuffer:
         )
 
     @staticmethod
-    def _ffmpeg_h264(src: Path, dst: Path, fps: float) -> bool:
-        """Transcode to browser-safe H.264 MP4 (+faststart for progressive play)."""
+    def _ffmpeg_h264(src: Path, dst: Path, fps: float, audio_wav: Path | None = None) -> bool:
+        """Transcode to browser-safe H.264 MP4 (+faststart for progressive play).
+
+        Mux AAC when a Stem Audio wav overlaps the cut; otherwise ``-an``.
+        """
         import shutil
         import subprocess
 
@@ -451,6 +458,12 @@ class HdmiClipBuffer:
             "error",
             "-i",
             str(src),
+        ]
+        if audio_wav is not None and Path(audio_wav).is_file():
+            cmd += ["-i", str(audio_wav), "-c:a", "aac", "-shortest"]
+        else:
+            cmd += ["-an"]
+        cmd += [
             "-c:v",
             "libx264",
             "-preset",
@@ -461,7 +474,6 @@ class HdmiClipBuffer:
             "yuv420p",
             "-movflags",
             "+faststart",
-            "-an",
             str(dst),
         ]
         try:
@@ -554,6 +566,39 @@ def _write_buttons_sidecar(mp4_path: Path, duration_s: float) -> Path | None:
         return out
     except Exception as e:
         log.debug("buttons sidecar write failed: %s", e)
+        return None
+
+
+def _write_stem_audio_sidecar(mp4_path: Path) -> Path | None:
+    """Best-effort Stem Audio RMS/onset sidecar. Keeps MP4 -an unless a wav exists."""
+    import json
+
+    try:
+        from qoresence.core.types import clock_ns
+        from qoresence.stem import get_stem_runtime
+
+        rt = get_stem_runtime()
+        if rt is None or rt.audio is None:
+            return None
+        now = clock_ns()
+        rows = rt.audio.overlap_rms(now - int(45e9), now)
+        if not rows:
+            return None
+        dest = mp4_path.with_name(mp4_path.stem + ".stem_audio.json")
+        dest.write_text(
+            json.dumps(
+                {
+                    "source": "stem_audio",
+                    "samples": [{"clock_ns": t, "rms": r} for t, r in rows[-240:]],
+                    "mux": "none",
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return dest
+    except Exception as e:
+        log.debug("stem audio sidecar failed: %s", e)
         return None
 
 

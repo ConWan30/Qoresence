@@ -129,6 +129,13 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] Per-frame coupling sidecars (`.coupling.json` with `coupling_history` + `input_ring_events`)
 - [x] Docs: `docs/OTEL.md`, `docs/CONTROLLER_VIDEO_SYNC.md`
 
+## Retina Stem (local program, not OBS)
+- [x] Stem Conductor on `--play` (`stem_program` = watch/prime/armed/hold/encode)
+- [x] `--stem-program` Monitor Program-out (replaces OBS Preview on Pattern B)
+- [x] `--stem-audio` capture-card audio allow-list (never a laptop mic)
+- [x] `--stem-record` opt-in session mux (not a 1.0 gate)
+- [x] Docs: `docs/STEM.md`, wiki Retina-Stem
+
 ## Phase 8 — Research (optional)
 - [ ] Fusion presence reports productization
 - [ ] Trio-retina WASM path hardening
@@ -155,6 +162,7 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 ## Non-goals
 
 - Second `VideoCapture` opened “for sync”
+- Rebuilding OBS (scenes, RTMP, Virtual Cam, Browser Source host)
 - Twitch-delay as master clock
 - Truth-plane / anti-cheat product claims
 - Cloud storage of raw biometrics by default

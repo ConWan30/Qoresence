@@ -33,6 +33,8 @@ import { measureLag } from "./sync";
 import { qsEnhance, qsProbe } from "./quicksilver";
 import { clipHref, clipPublicPath, clipSeconds, momentLooksLikeClip, requestDeckClip, shouldClip, type HdmiClipFile } from "./clip";
 import { CLIP_HOLD_MS, autoClipAllowed } from "./director";
+import type { StemProgram } from "./stem";
+import { getDeckOrigin } from "./qoresence-deck";
 
 function mergeClipFile(clips: HdmiClipFile[], href: string, name: string): HdmiClipFile[] {
   const file = name || href.replace(/\\/g, "/").split("/").pop() || "";
@@ -136,6 +138,8 @@ export type TheaterState = {
   clipBusy: boolean;
   /** Epoch ms — auto-clip is silent until this clock. */
   clipHoldUntil: number;
+  /** Bus stem_program when Conductor is on; null = use local director. */
+  stemProgram: StemProgram | null;
   companion: AgentCompanion;
   framed: boolean;
   setR2: (v: number) => void;
@@ -161,6 +165,7 @@ export type TheaterState = {
   ghostStick: GhostStick;
   ingestAgentPlane: (plane: AgentPlane) => void;
   ingestMoment: (m: FeedMoment) => void;
+  ingestStemProgram: (p: StemProgram) => void;
   ingestClips: (clips: HdmiClipFile[]) => void;
   playClip: (url: string, name?: string) => void;
   goLive: () => void;
@@ -304,6 +309,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
   takeCount: 1,
   clipBusy: false,
   clipHoldUntil: 0,
+  stemProgram: null,
   companion: EMPTY_COMPANION,
   framed: false,
   livePaint: true,
@@ -646,6 +652,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       lastClipName: s.lastClipName || newest?.name || "",
     });
   },
+  ingestStemProgram: (p) => set({ stemProgram: p }),
   ingestMoment: (m) => {
     const s = get();
     const row = { url: "", name: "", ...m };
@@ -825,8 +832,19 @@ export const useTheater = create<TheaterState>((set, get) => ({
       name: out.name,
     });
   },
-  holdClip: () => set({ clipHoldUntil: Date.now() + CLIP_HOLD_MS }),
-  killTake: () => set({ clipHoldUntil: 0 }),
+  holdClip: () => {
+    const until = Date.now() + CLIP_HOLD_MS;
+    set({ clipHoldUntil: until });
+    void fetch(`${getDeckOrigin()}/api/stem/hold`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ until_ms: until }),
+    }).catch(() => undefined);
+  },
+  killTake: () => {
+    set({ clipHoldUntil: 0 });
+    void fetch(`${getDeckOrigin()}/api/stem/kill`, { method: "POST" }).catch(() => undefined);
+  },
   armTake: () => {
     set({ clipHoldUntil: 0 });
     void get().requestHdmiClip();

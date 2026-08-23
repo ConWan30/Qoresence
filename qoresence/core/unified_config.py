@@ -566,6 +566,25 @@ class StreamrConfig:
 
 
 @dataclass
+class StemConfig:
+    """Retina Stem — situation-directed session stem (default OFF except conductor-on-play).
+
+    Conductor emits stem_program from existing situation / IVC / clip-busy.
+    Program-out, audio, and session record are explicit operator flags.
+    Never a stream ingest. See docs/STEM.md.
+    """
+
+    conductor: bool = False
+    program: bool = False
+    program_display: int = 0
+    program_fullscreen: bool = True
+    program_burn_hud: bool = True
+    audio: bool = False
+    record: bool = False
+    record_dir: str = "clips"
+
+
+@dataclass
 class OtelConfig:
     """OpenTelemetry exporter configuration (observation plane only).
 
@@ -637,6 +656,9 @@ class RetinaUnifiedConfig:
 
     # ── Network Publisher ────────────────────────────────────────────────────
     streamr: StreamrConfig = field(default_factory=StreamrConfig)
+
+    # ── Retina Stem (conductor on --play; audio/program/record default OFF) ─
+    stem: StemConfig = field(default_factory=StemConfig)
 
     # ── Observation-plane OTel exporter (default OFF) ───────────────────────
     otel: OtelConfig = field(default_factory=OtelConfig)
