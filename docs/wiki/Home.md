@@ -20,6 +20,7 @@
 | [A2A-ClutchBot](A2A-ClutchBot) | Gemini↔DeepSeek chat agent; 25s cooldown, env-tunable |
 | [Agent-Glass](Agent-Glass) | **Spectator API: HTTP/WS** |
 | [MCP-Glass](MCP-Glass) | **MCP adapter for Cursor/Claude** |
+| [Retina-Stem](Retina-Stem) | Situation-directed program; not OBS |
 | [Streamr](Streamr) | Experimental DePIN publishing |
 
 ## Repo links

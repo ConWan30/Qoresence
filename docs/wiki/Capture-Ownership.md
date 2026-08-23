@@ -7,7 +7,7 @@
 | Pattern | Physical card | Qoresence streamer | When |
 |---------|---------------|--------------------|------|
 | **B (recommended)** | **Qoresence** | Physical index (e.g. `USB3.0 Video` = 0) | Daily pilot going forward |
-| **A (legacy)** | OBS | OBS Virtual Camera index | Only if you need OBS Preview on the card |
+| **A (legacy)** | OBS | OBS Virtual Camera index | Only if you still need OBS Preview on the card |
 
 ## Why
 

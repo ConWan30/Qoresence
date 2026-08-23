@@ -15,7 +15,7 @@
 
 3. **Play stack**
    ```text
-   python -m qoresence.cli --play --deck --monitor --controller --streamer-device 0 --streamer-fps 60 --game-profile madden_27
+   python -m qoresence.cli --play --deck --stem-program --controller --streamer-device 0 --streamer-fps 60 --game-profile madden_27
    ```
    Title-presence is on with `--play`. Add `--deck-bind 0.0.0.0` only if a phone on the same Wi‑Fi should open `/mobile.html`.
 
@@ -31,7 +31,7 @@
 | Log `Capture opened` / streamer source | Physical name (e.g. USB3.0 Video), not OBS Virtual Camera |
 | Log `Controller HID opened` | DualSense Edge listed (if `--controller`) |
 | Log `IVC started` | only with `--controller` |
-| Log `Retina Monitor on` | only with `--monitor` |
+| Log `Retina Monitor on` / Stem Program | `--monitor` or `--stem-program` |
 | `/api/situation` → `video.has_frame` | true |
 | `/api/situation` → `controller` | present when IVC running |
 

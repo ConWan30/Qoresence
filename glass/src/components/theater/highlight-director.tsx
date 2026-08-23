@@ -18,6 +18,7 @@ export function HighlightDirector() {
   const companion = useTheater((s) => s.companion);
   const clipBusy = useTheater((s) => s.clipBusy);
   const holdUntil = useTheater((s) => s.clipHoldUntil);
+  const stemProgram = useTheater((s) => s.stemProgram);
   const moments = useTheater((s) => s.moments);
   const lastClipError = useTheater((s) => s.lastClipError);
   const armTake = useTheater((s) => s.armTake);
@@ -29,7 +30,7 @@ export function HighlightDirector() {
     return () => window.clearInterval(id);
   }, []);
 
-  const brief = directorBrief({
+  const local = directorBrief({
     now,
     holdUntil,
     clipBusy,
@@ -44,6 +45,12 @@ export function HighlightDirector() {
     companionWhy: companion.why,
     clipWorth: companion.coupling || clutch.score,
   });
+  const brief =
+    clipBusy || holdUntil > now
+      ? local
+      : stemProgram
+        ? { mode: stemProgram.mode, why: stemProgram.why, armHot: stemProgram.armHot }
+        : local;
   const ticker = directorReasons(moments);
   const holdLeft = Math.max(0, Math.ceil((holdUntil - now) / 1000));
 

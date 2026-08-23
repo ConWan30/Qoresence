@@ -35,3 +35,9 @@ No InputRing events in export window (controller off or silent pad).
 
 ### clients: 0 on overlay
 Use `http://127.0.0.1:8765/overlay.html` not `file://`; ensure Deck process is running.
+
+### Do I still need OBS?
+Not for Qoresence’s purpose. Pattern B: Qoresence owns the card; `--stem-program` is the operator eye. OBS is optional only if you still want a platform stream — Browser Source for Lens, never the same HDMI device. See [Retina-Stem](Retina-Stem).
+
+### Stem Audio opened my laptop mic
+It must not. `--stem-audio` allow-lists capture-card names only. If a mic opened, that is a bug — file it and stop the flag.

@@ -18,14 +18,15 @@ Start: `--play --deck` or `--deck` with lobes enabled.
 
 ## Retina Monitor (native)
 
-- Flag: `--monitor` (default OFF)  
+- Flag: `--monitor` (default OFF) or `--stem-program` (Program-out, implies monitor)  
 - Blits FrameHub frames via OpenCV HighGUI  
-- Optional situation strip + pad/coupling HUD  
+- Optional situation strip + pad/coupling HUD (Monitor blit only — FrameHub stays clean)  
 - Closing window **does not** stop streamer/Deck  
+- See [Retina-Stem](Retina-Stem) for the situation-directed program bus
 
 ```text
 pip install "qoresence[monitor]"
-python -m qoresence.cli --play --deck --monitor --streamer-device 0 --streamer-fps 60
+python -m qoresence.cli --play --deck --stem-program --streamer-device 0 --streamer-fps 60
 ```
 
 Docs: [RETINA_MONITOR.md](https://github.com/ConWan30/Qoresence/blob/main/docs/RETINA_MONITOR.md)

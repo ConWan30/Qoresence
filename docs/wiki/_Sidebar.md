@@ -14,6 +14,7 @@
 - [A2A ClutchBot](./A2A-ClutchBot)
 - **[Agent Glass](./Agent-Glass)** — spectator API
 - **[MCP Glass](./MCP-Glass)** — new AI agent adapter
+- [Retina Stem](./Retina-Stem) — local program (not OBS)
 - [Streamr](./Streamr) — experimental
 - [Roadmap](./Roadmap)
 - [FAQ](./FAQ)

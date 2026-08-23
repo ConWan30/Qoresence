@@ -40,9 +40,10 @@ pip install opencv-python
 
 | Glass | Lag |
 |-------|-----|
-| OBS Preview (physical card) | Lowest |
-| **Retina Monitor** | Better than Deck MJPEG |
-| Deck MJPEG | Preview only |
+| **Stem Program** (`--stem-program`) | Pattern B operator eye |
+| **Retina Monitor** | Same FrameHub blit |
+| OBS Preview (physical card) | Pattern A only |
+| Deck JPEG | Preview only |
 
 ## Troubleshooting
 

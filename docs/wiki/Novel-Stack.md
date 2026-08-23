@@ -10,9 +10,9 @@ What is distinctive about Qoresence (vs “another OBS plugin bot”).
 - **Rail / Ghost Theater** — local Deck (`/deck.html`)
 - **Mobile Glass** — phone HTML (`/mobile.html`) — WebRTC primary, MJPEG fallback
 - **LIVE** — MJPEG ops preview (`/video`)
-- **Retina Monitor** — native OpenCV blit from FrameHub
+- **Retina Monitor / Stem Program** — native OpenCV blit from FrameHub (`--stem-program` replaces OBS Preview)
 
-No duplicated situation engines per glass. Leftover Twitch extension HTML is not a product glass.
+No duplicated situation engines per glass. Leftover Twitch extension HTML is not a product glass. **Retina Stem** conducts program mode on the bus — it is not a scene stack.
 
 ## 2. Capture ownership (Pattern B recommended)
 

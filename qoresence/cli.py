@@ -407,6 +407,7 @@ class QoresenceApp:
 
         # Agent runtimes
         self.clutchbot: ClutchBotAgent | None = None
+        self.stem = None
         self.agent_glass = None
         # AgentGlass (glass D) — read-only spectator bridge, default OFF, no capture
         try:
@@ -553,6 +554,41 @@ class QoresenceApp:
                 session_head_ns=self.identity.session_head_ns,
             )
             log.info("ClutchBot agent initialized")
+
+        stem_cfg = getattr(self.config, "stem", None)
+        if stem_cfg is not None and (
+            getattr(stem_cfg, "conductor", False)
+            or getattr(stem_cfg, "audio", False)
+            or getattr(stem_cfg, "record", False)
+        ):
+            from qoresence.stem import start_stem
+
+            def _stem_sit() -> dict:
+                sm = getattr(self, "situation_model", None)
+                if sm is None and self.clutchbot is not None:
+                    sm = getattr(self.clutchbot, "_situation", None)
+                try:
+                    if sm is not None and hasattr(sm, "to_dict"):
+                        return sm.to_dict()
+                    if isinstance(sm, dict):
+                        return sm
+                except Exception:
+                    pass
+                return {}
+
+            self.stem = start_stem(
+                stem_cfg,
+                self.bus,
+                situation_provider=_stem_sit,
+                session_head_ns=self.identity.session_head_ns,
+            )
+            log.info(
+                "Retina Stem: conductor=%s audio=%s record=%s program=%s",
+                bool(stem_cfg.conductor),
+                bool(stem_cfg.audio),
+                bool(stem_cfg.record),
+                bool(stem_cfg.program),
+            )
 
     def connect_lobes(self) -> None:
         """Connect lobe outputs to each other (cross-lobe integration)."""
@@ -905,6 +941,15 @@ class QoresenceApp:
 
         if self.clutchbot:
             self.clutchbot.stop()
+
+        if getattr(self, "stem", None) is not None:
+            try:
+                from qoresence.stem import stop_stem
+
+                stop_stem()
+            except Exception:
+                pass
+            self.stem = None
 
         if self.game_detector:
             self.game_detector.stop()
@@ -1723,6 +1768,27 @@ def main():
         help="Retina Monitor HUD layout preset (default full). Cycle live with 'p' key.",
     )
     parser.add_argument(
+        "--stem-program",
+        action="store_true",
+        help="Stem Program-out: promote Monitor (implies --monitor). FrameHub stays clean.",
+    )
+    parser.add_argument(
+        "--stem-program-display",
+        type=int,
+        default=0,
+        help="Stem Program display index (0 = primary). Used with --stem-program.",
+    )
+    parser.add_argument(
+        "--stem-audio",
+        action="store_true",
+        help="Stem Audio lobe (capture-card audio only; never a laptop mic). Default OFF.",
+    )
+    parser.add_argument(
+        "--stem-record",
+        action="store_true",
+        help="Stem Record session mux to clips/stem_*.mp4. Default OFF. Disk cost.",
+    )
+    parser.add_argument(
         "--tray",
         action="store_true",
         help="Show system tray icon with live status (score, sync). Default OFF.",
@@ -2258,6 +2324,25 @@ def main():
                     object.__setattr__(config.clutchbot, "enabled", True)
                 except Exception:
                     pass
+            # Retina Stem conductor rides --play (bus only). Audio/record/program stay flags.
+            try:
+                _stem = getattr(config, "stem", None)
+                if _stem is not None:
+                    object.__setattr__(_stem, "conductor", True)
+                    if getattr(args, "stem_audio", False):
+                        object.__setattr__(_stem, "audio", True)
+                    if getattr(args, "stem_record", False):
+                        object.__setattr__(_stem, "record", True)
+                    if getattr(args, "stem_program", False):
+                        object.__setattr__(_stem, "program", True)
+                        object.__setattr__(
+                            _stem,
+                            "program_display",
+                            int(getattr(args, "stem_program_display", 0) or 0),
+                        )
+                    log.info("play Retina Stem: conductor=on")
+            except Exception as _st_e:
+                log.debug("play Stem wiring skipped: %s", _st_e)
             # Allow scoreboard OCR under heuristic when ONNX is absent (live play).
             # Tests set QORESENCE_DISABLE_SCOREBOARD_OCR=1 in conftest.
             try:
@@ -2331,6 +2416,26 @@ def main():
         log.error("Config validation failed: %s", e)
         sys.exit(1)
 
+    # Stem flags apply even without --play (audio / record / program stay opt-in).
+    try:
+        _stem = getattr(config, "stem", None)
+        if _stem is not None:
+            if getattr(args, "stem_audio", False):
+                object.__setattr__(_stem, "audio", True)
+            if getattr(args, "stem_record", False):
+                object.__setattr__(_stem, "record", True)
+            if getattr(args, "stem_program", False):
+                object.__setattr__(_stem, "program", True)
+                object.__setattr__(
+                    _stem,
+                    "program_display",
+                    int(getattr(args, "stem_program_display", 0) or 0),
+                )
+                if not getattr(args, "monitor", False):
+                    object.__setattr__(args, "monitor", True)
+    except Exception:
+        pass
+
     # Create app
     app = QoresenceApp(config, trio_config)
     app.initialize_lobes()
@@ -2354,16 +2459,26 @@ def main():
 
     # Optional native Retina Monitor (in-process FrameHub ← streamer; default OFF)
     _monitor_stop = None
-    if getattr(args, "monitor", False):
+    if getattr(args, "monitor", False) or getattr(args, "stem_program", False):
         try:
             from qoresence.monitor.window import start_monitor_thread
+            from qoresence.stem.program import program_options
 
             deck_port = int(getattr(args, "deck_port", 8765) or 8765)
+            _stem = getattr(config, "stem", None)
+            _prog = None
+            if getattr(args, "stem_program", False) or getattr(_stem, "program", False):
+                _prog = program_options(
+                    display_index=int(getattr(args, "stem_program_display", 0) or 0),
+                    fullscreen=bool(getattr(_stem, "program_fullscreen", True)),
+                    burn_hud=bool(getattr(_stem, "program_burn_hud", True)),
+                )
             _mon_t, _monitor_stop = start_monitor_thread(
                 max_width=int(getattr(args, "monitor_max_width", 1280) or 1280),
                 situation_url=f"http://127.0.0.1:{deck_port}/api/situation",
                 target_hz=30.0,
                 preset=str(getattr(args, "monitor_preset", "full") or "full"),
+                program=_prog,
             )
             log.info(
                 "Retina Monitor on (FrameHub ← streamer; no second capture) thread=%s",

@@ -125,5 +125,7 @@ product story. Twitch IRC/Helix in `qoresence/agents/` is a **leftover,
 default-OFF module** — not a pilot gate and not a product route. The Streamr
 integration in `qoresence/streamr/` is an **experimental, default-OFF research
 plugin**. Either may only graduate after the local pilot (capture health, VLM
-score lock, local HDMI clips) is proven.
+score lock, local HDMI clips) is proven. **Retina Stem** (conductor / program-out
+/ card audio / session record) is a local glass on FrameHub — never a stream
+ingest. Stem audio/record stay default-OFF until that same local pilot is proven.
 

@@ -423,6 +423,13 @@ def push_moment(moment: dict[str, Any]) -> None:
     _broadcast({"type": "moment", "payload": moment})
 
 
+def push_stem_program(payload: dict[str, Any]) -> None:
+    """Fan stem_program to /retina. Never takes a lobe lock."""
+    if not isinstance(payload, dict):
+        return
+    _broadcast({"type": "stem_program", "payload": dict(payload)})
+
+
 # ---------------------------------------------------------------------------
 # AgentGlass helpers (read-only snapshot for external agents — no capture)
 # ---------------------------------------------------------------------------
@@ -954,6 +961,13 @@ def create_app():  # type: ignore[no-untyped-def]
             body["society"] = soc.stats() if soc is not None else {"enabled": False}
         except Exception:
             body["society"] = {"enabled": False}
+        try:
+            from qoresence.stem import get_stem_runtime
+
+            _st = get_stem_runtime()
+            body["stem"] = _st.health() if _st is not None else {"conductor": False, "mode": None}
+        except Exception:
+            body["stem"] = {"conductor": False}
         try:
             from qoresence.observability import get_latency_stats
 
@@ -1606,6 +1620,43 @@ def create_app():  # type: ignore[no-untyped-def]
                 status_code=500,
             )
 
+    @app.post("/api/stem/hold")
+    async def api_stem_hold(request: Request):  # type: ignore[no-untyped-def]
+        """Operator HOLD — silence auto-clip. Conductor observes; does not cut."""
+        hold_ms = 60_000.0
+        try:
+            body = await request.json()
+            if isinstance(body, dict) and body.get("until_ms") is not None:
+                hold_ms = float(body["until_ms"])
+        except Exception:
+            pass
+        try:
+            from qoresence.stem import get_stem_runtime
+
+            rt = get_stem_runtime()
+            if rt is None:
+                return JSONResponse({"ok": False, "error": "stem off"}, status_code=404)
+            import time as _t
+
+            until = hold_ms if hold_ms > 1e12 else (_t.time() * 1000.0 + hold_ms)
+            rt.conductor.note_hold_until(until)
+            return JSONResponse({"ok": True, "hold_until": until, **rt.conductor.snapshot()})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.post("/api/stem/kill")
+    async def api_stem_kill():  # type: ignore[no-untyped-def]
+        try:
+            from qoresence.stem import get_stem_runtime
+
+            rt = get_stem_runtime()
+            if rt is None:
+                return JSONResponse({"ok": False, "error": "stem off"}, status_code=404)
+            rt.conductor.note_kill()
+            return JSONResponse({"ok": True, **rt.conductor.snapshot()})
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
     @app.get("/api/clip/status")
     async def api_clip_status():  # type: ignore[no-untyped-def]
         try:
@@ -1629,7 +1680,25 @@ def create_app():  # type: ignore[no-untyped-def]
                     seconds = body.get("seconds")
             except Exception:
                 pass
-            result = await asyncio.to_thread(export_clip, seconds=seconds)
+            try:
+                from qoresence.stem import get_stem_runtime
+
+                _rt = get_stem_runtime()
+                if _rt is not None:
+                    _rt.conductor.note_clip_busy(True)
+            except Exception:
+                pass
+            try:
+                result = await asyncio.to_thread(export_clip, seconds=seconds)
+            finally:
+                try:
+                    from qoresence.stem import get_stem_runtime
+
+                    _rt = get_stem_runtime()
+                    if _rt is not None:
+                        _rt.conductor.note_clip_busy(False)
+                except Exception:
+                    pass
             if result is None:
                 return JSONResponse(
                     {

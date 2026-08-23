@@ -19,6 +19,7 @@ import numpy as np
 log = logging.getLogger(__name__)
 
 WINDOW_TITLE = "Retina Monitor — local frames (not OBS Preview)"
+STEM_PROGRAM_TITLE = "Retina Stem Program — FrameHub (not OBS Preview)"
 
 # HUD layout presets
 PRESETS = ("minimal", "situation", "full")
@@ -154,6 +155,7 @@ def run_monitor(
     target_hz: float = 30.0,
     window_title: str = WINDOW_TITLE,
     preset: str = "full",
+    program: object | None = None,
 ) -> None:
     """Blocking monitor loop (call from dedicated thread).
 
@@ -161,6 +163,9 @@ def run_monitor(
       minimal   — frame only, no overlay bar
       situation — frame + situation strip (score, quarter, down)
       full      — situation + controller + frame age/seq (default)
+
+    program: optional StemProgramOptions — fullscreen / display origin.
+    HUD burn-in stays on this blit only. FrameHub frames stay clean.
     """
     try:
         import cv2
@@ -179,14 +184,26 @@ def run_monitor(
     sit_text = "situation: —"
     last_seq = -1
     current_preset = preset if preset in PRESETS else "full"
+    if program is not None and not bool(getattr(program, "burn_hud", True)):
+        current_preset = "minimal"
+    if program is not None:
+        window_title = STEM_PROGRAM_TITLE
 
     log.info(
-        "Retina Monitor on (FrameHub ← streamer; no second capture) title=%r max_w=%s preset=%s",
+        "Retina Monitor on (FrameHub ← streamer; no second capture) title=%r max_w=%s preset=%s program=%s",
         window_title,
         max_width,
         current_preset,
+        bool(program),
     )
     cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
+    if program is not None:
+        try:
+            from qoresence.stem.program import apply_program_window
+
+            apply_program_window(cv2, window_title, program)
+        except Exception as e:
+            log.debug("Stem Program window apply skipped: %s", e)
 
     try:
         while not stop.is_set():
@@ -258,6 +275,7 @@ def start_monitor_thread(
     situation_url: str = "http://127.0.0.1:8765/api/situation",
     target_hz: float = 30.0,
     preset: str = "full",
+    program: object | None = None,
 ) -> tuple[threading.Thread, threading.Event]:
     """Start monitor on a daemon thread. Returns (thread, stop_event)."""
     stop = threading.Event()
@@ -270,6 +288,7 @@ def start_monitor_thread(
                 situation_url=situation_url,
                 target_hz=target_hz,
                 preset=preset,
+                program=program,
             )
         except Exception as e:
             log.error("Retina Monitor failed: %s", e)

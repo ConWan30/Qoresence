@@ -16,6 +16,7 @@ paths and are not part of the local ClutchBot path.
 | **Capture** | Video, HID, screen, game events, visual context | Enabled per-lobe by operator |
 | **Situation** | Rolling score, state, APM, last outcomes | `SituationModel` |
 | **Clutch (local)** | Deck feed + local HDMI clips | **ClutchBot** (`deck_feed`; Twitch leftover) |
+| **Stem** | Situation-directed program + optional card audio / session mux | **Retina Stem** (conductor on `--play`; not OBS) |
 | **Observation/OTel** | Causal bus traces, coupling/controller metrics, clip sidecars | `--otel` opt-in, local OTLP only |
 
 **Qoresence (ClutchBot MVP) never:**

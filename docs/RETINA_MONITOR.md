@@ -83,9 +83,10 @@ Prefer the in-process `--monitor` flag.
 
 | Glass | Expected lag vs TV |
 |-------|---------------------|
-| OBS Preview (physical card) | Lowest |
-| **Retina Monitor** (FrameHub blit) | Better than Deck MJPEG; may trail OBS Preview when source is Virtual Cam |
-| Deck LIVE `/video` MJPEG | Ops preview only |
+| **Stem Program** (`--stem-program`) | Pattern B operator eye — FrameHub blit, optional fullscreen |
+| **Retina Monitor** (`--monitor`) | Same FrameHub blit; windowed HUD |
+| OBS Preview (physical card) | Pattern A only — do not dual-open the card |
+| Deck LIVE `/video` JPEG | Ops preview only |
 
 ---
 
