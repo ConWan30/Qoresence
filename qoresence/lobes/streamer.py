@@ -42,6 +42,20 @@ def _get_dshow_device_name(index: int) -> str | None:
     return None
 
 
+def apply_low_latency_capture(cap: Any) -> None:
+    """Ask the driver to keep a 1-frame queue so LIVE is not several frames late.
+
+    OpenCV DShow/MSMF defaults to a multi-frame buffer (often 4+). That is
+    100–200ms of HDMI lag even when age_s looks fine. BUFFERSIZE is best-effort.
+    """
+    if cap is None:
+        return
+    try:
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    except Exception:
+        pass
+
+
 def _is_obs_virtual_camera_name(name: str | None) -> bool:
     """True if device name looks like OBS Virtual Camera (Pattern A source)."""
     if not name:
@@ -66,31 +80,18 @@ def list_dshow_devices() -> list[tuple[int, str, bool, str]]:
     return [(i, name, _is_allowed_capture_name(name), "dshow") for i, name in enumerate(names)]
 
 
-# Physical HDMI capture card name hints (order = preference)
+# Physical HDMI capture card name hints (order = preference).
+# Never "usb video" — Windows laptop UVC enumerates as "USB Video Device".
 _PHYSICAL_CARD_HINTS = (
     "usb3.0 video",
     "usb 3.0 video",
-    "usb video",
     "elgato",
     "avermedia",
-    "capture",
     "hdmi",
     "game capture",
     "live gamer",
+    "capture card",
 )
-
-
-def _is_physical_card_name(name: str | None) -> bool:
-    """True for real capture hardware (not webcam, not OBS VCam)."""
-    if not name or not _is_allowed_capture_name(name):
-        return False
-    if _is_obs_virtual_camera_name(name):
-        return False
-    n = name.lower()
-    if any(h in n for h in _PHYSICAL_CARD_HINTS):
-        return True
-    # Allowed non-camera device without "camera" in the name
-    return "camera" not in n
 
 
 def resolve_capture_device(
@@ -120,7 +121,11 @@ def resolve_capture_device(
             if not allowed:
                 continue
             nl = name.lower()
-            if nl == pn or pn in nl or nl in pn:
+            if not (nl == pn or pn in nl or nl in pn):
+                continue
+            if _is_physical_card_name(name) or (
+                allow_obs_vcam and _is_obs_virtual_camera_name(name)
+            ):
                 return int(idx), name
 
     # 2) Physical capture cards
@@ -136,12 +141,16 @@ def resolve_capture_device(
                 return idx, name
         return physical[0]
 
-    # 3) Requested index if still valid and allowed
+    # 3) Requested index only if that slot is still a physical card (or opt-in VCam).
+    # After unplug the laptop webcam often inherits index 0 — never open it.
     if requested_index is not None and requested_index >= 0:
         for idx, name, allowed, _be in devices:
-            if int(idx) == int(requested_index) and allowed:
-                if allow_obs_vcam or not _is_obs_virtual_camera_name(name):
-                    return int(idx), name
+            if int(idx) != int(requested_index) or not allowed:
+                continue
+            if _is_physical_card_name(name):
+                return int(idx), name
+            if allow_obs_vcam and _is_obs_virtual_camera_name(name):
+                return int(idx), name
 
     # 4) Optional VCam
     if allow_obs_vcam:
@@ -152,47 +161,27 @@ def resolve_capture_device(
     return None
 
 
-def _is_allowed_capture_name(name: str | None) -> bool:
-    """
-    Allow only external capture cards and virtual OBS output.
-    Personal webcams / laptop cameras are rejected.
-    """
+def _is_physical_card_name(name: str | None) -> bool:
+    """True only for named HDMI capture hardware — never a laptop webcam."""
     if not name:
-        # Unknown source: only allow if we can later verify it is not a person
+        return False
+    if _is_obs_virtual_camera_name(name):
         return False
     n = name.lower()
-    # Known disallowed words (laptop/personal cameras)
-    if any(
-        bad in n
-        for bad in [
-            "720p hd camera",
-            "hd camera",
-            "webcam",
-            "integrated",
-            "laptop",
-            "facetime",
-            "built-in",
-        ]
-    ):
-        return any(good in n for good in ["usb3.0 video", "obs virtual"])
-    # Known allowed sources
-    if any(
-        good in n
-        for good in [
-            "usb3.0 video",
-            "obs virtual",
-            "capture",
-            "hdmi",
-            "elgato",
-            "avermedia",
-            "usb video",
-        ]
-    ):
-        return True
-    # Any other "camera" is treated as a personal camera
-    if "camera" in n:
+    return any(h in n for h in _PHYSICAL_CARD_HINTS)
+
+
+def _is_allowed_capture_name(name: str | None) -> bool:
+    """Allow-list only: HDMI capture cards, plus OBS VCam for listing.
+
+    Unknown names default to refused. A missing card must stay dark — never
+    bind index 0 / 'USB Video Device' / BRIO / Integrated Camera.
+    """
+    if not name:
         return False
-    return True
+    if _is_physical_card_name(name):
+        return True
+    return _is_obs_virtual_camera_name(name)
 
 
 def _frame_contains_person(frame: np.ndarray, area_threshold: float = 0.25) -> bool:
@@ -311,6 +300,7 @@ class StreamerRuntime:
         self._grab_latest: np.ndarray | None = None
         self._grab_ts: float = 0.0
         self._grab_alive = False
+        self._last_consumed_grab_ts: float = 0.0
 
         # Metrics state
         self._prev_gray: np.ndarray | None = None
@@ -454,6 +444,10 @@ class StreamerRuntime:
             # Explicit index pointed at webcam after unplug — fall back to any physical
             resolved = resolve_capture_device(None, prefer_name=prefer, allow_obs_vcam=allow_vcam)
         if resolved is None and os.environ.get("QORESENCE_PRIVACY_GUARD", "1").strip() == "0":
+            # Test hook only. If DShow listed devices and none is a card, stay dark.
+            listed = list_dshow_devices()
+            if listed and not any(_is_physical_card_name(n) for _i, n, _a, _b in listed):
+                return None
             fallback_name = (
                 prefer if isinstance(prefer, str) and prefer.strip() else "Test Capture Card"
             )
@@ -491,6 +485,27 @@ class StreamerRuntime:
                     )
                     return False
                 idx, device_name = resolved
+                allow_vcam = os.environ.get("QORESENCE_ALLOW_OBS_VCAM", "0").strip() in {
+                    "1",
+                    "true",
+                    "yes",
+                }
+                if not _is_physical_card_name(device_name) and not (
+                    allow_vcam and _is_obs_virtual_camera_name(device_name)
+                ):
+                    # Test-hook names like "Test Capture Card" are not a webcam;
+                    # still refuse anything that looks like a personal camera.
+                    if _is_obs_virtual_camera_name(device_name) or any(
+                        tok in (device_name or "").lower()
+                        for tok in ("camera", "webcam", "integrated", "brio")
+                    ):
+                        log.error(
+                            "PRIVACY GUARD: refused idx=%s name=%r before open "
+                            "(unplugged HDMI must stay dark).",
+                            idx,
+                            device_name,
+                        )
+                        return False
                 if idx != int(getattr(self.config, "device_index", -1) or -1):
                     log.info(
                         "Capture device rebound: idx %s → %s (%r)",
@@ -510,6 +525,29 @@ class StreamerRuntime:
                     self._cap = cv2.VideoCapture(idx, backend_flag)
                 else:
                     self._cap = cv2.VideoCapture(idx)
+                # TOCTOU: unplug between resolve and open can put a webcam at idx.
+                opened_name = _get_dshow_device_name(idx) or device_name
+                allow_vcam = os.environ.get("QORESENCE_ALLOW_OBS_VCAM", "0").strip() in {
+                    "1",
+                    "true",
+                    "yes",
+                }
+                if not _is_physical_card_name(opened_name) and not (
+                    allow_vcam and _is_obs_virtual_camera_name(opened_name)
+                ):
+                    log.error(
+                        "PRIVACY GUARD: refused idx=%s name=%r — not a capture card "
+                        "(unplugged HDMI must stay dark, never the laptop webcam).",
+                        idx,
+                        opened_name,
+                    )
+                    try:
+                        self._cap.release()
+                    except Exception:
+                        pass
+                    self._cap = None
+                    return False
+                device_name = opened_name
 
             if not self._cap.isOpened():
                 source = (
@@ -552,6 +590,7 @@ class StreamerRuntime:
                 self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.width)
                 self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
                 self._cap.set(cv2.CAP_PROP_FPS, self.config.fps_target)
+                apply_low_latency_capture(self._cap)
 
             # Verify first frame (with timeout so a frozen device can’t block open)
             ok, frame = self._timed_read(self._cap, timeout=2.0)
@@ -599,10 +638,11 @@ class StreamerRuntime:
                 f"Capture opened: {frame.shape[1]}x{frame.shape[0]} @ "
                 f"{self._cap.get(cv2.CAP_PROP_FPS):.1f} FPS (requested {self.config.fps_target})"
             )
-            # Use Grok timeout-based read in the main loop instead of a dedicated
-            # grabber thread — the grabber thread can hold a dead DShow filter and
-            # prevent rebind (commit 723e84f reintroduced this failure mode).
-            log.info("Capture opened (Grok timeout read, no grabber thread)")
+            # Latest-frame grabber: LIVE publishes the newest slot and skips a
+            # late cap.read(). Rebind still calls _stop_grabber() first so a
+            # hung DShow read cannot hold the filter across reopen.
+            self._start_grabber()
+            log.info("Capture opened (latest-frame grabber)")
             return True
 
         except Exception as e:
@@ -668,6 +708,7 @@ class StreamerRuntime:
             self._grab_latest = None
             self._grab_ts = 0.0
         self._grab_alive = False
+        self._last_consumed_grab_ts = 0.0
 
     def _try_rebind_capture(self) -> bool:
         """Hotplug: re-enumerate DShow and reopen preferred physical card."""
@@ -728,15 +769,23 @@ class StreamerRuntime:
         while self._running:
             loop_start = time.time()
 
-            # Apply any FPS change requested by the watchdog
+            # Apply any FPS change requested by the watchdog.
+            # cap.set + bus emit must run AFTER the lock is released (AGENTS.md Rule 1).
+            apply_fps = False
+            fps_target = 0.0
+            cap = None
             with self._lock:
                 if self._fps_changed and self._cap is not None:
-                    try:
-                        self._cap.set(cv2.CAP_PROP_FPS, self._effective_fps)
-                    except Exception:
-                        pass
+                    apply_fps = True
+                    fps_target = self._effective_fps
+                    cap = self._cap
                     self._fps_changed = False
-                    self._emit_degraded_notice(loop_start)
+            if apply_fps and cap is not None:
+                try:
+                    cap.set(cv2.CAP_PROP_FPS, fps_target)
+                except Exception:
+                    pass
+                self._emit_degraded_notice(loop_start)
 
             # Grab frame with retry
             ok, frame = self._read_frame()
@@ -831,25 +880,44 @@ class StreamerRuntime:
                 period = 1.0 / max(self._effective_fps, 1.0)
             elapsed = time.time() - loop_start
             sleep_time = period - elapsed
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+            # Always yield the GIL. A tight 60 Hz loop with no sleep starved
+            # Deck HTTP so /live.jpg and even favicon sat 0.5–2s.
+            time.sleep(sleep_time if sleep_time > 0 else 0)
 
         # Session end
         self._emit_session_end()
 
     def _read_frame(self) -> tuple[bool, np.ndarray | None]:
-        """Read a frame with a hard timeout so DShow hangs cannot freeze LIVE forever.
+        """Read the newest frame without blocking the LIVE path on DShow.
 
-        Original Grok fix (commit fb47f29): cap.read() runs in a short-lived
-        daemon thread with a 1.25s join. If it hangs, release the capture device
-        and set self._cap = None so the main loop will rebind.
+        When the grabber is alive, copy the latest slot (skip stale frames).
+        Otherwise fall back to a timed cap.read() so a hung device still
+        times out and the main loop can rebind.
         """
+        if self._grab_alive or (
+            self._grab_thread is not None and self._grab_thread.is_alive()
+        ):
+            return self._read_grabbed_frame(timeout=0.25)
         if self._cap is None:
             return False, None
         ok, frame = self._timed_read(self._cap, timeout=1.25)
         if ok and frame is not None:
             return True, np.ascontiguousarray(frame)
         return False, None
+
+    def _read_grabbed_frame(self, timeout: float = 0.25) -> tuple[bool, np.ndarray | None]:
+        """Wait briefly for a newer grab slot; never call cap.read() here."""
+        deadline = time.monotonic() + max(0.0, timeout)
+        while True:
+            with self._grab_lock:
+                ts = self._grab_ts
+                frame = self._grab_latest
+            if frame is not None and ts > self._last_consumed_grab_ts:
+                self._last_consumed_grab_ts = ts
+                return True, np.ascontiguousarray(frame)
+            if time.monotonic() >= deadline:
+                return False, None
+            time.sleep(0.001)
 
     def _timed_read(self, cap: Any, timeout: float = 1.25) -> tuple[bool, np.ndarray | None]:
         """Run cap.read() in a daemon thread with a timeout."""
@@ -882,31 +950,60 @@ class StreamerRuntime:
             return True, np.ascontiguousarray(frame)
         return False, None
 
+    # A single timed-read timeout is 1.25s. Dropping FPS / rebinding on a
+    # 1.5–4s hitch is what made LIVE feel lagged (2026-08-22): 30→15 forever,
+    # then DShow reopen while the USB3.0 card was still healthy.
+    WATCHDOG_FPS_DROP_STALL_S = 5.0
+    WATCHDOG_REBIND_STALL_S = 8.0
+    WATCHDOG_FPS_RECOVER_STALL_S = 0.75
+
+    def _watchdog_tick(self, now: float) -> None:
+        """One watchdog pass. Snapshot stall under lock, then emit/rebind outside it.
+
+        Holding ``self._lock`` across heartbeat fan-out or DShow rebind freezes
+        LIVE: the capture loop cannot record ``_last_success_frame_time`` and
+        ``age_s`` climbs (AGENTS.md Rule 1).
+        """
+        target_fps = float(self.config.fps_target)
+        with self._lock:
+            stall_s = now - self._last_success_frame_time
+            lower_fps = stall_s > self.WATCHDOG_FPS_DROP_STALL_S and self._effective_fps > 15.0
+            recover_fps = (
+                stall_s < self.WATCHDOG_FPS_RECOVER_STALL_S
+                and self._effective_fps + 0.01 < target_fps
+            )
+            rebind = stall_s > self.WATCHDOG_REBIND_STALL_S
+            if lower_fps:
+                new_fps = max(15.0, self._effective_fps / 2)
+                log.warning(
+                    f"Streamer stalled {stall_s:.1f}s; lowering fps_target "
+                    f"{self._effective_fps:.1f} -> {new_fps:.1f}"
+                )
+                self._effective_fps = new_fps
+                self._fps_changed = True
+            elif recover_fps:
+                log.info(
+                    "Streamer recovered; restoring fps_target %.1f -> %.1f",
+                    self._effective_fps,
+                    target_fps,
+                )
+                self._effective_fps = target_fps
+                self._fps_changed = True
+            elif rebind:
+                self._fps_changed = True
+
+        # lock released — subscribers and DShow must not block cap.read()
+        self._emit_heartbeat(now)
+        if rebind:
+            try:
+                self._try_rebind_capture()
+            except Exception as e:
+                log.debug("watchdog rebind: %s", e)
+
     def _watchdog_loop(self) -> None:
         """Watchdog thread: emit heartbeat and degrade FPS if frames stall."""
         while self._watchdog_running and self._running:
-            now = time.time()
-            with self._lock:
-                stall_s = now - self._last_success_frame_time
-                # Emit a streamer heartbeat every second so fusion never sees >5s silence
-                self._emit_heartbeat(now)
-
-                # If no successful frame for >1.5s, lower requested FPS to ease USB load
-                if stall_s > 1.5 and self._effective_fps > 15.0:
-                    new_fps = max(15.0, self._effective_fps / 2)
-                    log.warning(
-                        f"Streamer stalled {stall_s:.1f}s; lowering fps_target "
-                        f"{self._effective_fps:.1f} -> {new_fps:.1f}"
-                    )
-                    self._effective_fps = new_fps
-                # Longer stall (unplug) — kick rebind so replug picks new index
-                if stall_s > 4.0:
-                    try:
-                        self._try_rebind_capture()
-                    except Exception as e:
-                        log.debug("watchdog rebind: %s", e)
-                    self._fps_changed = True
-
+            self._watchdog_tick(time.time())
             time.sleep(1.0)
 
     def _emit_degraded_notice(self, now: float) -> None:
@@ -949,16 +1046,15 @@ class StreamerRuntime:
 
     def _process_frame(self, gray: np.ndarray, now: float) -> None:
         """Compute motion, activity, zones from frame."""
-        # Motion (mean absolute difference)
+        # Motion (mean absolute difference). cv2 releases the GIL — the old
+        # numpy float32 path starved Deck HTTP so /live.jpg took 300–800ms.
         motion = 0.0
         if self._prev_gray is not None:
-            motion = float(
-                np.mean(np.abs(gray.astype(np.float32) - self._prev_gray.astype(np.float32)))
-            )
+            motion = float(cv2.mean(cv2.absdiff(gray, self._prev_gray))[0])
         self._prev_gray = gray.copy()
         self._last_motion = motion
 
-        mean_luma = float(np.mean(gray))
+        mean_luma = float(cv2.mean(gray)[0])
 
         # Activity with hysteresis
         desired = "idle"
@@ -994,7 +1090,7 @@ class StreamerRuntime:
         if crop.size == 0:
             return
 
-        zone_luma = float(np.mean(crop))
+        zone_luma = float(cv2.mean(crop)[0])
         ema = self._zone_emas.get(zone.zone_id)
 
         if ema is None:

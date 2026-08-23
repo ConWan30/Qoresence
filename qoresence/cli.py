@@ -1389,7 +1389,7 @@ def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         prog="qoresence",
-        description="Qoresence - Local game-state capture + Twitch ClutchBot",
+        description="Qoresence - Local game-state capture + Deck ClutchBot",
     )
 
     # Session identity
@@ -1407,7 +1407,7 @@ def main():
     parser.add_argument(
         "--stream",
         action="store_true",
-        help="ClutchBot streaming preset: enables outcome, visual, clutchbot, and WebSocket",
+        help="ClutchBot local preset: enables outcome, visual, clutchbot, and WebSocket",
     )
 
     # Lobes
@@ -1566,10 +1566,16 @@ def main():
         help="Disable title-presence wrap even under --play/--stream",
     )
 
-    # ClutchBot (Twitch agent)
-    parser.add_argument("--clutchbot", action="store_true", help="Enable ClutchBot Twitch agent")
+    # ClutchBot (Deck feed + local clips; leftover Twitch flags below)
     parser.add_argument(
-        "--clutchbot-channel", default="", help="Twitch channel for the bot to join (no #)"
+        "--clutchbot",
+        action="store_true",
+        help="Enable ClutchBot (Deck feed + local HDMI clips). Leftover Twitch needs --clutchbot-channel.",
+    )
+    parser.add_argument(
+        "--clutchbot-channel",
+        default="",
+        help="Leftover Twitch channel (not the local route; omit for Deck/Foundry)",
     )
     parser.add_argument("--clutchbot-username", default="", help="Twitch bot username")
     parser.add_argument("--clutchbot-token", default=None, help="Twitch bot OAuth token")

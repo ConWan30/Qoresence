@@ -39,6 +39,6 @@ No chrome when not clutch. That's the polish.
 
 ## 4. Next: Retina Deck
 
-See `docs/RETINA_DECK_UIUX.md` — OBS Browser Source + Twitch Extension + local Tauri deck. One brain, three glasses.
+See `docs/RETINA_DECK_UIUX.md` — OBS Browser Source + local Deck. One brain, many glasses. Twitch Extension language in older Deck plans is leftover, not a product route.
 
-> **Positioning:** Trio for Entertainment Operations — 10M devices thesis proven on HDMI→Twitch at 1.0 precision, local, private, auditable.
+> **Positioning:** Local ops console — HDMI capture, score lock, and Foundry clips on one clock. Off-box chat is leftover.

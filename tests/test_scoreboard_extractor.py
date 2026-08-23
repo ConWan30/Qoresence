@@ -94,3 +94,20 @@ def test_extract_ignores_person_like_blank_frame():
     assert result.quarter is None
     assert result.home_score is None
     assert result.away_score is None
+
+
+def test_parse_madden_mnp_tokens_are_21_7_not_yard_line():
+    """NO 21 / CLE 7 with far-right 37 must not lock 7-37 or 21-37."""
+    from qoresence.vision.scoreboard_extractor import _Token
+
+    tokens = [
+        _Token("NO", 0.24, 0.50, 0.9),
+        _Token("21", 0.33, 0.50, 0.95),
+        _Token("7", 0.44, 0.50, 0.95),
+        _Token("CLE", 0.52, 0.50, 0.9),
+        _Token("2ND", 0.68, 0.50, 0.9),
+        _Token("37", 0.92, 0.50, 0.9),
+    ]
+    parsed = FootballScoreboardExtractor()._parse(tokens)
+    assert parsed.get("away_score") == 21
+    assert parsed.get("home_score") == 7

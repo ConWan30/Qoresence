@@ -27,11 +27,6 @@ or
 python -m qoresence.cli --play --a2a --game-profile ncaa_football_27
 ```
 
-For Twitch chat (optional):
-```
-python -m qoresence.cli --play --a2a --clutchbot --clutchbot-channel YOUR_CHANNEL --clutchbot-token oauth:XXXX --clutchbot-username YOUR_BOT_NAME
-```
-
 For OpenTelemetry causal tracing / clip sidecars (optional):
 ```
 python -m qoresence.cli --play --deck --controller --monitor --otel --streamer-device 0 --streamer-fps 60

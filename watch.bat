@@ -9,8 +9,8 @@ if exist ".venv\Scripts\activate.bat" call ".venv\Scripts\activate.bat"
 
 python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=2)" 1>nul 2>nul
 if errorlevel 1 (
-    echo Starting Qoresence --play --deck --streamer-fps 30
-    start "Qoresence Deck" cmd /k ""%~dp0qoresence.bat" --play --deck --streamer-fps 30"
+    echo Starting Qoresence --play --deck --streamer-fps 60
+    start "Qoresence Deck" cmd /k ""%~dp0qoresence.bat" --play --deck --streamer-fps 60"
     echo Waiting for Theater...
     timeout /t 12 /nobreak >nul
 )

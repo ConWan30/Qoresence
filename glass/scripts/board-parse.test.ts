@@ -23,10 +23,13 @@ test("snapshot controller carries frame-clock DualSense pose", () => {
     controller: {
       connected: true,
       device: "DualSense Edge",
+      transport: "usb",
+      reports: 3133,
       pad_r2: 0.72,
       pad_left: 0.31,
       sync_lag_ms: 52,
       lag_center_ms: 52,
+      frame_seq: 100,
       buttons: ["r2"],
     },
   });
@@ -35,6 +38,9 @@ test("snapshot controller carries frame-clock DualSense pose", () => {
   assert.equal(ing.padLeft, 0.31);
   assert.equal(ing.syncLagMs, 52);
   assert.equal(ing.padConnected, true);
+  assert.equal(ing.padReports, 3133);
+  assert.equal(ing.padTransport, "usb");
+  assert.equal(ing.padHidSeq, 100);
 });
 
 test("WS situation payload carries Madden board", () => {

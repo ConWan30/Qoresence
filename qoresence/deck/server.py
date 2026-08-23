@@ -60,6 +60,29 @@ except ImportError:  # pragma: no cover
 # ---------------------------------------------------------------------------
 
 
+# Coalesce /health + /api/situation + WS snapshot so LIVE JPEG is not queued
+# behind three full companion/drive-graph builds on the same threadpool.
+_SNAP_MEMO_TTL_S = 0.04
+_snap_memo_lock = threading.Lock()
+_snap_memo_at = 0.0
+_snap_memo: dict[str, Any] | None = None
+
+
+def _snapshot_memo_get() -> dict[str, Any] | None:
+    now = time.monotonic()
+    with _snap_memo_lock:
+        if _snap_memo is not None and now - _snap_memo_at < _SNAP_MEMO_TTL_S:
+            return _snap_memo
+    return None
+
+
+def _snapshot_memo_put(out: dict[str, Any]) -> None:
+    global _snap_memo_at, _snap_memo
+    with _snap_memo_lock:
+        _snap_memo = out
+        _snap_memo_at = time.monotonic()
+
+
 @dataclass
 class DeckState:
     situation: dict[str, Any] = field(default_factory=dict)
@@ -71,6 +94,14 @@ class DeckState:
     jsonl_path: str = "logs/events.jsonl"
 
     def snapshot(self) -> dict[str, Any]:
+        memo = _snapshot_memo_get()
+        if memo is not None:
+            return memo
+        out = self._snapshot_fresh()
+        _snapshot_memo_put(out)
+        return out
+
+    def _snapshot_fresh(self) -> dict[str, Any]:
         video: dict[str, Any] = {
             "has_frame": False,
             "age_s": None,
@@ -611,8 +642,8 @@ _CLIP_DOCK_CSS = "clip-dock.css"
 
 def _clip_dock_snippet() -> str:
     return (
-        f'<link rel="stylesheet" href="/{_CLIP_DOCK_CSS}?v=compact2">'
-        f'<script src="/{_CLIP_DOCK_JS}?v=compact2" defer></script>'
+        f'<link rel="stylesheet" href="/{_CLIP_DOCK_CSS}?v=standdown3">'
+        f'<script src="/{_CLIP_DOCK_JS}?v=standdown3" defer></script>'
     )
 
 
@@ -752,32 +783,19 @@ def _resolve_live_fps(query_fps: float | None = None) -> float:
 def _read_live_jpeg() -> bytes:
     """Latest HDMI JPEG bytes for ``/live.jpg`` / MJPEG.
 
-    Always serve the clip-buffer JPEG when present. Dark Theater dimming is a
-    Glass ``livePaint`` concern — returning empty here marks the deck dead and
-    the stage opacity-0 black even though FrameHub is fine.
-    Last-good BGR re-encode is still a last resort only.
+    Clip-buffer JPEG only. Re-encoding FrameHub BGR on this path caused
+    /live.jpg to sit 0.7–2s behind gameplay while snapshot() held the GIL.
+    Dark Theater dimming is a Glass ``livePaint`` concern — empty here is 503.
     """
     try:
         from qoresence.vision.clip_buffer import get_latest_frame, get_latest_jpeg
 
-        fr = get_latest_frame()
-        if fr is not None and fr[0]:
-            return fr[0]
         jpg = get_latest_jpeg()
         if jpg:
             return jpg
-    except Exception:
-        pass
-    try:
-        import cv2
-
-        from qoresence.monitor.frame_hub import get_latest
-
-        frame = get_latest()
-        if frame is not None:
-            ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 48])
-            if ok:
-                return buf.tobytes()
+        fr = get_latest_frame()
+        if fr is not None and fr[0]:
+            return fr[0]
     except Exception:
         pass
     return b""
@@ -798,6 +816,7 @@ async def _mjpeg_stream(fps: float = DEFAULT_LIVE_FPS):  # type: ignore[no-untyp
     interval = 1.0 / fps
     dark = _placeholder_jpeg()
     last_seq = -1
+    last_jpg = dark
     while True:
         t0 = _time.monotonic()
         jpg: bytes | None = None
@@ -822,12 +841,11 @@ async def _mjpeg_stream(fps: float = DEFAULT_LIVE_FPS):  # type: ignore[no-untyp
                 pass
             now = _time.monotonic()
             if now >= deadline:
-                # Timeout: dark, never last-good BGR/JPEG.
-                jpg = None
                 break
-            await asyncio.sleep(min(0.002, deadline - now))
-        if not jpg:
-            jpg = dark
+            await asyncio.sleep(min(0.008, deadline - now))
+        # Hold the last good JPEG — a dark placeholder flashes LIVE black.
+        jpg = jpg or last_jpg or dark
+        last_jpg = jpg
         header = (
             b"--" + boundary + b"\r\n"
             b"Content-Type: image/jpeg\r\n"
@@ -879,7 +897,7 @@ def create_app():  # type: ignore[no-untyped-def]
         app.mount("/assets", StaticFiles(directory=str(_gassets)), name="glass-assets")
 
     @app.get("/health")
-    async def health():  # type: ignore[no-untyped-def]
+    def health():  # type: ignore[no-untyped-def]
         gi = _glass_index_path()
         body: dict[str, Any] = {
             "ok": True,
@@ -963,7 +981,7 @@ def create_app():  # type: ignore[no-untyped-def]
         return JSONResponse(body)
 
     @app.get("/api/situation")
-    async def api_situation():  # type: ignore[no-untyped-def]
+    def api_situation():  # type: ignore[no-untyped-def]
         return JSONResponse(
             _situation_payload(),
             headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "no-store"},
@@ -973,7 +991,8 @@ def create_app():  # type: ignore[no-untyped-def]
     async def live_jpeg():  # type: ignore[no-untyped-def]
         """Single latest HDMI JPEG — Android WebView cannot play MJPEG.
 
-        Same FrameHub / ClipBuffer as /video. View only, no second capture.
+        Pre-encoded clip-buffer bytes only. Must stay off the snapshot
+        threadpool or Theater waits 1s+ behind /health and /api/situation.
         """
         jpg = _read_live_jpeg()
         if not jpg:
@@ -986,6 +1005,33 @@ def create_app():  # type: ignore[no-untyped-def]
                 "Access-Control-Allow-Origin": "*",
             },
         )
+
+    @app.websocket("/live")
+    async def live_jpeg_ws(websocket: WebSocket):  # type: ignore[no-untyped-def]
+        """Push the newest clip-buffer JPEG. Theater must not GET /live.jpg
+        per frame — that queued behind the GIL and sat 0.4–1.2s behind HDMI.
+        Observation only: read latest bytes, never emit, never take a lobe lock.
+        """
+        await websocket.accept()
+        last_seq = -1
+        try:
+            from qoresence.vision.clip_buffer import get_latest_frame
+
+            while True:
+                fr = None
+                try:
+                    fr = get_latest_frame()
+                except Exception:
+                    fr = None
+                if fr is not None and fr[0] and fr[1] != last_seq:
+                    last_seq = int(fr[1])
+                    await websocket.send_bytes(fr[0])
+                else:
+                    await asyncio.sleep(0.008)
+        except WebSocketDisconnect:
+            return
+        except Exception:
+            return
 
     @app.get("/api/glass-link")
     async def api_glass_link():  # type: ignore[no-untyped-def]
@@ -1999,11 +2045,12 @@ def create_app():  # type: ignore[no-untyped-def]
                 except TimeoutError:
                     # keepalive ping with snapshot at snapshot_hz
                     try:
+                        payload = await asyncio.to_thread(_agent_snapshot_payload)
                         await websocket.send_text(
                             json.dumps(
                                 {
                                     "type": "agent_keepalive",
-                                    "payload": _agent_snapshot_payload(),
+                                    "payload": payload,
                                     "clock_ns": time.monotonic_ns(),
                                 }
                             )

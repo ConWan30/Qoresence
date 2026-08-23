@@ -897,15 +897,21 @@ def main():
         help="Directory for vision stack models (YOLOv8n, etc.)",
     )
 
-    # ClutchBot (Twitch agent)
+    # ClutchBot (Deck feed + leftover Twitch flags)
     parser.add_argument(
         "--stream",
         action="store_true",
-        help="ClutchBot streaming preset: enables outcome, visual, clutchbot, and WebSocket",
+        help="ClutchBot local preset: enables outcome, visual, clutchbot, and WebSocket",
     )
-    parser.add_argument("--clutchbot", action="store_true", help="Enable ClutchBot Twitch agent")
     parser.add_argument(
-        "--clutchbot-channel", default="", help="Twitch channel for the bot to join (no #)"
+        "--clutchbot",
+        action="store_true",
+        help="Enable ClutchBot (Deck feed + local clips). Leftover Twitch needs --clutchbot-channel.",
+    )
+    parser.add_argument(
+        "--clutchbot-channel",
+        default="",
+        help="Leftover Twitch channel (not the local route; omit for Deck/Foundry)",
     )
     parser.add_argument("--clutchbot-username", default="", help="Twitch bot username")
     parser.add_argument("--clutchbot-token", default=None, help="Twitch bot OAuth token")

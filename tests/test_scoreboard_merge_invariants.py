@@ -374,6 +374,62 @@ def test_ocr_home_left_override(monkeypatch):
     assert out.home_left is True
 
 
+def test_ready_paddle_does_not_run_on_live_tick(monkeypatch):
+    """Paddle on the visual/streamer tick freezes HDMI (age_s climbs, rebind loop)."""
+    _reset_stabilizer()
+    monkeypatch.delenv("QORESENCE_EASY_OCR", raising=False)
+    calls = {"n": 0}
+
+    class _Spy(_FakeOcrEngine):
+        def read_boxes(self, bgr):  # type: ignore[no-untyped-def]
+            calls["n"] += 1
+            return super().read_boxes(bgr)
+
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
+        lambda: _Spy(_ocr_boxes_20_0()),
+    )
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: _FakeVlm(None)
+    )
+    ext = FootballScoreboardExtractor()
+    ext.extract(_blank_frame(), _football_ctx())
+    assert calls["n"] == 0
+
+
+def test_ready_paddle_reads_madden_mnp_when_ocr_opted_in(monkeypatch):
+    """NO 21 / CLE 7 — heavy OCR only when explicitly opted in."""
+    _reset_stabilizer()
+    monkeypatch.setenv("QORESENCE_EASY_OCR", "1")
+    boxes = [
+        OcrBox(text="NO", x=0.24, y=0.50, conf=0.9, w=0.06, h=0.40),
+        OcrBox(text="21", x=0.33, y=0.50, conf=0.95, w=0.06, h=0.50),
+        OcrBox(text="7", x=0.44, y=0.50, conf=0.95, w=0.04, h=0.50),
+        OcrBox(text="CLE", x=0.52, y=0.50, conf=0.9, w=0.08, h=0.40),
+        OcrBox(text="2ND", x=0.68, y=0.50, conf=0.9, w=0.06, h=0.40),
+        OcrBox(text="37", x=0.92, y=0.50, conf=0.9, w=0.06, h=0.40),
+    ]
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
+        lambda: _FakeOcrEngine(boxes),
+    )
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: _FakeVlm(None)
+    )
+    ext = FootballScoreboardExtractor()
+    ctx = VisualContext(
+        game_category=GameCategory.FOOTBALL,
+        game_state=GameState.GAMEPLAY,
+        game_profile="madden_27",
+    )
+    out = None
+    for _ in range(2):
+        out = ext.extract(_blank_frame(), ctx)
+    assert out is not None
+    assert out.away_score == 21
+    assert out.home_score == 7
+
+
 # ── fail-closed: lock requires ConfirmTicket ──────────────────────────────────
 
 

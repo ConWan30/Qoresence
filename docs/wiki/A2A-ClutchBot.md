@@ -5,7 +5,7 @@ A2A is an **optional** agent-to-agent bus that makes ClutchBot chat smarter unde
 ## What it does
 
 1. **Gemini** reads the scene and describes the tension / moment.
-2. **DeepSeek** rewrites that into a Twitch-ready line.
+2. **DeepSeek** rewrites that into a Deck / clutch-feed line.
 3. **Local policy** vetoes invented scores, enforces cooldowns, and blocks duplicate lines.
 
 ## Enable
@@ -15,7 +15,7 @@ $env:QORESENCE_A2A = "1"
 $env:QORESENCE_A2A_GEMINI = "1"
 $env:QORESENCE_A2A_DEEPSEEK = "1"
 
-python -m qoresence.cli --play --deck --a2a --clutchbot --streamer-fps 30
+python -m qoresence.cli --play --deck --a2a --streamer-fps 60
 ```
 
 ## When it fires

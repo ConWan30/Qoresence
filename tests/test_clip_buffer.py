@@ -76,6 +76,43 @@ def test_enqueue_does_not_block_on_jpeg():
     assert jpg[:2] == b"\xff\xd8"
 
 
+def test_live_preview_matches_hdmi_width():
+    """LIVE must be 640 linear — 384/nearest/q50 looked specky on the stage."""
+    buf = HdmiClipBuffer(seconds=2, target_fps=60, max_width=640)
+    frame = np.full((720, 1280, 3), 40, dtype=np.uint8)
+    buf._publish_live(frame)
+    jpg = buf.latest_jpeg()
+    assert jpg is not None
+    assert jpg[:2] == b"\xff\xd8"
+    pic = cv2.imdecode(np.frombuffer(jpg, dtype=np.uint8), cv2.IMREAD_COLOR)
+    assert pic is not None
+    assert pic.shape[1] == 640
+    assert pic.shape[0] == 360
+
+
+def test_enqueue_keeps_newest_when_worker_busy(monkeypatch):
+    """A later HDMI frame must replace the waiting BGR — drop-old, not drop-new."""
+
+    class FakeThread:
+        def __init__(self, *a, **k):
+            pass
+
+        def start(self):
+            return None
+
+        def is_alive(self):
+            return True
+
+    monkeypatch.setattr("qoresence.vision.clip_buffer.threading.Thread", FakeThread)
+    buf = HdmiClipBuffer(seconds=2, target_fps=60, max_width=160)
+    first = np.full((48, 64, 3), 3, dtype=np.uint8)
+    second = np.full((48, 64, 3), 9, dtype=np.uint8)
+    buf.enqueue(first)
+    buf.enqueue(second)
+    assert buf._pending is not None
+    assert int(buf._pending[0, 0, 0]) == 9
+
+
 def test_latest_frame_returns_seq():
     buf = HdmiClipBuffer(seconds=2, target_fps=1000, max_width=160)
     assert buf.latest_frame() is None

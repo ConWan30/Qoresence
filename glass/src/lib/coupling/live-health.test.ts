@@ -19,8 +19,29 @@ test("green only when age is fresh and frames/pushes climb", () => {
   assert.equal(h.label, "LIVE");
 });
 
+test("hold LIVE when counters match the last paint but hub age is fresh", () => {
+  const h = scoreLiveHealth({
+    ...base,
+    frames: 120,
+    prevFrames: 120,
+    pushes: 118,
+    prevPushes: 118,
+    climbAgeMs: 400,
+  });
+  assert.equal(h.tone, "green");
+  assert.equal(h.label, "LIVE");
+});
+
 test("amber when JPEG pumps but frames have stopped", () => {
-  const h = scoreLiveHealth({ ...base, frames: 120, prevFrames: 120, pushes: 118, prevPushes: 118, ageS: 2.4 });
+  const h = scoreLiveHealth({
+    ...base,
+    frames: 120,
+    prevFrames: 120,
+    pushes: 118,
+    prevPushes: 118,
+    ageS: 2.4,
+    climbAgeMs: 4000,
+  });
   assert.equal(h.tone, "amber");
   assert.match(h.reason, /not the capture card|JPEG still arriving/);
 });

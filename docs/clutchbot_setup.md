@@ -1,8 +1,13 @@
-# ClutchBot — Twitch Agent Setup
+# ClutchBot — leftover Twitch setup (not the product route)
 
-ClutchBot is a local, game-state-aware Twitch agent that consumes Qoresence
-events and acts on Twitch: chat narration, auto-clips, channel-point
-predictions, chat commands, follow/sub/redemption alerts, and a viewer panel.
+> **Status:** leftover, default-OFF, not recommended. Qoresence's local path is
+> Deck feed + HDMI Foundry clips on `--play`. Do **not** set
+> `--clutchbot-channel` for the local pilot. The steps below only document the
+> leftover IRC/Helix module in `qoresence/agents/`.
+
+ClutchBot's live consumer is the Deck. The leftover Twitch path can still
+consume Qoresence events and act on IRC/Helix (chat, Helix clips, predictions,
+EventSub) if you explicitly set channel + tokens.
 
 ## 1. Create a Twitch application
 

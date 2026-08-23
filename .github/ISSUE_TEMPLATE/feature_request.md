@@ -12,7 +12,8 @@ assignees: ''
 - [ ] Situation (score, down, clutch context)
 - [ ] Deck / Monitor (human UI)
 - [ ] AgentGlass / MCP (AI agent surface)
-- [ ] Social (Twitch, clips, predictions)
+- [ ] Foundry / local clips (HDMI MP4, sidecars)
+- [ ] Leftover Twitch (not a product route)
 - [ ] Research (Streamr, fusion, trio-retina)
 
 ## What problem does it solve?

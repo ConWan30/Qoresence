@@ -27,8 +27,12 @@ DEFAULT_SECONDS = 30.0
 DEFAULT_FPS = 60.0
 # Smaller LIVE JPEGs = faster encode + less browser MJPEG buffer lag.
 DEFAULT_MAX_WIDTH = 640
-# Slightly lower quality keeps 60fps LIVE from saturating CPU (freeze root cause)
-DEFAULT_JPEG_QUALITY = 48
+# 70 keeps LIVE contrast; 48 flattened blacks on the USB3.0 HDMI path.
+DEFAULT_JPEG_QUALITY = 70
+# LIVE paints this size. 384/nearest/q50 looked specky when the stage upscaled it.
+# Keep 640 + linear + q70; a separate live-jpeg thread is what keeps cadence up.
+LIVE_PREVIEW_WIDTH = 640
+LIVE_PREVIEW_QUALITY = 70
 DEFAULT_OUT_DIR = Path("clips")
 
 
@@ -80,13 +84,19 @@ class HdmiClipBuffer:
         self._pending: np.ndarray | None = None
         self._pending_lock = threading.Lock()
         self._pending_event = threading.Event()
+        self._live_event = threading.Event()
         self._worker: threading.Thread | None = None
+        self._live_worker: threading.Thread | None = None
 
     def enable(self, on: bool = True) -> None:
         self._enabled = bool(on)
 
     def enqueue(self, frame: np.ndarray | None) -> None:
-        """Copy latest BGR and encode on a worker. Capture loop must not JPEG."""
+        """Copy latest BGR and encode on a worker. Capture loop must not JPEG.
+
+        Always keep the newest pending frame. Dropping a later HDMI frame
+        here made LIVE encode a stale still and added display lag.
+        """
         if not self._enabled or frame is None:
             return
         try:
@@ -104,7 +114,13 @@ class HdmiClipBuffer:
                     target=self._encode_loop, name="clip-jpeg", daemon=True
                 )
                 self._worker.start()
+            if self._live_worker is None or not self._live_worker.is_alive():
+                self._live_worker = threading.Thread(
+                    target=self._live_loop, name="live-jpeg", daemon=True
+                )
+                self._live_worker.start()
         self._pending_event.set()
+        self._live_event.set()
 
     def _encode_loop(self) -> None:
         while self._enabled:
@@ -112,13 +128,66 @@ class HdmiClipBuffer:
             self._pending_event.clear()
             with self._pending_lock:
                 fr = self._pending
-                self._pending = None
             if fr is None:
                 continue
             try:
                 self.push(fr)
             except Exception as e:
                 log.debug("ClipBuffer worker encode failed: %s", e)
+            time.sleep(0)
+
+    def _live_loop(self) -> None:
+        """Preview JPEG only. Must not wait on the 640 clip-ring encode."""
+        while self._enabled:
+            self._live_event.wait(timeout=1.0)
+            self._live_event.clear()
+            with self._pending_lock:
+                fr = self._pending
+            if fr is None:
+                continue
+            try:
+                self._publish_live(fr)
+            except Exception as e:
+                log.debug("ClipBuffer live preview encode failed: %s", e)
+            time.sleep(0)
+
+    def _publish_live(self, frame: np.ndarray) -> None:
+        """640 linear JPEG → LIVE slot. Does not append the clip ring."""
+        if frame is None or not hasattr(frame, "shape") or len(frame.shape) < 2:
+            return
+        h, w = int(frame.shape[0]), int(frame.shape[1])
+        max_w = int(LIVE_PREVIEW_WIDTH)
+        if max_w % 2:
+            max_w -= 1
+        if max_w > 0 and w > max_w:
+            nh = max(2, int(h * max_w / float(w)))
+            if nh % 2:
+                nh -= 1
+            small = cv2.resize(frame, (max_w, nh), interpolation=cv2.INTER_LINEAR)
+        else:
+            small = frame
+        sh, sw = int(small.shape[0]), int(small.shape[1])
+        if sw % 2:
+            small = small[:, : sw - 1]
+            sw -= 1
+        if sh % 2:
+            small = small[: sh - 1, :]
+            sh -= 1
+        # USB3.0 HDMI is studio/limited (16–235). Stretch in the JPEG so the
+        # Theater <img> does not need a CSS filter (that made blocks specky).
+        small = cv2.convertScaleAbs(small, alpha=255.0 / 219.0, beta=-16.0 * 255.0 / 219.0)
+        ok, buf = cv2.imencode(
+            ".jpg", small, [int(cv2.IMWRITE_JPEG_QUALITY), int(LIVE_PREVIEW_QUALITY)]
+        )
+        if not ok:
+            return
+        jpeg = buf.tobytes()
+        now = time.monotonic()
+        with self._lock:
+            self._seq += 1
+            self._live_jpeg = jpeg
+            self._live_seq = self._seq
+            self._live_ts = now
 
     def push(self, frame: np.ndarray | None) -> None:
         """Ingest a BGR frame from the streamer (throttled + resized + JPEG)."""
@@ -158,10 +227,12 @@ class HdmiClipBuffer:
             with self._lock:
                 self._seq += 1
                 self._frames.append((now, jpeg, sw, sh, self._seq))
-                # Dedicated latest slot for LIVE (always newest, no ring scan)
-                self._live_jpeg = jpeg
-                self._live_seq = self._seq
-                self._live_ts = now
+                # LIVE slot is owned by _publish_live (fast preview). Ring
+                # frames stay 640 for clips — do not overwrite the preview.
+                if self._live_jpeg is None:
+                    self._live_jpeg = jpeg
+                    self._live_seq = self._seq
+                    self._live_ts = now
                 self._pushes += 1
         except Exception as e:
             log.debug("ClipBuffer push failed: %s", e)
@@ -176,10 +247,10 @@ class HdmiClipBuffer:
             return self._frames[-1][1]
 
     def latest_frame(self) -> tuple[bytes, int] | None:
-        """Return (jpeg_bytes, seq) for newest frame. Empty → None."""
+        """Return (jpeg_bytes, seq) for newest LIVE still. Empty → None."""
         with self._lock:
-            if self._live_jpeg is not None and self._live_seq > 0:
-                return (self._live_jpeg, self._live_seq)
+            if self._live_jpeg is not None:
+                return (self._live_jpeg, int(self._seq or self._live_seq))
             if not self._frames:
                 return None
             _ts, jpg, _w, _h, seq = self._frames[-1]

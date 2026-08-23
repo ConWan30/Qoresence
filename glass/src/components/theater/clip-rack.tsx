@@ -27,11 +27,11 @@ export function ClipBar() {
     <div
       id="hdmi-clips"
       data-clip-rack={CLIP_RACK}
-      className="relative z-30 border-t border-border bg-bg/90 px-3 py-2 pointer-events-auto sm:px-5"
+      className="relative z-30 border-t border-border bg-bg/80 px-3 py-2 pointer-events-auto backdrop-blur-sm sm:px-5"
     >
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        <p className="shrink-0 font-mono text-[10px] tracking-[0.14em] text-live uppercase">
-          HDMI clips · {String(clips.length).padStart(2, "0")}
+        <p className="shrink-0 font-mono text-[10px] tracking-[0.18em] text-live uppercase">
+          ISO bank · {String(clips.length).padStart(2, "0")}
         </p>
         {clips.length === 0 ? (
           <p className="shrink-0 text-xs text-muted-foreground">
@@ -49,10 +49,10 @@ export function ClipBar() {
                 data-clip-href={c.href}
                 data-clip-name={c.name}
                 className={cn(
-                  "flex min-h-12 min-w-52 shrink-0 items-center gap-2 rounded-xl px-3 text-left shadow-[var(--shadow-border)]",
+                  "stream-key flex min-h-12 min-w-52 shrink-0 items-center gap-2 px-3 text-left",
                   on
-                    ? "bg-live text-primary-foreground shadow-[var(--shadow-live)]"
-                    : "bg-surface text-fg hover:shadow-[var(--shadow-border-hover)]",
+                    ? "stream-key-live"
+                    : "text-fg hover:shadow-[var(--shadow-border-hover)]",
                 )}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
@@ -100,12 +100,12 @@ export function StageClipDock() {
   return (
     <div
       data-clip-dock="picker"
-      className="pointer-events-auto border-t border-border bg-surface/95 px-2 py-1"
+      className="pointer-events-auto relative z-10 border-t border-border bg-bg/85 px-2 py-1.5"
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="flex items-center gap-1.5 overflow-x-auto">
-        <span className="shrink-0 font-mono text-[10px] tracking-wide text-live uppercase">
-          clips {String(clips.length).padStart(2, "0")}
+        <span className="shrink-0 font-mono text-[10px] tracking-[0.16em] text-live uppercase">
+          ISO {String(clips.length).padStart(2, "0")}
         </span>
         {clips.length === 0 ? (
           <p className="text-[11px] text-muted-foreground">Make Clip in the bar above</p>
@@ -121,8 +121,8 @@ export function StageClipDock() {
                 data-clip-href={c.href}
                 data-clip-name={c.name}
                 className={cn(
-                  "flex h-7 shrink-0 items-center gap-1 rounded-full px-2 font-mono text-[10px] uppercase",
-                  on ? "bg-live text-primary-foreground" : "bg-bg text-fg hover:opacity-90",
+                  "stream-key flex h-7 shrink-0 items-center gap-1 px-2 font-mono text-[10px] uppercase",
+                  on ? "stream-key-live" : "text-fg hover:opacity-90",
                 )}
                 onClick={(e) => {
                   e.preventDefault();
@@ -150,10 +150,10 @@ export function ClipRack() {
   return (
     <section
       data-clip-rack={CLIP_RACK}
-      className="relative z-20 flex min-h-0 flex-col gap-2 rounded-xl bg-surface p-3 shadow-[var(--shadow-border)] pointer-events-auto sm:p-4"
+      className="holo-plate relative z-20 flex min-h-0 flex-col gap-2 rounded-xl p-3 pointer-events-auto sm:p-4"
     >
       <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-        HDMI clips · {String(clips.length).padStart(2, "0")}
+        ISO bank · {String(clips.length).padStart(2, "0")}
       </h2>
       {clips.length === 0 ? (
         <p className="text-xs text-muted-foreground">No hdmi_clip_*.mp4 on disk yet.</p>

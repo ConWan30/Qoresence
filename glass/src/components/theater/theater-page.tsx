@@ -1,37 +1,43 @@
+import { useCallback, type PointerEvent } from "react";
 import { AgentRail } from "@/components/theater/agent-rail";
 import { ClutchFeed } from "@/components/theater/clutch-feed";
 import { CommandBar } from "@/components/theater/command-bar";
 import { ConnectCard } from "@/components/theater/connect-card";
 import { SituationCard } from "@/components/theater/situation-card";
-import { Controls } from "@/components/theater/controls";
 import { CouplingCard } from "@/components/theater/coupling-card";
+import { HighlightDirector } from "@/components/theater/highlight-director";
+import { PadSyncCard } from "@/components/theater/pad-sync-card";
 import { HdmiStage } from "@/components/theater/hdmi-stage";
 import { useTheaterLoop } from "@/lib/coupling/loop";
 
 export function TheaterPage() {
   useTheaterLoop();
 
+  const onPrism = useCallback((e: PointerEvent<HTMLElement>) => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / Math.max(1, r.width) - 0.5) * 2;
+    const y = ((e.clientY - r.top) / Math.max(1, r.height) - 0.5) * 2;
+    e.currentTarget.style.setProperty("--holo-x", x.toFixed(3));
+    e.currentTarget.style.setProperty("--holo-y", y.toFixed(3));
+    document.body.style.setProperty("--holo-x", x.toFixed(3));
+    document.body.style.setProperty("--holo-y", y.toFixed(3));
+  }, []);
+
   return (
-    <main className="min-h-dvh bg-bg text-fg">
+    <main className="holo-deck min-h-dvh bg-bg text-fg" onPointerMove={onPrism}>
       <CommandBar />
-      <div className="mx-auto max-w-[88rem] px-4 py-4 sm:px-5 sm:py-5">
+      <div className="mx-auto max-w-[88rem] px-4 py-3 sm:px-5 sm:py-3">
         <HdmiStage variant="deck" />
-        <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] lg:gap-5">
+        <div className="mt-5 grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] lg:gap-5">
           <ClutchFeed />
           <aside className="flex flex-col gap-4">
             <ConnectCard />
+            <PadSyncCard />
             <SituationCard />
             <CouplingCard />
+            <HighlightDirector />
             <AgentRail />
-            <section className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
-              <h2 className="mb-1 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                Pad
-              </h2>
-              <p className="mb-4 text-xs text-muted-foreground">
-                DualSense stays on the PS5. This laptop only sees HDMI through the capture card.
-              </p>
-              <Controls />
-            </section>
           </aside>
         </div>
       </div>

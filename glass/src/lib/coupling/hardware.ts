@@ -294,12 +294,8 @@ async function listVideoDevices(): Promise<VideoDevice[]> {
 }
 
 async function probeThenList(): Promise<VideoDevice[]> {
-  let probe: MediaStream | null = null;
-  try {
-    probe = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-  } finally {
-    await stopAndWait(probe);
-  }
+  // Never unconstrained camera probe — that opens the laptop webcam when
+  // the HDMI card is unplugged. Enumerate only; blank labels stay refused.
   return listVideoDevices();
 }
 

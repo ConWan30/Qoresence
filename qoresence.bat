@@ -3,7 +3,7 @@ REM Qoresence one-liner launcher for Windows
 REM Usage: qoresence.bat [--play] [--deck] [--monitor] [--tray] [other args]
 REM
 REM Double-click to start with defaults: --play --deck --monitor --tray --a2a
-REM Or pass custom args: qoresence.bat --play --deck --streamer-fps 30
+REM Or pass custom args: qoresence.bat --play --deck --streamer-fps 60
 
 setlocal
 
@@ -29,7 +29,7 @@ if "%~1"=="" (
     echo Starting Qoresence with defaults: --play --deck --monitor --tray --a2a --controller
     echo Game profile: last pin / QORESENCE_GAME_PROFILE / first-run ncaa_football_27
     python -c "import qoresence, pathlib; print('qoresence from', pathlib.Path(qoresence.__file__).resolve())"
-    python -m qoresence.cli --play --deck --monitor --tray --a2a --controller --streamer-fps 30
+    python -m qoresence.cli --play --deck --monitor --tray --a2a --controller --streamer-fps 60
 ) else (
     python -c "import qoresence, pathlib; print('qoresence from', pathlib.Path(qoresence.__file__).resolve())"
     python -m qoresence.cli %*

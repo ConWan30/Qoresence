@@ -12,7 +12,7 @@ Does **not** replace LocalVLM, scoreboard OCR/VLM referee, fast path, or DriveGr
 | Agent | Role | Model (default) | Endpoint |
 |-------|------|-----------------|----------|
 | **Gemini** (scene + board) | See the frame, lock confirm, soft scene | `gemini-3.5-flash-lite` | `https://api.quicksilverpro.io/v1` |
-| **Chat / reason** (A2A DeepSeek slot) | Rewrite → Twitch-ready line | `nemotron-3.5-lightning` | same |
+| **Chat / reason** (A2A DeepSeek slot) | Rewrite → Deck / clutch feed line | `nemotron-3.5-lightning` | same |
 | **Policy** (local) | Veto invented scores; cooldown; near-dupe | — | in-process |
 
 **Scoreboard Gemini** (separate referee) runs at ~1.5s on gameplay (not 60 fps), faster on score/menu transitions. See `qoresence/vision/scoreboard_vlm.py`.

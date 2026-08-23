@@ -57,5 +57,5 @@ Landing file: `docs/index.html`.
 ## 5. Topics (optional)
 
 ```powershell
-gh repo edit ConWan30/Qoresence --add-topic streamer,obs,dualsense,twitch,local-first,game-capture,python
+gh repo edit ConWan30/Qoresence --add-topic streamer,obs,dualsense,local-first,game-capture,python
 ```

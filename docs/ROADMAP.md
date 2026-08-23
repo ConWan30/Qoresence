@@ -85,8 +85,8 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 
 ## Phase 3 — ClutchBot MVP ✓
 - [x] SituationModel, MomentScorer, ActionExecutor
-- [x] Twitch IRC / Helix / EventSub backends
-- [x] Deck feed + local HDMI clip backends (offline-capable)
+- [x] Deck feed + local HDMI clip backends (offline-capable) — **this is the product path**
+- [x] Twitch IRC / Helix / EventSub backends (leftover, default-OFF, not a product route)
 - [x] Session memory / learning hooks
 
 ## Phase 4 — Packaging & polish (partial)
@@ -148,7 +148,7 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 | **0.5.0** | **Deck LIVE + Qoresence owns card + FrameHub monitor + IVC** |
 | 0.6.0 | Profile expansion + Edge HID polish + operator glass (Phase 4/6 done) |
 | **0.7.0** | **OpenTelemetry causal tracing + per-frame coupling sidecars + re-entrancy smoke alarm** ← current main |
-| 1.0.0 | Stable ClutchBot + operator glass release |
+| 1.0.0 | Stable local ClutchBot (Deck + HDMI clips) + operator glass release |
 
 ---
 

@@ -13,7 +13,28 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-from qoresence.vision.scorebug_crops import primary_scorebug_crop
+from qoresence.vision.scorebug_crops import is_madden_profile, primary_scorebug_crop
+
+
+def pair_from_x_values(nums: list[tuple[float, int]]) -> tuple[int, int] | None:
+    """Map HUD digits ``(x_frac, value)`` to ``(home, away)``.
+
+    Away is left, home is right. Center band is clock / down / yard line —
+    a mid-split of the full Madden bar locked 7-22 from an A 22 marker.
+    """
+    if not nums:
+        return None
+    left = [(x, v) for x, v in nums if x < 0.28]
+    right = [(x, v) for x, v in nums if x > 0.72]
+    if not left or not right:
+        return None
+    away = sorted(left, key=lambda t: t[0])[-1][1]
+    home = sorted(right, key=lambda t: t[0])[0][1]
+    from qoresence.vision.scoreboard_extractor import _ScoreStabilizer
+
+    if _ScoreStabilizer._looks_suspicious_pair((home, away)):
+        return None
+    return int(home), int(away)
 
 
 def _digit_from_blob(bin_img: np.ndarray) -> int | None:
@@ -129,6 +150,38 @@ def _read_side(bin_full: np.ndarray, x0: int, x1: int) -> int | None:
     return None
 
 
+def _numbers_across(bin_full: np.ndarray) -> list[tuple[float, int]]:
+    """Classify digit blobs left→right and glue adjacent pairs into 1–2 digit scores."""
+    h, w = bin_full.shape[:2]
+    n, _labels, stats, _ = cv2.connectedComponentsWithStats(bin_full, connectivity=8)
+    digits: list[tuple[int, int, int]] = []
+    for i in range(1, n):
+        x, y, bw, bh, area = stats[i]
+        if area < 18 or bh < h * 0.35 or bw < 3:
+            continue
+        if bh / max(1, bw) < 0.7:
+            continue
+        crop = bin_full[y : y + bh, x : x + bw]
+        d = _digit_from_blob(crop)
+        if d is None:
+            continue
+        digits.append((d, x, x + bw))
+    digits.sort(key=lambda t: t[1])
+    nums: list[tuple[float, int]] = []
+    i = 0
+    while i < len(digits):
+        d0, x0, x1 = digits[i]
+        if i + 1 < len(digits) and (digits[i + 1][1] - x1) < w * 0.03:
+            val = d0 * 10 + digits[i + 1][0]
+            cx = (x0 + digits[i + 1][2]) / 2.0 / float(w)
+            nums.append((cx, val))
+            i += 2
+            continue
+        nums.append(((x0 + x1) / 2.0 / float(w), d0))
+        i += 1
+    return nums
+
+
 def read_score_pair(
     frame: np.ndarray, profile: str | object | None = None
 ) -> tuple[int, int] | None:
@@ -151,6 +204,8 @@ def read_score_pair(
     _t, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     if float(np.mean(binary)) > 127:
         binary = cv2.bitwise_not(binary)
+    if is_madden_profile(profile):
+        return pair_from_x_values(_numbers_across(binary))
     ch, cw = binary.shape[:2]
     mid = cw // 2
     pad = max(4, cw // 12)

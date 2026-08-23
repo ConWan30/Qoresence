@@ -100,7 +100,7 @@ direct `cv2.VideoCapture(0)` tests are run.
 - Qoresence currently captures at 1280x720. This is functional but may stress
 some cards; if the live feed starts lagging or `age_s` climbs, lower
 `--streamer-width` / `--streamer-height` or use `--streamer-fps 30`.
-- `qoresence.bat` defaults to `--streamer-fps 30` with A2A enabled.
+- `qoresence.bat` defaults to `--streamer-fps 60` with A2A enabled. Drop to `--streamer-fps 30` if `age_s` climbs.
 
 ## How to Verify Live Health
 
@@ -120,8 +120,10 @@ a lock-ordering / event-cascade deadlock, not the capture card.
 ## Product Focus (NON-NEGOTIABLE)
 
 Qoresence is a local-first ops console for gamers. Do not promote Streamr,
-blockchain, DePIN, or other off-box distribution as part of the core product
-story. The Streamr integration in `qoresence/streamr/` is an **experimental,
-default-OFF research plugin**. It may only graduate from experimental after the
-local pilot (capture health, VLM score lock, clips, Twitch chat) is proven.
+blockchain, DePIN, Twitch, or other off-box distribution as part of the core
+product story. Twitch IRC/Helix in `qoresence/agents/` is a **leftover,
+default-OFF module** — not a pilot gate and not a product route. The Streamr
+integration in `qoresence/streamr/` is an **experimental, default-OFF research
+plugin**. Either may only graduate after the local pilot (capture health, VLM
+score lock, local HDMI clips) is proven.
 

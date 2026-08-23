@@ -6,7 +6,7 @@ export function LiveHealthGlyph({ health }: { health: LiveHealth }) {
     <div
       data-live-health={health.tone}
       title={health.reason}
-      className="pointer-events-none absolute top-3 right-3 z-30 flex items-center gap-2 rounded-full bg-black/70 px-2.5 py-1 font-mono text-[10px] tracking-wide text-white uppercase"
+      className="pointer-events-none absolute top-3 right-3 z-20 flex items-center gap-2 rounded-sm bg-bg/80 px-2.5 py-1 font-mono text-[10px] tracking-[0.16em] text-white uppercase shadow-[var(--shadow-border)] backdrop-blur-sm"
     >
       <span
         className={cn(

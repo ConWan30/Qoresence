@@ -20,14 +20,19 @@ export function getDeckOrigin(): string {
 }
 
 export function deckMjpegUrl(): string {
-  return `${getDeckOrigin()}/video?fps=30`;
+  return `${getDeckOrigin()}/video?fps=60`;
 }
 
-/** Theater live picture: still JPEG keep-alive. MJPEG /video can sit pending with no onload. */
+/** Theater live picture: double-buffered /live.jpg. MJPEG <img> flickers
+ *  (load every part + browser buffer). Do not switch this back to mjpeg. */
 export const HDMI_LIVE_FEED = "jpeg";
 
 export function deckLiveJpgUrl(): string {
   return `${getDeckOrigin()}/live.jpg?t=${Date.now()}`;
+}
+
+export function deckLiveWsUrl(): string {
+  return `${getDeckOrigin().replace(/^http/, "ws")}/live`;
 }
 
 function candidates(): string[] {

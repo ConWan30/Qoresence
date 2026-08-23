@@ -86,44 +86,46 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4">
-        <p
-          key={throwAttempt ? "throw" : clutch.kind}
-          data-phrase="off"
-          className={cn(
-            "font-display font-extrabold leading-none tracking-tight text-live",
-            variant === "lens" ? "text-6xl sm:text-8xl" : "text-5xl sm:text-7xl",
-            "transition-opacity duration-(--motion-fast) ease-(--ease-smooth-out)",
-            phrase.live && ticketLive ? "opacity-100" : "opacity-50",
+      {variant === "lens" ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4">
+          <p
+            key={throwAttempt ? "throw" : clutch.kind}
+            data-phrase="off"
+            className={cn(
+              "font-display text-6xl font-extrabold leading-none tracking-tight text-live sm:text-8xl",
+              "transition-opacity duration-(--motion-fast) ease-(--ease-smooth-out)",
+              phrase.live && ticketLive ? "opacity-100" : "opacity-50",
+            )}
+          >
+            {throwAttempt
+              ? "—"
+              : stageMode === "replay"
+                ? "REPLAY"
+                : clutch.kind === "climax" || clutch.kind === "score_play" || clutch.kind === "window"
+                  ? clutch.label
+                  : "LIVE"}
+          </p>
+          {throwAttempt ? (
+            <p className="font-mono text-xs tracking-wide text-veto">
+              THROW forbidden · authorship
+            </p>
+          ) : clutch.kind !== "quiet" ? (
+            <p className="max-w-md text-center text-sm text-fg">{clutch.why}</p>
+          ) : heatLine ? (
+            <p className="max-w-md text-center text-sm text-fg">{heatLine}</p>
+          ) : heatVetoed ? (
+            <p className="font-mono text-xs tracking-wide text-veto">
+              heat stripped · no coupling ticket
+            </p>
+          ) : (
+            <p className="font-mono text-xs tabular-nums tracking-wide text-muted-foreground">
+              {widgetsOk ? "observation" : "plane dark"}
+            </p>
           )}
-        >
-          {throwAttempt
-            ? "—"
-            : stageMode === "replay"
-              ? "REPLAY"
-              : clutch.kind === "climax" || clutch.kind === "score_play" || clutch.kind === "window"
-                ? clutch.label
-                : "LIVE"}
-        </p>
-        {/* play-phrase lattice removed — DualSense floors OFF */}
-        {throwAttempt ? (
-          <p className="font-mono text-xs tracking-wide text-veto">
-            THROW forbidden · authorship
-          </p>
-        ) : clutch.kind !== "quiet" ? (
-          <p className="max-w-md text-center text-sm text-fg">{clutch.why}</p>
-        ) : heatLine ? (
-          <p className="max-w-md text-center text-sm text-fg">{heatLine}</p>
-        ) : heatVetoed ? (
-          <p className="font-mono text-xs tracking-wide text-veto">
-            heat stripped · no coupling ticket
-          </p>
-        ) : (
-          <p className="font-mono text-xs tabular-nums tracking-wide text-muted-foreground">
-            {widgetsOk ? "observation" : "plane dark"}
-          </p>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex-1" />
+      )}
 
       <div className="flex items-end justify-between gap-3 p-3 sm:p-4">
         {variant === "deck" ? (
@@ -139,10 +141,10 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
           className={cn(
             "max-w-[70%] truncate rounded-full px-3 py-2 font-mono text-xs tabular-nums tracking-wide shadow-[var(--shadow-border)]",
             ticketLive
-              ? "bg-live/15 text-live"
+              ? "bg-bg text-live"
               : heatVetoed
-                ? "bg-veto/15 text-veto"
-                : "bg-surface/80 text-muted-foreground",
+                ? "bg-bg text-veto"
+                : "bg-bg text-muted-foreground",
           )}
         >
           {pill}
@@ -165,7 +167,7 @@ function Chip({
     <span
       className={cn(
         "rounded-full px-2.5 py-1 font-mono text-[10px] tracking-wide uppercase shadow-[var(--shadow-border)]",
-        hot ? "bg-live/15 text-live" : cold ? "bg-veto/15 text-veto" : "bg-surface/80 text-muted-foreground",
+        hot ? "bg-bg text-live" : cold ? "bg-bg text-veto" : "bg-bg text-muted-foreground",
       )}
     >
       {children}

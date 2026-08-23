@@ -15,8 +15,8 @@ None of these leave the machine unless you explicitly enable a glass that sends 
 
 | Feature | Data sent | How to enable |
 |---------|-----------|---------------|
-| Twitch ClutchBot | Chat messages | `--clutchbot` + token |
-| Twitch clips | Clip URL to chat | `--clutchbot-enable-clips` + `clips:edit` scope |
+| Leftover Twitch IRC | Chat messages | leftover `--clutchbot-channel` + token (not the local route) |
+| Leftover Twitch Helix clips | Clip URL to chat | leftover `--clutchbot-enable-clips` + `clips:edit` (prefer local Foundry MP4) |
 | Quicksilver VLM | Scoreboard crop + metadata | `QORESENCE_QUICKSILVER_*` |
 | A2A bus | Scene description + prompt | `--a2a` |
 | Streamr | Selected events | `qoresence/streamr/`, experimental and default OFF |
