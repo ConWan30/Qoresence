@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { ROLE_LABEL, visibleAgentReceipts, type AgentReceipt } from "@/lib/coupling/agents";
+import { actuatorChips } from "@/lib/coupling/actuators.ts";
 import { clipHref } from "@/lib/coupling/clip";
 import { AGENT_COMPANION, companionDutyLine } from "@/lib/coupling/companion.ts";
 import { useTheater } from "@/lib/coupling/store";
@@ -7,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 export function AgentRail() {
   const agents = useTheater((s) => s.agents);
+  const actuators = useTheater((s) => s.actuators);
   const ticketLive = useTheater((s) => s.ticketLive);
   const heatVetoed = useTheater((s) => s.heatVetoed);
   const plane = useTheater((s) => s.agentPlane);
@@ -95,6 +97,20 @@ export function AgentRail() {
       <p className="text-xs text-muted-foreground">
         Chat only with a ticket. Digits only after a board lock. Society is opt-in.
       </p>
+      {actuatorChips(actuators).length ? (
+        <ul className="flex flex-wrap gap-1.5">
+          {actuatorChips(actuators).map((a) => (
+            <li
+              key={a.actuator}
+              data-actuator={a.actuator}
+              data-actuator-kind={a.kind}
+              className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase"
+            >
+              {a.actuator} {a.kind}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <ul className="flex flex-col gap-2">
         {visibleAgentReceipts(agents).map((a) => (
           <AgentRow key={a.role} agent={a} />

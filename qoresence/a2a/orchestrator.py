@@ -352,6 +352,32 @@ class A2AOrchestrator:
     ) -> CommitAct | Veto | None:
         """Synchronous cycle (tests / forced). Prefer maybe_trigger_from_drive live."""
         sit = situation or {}
+        try:
+            from qoresence.agents.chat_license import license_gate
+            from qoresence.sync.coupling_ticket import get_coupling_book
+            from qoresence.vision.confirm_ticket import get_ticket_book
+
+            live = get_coupling_book().latest_live()
+            confirm = get_ticket_book().latest()
+            tid = str(
+                sit.get("coupling_ticket_id")
+                or sit.get("confirm_ticket_id")
+                or getattr(live, "ticket_id", "")
+                or getattr(confirm, "ticket_id", "")
+                or ""
+            )
+            if not license_gate(
+                path=path,
+                ticket_id=tid,
+                coupling_ticket=live,
+                confirm_ticket=confirm,
+                score_vlm_locked=bool(
+                    sit.get("score_vlm_locked") or sit.get("scoreboard_locked")
+                ),
+            ):
+                return Veto(reason="license gate: ticket_id required", rejected_text="")
+        except Exception:
+            return Veto(reason="license gate: ticket_id required", rejected_text="")
         # Reset tool depth counter for this cycle (Trio P3)
         self.tools.reset_depth()
         # Attach trigger reason into scene context for agents

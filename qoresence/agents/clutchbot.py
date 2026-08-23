@@ -396,7 +396,7 @@ class ClutchBotAgent:
 
             if moment.action == "chat":
                 try:
-                    from qoresence.agents.chat_license import outbound_chat_allowed
+                    from qoresence.agents.chat_license import license_gate
                     from qoresence.sync.coupling_ticket import get_coupling_book
                     from qoresence.vision.confirm_ticket import get_ticket_book
 
@@ -405,12 +405,48 @@ class ClutchBotAgent:
                         sit = self._situation.to_dict()
                     except Exception:
                         sit = {}
-                    if not outbound_chat_allowed(
+                    live = get_coupling_book().latest_live()
+                    confirm = get_ticket_book().latest()
+                    tid = str(
+                        sit.get("coupling_ticket_id")
+                        or sit.get("confirm_ticket_id")
+                        or getattr(live, "ticket_id", "")
+                        or getattr(confirm, "ticket_id", "")
+                        or ""
+                    )
+                    if not license_gate(
                         path=path_label,
-                        coupling_ticket=get_coupling_book().latest_live(),
-                        confirm_ticket=get_ticket_book().latest(),
+                        ticket_id=tid,
+                        coupling_ticket=live,
+                        confirm_ticket=confirm,
                         score_vlm_locked=bool(
                             sit.get("score_vlm_locked") or sit.get("scoreboard_locked")
+                        ),
+                    ):
+                        continue
+                except Exception:
+                    continue
+
+            if moment.action == "clip":
+                try:
+                    from qoresence.agents.actuators import arm_allowed
+
+                    pl = moment.payload if isinstance(moment.payload, dict) else {}
+                    sit = {}
+                    try:
+                        sit = self._situation.to_dict()
+                    except Exception:
+                        sit = {}
+                    climax = float(pl.get("climax") or sit.get("climax_score") or 0.0)
+                    if not arm_allowed(
+                        climax=climax,
+                        locked_score_delta=bool(
+                            pl.get("score_changed")
+                            or sit.get("score_changed")
+                            or sit.get("locked_score_delta")
+                        ),
+                        operator_post=bool(
+                            pl.get("operator_post") or pl.get("operator_clip")
                         ),
                     ):
                         continue

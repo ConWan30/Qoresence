@@ -260,6 +260,12 @@ class DeckState:
             )
         except Exception:
             pass
+        try:
+            from qoresence.agents.actuators import actuators_health
+
+            out["actuators"] = actuators_health(out)
+        except Exception:
+            out["actuators"] = {"registry": [], "receipts": []}
         return out
 
 
@@ -992,6 +998,12 @@ def create_app():  # type: ignore[no-untyped-def]
             body["companion"] = snapshot_companion()
         except Exception:
             body["companion"] = {"ok": False, "auto_clip": True, "plane": "qoresence-observation"}
+        try:
+            from qoresence.agents.actuators import actuators_health
+
+            body["actuators"] = actuators_health(body)
+        except Exception:
+            body["actuators"] = {"registry": [], "receipts": []}
         return JSONResponse(body)
 
     @app.get("/api/situation")

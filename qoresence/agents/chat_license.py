@@ -22,3 +22,22 @@ def outbound_chat_allowed(
     if kind == "confirm":
         return confirm_ticket is not None or bool(score_vlm_locked)
     return False
+
+
+def license_gate(
+    *,
+    path: str,
+    ticket_id: str = "",
+    coupling_ticket: Any | None = None,
+    confirm_ticket: Any | None = None,
+    score_vlm_locked: bool = False,
+) -> bool:
+    """Phase 3: no Quicksilver / A2A call without a ticket_id."""
+    if not str(ticket_id or "").strip():
+        return False
+    return outbound_chat_allowed(
+        path=path,
+        coupling_ticket=coupling_ticket,
+        confirm_ticket=confirm_ticket,
+        score_vlm_locked=score_vlm_locked,
+    )
