@@ -21,7 +21,7 @@ from qoresence.core import (
     SessionAuthority,
     StreamerConfig,
 )
-from qoresence.lobes.streamer import StreamerRuntime, ZoneSpec
+from qoresence.lobes.streamer import StreamerRuntime, ZoneSpec, apply_low_latency_capture
 
 
 class FakeCapture:
@@ -145,8 +145,12 @@ class TestStreamerRuntime:
             runtime.stop()
             bus.close()
 
+    @patch("qoresence.lobes.streamer.list_dshow_devices", return_value=[
+        (0, "USB3.0 Video", True, "dshow"),
+    ])
+    @patch("qoresence.lobes.streamer._get_dshow_device_name", return_value="USB3.0 Video")
     @patch("qoresence.lobes.streamer.cv2.VideoCapture")
-    def test_eye_check_snapshot_saved(self, mock_cap_class):
+    def test_eye_check_snapshot_saved(self, mock_cap_class, _name, _devs):
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = Path(td) / "events.jsonl"
             bus = RetinaEventBus(session_id="eye_test", jsonl_path=jsonl_path, enable_ws=False)
@@ -155,6 +159,7 @@ class TestStreamerRuntime:
             config = StreamerConfig(
                 enabled=True,
                 device_index=0,
+                device_name="USB3.0 Video",
                 eye_check_required=True,
                 snapshot_path=str(Path(td) / "eye_check.png"),
             )
@@ -177,6 +182,34 @@ class TestStreamerRuntime:
             snap_path = Path(td) / "eye_check.png"
             assert snap_path.exists(), "Eye-check snapshot not saved"
 
+            bus.close()
+
+    @patch("qoresence.lobes.streamer.list_dshow_devices", return_value=[
+        (0, "USB Video Device", False, "dshow"),
+        (1, "720p HD Camera", False, "dshow"),
+    ])
+    @patch("qoresence.lobes.streamer.cv2.VideoCapture")
+    def test_unplugged_card_never_opens_webcam(self, mock_cap_class, _devs):
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="privacy_test", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="privacy_test")
+            config = StreamerConfig(
+                enabled=True,
+                device_index=0,
+                device_name="USB3.0 Video",
+                eye_check_required=True,
+                snapshot_path=str(Path(td) / "eye_check.png"),
+            )
+            runtime = StreamerRuntime(
+                config=config,
+                bus=bus,
+                session_head_ns=identity.session_head_ns,
+            )
+            assert runtime.start() is True
+            mock_cap_class.assert_not_called()
+            assert not Path(td, "eye_check.png").exists()
+            runtime.stop()
             bus.close()
 
     @patch("qoresence.lobes.streamer.cv2.VideoCapture")
@@ -490,6 +523,13 @@ class TestZoneSpec:
         assert zone.height == 0.4
 
 
+class TestLowLatencyCapture:
+    def test_apply_low_latency_sets_buffer_size_one(self):
+        cap = FakeCapture(_make_test_frames(1))
+        apply_low_latency_capture(cap)
+        assert cap.get(38) == 1  # cv2.CAP_PROP_BUFFERSIZE
+
+
 class TestStreamerConfigDefaults:
     """Tests for StreamerConfig defaults."""
 
@@ -545,6 +585,112 @@ class TestStreamerHardening:
             assert len(heartbeats) >= 1, "watchdog should emit at least one heartbeat while stalled"
 
             bus.close()
+
+    def test_watchdog_tick_releases_lock_before_emit_and_rebind(self):
+        """Watchdog must not hold the streamer lock across heartbeat or DShow rebind.
+
+        Same-thread RLock would hide this; a peer thread must be able to
+        acquire the lock while emit/rebind run (otherwise the capture loop
+        cannot record last_success_frame_time and LIVE freezes).
+        """
+        import threading
+
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(
+                session_id="test_session", jsonl_path=jsonl_path, enable_ws=False
+            )
+            identity = SessionAuthority.mint(session_id="test_session")
+            runtime = StreamerRuntime(
+                config=StreamerConfig(enabled=True, device_index=0, eye_check_required=False),
+                bus=bus,
+                session_head_ns=identity.session_head_ns,
+            )
+            runtime._last_success_frame_time = time.time() - 10.0
+            peer_got_lock: list[bool] = []
+
+            def _peer_try_lock() -> None:
+                ok = runtime._lock.acquire(blocking=False)
+                peer_got_lock.append(ok)
+                if ok:
+                    runtime._lock.release()
+
+            def _probe(_now: float | None = None) -> bool:
+                t = threading.Thread(target=_peer_try_lock)
+                t.start()
+                t.join()
+                return False
+
+            runtime._emit_heartbeat = _probe  # type: ignore[method-assign]
+            runtime._try_rebind_capture = _probe  # type: ignore[method-assign]
+            runtime._watchdog_tick(time.time())
+            assert peer_got_lock == [True, True], (
+                "watchdog held streamer lock during heartbeat/rebind — "
+                f"peer acquire results={peer_got_lock}"
+            )
+            bus.close()
+
+    def _runtime(self, fps_target: float = 30.0) -> tuple[StreamerRuntime, RetinaEventBus]:
+        td = tempfile.TemporaryDirectory()
+        bus = RetinaEventBus(
+            session_id="lag_test",
+            jsonl_path=Path(td.name) / "events.jsonl",
+            enable_ws=False,
+        )
+        identity = SessionAuthority.mint(session_id="lag_test")
+        runtime = StreamerRuntime(
+            config=StreamerConfig(
+                enabled=True,
+                device_index=0,
+                fps_target=fps_target,
+                eye_check_required=False,
+            ),
+            bus=bus,
+            session_head_ns=identity.session_head_ns,
+        )
+        runtime._tmp = td  # keep temp dir alive  # type: ignore[attr-defined]
+        runtime._emit_heartbeat = lambda _now: None  # type: ignore[method-assign]
+        return runtime, bus
+
+    def test_watchdog_does_not_drop_fps_or_rebind_on_short_hitch(self):
+        """A 2.3s timed-read hitch must not cap LIVE at 15fps or rebind DShow.
+
+        Production lag (2026-08-22): watchdog saw stall 2.3s, halved 30→15,
+        then rebound a healthy USB3.0 card (device busy / first-frame fail).
+        """
+        runtime, bus = self._runtime(30.0)
+        runtime._effective_fps = 30.0
+        runtime._last_success_frame_time = time.time() - 2.3
+        rebound = {"n": 0}
+        runtime._try_rebind_capture = lambda: rebound.__setitem__("n", rebound["n"] + 1) or False  # type: ignore[method-assign]
+        runtime._watchdog_tick(time.time())
+        assert runtime._effective_fps == 30.0
+        assert rebound["n"] == 0
+        bus.close()
+
+    def test_watchdog_restores_target_fps_when_frames_resume(self):
+        runtime, bus = self._runtime(30.0)
+        runtime._effective_fps = 15.0
+        runtime._last_success_frame_time = time.time()
+        runtime._try_rebind_capture = lambda: False  # type: ignore[method-assign]
+        runtime._watchdog_tick(time.time())
+        assert runtime._effective_fps == 30.0
+        bus.close()
+
+    def test_read_frame_uses_latest_grab_without_blocking_on_cap(self):
+        """LIVE must publish the newest grab slot, not wait on cap.read()."""
+        runtime, bus = self._runtime(30.0)
+        frame = np.full((16, 16, 3), 80, dtype=np.uint8)
+        runtime._grab_alive = True
+        runtime._last_consumed_grab_ts = 0.0
+        runtime._grab_ts = time.monotonic()
+        runtime._grab_latest = frame
+        runtime._cap = None  # would fail if we fell back to timed_read
+        ok, out = runtime._read_frame()
+        assert ok is True
+        assert out is not None
+        assert int(out[0, 0, 0]) == 80
+        bus.close()
 
 
 if __name__ == "__main__":

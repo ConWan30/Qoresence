@@ -2,7 +2,8 @@
 Qoresence Agents — optional autonomous consumers of observation events.
 
 ClutchBot is the first agent: a controller-coupled, game-state-aware
-Twitch chat companion that posts at clutch moments.
+companion that posts clutch moments to Deck feed and local HDMI clips.
+Twitch IRC/Helix backends are leftover and default-OFF.
 """
 
 from .action_executor import ActionExecutor

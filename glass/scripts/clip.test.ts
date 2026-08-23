@@ -119,13 +119,17 @@ test("clutchbot moment with url+name is a playable media path", () => {
   assert.match(clipHref(m!.url || ""), /\/media\/clips\/hdmi_clip_live\.mp4$/);
 });
 
-test("clutch chip without url still plays last HDMI clip", () => {
-  const href = momentPlayHref(
-    { key: "clutch:window:red zone", title: "CLUTCH WINDOW · red zone", icon: "⚡" },
-    "http://127.0.0.1:8765/media/clips/hdmi_clip_live.mp4",
+test("clutch chip without its own file does not borrow last HDMI clip", () => {
+  const last = "http://127.0.0.1:8765/media/clips/hdmi_clip_live.mp4";
+  assert.equal(
+    momentPlayHref({ key: "clutch:window:red zone", title: "CLUTCH WINDOW · red zone", icon: "⚡" }, last),
+    "",
   );
-  assert.equal(href, "http://127.0.0.1:8765/media/clips/hdmi_clip_live.mp4");
-  assert.equal(momentPlayHref({ key: "chat:hello", title: "nice throw" }, href), "");
+  assert.equal(momentPlayHref({ key: "chat:hello", title: "nice throw" }, last), "");
+  assert.match(
+    momentPlayHref({ url: "/media/clips/hdmi_clip_own.mp4", name: "hdmi_clip_own.mp4" }, last),
+    /\/media\/clips\/hdmi_clip_own\.mp4$/,
+  );
 });
 
 test("disk clip list skips sidecars and builds playable hrefs", () => {

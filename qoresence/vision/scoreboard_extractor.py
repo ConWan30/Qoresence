@@ -331,6 +331,9 @@ class FootballScoreboardExtractor:
             "true",
             "yes",
         }
+        # Heavy OCR (Paddle/EasyOCR) is opt-in. Running it on this tick blocks
+        # the streamer subscriber path — LIVE freezes, age_s climbs, rebind loop.
+        # Engine warmup is kicked once from __init__, never from this hot path.
         env_home_left = _os_ocr.environ.get("QORESENCE_SCOREBOARD_HOME_LEFT", "").strip().lower()
         home_left: bool
         if env_home_left in {"1", "true", "yes", "on"}:
@@ -364,9 +367,14 @@ class FootballScoreboardExtractor:
             parsed = self._parse(tokens, home_left=home_left)
             big = self._parse_large_score_pair(tokens, home_left=home_left)
             if big is not None:
-                parsed["home_score"], parsed["away_score"] = big
-                if is_paused:
-                    log.debug("scoreboard pause-menu large pair %s-%s", big[0], big[1])
+                # Pause-menu 20|0 helper. Do not replace a team-anchored MNP/Madden
+                # board with the far-right yard line (21-7 vs 21-37).
+                team_locked = bool(parsed.get("home_team_raw") and parsed.get("away_team_raw"))
+                have_pair = parsed.get("home_score") is not None and parsed.get("away_score") is not None
+                if not (team_locked and have_pair):
+                    parsed["home_score"], parsed["away_score"] = big
+                    if is_paused:
+                        log.debug("scoreboard pause-menu large pair %s-%s", big[0], big[1])
 
         # Merge VLM referee (higher trust for gaming fonts)
         vlm_scores = False
@@ -658,6 +666,8 @@ class FootballScoreboardExtractor:
         right = top[-1]
         if abs(left[1] - right[1]) < 0.08:
             return None
+        if right[1] > 0.78 and left[1] < 0.45:
+            return None
         # Reject same-digit double-count when right is a badge (tiny area, same val)
         pair = (right[2], left[2])
         if left[2] == right[2] and right[0] < left[0] * 0.35:
@@ -758,7 +768,10 @@ class FootballScoreboardExtractor:
         parsed: dict[str, Any] = {}
 
         # Keep tokens in the scoreboard band, drop overlay/ticker rows.
+        # Thin Madden / MNP strips put glyphs on the crop edge (y < 0.20).
         band = [t for t in tokens if 0.20 <= t.y <= 0.85]
+        if not band:
+            band = list(tokens)
         if not band:
             return parsed
 
@@ -781,6 +794,9 @@ class FootballScoreboardExtractor:
             elif has_digit and not has_alpha:
                 numeric_clusters.append(c)
             elif has_alpha and has_digit:
+                if re.match(r"^\d(?:st|nd|rd|th)$", text, re.IGNORECASE):
+                    numeric_clusters.append(c)
+                    continue
                 # Mixed: split rank+team OR peel score digits off team names
                 rank_team = re.match(r"^(\d+)\s+([A-Za-z].*)$", text)
                 team_score = re.match(r"^([A-Za-z][A-Za-z\s]+?)\s+(\d{1,2})$", text)
@@ -917,6 +933,10 @@ class FootballScoreboardExtractor:
             if val is None or val > 30:
                 return False
             for team in team_clusters:
+                letters = re.sub(r"[^A-Za-z]", "", team.text)
+                # NFL / Madden abbrevs (NO, CLE, KC) sit next to scores, not AP ranks.
+                if len(letters) <= 3:
+                    continue
                 # Rank is usually LEFT of team name (e.g. "5 LOUISVILLE")
                 if 0 < (team.x - c.x) < 0.14 and abs(c.y - team.y) < 0.10:
                     return True
@@ -926,6 +946,32 @@ class FootballScoreboardExtractor:
 
         home_score: int | None = None
         away_score: int | None = None
+
+        def _neighbor_score(team: _Cluster, cands: list[_Cluster]) -> int | None:
+            """Digit hugging a club token — not the far-right yard line."""
+            near: list[tuple[float, int]] = []
+            for c in cands:
+                if abs(c.y - team.y) > 0.12:
+                    continue
+                dx = abs(c.x - team.x)
+                if dx < 0.02 or dx > 0.18:
+                    continue
+                val = self._parse_int(c.text)
+                if val is None or val > 99:
+                    continue
+                near.append((dx, val))
+            if not near:
+                return None
+            near.sort(key=lambda t: t[0])
+            return near[0][1]
+
+        # MNP / broadcast bar: NO 21 … 7 CLE … 2ND … 37. Both clubs sit left;
+        # the rightmost integer is field position. Prefer digits hugging teams.
+        if left_team and right_team and left_team is not right_team:
+            away_n = _neighbor_score(left_team, candidates)
+            home_n = _neighbor_score(right_team, candidates)
+            if away_n is not None and home_n is not None and away_n != home_n:
+                away_score, home_score = away_n, home_n
 
         def _best_score(cands: list[_Cluster], prefer_right: bool) -> int | None:
             """Prefer higher-confidence, multi-digit scores over flaky single digits."""
@@ -969,7 +1015,7 @@ class FootballScoreboardExtractor:
             and (self._parse_int(c.text) or -1) >= 7
             and not (0.40 <= c.x <= 0.60 and _normalize_clock(c.text))
         ]
-        if multi_left and multi_right:
+        if multi_left and multi_right and (away_score is None or home_score is None):
             away_score = _best_score(multi_left, prefer_right=False)
             home_score = _best_score(multi_right, prefer_right=True)
 
@@ -1052,6 +1098,9 @@ class FootballScoreboardExtractor:
             # Highest value confidence proxy: prefer >=10, then rightmost/leftmost
             lh = max(left, key=lambda n: (n[0] >= 10, n[0], -abs(n[1] - 0.25)))
             rh = max(right, key=lambda n: (n[0] >= 10, n[0], -abs(n[1] - 0.75)))
+            # MNP / Madden: far-right 1–50 is field position (A 22, ▼ 37), not home.
+            if rh[1] > 0.78 and lh[1] < 0.45:
+                return None
             # left-of-center is away, right-of-center is home
             pair = (rh[0], lh[0])
             if home_left:

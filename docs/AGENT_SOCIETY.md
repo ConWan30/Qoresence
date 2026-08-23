@@ -57,7 +57,7 @@ python -m qoresence.cli --society-propose-cuts
 
 | Layer | Purpose |
 |-------|---------|
-| ClutchBot | Live Twitch acts (fast/confirm) |
+| ClutchBot | Live Deck / clutch-feed acts (fast/confirm) |
 | A2A | Sparse scene↔chat negotiate under policy |
 | Agent Society | Ops agents: warden, auditor, coach, editor |
 | AgentGlass/MCP | Tool socket for external IDEs/agents |

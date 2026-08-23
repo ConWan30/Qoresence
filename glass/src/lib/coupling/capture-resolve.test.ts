@@ -53,6 +53,23 @@ test("OBS VCam only when opted in", () => {
   assert.equal(on?.name, "OBS Virtual Camera");
 });
 
+test("unplugged never binds generic USB Video Device", () => {
+  const devices = [row(0, "USB Video Device"), row(1, "OBS Virtual Camera")];
+  const got = resolveCaptureDevice(devices, {
+    requestedIndex: 0,
+    preferName: "USB3.0 Video",
+    allowObsVcam: false,
+  });
+  assert.equal(got, null);
+  assert.equal(isAllowedCaptureName("USB Video Device"), false);
+});
+
+test("unknown and laptop names are not capture cards", () => {
+  for (const name of ["Logitech BRIO", "HP Wide Vision", "USB2.0 HD UVC Device", "Something"]) {
+    assert.equal(isAllowedCaptureName(name), false, name);
+  }
+});
+
 test("empty name is refused", () => {
   assert.equal(isAllowedCaptureName(""), false);
   assert.equal(isAllowedCaptureName(null), false);

@@ -25,6 +25,7 @@ CFB_SCOREBUG_CROPS: tuple[tuple[float, float, float, float], ...] = (
 MADDEN_SCOREBUG_CROPS: tuple[tuple[float, float, float, float], ...] = (
     (0.00, 1.00, 0.93, 1.00),  # primary white HUD strip (full width)
     (0.00, 1.00, 0.92, 1.00),  # 1% pad (one clip row measured 0.9167)
+    (0.00, 1.00, 0.86, 1.00),  # MNP / broadcast overlay sits above 0.93
     (0.30, 0.70, 0.18, 0.55),  # inherited pause fallback
     (0.18, 0.82, 0.12, 0.42),  # inherited wider pause fallback
 )

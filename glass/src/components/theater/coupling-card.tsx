@@ -18,7 +18,7 @@ export function CouplingCard() {
   const heat = ticketLive ? "licensed" : heatVetoed ? "veto" : "quiet";
 
   return (
-    <section className={"flex flex-col gap-3 rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]" + (widgetsOk ? "" : " opacity-0")}>
+    <section className={"holo-plate flex flex-col gap-3 rounded-xl p-4" + (widgetsOk ? "" : " opacity-0")}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
           Coupling

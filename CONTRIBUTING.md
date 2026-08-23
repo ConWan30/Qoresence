@@ -38,7 +38,7 @@ New lobes start `enabled=False` and must be opt-in via CLI flag or config.
 - R1: Never emit an event while holding a re-entrant `RLock`.
 - R2: Use a TLS re-entrancy guard before any recursive fanout.
 - R3: Presence / fusion fanout happens outside the `RLock`.
-- R4: Slow glasses (AgentGlass, MCP, Twitch, Streamr) cannot block streamer, watchdog, or IVC.
+- R4: Slow glasses (AgentGlass, MCP, leftover Twitch, Streamr) cannot block streamer, watchdog, or IVC.
 
 If `health.video.age_s` climbs, assume a lock-ordering bug before blaming the card.
 

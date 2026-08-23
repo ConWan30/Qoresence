@@ -2,8 +2,8 @@
 
 @theme {
   --color-bg: #050a08;
-  --color-surface: #0c1612;
-  --color-subtle: #122018;
+  --color-surface: #08140f;
+  --color-subtle: #0e2018;
   --color-fg: #e8f2ec;
   --color-foreground: #e8f2ec;
   --color-muted-foreground: #8ea396;
@@ -11,19 +11,22 @@
   --color-primary: #c6f26a;
   --color-primary-foreground: #050a08;
   --color-border: color-mix(in oklab, #c6f26a 14%, transparent);
-  --color-ring: #4fe0d4;
-  --color-field: #17332b;
+  --color-ring: #c6f26a;
+  --color-field: #0a1610;
   --color-live: #c6f26a;
   --color-sync: #4fe0d4;
   --color-fast: #ffc14a;
   --color-veto: #ff7d91;
-  --color-card: #0c1612;
+  --color-photon: #8ea396;
+  --color-flare: #c6f26a;
+  --color-iris: #4fe0d4;
+  --color-card: #08140f;
   --color-card-foreground: #e8f2ec;
   --color-background: #050a08;
   --color-muted: #8ea396;
 
-  --font-display: "Syne", "IBM Plex Sans", system-ui, sans-serif;
-  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Syne", "Sora", system-ui, sans-serif;
+  --font-sans: "Sora", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
 
   --radius-xs: 4px;
@@ -34,9 +37,11 @@
   --radius: 12px;
 
   --shadow-border: 0 0 0 1px color-mix(in oklab, #c6f26a 14%, transparent);
-  --shadow-border-hover: 0 0 0 1px color-mix(in oklab, #4fe0d4 32%, transparent);
-  --shadow-live: 0 0 28px color-mix(in oklab, #c6f26a 18%, transparent);
-  --shadow-sync: 0 0 22px color-mix(in oklab, #4fe0d4 22%, transparent);
+  --shadow-border-hover: 0 0 0 1px color-mix(in oklab, #c6f26a 42%, transparent);
+  --shadow-live: 0 0 28px color-mix(in oklab, #c6f26a 28%, transparent);
+  --shadow-sync: 0 0 22px color-mix(in oklab, #4fe0d4 18%, transparent);
+  --holo-x: 0;
+  --holo-y: 0;
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -66,9 +71,9 @@
     font-family: var(--font-sans);
     line-height: 1.5;
     background:
-      radial-gradient(900px 520px at 72% -12%, rgba(79, 224, 212, 0.1), transparent 65%),
-      radial-gradient(720px 520px at -12% 20%, rgba(198, 242, 106, 0.08), transparent 64%),
-      var(--color-bg);
+      radial-gradient(980px 520px at calc(92% + var(--holo-x, 0) * 4%) calc(-12% + var(--holo-y, 0) * 3%), rgba(79, 224, 212, 0.11), transparent 58%),
+      radial-gradient(760px 560px at calc(-10% + var(--holo-x, 0) * 3%) calc(8% + var(--holo-y, 0) * 4%), rgba(198, 242, 106, 0.07), transparent 55%),
+      linear-gradient(180deg, #07110c 0%, var(--color-bg) 26%, #06140f 100%);
   }
 
   body::before {
@@ -77,12 +82,28 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.28;
-    background-image:
-      linear-gradient(rgba(190, 214, 232, 0.045) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(190, 214, 232, 0.045) 1px, transparent 1px);
-    background-size: 48px 48px;
-    mask-image: linear-gradient(to bottom, black, transparent 85%);
+    opacity: 0.16;
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 47px,
+      rgba(198, 242, 106, 0.07) 48px
+    );
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.1;
+    background: repeating-linear-gradient(
+      -18deg,
+      transparent 0 11px,
+      color-mix(in oklab, #c6f26a 9%, transparent) 11px 12px
+    );
+    mix-blend-mode: screen;
   }
 
   #root {
@@ -123,6 +144,284 @@ html.obs-lens body {
   background: transparent !important;
 }
 
-html.obs-lens body::before {
+html.obs-lens body::before,
+html.obs-lens body::after {
   display: none;
+}
+
+/* Luma expand is in clip_buffer._publish_live. Never filter this <img> —
+   contrast/brightness on JPEG blocks made Theater look specky. */
+.hdmi-picture {
+  image-rendering: auto;
+}
+
+.holo-deck {
+  --holo-x: 0;
+  --holo-y: 0;
+}
+
+.holo-plate {
+  position: relative;
+  background:
+    linear-gradient(165deg, color-mix(in oklab, #c6f26a 8%, transparent), transparent 42%),
+    var(--color-surface);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, #c6f26a 18%, transparent),
+    0 18px 40px color-mix(in oklab, #000 70%, transparent);
+}
+
+.holo-plinth {
+  position: relative;
+  isolation: isolate;
+  padding: 2px;
+  background:
+    conic-gradient(
+      from calc(210deg + var(--holo-x, 0) * 18deg),
+      #c6f26a,
+      #4fe0d4,
+      #050a08,
+      #c6f26a,
+      #4fe0d4,
+      #c6f26a
+    );
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, #c6f26a 28%, transparent),
+    0 28px 60px color-mix(in oklab, #c6f26a 14%, transparent);
+}
+
+.holo-plinth::before {
+  content: "";
+  position: absolute;
+  inset: -14px -10px -22px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, #c6f26a 18%, transparent), transparent 42%),
+    color-mix(in oklab, #4fe0d4 8%, transparent);
+  transform: perspective(1200px) rotateX(calc(var(--holo-y, 0) * -8deg))
+    rotateY(calc(var(--holo-x, 0) * 10deg)) translateZ(-40px);
+  filter: blur(0.5px);
+  opacity: 0.55;
+}
+
+.holo-plinth[data-holo-tone="amber"] {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, #ffc14a 32%, transparent),
+    0 20px 44px color-mix(in oklab, #000 62%, transparent);
+}
+
+.holo-plinth[data-holo-tone="red"] {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, #ff7d91 55%, transparent),
+    0 20px 50px color-mix(in oklab, #ff7d91 22%, transparent);
+}
+
+.holo-plinth-well {
+  position: relative;
+  overflow: hidden;
+  background: #050a08;
+}
+
+/* Clutch lamp stays neon crimson — chrome + well inset only. Never filter the JPEG. */
+.holo-plinth-well::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 0 transparent;
+}
+
+.holo-plinth[data-clutch="near"] {
+  animation: clutch-rim-near 1.35s ease-in-out infinite;
+}
+
+.holo-plinth[data-clutch="hot"] {
+  animation: clutch-rim-hot 0.72s ease-in-out infinite;
+}
+
+.holo-plinth[data-clutch="near"] .holo-plinth-well::after {
+  animation: clutch-well-near 1.35s ease-in-out infinite;
+}
+
+.holo-plinth[data-clutch="hot"] .holo-plinth-well::after {
+  animation: clutch-well-hot 0.72s ease-in-out infinite;
+}
+
+@keyframes clutch-rim-near {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, #ff1238 42%, transparent),
+      0 18px 42px color-mix(in oklab, #ff1238 18%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, #ff1238 78%, transparent),
+      0 0 36px color-mix(in oklab, #ff1238 46%, transparent),
+      0 24px 64px color-mix(in oklab, #ff1238 32%, transparent);
+  }
+}
+
+@keyframes clutch-rim-hot {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px #ff1238,
+      0 0 28px color-mix(in oklab, #ff1238 48%, transparent),
+      0 22px 56px color-mix(in oklab, #ff1238 28%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px #ff1238,
+      0 0 54px color-mix(in oklab, #ff1238 72%, transparent),
+      0 18px 72px color-mix(in oklab, #ff1238 44%, transparent);
+  }
+}
+
+@keyframes clutch-well-near {
+  0%,
+  100% {
+    box-shadow: inset 0 0 28px 3px color-mix(in oklab, #ff1238 20%, transparent);
+  }
+  50% {
+    box-shadow: inset 0 0 52px 10px color-mix(in oklab, #ff1238 46%, transparent);
+  }
+}
+
+@keyframes clutch-well-hot {
+  0%,
+  100% {
+    box-shadow: inset 0 0 36px 6px color-mix(in oklab, #ff1238 36%, transparent);
+  }
+  50% {
+    box-shadow: inset 0 0 68px 16px color-mix(in oklab, #ff1238 62%, transparent);
+  }
+}
+
+.holo-header {
+  background: color-mix(in oklab, #050a08 90%, #08140f);
+  border-bottom: 1px solid color-mix(in oklab, #c6f26a 14%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.stream-key {
+  border-radius: 10px;
+  border: 1px solid color-mix(in oklab, #c6f26a 16%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, #e8f2ec 8%, transparent), transparent 40%),
+    #0e2018;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, #e8f2ec 12%, transparent),
+    0 6px 0 #000,
+    0 10px 18px color-mix(in oklab, #000 80%, transparent);
+}
+
+.stream-key-live {
+  color: #050a08;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, #fff 18%, transparent), transparent 38%),
+    #c6f26a;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, #fff 28%, transparent),
+    0 6px 0 #5a7a22,
+    0 0 22px color-mix(in oklab, #c6f26a 42%, transparent);
+}
+
+.stream-key-clip {
+  color: #050a08;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, #fff 22%, transparent), transparent 40%),
+    #4fe0d4;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, #fff 40%, transparent),
+    0 6px 0 #1d6e68,
+    0 0 20px color-mix(in oklab, #4fe0d4 22%, transparent);
+}
+
+.holo-tally {
+  letter-spacing: 0.18em;
+}
+
+.holo-tally-lamp {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.holo-tally-air {
+  color: #c6f26a;
+  background: color-mix(in oklab, #c6f26a 14%, transparent);
+}
+
+.holo-tally-standby {
+  color: #5d7166;
+  background: color-mix(in oklab, #8ea396 8%, transparent);
+}
+
+.holo-tally-stall {
+  color: #ff7d91;
+  background: color-mix(in oklab, #ff7d91 10%, transparent);
+}
+
+.signal-prism {
+  height: 5px;
+  overflow: hidden;
+  background: color-mix(in oklab, #4fe0d4 8%, #050a08);
+}
+
+.signal-prism-fill {
+  height: 100%;
+  transition: width 180ms var(--ease-out);
+  background: linear-gradient(90deg, #050a08, #4fe0d4, #c6f26a);
+}
+
+.signal-prism-fill.is-hold {
+  background: linear-gradient(90deg, #5d7166, #8ea396);
+}
+
+.signal-prism-fill.is-stall {
+  background: #ff7d91;
+}
+
+.holo-mark {
+  background: conic-gradient(from 200deg, #c6f26a, #4fe0d4, #c6f26a);
+  color: #050a08;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .holo-plinth::before {
+    transform: none;
+  }
+
+  .holo-plinth[data-clutch="near"],
+  .holo-plinth[data-clutch="hot"],
+  .holo-plinth[data-clutch="near"] .holo-plinth-well::after,
+  .holo-plinth[data-clutch="hot"] .holo-plinth-well::after {
+    animation: none;
+  }
+
+  .holo-plinth[data-clutch="near"] {
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, #ff1238 70%, transparent),
+      0 20px 48px color-mix(in oklab, #ff1238 28%, transparent);
+  }
+
+  .holo-plinth[data-clutch="hot"] {
+    box-shadow:
+      0 0 0 3px #ff1238,
+      0 0 40px color-mix(in oklab, #ff1238 55%, transparent);
+  }
+
+  .holo-plinth[data-clutch="near"] .holo-plinth-well::after {
+    box-shadow: inset 0 0 40px 8px color-mix(in oklab, #ff1238 38%, transparent);
+  }
+
+  .holo-plinth[data-clutch="hot"] .holo-plinth-well::after {
+    box-shadow: inset 0 0 56px 12px color-mix(in oklab, #ff1238 52%, transparent);
+  }
 }

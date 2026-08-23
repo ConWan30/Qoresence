@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { HDMI_LIVE_FEED } from "./qoresence-deck.ts";
-import { HDMI_JPEG_KEEP, hdmiPictureVisible } from "./hdmi-picture.ts";
+import {
+  HDMI_JPEG_KEEP,
+  HDMI_JPEG_OVERLAP,
+  HDMI_JPEG_PUMP_MS,
+  HDMI_JPEG_PUSH,
+  hdmiPictureVisible,
+} from "./hdmi-picture.ts";
 
 test("picture stays up when JPEG arrived even if livePaint flickers", () => {
   assert.equal(hdmiPictureVisible(true, true), true);
@@ -17,4 +23,10 @@ test("picture hides only when no JPEG has arrived", () => {
 test("hygiene marker is the ship token", () => {
   assert.equal(HDMI_JPEG_KEEP, "hdmiJpegKeep");
   assert.equal(HDMI_LIVE_FEED, "jpeg");
+});
+
+test("JPEG pump does not add a display delay", () => {
+  assert.ok(HDMI_JPEG_PUMP_MS <= 16);
+  assert.equal(HDMI_JPEG_OVERLAP, true);
+  assert.equal(HDMI_JPEG_PUSH, true);
 });

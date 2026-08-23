@@ -2,11 +2,12 @@
 
 ## Overview
 
-Qoresence is a local **capture → situation → stream** pipeline. It ingests game
-events, screen context, and optionally video/HID, then produces a structured
-situation model used by **ClutchBot** for Twitch chat, clips, predictions, and
-viewer panels. The trio-retina / fusion layers are kept as optional research
-paths but are not part of the ClutchBot MVP.
+Qoresence is a local **capture → situation → operator glass** pipeline. It
+ingests game events, screen context, and optionally video/HID, then produces a
+structured situation model used by **ClutchBot** for Deck feed and local HDMI
+clips. Twitch IRC/Helix in `qoresence/agents/` is leftover code, default-OFF,
+and not a product route. The trio-retina / fusion layers are optional research
+paths and are not part of the local ClutchBot path.
 
 ## Plane Separation
 
@@ -14,7 +15,7 @@ paths but are not part of the ClutchBot MVP.
 |-------|----------------|-------------------|
 | **Capture** | Video, HID, screen, game events, visual context | Enabled per-lobe by operator |
 | **Situation** | Rolling score, state, APM, last outcomes | `SituationModel` |
-| **Stream/Social** | Twitch chat, clips, predictions, viewer panel | **ClutchBot** |
+| **Clutch (local)** | Deck feed + local HDMI clips | **ClutchBot** (`deck_feed`; Twitch leftover) |
 | **Observation/OTel** | Causal bus traces, coupling/controller metrics, clip sidecars | `--otel` opt-in, local OTLP only |
 
 **Qoresence (ClutchBot MVP) never:**
@@ -146,8 +147,8 @@ All events emitted to `RetinaEventBus` must carry:
 - Broadcasts all events to connected clients
 - Consumers:
   - `tools/obs/presence_overlay.html` (OBS Browser Source)
-  - `tools/twitch-extension/panel.html` (Twitch Extension / Browser Source)
-  - `ClutchBot` agent
+  - `ClutchBot` agent (Deck feed)
+  - leftover: `tools/twitch-extension/panel.html` (not a product route)
 
 ### OpenTelemetry / observability (`qoresence/observability/otel.py`) — Optional
 
@@ -175,7 +176,9 @@ cascade deadlocks before they lock the process.
 
 ## ClutchBot (`qoresence/agents/`)
 
-ClutchBot is the default consumer of the event bus for the Twitch MVP.
+ClutchBot is the default consumer of the event bus for the **local** path:
+Deck feed + HDMI Foundry clips. Twitch IRC / Helix / EventSub backends remain
+in the tree as leftover, default-OFF modules.
 
 ```
 ┌───────────────┐
@@ -185,14 +188,14 @@ ClutchBot is the default consumer of the event bus for the Twitch MVP.
 │ SituationModel│  rolling game state
 │ MomentScorer  │  clutch-moment rules
 │ ActionExecutor│  pluggable backends
-│ TwitchIRC     │  chat + commands
-│ TwitchHelix   │  clips, predictions
-│ TwitchEventSub│  follow/sub/redemption alerts
+│ DeckFeed      │  local live path
+│ LocalClips    │  HDMI Foundry MP4
+│ leftover      │  Twitch IRC / Helix / EventSub (default-OFF)
 └───────────────┘
 ```
 
-Agent events are written to the same JSONL and WebSocket, so the OBS overlay
-and Twitch panel can display the same data in real time.
+Agent events are written to the same JSONL and WebSocket, so Deck and the OBS
+overlay display the same data in real time.
 
 ---
 

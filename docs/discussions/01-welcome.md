@@ -11,7 +11,7 @@ category: Announcements
 - Optional **DualSense Edge** HID  
 - **Situation model** + causal **event bus**  
 - Glasses: **Retina Deck** (Lens + Theater), **native Retina Monitor**, Foundry clips  
-- Optional **ClutchBot** for Twitch  
+- **ClutchBot** on `--play` = Deck feed + local HDMI clips (Twitch leftover, default-OFF)  
 
 ### Principles
 

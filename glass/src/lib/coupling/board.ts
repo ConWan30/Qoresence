@@ -32,6 +32,12 @@ export type DeckIngest = {
   bindKind: string;
   padR2: number;
   padLeft: number;
+  padReports: number;
+  padTransport: string;
+  padEnergy: number;
+  padBinds: number;
+  padJitterMs: number;
+  padHidSeq: number;
   syncLagMs: number;
   hdmi: "live" | "menu" | "stale";
   videoAgeS: number;
@@ -462,6 +468,12 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     bindKind: String(ctrl.last_bind_kind || coup.last_bind_kind || ""),
     padR2: num(ctrl.pad_r2 ?? rec(ctrl.hold).r2),
     padLeft: num(ctrl.pad_left ?? rec(ctrl.hold).left),
+    padReports: num(ctrl.reports),
+    padTransport: String(ctrl.transport || ""),
+    padEnergy: num(ctrl.input_energy ?? ctrl.hold_energy),
+    padBinds: num(ctrl.binds),
+    padJitterMs: num(ctrl.lag_jitter_ms),
+    padHidSeq: num(ctrl.frame_seq),
     syncLagMs: num(
       ctrl.sync_lag_ms ?? ctrl.lag_center_ms ?? coup.lag_center_ms ?? rec(ctrl.lag_band_ms)[0],
       0,

@@ -77,15 +77,13 @@ export function momentLooksLikeClip(m: {
   return /clip/i.test(m.title || "");
 }
 
-/** Chip href: own file first, else last HDMI clip for clip/clutch rows. */
+/** Chip href: only a clip that belongs to this row. Never borrow lastClipUrl
+ *  (that re-embeds an old CFB export while Madden is live). */
 export function momentPlayHref(
   m: { url?: string; name?: string; icon?: string; title?: string; key?: string },
-  lastClipUrl = "",
+  _lastClipUrl = "",
 ): string {
-  const own = clipHref(m.url || m.name || "");
-  if (own) return own;
-  if (momentLooksLikeClip(m) || m.key?.startsWith("clutch:")) return clipHref(lastClipUrl);
-  return "";
+  return clipHref(m.url || m.name || "");
 }
 
 export function parseHdmiClipList(raw: unknown, origin?: string): HdmiClipFile[] {

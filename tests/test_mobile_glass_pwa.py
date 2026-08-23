@@ -88,6 +88,48 @@ def test_pwa_routes_registered(app):
     assert "/live.jpg" in paths
 
 
+def test_hot_http_handlers_are_sync_so_mjpeg_keeps_the_loop(app):
+    """Snapshot builders stay off the uvicorn loop.
+
+    /live.jpg is the exception: it only copies a pre-encoded ClipBuffer
+    JPEG. A sync handler queued behind /health and /api/situation made
+    Theater sit 0.7–2s behind the card.
+    """
+    import asyncio
+
+    sync_paths = {"/health", "/api/situation"}
+    found: set[str] = set()
+    live = None
+    for route in app.routes:
+        path = getattr(route, "path", None)
+        endpoint = getattr(route, "endpoint", None)
+        if path in sync_paths and endpoint is not None:
+            found.add(path)
+            assert not asyncio.iscoroutinefunction(endpoint), path
+        if path == "/live.jpg":
+            live = endpoint
+    assert sync_paths <= found
+    assert live is not None
+    assert asyncio.iscoroutinefunction(live)
+
+
+def test_live_jpeg_does_not_reencode_bgr(monkeypatch):
+    """Request path must not cv2.imencode a FrameHub BGR frame."""
+    from qoresence.deck import server as deck_server
+
+    fake = b"\xff\xd8live\xff\xd9"
+
+    def boom(*_a, **_k):
+        raise AssertionError("live.jpg must not re-encode BGR")
+
+    monkeypatch.setattr("cv2.imencode", boom)
+    monkeypatch.setattr(
+        "qoresence.vision.clip_buffer.get_latest_jpeg",
+        lambda: fake,
+    )
+    assert deck_server._read_live_jpeg() == fake
+
+
 def test_discover_route_calls_mdns_discovery_info(app, monkeypatch):
     """The /api/discover handler must delegate to mdns.discovery_info and
     echo its lan/host/url fields — never invent a LAN address on loopback."""
@@ -319,6 +361,25 @@ def test_live_jpeg_serves_hdmi_bytes(app, monkeypatch):
     assert r.content == fake
     assert r.headers["content-type"] == "image/jpeg"
     assert "no-store" in r.headers.get("cache-control", "")
+
+
+def test_live_ws_pushes_preencoded_jpeg(app, monkeypatch):
+    """Theater paints a pushed JPEG so /live.jpg GET cannot queue behind GIL."""
+    try:
+        from fastapi.testclient import TestClient
+    except Exception:
+        pytest.skip("httpx/starlette TestClient not installed")
+    fake = b"\xff\xd8push-hdmi\xff\xd9"
+    monkeypatch.setattr(
+        "qoresence.vision.clip_buffer.get_latest_frame",
+        lambda: (fake, 7),
+    )
+    paths = {getattr(route, "path", None) for route in app.routes}
+    assert "/live" in paths
+    client = TestClient(app)
+    with client.websocket_connect("/live") as ws:
+        data = ws.receive_bytes()
+    assert data == fake
 
 
 def test_native_sw_never_caches_live_jpeg():

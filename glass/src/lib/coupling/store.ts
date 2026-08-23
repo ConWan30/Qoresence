@@ -32,6 +32,7 @@ import { clutchAdvanced, scoreClutch, QUIET_CLUTCH, type ClutchSnap, type FeedMo
 import { measureLag } from "./sync";
 import { qsEnhance, qsProbe } from "./quicksilver";
 import { clipHref, clipPublicPath, clipSeconds, momentLooksLikeClip, requestDeckClip, shouldClip, type HdmiClipFile } from "./clip";
+import { CLIP_HOLD_MS, autoClipAllowed } from "./director";
 
 function mergeClipFile(clips: HdmiClipFile[], href: string, name: string): HdmiClipFile[] {
   const file = name || href.replace(/\\/g, "/").split("/").pop() || "";
@@ -105,6 +106,13 @@ export type TheaterState = {
   leftFrame: number;
   syncLagMs: number;
   bindKind: string;
+  padReports: number;
+  padReportsPrev: number;
+  padTransport: string;
+  padEnergy: number;
+  padBinds: number;
+  padJitterMs: number;
+  padHidSeq: number;
   captureStatus: CaptureStatus;
   captureLabel: string;
   captureError: string;
@@ -123,7 +131,11 @@ export type TheaterState = {
   clipFollow: boolean;
   /** Legacy Deck: LIVE = HDMI JPEG, REPLAY = clip MP4 on the stage. */
   stageMode: StageMode;
+  /** Switcher take count — increments on each PGM/PVW bus change. */
+  takeCount: number;
   clipBusy: boolean;
+  /** Epoch ms — auto-clip is silent until this clock. */
+  clipHoldUntil: number;
   companion: AgentCompanion;
   framed: boolean;
   setR2: (v: number) => void;
@@ -158,6 +170,9 @@ export type TheaterState = {
   requestClip: () => Promise<void>;
   /** Legacy `POST /api/clip` 30s, then play on the HDMI stage. */
   requestHdmiClip: () => Promise<void>;
+  holdClip: () => void;
+  killTake: () => void;
+  armTake: () => void;
   tick: (prevR2: number) => void;
   runDrill: (id: DrillId) => void;
   mintConfirm: () => void;
@@ -262,6 +277,13 @@ export const useTheater = create<TheaterState>((set, get) => ({
   leftFrame: 0,
   syncLagMs: 80,
   bindKind: "",
+  padReports: 0,
+  padReportsPrev: 0,
+  padTransport: "",
+  padEnergy: 0,
+  padBinds: 0,
+  padJitterMs: 0,
+  padHidSeq: 0,
   captureStatus: "off",
   captureLabel: "",
   captureError: "",
@@ -279,7 +301,9 @@ export const useTheater = create<TheaterState>((set, get) => ({
   hdmiClips: [],
   clipFollow: true,
   stageMode: "live",
+  takeCount: 1,
   clipBusy: false,
+  clipHoldUntil: 0,
   companion: EMPTY_COMPANION,
   framed: false,
   livePaint: true,
@@ -487,12 +511,19 @@ export const useTheater = create<TheaterState>((set, get) => ({
       ticket,
       ticketLive: liveTicket !== null,
       coupling: ing.coupling,
-      r2: ing.holdEnergy > 0 ? ing.holdEnergy : s.r2,
+      r2:
+        ing.ghostStick.r2 > 0.02
+          ? ing.ghostStick.r2
+          : ing.padR2 > 0
+            ? ing.padR2
+            : ing.holdEnergy > 0
+              ? ing.holdEnergy
+              : s.r2,
       pllLock: ing.pllLock,
       hdmi: paint ? ing.hdmi : "stale",
       videoAgeS: ing.videoAgeS,
-      videoFrames: ing.videoFrames,
-      videoPushes: ing.videoPushes,
+      videoFrames: ing.videoFrames > 0 ? ing.videoFrames : s.videoFrames,
+      videoPushes: ing.videoPushes > 0 ? ing.videoPushes : s.videoPushes,
       livePaint: paint,
       sameSeq,
       planeDim,
@@ -534,8 +565,24 @@ export const useTheater = create<TheaterState>((set, get) => ({
       padConnected: ing.padConnected || s.padConnected,
       padName: ing.padConnected ? ing.padName || "DualSense" : s.padName,
       padHeld: ing.padHeld.length ? ing.padHeld : s.padHeld,
-      syncLagMs: measureLag(ing.videoAgeS, ing.bindLagMs) || s.syncLagMs,
+      left:
+        Math.hypot(ing.ghostStick.lx, ing.ghostStick.ly) > 0.04
+          ? Math.hypot(ing.ghostStick.lx, ing.ghostStick.ly)
+          : ing.padLeft > 0
+            ? ing.padLeft
+            : s.left,
+      r2Frame: ing.ghostStick.r2 || ing.padR2 || s.r2Frame,
+      leftFrame:
+        Math.hypot(ing.ghostStick.lx, ing.ghostStick.ly) || ing.padLeft || s.leftFrame,
+      syncLagMs: measureLag(ing.videoAgeS, ing.bindLagMs, ing.syncLagMs) || s.syncLagMs,
       bindKind: ing.bindKind || s.bindKind,
+      padReportsPrev: s.padReports,
+      padReports: ing.padReports || s.padReports,
+      padTransport: ing.padTransport || s.padTransport,
+      padEnergy: ing.padEnergy,
+      padBinds: ing.padBinds,
+      padJitterMs: ing.padJitterMs,
+      padHidSeq: ing.padHidSeq || s.padHidSeq,
     });
     if (clutchAdvanced(s.clutch, clutch)) {
       get().ingestMoment({
@@ -548,22 +595,34 @@ export const useTheater = create<TheaterState>((set, get) => ({
         at: Date.now(),
       });
       void get().requestEnhance();
-      if (shouldClip(clutch.kind, ing.clipWorth)) void get().requestClip();
+      if (
+        shouldClip(clutch.kind, ing.clipWorth) &&
+        autoClipAllowed(get().clipHoldUntil, Date.now())
+      ) {
+        void get().requestClip();
+      }
     }
   },
   playClip: (url, name) => {
     const href = clipHref(url || name || "");
     if (!href) return;
     const file = name || href.replace(/\\/g, "/").split("/").pop() || "";
+    const s = get();
     set({
       lastClipUrl: href,
-      lastClipName: file || get().lastClipName,
+      lastClipName: file || s.lastClipName,
       lastClipError: "",
       clipFollow: false,
       stageMode: "replay",
+      takeCount: s.stageMode === "replay" ? s.takeCount : s.takeCount + 1,
     });
   },
-  goLive: () => set({ stageMode: "live", clipFollow: true }),
+  goLive: () =>
+    set((s) => ({
+      stageMode: "live",
+      clipFollow: true,
+      takeCount: s.stageMode === "live" ? s.takeCount : s.takeCount + 1,
+    })),
   goReplay: () => {
     const s = get();
     const href = clipHref(s.lastClipUrl || s.hdmiClips[0]?.href || "");
@@ -720,6 +779,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
   requestClip: async () => {
     const s = get();
     const now = Date.now();
+    if (!autoClipAllowed(s.clipHoldUntil, now)) return;
     if (now - clipAt < 10000) return;
     clipAt = now;
     const seconds = clipSeconds(s.clutch.kind);
@@ -764,6 +824,12 @@ export const useTheater = create<TheaterState>((set, get) => ({
       url: out.url || abs,
       name: out.name,
     });
+  },
+  holdClip: () => set({ clipHoldUntil: Date.now() + CLIP_HOLD_MS }),
+  killTake: () => set({ clipHoldUntil: 0 }),
+  armTake: () => {
+    set({ clipHoldUntil: 0 });
+    void get().requestHdmiClip();
   },
   requestHdmiClip: async () => {
     if (get().clipBusy) return;

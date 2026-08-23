@@ -5,7 +5,7 @@ Streamr is an **experimental** research plugin. It is **not** part of the core Q
 ## Status
 
 - Default OFF.
-- Only consider after local capture, score lock, clips, and Twitch chat are proven.
+- Only consider after local capture, score lock, and local HDMI clips are proven.
 - It publishes redacted events to a local Streamr node, not directly to the public chain.
 
 ## What it adds
@@ -13,7 +13,7 @@ Streamr is an **experimental** research plugin. It is **not** part of the core Q
 | Qoresence core | Streamr adds |
 |----------------|--------------|
 | Local capture + scoring | Off-box event distribution |
-| Twitch ClutchBot | A second audience on a DePIN bus |
+| Local ClutchBot (Deck + HDMI clips) | A second audience on a DePIN bus |
 | Simple setup | Requires a local `streamr-node` and stream grants |
 
 ## Quick start

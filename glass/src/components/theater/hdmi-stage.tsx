@@ -1,32 +1,47 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getCaptureVideo } from "@/lib/coupling/hardware";
-import { deckLiveJpgUrl, HDMI_LIVE_FEED } from "@/lib/coupling/qoresence-deck";
-import { HDMI_JPEG_KEEP, hdmiPictureVisible } from "@/lib/coupling/hdmi-picture";
+import { deckLiveJpgUrl, deckLiveWsUrl, HDMI_LIVE_FEED } from "@/lib/coupling/qoresence-deck";
+import {
+  HDMI_JPEG_KEEP,
+  HDMI_JPEG_OVERLAP,
+  HDMI_JPEG_PUMP_MS,
+  HDMI_JPEG_PUSH,
+  HDMI_JPEG_RETRY_MS,
+  hdmiPictureVisible,
+} from "@/lib/coupling/hdmi-picture";
 import { clipHref } from "@/lib/coupling/clip";
+import { clutchPulse } from "@/lib/coupling/clutch-pulse";
 import { scoreLiveHealth } from "@/lib/coupling/live-health";
 import { useTheater } from "@/lib/coupling/store";
 import { GhostStickOverlay } from "./ghost-stick";
 import { LensOverlay } from "./lens-overlay";
 import { LiveHealthGlyph } from "./live-health-glyph";
+import { SignalPrism } from "./signal-prism";
 import { StageClipDock } from "./clip-rack";
 
 export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
-  const imgRef = useRef<HTMLImageElement>(null);
+  const imgARef = useRef<HTMLImageElement>(null);
+  const imgBRef = useRef<HTMLImageElement>(null);
   const videoHostRef = useRef<HTMLDivElement>(null);
-  const prevRef = useRef({ frames: 0, pushes: 0 });
+  const prevRef = useRef({ frames: 0, pushes: 0, climbedAt: 0 });
+  const jpgOkRef = useRef(false);
   const [jpgOk, setJpgOk] = useState(false);
   const [ageMs, setAgeMs] = useState(0);
 
   const stageMode = useTheater((s) => s.stageMode);
 
   useEffect(() => {
-    const img = imgRef.current;
-    if (!img) return;
+    const a = imgARef.current;
+    const b = imgBRef.current;
+    if (!a || !b) return;
     let timer = 0;
     let lastOk = 0;
     let stopped = false;
-    let inFlight = false;
+    let front = 0;
+    let liveWs: WebSocket | null = null;
+    const bufs = [a, b];
+    const blobs: string[] = ["", ""];
 
     if (stageMode === "replay") {
       return () => {
@@ -35,37 +50,195 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
       };
     }
 
-    const pumpJpeg = () => {
-      if (stopped || !img || inFlight) return;
-      inFlight = true;
-      img.onload = () => {
-        inFlight = false;
-        lastOk = performance.now();
+    const markOk = () => {
+      if (!jpgOkRef.current) {
+        jpgOkRef.current = true;
         setJpgOk(true);
-        setAgeMs(0);
-        timer = window.setTimeout(pumpJpeg, 80);
-      };
-      img.onerror = () => {
-        inFlight = false;
-        const age = lastOk ? performance.now() - lastOk : 9999;
-        setAgeMs(Math.round(age));
-        if (age > 2000) setJpgOk(false);
-        timer = window.setTimeout(pumpJpeg, 200);
-      };
-      img.src = deckLiveJpgUrl();
+      }
     };
 
-    pumpJpeg();
+    const revoke = (i: number) => {
+      if (blobs[i]) {
+        URL.revokeObjectURL(blobs[i]);
+        blobs[i] = "";
+      }
+    };
+
+    const pullBlob = () =>
+      fetch(deckLiveJpgUrl(), { cache: "no-store" }).then((res) => {
+        if (!res.ok) throw new Error("live.jpg");
+        return res.blob();
+      });
+
+    const paintBack = (blob: Blob) =>
+      new Promise<void>((resolve, reject) => {
+        const back = bufs[1 - front];
+        const slot = 1 - front;
+        const url = URL.createObjectURL(blob);
+        const onLoad = () => {
+          back.removeEventListener("load", onLoad);
+          back.removeEventListener("error", onErr);
+          revoke(slot);
+          blobs[slot] = url;
+          resolve();
+        };
+        const onErr = () => {
+          back.removeEventListener("load", onLoad);
+          back.removeEventListener("error", onErr);
+          URL.revokeObjectURL(url);
+          reject(new Error("decode"));
+        };
+        back.addEventListener("load", onLoad);
+        back.addEventListener("error", onErr);
+        back.src = url;
+      });
+
+    const swapToBack = () => {
+      const back = bufs[1 - front];
+      back.style.opacity = "1";
+      bufs[front].style.opacity = "0";
+      front = 1 - front;
+      lastOk = performance.now();
+      markOk();
+    };
+
+    let painting = false;
+    let newest: Blob | null = null;
+    let paintGate = Promise.resolve();
+    const offerBlob = (blob: Blob) => {
+      newest = blob;
+      if (painting) return paintGate;
+      painting = true;
+      paintGate = (async () => {
+        while (newest && !stopped) {
+          const next = newest;
+          newest = null;
+          try {
+            await paintBack(next);
+            if (!stopped) swapToBack();
+          } catch {
+            /* decode miss — keep last good still */
+          }
+        }
+        painting = false;
+      })();
+      return paintGate;
+    };
+
+    const pumpJpegPull = async () => {
+      let pending = HDMI_JPEG_OVERLAP ? pullBlob() : null;
+      while (!stopped) {
+        try {
+          const blob = pending ? await pending : await pullBlob();
+          if (stopped) return;
+          pending = HDMI_JPEG_OVERLAP ? pullBlob() : null;
+          await offerBlob(blob);
+          if (HDMI_JPEG_PUMP_MS > 0) {
+            await new Promise((r) => {
+              timer = window.setTimeout(r, HDMI_JPEG_PUMP_MS);
+            });
+          }
+        } catch {
+          if (stopped) return;
+          pending = null;
+          const age = lastOk ? performance.now() - lastOk : 9999;
+          if (age > 2000) {
+            jpgOkRef.current = false;
+            setJpgOk(false);
+          }
+          await new Promise((r) => {
+            timer = window.setTimeout(r, HDMI_JPEG_RETRY_MS);
+          });
+        }
+      }
+    };
+
+    const pumpJpegPush = () =>
+      new Promise<boolean>((resolve) => {
+        let opened = false;
+        let ws: WebSocket;
+        try {
+          ws = new WebSocket(deckLiveWsUrl());
+        } catch {
+          resolve(false);
+          return;
+        }
+        liveWs = ws;
+        ws.binaryType = "arraybuffer";
+        const failTimer = window.setTimeout(() => {
+          if (!opened) {
+            try {
+              ws.close();
+            } catch {
+              /* ignore */
+            }
+            resolve(false);
+          }
+        }, 1500);
+        ws.onopen = () => {
+          opened = true;
+          window.clearTimeout(failTimer);
+        };
+        ws.onmessage = (ev) => {
+          if (stopped) return;
+          const data = ev.data;
+          const blob = data instanceof Blob ? data : new Blob([data], { type: "image/jpeg" });
+          offerBlob(blob);
+        };
+        ws.onerror = () => {
+          window.clearTimeout(failTimer);
+          try {
+            ws.close();
+          } catch {
+            /* ignore */
+          }
+        };
+        ws.onclose = () => {
+          window.clearTimeout(failTimer);
+          if (liveWs === ws) liveWs = null;
+          resolve(opened);
+        };
+      });
+
+    const run = async () => {
+      while (!stopped) {
+        if (HDMI_JPEG_PUSH) {
+          const opened = await pumpJpegPush();
+          if (stopped) return;
+          if (opened) {
+            await new Promise((r) => {
+              timer = window.setTimeout(r, HDMI_JPEG_RETRY_MS);
+            });
+            continue;
+          }
+        }
+        await pumpJpegPull();
+        return;
+      }
+    };
+    void run();
 
     const ageWatch = window.setInterval(() => {
       if (stopped) return;
-      if (lastOk) setAgeMs(Math.round(performance.now() - lastOk));
+      if (!lastOk) return;
+      const next = Math.round(performance.now() - lastOk);
+      setAgeMs((prev) => (Math.abs(prev - next) < 250 ? prev : next));
     }, 400);
 
     return () => {
       stopped = true;
       window.clearTimeout(timer);
       window.clearInterval(ageWatch);
+      if (liveWs) {
+        try {
+          liveWs.close();
+        } catch {
+          /* ignore */
+        }
+        liveWs = null;
+      }
+      revoke(0);
+      revoke(1);
     };
   }, [stageMode]);
 
@@ -75,6 +248,10 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
     const id = window.setInterval(() => {
       const src = getCaptureVideo();
       if (!src) return;
+      if (stageMode === "replay") {
+        if (src.parentElement === host) host.removeChild(src);
+        return;
+      }
       if (src.parentElement !== host) {
         src.className = "absolute inset-0 h-full w-full object-contain bg-bg";
         src.muted = true;
@@ -84,58 +261,87 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
       }
     }, 250);
     return () => window.clearInterval(id);
-  }, []);
+  }, [stageMode]);
 
   const lastClipUrl = useTheater((s) => s.lastClipUrl);
   const lastClipName = useTheater((s) => s.lastClipName);
   const videoAgeS = useTheater((s) => s.videoAgeS);
   const videoFrames = useTheater((s) => s.videoFrames);
   const videoPushes = useTheater((s) => s.videoPushes);
+  const clutch = useTheater((s) => s.clutch);
+  const companion = useTheater((s) => s.companion);
   const goLive = useTheater((s) => s.goLive);
   const replaySrc = stageMode === "replay" ? clipHref(lastClipUrl) : "";
   const showLive = hdmiPictureVisible(jpgOk) && !replaySrc;
+  const climbed = videoFrames > prevRef.current.frames || videoPushes > prevRef.current.pushes;
+  if (climbed) {
+    prevRef.current = { frames: videoFrames, pushes: videoPushes, climbedAt: performance.now() };
+  } else if (videoFrames > 0 || videoPushes > 0) {
+    prevRef.current = { ...prevRef.current, frames: videoFrames, pushes: videoPushes };
+  }
   const health = scoreLiveHealth({
     ageS: videoAgeS,
     frames: videoFrames,
     pushes: videoPushes,
     prevFrames: prevRef.current.frames,
     prevPushes: prevRef.current.pushes,
+    climbAgeMs: prevRef.current.climbedAt ? performance.now() - prevRef.current.climbedAt : 99999,
     jpgOk,
     jpgAgeMs: ageMs,
     stageMode,
   });
-  prevRef.current = { frames: videoFrames, pushes: videoPushes };
+  const pulse =
+    variant === "deck" && stageMode !== "replay"
+      ? clutchPulse({
+          kind: clutch.kind,
+          score: clutch.score,
+          armed: companion.armed,
+          companionPhase: companion.phase,
+          companionClimax: companion.climax,
+        })
+      : "off";
 
   return (
     <section
       data-stage-mode={stageMode}
       data-clip-owner="hdmi-stage"
+      data-clutch={variant === "deck" ? pulse : undefined}
       className={cn(
-        "relative bg-surface",
-        variant === "lens"
-          ? "h-full min-h-0 w-full"
-          : "rounded-xl shadow-[var(--shadow-border),var(--shadow-sync)]",
+        "relative isolate",
+        variant === "lens" ? "h-full min-h-0 w-full" : "holo-plinth overflow-hidden rounded-xl",
       )}
+      data-holo-tone={variant === "deck" ? health.tone : undefined}
       onPointerDown={() => void useTheater.getState().ensureCapture()}
     >
       <div
         className={cn(
-          "relative w-full overflow-hidden bg-bg",
-          variant === "lens" ? "h-full" : "aspect-video rounded-[calc(var(--radius-xl)-1px)]",
+          "holo-plinth-well relative isolate z-0 overflow-hidden",
+          variant === "lens"
+            ? "h-full w-full"
+            : "mx-auto aspect-video max-h-[calc(100dvh-13.5rem)] w-full max-w-[min(100%,calc((100dvh-13.5rem)*16/9))] rounded-[calc(var(--radius-xl)-1px)] md:max-h-[calc(100dvh-11.5rem)] md:max-w-[min(100%,calc((100dvh-11.5rem)*16/9))]",
         )}
       >
-        <div ref={videoHostRef} className={cn("absolute inset-0", jpgOk ? "opacity-0" : "")} />
+        <div
+          ref={videoHostRef}
+          className={cn("absolute inset-0 z-0", jpgOk || replaySrc ? "opacity-0" : "")}
+        />
         <img
-          ref={imgRef}
+          ref={imgARef}
           alt=""
           decoding="async"
           data-hdmi-keep={HDMI_JPEG_KEEP}
           data-hdmi-feed={HDMI_LIVE_FEED}
           data-hdmi-picture={showLive ? "on" : "off"}
-          className={cn(
-            "absolute inset-0 h-full w-full object-contain bg-bg",
-            showLive ? "opacity-100" : "opacity-0",
-          )}
+          className="hdmi-picture pointer-events-none absolute inset-0 z-0 h-full w-full bg-bg object-contain"
+          style={{ opacity: 0 }}
+        />
+        <img
+          ref={imgBRef}
+          alt=""
+          decoding="async"
+          data-hdmi-feed={HDMI_LIVE_FEED}
+          className="hdmi-picture pointer-events-none absolute inset-0 z-0 h-full w-full bg-bg object-contain"
+          style={{ opacity: 0 }}
         />
         {replaySrc ? (
           <video
@@ -147,26 +353,31 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
             preload="auto"
             data-clip-player="stage"
             data-clip-href={replaySrc}
-            className="absolute inset-0 z-10 h-full w-full bg-black object-contain"
+            className="hdmi-picture absolute inset-0 z-10 h-full w-full bg-black object-contain"
           />
         ) : null}
         {replaySrc ? (
           <button
             type="button"
             data-action="stage-live"
-            className="absolute top-3 left-3 z-30 rounded-full bg-live px-3 py-1.5 font-mono text-[10px] font-extrabold text-primary-foreground uppercase"
+            className="stream-key stream-key-live absolute top-3 left-3 z-30 px-3 py-1.5 font-mono text-[10px] font-extrabold uppercase"
             onClick={(e) => {
               e.stopPropagation();
               goLive();
             }}
           >
-            LIVE
+            PGM
           </button>
+        ) : variant === "deck" ? (
+          <span className="pointer-events-none absolute top-3 left-3 z-20 rounded-sm bg-bg/75 px-2 py-1 font-mono text-[10px] tracking-[0.2em] text-photon uppercase backdrop-blur-sm">
+            PGM
+          </span>
         ) : null}
-        <LiveHealthGlyph health={health} />
-        <GhostStickOverlay />
-        <LensOverlay variant={variant} />
+        {!replaySrc ? <LiveHealthGlyph health={health} /> : null}
+        {!replaySrc ? <GhostStickOverlay /> : null}
+        {!replaySrc ? <LensOverlay variant={variant} /> : null}
       </div>
+      {variant === "deck" ? <SignalPrism ageS={videoAgeS} tone={health.tone} /> : null}
       {variant === "deck" ? <StageClipDock /> : null}
     </section>
   );

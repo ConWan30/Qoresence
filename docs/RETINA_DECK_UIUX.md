@@ -1,6 +1,7 @@
 # RETINA DECK — Novel Overlay / Dashboard for Qoresence
-> 2026-08-06 21:25 — "Gamers still see Twitch, but access Qoresence purpose"
-> One brain, three glasses. Invisible when boring, exquisite when clutch.
+> 2026-08-06 21:25 — historical design note (Twitch wording is leftover).
+> Product path is local Deck / Lens / Foundry clips — not Twitch chat or Helix.
+> One brain, many glasses. Invisible when boring, exquisite when clutch.
 
 ## Thesis: Clutch Glass, Not Chrome
 

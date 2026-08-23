@@ -1,10 +1,10 @@
 # Streamr Network Integration (EXPERIMENTAL / OPTIONAL)
 
-**Status:** Research plugin. Not part of the Qoresence MVP or ClutchBot pilot.  
+**Status:** Research plugin. Not part of the Qoresence MVP or local ClutchBot path.  
 **Default:** OFF.  
-**Use case:** Only consider this once local capture, score lock, clips, and Twitch chat usefulness are proven.
+**Use case:** Only consider this once local capture, score lock, and local HDMI clips are proven.
 
-Qoresence is a **local-first, gamer-facing ops console**. Its job is to lock scores, make clips, and help ClutchBot in chat. Streamr does none of that. It is just an extra distribution pipe. Running it leaks session metadata off-box, requires an Ethereum stack, and can confuse the product story.
+Qoresence is a **local-first, gamer-facing ops console**. Its job is to lock scores and make local HDMI clips for Deck / Foundry. Streamr does none of that. It is just an extra distribution pipe. Running it leaks session metadata off-box, requires an Ethereum stack, and can confuse the product story.
 
 Do **not** enable Streamr while you are still validating the local pilot.
 
@@ -13,7 +13,7 @@ Do **not** enable Streamr while you are still validating the local pilot.
 | Qoresence core | Streamr adds |
 |----------------|--------------|
 | Local capture + VLM scoring | Off-box telemetry distribution |
-| ClutchBot on Twitch | A second audience on a DePIN bus |
+| Local ClutchBot (Deck + HDMI clips) | A second audience on a DePIN bus |
 | Simple gamer setup | Node 20, `streamr-node`, private keys, stream grants |
 | Privacy-first session logs | Potentially public on-chain event stream |
 

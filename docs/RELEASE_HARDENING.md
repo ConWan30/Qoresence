@@ -39,7 +39,7 @@ Wired best-effort (never raises into capture):
 
 - Default Deck host remains **`127.0.0.1`**
 - Do **not** ship `0.0.0.0` as default
-- Quicksilver / Twitch keys only under `.secrets/` (gitignored)
+- Quicksilver keys (and leftover Twitch tokens, if any) only under `.secrets/` (gitignored)
 
 ---
 

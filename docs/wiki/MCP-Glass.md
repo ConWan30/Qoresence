@@ -8,7 +8,7 @@
 
 ## Plain English
 
-Before AgentGlass, only Deck/Twitch bot understood the game. AgentGlass added `http://127.0.0.1:8765` — "what's the score? last drive? give me a clip?" Any local program can ask.
+Before AgentGlass, only Deck / ClutchBot understood the game. AgentGlass added `http://127.0.0.1:8765` — "what's the score? last drive? give me a clip?" Any local program can ask.
 
 MCP means that program can be **any AI assistant** speaking the standard [Model Context Protocol](https://modelcontextprotocol.io). The AI doesn't learn HDMI/Vision/IVC — it asks the local expert that already decoded them.
 
@@ -28,7 +28,7 @@ PS5 HDMI → Qoresence Streamer (owns card) → FrameHub / ClipBuffer / IVC / A2
                      RetinaEventBus (session_id + clock_ns)
                                    |
         Lens  LIVE  Theater  Monitor  ClutchBot  AgentGlass   MCP    Streamr*
-        OBS   MJPEG Deck     native   Twitch     HTTP/WS     **new**  (exp)
+        OBS   JPEG  Deck     native   Deck feed  HTTP/WS     **new**  (exp)
                      127.0.0.1:8765 — read-only glasses, one brain
 ```
 

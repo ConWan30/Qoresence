@@ -1,9 +1,9 @@
 """
-ClutchBot — game-state-aware Twitch agent for Qoresence.
+ClutchBot — game-state-aware local agent for Qoresence.
 
 Consumes Qoresence bus events, builds a rolling situation model, scores
-narrative moments, and dispatches actions (chat messages, clips, predictions)
-to pluggable backends.
+narrative moments, and dispatches actions to Deck feed and local HDMI clips.
+Twitch IRC/Helix/EventSub backends are leftover and default-OFF.
 """
 
 from __future__ import annotations

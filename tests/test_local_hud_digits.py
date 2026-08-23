@@ -23,6 +23,14 @@ def test_tiny_frame_is_none():
     assert read_score_pair(np.zeros((40, 80, 3), dtype=np.uint8), "madden_27") is None
 
 
+def test_madden_pair_drops_center_yard_line():
+    """Standard Madden bug: 21 left, yard 22 center, 7 right. Mid-split locked 7-22."""
+    from qoresence.vision.local_hud_digits import pair_from_x_values
+
+    assert pair_from_x_values([(0.10, 21), (0.55, 22), (0.88, 7)]) == (7, 21)
+    assert pair_from_x_values([(0.12, 7), (0.58, 22)]) is None
+
+
 def test_extractor_empty_hud_stays_unlocked(monkeypatch):
     FootballScoreboardExtractor._stabilizer = None
     monkeypatch.delenv("QORESENCE_EASY_OCR", raising=False)

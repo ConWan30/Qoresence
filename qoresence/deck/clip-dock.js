@@ -77,12 +77,24 @@
     return Boolean(document.querySelector('[data-clip-owner="hdmi-stage"]'));
   }
 
+  function standDown() {
+    try {
+      video.pause();
+    } catch (e) {}
+    video.removeAttribute("src");
+    try {
+      video.load();
+    } catch (e) {}
+    player.classList.remove("on");
+    player.remove();
+    dock.remove();
+    document.body.classList.remove("qore-has-clip-dock", "qore-replay");
+  }
+
   function mount() {
     if (!document.body) return;
     if (glassOwnsStage()) {
-      player.remove();
-      dock.remove();
-      document.body.classList.remove("qore-has-clip-dock");
+      standDown();
       return;
     }
     if (!document.getElementById("qore-clip-dock")) {
@@ -109,6 +121,10 @@
   }
 
   function playClip(url, name) {
+    if (glassOwnsStage()) {
+      standDown();
+      return;
+    }
     const href = mediaHref(url) || url;
     if (!href || href.indexOf("/media/clips/") !== 0) return;
     attachPlayer();
@@ -194,9 +210,7 @@
 
   async function refresh() {
     if (glassOwnsStage()) {
-      player.remove();
-      dock.remove();
-      document.body.classList.remove("qore-has-clip-dock");
+      standDown();
       return;
     }
     try {
@@ -211,6 +225,10 @@
   }
 
   async function makeClip() {
+    if (glassOwnsStage()) {
+      standDown();
+      return;
+    }
     makeBtn.disabled = true;
     const prev = makeBtn.textContent;
     makeBtn.textContent = "Encoding…";
@@ -251,6 +269,7 @@
   document.addEventListener(
     "click",
     function (ev) {
+      if (glassOwnsStage()) return;
       if (ev.target.closest("#qore-clip-dock, #qore-clip-player")) return;
       const hit = ev.target.closest("[data-clip-href]");
       if (hit) {
@@ -273,6 +292,7 @@
   );
 
   window.addEventListener("keydown", function (e) {
+    if (glassOwnsStage()) return;
     const tag = e.target && e.target.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA") return;
     if (e.key === "c" || e.key === "C") {
@@ -295,5 +315,8 @@
     mount();
   }
   void refresh();
+  [50, 150, 400, 800].forEach(function (ms) {
+    window.setTimeout(refresh, ms);
+  });
   setInterval(refresh, 2000);
 })();

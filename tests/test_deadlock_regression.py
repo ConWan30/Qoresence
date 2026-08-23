@@ -311,3 +311,51 @@ class TestJsonlSinkPersistentHandle:
         # no lingering handle. This is what lets pytest clean up tmp_path on
         # Windows and what lets a new session re-open the soak path.
         (tmp_path / "events.jsonl").write_text("ok", encoding="utf-8")
+
+
+class TestStreamerWatchdogLockRelease:
+    """Streamer watchdog must not emit or rebind while holding self._lock.
+
+    Production freeze (2026-08-22): watchdog held the streamer RLock across
+    heartbeat fan-out and DShow release/reopen. The capture loop then blocked
+    on ``_last_success_frame_time`` updates, ``age_s`` climbed, and /health
+    timed out. See AGENTS.md Rule 1.
+    """
+
+    def test_watchdog_tick_does_not_hold_lock_during_emit_or_rebind(self, tmp_path):
+        from qoresence.lobes.streamer import StreamerRuntime
+
+        bus = RetinaEventBus(
+            session_id="watchdog_lock_test",
+            jsonl_path=tmp_path / "events.jsonl",
+            enable_ws=False,
+        )
+        identity = SessionAuthority.mint(session_id="watchdog_lock_test")
+        runtime = StreamerRuntime(
+            config=StreamerConfig(enabled=True, device_index=0, eye_check_required=False),
+            bus=bus,
+            session_head_ns=identity.session_head_ns,
+        )
+        runtime._last_success_frame_time = time.time() - 10.0
+        peer_got_lock: list[bool] = []
+
+        def _peer_try_lock() -> None:
+            ok = runtime._lock.acquire(blocking=False)
+            peer_got_lock.append(ok)
+            if ok:
+                runtime._lock.release()
+
+        def _probe(_now: float | None = None) -> bool:
+            t = threading.Thread(target=_peer_try_lock)
+            t.start()
+            t.join()
+            return False
+
+        runtime._emit_heartbeat = _probe  # type: ignore[method-assign]
+        runtime._try_rebind_capture = _probe  # type: ignore[method-assign]
+        runtime._watchdog_tick(time.time())
+        assert peer_got_lock == [True, True], (
+            "DEADLOCK/FREEZE REGRESSION: watchdog held streamer lock during "
+            f"heartbeat/rebind — peer acquire results={peer_got_lock}"
+        )
+        bus.close()

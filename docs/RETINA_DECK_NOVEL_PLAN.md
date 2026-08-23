@@ -1,5 +1,7 @@
 # RETINA DECK — Novel Interoperable Plan (FUTURE)
 
+> **Leftover note:** Twitch Extension / Helix clip language in this plan is not a product route. Local Deck + HDMI Foundry clips are the path.
+>
 > **Status: FUTURE — Hold until exquisite verified while playing.**
 > Do not implement until `logs/session_play_2026-08-06.jsonl` growing + `curl /health ok:true latency ~1.12` + `eye_check FIELD verified` + `ws://8765/retina` pushing live `situation/down` (not mock). See Goose handoff §5.
 > Parent specs: `docs/RETINA_DECK_UIUX.md` (Clutch Glass thesis) + `docs/EXQUISITE_PLAN.md` (Play Mode one-command). This doc is the *implementation* plan — interoperable, not 12 bolt-ons.

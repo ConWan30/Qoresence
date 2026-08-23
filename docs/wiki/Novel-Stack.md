@@ -11,9 +11,8 @@ What is distinctive about Qoresence (vs “another OBS plugin bot”).
 - **Mobile Glass** — phone HTML (`/mobile.html`) — WebRTC primary, MJPEG fallback
 - **LIVE** — MJPEG ops preview (`/video`)
 - **Retina Monitor** — native OpenCV blit from FrameHub
-- **Twitch panel** — optional extension HTML
 
-No duplicated situation engines per glass.
+No duplicated situation engines per glass. Leftover Twitch extension HTML is not a product glass.
 
 ## 2. Capture ownership (Pattern B recommended)
 
@@ -42,7 +41,7 @@ Default lag 20–120 ms; legacy Pattern A VCam often needs ~200 ms hi (`QORESENC
 
 ## 5. Local Foundry
 
-True ring-buffer MP4 from capture path + optional `*.buttons.json` with `frame_seq` on edges. Deck can play clips without Helix.
+True ring-buffer MP4 from capture path + optional `*.buttons.json` with `frame_seq` on edges. Deck plays clips locally.
 
 ## 6. Causal bus contract
 

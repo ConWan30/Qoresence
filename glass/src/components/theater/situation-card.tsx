@@ -12,7 +12,7 @@ export function SituationCard() {
   const line = planeDim || !sameSeq || !livePaint ? "" : situation || boardLine;
 
   return (
-    <section className="flex flex-col gap-2 rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+    <section className="holo-plate flex flex-col gap-2 rounded-xl p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
           Situation

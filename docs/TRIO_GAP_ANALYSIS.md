@@ -165,7 +165,7 @@ But none of these are assembled into a structured evidence chain that accompanie
 | Predictive (Tier 2) | — | ❌ Not applicable (no world model) |
 | Fusion & Memory | `PresenceFusionEngine` + `CouplingAnalyzer` + `SituationModel` | ✅ Partial (no episodic memory, no router log) |
 | Reasoning (Tier 3) | A2A orchestrator → Gemini agent → DeepSeek agent | ✅ Partial (no tool registry, no evidence chains) |
-| Action & Integration | Deck UI overlay + Twitch chat + clip buffer | ✅ Done |
+| Action & Integration | Deck UI overlay + local HDMI clip buffer (Twitch leftover) | ✅ Done |
 | MLOps & Governance | — | ❌ Not applicable (personal use) |
 
 ---
