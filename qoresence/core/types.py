@@ -140,7 +140,11 @@ class BaseEvent:
         if self.clock_ns <= 0:
             errors.append("clock_ns must be positive")
         if not isinstance(self.source_lobe, SourceLobe):
-            errors.append("source_lobe must be a SourceLobe enum")
+            raw = getattr(self.source_lobe, "value", self.source_lobe)
+            try:
+                self.source_lobe = SourceLobe(str(raw))
+            except (TypeError, ValueError):
+                errors.append("source_lobe must be a SourceLobe enum")
         if not isinstance(self.type, EventType):
             errors.append("type must be an EventType enum")
         if not isinstance(self.payload, dict):

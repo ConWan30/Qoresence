@@ -111,14 +111,6 @@ class RetinaEventBus:
 
         Validates required fields. Returns True if accepted, False if rejected.
         """
-        # Twin SourceLobe StrEnums (types vs a stale import) must not drop JSONL.
-        if not isinstance(event.source_lobe, SourceLobe):
-            raw = getattr(event.source_lobe, "value", event.source_lobe)
-            try:
-                event.source_lobe = SourceLobe(str(raw))
-            except (TypeError, ValueError):
-                pass
-
         # Validate required fields
         errors = event.validate()
         if errors:
