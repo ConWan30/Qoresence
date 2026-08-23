@@ -34,6 +34,8 @@ This clones `Qoresence.wiki.git`, copies `docs/wiki/*.md`, commits, and pushes.
 
 ## Existing milestone discussions
 
+- [Discussion #48 — Retina Stem — situation-directed program, not OBS](https://github.com/ConWan30/Qoresence/discussions/48)
+- [Wiki — Retina Stem](https://github.com/ConWan30/Qoresence/wiki/Retina-Stem)
 - [Discussion #21 — Qoresence: OpenTelemetry causal tracing for DualSense → capture card gameplay clips](https://github.com/ConWan30/Qoresence/discussions/21)
 
 ## 3. Publish Discussions

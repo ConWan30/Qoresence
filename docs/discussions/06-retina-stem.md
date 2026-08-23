@@ -26,6 +26,9 @@ Qoresence can now run a local match **without OBS Preview**.
 python -m qoresence.cli --play --deck --stem-program --streamer-fps 60
 ```
 
+- **Discussion:** https://github.com/ConWan30/Qoresence/discussions/48
+- **Wiki:** https://github.com/ConWan30/Qoresence/wiki/Retina-Stem
+
 Docs: [STEM.md](https://github.com/ConWan30/Qoresence/blob/main/docs/STEM.md) · [Wiki](https://github.com/ConWan30/Qoresence/wiki/Retina-Stem)
 
 No stream ingest. No Twitch. No Virtual Cam. OBS remains optional only if you still want a platform stream — that is a different product.
