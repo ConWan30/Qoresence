@@ -565,6 +565,9 @@ def write_closeout(
         from qoresence.foundry.civif_summary import maybe_write_after_coaches
 
         maybe_write_after_coaches(sid)
+        from qoresence.foundry.narrative_engine import maybe_write_after_coaches as maybe_narrative
+
+        maybe_narrative(sid)
     except Exception:
         pass
     return out_json, out_md, summary

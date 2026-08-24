@@ -159,6 +159,12 @@ When `QORESENCE_CIVIF_SUMMARY_LOG=1`, after coaches run, append one line to `log
 - Report present but unbodied or unlocked → “insights unavailable (controller not bodied or board unlocked).”
 - Otherwise: compact metrics plus up to 3 issues and `/media/clips/<id>.mp4` evidence links.
 
+### EventRecord and NarrativeEngine
+
+`event-1` dataclass `EventRecord` (`qoresence.core.civif_tick`, re-exported from `types.py`): `event_id`, `event_type` (`press_to_score`, `spam_window`, `situation_shift`), clocks, optional `input_summary` / `situation_summary` / `evidence`.
+
+`NarrativeEngine` (`qoresence.foundry.narrative_engine`) builds a session `narrative.json` (`schema_version: narrative-1`) from live ticks after coaches. Button names only when bodied; score/yard fields only when locked. Write `logs/civif/narrative_<session>.json` when `QORESENCE_CIVIF_NARRATIVE_LOG=1`. Not an MCP tool (`civif_narrative` remains reserved). Clip `narrate_clip` is unchanged.
+
 ## Future (reserved)
 
 Dataclasses `CoachingReport` (`coach-1`) and `EventRecord` (`event-1`) in `qoresence/core/civif_tick.py`. MCP names **not** listed yet: `civif_coaching_report` (bodied), `civif_narrative` (board locked). Use `coach_clip` / `narrate_clip` today. New coaches should add a `coach_type` and the same fail-closed empty `metrics`/`issues`.
