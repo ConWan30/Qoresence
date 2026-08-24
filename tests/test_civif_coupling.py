@@ -15,18 +15,18 @@ from qoresence.core.coupled_event import (
 
 
 def _sidecar(**kw):
-    defaults = dict(
-        clip_id="hdmi_clip_test",
-        session_id="sess-1",
-        start_ns=1_000,
-        end_ns=2_000,
-        frame_start=1,
-        frame_end=10,
-        video_path="clips/hdmi_clip_test.mp4",
-        events=[],
-        coupling={},
-        coupling_history=[],
-    )
+    defaults = {
+        "clip_id": "hdmi_clip_test",
+        "session_id": "sess-1",
+        "start_ns": 1_000,
+        "end_ns": 2_000,
+        "frame_start": 1,
+        "frame_end": 10,
+        "video_path": "clips/hdmi_clip_test.mp4",
+        "events": [],
+        "coupling": {},
+        "coupling_history": [],
+    }
     defaults.update(kw)
     return build_coupling_sidecar(**defaults)
 
