@@ -87,7 +87,7 @@ Highlights may still rank on coupling score and locked board without pad analyti
 - **board_locked yes/no** — trust score digits only when yes.
 - **controller_bodied yes/no** — trust pad timing only when yes (PAD WAIT on Theater is the same honesty).
 - HDMI stays on Theater; this page does not poll JPEG.
-- **Coach panel** — Timing and Pattern reports from `GET /api/civif/live` (`coaching_reports`, plus legacy `coaching_report` for Timing). Fail-closed copy when there is no report or the pad/board is not trusted.
+- **Coach panel** — Timing, Pattern, and Situation reports from `GET /api/civif/live` (`coaching_reports`, plus legacy `coaching_report` for Timing).
 
 ## Coaching
 
@@ -138,6 +138,18 @@ Typical `metrics`:
 Typical `metrics`: `spam_windows_count`, `mistimed_combo_count`, `spam_rate` (windows per minute of the observed span).
 
 `issues`: `button_spam` (≥3 windows) and/or `mistimed_combo` (≥5 pairs), each with observational text and `clip_ids`. Pattern reports may also be written as `logs/civif/coaching_<session>_pattern.json` when the log env is on.
+
+### SituationCoach
+
+`qoresence.foundry.situation_coach`. Compares press-to-score latency and spam windows across **stamped** locked situation fields only.
+
+- Red zone vs not: `yard_line <= 20`. If `yard_line` is null, those metrics/issues are omitted (not invented).
+- Clutch vs not: stored `clutch_score >= 0.6`.
+- Issues (`red_zone_latency`, `red_zone_spam`, `clutch_latency`, `clutch_spam`) only when median latency differs by more than 100 ms or spam-rate by more than 0.1.
+
+### Session summary JSONL
+
+When `QORESENCE_CIVIF_SUMMARY_LOG=1`, after coaches run, append one line to `logs/civif/session_summary.jsonl` if at least one `CoachingReport` exists (`qoresence.foundry.civif_summary`). Coach-specific keys are omitted when that coach is absent. No UI.
 
 ### Operator view (Coach panel)
 

@@ -514,6 +514,14 @@ def handle_civif_live() -> dict[str, Any]:
                 coaching_reports.append(pat.to_dict())
         except Exception:
             pass
+        try:
+            from qoresence.foundry.situation_coach import last_situation_report
+
+            sitr = last_situation_report()
+            if sitr is not None:
+                coaching_reports.append(sitr.to_dict())
+        except Exception:
+            pass
         return {
             "ok": True,
             "record": rec,

@@ -351,3 +351,15 @@ def refresh_after_clip_export(clips_dir: Path | str | None = None) -> None:
         generate_pattern_report(sid, clips_dir=clips_dir, persist=_coach_log_enabled())
     except Exception as e:
         log.debug("pattern coach after export: %s", e)
+    try:
+        from qoresence.foundry.situation_coach import generate_situation_report
+
+        generate_situation_report(sid, clips_dir=clips_dir, persist=_coach_log_enabled())
+    except Exception as e:
+        log.debug("situation coach after export: %s", e)
+    try:
+        from qoresence.foundry.civif_summary import maybe_write_after_coaches
+
+        maybe_write_after_coaches(sid)
+    except Exception as e:
+        log.debug("civif summary after export: %s", e)
