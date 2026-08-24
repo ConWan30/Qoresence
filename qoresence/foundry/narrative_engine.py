@@ -237,8 +237,18 @@ class NarrativeEngine:
         return generate_narrative(**kwargs)
 
 
-def maybe_write_after_coaches(session_id: str) -> None:
+def maybe_write_after_coaches(
+    session_id: str,
+    *,
+    ticks: list[dict[str, Any]] | None = None,
+    path: Path | str | None = None,
+) -> None:
     try:
-        generate_narrative(session_id, persist=_log_enabled())
+        generate_narrative(
+            session_id,
+            ticks=ticks,
+            persist=_log_enabled(),
+            path=path,
+        )
     except Exception as e:
         log.debug("narrative after coaches: %s", e)
