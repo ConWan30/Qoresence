@@ -97,6 +97,15 @@ def rank_highlights(clips_dir: Any = None, limit: int = 8) -> dict[str, Any]:
         rows.append(rec)
     rows.sort(key=lambda r: (-float(r.score), r.clip_id))
     hits = [r.to_dict() for r in rows[:limit]]
+    try:
+        from qoresence.foundry.civif_metrics import observe_highlight_scores
+
+        observe_highlight_scores(
+            [float(h.get("coupling_score") or 0) for h in hits],
+            session_id=str(hits[0].get("session_id") or "") if hits else "",
+        )
+    except Exception:
+        pass
     return {
         "ok": True,
         "count": len(hits),

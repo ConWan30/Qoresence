@@ -10,6 +10,19 @@ CIVIF is the **live + clip observation** layer:
 - Highlights, coaches, search, and narrative are **queries** over those records.
 - Theater LIVE (`/live.jpg`) is unchanged. Open `/civif.html` for CIVIF (JSON ~1 Hz).
 
+## CIVIF invariants
+
+These are fail-closed observation guarantees. They are locked in by
+`tests/test_civif_invariants.py` (and `tests/test_civif_bodied.py`).
+
+- If the pad is on the PS5 (controller not bodied on this host), `input_ticks` is empty and no button names are shown in highlights, coaches, or any CIVIF JSON (`/civif.html` polls that JSON ~1 Hz). Timing and pattern coaches are withheld (`null`).
+- Score digits (home/away, down, distance, and similar) are only included when the scoreboard is locked (`board_locked == true`). When unlocked, situation digit fields are `null` / omitted. Highlights do not invent scores or outcome tags.
+- Highlights include an `explanation` that mirrors the **real** ranking terms: coupling score, `board_locked`, `controller_bodied`, `key_inputs` only if bodied, `outcome_tag` only from a locked board’s stored `clutch_kind` or an existing chapter label. No synthetic touchdowns or invented digits.
+- Ranking may still use coupling and a locked board when the pad is unbodied; it must not use detailed HID patterns from an unbodied host.
+- CIVIF is an **observation plane only**. It does not make anti-cheat, eligibility, or legitimacy claims.
+
+Internal, non-UI counters (`qoresence.foundry.civif_metrics`) may tally locked-tick rate, whether the pad was ever bodied, and highlight coupling min/max/mean. They do not emit bus events.
+
 ## Live Coupled Tick Schema (`civif_tick-1`)
 
 Fields on each live tick (`GET /api/civif/live` → `record`):
