@@ -363,3 +363,9 @@ def refresh_after_clip_export(clips_dir: Path | str | None = None) -> None:
         maybe_write_after_coaches(sid)
     except Exception as e:
         log.debug("civif summary after export: %s", e)
+    try:
+        from qoresence.foundry.narrative_engine import maybe_write_after_coaches as maybe_narrative
+
+        maybe_narrative(sid)
+    except Exception as e:
+        log.debug("narrative after export: %s", e)

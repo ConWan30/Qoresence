@@ -291,3 +291,4 @@ def clock_ns() -> int:
 
 # CIVIF coach-1 lives in qoresence.core.civif_tick (dataclass, not Pydantic).
 from qoresence.core.civif_tick import CoachingReport as CoachingReport  # noqa: E402,F401
+from qoresence.core.civif_tick import EventRecord as EventRecord  # noqa: E402,F401

@@ -198,7 +198,7 @@ class CoachingReport:
 
 @dataclass
 class EventRecord:
-    """Reserved shape for a future coupled event / narrative layer."""
+    """event-1 play-by-play observation. MCP ``civif_narrative`` is not listed yet."""
 
     session_id: str
     event_id: str
@@ -211,6 +211,22 @@ class EventRecord:
     situation_summary: dict[str, Any] | None = None
     evidence: dict[str, Any] | None = None
     schema_version: str = EVENT_SCHEMA
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "session_id": self.session_id,
+            "event_id": self.event_id,
+            "event_type": self.event_type,
+            "t_start_ns": int(self.t_start_ns),
+            "t_end_ns": int(self.t_end_ns),
+            "frame_start": int(self.frame_start),
+            "frame_end": int(self.frame_end),
+            "input_summary": dict(self.input_summary) if self.input_summary else None,
+            "situation_summary": dict(self.situation_summary) if self.situation_summary else None,
+            "evidence": dict(self.evidence) if self.evidence else None,
+            "schema_version": self.schema_version,
+            "plane": CIVIF_PLANE,
+        }
 
 
 def map_edge_type(kind: str, value: float = 0.0) -> str:
