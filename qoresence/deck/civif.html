@@ -37,6 +37,11 @@ label{margin-right:14px;color:var(--muted);font-size:13px}
   <pre id="timing" class="muted"></pre>
 </section>
 <section>
+  <h2>Coach (Timing)</h2>
+  <pre id="coach-timing">…</pre>
+  <div id="coach-issues"></div>
+</section>
+<section>
   <h2>Highlights</h2>
   <label><input type="checkbox" id="q-coup"> High coupling only</label>
   <label><input type="checkbox" id="q-board"> Board locked only</label>
@@ -79,9 +84,52 @@ async function tickLive() {
       const ticks = rec.input_ticks || (rec.input && rec.input.events) || [];
       tm.textContent = "input_ticks: " + JSON.stringify(ticks.slice(0, 12));
     }
+    renderCoach(d && d.coaching_report);
   } catch (e) {
     document.getElementById("live").textContent = "live unavailable";
   }
+}
+function renderCoach(rep) {
+  const box = document.getElementById("coach-timing");
+  const issuesEl = document.getElementById("coach-issues");
+  issuesEl.innerHTML = "";
+  if (!rep) {
+    box.className = "muted";
+    box.textContent = "Timing insights unavailable (no report yet).";
+    return;
+  }
+  if (!rep.controller_bodied || !rep.board_locked) {
+    box.className = "muted";
+    box.textContent = "Timing insights unavailable (controller not bodied or board unlocked).";
+    return;
+  }
+  const m = rep.metrics || {};
+  const medNs = m.median_latency_ns;
+  const medMs = (medNs == null) ? "—" : (Number(medNs) / 1e6).toFixed(0) + " ms";
+  const late = m.late_input_rate;
+  const latePct = (late == null) ? "—" : ((Number(late) * 100).toFixed(0) + "%");
+  box.className = "";
+  box.textContent = "median_latency_ms: " + medMs + "\nlate_input_rate: " + latePct
+    + "\nsamples: " + (m.latency_samples ?? "—");
+  const issues = (rep.issues || []).slice(0, 3);
+  issues.forEach((iss) => {
+    const p = document.createElement("pre");
+    p.textContent = (iss.type || "issue") + ": " + (iss.description || "");
+    issuesEl.appendChild(p);
+    (iss.clip_ids || []).slice(0, 3).forEach((cid) => {
+      const a = document.createElement("a");
+      a.href = "/media/clips/" + encodeURIComponent(cid) + ".mp4";
+      a.textContent = cid;
+      a.style.marginRight = "12px";
+      a.addEventListener("click", (ev) => {
+        if (typeof window.qorePlayClip === "function") {
+          ev.preventDefault();
+          window.qorePlayClip("/media/clips/" + cid + ".mp4", cid);
+        }
+      });
+      issuesEl.appendChild(a);
+    });
+  });
 }
 async function loadHi() {
   const qs = new URLSearchParams();

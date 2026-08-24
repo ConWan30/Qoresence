@@ -315,6 +315,7 @@
   } else {
     mount();
   }
+  window.qorePlayClip = playClip;
   void refresh();
   [50, 150, 400, 800].forEach(function (ms) {
     window.setTimeout(refresh, ms);

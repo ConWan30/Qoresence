@@ -345,3 +345,9 @@ def refresh_after_clip_export(clips_dir: Path | str | None = None) -> None:
         generate_timing_report(sid, clips_dir=clips_dir, persist=_coach_log_enabled())
     except Exception as e:
         log.debug("timing coach after export: %s", e)
+    try:
+        from qoresence.foundry.pattern_coach import generate_pattern_report
+
+        generate_pattern_report(sid, clips_dir=clips_dir, persist=_coach_log_enabled())
+    except Exception as e:
+        log.debug("pattern coach after export: %s", e)

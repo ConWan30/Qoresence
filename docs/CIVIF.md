@@ -97,6 +97,11 @@ Internal `coach-1` reports (`qoresence.foundry.timing_coach`, facade `qoresence.
 - `metrics`: `latency_samples`, `median_latency_ns`, `p75`/`p90`, `late_input_rate` (fraction of press→next locked scoreboard-digit-change latencies above 400 ms).
 - `issues`: `late_input` with evidence `clip_ids` when there are at least 5 samples and ≥40% are late. Descriptions stay observational (no invented play results).
 - Observation plane only. Not anti-cheat.
+- `/civif.html` **Coach (Timing)** panel reads `coaching_report` from `GET /api/civif/live` (~1 Hz JSON).
+
+## CoachingReport (PatternCoach)
+
+Internal `coach-1` with `coach_type: "pattern"` (`qoresence.foundry.pattern_coach`). Not in MCP `tools/list`. Same fail-closed gate as TimingCoach. Detects repeated same-button spam windows and stick→R2 gaps outside a simple band. Reports are stored in memory (and `logs/civif/coaching_<session>_pattern.json` when `QORESENCE_CIVIF_COACH_LOG=1`). `/civif.html` still shows TimingCoach only.
 
 ## Future (reserved)
 

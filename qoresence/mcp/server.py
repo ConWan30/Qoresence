@@ -495,7 +495,22 @@ def handle_civif_live() -> dict[str, Any]:
 
         rec = live_record()
         coach = live_coach()
-        return {"ok": True, "record": rec, "coach": coach, "plane": "qoresence-observation"}
+        coaching_report = None
+        try:
+            from qoresence.foundry.timing_coach import last_timing_report
+
+            stored = last_timing_report()
+            if stored is not None:
+                coaching_report = stored.to_dict()
+        except Exception:
+            coaching_report = None
+        return {
+            "ok": True,
+            "record": rec,
+            "coach": coach,
+            "coaching_report": coaching_report,
+            "plane": "qoresence-observation",
+        }
     except Exception as e:
         return {"ok": False, "error": "civif_live_failed", "hint": str(e)}
 

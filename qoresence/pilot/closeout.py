@@ -550,6 +550,12 @@ def write_closeout(
             sid,
             persist=os.getenv("QORESENCE_CIVIF_COACH_LOG", "").strip().lower() in {"1", "true", "on"},
         )
+        from qoresence.foundry.pattern_coach import generate_pattern_report
+
+        generate_pattern_report(
+            sid,
+            persist=os.getenv("QORESENCE_CIVIF_COACH_LOG", "").strip().lower() in {"1", "true", "on"},
+        )
     except Exception:
         pass
     return out_json, out_md, summary
