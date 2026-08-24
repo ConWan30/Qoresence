@@ -167,6 +167,34 @@ When `QORESENCE_CIVIF_SUMMARY_LOG=1`, after coaches run, append one line to `log
 
 Session Theater (`/session.html`) is a fixture-driven Now + Story view of that pack (`?fixture=bodied_locked` by default). It does not change `/civif.html`, HDMI Theater, or MCP. Score/yard digits render only through `LockedValue` after `session_view.normalize_pack`.
 
+### Milestone: Phase 1–2 Session Theater foundation
+
+Recorded on `main` as **`da0fa95`** ([#63](https://github.com/ConWan30/Qoresence/pull/63)). Acceptance: fail-closed normalization boundary, UI renders only the normalized view, Gamer/Analyst share that view, empty persisted vs not-persisted are distinct, fixtures are allowlisted, malformed packs do not 500.
+
+Included:
+
+- Fail-closed session-pack normalization (`session_view.normalize_pack`).
+- Locked-only score and yard rendering (`LockedValue`).
+- Bodied-only HID identity exposure.
+- Now HUD and Story views.
+- Gamer and Analyst presentation modes.
+- Explicit persisted versus non-persisted empty states.
+- Malformed-pack handling without route-level 500 errors.
+- Allowlisted fixture access.
+- 62 targeted and related tests passing locally (Session Theater, narrative, CIVIF, MCP, deadlock, OTel).
+
+Excluded (later work):
+
+- Live `GET /api/session/view`.
+- Recap API.
+- Stale polling.
+- Clip dock.
+- Glass SPA / HDMI Theater.
+- `/civif.html` changes.
+- MCP `tools/list` changes.
+
+Project state: Phase 1–2 merged and stable. Phase 3 live-session API is a separately scoped proposal ([#64](https://github.com/ConWan30/Qoresence/issues/64)). Recurring CI full-matrix fail-fast is tracked in [#65](https://github.com/ConWan30/Qoresence/issues/65) and is not part of Phase 3 unless a new failure appears.
+
 ## Future (reserved)
 
 Dataclasses `CoachingReport` (`coach-1`) and `EventRecord` (`event-1`) in `qoresence/core/civif_tick.py`. MCP names **not** listed yet: `civif_coaching_report` (bodied), `civif_narrative` (board locked). Use `coach_clip` / `narrate_clip` today. New coaches should add a `coach_type` and the same fail-closed empty `metrics`/`issues`.
