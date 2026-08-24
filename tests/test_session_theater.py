@@ -25,6 +25,7 @@ def test_event_record_reexport_and_mcp_untouched():
     assert EventRecord is TypesEventRecord
     names = {t["name"] for t in TOOL_DEFS}
     assert "civif_narrative" not in names
+    assert "civif_session_view" not in names
     assert "export_clip" not in names
     assert "narrate_clip" in names
 
@@ -44,10 +45,10 @@ def test_session_page_is_not_clip_docked():
     assert "function lockedValue" in js
     assert "board_locked" in js
     assert "ALLOWED" in js
-    assert "normalizePack(pack)" in js
+    assert "/api/session/view" in js
+    assert "/session_fixtures/" not in js
     assert "innerHTML" in js and "JSON.stringify" not in js
-    assert "if (window.__view) render(window.__view, next)" in js
-    assert "/api/session/view" not in js
+    assert "freshness" in js
     assert "clip-dock.js" not in js
 
 
@@ -183,19 +184,11 @@ def test_session_routes_and_fixture(monkeypatch):
     assert prod.status_code == 404
 
 
-def test_no_live_session_view_api():
-    from qoresence.deck.server import create_app
-
-    try:
-        from fastapi.testclient import TestClient
-    except Exception:
-        import pytest
-
-        pytest.skip("httpx/starlette TestClient not installed")
-    client = TestClient(create_app())
-    r = client.get("/api/session/view")
-    assert r.status_code == 404
-    assert "civif_narrative" not in {t["name"] for t in TOOL_DEFS}
+def test_no_live_session_view_in_mcp():
+    names = {t["name"] for t in TOOL_DEFS}
+    assert "civif_narrative" not in names
+    assert "civif_session_view" not in names
+    assert "session_view" not in names
 
 
 def test_alternate_score_and_hid_keys_do_not_bypass():
@@ -254,7 +247,7 @@ def test_unknown_fixture_is_not_loaded():
 
 def test_gamer_and_analyst_share_normalized_view():
     js = SESSION_JS.read_text(encoding="utf-8")
-    assert "render(window.__view, next)" in js
+    assert "render(window.__view, next, window.__envelope)" in js
     html = SESSION_HTML.read_text(encoding="utf-8")
     assert "data-mode=\"gamer\"" in html
     assert "data-mode=\"analyst\"" in html
@@ -270,3 +263,93 @@ def test_fixtures_exist():
         "empty_not_persisted",
         "empty_persisted",
     } <= names
+
+
+def test_api_session_view_normalized_only():
+    from qoresence.deck.server import create_app
+
+    try:
+        from fastapi.testclient import TestClient
+    except Exception:
+        import pytest
+
+        pytest.skip("httpx/starlette TestClient not installed")
+    client = TestClient(create_app())
+    unlocked = client.get("/api/session/view", params={"fixture": "bodied_unlocked"}).json()
+    assert unlocked["ok"] is True
+    assert unlocked["status"] == "live"
+    assert unlocked["view"]["confirmed"]["score"] is None
+    blob = str(unlocked["view"])
+    assert "99" not in blob
+    assert unlocked["freshness"]["stale"] is False
+    assert unlocked["status"] != "stale"
+    assert "situation_summary" not in unlocked
+    assert set(unlocked) >= {"ok", "status", "session", "view", "freshness"}
+    assert set(unlocked["freshness"]) == {"generated_at", "last_event_at", "age_ms", "stale"}
+    unbodied = client.get("/api/session/view", params={"fixture": "unbodied_locked"}).json()
+    assert "R2" not in str(unbodied["view"])
+    empty = client.get("/api/session/view", params={"fixture": "empty_persisted"}).json()
+    assert empty["status"] == "empty"
+    assert empty["view"]["empty_reason"] == "no_events"
+    missing_log = client.get("/api/session/view", params={"fixture": "empty_not_persisted"}).json()
+    assert missing_log["status"] == "not_persisted"
+    assert missing_log["view"]["empty_reason"] == "not_persisted"
+    unknown = client.get("/api/session/view", params={"fixture": "narrative_prod"}).json()
+    assert unknown["status"] == "unavailable"
+    assert unknown["view"]["empty_reason"] == "unavailable"
+    assert unknown["status"] != "stale"
+
+
+def test_build_session_response_invalid_and_stale_flag():
+    from datetime import datetime, timedelta, timezone
+
+    from qoresence.foundry import session_view as sv
+
+    sv._last_envelope.clear()
+    env = sv.build_session_response(session_id="s")
+    assert env["ok"] is True
+    assert env["status"] in sv.VIEW_STATUSES
+    assert env["status"] != "stale"
+    assert env["freshness"]["stale"] is False
+    assert "events" in env["view"]
+    assert "situation_summary" not in env["view"]
+
+    view = sv.normalize_pack({"events": {"nope": True}})
+    assert view["events"] == []
+    assert sv.derive_status(view, invalid=True) == "invalid"
+    assert sv.derive_status(view, invalid=False, unavailable=True) == "unavailable"
+
+    def bad_pack(_sid: str) -> tuple[dict, bool]:
+        return {"events": {"nope": True}}, False
+
+    orig = sv._load_live_pack
+    sv._load_live_pack = bad_pack  # type: ignore[method-assign]
+    try:
+        bad = sv.build_session_response(session_id="broken")
+    finally:
+        sv._load_live_pack = orig  # type: ignore[method-assign]
+    assert bad["status"] == "invalid"
+    assert bad["ok"] is False
+    assert bad["view"]["empty_reason"] == "invalid"
+    assert bad["freshness"]["stale"] is False
+
+    locked = sv.build_session_response(fixture="bodied_locked", session_id="1842")
+    assert locked["status"] == "live"
+    assert locked["view"]["confirmed"]["score"] == {"home": 21, "away": 14}
+    aged = dict(locked)
+    aged["freshness"] = dict(locked["freshness"])
+    aged["freshness"]["generated_at"] = sv._iso_z(datetime.now(timezone.utc) - timedelta(seconds=8))
+    sv._last_envelope[sv._cache_key("1842", "")] = aged
+
+    def fail_live(_sid: str) -> tuple[None, bool]:
+        return None, True
+
+    orig = sv._load_live_pack
+    sv._load_live_pack = fail_live  # type: ignore[method-assign]
+    try:
+        cached = sv.build_session_response(session_id="1842")
+    finally:
+        sv._load_live_pack = orig  # type: ignore[method-assign]
+    assert cached["status"] == "live"
+    assert cached["freshness"]["stale"] is True
+    assert cached["status"] != "stale"

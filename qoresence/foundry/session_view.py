@@ -7,6 +7,9 @@ names are omitted. Missing fields stay absent (never zero / guessed buttons).
 from __future__ import annotations
 
 import json
+import os
+import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -279,3 +282,162 @@ def load_fixture(name: str) -> dict[str, Any]:
 
 def view_from_fixture(name: str) -> dict[str, Any]:
     return normalize_pack(load_fixture(name))
+
+
+STALE_AFTER_MS = 5000
+VIEW_STATUSES = frozenset({"live", "empty", "not_persisted", "unavailable", "invalid"})
+
+_envelope_lock = threading.Lock()
+_last_envelope: dict[str, dict[str, Any]] = {}
+
+
+def _iso_z(when: datetime) -> str:
+    return when.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _parse_iso_z(value: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+
+
+def pack_is_invalid(pack: Any) -> bool:
+    if pack is None:
+        return False
+    if not isinstance(pack, dict):
+        return True
+    events = pack.get("events", [])
+    return events is not None and not isinstance(events, list)
+
+
+def derive_status(view: dict[str, Any], *, invalid: bool = False, unavailable: bool = False) -> str:
+    if invalid:
+        return "invalid"
+    if unavailable:
+        return "unavailable"
+    if view.get("events"):
+        return "live"
+    if view.get("empty_reason") == "not_persisted":
+        return "not_persisted"
+    return "empty"
+
+
+def _apply_status_reason(view: dict[str, Any], status: str) -> None:
+    if status == "invalid":
+        view["empty_reason"] = "invalid"
+    elif status == "unavailable":
+        view["empty_reason"] = "unavailable"
+
+
+def _freshness(now: datetime, *, last_event_at: str | None, generated_at: datetime | None = None) -> dict[str, Any]:
+    gen = generated_at or now
+    age_ms = max(0, int((now - gen).total_seconds() * 1000))
+    return {
+        "generated_at": _iso_z(gen),
+        "last_event_at": last_event_at,
+        "age_ms": age_ms,
+        "stale": age_ms > STALE_AFTER_MS,
+    }
+
+
+def _cache_key(session_id: str, fixture: str) -> str:
+    return f"{fixture or 'live'}:{session_id or '_'}"
+
+
+def _load_live_pack(session_id: str) -> tuple[dict[str, Any] | None, bool]:
+    """Return (pack, unavailable). Never persist. Does not change NarrativeEngine."""
+    try:
+        from qoresence.foundry.narrative_engine import generate_narrative, last_narrative
+
+        pack = last_narrative(session_id) if session_id else last_narrative()
+        if pack is not None:
+            return pack, False
+        if session_id:
+            return generate_narrative(session_id, persist=False), False
+        return None, True
+    except Exception:
+        return None, True
+
+
+def _resolve_session_id(explicit: str) -> str:
+    if explicit:
+        return str(explicit)
+    try:
+        from qoresence.core.session import SessionAuthority
+
+        ident = SessionAuthority.current()
+        if ident is not None:
+            return str(ident.session_id)
+    except Exception:
+        pass
+    return os.getenv("QORESENCE_SESSION_ID") or ""
+
+
+def build_session_response(
+    *,
+    session_id: str = "",
+    fixture: str = "",
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Read-only session-view envelope. `view` is always normalize_pack output."""
+    generated = now or datetime.now(timezone.utc)
+    sid = _resolve_session_id(session_id)
+    invalid = False
+    unavailable = False
+    pack: Any = None
+    if fixture:
+        try:
+            pack = load_fixture(fixture)
+            sid = sid or str(pack.get("session_id") or "")
+        except FileNotFoundError:
+            unavailable = True
+            pack = None
+    else:
+        pack, live_unavail = _load_live_pack(sid)
+        if live_unavail:
+            unavailable = True
+        elif pack is None and not sid:
+            unavailable = True
+    if pack_is_invalid(pack):
+        invalid = True
+        view = normalize_pack(None)
+    elif pack is None:
+        view = normalize_pack(
+            {
+                "session_id": sid,
+                "events": [],
+                "persisted": False,
+                "board_locked": False,
+                "controller_bodied": False,
+            }
+        )
+    else:
+        view = normalize_pack(pack)
+    status = derive_status(view, invalid=invalid, unavailable=unavailable)
+    _apply_status_reason(view, status)
+    last_event_at = _iso_z(generated) if view.get("events") else None
+    envelope = {
+        "ok": status != "invalid",
+        "status": status,
+        "session": sid,
+        "view": view,
+        "freshness": _freshness(generated, last_event_at=last_event_at, generated_at=generated),
+    }
+    key = _cache_key(sid, fixture)
+    if status == "unavailable" and not fixture:
+        with _envelope_lock:
+            prev = _last_envelope.get(key)
+        if prev and prev.get("status") in {"live", "empty", "not_persisted"}:
+            gen = _parse_iso_z(str((prev.get("freshness") or {}).get("generated_at") or ""))
+            aged = dict(prev)
+            aged["freshness"] = _freshness(
+                generated,
+                last_event_at=(prev.get("freshness") or {}).get("last_event_at"),
+                generated_at=gen or generated,
+            )
+            return aged
+    if status != "unavailable":
+        with _envelope_lock:
+            _last_envelope[key] = envelope
+    return envelope

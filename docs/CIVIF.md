@@ -183,17 +183,24 @@ Included:
 - Allowlisted fixture access.
 - 62 targeted and related tests passing locally (Session Theater, narrative, CIVIF, MCP, deadlock, OTel).
 
-Excluded (later work):
+Excluded (later work at the time of merge):
 
-- Live `GET /api/session/view`.
+- Live `GET /api/session/view` (Phase 3, [#64](https://github.com/ConWan30/Qoresence/issues/64)).
 - Recap API.
-- Stale polling.
 - Clip dock.
 - Glass SPA / HDMI Theater.
 - `/civif.html` changes.
 - MCP `tools/list` changes.
 
-Project state: Phase 1–2 merged and stable. Phase 3 live-session API is a separately scoped proposal ([#64](https://github.com/ConWan30/Qoresence/issues/64)). Recurring CI full-matrix fail-fast is tracked in [#65](https://github.com/ConWan30/Qoresence/issues/65) and is not part of Phase 3 unless a new failure appears.
+### Phase 3: `GET /api/session/view`
+
+Read-only envelope. `view` is always `normalize_pack` output (`session-view-1`). `stale` is a freshness flag only — never a `status`.
+
+`status` values: `live`, `empty`, `not_persisted`, `unavailable`, `invalid`. A previously valid view that aged out stays `status: "live"` with `freshness.stale: true`.
+
+`/session.html` polls this route (~1 Hz). It does not fetch raw `/session_fixtures/*.json`. No recap, clip-dock, HDMI, `/civif.html`, MCP, or NarrativeEngine changes. CI fail-fast remains [#65](https://github.com/ConWan30/Qoresence/issues/65).
+
+Project state: Phase 1–2 merged on `main` (`da0fa95`, docs `#66` / `85e104a`). Phase 3 is the live session-view API.
 
 ## Future (reserved)
 
