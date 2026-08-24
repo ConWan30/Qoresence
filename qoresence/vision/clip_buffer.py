@@ -637,7 +637,7 @@ def _write_coupling_sidecar(
         except Exception:
             session_id = ""
         seqs = [int(row[4]) for row in snapshot if len(row) >= 5]
-        from qoresence.core.coupled_event import build_coupling_sidecar
+        from qoresence.core.coupled_event import build_coupling_sidecar, current_situation
 
         clip_id = Path(mp4_path).stem
         out = Path(mp4_path).with_name(clip_id + ".coupling.json")
@@ -652,6 +652,7 @@ def _write_coupling_sidecar(
             events=events,
             coupling=coupling if isinstance(coupling, dict) else {},
             coupling_history=coupling_history if isinstance(coupling_history, list) else [],
+            situation=current_situation(),
         )
         tmp = out.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")

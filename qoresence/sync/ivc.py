@@ -434,6 +434,13 @@ class InputVideoCoupler:
                 log.debug("IVC bus emit failed: %s", e)
 
         try:
+            from qoresence.foundry.cer_log import observe_coupling
+
+            observe_coupling(payload)
+        except Exception:
+            pass
+
+        try:
             from qoresence.observability import record_latency
 
             record_latency(

@@ -1807,6 +1807,33 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
+    @app.get("/api/civif/live")
+    async def api_civif_live():  # type: ignore[no-untyped-def]
+        def _live() -> dict[str, Any]:
+            from qoresence.mcp.server import handle_civif_live
+
+            return handle_civif_live()
+
+        try:
+            body = await asyncio.to_thread(_live)
+            return JSONResponse(body)
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/api/civif/highlights")
+    async def api_civif_highlights(limit: int = 8):  # type: ignore[no-untyped-def]
+        def _hi() -> dict[str, Any]:
+            from qoresence.foundry.highlights import rank_highlights
+            from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
+
+            return rank_highlights(clips_dir=DEFAULT_OUT_DIR, limit=limit)
+
+        try:
+            body = await asyncio.to_thread(_hi)
+            return JSONResponse(body)
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
     @app.get("/media/clips/{name}")
     async def media_clip(name: str):  # type: ignore[no-untyped-def]
         """Stream a local HDMI clip MP4 or sidecar JSON for in-page players."""

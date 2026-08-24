@@ -35,5 +35,6 @@ def test_clip_dock_js_has_replay_and_live():
     assert "#qore-clip-dock.open .tiles" in css
     assert "glassOwnsStage" in blob
     assert "function standDown" in blob
+    assert "/civif.html" in blob
     assert 'data-clip-owner="hdmi-stage"' in blob
     assert "if (glassOwnsStage()) return;" in blob

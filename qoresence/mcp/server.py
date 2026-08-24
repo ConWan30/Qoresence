@@ -107,6 +107,14 @@ def _get_fastmcp():
     def narrate_clip(clip: str = "") -> dict:  # type: ignore
         return handle_narrate_clip(clip=clip)
 
+    @mcp.tool()  # type: ignore
+    def civif_live() -> dict:  # type: ignore
+        return handle_civif_live()
+
+    @mcp.tool()  # type: ignore
+    def civif_highlights(limit: int = 8) -> dict:  # type: ignore
+        return handle_civif_highlights(limit=limit)
+
     _mcp_fastmcp = mcp
     return mcp
 
@@ -459,6 +467,27 @@ def handle_narrate_clip(clip: str = "") -> dict[str, Any]:
         return {"ok": False, "error": "narrative_failed", "hint": str(e)}
 
 
+def handle_civif_live() -> dict[str, Any]:
+    try:
+        from qoresence.foundry.cer_log import live_record
+        from qoresence.foundry.coach import live_coach
+
+        rec = live_record()
+        coach = live_coach()
+        return {"ok": True, "record": rec, "coach": coach, "plane": "qoresence-observation"}
+    except Exception as e:
+        return {"ok": False, "error": "civif_live_failed", "hint": str(e)}
+
+
+def handle_civif_highlights(limit: int = 8) -> dict[str, Any]:
+    try:
+        from qoresence.foundry.highlights import rank_highlights
+
+        return rank_highlights(limit=int(limit))
+    except Exception as e:
+        return {"ok": False, "error": "highlights_failed", "hint": str(e)}
+
+
 def handle_get_drive_graph(
     drive_id: str | None = None, include_nodes: bool = True, max_nodes: int = 40
 ) -> dict[str, Any]:
@@ -632,6 +661,20 @@ TOOL_DEFS = [
         },
     },
     {
+        "name": "civif_live",
+        "description": "Live Coupled Event Record + fail-closed coach. Timing/pattern withheld unless DualSense is bodied on this host.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "civif_highlights",
+        "description": "Rank clips by civif-v0 coupling / locked score / bodied input. Read-only. No invented digits.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8}},
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "get_drive_graph",
         "description": "DriveGraph for active or drive_id: phase/climax/nodes/ranking + why_line. Software-only.",
         "inputSchema": {
@@ -727,6 +770,8 @@ HANDLERS = {
     ),
     "coach_clip": lambda a: handle_coach_clip(clip=str(a.get("clip", "") or "")),
     "narrate_clip": lambda a: handle_narrate_clip(clip=str(a.get("clip", "") or "")),
+    "civif_live": lambda a: handle_civif_live(),
+    "civif_highlights": lambda a: handle_civif_highlights(limit=int(a.get("limit", 8) or 8)),
     "get_drive_graph": lambda a: handle_get_drive_graph(
         drive_id=(str(a.get("drive_id", "")).strip() or None),
         include_nodes=bool(a.get("include_nodes", True)),

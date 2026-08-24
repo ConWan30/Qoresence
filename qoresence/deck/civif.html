@@ -9,9 +9,10 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,sans-serif}
 header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 header strong{color:var(--gold);letter-spacing:.08em;text-transform:uppercase;font-size:12px}
-a{color:var(--cyan)}#list,#story{padding:16px 20px}
+a{color:var(--cyan)}section{padding:16px 20px;border-bottom:1px solid var(--line)}
+h2{margin:0 0 8px;font:800 11px/1 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+pre{white-space:pre-wrap;color:var(--muted);max-width:52rem}
 button{appearance:none;background:transparent;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;margin:0 8px 8px 0;cursor:pointer}
-button:hover{border-color:var(--gold)}#story{white-space:pre-wrap;color:var(--muted);max-width:52rem}
 </style>
 </head>
 <body>
@@ -19,14 +20,49 @@ button:hover{border-color:var(--gold)}#story{white-space:pre-wrap;color:var(--mu
   <strong>CIVIF</strong>
   <a href="/deck.html">Theater</a>
   <a href="/studio.html">Foundry</a>
-  <span style="color:var(--muted);font-size:12px">Observation only · pad timing withheld unless DualSense is on this host</span>
+  <span style="color:var(--muted);font-size:12px">Live HDMI stays on Theater. This page polls JSON ~1 Hz, not JPEG.</span>
 </header>
-<div id="list">Loading clips…</div>
-<div id="story"></div>
+<section>
+  <h2>Live record</h2>
+  <pre id="live">…</pre>
+</section>
+<section>
+  <h2>Highlights</h2>
+  <pre id="hi">…</pre>
+</section>
+<section>
+  <h2>Clips</h2>
+  <div id="list">Loading…</div>
+  <pre id="story"></pre>
+</section>
 <script>
-const list = document.getElementById("list");
-const story = document.getElementById("story");
-async function load() {
+async function tickLive() {
+  try {
+    const r = await fetch("/api/civif/live");
+    const d = await r.json();
+    const c = (d && d.coach) || {};
+    const notes = (c.notes || []).join(" ");
+    const withh = (c.withheld || []).join(", ") || "none";
+    document.getElementById("live").textContent =
+      (notes || "no live CER") + "\nwithheld: " + withh + "\nbodied: " + String(c.bodied);
+  } catch (e) {
+    document.getElementById("live").textContent = "live unavailable";
+  }
+}
+async function loadHi() {
+  try {
+    const r = await fetch("/api/civif/highlights?limit=8");
+    const d = await r.json();
+    const hits = (d && d.hits) || [];
+    document.getElementById("hi").textContent = hits.length
+      ? hits.map(h => (h.stem || h.clip) + "  " + h.score + "  " + (h.why || []).join("+")).join("\n")
+      : "No ranked clips yet.";
+  } catch (e) {
+    document.getElementById("hi").textContent = "highlights unavailable";
+  }
+}
+async function loadClips() {
+  const list = document.getElementById("list");
   const r = await fetch("/api/clips");
   const d = await r.json();
   const clips = (d && d.clips) || [];
@@ -40,14 +76,15 @@ async function load() {
   }
 }
 async function narrate(name) {
+  const story = document.getElementById("story");
   story.textContent = "…";
   const r = await fetch("/api/civif/narrative?clip=" + encodeURIComponent(name));
   const d = await r.json();
   if (!d.ok) { story.textContent = d.error || "unavailable"; return; }
-  const withh = (d.withheld || []).join(", ") || "none";
-  story.textContent = (d.text || "") + "\n\nwithheld: " + withh;
+  story.textContent = (d.text || "") + "\n\nwithheld: " + ((d.withheld || []).join(", ") || "none");
 }
-load();
+tickLive(); loadHi(); loadClips();
+setInterval(tickLive, 1000);
 </script>
 </body>
 </html>

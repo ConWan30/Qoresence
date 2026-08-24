@@ -45,6 +45,8 @@ def test_mcp_initialize_and_tools_list():
         "wrap_observation",
         "coach_clip",
         "narrate_clip",
+        "civif_live",
+        "civif_highlights",
     }
     assert "export_clip" not in names
 
