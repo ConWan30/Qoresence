@@ -77,6 +77,12 @@ class CerLog:
                 self._last_clock = now_ns
             self._n += 1
             n = self._n
+        try:
+            from qoresence.foundry.civif_metrics import observe_tick
+
+            observe_tick(rec)
+        except Exception:
+            pass
         if n % 10 != 0:
             return
         try:
