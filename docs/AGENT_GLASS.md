@@ -6,6 +6,7 @@ One brain → N glasses. AgentGlass is **glass D**: a read-only spectator bridge
 - **Localhost-only.** Host must be `127.0.0.1` unless `require_token=true` + `token_file` bearer.
 - **No capture.** Reads from `ClipBuffer` JPEG ring and `RetinaEventBus` deque only.
 - **Reuses Deck port 8765** (no new port). Same pilot lock as Deck.
+- **CIVIF** (live ticks, highlights, read-only query): [CIVIF.md](CIVIF.md).
 
 ## Enable
 

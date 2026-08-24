@@ -1,5 +1,7 @@
 # Controller ↔ video sync (observation plane)
 
+Live coupled ticks, DualSense-bodied rules, and `/civif.html` are documented in [CIVIF.md](CIVIF.md).
+
 Qoresence forks the **physical coupling** stack from QorTroller, not the assertion plane.
 
 | Taken from QorTroller | What Qoresence does with it |

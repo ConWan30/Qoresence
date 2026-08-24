@@ -51,7 +51,10 @@ def test_cer_ring_unbodied_and_no_bus_fields():
     assert rec is not None
     assert rec["kind"] == "live_tick"
     assert rec["input"]["bodied"] is False
-    assert rec["schema_version"] == "civif-v0"
+    assert rec["schema_version"] == "civif_tick-1"
+    assert rec["controller_bodied"] is False
+    assert rec["input_ticks"] == []
+    assert rec["sidecar_schema"] == "civif-v0"
 
 
 def test_live_coach_withholds_until_record():
@@ -116,11 +119,13 @@ def test_highlights_rank_bodied_and_locked(tmp_path):
     _write(
         "hdmi_hi",
         coupling={"coupling": 0.9, "imu_bodied": True},
-        events=[{"clock_ns": 1_100_000_000, "name": "R2"}],
+        events=[{"clock_ns": 1_100_000_000, "name": "R2", "kind": "press"}],
         situation={"board_locked": True, "home_score": 14, "away_score": 7},
     )
     out = rank_highlights(tmp_path, limit=8)
     assert out["ok"] is True
     assert out["hits"][0]["stem"] == "hdmi_hi"
     assert "board_locked" in out["hits"][0]["why"]
+    assert out["hits"][0]["explanation"]["controller_bodied"] is True
+    assert "R2" in out["hits"][0]["explanation"]["key_inputs"]
     assert out["hits"][0]["civif"]["home_score"] == 14

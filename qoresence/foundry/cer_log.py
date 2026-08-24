@@ -16,17 +16,36 @@ from collections import deque
 from pathlib import Path
 from typing import Any
 
-from qoresence.core.coupled_event import (
-    CIVIF_PLANE,
-    CIVIF_SCHEMA,
-    current_situation,
-    input_bodied,
-)
+from qoresence.core.civif_tick import CoupledTickRecord, build_coupled_tick
 
 log = logging.getLogger(__name__)
 
 _log: CerLog | None = None
 _log_lock = threading.Lock()
+
+
+def _session_id() -> str:
+    try:
+        from qoresence.core.session import SessionAuthority
+
+        ident = SessionAuthority.current()
+        if ident is not None:
+            return str(ident.session_id or "")
+    except Exception:
+        pass
+    return os.getenv("QORESENCE_SESSION_ID") or ""
+
+
+def _edges_since(prev_ns: int, now_ns: int) -> list[Any]:
+    if now_ns <= 0:
+        return []
+    t0 = prev_ns + 1 if prev_ns > 0 else max(0, now_ns - 40_000_000)
+    try:
+        from qoresence.sync.input_ring import get_input_ring
+
+        return get_input_ring().in_window(t0, now_ns)
+    except Exception:
+        return []
 
 
 class CerLog:
@@ -35,29 +54,27 @@ class CerLog:
         self._lock = threading.Lock()
         self._q: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=128)
         self._n = 0
+        self._last_clock = 0
         self._jsonl = jsonl_path
         self._worker = threading.Thread(target=self._run, name="civif-cer", daemon=True)
         self._worker.start()
 
     def observe(self, coupling: dict[str, Any]) -> None:
         coup = dict(coupling or {})
-        evs: list[dict[str, Any]] = []
-        bodied, reason = input_bodied(evs, coup)
-        rec = {
-            "schema_version": CIVIF_SCHEMA,
-            "plane": CIVIF_PLANE,
-            "kind": "live_tick",
-            "video": {
-                "t_start_ns": int(coup.get("video_clock_ns") or 0),
-                "t_end_ns": int(coup.get("video_clock_ns") or 0),
-                "frame_seq": int(coup.get("frame_seq") or 0),
-            },
-            "input": {"bodied": bodied, "events": evs, "reason": reason},
-            "situation": current_situation(),
-            "coupling": coup,
-        }
+        now_ns = int(coup.get("video_clock_ns") or 0)
+        with self._lock:
+            prev = self._last_clock
+        edges = _edges_since(prev, now_ns)
+        rec_obj: CoupledTickRecord = build_coupled_tick(
+            coupling=coup,
+            events=edges,
+            session_id=_session_id(),
+        )
+        rec = rec_obj.to_dict()
         with self._lock:
             self._ring.append(rec)
+            if now_ns > 0:
+                self._last_clock = now_ns
             self._n += 1
             n = self._n
         if n % 10 != 0:

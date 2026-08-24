@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CIVIF — Coupled Event Record</title>
 <style>
-:root{--bg:#080B10;--text:#EEF5F4;--muted:#91A1AD;--gold:#C8F26A;--cyan:#68D9E8;--line:rgba(190,214,232,.14)}
+:root{--bg:#080B10;--text:#EEF5F4;--muted:#91A1AD;--gold:#C8F26A;--cyan:#68D9E8;--line:rgba(190,214,232,.14);--dim:#5a6a75}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,sans-serif}
 header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 header strong{color:var(--gold);letter-spacing:.08em;text-transform:uppercase;font-size:12px}
@@ -13,6 +13,11 @@ a{color:var(--cyan)}section{padding:16px 20px;border-bottom:1px solid var(--line
 h2{margin:0 0 8px;font:800 11px/1 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 pre{white-space:pre-wrap;color:var(--muted);max-width:52rem}
 button{appearance:none;background:transparent;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;margin:0 8px 8px 0;cursor:pointer}
+.flags{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0;font:700 11px/1 ui-monospace,monospace}
+.flag{padding:6px 10px;border-radius:999px;border:1px solid var(--line);color:var(--dim)}
+.flag.on{color:var(--gold);border-color:var(--gold)}
+.muted{opacity:.45}
+label{margin-right:14px;color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
@@ -24,11 +29,20 @@ button{appearance:none;background:transparent;border:1px solid var(--line);color
 </header>
 <section>
   <h2>Live record</h2>
+  <div class="flags">
+    <span class="flag" id="f-board">board_locked: —</span>
+    <span class="flag" id="f-body">controller_bodied: —</span>
+  </div>
   <pre id="live">…</pre>
+  <pre id="timing" class="muted"></pre>
 </section>
 <section>
   <h2>Highlights</h2>
-  <pre id="hi">…</pre>
+  <label><input type="checkbox" id="q-coup"> High coupling only</label>
+  <label><input type="checkbox" id="q-board"> Board locked only</label>
+  <label><input type="checkbox" id="q-body"> Controller bodied only</label>
+  <div id="hi-btns"></div>
+  <pre id="hi-detail">Select a highlight for CIVIF details.</pre>
 </section>
 <section>
   <h2>Clips</h2>
@@ -36,29 +50,72 @@ button{appearance:none;background:transparent;border:1px solid var(--line);color
   <pre id="story"></pre>
 </section>
 <script>
+function yn(v){ return v ? "yes" : "no"; }
 async function tickLive() {
   try {
     const r = await fetch("/api/civif/live");
     const d = await r.json();
+    const rec = (d && d.record) || {};
     const c = (d && d.coach) || {};
+    const board = Boolean(rec.board_locked);
+    const body = Boolean(rec.controller_bodied);
+    const fb = document.getElementById("f-board");
+    const fy = document.getElementById("f-body");
+    fb.textContent = "board_locked: " + yn(board);
+    fy.textContent = "controller_bodied: " + yn(body);
+    fb.className = "flag" + (board ? " on" : "");
+    fy.className = "flag" + (body ? " on" : "");
     const notes = (c.notes || []).join(" ");
     const withh = (c.withheld || []).join(", ") || "none";
     document.getElementById("live").textContent =
-      (notes || "no live CER") + "\nwithheld: " + withh + "\nbodied: " + String(c.bodied);
+      (notes || "no live CER") + "\nwithheld: " + withh +
+      "\nschema: " + (rec.schema_version || "—");
+    const tm = document.getElementById("timing");
+    if (!body) {
+      tm.className = "muted";
+      tm.textContent = "Input timing/pattern hidden — DualSense not bodied on this host.";
+    } else {
+      tm.className = "";
+      const ticks = rec.input_ticks || (rec.input && rec.input.events) || [];
+      tm.textContent = "input_ticks: " + JSON.stringify(ticks.slice(0, 12));
+    }
   } catch (e) {
     document.getElementById("live").textContent = "live unavailable";
   }
 }
 async function loadHi() {
+  const qs = new URLSearchParams();
+  if (document.getElementById("q-coup").checked) qs.set("min_coupling_score", "0.7");
+  if (document.getElementById("q-board").checked) qs.set("board_locked_only", "true");
+  if (document.getElementById("q-body").checked) qs.set("controller_bodied_only", "true");
+  const path = qs.toString() ? "/api/civif/query?" + qs : "/api/civif/highlights?limit=8";
   try {
-    const r = await fetch("/api/civif/highlights?limit=8");
+    const r = await fetch(path);
     const d = await r.json();
     const hits = (d && d.hits) || [];
-    document.getElementById("hi").textContent = hits.length
-      ? hits.map(h => (h.stem || h.clip) + "  " + h.score + "  " + (h.why || []).join("+")).join("\n")
-      : "No ranked clips yet.";
+    const box = document.getElementById("hi-btns");
+    box.innerHTML = "";
+    if (!hits.length) {
+      document.getElementById("hi-detail").textContent = "No ranked clips yet.";
+      return;
+    }
+    hits.forEach((h) => {
+      const b = document.createElement("button");
+      b.textContent = (h.stem || h.clip_id || h.clip) + " " + (h.score ?? "");
+      b.addEventListener("click", () => {
+        const ex = h.explanation || {};
+        const keys = h.controller_bodied ? (ex.key_inputs || []) : [];
+        document.getElementById("hi-detail").textContent =
+          "coupling_score: " + (h.coupling_score ?? ex.coupling_score) +
+          "\nboard_locked: " + yn(h.board_locked) +
+          "\ncontroller_bodied: " + yn(h.controller_bodied) +
+          "\nkey_inputs: " + JSON.stringify(keys) +
+          "\noutcome_tag: " + (ex.outcome_tag || "—");
+      });
+      box.appendChild(b);
+    });
   } catch (e) {
-    document.getElementById("hi").textContent = "highlights unavailable";
+    document.getElementById("hi-detail").textContent = "highlights unavailable";
   }
 }
 async function loadClips() {
@@ -83,6 +140,9 @@ async function narrate(name) {
   if (!d.ok) { story.textContent = d.error || "unavailable"; return; }
   story.textContent = (d.text || "") + "\n\nwithheld: " + ((d.withheld || []).join(", ") || "none");
 }
+["q-coup","q-board","q-body"].forEach((id) => {
+  document.getElementById(id).addEventListener("change", loadHi);
+});
 tickLive(); loadHi(); loadClips();
 setInterval(tickLive, 1000);
 </script>

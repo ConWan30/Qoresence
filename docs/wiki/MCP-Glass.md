@@ -34,7 +34,7 @@ PS5 HDMI → Qoresence Streamer (owns card) → FrameHub / ClipBuffer / IVC / A2
 
 `mcp` reuses Glass D — no new port, no second capture open, no `0.0.0.0`.
 
-## 15 tools (observation-only — eyes not hands)
+## 17 tools (observation-only — eyes not hands)
 
 MCP never writes MP4/sidecars. Clip export stays on licensed `POST /api/agent/clip` / clutch Foundry path, not the MCP façade.
 
@@ -52,7 +52,8 @@ MCP never writes MP4/sidecars. Clip export stays on licensed `POST /api/agent/cl
 | `coach_clip` | CIVIF observation coach for a clip stem / `*.coupling.json`. Timing and pattern withheld unless DualSense is bodied on this host. Score digits withheld unless `board_locked`. Read-only. | — |
 | `narrate_clip` | Fail-closed paragraph from the same sidecar. Same withhold rules. Read-only. | — |
 | `civif_live` | Live Coupled Event Record + fail-closed coach (IVC ticks). Timing/pattern withheld unless DualSense is bodied on this host. | — |
-| `civif_highlights` | Rank clips by coupling / locked score / bodied input. No invented digits. | — |
+| `civif_highlights` | Rank clips by coupling / locked score / bodied input. Returns `explanation` (no invented digits). | — |
+| `civif_query_clips` | Read-only filter over coupled clips (`min_coupling_score`, `board_locked_only`, `controller_bodied_only`). | — |
 | `get_drive_graph` | DriveGraph for `active` or `drive_id` → `phase/climax/match_rate/nodes/why_line` | — |
 | `subscribe_events` | Proactive glass: poll since cursor, returns `next_since + poll_again_ms` for live tail | `max_eps_per_client` |
 | `diagnose_freeze` | Software-only triage: `video.age_s/frames/has_frame/seq` → `FROZEN/HEALTHY/NO_FRAMES` | — |

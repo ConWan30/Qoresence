@@ -20,6 +20,11 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 DEFAULT_TOKEN_FILE = ".secrets/agent_glass.token"
 
+# Reserved future read-only tools (not in tools/list):
+#   civif_coaching_report — only when controller_bodied
+#   civif_narrative — situation-heavy; only when board_locked
+# Existing coach_clip / narrate_clip remain the current implementations.
+
 # Lazy FastMCP handle — never imported unless QORESENCE_MCP_USE_FASTMCP=1
 _mcp_fastmcp: Any = None
 
@@ -114,6 +119,22 @@ def _get_fastmcp():
     @mcp.tool()  # type: ignore
     def civif_highlights(limit: int = 8) -> dict:  # type: ignore
         return handle_civif_highlights(limit=limit)
+
+    @mcp.tool()  # type: ignore
+    def civif_query_clips(
+        session_id: str = "",
+        min_coupling_score: float = 0.0,
+        board_locked_only: bool = False,
+        controller_bodied_only: bool = False,
+        limit: int = 8,
+    ) -> dict:  # type: ignore
+        return handle_civif_query_clips(
+            session_id=session_id,
+            min_coupling_score=min_coupling_score or None,
+            board_locked_only=board_locked_only,
+            controller_bodied_only=controller_bodied_only,
+            limit=limit,
+        )
 
     _mcp_fastmcp = mcp
     return mcp
@@ -488,6 +509,27 @@ def handle_civif_highlights(limit: int = 8) -> dict[str, Any]:
         return {"ok": False, "error": "highlights_failed", "hint": str(e)}
 
 
+def handle_civif_query_clips(
+    session_id: str = "",
+    min_coupling_score: float | None = None,
+    board_locked_only: bool = False,
+    controller_bodied_only: bool = False,
+    limit: int = 8,
+) -> dict[str, Any]:
+    try:
+        from qoresence.foundry.highlights import get_coupled_clips
+
+        return get_coupled_clips(
+            session_id=str(session_id or ""),
+            min_coupling_score=float(min_coupling_score) if min_coupling_score else None,
+            board_locked_only=bool(board_locked_only),
+            controller_bodied_only=bool(controller_bodied_only),
+            limit=int(limit),
+        )
+    except Exception as e:
+        return {"ok": False, "error": "query_failed", "hint": str(e)}
+
+
 def handle_get_drive_graph(
     drive_id: str | None = None, include_nodes: bool = True, max_nodes: int = 40
 ) -> dict[str, Any]:
@@ -675,6 +717,25 @@ TOOL_DEFS = [
         },
     },
     {
+        "name": "civif_query_clips",
+        "description": (
+            "Read-only query over coupled clips. Filters: min_coupling_score, "
+            "board_locked_only, controller_bodied_only. Evidence-based highlights. "
+            "Does not write clips."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "session_id": {"type": "string", "default": ""},
+                "min_coupling_score": {"type": "number", "minimum": 0, "maximum": 1, "default": 0},
+                "board_locked_only": {"type": "boolean", "default": False},
+                "controller_bodied_only": {"type": "boolean", "default": False},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "get_drive_graph",
         "description": "DriveGraph for active or drive_id: phase/climax/nodes/ranking + why_line. Software-only.",
         "inputSchema": {
@@ -772,6 +833,13 @@ HANDLERS = {
     "narrate_clip": lambda a: handle_narrate_clip(clip=str(a.get("clip", "") or "")),
     "civif_live": lambda a: handle_civif_live(),
     "civif_highlights": lambda a: handle_civif_highlights(limit=int(a.get("limit", 8) or 8)),
+    "civif_query_clips": lambda a: handle_civif_query_clips(
+        session_id=str(a.get("session_id", "") or ""),
+        min_coupling_score=(float(a.get("min_coupling_score")) if a.get("min_coupling_score") else None),
+        board_locked_only=bool(a.get("board_locked_only")),
+        controller_bodied_only=bool(a.get("controller_bodied_only")),
+        limit=int(a.get("limit", 8) or 8),
+    ),
     "get_drive_graph": lambda a: handle_get_drive_graph(
         drive_id=(str(a.get("drive_id", "")).strip() or None),
         include_nodes=bool(a.get("include_nodes", True)),

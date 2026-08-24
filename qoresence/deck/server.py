@@ -1834,7 +1834,30 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
-    @app.get("/media/clips/{name}")
+    @app.get("/api/civif/query")
+    async def api_civif_query(
+        min_coupling_score: float = 0.0,
+        board_locked_only: bool = False,
+        controller_bodied_only: bool = False,
+        limit: int = 8,
+    ):  # type: ignore[no-untyped-def]
+        def _q() -> dict[str, Any]:
+            from qoresence.foundry.highlights import get_coupled_clips
+            from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
+
+            return get_coupled_clips(
+                min_coupling_score=float(min_coupling_score) or None,
+                board_locked_only=bool(board_locked_only),
+                controller_bodied_only=bool(controller_bodied_only),
+                clips_dir=DEFAULT_OUT_DIR,
+                limit=int(limit),
+            )
+
+        try:
+            body = await asyncio.to_thread(_q)
+            return JSONResponse(body)
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
     async def media_clip(name: str):  # type: ignore[no-untyped-def]
         """Stream a local HDMI clip MP4 or sidecar JSON for in-page players."""
         import re
