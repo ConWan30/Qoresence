@@ -155,14 +155,45 @@ class HighlightRecord:
 
 @dataclass
 class CoachingReport:
-    """Reserved shape for a future read-only civif_coaching_report tool."""
+    """coach-1 observation report. MCP ``civif_coaching_report`` is not listed yet."""
 
     session_id: str
     schema_version: str = COACH_SCHEMA
+    coach_type: str = "timing"
+    metrics: dict[str, Any] = field(default_factory=dict)
+    issues: list[dict[str, Any]] = field(default_factory=list)
+    controller_bodied: bool = False
+    board_locked: bool = False
+    generated_at_ns: int = 0
     timing_stats: dict[str, Any] | None = None
     pattern_issues: list[str] | None = None
     recommendations: list[str] | None = None
     linked_clip_ids: list[str] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        metrics = dict(self.metrics or self.timing_stats or {})
+        issues = list(self.issues or [])
+        clips: list[str] = list(self.linked_clip_ids or [])
+        for iss in issues:
+            for cid in iss.get("clip_ids") or []:
+                if cid not in clips:
+                    clips.append(str(cid))
+        return {
+            "session_id": self.session_id,
+            "schema_version": self.schema_version,
+            "coach_type": self.coach_type,
+            "metrics": metrics,
+            "issues": issues,
+            "controller_bodied": bool(self.controller_bodied),
+            "board_locked": bool(self.board_locked),
+            "generated_at_ns": int(self.generated_at_ns or 0),
+            "timing_stats": metrics or None,
+            "pattern_issues": self.pattern_issues,
+            "recommendations": self.recommendations,
+            "linked_clip_ids": clips or None,
+            "plane": CIVIF_PLANE,
+            "read_only": True,
+        }
 
 
 @dataclass

@@ -37,6 +37,13 @@ label{margin-right:14px;color:var(--muted);font-size:13px}
   <pre id="timing" class="muted"></pre>
 </section>
 <section>
+  <h2>Coach</h2>
+  <label><input type="radio" name="coach-kind" value="timing" checked> Timing</label>
+  <label><input type="radio" name="coach-kind" value="pattern"> Pattern</label>
+  <pre id="coach-timing">…</pre>
+  <div id="coach-issues"></div>
+</section>
+<section>
   <h2>Highlights</h2>
   <label><input type="checkbox" id="q-coup"> High coupling only</label>
   <label><input type="checkbox" id="q-board"> Board locked only</label>
@@ -79,10 +86,76 @@ async function tickLive() {
       const ticks = rec.input_ticks || (rec.input && rec.input.events) || [];
       tm.textContent = "input_ticks: " + JSON.stringify(ticks.slice(0, 12));
     }
+    lastLive = d;
+    renderCoach(d);
   } catch (e) {
     document.getElementById("live").textContent = "live unavailable";
   }
 }
+function selectedCoachKind() {
+  const el = document.querySelector('input[name="coach-kind"]:checked');
+  return (el && el.value) || "timing";
+}
+function pickCoach(d, kind) {
+  const rows = (d && d.coaching_reports) || [];
+  const hit = rows.find((r) => r && r.coach_type === kind);
+  if (hit) return hit;
+  if (kind === "timing") return (d && d.coaching_report) || null;
+  return null;
+}
+function renderCoach(d) {
+  const kind = selectedCoachKind();
+  const label = kind === "pattern" ? "Pattern" : "Timing";
+  const box = document.getElementById("coach-timing");
+  const issuesEl = document.getElementById("coach-issues");
+  issuesEl.innerHTML = "";
+  const rep = pickCoach(d, kind);
+  if (!rep) {
+    box.className = "muted";
+    box.textContent = label + " insights unavailable (no report yet).";
+    return;
+  }
+  if (!rep.controller_bodied || !rep.board_locked) {
+    box.className = "muted";
+    box.textContent = label + " insights unavailable (controller not bodied or board unlocked).";
+    return;
+  }
+  const m = rep.metrics || {};
+  box.className = "";
+  if (kind === "pattern") {
+    box.textContent =
+      "spam_windows_count: " + (m.spam_windows_count ?? "—") +
+      "\nmistimed_combo_count: " + (m.mistimed_combo_count ?? "—") +
+      "\nspam_rate: " + (m.spam_rate == null ? "—" : Number(m.spam_rate).toFixed(2));
+  } else {
+    const medNs = m.median_latency_ns;
+    const medMs = (medNs == null) ? "—" : (Number(medNs) / 1e6).toFixed(0) + " ms";
+    const late = m.late_input_rate;
+    const latePct = (late == null) ? "—" : ((Number(late) * 100).toFixed(0) + "%");
+    box.textContent = "median_latency_ms: " + medMs + "\nlate_input_rate: " + latePct
+      + "\nsamples: " + (m.latency_samples ?? "—");
+  }
+  const issues = (rep.issues || []).slice(0, 3);
+  issues.forEach((iss) => {
+    const p = document.createElement("pre");
+    p.textContent = (iss.type || "issue") + ": " + (iss.description || "");
+    issuesEl.appendChild(p);
+    (iss.clip_ids || []).slice(0, 3).forEach((cid) => {
+      const a = document.createElement("a");
+      a.href = "/media/clips/" + encodeURIComponent(cid) + ".mp4";
+      a.textContent = cid;
+      a.style.marginRight = "12px";
+      a.addEventListener("click", (ev) => {
+        if (typeof window.qorePlayClip === "function") {
+          ev.preventDefault();
+          window.qorePlayClip("/media/clips/" + cid + ".mp4", cid);
+        }
+      });
+      issuesEl.appendChild(a);
+    });
+  });
+}
+let lastLive = null;
 async function loadHi() {
   const qs = new URLSearchParams();
   if (document.getElementById("q-coup").checked) qs.set("min_coupling_score", "0.7");
@@ -142,6 +215,9 @@ async function narrate(name) {
 }
 ["q-coup","q-board","q-body"].forEach((id) => {
   document.getElementById(id).addEventListener("change", loadHi);
+});
+document.querySelectorAll('input[name="coach-kind"]').forEach((el) => {
+  el.addEventListener("change", () => renderCoach(lastLive));
 });
 tickLive(); loadHi(); loadClips();
 setInterval(tickLive, 1000);

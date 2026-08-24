@@ -287,3 +287,7 @@ def make_event(
 def clock_ns() -> int:
     """Monotonic clock for cross-lobe correlation."""
     return time.monotonic_ns()
+
+
+# CIVIF coach-1 lives in qoresence.core.civif_tick (dataclass, not Pydantic).
+from qoresence.core.civif_tick import CoachingReport as CoachingReport  # noqa: E402,F401

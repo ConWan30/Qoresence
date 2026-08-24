@@ -87,7 +87,66 @@ Highlights may still rank on coupling score and locked board without pad analyti
 - **board_locked yes/no** — trust score digits only when yes.
 - **controller_bodied yes/no** — trust pad timing only when yes (PAD WAIT on Theater is the same honesty).
 - HDMI stays on Theater; this page does not poll JPEG.
+- **Coach panel** — Timing and Pattern reports from `GET /api/civif/live` (`coaching_reports`, plus legacy `coaching_report` for Timing). Fail-closed copy when there is no report or the pad/board is not trusted.
+
+## Coaching
+
+A session can have **more than one coach**. TimingCoach and PatternCoach each emit a `CoachingReport` with the same envelope. Future coaches (situation, narrative) should reuse that shape.
+
+All coaches are **read-only observation**. They do not claim anti-cheat, eligibility, or legitimacy. They only fill `metrics` and `issues` when DualSense is bodied **on this host** and the scoreboard is locked. Reports are built after HDMI clip sidecar write and on pilot closeout (in memory). JSON under `logs/civif/` only if `QORESENCE_CIVIF_COACH_LOG=1`. MCP `civif_coaching_report` is **not** in `tools/list` yet.
+
+### CoachingReport contract
+
+Dataclass `qoresence.core.civif_tick.CoachingReport` (`schema_version: coach-1`), also re-exported from `qoresence.core.types`.
+
+| field | meaning |
+|-------|---------|
+| `session_id` | SessionAuthority id |
+| `schema_version` | `coach-1` |
+| `coach_type` | `timing` or `pattern` (future types keep this string) |
+| `metrics` | Coach-specific numbers. **Must be `{}` when unbodied or unlocked.** |
+| `issues` | `{type, description, clip_ids}`. **Must be `[]` when unbodied or unlocked.** |
+| `controller_bodied` | Pad/IMU on this host |
+| `board_locked` | Trusted scoreboard digits |
+| `generated_at_ns` | Monotonic clock when the report was built |
+
+Hard invariant: if `controller_bodied == false` or `board_locked == false`, coaches must not invent latencies, button names in issues, or score digits. Empty `metrics`/`issues` is the only honest payload.
+
+### TimingCoach
+
+`qoresence.foundry.timing_coach` (facade `qoresence.agents.timing_coach`).
+
+Pairs a bodied key-press with the **next locked scoreboard digit change**. Latency is stored in **nanoseconds**.
+
+Typical `metrics`:
+
+- `latency_samples`
+- `median_latency_ns` (operator UI converts to ms)
+- `p75_latency_ns` / `p90_latency_ns`
+- `late_input_rate` (fraction 0–1, not a percentage in JSON)
+- `late_threshold_ns` (400 ms)
+
+`issues`: `type: late_input` only with ≥5 samples and ≥40% of latencies above 400 ms. Description is observational. `clip_ids` are the highest-latency evidence clips.
+
+### PatternCoach
+
+`qoresence.foundry.pattern_coach` (facade `qoresence.agents.pattern_coach`). Same fail-closed gate.
+
+- Same-button spam: more than 8 presses in a 2 s window.
+- Stick→R2 gap outside 40–350 ms.
+
+Typical `metrics`: `spam_windows_count`, `mistimed_combo_count`, `spam_rate` (windows per minute of the observed span).
+
+`issues`: `button_spam` (≥3 windows) and/or `mistimed_combo` (≥5 pairs), each with observational text and `clip_ids`. Pattern reports may also be written as `logs/civif/coaching_<session>_pattern.json` when the log env is on.
+
+### Operator view (Coach panel)
+
+`/civif.html` polls `GET /api/civif/live` ~1 Hz (JSON, not JPEG). The Coach panel shows the selected `coach_type` from `coaching_reports`.
+
+- No matching report → “insights unavailable (no report yet).”
+- Report present but unbodied or unlocked → “insights unavailable (controller not bodied or board unlocked).”
+- Otherwise: compact metrics plus up to 3 issues and `/media/clips/<id>.mp4` evidence links.
 
 ## Future (reserved)
 
-Dataclasses `CoachingReport` (`coach-1`) and `EventRecord` (`event-1`) in `qoresence/core/civif_tick.py`. MCP names **not** listed yet: `civif_coaching_report` (bodied), `civif_narrative` (board locked). Use `coach_clip` / `narrate_clip` today.
+Dataclasses `CoachingReport` (`coach-1`) and `EventRecord` (`event-1`) in `qoresence/core/civif_tick.py`. MCP names **not** listed yet: `civif_coaching_report` (bodied), `civif_narrative` (board locked). Use `coach_clip` / `narrate_clip` today. New coaches should add a `coach_type` and the same fail-closed empty `metrics`/`issues`.

@@ -683,7 +683,7 @@ def _html(name: str) -> str:
             body = p.read_text(encoding="utf-8")
         else:
             body = f"<h1>{name} missing</h1>"
-    if name in _GLASS_HTML_NAMES:
+    if name in _GLASS_HTML_NAMES or name == "civif.html":
         return _with_clip_dock(body)
     return body
 
