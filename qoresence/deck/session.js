@@ -166,15 +166,24 @@
 
   function emptyCopy(reason) {
     if (reason === "not_persisted") return "Narrative log was not persisted for this session.";
+    if (reason === "unavailable") return "No active session view is available.";
+    if (reason === "invalid") return "Session source was rejected.";
     return "No narrative events occurred.";
   }
 
-  function render(view, mode) {
+  function render(view, mode, envelope) {
     document.body.className = mode === "gamer" ? "gamer" : "analyst";
-    document.getElementById("sid").textContent = "Session " + (view.session_id || "—");
+    document.getElementById("sid").textContent = "Session " + ((envelope && envelope.session) || view.session_id || "—");
     const live = document.getElementById("badge-live");
-    live.textContent = "Fixture";
-    live.className = "StateBadge on";
+    const status = (envelope && envelope.status) || "unavailable";
+    live.textContent = status;
+    live.className = "StateBadge" + (status === "live" || status === "empty" ? " on" : status === "unavailable" || status === "invalid" ? " warn" : "");
+    const staleEl = document.getElementById("badge-stale");
+    if (staleEl) {
+      const stale = !!(envelope && envelope.freshness && envelope.freshness.stale);
+      staleEl.textContent = stale ? "Stale" : "Fresh";
+      staleEl.className = "StateBadge" + (stale ? " warn" : " on");
+    }
     const lock = document.getElementById("badge-lock");
     lock.textContent = view.board_locked ? "Locked" : "Unlocked";
     lock.className = "StateBadge" + (view.board_locked ? " on" : " warn");
@@ -213,8 +222,8 @@
     "empty_persisted",
   ];
   const params = new URLSearchParams(location.search);
-  const requested = params.get("fixture") || "bodied_locked";
-  const fixture = ALLOWED.indexOf(requested) >= 0 ? requested : "";
+  const requested = params.get("fixture") || "";
+  const fixture = requested && ALLOWED.indexOf(requested) >= 0 ? requested : "";
   const mode = params.get("mode") === "gamer" ? "gamer" : "analyst";
 
   document.querySelectorAll("[data-mode]").forEach((btn) => {
@@ -224,28 +233,44 @@
       const u = new URL(location.href);
       u.searchParams.set("mode", next);
       history.replaceState({}, "", u);
-      if (window.__view) render(window.__view, next);
+      if (window.__view) render(window.__view, next, window.__envelope);
     });
   });
 
   const sel = document.getElementById("fixture");
-  if (sel && fixture) sel.value = fixture;
+  if (sel) sel.value = fixture;
 
-  function applyView(pack) {
-    const view = normalizePack(pack);
+  function applyEnvelope(env) {
+    const view = env && env.view ? env.view : normalizePack({});
+    window.__envelope = env;
     window.__view = view;
-    render(view, mode);
+    render(view, mode, env);
   }
 
-  if (!fixture) {
-    applyView({ events: [], persisted: false, board_locked: false, controller_bodied: false });
-  } else {
-    fetch("/session_fixtures/" + encodeURIComponent(fixture) + ".json")
-      .then((r) => {
-        if (!r.ok) throw new Error("fixture");
-        return r.json();
-      })
-      .then((pack) => applyView(pack))
-      .catch(() => applyView({ events: [], persisted: false, board_locked: false, controller_bodied: false }));
+  async function tick() {
+    const qs = fixture ? "?fixture=" + encodeURIComponent(fixture) : "";
+    try {
+      const r = await fetch("/api/session/view" + qs);
+      if (!r.ok) throw new Error("http");
+      const env = await r.json();
+      if (!env || !env.view || typeof env.status !== "string") throw new Error("envelope");
+      applyEnvelope(env);
+    } catch (err) {
+      if (window.__envelope) {
+        const prev = window.__envelope;
+        const fresh = Object.assign({}, prev.freshness || {}, { stale: true });
+        applyEnvelope(Object.assign({}, prev, { freshness: fresh }));
+      } else {
+        applyEnvelope({
+          ok: true,
+          status: "unavailable",
+          session: "",
+          view: normalizePack({ events: [], persisted: false }),
+          freshness: { generated_at: "", last_event_at: null, age_ms: 0, stale: true },
+        });
+      }
+    }
   }
+  tick();
+  setInterval(tick, 1000);
 })();
