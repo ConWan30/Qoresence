@@ -1792,6 +1792,21 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
+    @app.get("/api/civif/narrative")
+    async def api_civif_narrative(clip: str = ""):  # type: ignore[no-untyped-def]
+        def _narrate() -> dict[str, Any]:
+            from qoresence.foundry.narrative import narrate_clip as _nc
+            from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
+
+            return _nc(clip=str(clip or ""), clips_dir=DEFAULT_OUT_DIR)
+
+        try:
+            body = await asyncio.to_thread(_narrate)
+            code = 200 if body.get("ok") else 404
+            return JSONResponse(body, status_code=code)
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
     @app.get("/media/clips/{name}")
     async def media_clip(name: str):  # type: ignore[no-untyped-def]
         """Stream a local HDMI clip MP4 or sidecar JSON for in-page players."""
@@ -1802,7 +1817,7 @@ def create_app():  # type: ignore[no-untyped-def]
         safe = pathlib.Path(name).name
         # MP4/AVI or sidecars: foo.chapters.json / foo.buttons.json
         if not re.fullmatch(
-            r"hdmi_clip_[\w\-]+(\.(mp4|avi|json)|(\.(chapters|buttons)\.json))",
+            r"hdmi_clip_[\w\-]+(\.(mp4|avi|json)|(\.(chapters|buttons|coupling)\.json))",
             safe,
             flags=re.I,
         ):
@@ -2005,6 +2020,18 @@ def create_app():  # type: ignore[no-untyped-def]
             _html("studio.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
+    @app.get("/civif.html")
+    async def civif_page():  # type: ignore[no-untyped-def]
+        return HTMLResponse(
+            _html("civif.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+        )
+
+    @app.get("/civif")
+    async def civif_alias():  # type: ignore[no-untyped-def]
+        return HTMLResponse(
+            _html("civif.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+        )
+
     @app.get("/mobile.html")
     async def mobile_glass():  # type: ignore[no-untyped-def]
         return HTMLResponse(
@@ -2037,6 +2064,7 @@ def create_app():  # type: ignore[no-untyped-def]
             "<p><a href='/overlay.html' style='color:#f5c542'>Lens</a> · "
             "<a href='/deck.html' style='color:#f5c542'>Rail</a> · "
             "<a href='/studio.html' style='color:#f5c542'>Foundry Bay</a> · "
+            "<a href='/civif.html' style='color:#f5c542'>CIVIF</a> · "
             "<a href='/mobile.html' style='color:#f5c542'>Mobile glass</a> · "
             "<a href='/health' style='color:#f5c542'>health</a> · "
             "<a href='/api/situation' style='color:#f5c542'>api</a></p>"
@@ -2653,7 +2681,7 @@ def start_deck(
         log.info("Theater glass %s clip-dock on", _glass_js_name())
         log.info(
             "Lens /overlay.html  Theater /deck.html  Foundry /studio.html  "
-            "Mobile /mobile.html  LIVE /video default %.0ffps "
+            "CIVIF /civif.html  Mobile /mobile.html  LIVE /video default %.0ffps "
             "(PS5 60 Hz full-rate LIVE default; override ?fps= for lighter)",
             DEFAULT_LIVE_FPS,
         )

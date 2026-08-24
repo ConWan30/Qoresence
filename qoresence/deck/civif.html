@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CIVIF — Coupled Event Record</title>
+<style>
+:root{--bg:#080B10;--text:#EEF5F4;--muted:#91A1AD;--gold:#C8F26A;--cyan:#68D9E8;--line:rgba(190,214,232,.14)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,sans-serif}
+header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+header strong{color:var(--gold);letter-spacing:.08em;text-transform:uppercase;font-size:12px}
+a{color:var(--cyan)}#list,#story{padding:16px 20px}
+button{appearance:none;background:transparent;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;margin:0 8px 8px 0;cursor:pointer}
+button:hover{border-color:var(--gold)}#story{white-space:pre-wrap;color:var(--muted);max-width:52rem}
+</style>
+</head>
+<body>
+<header>
+  <strong>CIVIF</strong>
+  <a href="/deck.html">Theater</a>
+  <a href="/studio.html">Foundry</a>
+  <span style="color:var(--muted);font-size:12px">Observation only · pad timing withheld unless DualSense is on this host</span>
+</header>
+<div id="list">Loading clips…</div>
+<div id="story"></div>
+<script>
+const list = document.getElementById("list");
+const story = document.getElementById("story");
+async function load() {
+  const r = await fetch("/api/clips");
+  const d = await r.json();
+  const clips = (d && d.clips) || [];
+  if (!clips.length) { list.textContent = "No HDMI clips yet."; return; }
+  list.innerHTML = "";
+  for (const c of clips) {
+    const b = document.createElement("button");
+    b.textContent = c.name;
+    b.addEventListener("click", () => narrate(c.name));
+    list.appendChild(b);
+  }
+}
+async function narrate(name) {
+  story.textContent = "…";
+  const r = await fetch("/api/civif/narrative?clip=" + encodeURIComponent(name));
+  const d = await r.json();
+  if (!d.ok) { story.textContent = d.error || "unavailable"; return; }
+  const withh = (d.withheld || []).join(", ") || "none";
+  story.textContent = (d.text || "") + "\n\nwithheld: " + withh;
+}
+load();
+</script>
+</body>
+</html>

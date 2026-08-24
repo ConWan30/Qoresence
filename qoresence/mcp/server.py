@@ -103,6 +103,10 @@ def _get_fastmcp():
     def coach_clip(clip: str = "") -> dict:  # type: ignore
         return handle_coach_clip(clip=clip)
 
+    @mcp.tool()  # type: ignore
+    def narrate_clip(clip: str = "") -> dict:  # type: ignore
+        return handle_narrate_clip(clip=clip)
+
     _mcp_fastmcp = mcp
     return mcp
 
@@ -446,6 +450,15 @@ def handle_coach_clip(clip: str = "") -> dict[str, Any]:
         return {"ok": False, "error": "coach_failed", "hint": str(e)}
 
 
+def handle_narrate_clip(clip: str = "") -> dict[str, Any]:
+    try:
+        from qoresence.foundry.narrative import narrate_clip as _nc
+
+        return _nc(clip=str(clip or ""))
+    except Exception as e:
+        return {"ok": False, "error": "narrative_failed", "hint": str(e)}
+
+
 def handle_get_drive_graph(
     drive_id: str | None = None, include_nodes: bool = True, max_nodes: int = 40
 ) -> dict[str, Any]:
@@ -606,6 +619,19 @@ TOOL_DEFS = [
         },
     },
     {
+        "name": "narrate_clip",
+        "description": (
+            "Fail-closed narrative for a civif-v0 sidecar. Same withhold rules as coach_clip. Read-only."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "clip": {"type": "string", "description": "Clip stem or *.coupling.json path"},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "get_drive_graph",
         "description": "DriveGraph for active or drive_id: phase/climax/nodes/ranking + why_line. Software-only.",
         "inputSchema": {
@@ -700,6 +726,7 @@ HANDLERS = {
         since_clock_ns=int(a.get("since_clock_ns", 0) or 0),
     ),
     "coach_clip": lambda a: handle_coach_clip(clip=str(a.get("clip", "") or "")),
+    "narrate_clip": lambda a: handle_narrate_clip(clip=str(a.get("clip", "") or "")),
     "get_drive_graph": lambda a: handle_get_drive_graph(
         drive_id=(str(a.get("drive_id", "")).strip() or None),
         include_nodes=bool(a.get("include_nodes", True)),
@@ -837,7 +864,7 @@ def _handle_request(msg: dict[str, Any]) -> dict[str, Any] | None:
                             "role": "user",
                             "content": {
                                 "type": "text",
-                                "text": "You are Qoresence clutch coach. Call get_observation, then search_clips, then coach_clip on a hit. Timing/pattern notes are withheld unless input.bodied (DualSense often stays on the PS5). Do not invent score digits unless board_locked. Cite clock_ns. Do not write clips via MCP — operator uses POST /api/agent/clip.",
+                                "text": "You are Qoresence clutch coach. Call get_observation, then search_clips, then coach_clip / narrate_clip on a hit. Timing/pattern notes are withheld unless input.bodied (DualSense often stays on the PS5). Do not invent score digits unless board_locked. Cite clock_ns. Do not write clips via MCP — operator uses POST /api/agent/clip.",
                             },
                         }
                     ],
