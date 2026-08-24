@@ -40,6 +40,7 @@ label{margin-right:14px;color:var(--muted);font-size:13px}
   <h2>Coach</h2>
   <label><input type="radio" name="coach-kind" value="timing" checked> Timing</label>
   <label><input type="radio" name="coach-kind" value="pattern"> Pattern</label>
+  <label><input type="radio" name="coach-kind" value="situation"> Situation</label>
   <pre id="coach-timing">…</pre>
   <div id="coach-issues"></div>
 </section>
@@ -105,7 +106,7 @@ function pickCoach(d, kind) {
 }
 function renderCoach(d) {
   const kind = selectedCoachKind();
-  const label = kind === "pattern" ? "Pattern" : "Timing";
+  const label = kind === "pattern" ? "Pattern" : (kind === "situation" ? "Situation" : "Timing");
   const box = document.getElementById("coach-timing");
   const issuesEl = document.getElementById("coach-issues");
   issuesEl.innerHTML = "";
@@ -127,6 +128,14 @@ function renderCoach(d) {
       "spam_windows_count: " + (m.spam_windows_count ?? "—") +
       "\nmistimed_combo_count: " + (m.mistimed_combo_count ?? "—") +
       "\nspam_rate: " + (m.spam_rate == null ? "—" : Number(m.spam_rate).toFixed(2));
+  } else if (kind === "situation") {
+    box.textContent =
+      "median_latency_ns_red_zone: " + (m.median_latency_ns_red_zone ?? "—") +
+      "\nmedian_latency_ns_non_red_zone: " + (m.median_latency_ns_non_red_zone ?? "—") +
+      "\nspam_rate_red_zone: " + (m.spam_rate_red_zone ?? "—") +
+      "\nspam_rate_non_red_zone: " + (m.spam_rate_non_red_zone ?? "—") +
+      "\nmedian_latency_ns_clutch: " + (m.median_latency_ns_clutch ?? "—") +
+      "\nmedian_latency_ns_non_clutch: " + (m.median_latency_ns_non_clutch ?? "—");
   } else {
     const medNs = m.median_latency_ns;
     const medMs = (medNs == null) ? "—" : (Number(medNs) / 1e6).toFixed(0) + " ms";

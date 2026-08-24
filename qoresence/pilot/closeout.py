@@ -556,6 +556,15 @@ def write_closeout(
             sid,
             persist=os.getenv("QORESENCE_CIVIF_COACH_LOG", "").strip().lower() in {"1", "true", "on"},
         )
+        from qoresence.foundry.situation_coach import generate_situation_report
+
+        generate_situation_report(
+            sid,
+            persist=os.getenv("QORESENCE_CIVIF_COACH_LOG", "").strip().lower() in {"1", "true", "on"},
+        )
+        from qoresence.foundry.civif_summary import maybe_write_after_coaches
+
+        maybe_write_after_coaches(sid)
     except Exception:
         pass
     return out_json, out_md, summary

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from qoresence.foundry.pattern_coach import generate_pattern_report
+from qoresence.foundry.situation_coach import generate_situation_report
 from qoresence.foundry.timing_coach import generate_timing_report
 from qoresence.mcp.server import handle_civif_live
 
@@ -19,6 +20,8 @@ def test_civif_html_has_timing_coach_panel():
     assert "controller not bodied or board unlocked" in blob
     assert "median_latency_ms" in blob
     assert "spam_windows_count" in blob
+    assert 'value="situation"' in blob
+    assert "median_latency_ns_red_zone" in blob
     assert "/media/clips/" in blob
 
 
@@ -81,3 +84,19 @@ def test_live_json_includes_pattern_in_reports_list():
     pat = next(r for r in out["coaching_reports"] if r["coach_type"] == "pattern")
     assert pat["metrics"]["spam_windows_count"] >= 1
     assert out["coaching_report"] is None or out["coaching_report"].get("coach_type") == "timing"
+
+
+def test_live_json_includes_situation_in_reports_list():
+    ticks = [
+        {
+            "clock_ns": 10,
+            "controller_bodied": True,
+            "board_locked": True,
+            "input_ticks": [],
+            "situation": {"board_locked": True, "home_score": 0, "away_score": 0, "yard_line": 50},
+        }
+    ]
+    generate_situation_report("view-sit", ticks=ticks, persist=False)
+    out = handle_civif_live()
+    types = {r["coach_type"] for r in out["coaching_reports"]}
+    assert "situation" in types
