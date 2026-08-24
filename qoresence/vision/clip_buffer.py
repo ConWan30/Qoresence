@@ -423,6 +423,12 @@ class HdmiClipBuffer:
         except Exception as e:
             log.debug("coupling sidecar skipped: %s", e)
         try:
+            from qoresence.foundry.timing_coach import refresh_after_clip_export
+
+            refresh_after_clip_export(clips_dir=final_path.parent)
+        except Exception as e:
+            log.debug("timing coach skipped: %s", e)
+        try:
             _write_stem_audio_sidecar(final_path)
         except Exception as e:
             log.debug("stem audio sidecar skipped: %s", e)

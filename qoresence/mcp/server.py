@@ -21,7 +21,7 @@ DEFAULT_PORT = 8765
 DEFAULT_TOKEN_FILE = ".secrets/agent_glass.token"
 
 # Reserved future read-only tools (not in tools/list):
-#   civif_coaching_report — only when controller_bodied
+#   civif_coaching_report — only when controller_bodied (TimingCoach is internal today)
 #   civif_narrative — situation-heavy; only when board_locked
 # Existing coach_clip / narrate_clip remain the current implementations.
 

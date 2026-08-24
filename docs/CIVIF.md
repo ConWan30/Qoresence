@@ -88,6 +88,16 @@ Highlights may still rank on coupling score and locked board without pad analyti
 - **controller_bodied yes/no** — trust pad timing only when yes (PAD WAIT on Theater is the same honesty).
 - HDMI stays on Theater; this page does not poll JPEG.
 
+## CoachingReport (TimingCoach)
+
+Internal `coach-1` reports (`qoresence.foundry.timing_coach`, facade `qoresence.agents.timing_coach`). **Not** in MCP `tools/list` yet (`civif_coaching_report` remains reserved).
+
+- Generated after HDMI clip sidecar write and on pilot closeout (in memory; optional `logs/civif/coaching_<session>.json`).
+- Detailed `metrics` / `issues` only when **both** `controller_bodied` and `board_locked` are true. Otherwise `metrics` is `{}` and `issues` is `[]`.
+- `metrics`: `latency_samples`, `median_latency_ns`, `p75`/`p90`, `late_input_rate` (fraction of press→next locked scoreboard-digit-change latencies above 400 ms).
+- `issues`: `late_input` with evidence `clip_ids` when there are at least 5 samples and ≥40% are late. Descriptions stay observational (no invented play results).
+- Observation plane only. Not anti-cheat.
+
 ## Future (reserved)
 
 Dataclasses `CoachingReport` (`coach-1`) and `EventRecord` (`event-1`) in `qoresence/core/civif_tick.py`. MCP names **not** listed yet: `civif_coaching_report` (bodied), `civif_narrative` (board locked). Use `coach_clip` / `narrate_clip` today.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -541,4 +542,14 @@ def write_closeout(
         ),
         encoding="utf-8",
     )
+    try:
+        from qoresence.foundry.timing_coach import generate_timing_report
+
+        sid = str(summary.get("session_id") or jsonl_path.stem.replace("session_", ""))
+        generate_timing_report(
+            sid,
+            persist=os.getenv("QORESENCE_CIVIF_COACH_LOG", "").strip().lower() in {"1", "true", "on"},
+        )
+    except Exception:
+        pass
     return out_json, out_md, summary
