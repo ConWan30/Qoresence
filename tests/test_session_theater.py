@@ -301,7 +301,7 @@ def test_api_session_view_normalized_only():
 
 
 def test_build_session_response_invalid_and_stale_flag():
-    from datetime import datetime, timedelta, timezone
+    from datetime import UTC, datetime, timedelta
 
     from qoresence.foundry import session_view as sv
 
@@ -338,7 +338,7 @@ def test_build_session_response_invalid_and_stale_flag():
     assert locked["view"]["confirmed"]["score"] == {"home": 21, "away": 14}
     aged = dict(locked)
     aged["freshness"] = dict(locked["freshness"])
-    aged["freshness"]["generated_at"] = sv._iso_z(datetime.now(timezone.utc) - timedelta(seconds=8))
+    aged["freshness"]["generated_at"] = sv._iso_z(datetime.now(UTC) - timedelta(seconds=8))
     sv._last_envelope[sv._cache_key("1842", "")] = aged
 
     def fail_live(_sid: str) -> tuple[None, bool]:

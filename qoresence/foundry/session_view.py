@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -292,7 +292,7 @@ _last_envelope: dict[str, dict[str, Any]] = {}
 
 
 def _iso_z(when: datetime) -> str:
-    return when.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return when.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _parse_iso_z(value: str) -> datetime | None:
@@ -381,7 +381,7 @@ def build_session_response(
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """Read-only session-view envelope. `view` is always normalize_pack output."""
-    generated = now or datetime.now(timezone.utc)
+    generated = now or datetime.now(UTC)
     sid = _resolve_session_id(session_id)
     invalid = False
     unavailable = False
