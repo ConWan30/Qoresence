@@ -43,7 +43,10 @@ def test_session_page_is_not_clip_docked():
     js = SESSION_JS.read_text(encoding="utf-8")
     assert "function lockedValue" in js
     assert "board_locked" in js
-    assert 'params.get("fixture") || "bodied_locked"' in js
+    assert "ALLOWED" in js
+    assert "normalizePack(pack)" in js
+    assert "innerHTML" in js and "JSON.stringify" not in js
+    assert "if (window.__view) render(window.__view, next)" in js
     assert "/api/session/view" not in js
     assert "clip-dock.js" not in js
 
@@ -176,6 +179,8 @@ def test_session_routes_and_fixture(monkeypatch):
     assert missing.status_code == 404
     traversal = client.get("/session_fixtures/%2e%2e%2fcivif.html")
     assert traversal.status_code in {404, 422}
+    prod = client.get("/session_fixtures/narrative_prod.json")
+    assert prod.status_code == 404
 
 
 def test_no_live_session_view_api():
@@ -191,6 +196,69 @@ def test_no_live_session_view_api():
     r = client.get("/api/session/view")
     assert r.status_code == 404
     assert "civif_narrative" not in {t["name"] for t in TOOL_DEFS}
+
+
+def test_alternate_score_and_hid_keys_do_not_bypass():
+    view = normalize_pack(
+        {
+            "session_id": "s",
+            "board_locked": False,
+            "controller_bodied": False,
+            "persisted": True,
+            "events": [
+                {
+                    "event_id": "s_1",
+                    "event_type": "spam_window",
+                    "t_start_ns": "bad-clock",
+                    "situation": {"home": 99, "away": 1, "yard": 5, "home_score": 99},
+                    "input": {"name": "R2", "button_name": "R2", "hid": "R2", "btn": "R2"},
+                    "situation_summary": {"home_score": 88, "away_score": 2, "yard_line": 7},
+                    "input_summary": {"button": "L2", "count": 9},
+                }
+            ],
+        }
+    )
+    blob = str(view)
+    assert "99" not in blob
+    assert "88" not in blob
+    assert "R2" not in blob
+    assert "L2" not in blob
+    assert view["confirmed"]["score"] is None
+    assert view["events"][0]["score"] is None
+    inp = view["events"][0]["input"] or {}
+    assert "button" not in inp
+    assert view["events"][0]["t_start_ns"] == 0
+
+
+def test_malformed_pack_fail_closed():
+    assert normalize_pack(None)["empty_reason"] == "not_persisted"
+    assert normalize_pack("nope")["events"] == []
+    assert normalize_pack({"events": {"not": "a list"}})["events"] == []
+    view = normalize_pack({"board_locked": True, "controller_bodied": True, "events": [None, 3, {"t_start_ns": [], "event_type": "x"}]})
+    assert view["schema_version"] == "session-view-1"
+    assert isinstance(view["events"], list)
+
+
+def test_unknown_fixture_is_not_loaded():
+    from qoresence.foundry.session_view import fixture_stem, load_fixture
+
+    assert fixture_stem("bodied_locked") == "bodied_locked"
+    assert fixture_stem("../../logs/civif/narrative_prod.json") is None
+    assert fixture_stem("narrative_prod") is None
+    try:
+        load_fixture("narrative_prod")
+        raise AssertionError("expected missing fixture")
+    except FileNotFoundError:
+        pass
+
+
+def test_gamer_and_analyst_share_normalized_view():
+    js = SESSION_JS.read_text(encoding="utf-8")
+    assert "render(window.__view, next)" in js
+    html = SESSION_HTML.read_text(encoding="utf-8")
+    assert "data-mode=\"gamer\"" in html
+    assert "data-mode=\"analyst\"" in html
+    assert ".gamer .analyst-only" in (DECK / "session.css").read_text(encoding="utf-8")
 
 
 def test_fixtures_exist():

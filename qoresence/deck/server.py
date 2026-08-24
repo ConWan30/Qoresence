@@ -2114,8 +2114,10 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/session_fixtures/{name}")
     async def session_fixture(name: str):  # type: ignore[no-untyped-def]
-        stem = pathlib.Path(name).stem
-        if not stem.replace("_", "").isalnum():
+        from qoresence.foundry.session_view import fixture_stem
+
+        stem = fixture_stem(name)
+        if stem is None:
             return Response(status_code=404)
         p = pathlib.Path(__file__).with_name("session_fixtures") / f"{stem}.json"
         if not p.is_file():

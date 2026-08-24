@@ -36,8 +36,16 @@
   }
 
   function normalizeEvent(raw, locked, bodied) {
-    const sit = raw && raw.situation_summary && typeof raw.situation_summary === "object" ? raw.situation_summary : null;
-    const inp = raw && raw.input_summary && typeof raw.input_summary === "object" ? raw.input_summary : null;
+    const sit = raw && raw.situation_summary && typeof raw.situation_summary === "object"
+      ? raw.situation_summary
+      : raw && raw.situation && typeof raw.situation === "object"
+        ? raw.situation
+        : null;
+    const inp = raw && raw.input_summary && typeof raw.input_summary === "object"
+      ? raw.input_summary
+      : raw && raw.input && typeof raw.input === "object"
+        ? raw.input
+        : null;
     const ev = raw && raw.evidence && typeof raw.evidence === "object" ? raw.evidence : {};
     const type = String((raw && raw.event_type) || "unknown");
     const t0 = intOrNull(raw && raw.t_start_ns) || 0;
@@ -69,7 +77,7 @@
     const raw = pack && typeof pack === "object" ? pack : {};
     const locked = !!raw.board_locked;
     const bodied = !!raw.controller_bodied;
-    const events = (raw.events || [])
+    const events = (Array.isArray(raw.events) ? raw.events : [])
       .filter((e) => e && typeof e === "object")
       .map((e) => normalizeEvent(e, locked, bodied));
     events.sort((a, b) => a.t_start_ns - b.t_start_ns || String(a.event_id).localeCompare(String(b.event_id)));
@@ -197,9 +205,17 @@
     list.innerHTML = '<ol class="TimelineMarker">' + view.events.map((e) => "<li>" + cardHtml(e) + "</li>").join("") + "</ol>";
   }
 
+  const ALLOWED = [
+    "bodied_locked",
+    "unbodied_locked",
+    "bodied_unlocked",
+    "empty_not_persisted",
+    "empty_persisted",
+  ];
   const params = new URLSearchParams(location.search);
-  const fixture = params.get("fixture") || "bodied_locked";
-  const mode = params.get("mode") || "analyst";
+  const requested = params.get("fixture") || "bodied_locked";
+  const fixture = ALLOWED.indexOf(requested) >= 0 ? requested : "";
+  const mode = params.get("mode") === "gamer" ? "gamer" : "analyst";
 
   document.querySelectorAll("[data-mode]").forEach((btn) => {
     btn.setAttribute("aria-pressed", btn.getAttribute("data-mode") === mode ? "true" : "false");
@@ -213,27 +229,23 @@
   });
 
   const sel = document.getElementById("fixture");
-  if (sel) sel.value = fixture;
+  if (sel && fixture) sel.value = fixture;
 
-  fetch("/session_fixtures/" + encodeURIComponent(fixture) + ".json")
-    .then((r) => {
-      if (!r.ok) throw new Error("fixture");
-      return r.json();
-    })
-    .then((pack) => {
-      const view = normalizePack(pack);
-      window.__view = view;
-      render(view, mode);
-    })
-    .catch(() => {
-      const view = normalizePack({
-        session_id: "",
-        events: [],
-        persisted: false,
-        board_locked: false,
-        controller_bodied: false,
-      });
-      window.__view = view;
-      render(view, mode);
-    });
+  function applyView(pack) {
+    const view = normalizePack(pack);
+    window.__view = view;
+    render(view, mode);
+  }
+
+  if (!fixture) {
+    applyView({ events: [], persisted: false, board_locked: false, controller_bodied: false });
+  } else {
+    fetch("/session_fixtures/" + encodeURIComponent(fixture) + ".json")
+      .then((r) => {
+        if (!r.ok) throw new Error("fixture");
+        return r.json();
+      })
+      .then((pack) => applyView(pack))
+      .catch(() => applyView({ events: [], persisted: false, board_locked: false, controller_bodied: false }));
+  }
 })();
