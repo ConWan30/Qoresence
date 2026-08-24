@@ -530,10 +530,12 @@ class TestCouplingTelemetry:
             sidecar = Path(result.path).with_suffix(".coupling.json")
             assert sidecar.exists(), f"expected coupling sidecar {sidecar}"
             data = json.loads(sidecar.read_text())
+            assert data.get("schema_version") == "civif-v0"
             assert "clip.clock_ns.start" in data
             assert "coupling" in data
             assert "coupling_history" in data
             assert "input_ring_events" in data
+            assert data.get("input", {}).get("bodied") is False
         finally:
             exporter.stop()
             bus.close()

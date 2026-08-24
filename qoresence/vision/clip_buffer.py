@@ -627,15 +627,35 @@ def _write_coupling_sidecar(
         events = [e.to_dict() for e in get_input_ring().in_window(start_ns, end_ns)]
         coupling = get_last_coupling() or {}
         coupling_history = get_coupling_history(start_ns, end_ns)
-        out = Path(mp4_path).with_name(Path(mp4_path).stem + ".coupling.json")
-        payload = {
-            "clip.clock_ns.start": start_ns,
-            "clip.clock_ns.end": end_ns,
-            "coupling": coupling,
-            "coupling_history": coupling_history,
-            "input_ring_events": events,
-        }
-        out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        session_id = ""
+        try:
+            from qoresence.core.session import SessionAuthority
+
+            ident = SessionAuthority.current()
+            if ident is not None:
+                session_id = ident.session_id
+        except Exception:
+            session_id = ""
+        seqs = [int(row[4]) for row in snapshot if len(row) >= 5]
+        from qoresence.core.coupled_event import build_coupling_sidecar
+
+        clip_id = Path(mp4_path).stem
+        out = Path(mp4_path).with_name(clip_id + ".coupling.json")
+        payload = build_coupling_sidecar(
+            clip_id=clip_id,
+            session_id=session_id,
+            start_ns=start_ns,
+            end_ns=end_ns,
+            frame_start=seqs[0] if seqs else 0,
+            frame_end=seqs[-1] if seqs else 0,
+            video_path=str(mp4_path),
+            events=events,
+            coupling=coupling if isinstance(coupling, dict) else {},
+            coupling_history=coupling_history if isinstance(coupling_history, list) else [],
+        )
+        tmp = out.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+        tmp.replace(out)
         log.info(
             "coupling sidecar: %s (%d history ticks, %d input events, window %d-%d)",
             out.name,
