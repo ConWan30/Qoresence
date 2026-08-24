@@ -198,15 +198,18 @@ Recorded on `main` as **`4ebdf92`** ([#67](https://github.com/ConWan30/Qoresence
 
 Included:
 
-- Read-only `GET /api/session/view` envelope: `ok`, `status`, `session`, `view`, `freshness`.
+- Live read-only `GET /api/session/view`. Live generate uses `persist=False` (no NarrativeEngine persist-path change).
+- Envelope fields: `ok`, `status`, `session`, `view`, `freshness` (`generated_at`, `last_event_at`, `age_ms`, `stale`).
 - `view` always `session-view-1` from `normalize_pack` (never a raw `narrative-1` pack).
 - Content `status`: `live`, `empty`, `not_persisted`, `unavailable`, `invalid`.
 - `ok: false` only for `invalid`.
-- `freshness.stale` only — aged content stays `status: "live"` with `freshness.stale: true`.
+- `stale` is a freshness-only flag — aged content stays `status: "live"` with `freshness.stale: true`.
+- Fail-closed unavailable and malformed: missing session/fixture → `unavailable`; rejected source → `invalid` with a normalized empty `view` (HTTP 200, no route 500).
+- If a later live load is unavailable, return the last valid `live` / `empty` / `not_persisted` envelope and set `freshness.stale: true`.
 - `/session.html` ~1 Hz poll of the API; no client fetch of `/session_fixtures/*.json`.
 - Allowlisted fixture query (`?fixture=`) still served through the same envelope.
 - Locked-only score/yard and bodied-only HID, unchanged from Phase 1–2.
-- Focused Session Theater / narrative / MCP tests plus live Chromium smoke of `/session.html`.
+- 43 passing Phase 3, narrative, and MCP tests, plus live Chromium smoke of `/session.html`.
 
 Excluded (unchanged; not in #67):
 
@@ -218,7 +221,11 @@ Excluded (unchanged; not in #67):
 - NarrativeEngine behavior or persist path (live generate uses `persist=False`).
 - CI full-matrix fail-fast ([#65](https://github.com/ConWan30/Qoresence/issues/65)); first full-suite stop remains `tests/test_civif_index.py`.
 
-Project state: Phase 1–2 on `main` (`da0fa95`, docs `#66` / `85e104a`). Phase 3 live-session path on `main` (`4ebdf92`): validated session data → normalized API envelope → stale-aware Session Theater UI.
+Project state: Phase 1–2 on `main` (`da0fa95`, docs `#66` / `85e104a`). Phase 3 live-session path on `main` (`4ebdf92`):
+
+`CIVIF session → NarrativeEngine → normalized session view → read-only live API → stale-aware Session Theater`.
+
+Next work is stabilization (exercise the six envelope cases, watch CIVIF/MCP, leave [#65](https://github.com/ConWan30/Qoresence/issues/65) independent). Do not start clip linkage, recap, or streamer presentation until that choice is explicit.
 
 ## Future (reserved)
 
