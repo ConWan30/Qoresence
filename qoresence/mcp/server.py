@@ -496,19 +496,30 @@ def handle_civif_live() -> dict[str, Any]:
         rec = live_record()
         coach = live_coach()
         coaching_report = None
+        coaching_reports: list[dict[str, Any]] = []
         try:
             from qoresence.foundry.timing_coach import last_timing_report
 
             stored = last_timing_report()
             if stored is not None:
                 coaching_report = stored.to_dict()
+                coaching_reports.append(coaching_report)
         except Exception:
             coaching_report = None
+        try:
+            from qoresence.foundry.pattern_coach import last_pattern_report
+
+            pat = last_pattern_report()
+            if pat is not None:
+                coaching_reports.append(pat.to_dict())
+        except Exception:
+            pass
         return {
             "ok": True,
             "record": rec,
             "coach": coach,
             "coaching_report": coaching_report,
+            "coaching_reports": coaching_reports,
             "plane": "qoresence-observation",
         }
     except Exception as e:
