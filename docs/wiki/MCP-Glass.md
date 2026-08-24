@@ -34,7 +34,7 @@ PS5 HDMI → Qoresence Streamer (owns card) → FrameHub / ClipBuffer / IVC / A2
 
 `mcp` reuses Glass D — no new port, no second capture open, no `0.0.0.0`.
 
-## 11 tools (observation-only — eyes not hands)
+## 12 tools (observation-only — eyes not hands)
 
 MCP never writes MP4/sidecars. Clip export stays on licensed `POST /api/agent/clip` / clutch Foundry path, not the MCP façade.
 
@@ -49,6 +49,7 @@ MCP never writes MP4/sidecars. Clip export stays on licensed `POST /api/agent/cl
 | `get_observation` | **Witness pack** — plane-tagged title/score/phrase/glass the agent *may* say; unlocked digits and localhost phone URLs stay silent | — |
 | `wrap_observation` | **Research wrap** — last `title_presence` → `qoresence-research`. Grant env required. Refuses `qortroller-truth`. | — |
 | `search_clips` | Foundry RAG: keyword search over `clips/*.coupling.json` (civif-v0) + chapters + buttons + graph + timeline fallback (`query`, `limit` 1..20, `kinds` csv, `coupling_min`, `drive_id`). Pad tokens only if `input.bodied`. | — |
+| `coach_clip` | CIVIF observation coach for a clip stem / `*.coupling.json`. Timing and pattern withheld unless DualSense is bodied on this host. Score digits withheld unless `board_locked`. Read-only. | — |
 | `get_drive_graph` | DriveGraph for `active` or `drive_id` → `phase/climax/match_rate/nodes/why_line` | — |
 | `subscribe_events` | Proactive glass: poll since cursor, returns `next_since + poll_again_ms` for live tail | `max_eps_per_client` |
 | `diagnose_freeze` | Software-only triage: `video.age_s/frames/has_frame/seq` → `FROZEN/HEALTHY/NO_FRAMES` | — |

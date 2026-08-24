@@ -43,6 +43,7 @@ def test_mcp_initialize_and_tools_list():
         "diagnose_freeze",
         "get_observation",
         "wrap_observation",
+        "coach_clip",
     }
     assert "export_clip" not in names
 
