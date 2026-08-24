@@ -372,6 +372,7 @@ def test_foundry_bay_routes_registered():
             pytest.skip("fastapi not installed")
         paths = {getattr(route, "path", None) for route in app.routes}
         assert "/studio.html" in paths
+        assert "/civif.html" in paths
         assert "/api/foundry/status" in paths
         return
     assert "Foundry Bay" in html
@@ -390,6 +391,7 @@ def test_foundry_bay_routes_registered():
         pytest.skip("fastapi not installed")
     paths = {getattr(route, "path", None) for route in app.routes}
     assert "/studio.html" in paths
+    assert "/civif.html" in paths
     assert "/api/foundry/status" in paths
 
 
