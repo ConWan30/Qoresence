@@ -166,6 +166,8 @@
 
   function emptyCopy(reason) {
     if (reason === "not_persisted") return "Narrative log was not persisted for this session.";
+    if (reason === "unavailable") return "No active session view is available.";
+    if (reason === "invalid") return "Session source was rejected.";
     return "No narrative events occurred.";
   }
 
