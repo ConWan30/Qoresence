@@ -10,6 +10,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.core.coupled_event import input_events, summarize_coupling_for_index
+
 log = logging.getLogger(__name__)
 DEFAULT_CLIPS_DIR = Path("clips")
 CONFIRM_KINDS = frozenset(
@@ -63,6 +65,10 @@ def scan_clips(clips_dir=None):
             chapters = ch.get("chapters") if isinstance(ch.get("chapters"), list) else []
             why = ch.get("why") if isinstance(ch.get("why"), dict) else None
             gs = ch.get("graph_summary") if isinstance(ch.get("graph_summary"), dict) else None
+            coup = _load_json(d / (stem + ".coupling.json"))
+            civif = summarize_coupling_for_index(coup if isinstance(coup, dict) else None)
+            if civif.get("bodied") and not button_onsets and isinstance(coup, dict):
+                button_onsets = button_onsets_from_sidecar({"events": input_events(coup)})
             try:
                 st = mp4.stat()
                 mtime = float(st.st_mtime)
@@ -81,6 +87,7 @@ def scan_clips(clips_dir=None):
                     "button_onsets": button_onsets,
                     "why": why,
                     "graph_summary": gs,
+                    "civif": civif,
                 }
             )
     except Exception as e:
@@ -88,7 +95,7 @@ def scan_clips(clips_dir=None):
     return out
 
 
-def _clip_search_text(chapters, buttons_summary, why, gs):
+def _clip_search_text(chapters, buttons_summary, why, gs, civif=None):
     parts = []
     for c in chapters[:12]:
         parts.append(str(c.get("label") or ""))
@@ -105,6 +112,8 @@ def _clip_search_text(chapters, buttons_summary, why, gs):
         if isinstance(cl, dict):
             parts.append(str(cl.get("best_label") or ""))
         parts.append(str(gs.get("drive_id") or ""))
+    if isinstance(civif, dict):
+        parts.append(str(civif.get("search_tokens") or ""))
     return " ".join(parts).lower()
 
 
@@ -113,7 +122,7 @@ def _score_clip(qtok, clip, now_s):
     buttons_summary = clip.get("buttons_summary") or {}
     why = clip.get("why")
     gs = clip.get("graph_summary")
-    blob = _clip_search_text(chapters, buttons_summary, why, gs) or ""
+    blob = _clip_search_text(chapters, buttons_summary, why, gs, clip.get("civif")) or ""
     if not blob.strip():
         blob = clip.get("stem", "").lower().replace("_", " ")
     bt = _tokenize(blob)
@@ -187,6 +196,12 @@ def search_clips(
                         cs.append(float(c["coupling"]))
                 except Exception:
                     continue
+            civ = clip.get("civif") if isinstance(clip.get("civif"), dict) else {}
+            if civ.get("coupling_score") is not None:
+                try:
+                    cs.append(float(civ["coupling_score"]))
+                except Exception:
+                    pass
             if cs and max(cs) < coupling_min:
                 continue
         if want_kinds:
@@ -222,6 +237,7 @@ def search_clips(
                 "why": clip.get("why"),
                 "score": round(float(score), 3),
                 "chapters": chapters[:3],
+                "civif": clip.get("civif") if isinstance(clip.get("civif"), dict) else None,
             }
         )
     if not hits:

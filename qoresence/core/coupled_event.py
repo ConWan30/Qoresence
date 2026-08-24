@@ -175,3 +175,72 @@ def validate_coupling(data: dict[str, Any]) -> list[str]:
         if not sit.get("board_locked"):
             errors.append("scores without board_locked")
     return errors
+
+
+def summarize_coupling_for_index(data: dict[str, Any] | None) -> dict[str, Any]:
+    """Fail-closed index card. No pad tokens unless bodied. No scores unless locked."""
+    empty = {
+        "present": False,
+        "bodied": False,
+        "board_locked": False,
+        "home_score": None,
+        "away_score": None,
+        "coupling_score": None,
+        "reason": "",
+        "schema_version": "",
+        "search_tokens": "",
+    }
+    if not isinstance(data, dict) or not data:
+        return empty
+    events = input_events(data)
+    coup = data.get("coupling") if isinstance(data.get("coupling"), dict) else {}
+    inp = data.get("input") if isinstance(data.get("input"), dict) else {}
+    sit = data.get("situation") if isinstance(data.get("situation"), dict) else {}
+    civ = data.get("coupling_civif") if isinstance(data.get("coupling_civif"), dict) else {}
+    if inp:
+        bodied = bool(inp.get("bodied"))
+        reason = str(inp.get("reason") or "")
+    else:
+        bodied, reason = input_bodied(events, coup)
+    locked = bool(sit.get("board_locked"))
+    home = sit.get("home_score") if locked else None
+    away = sit.get("away_score") if locked else None
+    score: float | None = None
+    raw_score = civ.get("score") if civ else None
+    if raw_score is None:
+        raw_score = coup.get("coupling")
+    if raw_score is not None:
+        try:
+            score = float(raw_score)
+        except (TypeError, ValueError):
+            score = None
+    tokens: list[str] = []
+    ver = str(data.get("schema_version") or "")
+    if ver:
+        tokens.append(ver)
+        tokens.append("civif")
+    if bodied:
+        tokens.append("bodied")
+        for e in events:
+            for key in ("name", "button", "kind"):
+                val = e.get(key)
+                if val:
+                    tokens.append(str(val))
+    else:
+        tokens.append("unbodied")
+        if reason:
+            tokens.append(reason.replace("_", " "))
+    if locked and home is not None and away is not None:
+        tokens.append(f"{home}-{away}")
+        tokens.append("score")
+    return {
+        "present": True,
+        "bodied": bodied,
+        "board_locked": locked,
+        "home_score": home,
+        "away_score": away,
+        "coupling_score": score,
+        "reason": reason,
+        "schema_version": ver,
+        "search_tokens": " ".join(tokens).lower(),
+    }
