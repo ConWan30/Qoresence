@@ -130,3 +130,4 @@ Note qualitative feel only (no Truth-plane claims).
 - [RELEASE_HARDENING.md](RELEASE_HARDENING.md)  
 - [A2A_CLUTCHBOT.md](A2A_CLUTCHBOT.md)  
 - [TWO_SPEED_CLUTCHBOT.md](TWO_SPEED_CLUTCHBOT.md)  
+- [CIVIF.md](CIVIF.md) — live coupled ticks, bodied DualSense, `/civif.html` 

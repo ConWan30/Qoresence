@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 CIVIF_SCHEMA = "civif-v0"
+CIVIF_TICK_SCHEMA = "civif_tick-1"
 CIVIF_PLANE = "qoresence-observation"
 IVC_VERSION = "ivc-v0"
 
@@ -70,6 +71,8 @@ def empty_situation() -> dict[str, Any]:
         "clock": "",
         "clutch_kind": "",
         "game_title": "",
+        "clutch_score": None,
+        "yard_line": None,
     }
 
 
@@ -142,7 +145,7 @@ def validate_coupling(data: dict[str, Any]) -> list[str]:
     if not isinstance(data, dict) or not data:
         return ["sidecar is not an object"]
     ver = data.get("schema_version")
-    if ver not in (None, "", CIVIF_SCHEMA):
+    if ver not in (None, "", CIVIF_SCHEMA, CIVIF_TICK_SCHEMA):
         errors.append(f"unknown schema_version {ver!r}")
     if data.get("plane") not in (None, "", CIVIF_PLANE):
         errors.append("plane must be qoresence-observation")
@@ -204,6 +207,12 @@ def situation_from_live_snapshot(snap: dict[str, Any] | None) -> dict[str, Any]:
     sit["away_score"] = snap.get("away_score")
     sit["down"] = snap.get("down")
     sit["distance"] = snap.get("yards_to_go") if snap.get("yards_to_go") is not None else snap.get("distance")
+    sit["yard_line"] = snap.get("yard_line")
+    try:
+        if snap.get("clutch_score") is not None:
+            sit["clutch_score"] = float(snap["clutch_score"])
+    except (TypeError, ValueError):
+        sit["clutch_score"] = None
     clock = snap.get("play_clock")
     if clock is None:
         clock = snap.get("clock") or ""
@@ -233,6 +242,9 @@ def summarize_coupling_for_index(data: dict[str, Any] | None) -> dict[str, Any]:
         "coupling_score": None,
         "reason": "",
         "schema_version": "",
+        "session_id": "",
+        "clutch_kind": "",
+        "clutch_score": None,
         "search_tokens": "",
     }
     if not isinstance(data, dict) or not data:
@@ -287,5 +299,8 @@ def summarize_coupling_for_index(data: dict[str, Any] | None) -> dict[str, Any]:
         "coupling_score": score,
         "reason": reason,
         "schema_version": ver,
+        "session_id": str(data.get("session_id") or ""),
+        "clutch_kind": str(sit.get("clutch_kind") or "") if locked else "",
+        "clutch_score": sit.get("clutch_score") if locked else None,
         "search_tokens": " ".join(tokens).lower(),
     }
