@@ -141,7 +141,10 @@
       ? '<div class="CoachResult">Coach context · ' + escapeHtml(ev.coach_context.coach_type) + "</div>"
       : "";
     const clip = ev.clip_ids && ev.clip_ids.length
-      ? '<div class="ClipLink">Clip ' + escapeHtml(ev.clip_ids.join(", ")) + "</div>"
+      ? '<div class="ClipLink">' + ev.clip_ids.map(function (id) {
+          const name = String(id).endsWith(".mp4") ? String(id) : String(id) + ".mp4";
+          return '<a href="/media/clips/' + encodeURIComponent(name) + '">' + escapeHtml(String(id)) + "</a>";
+        }).join(" · ") + "</div>"
       : "";
     return (
       '<article class="NarrativeCard" data-event-id="' + escapeHtml(ev.event_id) + '">' +
@@ -165,8 +168,14 @@
     document.body.className = mode === "gamer" ? "gamer" : "analyst";
     document.getElementById("sid").textContent = "Session " + (view.session_id || "—");
     const live = document.getElementById("badge-live");
-    live.textContent = "Fixture";
-    live.className = "StateBadge on";
+    const src = view.source === "fixture" ? "Fixture" : "LIVE";
+    live.textContent = src;
+    live.className = "StateBadge" + (view.source === "live" || view.source === "fixture" ? " on" : "");
+    const staleEl = document.getElementById("badge-stale");
+    if (staleEl) {
+      staleEl.textContent = window.__stale ? "Stale" : "Fresh";
+      staleEl.className = "StateBadge" + (window.__stale ? " warn" : " on");
+    }
     const lock = document.getElementById("badge-lock");
     lock.textContent = view.board_locked ? "Locked" : "Unlocked";
     lock.className = "StateBadge" + (view.board_locked ? " on" : " warn");
@@ -189,6 +198,15 @@
     const persist = document.getElementById("persist");
     persist.textContent = view.persisted ? "Narrative log persisted" : "Narrative log not persisted";
     persist.className = "PersistenceStatus analyst-only";
+    const recap = document.getElementById("recap");
+    if (recap) {
+      const r = view.recap || {};
+      recap.textContent =
+        (r.confirmed_count || 0) + " confirmed · " +
+        (r.event_count || 0) + " events · " +
+        (r.clip_count || 0) + " clips · coaches " +
+        ((r.coach_types || []).join(", ") || "none");
+    }
     const list = document.getElementById("stream");
     if (!view.events.length) {
       list.innerHTML = '<p class="empty">' + emptyCopy(view.empty_reason) + "</p>";
@@ -198,7 +216,7 @@
   }
 
   const params = new URLSearchParams(location.search);
-  const fixture = params.get("fixture") || "bodied_locked";
+  const fixture = params.get("fixture") || "";
   const mode = params.get("mode") || "analyst";
 
   document.querySelectorAll("[data-mode]").forEach((btn) => {
@@ -215,19 +233,25 @@
   const sel = document.getElementById("fixture");
   if (sel) sel.value = fixture;
 
-  fetch("/session_fixtures/" + encodeURIComponent(fixture) + ".json")
-    .then((r) => {
-      if (!r.ok) throw new Error("fixture");
-      return r.json();
-    })
-    .then((pack) => {
-      const view = normalizePack(pack);
-      window.__view = view;
-      render(view, mode);
-    })
-    .catch(() => {
-      const view = normalizePack({ session_id: "", events: [], persisted: false, board_locked: false, controller_bodied: false });
-      window.__view = view;
-      render(view, mode);
-    });
+  window.__stale = false;
+  let lastOk = 0;
+
+  async function tick() {
+    const qs = fixture ? "?fixture=" + encodeURIComponent(fixture) : "";
+    try {
+      const r = await fetch("/api/session/view" + qs);
+      if (!r.ok) throw new Error("http");
+      const d = await r.json();
+      if (!d.ok) throw new Error("view");
+      lastOk = Date.now();
+      window.__stale = false;
+      window.__view = d;
+      render(d, mode);
+    } catch (err) {
+      window.__stale = !lastOk || Date.now() - lastOk > 2500;
+      if (window.__view) render(window.__view, mode);
+    }
+  }
+  tick();
+  setInterval(tick, 1000);
 })();

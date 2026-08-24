@@ -7,6 +7,7 @@ names are omitted. Missing fields stay absent (never zero / guessed buttons).
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -196,3 +197,64 @@ def load_fixture(name: str) -> dict[str, Any]:
 
 def view_from_fixture(name: str) -> dict[str, Any]:
     return normalize_pack(load_fixture(name))
+
+
+def recap_from_view(view: dict[str, Any]) -> dict[str, Any]:
+    clips: list[str] = []
+    coaches: list[str] = []
+    confirmed = 0
+    for ev in view.get("events") or []:
+        if ev.get("qualification") == "confirmed":
+            confirmed += 1
+        for cid in ev.get("clip_ids") or []:
+            if cid not in clips:
+                clips.append(str(cid))
+        ct = (ev.get("coach_context") or {}).get("coach_type")
+        if ct and ct not in coaches:
+            coaches.append(str(ct))
+    return {
+        "event_count": len(view.get("events") or []),
+        "confirmed_count": confirmed,
+        "clip_count": len(clips),
+        "clip_ids": clips,
+        "coach_types": coaches,
+        "persisted": bool(view.get("persisted")),
+        "empty_reason": view.get("empty_reason"),
+    }
+
+
+def _session_id(explicit: str = "") -> str:
+    if explicit:
+        return str(explicit)
+    try:
+        from qoresence.core.session import SessionAuthority
+
+        ident = SessionAuthority.current()
+        if ident is not None:
+            return str(ident.session_id)
+    except Exception:
+        pass
+    return os.getenv("QORESENCE_SESSION_ID") or ""
+
+
+def build_session_view(*, session_id: str = "", fixture: str = "") -> dict[str, Any]:
+    """Normalized Theater view. Live path never persists a narrative log."""
+    source = "live"
+    if fixture:
+        view = view_from_fixture(fixture)
+        source = "fixture"
+    else:
+        sid = _session_id(session_id)
+        pack: dict[str, Any] | None = None
+        try:
+            from qoresence.foundry.narrative_engine import generate_narrative, last_narrative
+
+            pack = last_narrative(sid) if sid else last_narrative()
+            if pack is None:
+                pack = generate_narrative(sid, persist=False)
+        except Exception:
+            pack = None
+        view = normalize_pack(pack)
+    view["source"] = source
+    view["recap"] = recap_from_view(view)
+    return view

@@ -9,7 +9,8 @@
 <body class="analyst">
 <header class="SessionHeader">
   <strong id="sid">Session —</strong>
-  <span class="StateBadge" id="badge-live">Fixture</span>
+  <span class="StateBadge" id="badge-live">Connecting</span>
+  <span class="StateBadge" id="badge-stale">Fresh</span>
   <span class="StateBadge" id="badge-lock">—</span>
   <span class="StateBadge" id="badge-body">—</span>
   <span class="StateBadge" id="clock">00:00.000</span>
@@ -19,7 +20,8 @@
     <a href="/studio.html">Foundry</a>
   </nav>
   <label class="analyst-only" for="fixture">Fixture
-    <select id="fixture" onchange="location.search='?fixture='+this.value">
+    <select id="fixture" onchange="location.search=this.value?'?fixture='+this.value:location.pathname">
+      <option value="">live session</option>
       <option value="bodied_locked">bodied + locked</option>
       <option value="unbodied_locked">unbodied + locked</option>
       <option value="bodied_unlocked">bodied + unlocked</option>
@@ -47,9 +49,13 @@
     <div id="persist" class="PersistenceStatus analyst-only"></div>
   </section>
 </div>
+<section class="recap analyst-only">
+  <h2>Recap</h2>
+  <p id="recap" class="empty">—</p>
+</section>
 <section class="stream">
   <h2>Event stream</h2>
-  <div id="stream"><p class="empty">Loading fixture…</p></div>
+  <div id="stream"><p class="empty">Connecting…</p></div>
 </section>
 <script src="/session.js" defer></script>
 </body>

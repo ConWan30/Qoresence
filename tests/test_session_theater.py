@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from qoresence.foundry.session_view import (
     FIXTURE_DIR,
+    build_session_view,
     locked_value_html,
     normalize_pack,
     view_from_fixture,
@@ -46,7 +48,10 @@ def test_session_page_is_not_clip_docked():
 
 
 def test_bodied_locked_shows_digits_and_r2():
-    view = view_from_fixture("bodied_locked")
+    view = build_session_view(fixture="bodied_locked")
+    assert view["source"] == "fixture"
+    assert view["recap"]["confirmed_count"] >= 1
+    assert "hdmi_b" in view["recap"]["clip_ids"]
     assert view["board_locked"] is True
     assert view["controller_bodied"] is True
     assert view["persisted"] is True
@@ -173,6 +178,50 @@ def test_session_routes_and_fixture(monkeypatch):
     assert missing.status_code == 404
     traversal = client.get("/session_fixtures/%2e%2e%2fcivif.html")
     assert traversal.status_code in {404, 422}
+
+
+def test_build_session_view_live_does_not_persist(monkeypatch, tmp_path):
+    calls = {}
+
+    def fake_gen(session_id="", **kwargs):
+        calls["persist"] = kwargs.get("persist")
+        return {
+            "session_id": session_id or "live",
+            "board_locked": False,
+            "controller_bodied": False,
+            "events": [],
+            "persisted": False,
+        }
+
+    monkeypatch.setattr("qoresence.foundry.narrative_engine.last_narrative", lambda *a, **k: None)
+    monkeypatch.setattr("qoresence.foundry.narrative_engine.generate_narrative", fake_gen)
+    view = build_session_view(session_id="live")
+    assert view["source"] == "live"
+    assert calls.get("persist") is False
+    assert view["persisted"] is False
+    assert view["recap"]["event_count"] == 0
+
+
+def test_api_session_view_fixture_strips_unlocked_digits():
+    from qoresence.deck.server import create_app
+
+    try:
+        from fastapi.testclient import TestClient
+    except Exception:
+        import pytest
+
+        pytest.skip("httpx/starlette TestClient not installed")
+    client = TestClient(create_app())
+    r = client.get("/api/session/view", params={"fixture": "bodied_unlocked"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["source"] == "fixture"
+    assert "99" not in json.dumps(body.get("confirmed"))
+    assert body["confirmed"]["score"] is None
+    recap = body["recap"]
+    assert recap["persisted"] is True
+    assert "civif_narrative" not in {t["name"] for t in TOOL_DEFS}
 
 
 def test_fixtures_exist():

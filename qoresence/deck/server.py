@@ -2126,6 +2126,25 @@ def create_app():  # type: ignore[no-untyped-def]
             headers={"Cache-Control": "no-cache, must-revalidate"},
         )
 
+    @app.get("/api/session/view")
+    async def api_session_view(fixture: str = "", session_id: str = ""):  # type: ignore[no-untyped-def]
+        def _view() -> dict[str, Any]:
+            from qoresence.foundry.session_view import build_session_view
+
+            return build_session_view(session_id=session_id, fixture=fixture)
+
+        try:
+            if fixture:
+                stem = pathlib.Path(fixture).stem
+                if not stem.replace("_", "").isalnum():
+                    return JSONResponse({"ok": False, "error": "unknown_fixture"}, status_code=404)
+            body = await asyncio.to_thread(_view)
+            return JSONResponse({"ok": True, **body})
+        except FileNotFoundError:
+            return JSONResponse({"ok": False, "error": "unknown_fixture"}, status_code=404)
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
     @app.get("/mobile.html")
     async def mobile_glass():  # type: ignore[no-untyped-def]
         return HTMLResponse(
