@@ -2082,6 +2082,50 @@ def create_app():  # type: ignore[no-untyped-def]
             _html("civif.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
+    @app.get("/session.html")
+    async def session_page():  # type: ignore[no-untyped-def]
+        return HTMLResponse(
+            _html("session.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+        )
+
+    @app.get("/session")
+    async def session_alias():  # type: ignore[no-untyped-def]
+        return HTMLResponse(
+            _html("session.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+        )
+
+    @app.get("/session.js")
+    async def session_js():  # type: ignore[no-untyped-def]
+        p = pathlib.Path(__file__).with_name("session.js")
+        return FileResponse(
+            p,
+            media_type="text/javascript",
+            headers={"Cache-Control": "no-cache, must-revalidate"},
+        )
+
+    @app.get("/session.css")
+    async def session_css():  # type: ignore[no-untyped-def]
+        p = pathlib.Path(__file__).with_name("session.css")
+        return FileResponse(
+            p,
+            media_type="text/css",
+            headers={"Cache-Control": "no-cache, must-revalidate"},
+        )
+
+    @app.get("/session_fixtures/{name}")
+    async def session_fixture(name: str):  # type: ignore[no-untyped-def]
+        stem = pathlib.Path(name).stem
+        if not stem.replace("_", "").isalnum():
+            return Response(status_code=404)
+        p = pathlib.Path(__file__).with_name("session_fixtures") / f"{stem}.json"
+        if not p.is_file():
+            return Response(status_code=404)
+        return FileResponse(
+            p,
+            media_type="application/json",
+            headers={"Cache-Control": "no-cache, must-revalidate"},
+        )
+
     @app.get("/mobile.html")
     async def mobile_glass():  # type: ignore[no-untyped-def]
         return HTMLResponse(
@@ -2115,6 +2159,7 @@ def create_app():  # type: ignore[no-untyped-def]
             "<a href='/deck.html' style='color:#f5c542'>Rail</a> · "
             "<a href='/studio.html' style='color:#f5c542'>Foundry Bay</a> · "
             "<a href='/civif.html' style='color:#f5c542'>CIVIF</a> · "
+            "<a href='/session.html' style='color:#f5c542'>Session</a> · "
             "<a href='/mobile.html' style='color:#f5c542'>Mobile glass</a> · "
             "<a href='/health' style='color:#f5c542'>health</a> · "
             "<a href='/api/situation' style='color:#f5c542'>api</a></p>"
@@ -2731,7 +2776,7 @@ def start_deck(
         log.info("Theater glass %s clip-dock on", _glass_js_name())
         log.info(
             "Lens /overlay.html  Theater /deck.html  Foundry /studio.html  "
-            "CIVIF /civif.html  Mobile /mobile.html  LIVE /video default %.0ffps "
+            "CIVIF /civif.html  Session /session.html  Mobile /mobile.html  LIVE /video default %.0ffps "
             "(PS5 60 Hz full-rate LIVE default; override ?fps= for lighter)",
             DEFAULT_LIVE_FPS,
         )

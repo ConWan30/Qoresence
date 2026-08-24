@@ -1,0 +1,67 @@
+:root {
+  --bg: #080b10;
+  --panel: #0e131b;
+  --text: #eef5f4;
+  --muted: #91a1ad;
+  --accent: #c8f26a;
+  --warn: #e8a14a;
+  --line: rgba(190, 214, 232, 0.14);
+  --dim: #5a6a75;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, sans-serif; }
+a { color: #68d9e8; }
+.SessionHeader {
+  display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center;
+  padding: 14px 20px; border-bottom: 1px solid var(--line);
+}
+.SessionHeader strong { color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; font-size: 12px; }
+.SessionHeader nav { display: flex; gap: 12px; }
+.StateBadge {
+  font: 700 11px/1 ui-monospace, monospace; padding: 6px 10px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--dim);
+}
+.StateBadge.on { color: var(--accent); border-color: var(--accent); }
+.StateBadge.warn { color: var(--warn); border-color: var(--warn); }
+.ModeSwitcher { margin-left: auto; display: flex; gap: 8px; }
+.ModeSwitcher button {
+  appearance: none; background: transparent; color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; cursor: pointer;
+}
+.ModeSwitcher button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.ModeSwitcher button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hud {
+  display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 1.4fr) minmax(10rem, 1fr);
+  gap: 1px; background: var(--line); border-bottom: 1px solid var(--line);
+}
+.hud section { background: var(--panel); padding: 16px 20px; min-width: 0; }
+.hud h2, .stream h2 {
+  margin: 0 0 10px; font: 800 11px/1 ui-monospace, monospace;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+.LockedValue { font: 800 42px/1.05 ui-monospace, monospace; color: var(--accent); display: block; }
+.LockedValue[data-kind="yard"] { font-size: 22px; margin-top: 8px; color: var(--text); }
+.UnavailableValue { margin: 0; color: var(--warn); font-size: 14px; }
+.moment-type { font: 800 20px/1.2 system-ui, sans-serif; }
+.moment-time { color: var(--muted); font: 700 12px/1.4 ui-monospace, monospace; margin-top: 8px; }
+.stream { padding: 16px 20px 32px; }
+.TimelineMarker { list-style: none; margin: 0; padding: 0; }
+.NarrativeCard {
+  border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 0 0 10px;
+  background: var(--panel);
+}
+.NarrativeCard header { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+.NarrativeCard .etype { font: 800 12px/1 ui-monospace, monospace; letter-spacing: 0.06em; text-transform: uppercase; }
+.CoachResult, .ClipLink, .PersistenceStatus { color: var(--muted); font-size: 13px; margin-top: 6px; }
+.gamer .analyst-only { display: none; }
+.ConfidenceIndicator { font: 700 11px/1 ui-monospace, monospace; color: var(--dim); }
+.ConfidenceIndicator.confirmed { color: var(--accent); }
+.ConfidenceIndicator.suppressed, .ConfidenceIndicator.unavailable { color: var(--warn); }
+.empty { color: var(--muted); }
+@media (max-width: 880px) {
+  .hud { grid-template-columns: 1fr; }
+  .LockedValue { font-size: 32px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

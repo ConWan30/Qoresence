@@ -165,6 +165,8 @@ When `QORESENCE_CIVIF_SUMMARY_LOG=1`, after coaches run, append one line to `log
 
 `NarrativeEngine` (`qoresence.foundry.narrative_engine`) builds a session `narrative.json` (`schema_version: narrative-1`) from live ticks after coaches. Button names only when bodied; score/yard fields only when locked. Write `logs/civif/narrative_<session>.json` when `QORESENCE_CIVIF_NARRATIVE_LOG=1`. Not an MCP tool (`civif_narrative` remains reserved). Clip `narrate_clip` is unchanged.
 
+Session Theater (`/session.html`) is a fixture-driven Now + Story view of that pack. It does not change `/civif.html`, HDMI Theater, or MCP. Score/yard digits render only through `LockedValue` after `session_view.normalize_pack`.
+
 ## Future (reserved)
 
 Dataclasses `CoachingReport` (`coach-1`) and `EventRecord` (`event-1`) in `qoresence/core/civif_tick.py`. MCP names **not** listed yet: `civif_coaching_report` (bodied), `civif_narrative` (board locked). Use `coach_clip` / `narrate_clip` today. New coaches should add a `coach_type` and the same fail-closed empty `metrics`/`issues`.
