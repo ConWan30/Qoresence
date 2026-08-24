@@ -1,0 +1,13 @@
+{
+  "schema_version": "narrative-1",
+  "session_id": "1842",
+  "controller_bodied": true,
+  "board_locked": true,
+  "event_schema": "event-1",
+  "persisted": true,
+  "path": "logs/civif/narrative_1842.json",
+  "plane": "qoresence-observation",
+  "read_only": true,
+  "text": "",
+  "events": []
+}

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Session Theater — Retina Dec</title>
+<link rel="stylesheet" href="/session.css">
+</head>
+<body class="analyst">
+<header class="SessionHeader">
+  <strong id="sid">Session —</strong>
+  <span class="StateBadge" id="badge-live">Fixture</span>
+  <span class="StateBadge" id="badge-lock">—</span>
+  <span class="StateBadge" id="badge-body">—</span>
+  <span class="StateBadge" id="clock">00:00.000</span>
+  <nav>
+    <a href="/deck.html">Theater</a>
+    <a href="/civif.html">CIVIF</a>
+    <a href="/studio.html">Foundry</a>
+  </nav>
+  <label class="analyst-only" for="fixture">Fixture
+    <select id="fixture" onchange="location.search='?fixture='+this.value">
+      <option value="bodied_locked">bodied + locked</option>
+      <option value="unbodied_locked">unbodied + locked</option>
+      <option value="bodied_unlocked">bodied + unlocked</option>
+      <option value="empty_not_persisted">empty, not persisted</option>
+      <option value="empty_persisted">empty, persisted</option>
+    </select>
+  </label>
+  <div class="ModeSwitcher" role="group" aria-label="Presentation mode">
+    <button type="button" data-mode="gamer">Gamer</button>
+    <button type="button" data-mode="analyst" aria-pressed="true">Analyst</button>
+  </div>
+</header>
+<div class="hud">
+  <section>
+    <h2>Confirmed</h2>
+    <div id="confirmed"><p class="UnavailableValue">Awaiting confirmed board state</p></div>
+  </section>
+  <section>
+    <h2>Current moment</h2>
+    <div id="moment"><p class="UnavailableValue">Awaiting event</p></div>
+  </section>
+  <section>
+    <h2>Next signal</h2>
+    <div id="next">Awaiting event</div>
+    <div id="persist" class="PersistenceStatus analyst-only"></div>
+  </section>
+</div>
+<section class="stream">
+  <h2>Event stream</h2>
+  <div id="stream"><p class="empty">Loading fixture…</p></div>
+</section>
+<script src="/session.js" defer></script>
+</body>
+</html>

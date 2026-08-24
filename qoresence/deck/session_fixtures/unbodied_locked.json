@@ -1,0 +1,39 @@
+{
+  "schema_version": "narrative-1",
+  "session_id": "1842",
+  "controller_bodied": false,
+  "board_locked": true,
+  "event_schema": "event-1",
+  "persisted": true,
+  "plane": "qoresence-observation",
+  "read_only": true,
+  "text": "situation_shift 21-14 yl=5",
+  "events": [
+    {
+      "session_id": "1842",
+      "event_id": "1842_evt_0001",
+      "event_type": "spam_window",
+      "t_start_ns": 1110000000000,
+      "t_end_ns": 1112000000000,
+      "frame_start": 10,
+      "frame_end": 40,
+      "input_summary": {"button": "R2", "count": 9},
+      "situation_summary": {"board_locked": true, "home_score": 21, "away_score": 14, "yard_line": 5},
+      "evidence": {"clip_ids": [], "coach_type": "pattern"},
+      "schema_version": "event-1"
+    },
+    {
+      "session_id": "1842",
+      "event_id": "1842_evt_0002",
+      "event_type": "situation_shift",
+      "t_start_ns": 1122000000000,
+      "t_end_ns": 1122000000000,
+      "frame_start": 80,
+      "frame_end": 80,
+      "input_summary": null,
+      "situation_summary": {"board_locked": true, "home_score": 21, "away_score": 14, "yard_line": 5},
+      "evidence": {"clip_ids": ["hdmi_b"], "coach_type": "situation"},
+      "schema_version": "event-1"
+    }
+  ]
+}
