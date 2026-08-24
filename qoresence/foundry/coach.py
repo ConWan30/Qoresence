@@ -143,3 +143,21 @@ def coach_clip(clip: str, clips_dir: Path | str | None = None) -> dict[str, Any]
     out = coach_from_sidecar(data)
     out["clip"] = str(path)
     return out
+
+
+def live_coach() -> dict[str, Any]:
+    from qoresence.foundry.cer_log import live_record
+
+    rec = live_record()
+    if rec is None:
+        return {
+            "ok": True,
+            "live": False,
+            "plane": "qoresence-observation",
+            "bodied": False,
+            "withheld": ["timing", "pattern", "score"],
+            "notes": ["No live Coupled Event Record yet — wait for IVC ticks."],
+        }
+    out = coach_from_sidecar(rec)
+    out["live"] = True
+    return out

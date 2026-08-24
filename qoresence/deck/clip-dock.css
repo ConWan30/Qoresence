@@ -17,6 +17,10 @@ body.qore-has-clip-dock{padding-bottom:0}
 #qore-clip-dock .replay{background:#1b2a14;color:#c8f26a}
 #qore-clip-dock .make{background:#c8f26a;color:#050a08}
 #qore-clip-dock .toggle{background:#111;color:#c8f26a}
+#qore-clip-dock a.civif{
+  border-radius:999px;padding:5px 10px;font:700 10px/1 ui-monospace,monospace;
+  text-transform:uppercase;text-decoration:none;background:#111;color:#68d9e8;
+}
 #qore-clip-dock .tile{
   display:flex;align-items:center;gap:4px;height:26px;min-width:0;
   border-radius:999px;padding:0 8px;background:#111;color:#e8edf0;

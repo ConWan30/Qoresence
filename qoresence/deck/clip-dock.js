@@ -40,6 +40,7 @@
       '<button type="button" class="replay" data-action="replay">REPLAY last</button>' +
       '<button type="button" class="make" data-action="clip">▶ Clip 30s</button>' +
       '<button type="button" class="toggle" data-action="toggle">Clips</button>' +
+      '<a class="civif" href="/civif.html">CIVIF</a>' +
       '<span class="meta" data-count>00</span></div>' +
       '<div class="tiles" data-tiles></div></div>',
   );

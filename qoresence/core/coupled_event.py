@@ -177,6 +177,51 @@ def validate_coupling(data: dict[str, Any]) -> list[str]:
     return errors
 
 
+_live_situation_hook = None
+
+
+def set_live_situation_hook(fn: Any) -> None:
+    """ClutchBot / tests register a snapshot getter. CIVIF never invents digits."""
+    global _live_situation_hook
+    _live_situation_hook = fn
+
+
+def situation_from_live_snapshot(snap: dict[str, Any] | None) -> dict[str, Any]:
+    sit = empty_situation()
+    if not isinstance(snap, dict):
+        return sit
+    sit["game_title"] = str(snap.get("game_title") or "")
+    sit["clutch_kind"] = str(snap.get("last_outcome_event") or snap.get("clutch_kind") or "")
+    locked = bool(
+        snap.get("board_locked")
+        or snap.get("score_vlm_locked")
+        or snap.get("scoreboard_locked")
+    )
+    sit["board_locked"] = locked
+    if not locked:
+        return sit
+    sit["home_score"] = snap.get("home_score")
+    sit["away_score"] = snap.get("away_score")
+    sit["down"] = snap.get("down")
+    sit["distance"] = snap.get("yards_to_go") if snap.get("yards_to_go") is not None else snap.get("distance")
+    clock = snap.get("play_clock")
+    if clock is None:
+        clock = snap.get("clock") or ""
+    sit["clock"] = clock if clock is not None else ""
+    return sit
+
+
+def current_situation() -> dict[str, Any]:
+    hook = _live_situation_hook
+    if hook is None:
+        return empty_situation()
+    try:
+        raw = hook()
+    except Exception:
+        return empty_situation()
+    return situation_from_live_snapshot(raw if isinstance(raw, dict) else None)
+
+
 def summarize_coupling_for_index(data: dict[str, Any] | None) -> dict[str, Any]:
     """Fail-closed index card. No pad tokens unless bodied. No scores unless locked."""
     empty = {

@@ -97,6 +97,12 @@ class ClutchBotAgent:
         self._learning_logger: LearningLogger | None = _learning_logger
 
         self._situation = SituationModel(window_s=config.controller_window_s)
+        try:
+            from qoresence.core.coupled_event import set_live_situation_hook
+
+            set_live_situation_hook(self._situation.to_dict)
+        except Exception:
+            pass
         self._scorer = MomentScorer(persona=config.persona, learning_logger=_learning_logger)
         # Two-speed: fast = video+input co-occurrence; confirm = OCR/outcome referee
         self._fast = FastMomentEngine()
