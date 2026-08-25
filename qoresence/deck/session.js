@@ -232,6 +232,7 @@
   const params = new URLSearchParams(location.search);
   const requested = params.get("fixture") || "";
   const fixture = requested && ALLOWED.indexOf(requested) >= 0 ? requested : "";
+  const sessionId = params.get("session_id") || params.get("session") || "";
   const mode = params.get("mode") === "gamer" ? "gamer" : "analyst";
 
   document.querySelectorAll("[data-mode]").forEach((btn) => {
@@ -256,7 +257,10 @@
   }
 
   async function tick() {
-    const qs = fixture ? "?fixture=" + encodeURIComponent(fixture) : "";
+    const q = new URLSearchParams();
+    if (fixture) q.set("fixture", fixture);
+    if (sessionId) q.set("session_id", sessionId);
+    const qs = q.toString() ? "?" + q.toString() : "";
     try {
       const r = await fetch("/api/session/view" + qs);
       if (!r.ok) throw new Error("http");
