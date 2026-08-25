@@ -130,3 +130,20 @@ def test_offer_extracts_off_caller_thread(monkeypatch):
     assert names
     assert all(n != caller for n in names)
     reset_scoreboard_lock_worker()
+
+
+def test_extractor_init_does_not_start_paddle_when_ocr_off(monkeypatch):
+    monkeypatch.delenv("QORESENCE_EASY_OCR", raising=False)
+    called: list[int] = []
+
+    def _boom(*_a, **_k):
+        called.append(1)
+        raise AssertionError("Paddle warmup must stay off unless QORESENCE_EASY_OCR=1")
+
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
+        _boom,
+    )
+    FootballScoreboardExtractor._stabilizer = None
+    FootballScoreboardExtractor()
+    assert called == []

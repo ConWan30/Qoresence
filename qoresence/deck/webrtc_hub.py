@@ -105,7 +105,8 @@ if _HAS_AIORTC:
                 try:
                     from qoresence.deck.live_paint import snapshot_live_paint
 
-                    if not snapshot_live_paint().paint:
+                    lp = snapshot_live_paint()
+                    if lp.reason in {"no_frame", "blank"}:
                         return None
                 except Exception:
                     pass

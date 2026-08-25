@@ -191,7 +191,7 @@ class LocalVLMClient:
             before = (ctx.home_score, ctx.away_score)
             ctx = extract_football_scoreboard(frame, ctx)
             if (ctx.home_score, ctx.away_score) != before:
-                log.info(
+                log.debug(
                     "scoreboard → %s-%s (was %s-%s)",
                     ctx.home_score,
                     ctx.away_score,

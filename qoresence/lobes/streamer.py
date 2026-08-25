@@ -549,7 +549,7 @@ class StreamerRuntime:
                     return False
                 device_name = opened_name
 
-            if not self._cap.isOpened():
+            if self._cap is None or not self._cap.isOpened():
                 source = (
                     self.config.url
                     if is_network

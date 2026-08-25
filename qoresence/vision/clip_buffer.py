@@ -32,7 +32,7 @@ DEFAULT_JPEG_QUALITY = 70
 # LIVE paints this size. 384/nearest/q50 looked specky when the stage upscaled it.
 # Keep 640 + linear + q70; a separate live-jpeg thread is what keeps cadence up.
 LIVE_PREVIEW_WIDTH = 640
-LIVE_PREVIEW_QUALITY = 70
+LIVE_PREVIEW_QUALITY = 85
 DEFAULT_OUT_DIR = Path("clips")
 
 
@@ -173,9 +173,6 @@ class HdmiClipBuffer:
         if sh % 2:
             small = small[: sh - 1, :]
             sh -= 1
-        # USB3.0 HDMI is studio/limited (16–235). Stretch in the JPEG so the
-        # Theater <img> does not need a CSS filter (that made blocks specky).
-        small = cv2.convertScaleAbs(small, alpha=255.0 / 219.0, beta=-16.0 * 255.0 / 219.0)
         ok, buf = cv2.imencode(
             ".jpg", small, [int(cv2.IMWRITE_JPEG_QUALITY), int(LIVE_PREVIEW_QUALITY)]
         )
@@ -247,10 +244,14 @@ class HdmiClipBuffer:
             return self._frames[-1][1]
 
     def latest_frame(self) -> tuple[bytes, int] | None:
-        """Return (jpeg_bytes, seq) for newest LIVE still. Empty → None."""
+        """Return (jpeg_bytes, seq) for newest LIVE still. Empty → None.
+
+        Seq is the preview encode counter, not the clip-ring counter.
+        Sharing ``_seq`` made /live WS re-push the same JPEG and flicker Theater.
+        """
         with self._lock:
             if self._live_jpeg is not None:
-                return (self._live_jpeg, int(self._seq or self._live_seq))
+                return (self._live_jpeg, int(self._live_seq or self._seq))
             if not self._frames:
                 return None
             _ts, jpg, _w, _h, seq = self._frames[-1]
