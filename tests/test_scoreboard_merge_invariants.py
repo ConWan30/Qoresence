@@ -320,10 +320,11 @@ def test_score_vlm_locked_defaults_false_in_round_trip():
 
 
 def test_vlm_only_merge_without_ocr(monkeypatch):
-    """VLM without a local HUD/OCR board must not invent a lock.
+    """Ungrounded VLM (scores + quarter only) must not invent a lock.
 
     Extract still runs when EasyOCR is off so a later local pair can merge.
     A lone Gemini pair on an empty HUD is how 3-2 locked after this morning's match.
+    Grounded gameplay reads (wordmarks or clock) lock in test_scoreboard_lock.
     """
     _reset_stabilizer()
     monkeypatch.delenv("QORESENCE_EASY_OCR", raising=False)

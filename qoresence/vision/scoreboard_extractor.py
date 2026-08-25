@@ -85,6 +85,31 @@ def _may_mint_lock(ctx: VisualContext | None) -> bool:
     return gst in {"", "gameplay", "playing", "in_game"}
 
 
+def _vlm_board_grounded(vlm: dict[str, Any] | None) -> bool:
+    """True when Gemini reported this match's scorebug, not a lone invented pair.
+
+    HUD blob reads fail on 640×480 Madden, so a grounded gameplay referee must
+    be allowed to mint without local digits. Bare ``home/away`` (+ optional
+    quarter) is how 3-2 locked on an empty HUD — refuse that.
+    """
+    if not vlm:
+        return False
+    if vlm.get("home_score") is None or vlm.get("away_score") is None:
+        return False
+    left = str(vlm.get("left_team") or "").strip()
+    right = str(vlm.get("right_team") or "").strip()
+    if left and right:
+        return True
+    clock = vlm.get("clock_seconds")
+    if clock is None:
+        return False
+    try:
+        int(clock)
+    except (TypeError, ValueError):
+        return False
+    return vlm.get("quarter") is not None or vlm.get("down") is not None
+
+
 def _normalize_clock(token: str) -> int | None:
     """Return clock_seconds from tokens like '1:41', '141', '1341'."""
     t = _fix_digits_in(token).strip()
@@ -416,9 +441,9 @@ class FootballScoreboardExtractor:
             vlm = get_scoreboard_vlm().get_last()
         except Exception:
             vlm = None
-        if vlm and not local_board:
-            # Empty HUD + no OCR tokens: a lone VLM pair invented this
-            # morning's 3-2 lock. Digits stay null until a local board exists.
+        if vlm and not local_board and not _vlm_board_grounded(vlm):
+            # Bare scores with no wordmarks/clock invented this morning's 3-2.
+            # Grounded gameplay Gemini may still lock when HUD blobs miss.
             vlm = None
         if vlm:
             # Only merge when VLM actually read a board — never wipe a good
@@ -488,7 +513,7 @@ class FootballScoreboardExtractor:
         if stab is not None and (raw_h is not None or raw_a is not None):
             if (
                 vlm_scores
-                and local_board
+                and (local_board or _vlm_board_grounded(vlm))
                 and _may_mint_lock(ctx)
                 and not _ScoreStabilizer._looks_suspicious_pair((raw_h, raw_a))
             ):
