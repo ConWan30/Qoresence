@@ -271,6 +271,29 @@ def test_fixtures_exist():
     } <= names
 
 
+def test_api_session_view_overlays_deck_situation(monkeypatch):
+    from qoresence.deck.server import _state, create_app
+    from qoresence.foundry import session_view as sv
+
+    try:
+        from fastapi.testclient import TestClient
+    except Exception:
+        import pytest
+
+        pytest.skip("httpx/starlette TestClient not installed")
+    sv._last_envelope.clear()
+    monkeypatch.setattr(sv, "_load_live_pack", lambda _sid: (None, False))
+    prev = dict(_state.situation)
+    _state.situation = {"scoreboard_locked": True, "home_score": 23, "away_score": 22}
+    try:
+        env = TestClient(create_app()).get("/api/session/view").json()
+    finally:
+        _state.situation = prev
+    assert env["view"]["board_locked"] is True
+    assert env["view"]["confirmed"]["score"] == {"home": 23, "away": 22}
+    assert env["view"]["confirmed"]["yard_line"] is None
+
+
 def test_api_session_view_normalized_only():
     from qoresence.deck.server import create_app
 
@@ -359,3 +382,105 @@ def test_build_session_response_invalid_and_stale_flag():
     assert cached["status"] == "live"
     assert cached["freshness"]["stale"] is True
     assert cached["status"] != "stale"
+
+
+def test_live_scoreboard_lock_fills_confirmed_without_narrative(monkeypatch):
+    from qoresence.foundry import session_view as sv
+
+    sv._last_envelope.clear()
+    monkeypatch.setattr(sv, "_load_live_pack", lambda _sid: (None, False))
+    env = sv.build_session_response(
+        session_id="live23",
+        live_situation={
+            "scoreboard_locked": True,
+            "home_score": 23,
+            "away_score": 22,
+        },
+    )
+    assert env["view"]["board_locked"] is True
+    assert env["view"]["confirmed"]["available"] is True
+    assert env["view"]["confirmed"]["score"] == {"home": 23, "away": 22}
+    assert env["view"]["confirmed"]["yard_line"] is None
+    assert env["view"]["events"] == []
+    assert env["view"]["persisted"] is False
+    recap = sv.recap_from_envelope(env)
+    assert recap["event_count"] == 0
+    assert recap["status"] != "invalid"
+
+
+def test_live_unlocked_does_not_leak_stuffed_score(monkeypatch):
+    import json
+
+    from qoresence.foundry import session_view as sv
+
+    sv._last_envelope.clear()
+    monkeypatch.setattr(sv, "_load_live_pack", lambda _sid: (None, False))
+    env = sv.build_session_response(
+        session_id="unlocked-live",
+        live_situation={
+            "scoreboard_locked": False,
+            "score_vlm_locked": False,
+            "home_score": 99,
+            "away_score": 1,
+            "yard_line": 40,
+        },
+    )
+    assert env["view"]["board_locked"] is False
+    assert env["view"]["confirmed"]["score"] is None
+    assert env["view"]["confirmed"]["yard_line"] is None
+    blob = json.dumps(env["view"])
+    assert '"home": 99' not in blob
+    assert '"away": 1' not in blob
+    assert "40" not in blob
+
+
+def test_live_lock_does_not_invent_yards(monkeypatch):
+    from qoresence.foundry import session_view as sv
+
+    sv._last_envelope.clear()
+    monkeypatch.setattr(sv, "_load_live_pack", lambda _sid: (None, False))
+    env = sv.build_session_response(
+        session_id="live-yard",
+        live_situation={
+            "score_vlm_locked": True,
+            "home_score": 7,
+            "away_score": 3,
+        },
+    )
+    assert env["view"]["confirmed"]["score"] == {"home": 7, "away": 3}
+    assert env["view"]["confirmed"]["yard_line"] is None
+
+
+def test_fixture_view_ignores_live_situation(monkeypatch):
+    from qoresence.foundry import session_view as sv
+
+    env = sv.build_session_response(
+        fixture="bodied_unlocked",
+        live_situation={
+            "scoreboard_locked": True,
+            "home_score": 23,
+            "away_score": 22,
+        },
+    )
+    assert env["view"]["confirmed"]["score"] is None
+    assert "23" not in str(env["view"])
+    assert "99" not in str(env["view"])
+
+
+def test_live_view_does_not_call_generate_narrative(monkeypatch):
+    from qoresence.foundry import narrative_engine as ne
+    from qoresence.foundry import session_view as sv
+
+    sv._last_envelope.clear()
+    monkeypatch.setattr(ne, "last_narrative", lambda *a, **k: None)
+
+    def boom(*_a, **_k):
+        raise AssertionError("generate_narrative must not run on session view GET")
+
+    monkeypatch.setattr(ne, "generate_narrative", boom)
+    env = sv.build_session_response(
+        session_id="no-regen",
+        live_situation={"scoreboard_locked": True, "home_score": 23, "away_score": 22},
+    )
+    assert env["view"]["confirmed"]["score"] == {"home": 23, "away": 22}
+

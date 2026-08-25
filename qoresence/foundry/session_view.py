@@ -454,18 +454,50 @@ def _cache_key(session_id: str, fixture: str) -> str:
 
 
 def _load_live_pack(session_id: str) -> tuple[dict[str, Any] | None, bool]:
-    """Return (pack, unavailable). Never persist. Does not change NarrativeEngine."""
+    """Return (pack, unavailable). Never persist. Never regenerate on GET."""
     try:
-        from qoresence.foundry.narrative_engine import generate_narrative, last_narrative
+        from qoresence.foundry.narrative_engine import last_narrative
 
         pack = last_narrative(session_id) if session_id else last_narrative()
-        if pack is not None:
-            return pack, False
-        if session_id:
-            return generate_narrative(session_id, persist=False), False
-        return None, True
+        return pack, False
     except Exception:
         return None, True
+
+
+def _read_live_situation() -> dict[str, Any]:
+    try:
+        from qoresence.deck.server import _state
+
+        sit = getattr(_state, "situation", None)
+        return dict(sit) if isinstance(sit, dict) else {}
+    except Exception:
+        return {}
+
+
+def _live_board_licensed(sit: dict[str, Any] | None) -> bool:
+    if not isinstance(sit, dict):
+        return False
+    return bool(sit.get("score_vlm_locked") or sit.get("scoreboard_locked"))
+
+
+def overlay_live_board(view: dict[str, Any], sit: dict[str, Any] | None) -> dict[str, Any]:
+    """License confirmed digits from live situation lock. Does not invent events or yards."""
+    if not isinstance(view, dict) or not _live_board_licensed(sit):
+        return view
+    view["board_locked"] = True
+    home = _int_or_none(sit.get("home_score") if sit else None)
+    away = _int_or_none(sit.get("away_score") if sit else None)
+    yard = _int_or_none(sit.get("yard_line") if sit else None)
+    score = {"home": home, "away": away} if home is not None and away is not None else None
+    confirmed = {"available": False, "score": None, "yard_line": None}
+    if score is not None:
+        confirmed["score"] = score
+        confirmed["available"] = True
+    if yard is not None:
+        confirmed["yard_line"] = yard
+        confirmed["available"] = True
+    view["confirmed"] = confirmed
+    return view
 
 
 def _resolve_session_id(explicit: str) -> str:
@@ -487,6 +519,7 @@ def build_session_response(
     session_id: str = "",
     fixture: str = "",
     now: datetime | None = None,
+    live_situation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Read-only session-view envelope. `view` is always normalize_pack output."""
     generated = now or datetime.now(UTC)
@@ -505,8 +538,6 @@ def build_session_response(
         pack, live_unavail = _load_live_pack(sid)
         if live_unavail:
             unavailable = True
-        elif pack is None and not sid:
-            unavailable = True
     if pack_is_invalid(pack):
         invalid = True
         view = normalize_pack(None)
@@ -522,6 +553,9 @@ def build_session_response(
         )
     else:
         view = normalize_pack(pack)
+    if not fixture and not invalid:
+        sit = live_situation if live_situation is not None else _read_live_situation()
+        overlay_live_board(view, sit)
     status = derive_status(view, invalid=invalid, unavailable=unavailable)
     _apply_status_reason(view, status)
     last_event_at = _iso_z(generated) if view.get("events") else None
@@ -638,6 +672,11 @@ def build_session_recap(
     session_id: str = "",
     fixture: str = "",
     now: datetime | None = None,
+    live_situation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Read-only recap. Does not persist or mutate session state."""
-    return recap_from_envelope(build_session_response(session_id=session_id, fixture=fixture, now=now))
+    return recap_from_envelope(
+        build_session_response(
+            session_id=session_id, fixture=fixture, now=now, live_situation=live_situation
+        )
+    )

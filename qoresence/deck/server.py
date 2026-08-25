@@ -2143,7 +2143,9 @@ def create_app():  # type: ignore[no-untyped-def]
         def _envelope() -> dict[str, Any]:
             from qoresence.foundry.session_view import build_session_response
 
-            return build_session_response(session_id=session_id, fixture=fixture)
+            return build_session_response(
+                session_id=session_id, fixture=fixture, live_situation=_state.situation
+            )
 
         try:
             body = await asyncio.to_thread(_envelope)
@@ -2158,7 +2160,9 @@ def create_app():  # type: ignore[no-untyped-def]
         def _recap() -> dict[str, Any]:
             from qoresence.foundry.session_view import build_session_recap
 
-            return build_session_recap(session_id=session_id, fixture=fixture)
+            return build_session_recap(
+                session_id=session_id, fixture=fixture, live_situation=_state.situation
+            )
 
         try:
             body = await asyncio.to_thread(_recap)
