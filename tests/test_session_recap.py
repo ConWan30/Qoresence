@@ -155,6 +155,51 @@ def test_recap_stale_does_not_change_counts() -> None:
     assert recap_b["linked_clip_count"] == recap_a["linked_clip_count"]
 
 
+def test_recap_confirmed_and_linked_counts(tmp_path: Path) -> None:
+    from qoresence.foundry.session_view import normalize_pack
+
+    unlocked = build_session_recap(fixture="bodied_unlocked")
+    assert unlocked["confirmed_event_count"] == 0
+    assert all(e.get("qualification") != "confirmed" for e in unlocked["events"])
+    stem = "hdmi_clip_recap_link"
+    (tmp_path / f"{stem}.mp4").write_bytes(b"ftyp")
+    (tmp_path / f"{stem}.coupling.json").write_text(
+        json.dumps({"session_id": "s", "clip_id": stem}), encoding="utf-8"
+    )
+    view = normalize_pack(
+        {
+            "session_id": "s",
+            "board_locked": True,
+            "controller_bodied": True,
+            "persisted": True,
+            "events": [
+                {
+                    "event_id": "c",
+                    "event_type": "situation_shift",
+                    "t_start_ns": 1_000_000,
+                    "t_end_ns": 2_000_000,
+                    "situation_summary": {"home_score": 1, "away_score": 0, "yard_line": 1},
+                    "evidence": {"clip_ids": [stem]},
+                },
+                {
+                    "event_id": "u",
+                    "event_type": "situation_shift",
+                    "t_start_ns": 3_000_000,
+                    "t_end_ns": 4_000_000,
+                    "evidence": {"clip_ids": ["hdmi_a"]},
+                },
+            ],
+        },
+        clips_root=tmp_path,
+    )
+    recap = recap_from_envelope(_env(view))
+    assert recap["event_count"] == 2
+    assert recap["confirmed_event_count"] == 2
+    assert recap["linked_clip_count"] == 1
+    assert recap["events"][0]["clip"]["available"] is True
+    assert recap["events"][1]["clip"] == {"available": False}
+
+
 def test_recap_does_not_persist(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     recap = build_session_recap(session_id="no-write")

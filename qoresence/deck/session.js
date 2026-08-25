@@ -323,8 +323,10 @@
       }));
     }
   }
-  tick();
-  tickRecap();
-  setInterval(tick, 1000);
-  setInterval(tickRecap, 1000);
+  async function tickAll() {
+    await tick();
+    await tickRecap();
+  }
+  tickAll();
+  setInterval(tickAll, 1000);
 })();

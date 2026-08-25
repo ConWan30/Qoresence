@@ -47,6 +47,8 @@ def test_session_page_is_not_clip_docked():
     assert "ALLOWED" in js
     assert "/api/session/view" in js
     assert "/api/session/recap" in js
+    assert "tickAll" in js
+    assert js.count("setInterval") == 1
     assert "/session_fixtures/" not in js
     assert "Open clip" in js
     assert "/media/clips/" in js
