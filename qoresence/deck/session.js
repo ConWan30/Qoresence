@@ -201,6 +201,26 @@
     document.getElementById("clock").textContent = view.current_moment
       ? view.current_moment.timestamp
       : "00:00.000";
+    const stale = !!(envelope && envelope.freshness && envelope.freshness.stale);
+    const tally = document.getElementById("tally");
+    if (tally) {
+      const lamp = stale || status === "unavailable" || status === "invalid" ? "stall" : status === "live" || status === "empty" ? "air" : "standby";
+      tally.dataset.tally = lamp;
+      tally.className = "holo-tally holo-tally-" + lamp;
+      const label = tally.querySelector(".holo-tally-label");
+      if (label) label.textContent = lamp === "air" ? "On air" : lamp === "stall" ? "Stall" : "Standby";
+    }
+    const plinth = document.getElementById("confirmed-plinth");
+    if (plinth) {
+      plinth.dataset.holoTone = stale ? "red" : view.board_locked && view.confirmed && view.confirmed.available ? "" : "amber";
+    }
+    const prism = document.getElementById("prism-fill");
+    if (prism) {
+      const age = Number(envelope && envelope.freshness && envelope.freshness.age_ms);
+      prism.className = "signal-prism-fill" + (stale ? " is-stall" : Number.isFinite(age) && age < 2500 ? "" : " is-hold");
+      const pct = Number.isFinite(age) ? Math.max(8, Math.min(100, 100 - age / 80)) : 36;
+      prism.style.width = pct + "%";
+    }
     document.getElementById("confirmed").innerHTML = lockedValue(view.confirmed);
     const moment = document.getElementById("moment");
     if (view.current_moment) {
@@ -256,15 +276,23 @@
   const requested = params.get("fixture") || "";
   const fixture = requested && ALLOWED.indexOf(requested) >= 0 ? requested : "";
   const sessionId = params.get("session_id") || params.get("session") || "";
-  const mode = params.get("mode") === "gamer" ? "gamer" : "analyst";
+  let mode = params.get("mode") === "gamer" ? "gamer" : "analyst";
 
+  function setModeButtons(next) {
+    document.querySelectorAll("[data-mode]").forEach((btn) => {
+      btn.setAttribute("aria-pressed", btn.getAttribute("data-mode") === next ? "true" : "false");
+    });
+  }
+  setModeButtons(mode);
   document.querySelectorAll("[data-mode]").forEach((btn) => {
-    btn.setAttribute("aria-pressed", btn.getAttribute("data-mode") === mode ? "true" : "false");
     btn.addEventListener("click", () => {
       const next = btn.getAttribute("data-mode");
+      if (next !== "gamer" && next !== "analyst") return;
+      mode = next;
       const u = new URL(location.href);
       u.searchParams.set("mode", next);
       history.replaceState({}, "", u);
+      setModeButtons(mode);
       if (window.__view) render(window.__view, next, window.__envelope);
     });
   });
@@ -329,4 +357,11 @@
   }
   tickAll();
   setInterval(tickAll, 1000);
+  document.addEventListener("pointermove", function (e) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const x = (e.clientX / Math.max(1, innerWidth) - 0.5) * 2;
+    const y = (e.clientY / Math.max(1, innerHeight) - 0.5) * 2;
+    document.body.style.setProperty("--holo-x", x.toFixed(3));
+    document.body.style.setProperty("--holo-y", y.toFixed(3));
+  });
 })();

@@ -10,10 +10,53 @@ import { LockbugStrip } from "./lockbug-strip";
 const GLASSES = [
   { href: "/", label: "Home" },
   { href: "/deck.html", label: "Theater" },
+  { href: "/session.html", label: "Session", offApp: true },
   { href: "/overlay.html", label: "Lens" },
   { href: "/studio.html", label: "Foundry" },
   { href: "/mobile.html", label: "Mobile" },
 ] as const;
+
+function glassOn(href: string, label: string, pathname: string) {
+  if (href === "/") return pathname === "/" || pathname === "home";
+  return pathname === href || pathname === label.toLowerCase();
+}
+
+function GlassNavLink({
+  href,
+  label,
+  pathname,
+  compact,
+  offApp,
+}: {
+  href: string;
+  label: string;
+  pathname: string;
+  compact?: boolean;
+  offApp?: boolean;
+}) {
+  const on = glassOn(href, label, pathname);
+  const className = cn(
+    compact
+      ? "stream-key inline-flex h-8 min-w-14 items-center justify-center px-2.5 text-xs font-medium"
+      : "inline-flex h-9 min-w-16 items-center justify-center rounded-md px-3 text-xs font-medium",
+    on ? "stream-key-live" : "text-muted-foreground",
+  );
+  if (offApp) {
+    return (
+      <a href={href} className={className}>
+        {label}
+      </a>
+    );
+  }
+  return (
+    <Link
+      to={href as "/" | "/deck.html" | "/overlay.html" | "/studio.html" | "/mobile.html"}
+      className={className}
+    >
+      {label}
+    </Link>
+  );
+}
 
 export function CommandBar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -138,24 +181,15 @@ export function CommandBar() {
           <BroadcastClock />
 
           <nav className="hidden min-w-0 rounded-lg bg-subtle/80 p-1 shadow-[var(--shadow-border)] md:flex">
-            {GLASSES.map((g) => {
-              const on =
-                g.href === "/"
-                  ? active === "/" || active === "home"
-                  : active === g.href || active === g.label.toLowerCase() || pathname === g.href;
-              return (
-                <Link
-                  key={g.href}
-                  to={g.href}
-                  className={cn(
-                    "inline-flex h-9 min-w-16 items-center justify-center rounded-md px-3 text-xs font-medium",
-                    on ? "stream-key-live" : "text-muted-foreground",
-                  )}
-                >
-                  {g.label}
-                </Link>
-              );
-            })}
+            {GLASSES.map((g) => (
+              <GlassNavLink
+                key={g.href}
+                href={g.href}
+                label={g.label}
+                pathname={active}
+                offApp={"offApp" in g && g.offApp}
+              />
+            ))}
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -240,24 +274,16 @@ export function CommandBar() {
             </span>
           </div>
           <nav className="flex flex-wrap gap-1 md:hidden">
-            {GLASSES.map((g) => {
-              const on =
-                g.href === "/"
-                  ? active === "/" || active === "home"
-                  : active === g.href || active === g.label.toLowerCase() || pathname === g.href;
-              return (
-                <Link
-                  key={g.href}
-                  to={g.href}
-                  className={cn(
-                    "stream-key inline-flex h-8 min-w-14 items-center justify-center px-2.5 text-xs font-medium",
-                    on ? "stream-key-live" : "text-muted-foreground",
-                  )}
-                >
-                  {g.label}
-                </Link>
-              );
-            })}
+            {GLASSES.map((g) => (
+              <GlassNavLink
+                key={g.href}
+                href={g.href}
+                label={g.label}
+                pathname={active}
+                compact
+                offApp={"offApp" in g && g.offApp}
+              />
+            ))}
           </nav>
         </div>
       </div>

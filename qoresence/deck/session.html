@@ -3,60 +3,98 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Session Theater — Retina Dec</title>
+<meta name="theme-color" content="#050a08">
+<title>Session Theater — Retina Deck</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Sora:wght@400;500;600&family=Syne:wght@600;700;800&display=swap">
 <link rel="stylesheet" href="/session.css">
 </head>
 <body class="analyst">
-<header class="SessionHeader">
-  <strong id="sid">Session —</strong>
-  <span class="StateBadge" id="badge-live">Connecting</span>
-  <span class="StateBadge" id="badge-stale">Fresh</span>
-  <span class="StateBadge" id="badge-lock">—</span>
-  <span class="StateBadge" id="badge-body">—</span>
-  <span class="StateBadge" id="clock">00:00.000</span>
-  <nav>
-    <a href="/deck.html">Theater</a>
-    <a href="/civif.html">CIVIF</a>
-    <a href="/studio.html">Foundry</a>
-  </nav>
-  <label class="analyst-only" for="fixture">Fixture
-    <select id="fixture" onchange="location.search=this.value?'?fixture='+encodeURIComponent(this.value):location.pathname">
-      <option value="">live session</option>
-      <option value="bodied_locked">bodied + locked</option>
-      <option value="unbodied_locked">unbodied + locked</option>
-      <option value="bodied_unlocked">bodied + unlocked</option>
-      <option value="empty_not_persisted">empty, not persisted</option>
-      <option value="empty_persisted">empty, persisted</option>
-    </select>
-  </label>
-  <div class="ModeSwitcher" role="group" aria-label="Presentation mode">
-    <button type="button" data-mode="gamer">Gamer</button>
-    <button type="button" data-mode="analyst" aria-pressed="true">Analyst</button>
+<main class="holo-deck">
+<header class="SessionHeader holo-header">
+  <div class="chrome-row">
+    <div class="brand">
+      <span class="holo-mark" aria-hidden="true">Q</span>
+      <span class="brand-copy">
+        <strong>Retina Deck</strong>
+        <small>session theater</small>
+      </span>
+    </div>
+    <div id="tally" class="holo-tally holo-tally-standby" data-tally="standby">
+      <span class="holo-tally-lamp" aria-hidden="true"></span>
+      <span class="holo-tally-label">Standby</span>
+    </div>
+    <span class="take-label" id="sid">Session —</span>
+    <time class="broadcast-clock" id="clock">00:00.000</time>
+    <nav class="glass-nav" aria-label="Glasses">
+      <a href="/">Home</a>
+      <a href="/deck.html">Theater</a>
+      <a href="/session.html" aria-current="page">Session</a>
+      <a href="/overlay.html">Lens</a>
+      <a href="/studio.html">Foundry</a>
+      <a href="/mobile.html">Mobile</a>
+    </nav>
+    <div class="ModeSwitcher" role="group" aria-label="Presentation mode">
+      <button type="button" class="stream-key" data-mode="gamer"><span class="key-num">01</span> Gamer</button>
+      <button type="button" class="stream-key" data-mode="analyst" aria-pressed="true"><span class="key-num">02</span> Analyst</button>
+    </div>
+  </div>
+  <div class="status-row">
+    <span class="StateBadge" id="badge-live">Connecting</span>
+    <span class="StateBadge" id="badge-stale">Fresh</span>
+    <span class="StateBadge" id="badge-lock">—</span>
+    <span class="StateBadge" id="badge-body">—</span>
+    <a class="civif-link" href="/civif.html">CIVIF</a>
+    <label class="analyst-only fixture-field" for="fixture">Fixture
+      <select id="fixture" onchange="location.search=this.value?'?fixture='+encodeURIComponent(this.value):location.pathname">
+        <option value="">live session</option>
+        <option value="bodied_locked">bodied + locked</option>
+        <option value="unbodied_locked">unbodied + locked</option>
+        <option value="bodied_unlocked">bodied + unlocked</option>
+        <option value="empty_not_persisted">empty, not persisted</option>
+        <option value="empty_persisted">empty, persisted</option>
+      </select>
+    </label>
   </div>
 </header>
-<div class="hud">
-  <section>
-    <h2>Confirmed</h2>
-    <div id="confirmed"><p class="UnavailableValue">Awaiting confirmed board state</p></div>
+
+<div class="deck-shell">
+  <section id="confirmed-plinth" class="holo-plinth" data-holo-tone="amber">
+    <div class="holo-plinth-well confirmed-well">
+      <span class="pgm-chip">PGM</span>
+      <h2>Confirmed</h2>
+      <div id="confirmed"><p class="UnavailableValue">Awaiting confirmed board state</p></div>
+    </div>
+    <div class="signal-prism" aria-hidden="true">
+      <div id="prism-fill" class="signal-prism-fill is-hold"></div>
+    </div>
   </section>
-  <section>
-    <h2>Current moment</h2>
-    <div id="moment"><p class="UnavailableValue">Awaiting event</p></div>
-  </section>
-  <section>
-    <h2>Next signal</h2>
-    <div id="next">Awaiting event</div>
-    <div id="persist" class="PersistenceStatus analyst-only"></div>
-  </section>
+
+  <div class="deck-grid">
+    <section class="stream holo-plate">
+      <h2>Event stream</h2>
+      <div id="stream"><p class="empty">Connecting…</p></div>
+    </section>
+    <aside class="hud">
+      <section class="holo-plate">
+        <h2>Current moment</h2>
+        <div id="moment"><p class="UnavailableValue">Awaiting event</p></div>
+      </section>
+      <section class="holo-plate">
+        <h2>Next signal</h2>
+        <div id="next">Awaiting event</div>
+        <div id="persist" class="PersistenceStatus analyst-only"></div>
+      </section>
+      <section class="recap holo-plate" id="recap-section">
+        <h2>Recap</h2>
+        <div id="recap-stats" class="RecapStats">Connecting…</div>
+      </section>
+    </aside>
+  </div>
 </div>
-<section class="recap" id="recap-section">
-  <h2>Recap</h2>
-  <div id="recap-stats" class="RecapStats">Connecting…</div>
-</section>
-<section class="stream">
-  <h2>Event stream</h2>
-  <div id="stream"><p class="empty">Connecting…</p></div>
-</section>
+</main>
 <script src="/session.js" defer></script>
 </body>
 </html>
