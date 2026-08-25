@@ -222,6 +222,29 @@
     list.innerHTML = '<ol class="TimelineMarker">' + view.events.map((e) => "<li>" + cardHtml(e) + "</li>").join("") + "</ol>";
   }
 
+  function renderRecap(recap) {
+    const el = document.getElementById("recap-stats");
+    if (!el || !recap) return;
+    window.__recap = recap;
+    if (recap.empty_reason) {
+      el.innerHTML = '<p class="empty">' + escapeHtml(emptyCopy(recap.empty_reason)) + "</p>";
+      return;
+    }
+    if (recap.status === "unavailable" || recap.status === "invalid") {
+      el.innerHTML = '<p class="empty">' + escapeHtml(emptyCopy(recap.status)) + "</p>";
+      return;
+    }
+    const dur = recap.duration_ms == null ? "—" : String(recap.duration_ms) + " ms";
+    const stale = !!(recap.freshness && recap.freshness.stale);
+    el.innerHTML =
+      "<span>Duration <strong>" + escapeHtml(dur) + "</strong></span>" +
+      "<span>Events <strong>" + escapeHtml(String(recap.event_count || 0)) + "</strong></span>" +
+      "<span>Confirmed <strong>" + escapeHtml(String(recap.confirmed_event_count || 0)) + "</strong></span>" +
+      "<span>Clips <strong>" + escapeHtml(String(recap.linked_clip_count || 0)) + "</strong></span>" +
+      (recap.incomplete ? "<span>Incomplete</span>" : "") +
+      (stale ? "<span>Stale</span>" : "");
+  }
+
   const ALLOWED = [
     "bodied_locked",
     "unbodied_locked",
@@ -283,6 +306,27 @@
       }
     }
   }
-  tick();
-  setInterval(tick, 1000);
+  async function tickRecap() {
+    const q = new URLSearchParams();
+    if (fixture) q.set("fixture", fixture);
+    if (sessionId) q.set("session_id", sessionId);
+    const qs = q.toString() ? "?" + q.toString() : "";
+    try {
+      const r = await fetch("/api/session/recap" + qs);
+      if (!r.ok) throw new Error("http");
+      const recap = await r.json();
+      if (!recap || recap.schema !== "session-recap-1") throw new Error("recap");
+      renderRecap(recap);
+    } catch (err) {
+      if (window.__recap) renderRecap(Object.assign({}, window.__recap, {
+        freshness: Object.assign({}, (window.__recap.freshness || {}), { stale: true }),
+      }));
+    }
+  }
+  async function tickAll() {
+    await tick();
+    await tickRecap();
+  }
+  tickAll();
+  setInterval(tickAll, 1000);
 })();

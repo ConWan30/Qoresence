@@ -249,7 +249,7 @@ Excluded:
 - NarrativeEngine gating changes.
 - CI full-matrix fail-fast ([#65](https://github.com/ConWan30/Qoresence/issues/65)).
 
-Recap and streamer presentation stay deferred.
+Recap and streamer presentation stay deferred until their contracts are approved. Recap design is [#72](https://github.com/ConWan30/Qoresence/issues/72): read-only `GET /api/session/recap` (`session-recap-1`), `duration_ms` from usable event clocks.
 
 ## Future (reserved)
 

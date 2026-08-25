@@ -549,3 +549,95 @@ def build_session_response(
         with _envelope_lock:
             _last_envelope[key] = envelope
     return envelope
+
+
+RECAP_SCHEMA = "session-recap-1"
+
+
+def _usable_clock_ns(value: Any) -> int | None:
+    n = _int_or_none(value)
+    if n is None or n <= 0:
+        return None
+    return n
+
+
+def _event_duration_bounds(ev: dict[str, Any]) -> tuple[int, int] | None:
+    start = _usable_clock_ns(ev.get("t_start_ns"))
+    end = _usable_clock_ns(ev.get("t_end_ns"))
+    if start is None or end is None or end < start:
+        return None
+    return start, end
+
+
+def _recap_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    indexed = list(enumerate(events))
+
+    def key(item: tuple[int, dict[str, Any]]) -> tuple[int, int, int]:
+        idx, ev = item
+        start = _usable_clock_ns(ev.get("t_start_ns"))
+        if start is None:
+            return (1, 0, idx)
+        return (0, start, idx)
+
+    return [ev for _i, ev in sorted(indexed, key=key)]
+
+
+def recap_from_envelope(envelope: dict[str, Any]) -> dict[str, Any]:
+    """Read-only session-recap-1 derived from a session-view envelope."""
+    view = envelope.get("view") if isinstance(envelope.get("view"), dict) else {}
+    status = str(envelope.get("status") or "unavailable")
+    events = [e for e in (view.get("events") or []) if isinstance(e, dict)]
+    ordered = _recap_events(events)
+    bounds = [_event_duration_bounds(e) for e in ordered]
+    usable = [b for b in bounds if b is not None]
+    if usable:
+        duration_ms = (max(b[1] for b in usable) - min(b[0] for b in usable)) // 1_000_000
+    else:
+        duration_ms = None
+    empty_reason = None
+    if status == "empty":
+        empty_reason = "no_events"
+    elif status == "not_persisted":
+        empty_reason = "not_persisted"
+    freshness = envelope.get("freshness") if isinstance(envelope.get("freshness"), dict) else {}
+    if status == "invalid":
+        freshness = {
+            "generated_at": freshness.get("generated_at") or _iso_z(datetime.now(UTC)),
+            "last_event_at": None,
+            "age_ms": 0,
+            "stale": False,
+        }
+        ordered = []
+    return {
+        "schema": RECAP_SCHEMA,
+        "ok": status != "invalid",
+        "status": status,
+        "session": envelope.get("session") or "",
+        "duration_ms": duration_ms,
+        "event_count": 0 if status == "invalid" else len(ordered),
+        "confirmed_event_count": 0
+        if status == "invalid"
+        else sum(1 for e in ordered if e.get("qualification") == "confirmed"),
+        "linked_clip_count": 0
+        if status == "invalid"
+        else sum(1 for e in ordered if isinstance(e.get("clip"), dict) and e["clip"].get("available") is True),
+        "incomplete": status == "live" and view.get("persisted") is False,
+        "empty_reason": empty_reason,
+        "events": ordered,
+        "freshness": {
+            "generated_at": freshness.get("generated_at") or _iso_z(datetime.now(UTC)),
+            "last_event_at": freshness.get("last_event_at"),
+            "age_ms": int(freshness.get("age_ms") or 0),
+            "stale": bool(freshness.get("stale")),
+        },
+    }
+
+
+def build_session_recap(
+    *,
+    session_id: str = "",
+    fixture: str = "",
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Read-only recap. Does not persist or mutate session state."""
+    return recap_from_envelope(build_session_response(session_id=session_id, fixture=fixture, now=now))
