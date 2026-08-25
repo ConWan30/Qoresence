@@ -263,18 +263,24 @@ Included:
 - `empty_reason` only for `empty` / `not_persisted`. `incomplete` only for `live` + not persisted.
 - `ok: false` only for `invalid`, with empty events and a safe freshness object.
 - Stale last-envelope recap keeps the same events and clip links (no clip re-resolve).
-- Session Theater Recap section polls `/api/session/recap` only (one timer with the live view poll).
-- 61 focused recap / theater / clip / narrative / MCP tests, plus Chromium smoke.
+- Session Theater Recap section polls `/api/session/recap` only. One `tickAll` timer (no second interval). Chromium smoke: **zero** `/session_fixtures/` requests.
+- 61 focused recap / theater / clip / narrative / MCP tests, plus Chromium smoke (live, empty, not-persisted, unavailable, stale, Gamer/Analyst).
 
 Excluded:
 
-- New live panel on `/civif.html` or HDMI Theater.
-- `/civif.html`, MCP, clip-dock, HDMI, or NarrativeEngine changes.
-- New clip storage or identifiers.
-- Streamer presentation.
+- Streamer presentation (separate later milestone; do not fold into recap).
+- `/civif.html` changes.
+- MCP `tools/list` changes.
+- HDMI Theater / capture changes.
+- Clip-dock on `/session.html`.
+- NarrativeEngine changes.
 - [#65](https://github.com/ConWan30/Qoresence/issues/65).
 
-Streamer presentation stays later so an overlay can consume this recap story model.
+Completed path:
+
+`CIVIF → NarrativeEngine → normalized session view → live Session Theater → validated clip links → read-only session recap`.
+
+Hold before streamer presentation until the live Theater + recap experience justifies a separate overlay milestone.
 
 ## Future (reserved)
 
