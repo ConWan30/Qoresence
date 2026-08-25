@@ -47,10 +47,15 @@ def test_permitted_stem_rejects_paths_and_aliases() -> None:
     assert permitted_clip_stem("hdmi_clip_20260822_101224") == "hdmi_clip_20260822_101224"
     assert permitted_clip_stem("hdmi_clip_20260822_101224.mp4") == "hdmi_clip_20260822_101224"
     assert permitted_clip_stem("hdmi_a") is None
+    assert permitted_clip_stem("hdmi_a.mp4") is None
     assert permitted_clip_stem("clip-1842-001") is None
     assert permitted_clip_stem("../hdmi_clip_20260822_101224") is None
     assert permitted_clip_stem("clips/hdmi_clip_20260822_101224.mp4") is None
     assert permitted_clip_stem("/etc/passwd") is None
+    assert permitted_clip_stem("hdmi_clip_%2e%2e_x") is None
+    assert permitted_clip_stem("hdmi_clip_%2fetc") is None
+    assert permitted_clip_stem("hdmi_clip_20260822_101224\x00.mp4") is None
+    assert permitted_clip_stem(1842) is None  # type: ignore[arg-type]
 
 
 def test_linked_clip_when_file_and_session_match(tmp_path: Path) -> None:
@@ -78,6 +83,25 @@ def test_missing_file_and_cross_session_are_withheld(tmp_path: Path) -> None:
     _plant(tmp_path, stem, session_id="9999")
     cross = resolve_event_clip([stem], session_id="1842", clips_root=tmp_path)
     assert cross == {"available": False}
+    empty_sid = "hdmi_clip_empty_session"
+    _plant(tmp_path, empty_sid, session_id="")
+    assert resolve_event_clip([empty_sid], session_id="1842", clips_root=tmp_path) == {
+        "available": False
+    }
+    inferred = "hdmi_clip_int_session"
+    (tmp_path / f"{inferred}.mp4").write_bytes(b"ftyp")
+    (tmp_path / f"{inferred}.coupling.json").write_text(
+        json.dumps({"clip_id": inferred, "session_id": 1842}), encoding="utf-8"
+    )
+    assert resolve_event_clip([inferred], session_id="1842", clips_root=tmp_path) == {
+        "available": False
+    }
+    nosid = "hdmi_clip_no_session_field"
+    (tmp_path / f"{nosid}.mp4").write_bytes(b"ftyp")
+    (tmp_path / f"{nosid}.coupling.json").write_text(json.dumps({"clip_id": nosid}), encoding="utf-8")
+    assert resolve_event_clip([nosid], session_id="1842", clips_root=tmp_path) == {
+        "available": False
+    }
 
 
 def test_malformed_sidecar_and_ids_are_withheld(tmp_path: Path) -> None:

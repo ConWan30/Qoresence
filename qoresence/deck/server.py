@@ -1867,6 +1867,8 @@ def create_app():  # type: ignore[no-untyped-def]
         from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
 
         safe = pathlib.Path(name).name
+        if safe != name:
+            return JSONResponse({"ok": False, "error": "invalid name"}, status_code=400)
         # MP4/AVI or sidecars: foo.chapters.json / foo.buttons.json
         if not re.fullmatch(
             r"hdmi_clip_[\w\-]+(\.(mp4|avi|json)|(\.(chapters|buttons|coupling)\.json))",
@@ -1874,7 +1876,12 @@ def create_app():  # type: ignore[no-untyped-def]
             flags=re.I,
         ):
             return JSONResponse({"ok": False, "error": "invalid name"}, status_code=400)
-        path = pathlib.Path(DEFAULT_OUT_DIR) / safe
+        root = pathlib.Path(DEFAULT_OUT_DIR).resolve()
+        path = (root / safe).resolve()
+        try:
+            path.relative_to(root)
+        except ValueError:
+            return JSONResponse({"ok": False, "error": "invalid name"}, status_code=400)
         if not path.is_file():
             return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
         suf = path.suffix.lower()

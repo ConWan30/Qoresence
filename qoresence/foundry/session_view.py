@@ -133,14 +133,18 @@ def clips_dir(path: Path | str | None = None) -> Path:
 
 def permitted_clip_stem(raw: Any) -> str | None:
     """Accept only existing-contract stems: hdmi_clip_<token>. Reject paths."""
-    if raw is None:
+    if raw is None or not isinstance(raw, str):
         return None
-    text = str(raw).strip()
+    text = raw.strip()
     if not text or text in {".", ".."}:
         return None
-    if "/" in text or "\\" in text or ".." in text:
+    if any(ch in text for ch in ("/", "\\", "%", "\x00", "\n", "\r", "\t")):
+        return None
+    if ".." in text:
         return None
     name = Path(text).name
+    if name != text:
+        return None
     lower = name.lower()
     if lower.endswith(".coupling.json"):
         name = name[: -len(".coupling.json")]
@@ -195,8 +199,8 @@ def resolve_event_clip(
             continue
         if not isinstance(payload, dict):
             continue
-        owner = str(payload.get("session_id") or "")
-        if owner != sid:
+        owner = payload.get("session_id")
+        if not isinstance(owner, str) or not owner or owner != sid:
             continue
         return {"available": True, "clip_id": stem}
     return dict(_CLIP_UNAVAILABLE)
