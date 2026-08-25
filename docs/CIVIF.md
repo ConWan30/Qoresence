@@ -225,7 +225,20 @@ Project state: Phase 1–2 on `main` (`da0fa95`, docs `#66` / `85e104a`). Phase 
 
 `CIVIF session → NarrativeEngine → normalized session view → read-only live API → stale-aware Session Theater`.
 
-Next work is stabilization (exercise the six envelope cases, watch CIVIF/MCP, leave [#65](https://github.com/ConWan30/Qoresence/issues/65) independent). Do not start clip linkage, recap, or streamer presentation until that choice is explicit.
+Next work after Phase 3 was a stabilization hold, then a narrow read-only clip-linkage slice ([#69](https://github.com/ConWan30/Qoresence/issues/69)). Recap and streamer presentation stay deferred.
+
+### Clip linkage (event → existing clip view)
+
+Read-only association from `evidence.clip_ids` to the existing Deck clip contract:
+
+- Identifier: MP4 stem `hdmi_clip_<token>` (not a new ID format).
+- Target: `/media/clips/{stem}.mp4` (existing media allowlist and `clips/` / `QORESENCE_CLIPS_DIR`).
+- Session membership: `{stem}.coupling.json` `session_id` must match the view session.
+- Normalized event field: `clip: { "available": true, "clip_id": "hdmi_clip_…" }` or `{ "available": false }`.
+- Session Theater Story cards show **Open clip** only when `available` is true. Invalid, path-like, fixture aliases (`hdmi_a`), missing files, and cross-session IDs are withheld.
+- Stale last-envelope retention does not invent new clip links.
+
+Excluded: `/civif.html` changes, recap, streamer overlay, clip-dock on `/session.html`, HDMI capture, MCP tools, NarrativeEngine gating, clip generation/storage redesign, [#65](https://github.com/ConWan30/Qoresence/issues/65).
 
 ## Future (reserved)
 

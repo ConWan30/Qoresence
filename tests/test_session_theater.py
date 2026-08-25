@@ -47,6 +47,9 @@ def test_session_page_is_not_clip_docked():
     assert "ALLOWED" in js
     assert "/api/session/view" in js
     assert "/session_fixtures/" not in js
+    assert "Open clip" in js
+    assert "/media/clips/" in js
+    assert "clip-dock.js" not in js
     assert "innerHTML" in js and "JSON.stringify" not in js
     assert "freshness" in js
     assert "clip-dock.js" not in js

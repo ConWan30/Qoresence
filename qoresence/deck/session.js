@@ -68,7 +68,7 @@
       yard_line: locked ? intOrNull(sit && sit.yard_line) : null,
       input: Object.keys(input).length ? input : null,
       coach_context: { available: !!ev.coach_type, coach_type: ev.coach_type || null },
-      clip_ids: (ev.clip_ids || []).map(String).filter(Boolean),
+      clip: { available: false },
       qualification: qualification(type, locked, bodied),
     };
   }
@@ -148,9 +148,17 @@
     const coach = ev.coach_context && ev.coach_context.available
       ? '<div class="CoachResult">Coach context · ' + escapeHtml(ev.coach_context.coach_type) + "</div>"
       : "";
-    const clip = ev.clip_ids && ev.clip_ids.length
-      ? '<div class="ClipLink">Clip ' + escapeHtml(ev.clip_ids.join(", ")) + "</div>"
-      : "";
+    const clip = (function () {
+      const c = ev.clip;
+      if (!c || !c.available || !c.clip_id) return "";
+      const id = String(c.clip_id);
+      if (!/^hdmi_clip_[\w\-]+$/i.test(id)) return "";
+      return (
+        '<div class="ClipLink"><a href="/media/clips/' +
+        encodeURIComponent(id) +
+        '.mp4">Open clip</a></div>'
+      );
+    })();
     return (
       '<article class="NarrativeCard" data-event-id="' + escapeHtml(ev.event_id) + '">' +
       "<header><span class=\"etype\">" + escapeHtml(ev.event_type) + "</span>" +
@@ -224,6 +232,7 @@
   const params = new URLSearchParams(location.search);
   const requested = params.get("fixture") || "";
   const fixture = requested && ALLOWED.indexOf(requested) >= 0 ? requested : "";
+  const sessionId = params.get("session_id") || params.get("session") || "";
   const mode = params.get("mode") === "gamer" ? "gamer" : "analyst";
 
   document.querySelectorAll("[data-mode]").forEach((btn) => {
@@ -248,7 +257,10 @@
   }
 
   async function tick() {
-    const qs = fixture ? "?fixture=" + encodeURIComponent(fixture) : "";
+    const q = new URLSearchParams();
+    if (fixture) q.set("fixture", fixture);
+    if (sessionId) q.set("session_id", sessionId);
+    const qs = q.toString() ? "?" + q.toString() : "";
     try {
       const r = await fetch("/api/session/view" + qs);
       if (!r.ok) throw new Error("http");
