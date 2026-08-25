@@ -32,8 +32,8 @@ Every lobe is **OFF** until you opt in.
 
 | Idea | Why it matters |
 |------|----------------|
-| **One brain → N glasses** | Situation + events once; Lens (OBS), Rail/Theater, **Mobile Glass**, Monitor are *views* |
-| **Mobile Glass** | Phone HTML at `/mobile.html` — FrameHub WebRTC (MJPEG fallback). Phone is a view. LAN bind opt-in; Theater QR when bind is on |
+| **One brain → N glasses** | Situation + events once; Lens (OBS), Rail/Theater, **Session Theater**, **Mobile Glass**, Monitor are *views* |
+| **Session Theater** | `/session.html` — Now + Story + Recap over a fail-closed normalized pack; live `GET /api/session/view` and `/api/session/recap`; Open clip only for validated existing MP4s |
 | **Title-presence** | Optical title lock with a hard `plane` tag; on with `--play`; menu/pause fail-closed; does not yank an explicit `--game-profile` |
 | **Qoresence owns the card** | Physical HDMI has one owner — Qoresence Streamer; OBS uses Browser Source for Lens only (no dual-open) |
 | **FrameHub (no second capture)** | Streamer already holds BGR frames; monitor + IVC **subscribe** — never dual-open DShow |
@@ -62,7 +62,7 @@ Every lobe is **OFF** until you opt in.
  └───────┬──────────────────────────────┬─────────────────────┘
          │                              │
          ▼                              ▼
-  Deck LIVE / Mobile Glass /     DualSense → InputRing → IVC
+  Deck LIVE / Session / Mobile   DualSense → InputRing → IVC
   Retina Monitor                        │
          │                              │
          └──────────┬───────────────────┘
@@ -71,6 +71,7 @@ Every lobe is **OFF** until you opt in.
                     │
     OBS (optional stream): Browser Source ONLY
     http://127.0.0.1:8765/overlay.html  — do NOT open the same physical card
+    Session: http://127.0.0.1:8765/session.html  (Now + Story + Recap; not HDMI)
     Phone: http://127.0.0.1:8765/mobile.html  (LAN: --deck-bind 0.0.0.0 + scan QR)
 ```
 
@@ -80,7 +81,7 @@ Every lobe is **OFF** until you opt in.
 |-------|---------|------|
 | Capture | Opt-in per lobe | Streamer, controller, screen, outcome, visual |
 | Situation | With `--play` | Score, down, clutch context |
-| Operator glass | `--deck` / `--monitor` | Theater, Lens, Mobile Glass, native monitor |
+| Operator glass | `--deck` / `--monitor` | Theater, Session Theater, Lens, Mobile Glass, native monitor |
 | Clutch (local) | `--play` | Deck feed + local HDMI clips (Twitch leftover, default-OFF) |
 | Stem | conductor on `--play` | Situation-directed program; `--stem-program` / `--stem-audio` / `--stem-record` default OFF |
 | Spectator | `--agent-glass` | HTTP/WS API + MCP for AI agents |
@@ -93,6 +94,7 @@ Every lobe is **OFF** until you opt in.
 
 | Commit / theme | What landed |
 |----------------|-------------|
+| **Session Theater** | `/session.html` Now + Story + Recap; `GET /api/session/view` + `/api/session/recap`; fail-closed score/HID; validated `hdmi_clip_*` Open clip (`da0fa95` → `27fc4a6`, docs tip `fef4d3c`) |
 | **Mobile Glass + QR** | `/mobile.html` FrameHub WebRTC (MJPEG fallback); Theater copy-link + QR when `--deck-bind 0.0.0.0`; phone cannot be opened remotely |
 | **Title-presence** | Hysteresis wrap on `GameAutoDetector`; on with `--play`; situation stays in sync; `--game-profile` pin honored |
 | **Pilot FREEZE v2** | `freeze_events_by_kind` + `freeze_events_excluding_deck_lock` for pre/post-C3 compare |
@@ -113,7 +115,7 @@ Every lobe is **OFF** until you opt in.
 | **OpenTelemetry integration** | `--otel` exports causal bus traces + controller/coupling metrics; `.otel.json` and `.coupling.json` clip sidecars; re-entrancy smoke alarm; Jaeger on localhost |
 | **Foundry RAG + proactive glass** | `search_clips`/`get_drive_graph` searchable session memory (clips+chapters+DriveGraph+timeline fallback) + `subscribe_events`/`diagnose_freeze` on `127.0.0.1:8765` — software-only, no capture card |
 
-Docs for each: [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md)
+Docs for each: [SESSION_THEATER](docs/SESSION_THEATER.md) · [CIVIF](docs/CIVIF.md) · [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md)
 
 ---
 
@@ -167,6 +169,9 @@ python -m qoresence.cli --play --deck --monitor --streamer-fps 60
 | URL | Glass |
 |-----|--------|
 | http://127.0.0.1:8765/deck.html | Ghost Theater / Rail (LIVE @ 60 fps) |
+| http://127.0.0.1:8765/session.html | Session Theater (Now + Story + Recap) |
+| http://127.0.0.1:8765/api/session/view | Normalized live session envelope |
+| http://127.0.0.1:8765/api/session/recap | Read-only `session-recap-1` |
 | http://127.0.0.1:8765/overlay.html | Clutch Lens (OBS Browser Source) |
 | http://127.0.0.1:8765/mobile.html | Mobile Glass (phone view; WebRTC / MJPEG) |
 | http://127.0.0.1:8765/video | LIVE MJPEG |

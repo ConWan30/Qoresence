@@ -8,10 +8,11 @@ It is an **observation-plane** instrument: it records co-occurrence, coupling, a
 
 - **FrameHub** — one physical DShow owner; monitor, IVC, Deck, and Mobile Glass subscribe, never dual-open the card
 - **One clock** — every event carries `session_id` + `clock_ns` + `source_lobe`; IVC stamps press and frame with the same nanoseconds
-- **Glasses** — Retina Deck (Lens + Theater), Mobile Glass (WebRTC / MJPEG, QR on Theater), native Retina Monitor, Foundry Ghost Cut, AgentGlass + 12 MCP tools
+- **Glasses** — Retina Deck (Lens + Theater), Session Theater (`/session.html` Now + Story + Recap), Mobile Glass (WebRTC / MJPEG, QR on Theater), native Retina Monitor, Foundry Ghost Cut, AgentGlass + 12 MCP tools
 - **Title-presence** — optical title lock with a hard `plane: qoresence-observation` tag; on with `--play`; menu/pause fail closed
 - **Two-speed ClutchBot** — `path=fast` video+input soft acts; OCR/outcome is `path=confirm` referee (never invents scores on fast)
-- **Foundry clips** — true capture-ring MP4 + `.chapters.json` + `.buttons.json` + `.coupling.json` sidecars; searchable later on Deck
+- **Foundry clips** — true capture-ring MP4 + `.chapters.json` + `.buttons.json` + `.coupling.json` sidecars; searchable later on Deck; Session Theater **Open clip** only for validated `hdmi_clip_*` stems in the same session
+- **Session Theater** — fail-closed `normalize_pack`; live `GET /api/session/view` and `GET /api/session/recap`; overlay on hold until laptop evaluation
 - **OpenTelemetry (optional)** — `--otel` exports causal bus traces and DualSense↔video coupling metrics to a local Collector, plus trace-annotated clip sidecars; re-entrancy smoke alarm for the A2A/Presence deadlock class
 - **MCP witness pack** — `get_observation` licenses what an agent may say; `wrap_observation` is grant-gated onto `qoresence-research` only
 - **Wrap deny list** — truth-plane dests (`*-truth`, QorTroller / PoAC) are denied; no on-chain by default

@@ -66,7 +66,7 @@ Open a discussion or issue and describe:
 ### Pull requests
 1. Branch from `main`.
 2. Add or update tests for deadlock/security invariants.
-3. Update `docs/` and `docs/wiki/` if the feature is user-facing.
+3. Update `docs/` and `docs/wiki/` if the feature is user-facing. Session Theater / CIVIF narrative changes go in `docs/SESSION_THEATER.md` and `docs/CIVIF.md`.
 4. Keep commits focused on "why," not just "what."
 5. Ensure `python -m pytest tests/test_deadlock_regression.py tests/test_security_localhost.py` passes.
 

@@ -69,6 +69,14 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] PWA pairing gate skips when served from the deck (localhost UX regression fixed)
 - [x] Docs: `docs/NATIVE_GLASS.md`; tests: `tests/test_mobile_glass_pwa.py`
 
+### Session Theater (CIVIF narrative glass) ✓
+- [x] Phase 1–2: fail-closed `normalize_pack`, `LockedValue`, Now + Story, `/session.html` (`da0fa95`, #63)
+- [x] Phase 3: read-only `GET /api/session/view` (`4ebdf92`, #67 / #64)
+- [x] Event → existing clip links + Story **Open clip** (`651bb5a`, #70 / #69)
+- [x] Read-only `GET /api/session/recap` (`session-recap-1`, `27fc4a6`, #73 / #72)
+- [x] Docs: `docs/SESSION_THEATER.md`, `docs/CIVIF.md`; tests: `tests/test_session_theater.py`, `tests/test_session_clip_link.py`, `tests/test_session_recap.py`
+- [ ] Streamer overlay / broadcast presentation (separate milestone; evaluation hold)
+
 ---
 
 ## Phase 0 — Skeleton ✓
@@ -154,7 +162,8 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 | 0.4.0 | Packaging + `--stream` / `--play` |
 | **0.5.0** | **Deck LIVE + Qoresence owns card + FrameHub monitor + IVC** |
 | 0.6.0 | Profile expansion + Edge HID polish + operator glass (Phase 4/6 done) |
-| **0.7.0** | **OpenTelemetry causal tracing + per-frame coupling sidecars + re-entrancy smoke alarm** ← current main |
+| **0.7.0** | **OpenTelemetry causal tracing + per-frame coupling sidecars + re-entrancy smoke alarm** |
+| **0.8.0** | **Session Theater: live view + clip links + recap** (`fef4d3c` docs tip) ← current `main` |
 | 1.0.0 | Stable local ClutchBot (Deck + HDMI clips) + operator glass release |
 
 ---

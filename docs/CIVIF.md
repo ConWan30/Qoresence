@@ -9,6 +9,22 @@ CIVIF is the **live + clip observation** layer:
 - **Coupled Event Record** is the primitive (clip sidecars `civif-v0`, live ticks `civif_tick-1`).
 - Highlights, coaches, search, and narrative are **queries** over those records.
 - Theater LIVE (`/live.jpg`) is unchanged. Open `/civif.html` for CIVIF (JSON ~1 Hz).
+- Session Theater (`/session.html`) is a separate Now + Story + Recap glass over the normalized narrative pack. Operator contract: [SESSION_THEATER.md](SESSION_THEATER.md).
+
+## Current shipped state (Session Theater)
+
+On `main` through recap docs **`fef4d3c`** (code **`27fc4a6`**):
+
+`CIVIF → NarrativeEngine → normalized session view → live Session Theater → validated clip links → read-only session recap`
+
+| Milestone | SHA | PR |
+|-----------|-----|----|
+| Phase 1–2 foundation | `da0fa95` | [#63](https://github.com/ConWan30/Qoresence/pull/63) |
+| Live `GET /api/session/view` | `4ebdf92` | [#67](https://github.com/ConWan30/Qoresence/pull/67) |
+| Event → clip linkage | `651bb5a` | [#70](https://github.com/ConWan30/Qoresence/pull/70) |
+| `GET /api/session/recap` | `27fc4a6` | [#73](https://github.com/ConWan30/Qoresence/pull/73) |
+
+Hold streamer overlay until laptop play proves a repeated broadcast use case. Overlay later is a **separate** milestone. Historical “Excluded” lists below are **as of that merge**; later rows landed in later PRs (see [SESSION_THEATER.md](SESSION_THEATER.md)).
 
 ## CIVIF invariants
 
@@ -165,7 +181,7 @@ When `QORESENCE_CIVIF_SUMMARY_LOG=1`, after coaches run, append one line to `log
 
 `NarrativeEngine` (`qoresence.foundry.narrative_engine`) builds a session `narrative.json` (`schema_version: narrative-1`) from live ticks after coaches. Button names only when bodied; score/yard fields only when locked. Write `logs/civif/narrative_<session>.json` when `QORESENCE_CIVIF_NARRATIVE_LOG=1`. Not an MCP tool (`civif_narrative` remains reserved). Clip `narrate_clip` is unchanged.
 
-Session Theater (`/session.html`) is a Now + Story view of that pack. Live sessions come from read-only `GET /api/session/view`; allowlisted fixtures remain available as `?fixture=…`. It does not change `/civif.html`, HDMI Theater, or MCP. Score/yard digits render only through `LockedValue` after `session_view.normalize_pack`.
+Session Theater (`/session.html`) is a Now + Story + Recap view of that pack. Live sessions come from read-only `GET /api/session/view` and `GET /api/session/recap`; allowlisted fixtures remain available as `?fixture=…` on those APIs. It does not change `/civif.html`, HDMI Theater, or MCP. Score/yard digits render only through `LockedValue` after `session_view.normalize_pack`.
 
 ### Milestone: Phase 1–2 Session Theater foundation
 
@@ -183,7 +199,7 @@ Included:
 - Allowlisted fixture access.
 - 62 targeted and related tests passing locally (Session Theater, narrative, CIVIF, MCP, deadlock, OTel).
 
-Excluded (later work at the time of merge):
+Excluded (later work at the time of merge; view landed in #67, recap in #73):
 
 - Live `GET /api/session/view` (Phase 3, [#64](https://github.com/ConWan30/Qoresence/issues/64)).
 - Recap API.
@@ -211,7 +227,7 @@ Included:
 - Locked-only score/yard and bodied-only HID, unchanged from Phase 1–2.
 - 43 passing Phase 3, narrative, and MCP tests, plus live Chromium smoke of `/session.html`.
 
-Excluded (unchanged; not in #67):
+Excluded (unchanged in #67; recap later landed in #73):
 
 - Recap API.
 - Clip dock.
@@ -221,9 +237,11 @@ Excluded (unchanged; not in #67):
 - NarrativeEngine behavior or persist path (live generate uses `persist=False`).
 - CI full-matrix fail-fast ([#65](https://github.com/ConWan30/Qoresence/issues/65)); first full-suite stop remains `tests/test_civif_index.py`.
 
-Project state: Phase 1–2 on `main` (`da0fa95`, docs `#66` / `85e104a`). Phase 3 live-session path on `main` (`4ebdf92`):
+Project state at this merge: Phase 1–2 on `main` (`da0fa95`, docs `#66` / `85e104a`). Phase 3 live-session path on `main` (`4ebdf92`):
 
 `CIVIF session → NarrativeEngine → normalized session view → read-only live API → stale-aware Session Theater`.
+
+Later on `main`: clip links (`651bb5a`) and recap (`27fc4a6`). See [SESSION_THEATER.md](SESSION_THEATER.md).
 
 ### Milestone: clip linkage (event → existing clip view)
 
@@ -243,7 +261,7 @@ Excluded:
 
 - `/civif.html` changes.
 - MCP `tools/list` changes.
-- Recap API.
+- Recap API (later landed in #73).
 - Clip-dock on `/session.html`.
 - HDMI capture or clip generation/storage redesign.
 - NarrativeEngine gating changes.
@@ -280,7 +298,7 @@ Completed path:
 
 `CIVIF → NarrativeEngine → normalized session view → live Session Theater → validated clip links → read-only session recap`.
 
-Hold before streamer presentation until the live Theater + recap experience justifies a separate overlay milestone.
+**Evaluation hold:** no streamer overlay until real play proves a repeated broadcast use case. Overlay later consumes existing view/recap only — no new telemetry, clip IDs, or `/civif.html` rewrite. Keep private by default: qualification/suppression, unavailable/invalid diagnostics, persist/logging, detailed coach context, session IDs, internal clocks, hidden input/system behavior.
 
 ## Future (reserved)
 

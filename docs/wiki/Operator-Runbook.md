@@ -21,8 +21,10 @@
 
 4. **Theater**  
    `http://127.0.0.1:8765/deck.html`  
+   **Session Theater:** `http://127.0.0.1:8765/session.html` (Now + Story + Recap; polls `/api/session/view` then `/api/session/recap`)  
    **Lens:** `http://127.0.0.1:8765/overlay.html`  
-   **Mobile Glass:** `http://127.0.0.1:8765/mobile.html` (or scan the Theater QR when LAN bind is on)
+   **Mobile Glass:** `http://127.0.0.1:8765/mobile.html` (or scan the Theater QR when LAN bind is on)  
+   **CIVIF JSON:** `http://127.0.0.1:8765/civif.html` (does not replace Session Theater)
 
 ## Health checks
 
@@ -34,6 +36,8 @@
 | Log `Retina Monitor on` / Stem Program | `--monitor` or `--stem-program` |
 | `/api/situation` → `video.has_frame` | true |
 | `/api/situation` → `controller` | present when IVC running |
+| `/api/session/view` → `ok` / `status` | `live` when a usable pack exists; `stale` is freshness only |
+| `/api/session/recap` → `schema` | `session-recap-1`; counts match listed events |
 
 ## Never
 
@@ -51,4 +55,4 @@ If you must keep OBS Preview on the physical card: Start Virtual Camera, pass VC
 POST http://127.0.0.1:8765/api/clip  {"seconds":5}
 ```
 
-Produces `clips/hdmi_clip_*.mp4` and, if inputs in window, `*.buttons.json`.
+Produces `clips/hdmi_clip_*.mp4` and, if inputs in window, `*.buttons.json`. Session Theater **Open clip** only if `{stem}.coupling.json` `session_id` exactly matches the view session.
