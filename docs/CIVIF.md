@@ -249,7 +249,38 @@ Excluded:
 - NarrativeEngine gating changes.
 - CI full-matrix fail-fast ([#65](https://github.com/ConWan30/Qoresence/issues/65)).
 
-Recap and streamer presentation stay deferred until their contracts are approved. Recap design is [#72](https://github.com/ConWan30/Qoresence/issues/72): read-only `GET /api/session/recap` (`session-recap-1`), `duration_ms` from usable event clocks.
+### Milestone: read-only session recap
+
+Recorded on `main` as **`27fc4a6`** ([#73](https://github.com/ConWan30/Qoresence/pull/73), closes [#72](https://github.com/ConWan30/Qoresence/issues/72)). Recap is a flat `session-recap-1` envelope from `GET /api/session/recap`, derived only from the normalized session-view model.
+
+Included:
+
+- Read-only `GET /api/session/recap` (`session_id` / `fixture` same as view).
+- Public fields: `schema`, `ok`, `status`, `session`, `duration_ms`, `event_count`, `confirmed_event_count`, `linked_clip_count`, `incomplete`, `empty_reason`, `events`, `freshness`.
+- `duration_ms` from usable nonzero, nonnegative event clocks (`null` if none; never negative). Equal nonzero start/end may be `0`.
+- `event_count` = listed normalized events; `confirmed_event_count` = `qualification === "confirmed"`; `linked_clip_count` = `clip.available === true`.
+- Deterministic order: usable `t_start_ns` first, then original index. Unusable clocks stay listed and do not contribute to duration.
+- `empty_reason` only for `empty` / `not_persisted`. `incomplete` only for `live` + not persisted.
+- `ok: false` only for `invalid`, with empty events and a safe freshness object.
+- Stale last-envelope recap keeps the same events and clip links (no clip re-resolve).
+- Session Theater Recap section polls `/api/session/recap` only. One `tickAll` timer (no second interval). Chromium smoke: **zero** `/session_fixtures/` requests.
+- 61 focused recap / theater / clip / narrative / MCP tests, plus Chromium smoke (live, empty, not-persisted, unavailable, stale, Gamer/Analyst).
+
+Excluded:
+
+- Streamer presentation (separate later milestone; do not fold into recap).
+- `/civif.html` changes.
+- MCP `tools/list` changes.
+- HDMI Theater / capture changes.
+- Clip-dock on `/session.html`.
+- NarrativeEngine changes.
+- [#65](https://github.com/ConWan30/Qoresence/issues/65).
+
+Completed path:
+
+`CIVIF → NarrativeEngine → normalized session view → live Session Theater → validated clip links → read-only session recap`.
+
+Hold before streamer presentation until the live Theater + recap experience justifies a separate overlay milestone.
 
 ## Future (reserved)
 
