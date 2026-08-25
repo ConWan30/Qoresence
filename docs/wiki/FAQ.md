@@ -30,6 +30,15 @@ Default chat cooldown is **25s** (was 45s). Tune via `QORESENCE_A2A_CHAT_COOLDOW
 ### Outcome lobe says "temporal_desync"
 The outcome lobe emits a `HEARTBEAT` on every visual context it processes, so fusion sees it's alive even when the game state is stable (no score changes for >5s). If you still see `temporal_desync`, check that the visual lobe is actually publishing `VISUAL_CONTEXT` events — the outcome lobe is silent without them.
 
+### Session Theater shows no score / no buttons
+Fail-closed: digits only when the scoreboard is locked; HID names only when DualSense is bodied on this PC (pad on the PS5 is valid and empty). See [Session-Theater](Session-Theater).
+
+### Open clip is missing on a Story card
+The event has no validated `hdmi_clip_*` in this session (`{stem}.coupling.json` `session_id` must match). Session Theater does not invent IDs or show a clip-dock.
+
+### `/api/session/recap` looks empty while Theater HDMI is live
+Recap is narrative-pack derived, not JPEG. `not_persisted` / `empty` / `unavailable` are distinct from a healthy `/live.jpg`. Poll `/api/session/view` on the laptop; this cloud VM has no capture card.
+
 ### No buttons.json after clip
 No InputRing events in export window (controller off or silent pad).
 

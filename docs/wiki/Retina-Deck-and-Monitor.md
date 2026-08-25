@@ -5,6 +5,9 @@
 | Path | Role |
 |------|------|
 | `/deck.html` | Ghost Theater / Rail — moments, LIVE, clips, Mobile Glass QR |
+| `/session.html` | Session Theater — Now + Story + Recap (normalized view; not HDMI) |
+| `/api/session/view` | Read-only live session envelope |
+| `/api/session/recap` | Read-only `session-recap-1` |
 | `/overlay.html` | Clutch Lens for OBS Browser Source |
 | `/mobile.html` | Mobile Glass — same FrameHub on a phone (WebRTC / MJPEG) |
 | `/video` | MJPEG LIVE from clip_buffer (ops glass) |
@@ -15,6 +18,8 @@
 Start: `--play --deck` or `--deck` with lobes enabled.
 
 **Phone:** localhost `/mobile.html` is for the PC. Same Wi‑Fi needs `--deck-bind 0.0.0.0`, then scan the Theater QR. The PC cannot open the phone browser. See [Mobile-Glass](Mobile-Glass).
+
+**Session:** `/session.html` is a narrative glass, not a second HDMI stage. Score/yard only when locked; HID names only when bodied. See [Session-Theater](Session-Theater).
 
 ## Retina Monitor (native)
 

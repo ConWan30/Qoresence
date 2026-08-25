@@ -5,6 +5,7 @@
 - [Operator Runbook](./Operator-Runbook)
 - [Capture Ownership](./Capture-Ownership)
 - [Retina Deck & Monitor](./Retina-Deck-and-Monitor)
+- [Session Theater](./Session-Theater)
 - [Mobile Glass](./Mobile-Glass)
 - [Native Glass](./Native-Glass)
 - [Title Presence](./Title-Presence)

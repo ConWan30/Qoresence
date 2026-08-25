@@ -239,7 +239,7 @@
       <div>
         <div class="kicker"><i></i> Gaming Streaming Observatory Engine</div>
         <h1>See the session<br><em>as it actually happened.</em></h1>
-        <p class="lede">Qoresence is a local-first observatory engine for gamers. HDMI video and DualSense HID share one monotonic clock. Deck, Lens, Stem Program, Mobile Glass, Ghost Cut, and MCP hang off that clock. The capture card opens once. Nothing else is allowed to open it.</p>
+        <p class="lede">Qoresence is a local-first observatory engine for gamers. HDMI video and DualSense HID share one monotonic clock. Deck, Session Theater, Lens, Stem Program, Mobile Glass, Ghost Cut, and MCP hang off that clock. The capture card opens once. Nothing else is allowed to open it.</p>
         <p class="hero-note">Local-first · one clock · many glasses · observation plane only — no humanity, eligibility, or on-chain claims</p>
         <div class="chips" aria-label="Invariants">
           <span class="chip">127.0.0.1 default</span>
@@ -383,7 +383,7 @@
           <div class="step"><span class="num">02</span><div><h3>Couple the hands</h3><p>HID is parsed on the DualSense USB/BT map. An IMU jolt 5–80&nbsp;ms before a press is a precursor — the body moved, then the bit flipped. IVC joins that edge to the FrameHub sequence. Score changes bind back to the nearest trigger.</p></div><span class="tag">COUPLE</span></div>
           <div class="step"><span class="num">03</span><div><h3>Name the situation</h3><p>Visual + OCR read the scorebug. Title-presence locks NCAA vs Madden vs CoD without inventing digits. Blank frames do not invent 0–0. Confirm tickets license score speech.</p></div><span class="tag">SITUATION</span></div>
           <div class="step"><span class="num">04</span><div><h3>Fan out on the bus</h3><p>RetinaEventBus carries situation and moment events. Subscribers must not emit while holding their own lock — that rule is tested. The live feed must never freeze because a glass was slow.</p></div><span class="tag">CAUSAL</span></div>
-          <div class="step"><span class="num">05</span><div><h3>Hang the glasses</h3><p>Lens (OBS), Deck (operator), Mobile Glass (phone view), Foundry Ghost Cut (after the clip), AgentGlass and MCP (read-only agents). All of them are views. None of them capture.</p></div><span class="tag">VIEW</span></div>
+          <div class="step"><span class="num">05</span><div><h3>Hang the glasses</h3><p>Lens (OBS), Deck (operator), Session Theater (Now + Story + Recap), Mobile Glass (phone view), Foundry Ghost Cut (after the clip), AgentGlass and MCP (read-only agents). All of them are views. None of them capture.</p></div><span class="tag">VIEW</span></div>
         </div>
       </div>
     </section>
@@ -391,12 +391,13 @@
     <section class="section" id="glasses">
       <div class="wrap">
         <div class="section-head">
-          <div><div class="kicker">Glasses</div><h2>Five eyepieces.<br>One aperture.</h2></div>
+          <div><div class="kicker">Glasses</div><h2>Six eyepieces.<br>One aperture.</h2></div>
           <p>Each glass is a different eyepiece on the same clock spine. None of them is a second product, and none of them re-opens the capture card.</p>
         </div>
         <div class="glasses">
           <article class="glass"><span class="idx">GLASS / LENS</span><h3>Clutch Lens</h3><p>OBS Browser Source at <code>http://127.0.0.1:8765/overlay.html</code>. A thin ribbon and a score pill. Opacity follows tension. It sits on the game; it does not cover the ball.</p></article>
           <article class="glass"><span class="idx">GLASS / DECK</span><h3>Retina Deck</h3><p>Local theater at <code>/deck.html</code>. LIVE from FrameHub (WebRTC, MJPEG fallback). REPLAY from your HDMI clips. Situation, DualSense rail, clutch strip — the operator stays in the session.</p></article>
+          <article class="glass"><span class="idx">GLASS / SESSION</span><h3>Session Theater</h3><p>Narrative glass at <code>/session.html</code>. Now, Story, Open clip, Recap. Live <code>/api/session/view</code> and <code>/api/session/recap</code> only. Score digits when locked. Button names when the pad is bodied here. Not an overlay.</p></article>
           <article class="glass"><span class="idx">GLASS / PHONE</span><h3>Mobile Glass</h3><p>Same FrameHub on the phone at <code>/mobile.html</code>. WebRTC first, MJPEG fallback. Localhost by default. Same Wi‑Fi needs <code>--deck-bind 0.0.0.0</code> and the Theater QR. The phone is a view, never a capture.</p></article>
           <article class="glass"><span class="idx">GLASS / BAY</span><h3>Foundry · Ghost Cut</h3><p>Post-session. Pick a chaptered clip. Cut a local highlight with the why-strip and timed DualSense ghosts burned in. Your players stay your players. Output lives beside the clip as MP4 + receipt.</p></article>
           <article class="glass"><span class="idx">GLASS / AGENT</span><h3>AgentGlass + MCP</h3><p>Read-only spectator APIs and 12 MCP tools. Snapshot, health, clips, situation, search, graph, diagnose, <code>get_observation</code> witness pack, grant-gated <code>wrap_observation</code> onto <code>qoresence-research</code> only. Localhost. No hidden write path. No second capture.</p></article>
@@ -415,6 +416,7 @@
           <article class="cap"><h3>Score + tickets</h3><p>Scorebug OCR is the referee. Confirm tickets license digits. Fast path cannot invent a score or heat-speech without a coupling ticket.</p></article>
           <article class="cap"><h3>Coupling / ghosts</h3><p>IVC joins DualSense hold and edges to FrameHub. Ghost Cut lights the pad on the real HDMI clip. IMU precursors show BODY −XXms.</p></article>
           <article class="cap"><h3>DriveGraph</h3><p>Why-strip over a drive. Named 48-node safety cap (floor 8, ceiling 96) so <code>/health</code> cannot O(n²)-freeze.</p></article>
+          <article class="cap"><h3>Session Theater</h3><p>Fail-closed normalized pack. Live view + recap APIs. Open clip only for validated <code>hdmi_clip_*</code> stems in the same session. Streamer overlay on hold.</p></article>
           <article class="cap"><h3>Foundry clips</h3><p>True capture-ring MP4s plus chapter and button sidecars. Searchable later on Deck. Local HDMI only.</p></article>
           <article class="cap"><h3>Mobile Glass</h3><p>WebRTC primary, MJPEG fallback. Default bind <code>127.0.0.1</code>. LAN is opt-in. No STUN/TURN, no CDN.</p></article>
           <article class="cap"><h3>MCP witness pack</h3><p>Agents call <code>get_observation</code> before they speak. Unlocked scores and localhost URLs stay silent.</p></article>

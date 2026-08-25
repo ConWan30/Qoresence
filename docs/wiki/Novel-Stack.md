@@ -8,6 +8,7 @@ What is distinctive about Qoresence (vs “another OBS plugin bot”).
 
 - **Lens** — transparent OBS Browser Source (`/overlay.html`)
 - **Rail / Ghost Theater** — local Deck (`/deck.html`)
+- **Session Theater** — Now + Story + Recap (`/session.html`) over `normalize_pack`; not HDMI
 - **Mobile Glass** — phone HTML (`/mobile.html`) — WebRTC primary, MJPEG fallback
 - **LIVE** — MJPEG ops preview (`/video`)
 - **Retina Monitor / Stem Program** — native OpenCV blit from FrameHub (`--stem-program` replaces OBS Preview)
