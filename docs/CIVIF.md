@@ -249,7 +249,32 @@ Excluded:
 - NarrativeEngine gating changes.
 - CI full-matrix fail-fast ([#65](https://github.com/ConWan30/Qoresence/issues/65)).
 
-Recap and streamer presentation stay deferred until their contracts are approved. Recap design is [#72](https://github.com/ConWan30/Qoresence/issues/72): read-only `GET /api/session/recap` (`session-recap-1`), `duration_ms` from usable event clocks.
+### Milestone: read-only session recap
+
+Recorded on `main` as **`27fc4a6`** ([#73](https://github.com/ConWan30/Qoresence/pull/73), closes [#72](https://github.com/ConWan30/Qoresence/issues/72)). Recap is a flat `session-recap-1` envelope from `GET /api/session/recap`, derived only from the normalized session-view model.
+
+Included:
+
+- Read-only `GET /api/session/recap` (`session_id` / `fixture` same as view).
+- Public fields: `schema`, `ok`, `status`, `session`, `duration_ms`, `event_count`, `confirmed_event_count`, `linked_clip_count`, `incomplete`, `empty_reason`, `events`, `freshness`.
+- `duration_ms` from usable nonzero, nonnegative event clocks (`null` if none; never negative). Equal nonzero start/end may be `0`.
+- `event_count` = listed normalized events; `confirmed_event_count` = `qualification === "confirmed"`; `linked_clip_count` = `clip.available === true`.
+- Deterministic order: usable `t_start_ns` first, then original index. Unusable clocks stay listed and do not contribute to duration.
+- `empty_reason` only for `empty` / `not_persisted`. `incomplete` only for `live` + not persisted.
+- `ok: false` only for `invalid`, with empty events and a safe freshness object.
+- Stale last-envelope recap keeps the same events and clip links (no clip re-resolve).
+- Session Theater Recap section polls `/api/session/recap` only (one timer with the live view poll).
+- 61 focused recap / theater / clip / narrative / MCP tests, plus Chromium smoke.
+
+Excluded:
+
+- New live panel on `/civif.html` or HDMI Theater.
+- `/civif.html`, MCP, clip-dock, HDMI, or NarrativeEngine changes.
+- New clip storage or identifiers.
+- Streamer presentation.
+- [#65](https://github.com/ConWan30/Qoresence/issues/65).
+
+Streamer presentation stays later so an overlay can consume this recap story model.
 
 ## Future (reserved)
 
