@@ -46,6 +46,7 @@ def test_session_page_is_not_clip_docked():
     assert "board_locked" in js
     assert "ALLOWED" in js
     assert "/api/session/view" in js
+    assert "/api/session/recap" in js
     assert "/session_fixtures/" not in js
     assert "Open clip" in js
     assert "/media/clips/" in js

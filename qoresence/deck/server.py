@@ -2152,6 +2152,21 @@ def create_app():  # type: ignore[no-untyped-def]
 
             return JSONResponse(build_session_response(session_id=""))
 
+    @app.get("/api/session/recap")
+    async def api_session_recap(fixture: str = "", session_id: str = ""):  # type: ignore[no-untyped-def]
+        def _recap() -> dict[str, Any]:
+            from qoresence.foundry.session_view import build_session_recap
+
+            return build_session_recap(session_id=session_id, fixture=fixture)
+
+        try:
+            body = await asyncio.to_thread(_recap)
+            return JSONResponse(body)
+        except Exception:
+            from qoresence.foundry.session_view import build_session_recap
+
+            return JSONResponse(build_session_recap(session_id=""))
+
     @app.get("/mobile.html")
     async def mobile_glass():  # type: ignore[no-untyped-def]
         return HTMLResponse(
