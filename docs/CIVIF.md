@@ -225,20 +225,31 @@ Project state: Phase 1–2 on `main` (`da0fa95`, docs `#66` / `85e104a`). Phase 
 
 `CIVIF session → NarrativeEngine → normalized session view → read-only live API → stale-aware Session Theater`.
 
-Next work after Phase 3 was a stabilization hold, then a narrow read-only clip-linkage slice ([#69](https://github.com/ConWan30/Qoresence/issues/69)). Recap and streamer presentation stay deferred.
+### Milestone: clip linkage (event → existing clip view)
 
-### Clip linkage (event → existing clip view)
+Recorded on `main` as **`651bb5a`** ([#70](https://github.com/ConWan30/Qoresence/pull/70), closes [#69](https://github.com/ConWan30/Qoresence/issues/69)). After Phase 3 stabilization, this is the first product slice: a trusted narrative event opens existing, reviewable evidence.
 
-Read-only association from `evidence.clip_ids` to the existing Deck clip contract:
+Included:
 
-- Identifier: MP4 stem `hdmi_clip_<token>` (not a new ID format).
-- Target: `/media/clips/{stem}.mp4` (existing media allowlist and `clips/` / `QORESENCE_CLIPS_DIR`).
-- Session membership: `{stem}.coupling.json` `session_id` must match the view session.
-- Normalized event field: `clip: { "available": true, "clip_id": "hdmi_clip_…" }` or `{ "available": false }`.
-- Session Theater Story cards show **Open clip** only when `available` is true. Invalid, path-like, fixture aliases (`hdmi_a`), missing files, and cross-session IDs are withheld.
-- Stale last-envelope retention does not invent new clip links.
+- Existing clip contract only: identifier is the MP4 stem `hdmi_clip_<token>`; view/export target is `/media/clips/{stem}.mp4` (no new ID or storage format).
+- Sidecar session membership: `{stem}.coupling.json` `session_id` must be a non-empty string and exactly equal the view session. Missing, empty, numeric, or cross-session values are withheld.
+- Normalized event field: `clip: { "available": true, "clip_id": "hdmi_clip_…" }` or `{ "available": false }`. Raw `evidence.clip_ids` are not passed through.
+- Fail-closed invalid handling: path traversal, encoded separators, fixture aliases (`hdmi_a`), missing media, and malformed sidecars → `{ available: false }`.
+- Session Theater Story cards show **Open clip** only when `available` is true (no empty/malformed `<a>`).
+- Stale last-envelope retention keeps the already-validated clip object; it does not re-derive links from client data.
+- 53 passing clip-link / Session Theater / narrative / MCP tests, plus Chromium smoke (linked Open clip vs link-free `bodied_locked`).
 
-Excluded: `/civif.html` changes, recap, streamer overlay, clip-dock on `/session.html`, HDMI capture, MCP tools, NarrativeEngine gating, clip generation/storage redesign, [#65](https://github.com/ConWan30/Qoresence/issues/65).
+Excluded:
+
+- `/civif.html` changes.
+- MCP `tools/list` changes.
+- Recap API.
+- Clip-dock on `/session.html`.
+- HDMI capture or clip generation/storage redesign.
+- NarrativeEngine gating changes.
+- CI full-matrix fail-fast ([#65](https://github.com/ConWan30/Qoresence/issues/65)).
+
+Recap and streamer presentation stay deferred.
 
 ## Future (reserved)
 
