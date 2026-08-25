@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
@@ -26,6 +27,9 @@ ALLOWED_FIXTURES = frozenset(
         "empty_persisted",
     }
 )
+
+_CLIP_STEM_RE = re.compile(r"^hdmi_clip_[\w\-]+$", re.I)
+_CLIP_UNAVAILABLE = {"available": False}
 
 _PRESS_TYPES = frozenset({"press_to_score", "spam_window"})
 _HID_KEYS = frozenset({"button", "name", "button_name", "hid", "btn", "control"})
@@ -121,11 +125,90 @@ def _qualification(event_type: str, *, locked: bool, bodied: bool) -> str:
     return "unavailable"
 
 
+def clips_dir(path: Path | str | None = None) -> Path:
+    if path is not None:
+        return Path(path)
+    return Path(os.getenv("QORESENCE_CLIPS_DIR") or "clips")
+
+
+def permitted_clip_stem(raw: Any) -> str | None:
+    """Accept only existing-contract stems: hdmi_clip_<token>. Reject paths."""
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text or text in {".", ".."}:
+        return None
+    if "/" in text or "\\" in text or ".." in text:
+        return None
+    name = Path(text).name
+    lower = name.lower()
+    if lower.endswith(".coupling.json"):
+        name = name[: -len(".coupling.json")]
+    elif lower.endswith((".mp4", ".avi")):
+        name = Path(name).stem
+    if not _CLIP_STEM_RE.fullmatch(name):
+        return None
+    return name
+
+
+def resolve_event_clip(
+    candidates: list[Any],
+    *,
+    session_id: str,
+    clips_root: Path | str | None = None,
+) -> dict[str, Any]:
+    """Map evidence.clip_ids to a single existing /media/clips/{stem}.mp4 target."""
+    sid = str(session_id or "")
+    if not sid:
+        return dict(_CLIP_UNAVAILABLE)
+    root = clips_dir(clips_root)
+    try:
+        root = root.resolve()
+    except OSError:
+        return dict(_CLIP_UNAVAILABLE)
+    for raw in candidates:
+        stem = permitted_clip_stem(raw)
+        if stem is None:
+            continue
+        media = None
+        for ext in (".mp4", ".avi"):
+            cand = (root / f"{stem}{ext}").resolve()
+            try:
+                cand.relative_to(root)
+            except ValueError:
+                continue
+            if cand.is_file():
+                media = cand
+                break
+        if media is None:
+            continue
+        sidecar = (root / f"{stem}.coupling.json").resolve()
+        try:
+            sidecar.relative_to(root)
+        except ValueError:
+            continue
+        if not sidecar.is_file():
+            continue
+        try:
+            payload = json.loads(sidecar.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        owner = str(payload.get("session_id") or "")
+        if owner != sid:
+            continue
+        return {"available": True, "clip_id": stem}
+    return dict(_CLIP_UNAVAILABLE)
+
+
 def normalize_event(
     raw: dict[str, Any],
     *,
     board_locked: bool,
     controller_bodied: bool,
+    session_id: str = "",
+    clips_root: Path | str | None = None,
 ) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raw = {}
@@ -140,12 +223,13 @@ def normalize_event(
     t0 = _int_or_none(raw.get("t_start_ns")) or 0
     t1 = _int_or_none(raw.get("t_end_ns")) or t0
     clips_raw = ev.get("clip_ids") if isinstance(ev.get("clip_ids"), list) else []
-    clips = [str(c) for c in clips_raw if c]
+    event_session = str(raw.get("session_id") or session_id or "")
+    clip = resolve_event_clip(clips_raw, session_id=event_session or session_id, clips_root=clips_root)
     coach_type = str(ev.get("coach_type") or "") or None
     return {
         "event_id": str(raw.get("event_id") or ""),
         "event_type": event_type,
-        "session_id": str(raw.get("session_id") or ""),
+        "session_id": event_session,
         "t_start_ns": t0,
         "t_end_ns": t1,
         "timestamp": format_timestamp(t0),
@@ -158,7 +242,7 @@ def normalize_event(
             "available": bool(coach_type),
             "coach_type": coach_type,
         },
-        "clip_ids": clips,
+        "clip": clip,
         "qualification": _qualification(event_type, locked=board_locked, bodied=controller_bodied),
         "schema_version": str(raw.get("schema_version") or EVENT_SCHEMA),
     }
@@ -185,15 +269,27 @@ def _next_signal(events: list[dict[str, Any]]) -> dict[str, Any]:
     return {"kind": "awaiting", "label": "Awaiting event", "event_id": None}
 
 
-def normalize_pack(pack: dict[str, Any] | None) -> dict[str, Any]:
+def normalize_pack(
+    pack: dict[str, Any] | None,
+    *,
+    clips_root: Path | str | None = None,
+) -> dict[str, Any]:
     try:
         raw = pack if isinstance(pack, dict) else {}
         locked = bool(raw.get("board_locked"))
         bodied = bool(raw.get("controller_bodied"))
+        session_id = str(raw.get("session_id") or "")
         src = raw.get("events")
         rows = [e for e in src if isinstance(e, dict)] if isinstance(src, list) else []
         events = [
-            normalize_event(e, board_locked=locked, controller_bodied=bodied) for e in rows
+            normalize_event(
+                e,
+                board_locked=locked,
+                controller_bodied=bodied,
+                session_id=session_id,
+                clips_root=clips_root,
+            )
+            for e in rows
         ]
         events.sort(key=lambda e: (int(e["t_start_ns"]), str(e["event_id"])))
         persisted = bool(raw.get("persisted")) or bool(raw.get("path"))
@@ -216,6 +312,14 @@ def normalize_pack(pack: dict[str, Any] | None) -> dict[str, Any]:
             "read_only": True,
         }
         _assert_no_bypass(view, locked=locked, bodied=bodied)
+        for ev in view.get("events") or []:
+            ev.pop("clip_ids", None)
+            clip = ev.get("clip")
+            if not isinstance(clip, dict) or not clip.get("available"):
+                ev["clip"] = dict(_CLIP_UNAVAILABLE)
+            else:
+                stem = permitted_clip_stem(clip.get("clip_id"))
+                ev["clip"] = {"available": True, "clip_id": stem} if stem else dict(_CLIP_UNAVAILABLE)
         return view
     except Exception:
         return _empty_view(persisted=False)

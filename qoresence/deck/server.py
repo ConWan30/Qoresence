@@ -1858,6 +1858,8 @@ def create_app():  # type: ignore[no-untyped-def]
             return JSONResponse(body)
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/media/clips/{name}")
     async def media_clip(name: str):  # type: ignore[no-untyped-def]
         """Stream a local HDMI clip MP4 or sidecar JSON for in-page players."""
         import re
