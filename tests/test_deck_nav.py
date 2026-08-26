@@ -54,6 +54,11 @@ def test_glass_nav_css_has_theater_interaction():
     assert ".glass-nav a:active" in css
     assert ".glass-nav a:focus-visible" in css
     assert ".glass-nav a[aria-current=\"page\"]" in css
+    assert ".civif-link" not in css
+    glass_css = (ROOT / "glass" / "src" / "styles.css").read_text(encoding="utf-8")
+    assert "html.obs-lens" in glass_css
+    assert ".glass-nav a:hover" in glass_css
+    assert ".glass-nav a.stream-key-live" in glass_css
 
 
 def test_theater_command_bar_includes_civif_glass():

@@ -465,3 +465,90 @@ def test_corroboration_metrics_from_logs_are_reproducible():
     assert a["claim_ceiling"] == "co_occurrence_only"
     assert a["haptics_confirmed_license"] is False
     assert "public_surfaces" not in a or a.get("public_surfaces") is False
+    assert set(a["six_category"]) == {
+        "presence",
+        "attribution",
+        "connection_mode",
+        "temporal_join",
+        "board_corroboration",
+        "false_positive",
+    }
+    assert a["precision_proxy"] is not None
+    assert a["recall_proxy"] is not None
+
+
+def test_session_report_loads_jsonl_and_clip_sidecar(tmp_path):
+    haptic_path = tmp_path / "h.jsonl"
+    civif_path = tmp_path / "civif.jsonl"
+    clips = tmp_path / "clips"
+    clips.mkdir()
+    haptic_path.write_text(
+        json.dumps(
+            {
+                "kind": "haptic_transient",
+                "t_start_ns": 200_000_000,
+                "coupled": True,
+                "licenses": {"haptics_observed": True, "haptics_coupled": True},
+                "provenance": {
+                    "video_clock_ns": 190_000_000,
+                    "in_ivc_window": True,
+                    "coupling": 0.8,
+                    "connection_mode": "usb",
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    civif_path.write_text(
+        json.dumps(
+            {
+                "clock_ns": 205_000_000,
+                "board_locked": True,
+                "situation_snapshot": {"home_score": 7, "away_score": 0},
+                "coupling": {"phrase": "SPRINT", "coupling": 0.8},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (clips / "hdmi_clip_x.coupling.json").write_text(
+        json.dumps(
+            {
+                "video": {"t_start_ns": 198_000_000},
+                "situation": {"clutch_kind": "score_changed"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    from qoresence.sync.haptic_metrics import session_report
+
+    rep = session_report(haptic_path, civif_jsonl=civif_path, clips_dir=clips)
+    assert rep["n_transients"] == 1
+    assert rep["n_event_markers"] >= 1
+    assert rep["connection_modes"] == ["usb"]
+    assert rep["six_category"]["presence"] > 0
+    assert rep["haptics_confirmed_license"] is False
+    assert rep["public_surfaces"] is False
+
+
+def test_menu_pause_pulse_counts_as_false_positive_proxy():
+    haptic = [
+        {
+            "kind": "haptic_transient",
+            "t_start_ns": 50_000_000,
+            "coupled": True,
+            "licenses": {"haptics_observed": True, "haptics_coupled": True},
+            "provenance": {"in_ivc_window": False, "coupling": 0.0, "connection_mode": "bt"},
+        }
+    ]
+    ticks = [
+        {
+            "clock_ns": 48_000_000,
+            "board_locked": False,
+            "coupling": {"phrase": "IDLE", "game_state": "pause"},
+        }
+    ]
+    rep = corroboration_report(haptic, civif_ticks=ticks, window_ms=120.0)
+    assert rep["menu_pause_false_positive_proxy"] >= 1
+    assert rep["six_category"]["false_positive"] < 1.0
