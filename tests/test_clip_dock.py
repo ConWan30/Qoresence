@@ -38,3 +38,5 @@ def test_clip_dock_js_has_replay_and_live():
     assert "/civif.html" in blob
     assert 'data-clip-owner="hdmi-stage"' in blob
     assert "if (glassOwnsStage()) return;" in blob
+    assert "let refreshInflight" in blob
+    assert "if (refreshInflight) return" in blob

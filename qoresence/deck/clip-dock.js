@@ -209,20 +209,27 @@
     }
   }
 
+  let refreshInflight = false;
   async function refresh() {
     if (glassOwnsStage()) {
       standDown();
       return;
     }
+    if (refreshInflight) return;
+    refreshInflight = true;
     try {
-      const r = await fetch("/api/clips", { cache: "no-store" });
-      const j = await r.json();
-      render(j && j.clips ? j.clips : []);
-    } catch (e) {
-      /* Deck down */
+      try {
+        const r = await fetch("/api/clips", { cache: "no-store" });
+        const j = await r.json();
+        render(j && j.clips ? j.clips : []);
+      } catch (e) {
+        /* Deck down */
+      }
+      hydratePaths();
+      attachPlayer();
+    } finally {
+      refreshInflight = false;
     }
-    hydratePaths();
-    attachPlayer();
   }
 
   async function makeClip() {

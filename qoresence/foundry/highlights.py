@@ -7,6 +7,11 @@ from typing import Any
 from qoresence.core.civif_tick import HighlightRecord
 from qoresence.foundry.index import scan_clips
 
+# Newest-first window for Deck /api/civif/highlights and /query. A full-dir
+# json.loads of hundreds of sidecars GIL-stalls inline /api/civif/live even
+# when ranking runs on asyncio.to_thread. Foundry search still scans all.
+_SCAN_WINDOW = 64
+
 
 def _cs(civ: dict[str, Any]) -> float | None:
     raw = civ.get("coupling_score")
@@ -90,7 +95,7 @@ def _record_from_clip(clip: dict[str, Any]) -> HighlightRecord:
 def rank_highlights(clips_dir: Any = None, limit: int = 8) -> dict[str, Any]:
     limit = max(1, min(20, int(limit)))
     rows: list[HighlightRecord] = []
-    for clip in scan_clips(clips_dir):
+    for clip in scan_clips(clips_dir, max_n=_SCAN_WINDOW):
         rec = _record_from_clip(clip)
         if rec.score <= 0:
             continue
@@ -128,7 +133,7 @@ def get_coupled_clips(
     filt = situation_filters if isinstance(situation_filters, dict) else {}
     clutch_min = filt.get("clutch_score_min")
     hits: list[dict[str, Any]] = []
-    for clip in scan_clips(clips_dir):
+    for clip in scan_clips(clips_dir, max_n=_SCAN_WINDOW):
         rec = _record_from_clip(clip)
         if session_id and rec.session_id != session_id:
             continue

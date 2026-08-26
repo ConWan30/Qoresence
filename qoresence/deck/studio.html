@@ -20,8 +20,14 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opa
 .brand{display:flex;align-items:center;gap:10px;margin-right:8px;color:var(--gold);font:800 12px/1 JetBrains Mono,monospace;letter-spacing:.12em;text-transform:uppercase}
 .brandMark{width:32px;height:32px;display:grid;place-items:center;border:1px solid rgba(200,242,106,.55);border-radius:9px;box-shadow:0 0 24px rgba(200,242,106,.12),inset 0 0 16px rgba(200,242,106,.08);font:800 13px/1 JetBrains Mono,monospace}
 .brandCopy strong{display:block;color:var(--text);font-size:12px}.brandCopy small{display:block;margin-top:4px;color:var(--dim);font-size:8px;letter-spacing:.12em}
-#cmd a,.navBtn{color:var(--cyan);text-decoration:none;font:700 10px JetBrains Mono,monospace;letter-spacing:.06em;text-transform:uppercase;opacity:.82}
-#cmd a:hover{color:var(--gold);opacity:1}
+.glass-nav{display:flex;flex:1 1 12rem;min-width:0;overflow-x:auto;padding:4px;border-radius:12px;background:color-mix(in oklab,#0e2018 80%,transparent);box-shadow:0 0 0 1px var(--line)}
+.glass-nav a{display:inline-flex;min-width:4rem;height:36px;align-items:center;justify-content:center;padding:0 12px;border-radius:8px;color:var(--muted);text-decoration:none;font:500 12px/1 Sora,system-ui,sans-serif;letter-spacing:0;text-transform:none;opacity:1;transition:color .15s,background .15s,box-shadow .15s,transform .08s}
+.glass-nav a:hover{color:var(--text);background:color-mix(in oklab,#c6f26a 10%,transparent)}
+.glass-nav a:active{transform:translateY(1px)}
+.glass-nav a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.glass-nav a[aria-current="page"]{color:#050a08;background:linear-gradient(180deg,color-mix(in oklab,#fff 18%,transparent),transparent 38%),#c6f26a;box-shadow:inset 0 1px 0 color-mix(in oklab,#fff 28%,transparent),0 6px 0 #5a7a22,0 0 22px color-mix(in oklab,#c6f26a 42%,transparent)}
+.glass-nav a[aria-current="page"]:hover{color:#050a08;background:linear-gradient(180deg,color-mix(in oklab,#fff 24%,transparent),transparent 38%),#c6f26a}
+.glass-nav a[aria-current="page"]:active{transform:translateY(3px);box-shadow:inset 0 1px 0 color-mix(in oklab,#fff 28%,transparent),0 3px 0 #5a7a22,0 0 16px color-mix(in oklab,#c6f26a 34%,transparent)}
 #status{margin-left:auto;font:700 10px/1.2 JetBrains Mono,monospace;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
 #status .dot{color:var(--amber)}#status.on .dot{color:var(--ok);text-shadow:0 0 12px var(--ok)}#status.off .dot{color:var(--danger)}
 #splice{position:relative;z-index:2;display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:0;align-items:stretch;margin:16px 20px 0;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:linear-gradient(145deg,rgba(23,35,50,.7),rgba(12,17,24,.78))}
@@ -71,10 +77,15 @@ h3 .code{color:var(--cyan);font:700 9px/1 JetBrains Mono,monospace}
 <body>
 <header id="cmd">
   <div class="brand"><span class="brandMark">Q</span><span class="brandCopy"><strong>Foundry Bay</strong><small>ghost cut · local</small></span></div>
-  <a href="/deck.html">Deck</a>
-  <a href="/civif.html">CIVIF</a>
-  <a href="/overlay.html" target="_blank">Lens ↗</a>
-  <a href="/health" target="_blank">Health ↗</a>
+  <nav class="glass-nav" aria-label="Glasses">
+    <a href="/">Home</a>
+    <a href="/deck.html">Theater</a>
+    <a href="/session.html">Session</a>
+    <a href="/civif.html">CIVIF</a>
+    <a href="/overlay.html">Lens</a>
+    <a href="/studio.html" aria-current="page">Foundry</a>
+    <a href="/mobile.html">Mobile</a>
+  </nav>
   <div id="status" class="off"><span class="dot">●</span> <span id="statusText">checking studio…</span></div>
 </header>
 

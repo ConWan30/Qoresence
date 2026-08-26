@@ -18,9 +18,14 @@ body.qore-has-clip-dock{padding-bottom:0}
 #qore-clip-dock .make{background:#c8f26a;color:#050a08}
 #qore-clip-dock .toggle{background:#111;color:#c8f26a}
 #qore-clip-dock a.civif{
-  border-radius:999px;padding:5px 10px;font:700 10px/1 ui-monospace,monospace;
-  text-transform:uppercase;text-decoration:none;background:#111;color:#68d9e8;
+  border-radius:8px;padding:5px 10px;font:500 12px/1 Sora,system-ui,sans-serif;
+  text-transform:none;text-decoration:none;letter-spacing:0;
+  background:color-mix(in oklab,#0e2018 80%,transparent);color:#8ea396;
+  box-shadow:0 0 0 1px color-mix(in oklab,#c6f26a 14%,transparent);
 }
+#qore-clip-dock a.civif:hover{color:#e8f2ec;background:color-mix(in oklab,#c6f26a 10%,transparent)}
+#qore-clip-dock a.civif:active{transform:translateY(1px)}
+#qore-clip-dock a.civif:focus-visible{outline:2px solid #c6f26a;outline-offset:2px}
 #qore-clip-dock .tile{
   display:flex;align-items:center;gap:4px;height:26px;min-width:0;
   border-radius:999px;padding:0 8px;background:#111;color:#e8edf0;
