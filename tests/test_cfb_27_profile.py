@@ -123,7 +123,7 @@ def test_visual_runtime_merge_scoreboard_cfb_title(monkeypatch):
         game_category="football",
     )
     
-    bus = RetinaEventBus()
+    bus = RetinaEventBus(session_id="test")
     runtime = VisualRuntime(config, bus, session_head_ns=0)
     
     import numpy as np
@@ -155,7 +155,7 @@ def test_visual_runtime_merge_scoreboard_madden_title(monkeypatch):
         game_category="football",
     )
     
-    bus = RetinaEventBus()
+    bus = RetinaEventBus(session_id="test")
     runtime = VisualRuntime(config, bus, session_head_ns=0)
     
     import numpy as np
