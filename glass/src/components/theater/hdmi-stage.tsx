@@ -21,7 +21,7 @@ import { LiveHealthGlyph } from "./live-health-glyph";
 import { SignalPrism } from "./signal-prism";
 import { StageClipDock } from "./clip-rack";
 
-export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
+export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory" }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoHostRef = useRef<HTMLDivElement>(null);
   const prevRef = useRef({ frames: 0, pushes: 0, climbedAt: 0 });
@@ -277,12 +277,16 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
     <section
       data-stage-mode={stageMode}
       data-clip-owner="hdmi-stage"
-      data-clutch={variant === "deck" ? pulse : undefined}
+      data-clutch={variant === "deck" || variant === "observatory" ? pulse : undefined}
       className={cn(
         "relative isolate",
-        variant === "lens" ? "h-full min-h-0 w-full" : "holo-plinth min-h-0 flex-1 overflow-hidden rounded-xl",
+        variant === "lens"
+          ? "h-full min-h-0 w-full"
+          : variant === "observatory"
+            ? "holo-plinth h-full w-full overflow-hidden rounded-xl"
+            : "holo-plinth overflow-hidden rounded-xl",
       )}
-      data-holo-tone={variant === "deck" ? health.tone : undefined}
+      data-holo-tone={variant === "deck" || variant === "observatory" ? health.tone : undefined}
       onPointerDown={() => void useTheater.getState().ensureCapture()}
     >
       <div
@@ -290,7 +294,9 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
           "holo-plinth-well relative isolate z-0 overflow-hidden",
           variant === "lens"
             ? "h-full w-full"
-            : "mx-auto aspect-video w-full rounded-[calc(var(--radius-xl)-1px)]",
+            : variant === "observatory"
+              ? "h-full w-full rounded-[calc(var(--radius-xl)-1px)]"
+              : "mx-auto aspect-video max-h-[calc(100dvh-13.5rem)] w-full max-w-[min(100%,calc((100dvh-13.5rem)*16/9))] rounded-[calc(var(--radius-xl)-1px)] md:max-h-[calc(100dvh-11.5rem)] md:max-w-[min(100%,calc((100dvh-11.5rem)*16/9))]",
         )}
       >
         <div
@@ -330,17 +336,17 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
           >
             PGM
           </button>
-        ) : variant === "deck" ? (
+        ) : variant === "deck" || variant === "observatory" ? (
           <span className="pointer-events-none absolute top-3 left-3 z-20 rounded-sm bg-bg/75 px-2 py-1 font-mono text-[10px] tracking-[0.2em] text-photon uppercase backdrop-blur-sm">
             PGM
           </span>
         ) : null}
         {!replaySrc ? <LiveHealthGlyph health={health} /> : null}
         {!replaySrc ? <GhostStickOverlay /> : null}
-        {!replaySrc ? <LensOverlay variant={variant} /> : null}
+        {!replaySrc && variant !== "observatory" ? <LensOverlay variant={variant} /> : null}
       </div>
-      {variant === "deck" ? <SignalPrism ageS={videoAgeS} tone={health.tone} /> : null}
-      {variant === "deck" ? <StageClipDock /> : null}
+      {variant === "deck" || variant === "observatory" ? <SignalPrism ageS={videoAgeS} tone={health.tone} /> : null}
+      {variant === "deck" || variant === "observatory" ? <StageClipDock /> : null}
     </section>
   );
 }
