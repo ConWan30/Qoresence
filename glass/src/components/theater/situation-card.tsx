@@ -21,13 +21,13 @@ export function SituationCard() {
   const confirm = useTheater((s) => s.confirm);
 
   const widgetsOk = livePaint && sameSeq && !planeDim;
+  // Same gate as LockbugStrip: widgetsOk AND boardLocked AND scores present
   const licensed = widgetsOk && boardLocked && homeScore != null && awayScore != null && (confirm != null || boardLocked);
-  const line = widgetsOk ? situation || boardLine : "";
+  // Paint line ONLY when licensed — never paint unlicensed situation (tonight's local_hud 35-22 vs picture 0-0)
+  const line = licensed ? situation || boardLine : "";
 
-  // Fail-closed: unlocked shows □–□ · — & —
-  const fallback = licensed
-    ? ""
-    : `${scorebugPair({ homeScore: null, awayScore: null, dash: "–" }) || "□–□"} · ${downDistanceLabel(null, null)}`;
+  // Fail-closed: unlocked/dark shows □–□ · — & —
+  const fallback = `${scorebugPair({ homeScore: null, awayScore: null, dash: "–" }) || "□–□"} · ${downDistanceLabel(null, null)}`;
 
   return (
     <section className="holo-plate flex flex-col gap-2 rounded-xl p-4">
@@ -40,10 +40,10 @@ export function SituationCard() {
         </span>
       </div>
       <p
-        data-situation={line || fallback || "wait"}
-        className="font-display text-xl font-extrabold leading-snug tracking-tight text-fg"
+        data-situation={line || fallback}
+        className="font-display text-xl font-extrabold leading-snug tracking-tight text-muted-foreground"
       >
-        {line || (planeDim ? "Plane dim" : fallback)}
+        {line || fallback}
       </p>
       <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
         {gameTitle || "title-presence from HDMI"}

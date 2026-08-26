@@ -163,16 +163,20 @@ export function CommandBar() {
               </p>
             </div>
           </div>
-          <HoloTally mode={tallyMode} />
-          <span
-            className="hidden font-mono text-[10px] tracking-[0.18em] text-subtle-foreground uppercase sm:inline"
-            data-take={takeCount}
-          >
-            Take {String(takeCount).padStart(3, "0")}
-          </span>
-          <span className="hidden font-mono text-[10px] tracking-[0.16em] text-photon uppercase lg:inline">
-            {stageMode === "replay" ? "PVW clip" : "PGM hdmi"}
-          </span>
+          {!isSessionRoute && <HoloTally mode={tallyMode} />}
+          {!isSessionRoute && (
+            <span
+              className="hidden font-mono text-[10px] tracking-[0.18em] text-subtle-foreground uppercase sm:inline"
+              data-take={takeCount}
+            >
+              Take {String(takeCount).padStart(3, "0")}
+            </span>
+          )}
+          {!isSessionRoute && (
+            <span className="hidden font-mono text-[10px] tracking-[0.16em] text-photon uppercase lg:inline">
+              {stageMode === "replay" ? "PVW clip" : "PGM hdmi"}
+            </span>
+          )}
           <BroadcastClock />
           <TheaterModeChip />
 
