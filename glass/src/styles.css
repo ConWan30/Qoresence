@@ -337,6 +337,8 @@ html.obs-lens body::after {
   text-decoration: none;
   font-size: 12px;
   font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   transition:
     color 150ms var(--ease-out),
     background 150ms var(--ease-out),
