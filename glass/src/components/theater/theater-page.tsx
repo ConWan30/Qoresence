@@ -1,13 +1,8 @@
 import { useCallback, type PointerEvent } from "react";
-import { AgentRail } from "@/components/theater/agent-rail";
-import { ClutchFeed } from "@/components/theater/clutch-feed";
 import { CommandBar } from "@/components/theater/command-bar";
-import { ConnectCard } from "@/components/theater/connect-card";
-import { SituationCard } from "@/components/theater/situation-card";
-import { CouplingCard } from "@/components/theater/coupling-card";
-import { HighlightDirector } from "@/components/theater/highlight-director";
-import { PadSyncCard } from "@/components/theater/pad-sync-card";
 import { HdmiStage } from "@/components/theater/hdmi-stage";
+import { ObservatoryHUD } from "@/components/theater/observatory-hud";
+import { IntelligenceChamber } from "@/components/theater/intelligence-chamber";
 import { useTheaterLoop } from "@/lib/coupling/loop";
 
 export function TheaterPage() {
@@ -25,28 +20,23 @@ export function TheaterPage() {
   }, []);
 
   return (
-    <main className="holo-deck flex h-dvh min-h-0 flex-col overflow-hidden bg-bg text-fg" onPointerMove={onPrism}>
+    <main
+      className="holo-deck flex h-dvh flex-col overflow-hidden bg-bg text-fg"
+      onPointerMove={onPrism}
+    >
+      {/* Command bar: intrinsic height, no shrink */}
       <CommandBar />
-      <div className="mx-auto flex h-full max-w-[88rem] flex-1 flex-col overflow-hidden px-4 py-3 sm:px-5 sm:py-3">
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden sm:gap-4">
-          <div className="grid min-h-0 flex-1 items-start gap-3 min-[640px]:grid-cols-[minmax(0,1fr)_minmax(17.5rem,21rem)] min-[640px]:gap-4">
-            <HdmiStage variant="deck" />
-            <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto" data-ops-strip="director-receipt">
-              <SituationCard />
-              <HighlightDirector />
-              <AgentRail />
-            </aside>
-          </div>
-          <div className="grid min-h-0 items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] lg:gap-5">
-            <ClutchFeed />
-            <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto">
-              <ConnectCard />
-              <PadSyncCard />
-              <CouplingCard />
-            </aside>
-          </div>
+
+      {/* HDMI stage: fills leftover viewport, no scroll */}
+      <div className="relative flex flex-1 flex-col overflow-hidden px-4 pb-3 sm:px-5 sm:pb-4">
+        <div className="relative h-full w-full">
+          <HdmiStage variant="observatory" />
+          <ObservatoryHUD />
         </div>
       </div>
+
+      {/* Intelligence chamber: drawer from right */}
+      <IntelligenceChamber />
     </main>
   );
 }
