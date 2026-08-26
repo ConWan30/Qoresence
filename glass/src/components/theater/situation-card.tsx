@@ -1,3 +1,4 @@
+import { downDistanceLabel, scorebugPair } from "@/lib/coupling/board";
 import { useTheater } from "@/lib/coupling/store";
 
 export function SituationCard() {
@@ -9,7 +10,24 @@ export function SituationCard() {
   const planeDim = useTheater((s) => s.planeDim);
   const sameSeq = useTheater((s) => s.sameSeq);
   const livePaint = useTheater((s) => s.livePaint);
-  const line = planeDim || !sameSeq || !livePaint ? "" : situation || boardLine;
+  const boardLocked = useTheater((s) => s.boardLocked);
+  const homeScore = useTheater((s) => s.homeScore);
+  const awayScore = useTheater((s) => s.awayScore);
+  const homeTeam = useTheater((s) => s.homeTeam);
+  const awayTeam = useTheater((s) => s.awayTeam);
+  const homeLeft = useTheater((s) => s.homeLeft);
+  const down = useTheater((s) => s.down);
+  const distance = useTheater((s) => s.distance);
+  const confirm = useTheater((s) => s.confirm);
+
+  const widgetsOk = livePaint && sameSeq && !planeDim;
+  const licensed = widgetsOk && boardLocked && homeScore != null && awayScore != null && (confirm != null || boardLocked);
+  const line = widgetsOk ? situation || boardLine : "";
+
+  // Fail-closed: unlocked shows □–□ · — & —
+  const fallback = licensed
+    ? ""
+    : `${scorebugPair({ homeScore: null, awayScore: null, dash: "–" }) || "□–□"} · ${downDistanceLabel(null, null)}`;
 
   return (
     <section className="holo-plate flex flex-col gap-2 rounded-xl p-4">
@@ -22,10 +40,10 @@ export function SituationCard() {
         </span>
       </div>
       <p
-        data-situation={line || "wait"}
+        data-situation={line || fallback || "wait"}
         className="font-display text-xl font-extrabold leading-snug tracking-tight text-fg"
       >
-        {line || (planeDim ? "Plane dim" : !sameSeq ? "" : "Waiting for scoreboard…")}
+        {line || (planeDim ? "Plane dim" : fallback)}
       </p>
       <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
         {gameTitle || "title-presence from HDMI"}

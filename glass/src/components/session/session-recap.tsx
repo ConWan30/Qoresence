@@ -71,7 +71,7 @@ export function SessionRecap() {
                 {ev.timestamp}
               </span>
             </div>
-            {ev.score && (
+            {ev.qualification === "confirmed" && ev.score && (
               <p className="font-mono text-sm text-fg">
                 {ev.score.home}–{ev.score.away}
                 {ev.yard_line != null && ` · YL ${ev.yard_line}`}

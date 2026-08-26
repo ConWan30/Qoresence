@@ -56,6 +56,7 @@ function GlassNavLink({
 
 export function CommandBar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isSessionRoute = pathname === "/session.html" || pathname === "/civif.html";
   const hdmi = useTheater((s) => s.hdmi);
   const pllLock = useTheater((s) => s.pllLock);
   const ticketLive = useTheater((s) => s.ticketLive);
@@ -115,11 +116,9 @@ export function CommandBar() {
   // Prefer LockbugStrip in chrome; never fall back to unlocked confirm pair.
   const sit = widgetsOk && (situation || boardLine)
     ? [gameTitle, situation || boardLine].filter(Boolean).join(" · ")
-    : widgetsOk && vlmLocked
-      ? "VLM lock · board"
-      : hdmi === "menu"
-        ? "menu"
-        : "";
+    : hdmi === "menu"
+      ? "menu"
+      : "";
 
   const dot = heatVetoed ? "bg-veto" : ticketLive ? "bg-live" : pllLock ? "bg-sync" : "bg-muted-foreground";
 
@@ -189,57 +188,59 @@ export function CommandBar() {
             ))}
           </nav>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            <div className="flex gap-1" data-mode-bar="hdmi">
-              <button
-                type="button"
-                data-action="stage-live"
-                aria-pressed={stageMode === "live"}
-                className={cn(
-                  "stream-key inline-flex h-10 min-w-16 items-center justify-center px-3 font-mono text-[11px] font-extrabold tracking-[0.14em]",
-                  stageMode === "live" ? "stream-key-live" : "text-muted-foreground",
-                )}
-                onClick={() => goLive()}
-              >
-                <span className="mr-1 text-[9px] opacity-50">01</span>
-                LIVE
-              </button>
-              <button
-                type="button"
-                data-action="stage-replay"
-                aria-pressed={stageMode === "replay"}
-                disabled={!lastClipUrl}
-                className={cn(
-                  "stream-key inline-flex h-10 min-w-16 items-center justify-center px-3 font-mono text-[11px] font-extrabold tracking-[0.14em]",
-                  stageMode === "replay" ? "stream-key-live" : "text-muted-foreground",
-                )}
-                onClick={() => goReplay()}
-              >
-                <span className="mr-1 text-[9px] opacity-50">02</span>
-                REPLAY
-              </button>
-            </div>
-            <Button
-              size="sm"
-              data-action="make-hdmi-clip"
-              className="stream-key stream-key-clip min-w-[11rem] font-mono text-[11px] font-extrabold tracking-[0.08em]"
-              disabled={clipBusy}
-              onClick={() => void requestHdmiClip()}
-            >
-              {clipBusy ? "Encoding…" : <><span className="mr-1 text-[9px] opacity-60">03</span>Clip 30s</>}
-            </Button>
-            {captureStatus !== "live" ? (
+          {!isSessionRoute && (
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <div className="flex gap-1" data-mode-bar="hdmi">
+                <button
+                  type="button"
+                  data-action="stage-live"
+                  aria-pressed={stageMode === "live"}
+                  className={cn(
+                    "stream-key inline-flex h-10 min-w-16 items-center justify-center px-3 font-mono text-[11px] font-extrabold tracking-[0.14em]",
+                    stageMode === "live" ? "stream-key-live" : "text-muted-foreground",
+                  )}
+                  onClick={() => goLive()}
+                >
+                  <span className="mr-1 text-[9px] opacity-50">01</span>
+                  LIVE
+                </button>
+                <button
+                  type="button"
+                  data-action="stage-replay"
+                  aria-pressed={stageMode === "replay"}
+                  disabled={!lastClipUrl}
+                  className={cn(
+                    "stream-key inline-flex h-10 min-w-16 items-center justify-center px-3 font-mono text-[11px] font-extrabold tracking-[0.14em]",
+                    stageMode === "replay" ? "stream-key-live" : "text-muted-foreground",
+                  )}
+                  onClick={() => goReplay()}
+                >
+                  <span className="mr-1 text-[9px] opacity-50">02</span>
+                  REPLAY
+                </button>
+              </div>
               <Button
                 size="sm"
-                data-action="arm-hdmi"
-                className="stream-key font-mono text-[11px] font-extrabold tracking-[0.08em]"
-                onClick={() => void armCapture()}
-                disabled={captureStatus === "arming"}
+                data-action="make-hdmi-clip"
+                className="stream-key stream-key-clip min-w-[11rem] font-mono text-[11px] font-extrabold tracking-[0.08em]"
+                disabled={clipBusy}
+                onClick={() => void requestHdmiClip()}
               >
-                {captureStatus === "arming" ? "Arming…" : "Arm HDMI"}
+                {clipBusy ? "Encoding…" : <><span className="mr-1 text-[9px] opacity-60">03</span>Clip 30s</>}
               </Button>
-            ) : null}
-          </div>
+              {captureStatus !== "live" ? (
+                <Button
+                  size="sm"
+                  data-action="arm-hdmi"
+                  className="stream-key font-mono text-[11px] font-extrabold tracking-[0.08em]"
+                  onClick={() => void armCapture()}
+                  disabled={captureStatus === "arming"}
+                >
+                  {captureStatus === "arming" ? "Arming…" : "Arm HDMI"}
+                </Button>
+              ) : null}
+            </div>
+          )}
         </div>
 
         <div className="flex min-w-0 flex-col gap-1">

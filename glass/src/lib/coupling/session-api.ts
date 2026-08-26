@@ -101,8 +101,25 @@ export async function fetchSessionView(
   if (sessionId) params.set("session_id", sessionId);
   if (fixture) params.set("fixture", fixture);
   const url = `${origin}/api/session/view?${params.toString()}`;
-  const res = await fetch(url);
-  if (!res.ok) {
+  try {
+    const res = await fetch(url);
+    // HTTP stays 200 — envelope.status carries live|empty|not_persisted|unavailable|invalid
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: "unavailable",
+        session: sessionId || "",
+        view: emptyView(false),
+        freshness: {
+          generated_at: new Date().toISOString(),
+          last_event_at: null,
+          age_ms: 0,
+          stale: false,
+        },
+      };
+    }
+    return await res.json();
+  } catch {
     return {
       ok: false,
       status: "unavailable",
@@ -116,7 +133,6 @@ export async function fetchSessionView(
       },
     };
   }
-  return await res.json();
 }
 
 export async function fetchSessionRecap(
@@ -128,8 +144,32 @@ export async function fetchSessionRecap(
   if (sessionId) params.set("session_id", sessionId);
   if (fixture) params.set("fixture", fixture);
   const url = `${origin}/api/session/recap?${params.toString()}`;
-  const res = await fetch(url);
-  if (!res.ok) {
+  try {
+    const res = await fetch(url);
+    // HTTP stays 200 — envelope.status carries live|empty|not_persisted|unavailable|invalid
+    if (!res.ok) {
+      return {
+        schema: "session-recap-1",
+        ok: false,
+        status: "unavailable",
+        session: sessionId || "",
+        duration_ms: null,
+        event_count: 0,
+        confirmed_event_count: 0,
+        linked_clip_count: 0,
+        incomplete: false,
+        empty_reason: null,
+        events: [],
+        freshness: {
+          generated_at: new Date().toISOString(),
+          last_event_at: null,
+          age_ms: 0,
+          stale: false,
+        },
+      };
+    }
+    return await res.json();
+  } catch {
     return {
       schema: "session-recap-1",
       ok: false,
@@ -150,7 +190,6 @@ export async function fetchSessionRecap(
       },
     };
   }
-  return await res.json();
 }
 
 function emptyView(persisted: boolean): SessionView {

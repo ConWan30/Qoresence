@@ -27,7 +27,6 @@ export function SessionTheater() {
       <CommandBar />
       <div className="mx-auto max-w-[88rem] px-4 py-3 sm:px-5 sm:py-3">
         <div className="mb-4 flex items-center gap-3">
-          <h1 className="font-display text-2xl font-bold tracking-tight">Session Theater</h1>
           <nav className="flex items-center gap-1.5 rounded-lg bg-surface/60 p-1 shadow-[var(--shadow-border)]">
             {(["now", "story", "recap"] as const).map((t) => (
               <button
