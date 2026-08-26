@@ -23,32 +23,34 @@ export function SessionTheater() {
   }, []);
 
   return (
-    <main className="holo-deck min-h-dvh bg-bg text-fg" onPointerMove={onPrism}>
+    <main className="holo-deck flex h-dvh min-h-0 flex-col overflow-hidden bg-bg text-fg" onPointerMove={onPrism}>
       <CommandBar />
-      <div className="mx-auto max-w-[88rem] px-4 py-3 sm:px-5 sm:py-3">
-        <div className="mb-4 flex items-center gap-3">
-          <nav className="flex items-center gap-1.5 rounded-lg bg-surface/60 p-1 shadow-[var(--shadow-border)]">
-            {(["now", "story", "recap"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTab(t)}
-                className={cn(
-                  "rounded-md px-3 py-1.5 font-mono text-[10px] tracking-[0.14em] uppercase transition-colors",
-                  tab === t
-                    ? "bg-live/15 text-live"
-                    : "text-muted-foreground hover:bg-surface hover:text-fg",
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </nav>
-        </div>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="mx-auto flex h-full max-w-[88rem] flex-1 flex-col overflow-y-auto px-4 py-3 sm:px-5 sm:py-3">
+          <div className="mb-4 flex items-center gap-3">
+            <nav className="flex items-center gap-1.5 rounded-lg bg-surface/60 p-1 shadow-[var(--shadow-border)]">
+              {(["now", "story", "recap"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTab(t)}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 font-mono text-[10px] tracking-[0.14em] uppercase transition-colors",
+                    tab === t
+                      ? "bg-live/15 text-live"
+                      : "text-muted-foreground hover:bg-surface hover:text-fg",
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </nav>
+          </div>
 
-        {tab === "now" && <SessionNow />}
-        {tab === "story" && <SessionStory />}
-        {tab === "recap" && <SessionRecap />}
+          {tab === "now" && <SessionNow />}
+          {tab === "story" && <SessionStory />}
+          {tab === "recap" && <SessionRecap />}
+        </div>
       </div>
     </main>
   );
