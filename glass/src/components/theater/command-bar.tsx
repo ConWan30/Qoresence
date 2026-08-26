@@ -112,9 +112,15 @@ export function CommandBar() {
   const livePaint = useTheater((s) => s.livePaint);
   const sameSeq = useTheater((s) => s.sameSeq);
   const planeDim = useTheater((s) => s.planeDim);
+  const boardLocked = useTheater((s) => s.boardLocked);
+  const homeScore = useTheater((s) => s.homeScore);
+  const awayScore = useTheater((s) => s.awayScore);
+  const confirm = useTheater((s) => s.confirm);
   const widgetsOk = livePaint && sameSeq && !planeDim;
-  // Prefer LockbugStrip in chrome; never fall back to unlocked confirm pair.
-  const sit = widgetsOk && (situation || boardLine)
+  // Same gate as LockbugStrip: widgetsOk AND boardLocked AND scores present
+  const licensed = widgetsOk && boardLocked && homeScore != null && awayScore != null && (confirm != null || boardLocked);
+  // Never paint unlicensed situation/boardLine (tonight's local_hud 35-22 vs picture 0-0)
+  const sit = licensed && (situation || boardLine)
     ? [gameTitle, situation || boardLine].filter(Boolean).join(" · ")
     : hdmi === "menu"
       ? "menu"
@@ -163,16 +169,20 @@ export function CommandBar() {
               </p>
             </div>
           </div>
-          <HoloTally mode={tallyMode} />
-          <span
-            className="hidden font-mono text-[10px] tracking-[0.18em] text-subtle-foreground uppercase sm:inline"
-            data-take={takeCount}
-          >
-            Take {String(takeCount).padStart(3, "0")}
-          </span>
-          <span className="hidden font-mono text-[10px] tracking-[0.16em] text-photon uppercase lg:inline">
-            {stageMode === "replay" ? "PVW clip" : "PGM hdmi"}
-          </span>
+          {!isSessionRoute && <HoloTally mode={tallyMode} />}
+          {!isSessionRoute && (
+            <span
+              className="hidden font-mono text-[10px] tracking-[0.18em] text-subtle-foreground uppercase sm:inline"
+              data-take={takeCount}
+            >
+              Take {String(takeCount).padStart(3, "0")}
+            </span>
+          )}
+          {!isSessionRoute && (
+            <span className="hidden font-mono text-[10px] tracking-[0.16em] text-photon uppercase lg:inline">
+              {stageMode === "replay" ? "PVW clip" : "PGM hdmi"}
+            </span>
+          )}
           <BroadcastClock />
           <TheaterModeChip />
 

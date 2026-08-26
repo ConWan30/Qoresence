@@ -1,5 +1,6 @@
 import { downDistanceLabel, scorebugPair } from "@/lib/coupling/board";
 import { useTheater } from "@/lib/coupling/store";
+import { cn } from "@/lib/utils";
 
 export function SituationCard() {
   const situation = useTheater((s) => s.situation);
@@ -40,10 +41,13 @@ export function SituationCard() {
         </span>
       </div>
       <p
-        data-situation={line || fallback || "wait"}
-        className="font-display text-xl font-extrabold leading-snug tracking-tight text-fg"
+        data-situation={line || fallback}
+        className={cn(
+          "font-display text-xl font-extrabold leading-snug tracking-tight",
+          line ? "text-fg" : "text-muted-foreground"
+        )}
       >
-        {line || (planeDim ? "Plane dim" : fallback)}
+        {line || fallback}
       </p>
       <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
         {gameTitle || "title-presence from HDMI"}
