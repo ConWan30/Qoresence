@@ -11,7 +11,7 @@ export function ClutchFeed() {
   const live = clutch.kind !== "quiet";
 
   return (
-    <section className="holo-plate flex flex-col gap-2 rounded-xl p-3 sm:p-4">
+    <section className="holo-plate flex min-h-0 flex-col gap-2 overflow-y-auto rounded-xl p-3 sm:p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
           Clutch feed
