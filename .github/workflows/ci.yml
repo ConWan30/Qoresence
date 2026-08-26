@@ -14,6 +14,8 @@ jobs:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
+      # Allow both Python versions to report independently (issue #65)
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
