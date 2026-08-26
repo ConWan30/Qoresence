@@ -75,7 +75,9 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] Event → existing clip links + Story **Open clip** (`651bb5a`, #70 / #69)
 - [x] Read-only `GET /api/session/recap` (`session-recap-1`, `27fc4a6`, #73 / #72)
 - [x] Docs: `docs/SESSION_THEATER.md`, `docs/CIVIF.md`; tests: `tests/test_session_theater.py`, `tests/test_session_clip_link.py`, `tests/test_session_recap.py`
-- [ ] Streamer overlay / broadcast presentation (separate milestone; evaluation hold)
+- [x] Private DualSense haptic probe (default OFF, `#76` / `#77`)
+- [ ] Streamer overlay / broadcast presentation (separate milestone; Qoreeval gate)
+- [ ] Operator-bot corps lock: `docs/GROK_BOT_CORPS.md`
 
 ---
 

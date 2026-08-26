@@ -2,7 +2,7 @@
 
 **Gaming Streaming Observatory Engine** — local-first, one clock, many glasses. HDMI/OBS frames + DualSense HID + situation model → Retina Deck, **Session Theater**, native monitor, Foundry clips, ClutchBot, and **AgentGlass / MCP** for any AI agent. The capture card is the brain; everything else is a glass.
 
-**Actuators, not coworkers.** Aperture / Bind / License / Arm are clock-licensed receipts. Agent Society is leftover opt-in (`--agent-society`); `--play` does not enable it. Do not treat persona roles as the product path.
+**Actuators, not coworkers.** Aperture / Bind / License / Arm are clock-licensed receipts. Agent Society is leftover opt-in (`--agent-society`); `--play` does not enable it. Do not treat persona roles as the product path. Cursor/Grok **operator bots** (Qorector, Nine-Bot, Qorefront, post-CIVIF specialists) are a separate charter: [Grok-bot-corps](Grok-bot-corps).
 
 ## Start here
 
@@ -13,7 +13,8 @@
 | [Operator-Runbook](Operator-Runbook) | Daily Pattern B pilot (Qoresence owns card) |
 | [Capture-Ownership](Capture-Ownership) | Qoresence owns card (recommended) vs legacy VCam |
 | [Retina-Deck-and-Monitor](Retina-Deck-and-Monitor) | Glasses: Lens, Theater, LIVE, Mobile Glass, FrameHub monitor |
-| [Session-Theater](Session-Theater) | Now + Story + Recap; live view/recap APIs; Open clip (shipped through `fef4d3c`) |
+| [Session-Theater](Session-Theater) | Now + Story + Recap; live view/recap APIs; Open clip |
+| [Grok-bot-corps](Grok-bot-corps) | Qorector + Nine-Bot + Qorefront + six specialists (operator bots, not Society) |
 | [Mobile-Glass](Mobile-Glass) | Phone view of the same FrameHub session (WebRTC / MJPEG, QR on Theater) |
 | [Native-Glass](Native-Glass) | Android cinema APK — `/live.jpg`, PiP, clutch HUD (view only) |
 | [Title-Presence](Title-Presence) | Optical title lock; on with `--play`; observation plane only; profile pin persisted |

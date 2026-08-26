@@ -6,6 +6,7 @@
 - [Capture Ownership](./Capture-Ownership)
 - [Retina Deck & Monitor](./Retina-Deck-and-Monitor)
 - [Session Theater](./Session-Theater)
+- [Grok-bot corps](./Grok-bot-corps)
 - [Mobile Glass](./Mobile-Glass)
 - [Native Glass](./Native-Glass)
 - [Title Presence](./Title-Presence)
