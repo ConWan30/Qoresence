@@ -19,11 +19,10 @@ export function IntelligenceChamber() {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "fixed top-20 right-0 z-30 flex items-center gap-2 rounded-l-lg bg-surface/90 px-3 py-2 font-mono text-[10px] tracking-[0.14em] uppercase shadow-[var(--shadow-border)] backdrop-blur-sm transition-all",
-          isOpen ? "translate-x-0" : "translate-x-0",
         )}
         aria-label={isOpen ? "Close intelligence chamber" : "Open intelligence chamber"}
       >
-        <span className={cn("transition-transform", isOpen ? "rotate-180" : "")}>▶</span>
+        <span className={cn("transition-transform", isOpen ? "rotate-0" : "rotate-180")}>▶</span>
         Intel
       </button>
 

@@ -97,3 +97,42 @@ test("fail-closed copy law: unlocked strip must show □–□ not 0-0", () => {
   // Unlocked down/distance must be — & —
   assert.ok(lockbug.includes("— & —"), "lockbug-strip must use — & — for unlocked down/distance");
 });
+
+test("copy leak prevention: observatory-hud must not use situationText", () => {
+  const observatoryHudPath = join(GLASS_ROOT, "src/components/theater/observatory-hud.tsx");
+  const observatoryHud = readFileSync(observatoryHudPath, "utf-8");
+
+  // ObservatoryHUD must not compute situationText from widgetsOk + situation/boardLine
+  assert.ok(
+    !observatoryHud.includes("situationText"),
+    "observatory-hud must not use situationText (copy leak: widgetsOk + situation/boardLine can show local_hud junk)",
+  );
+  assert.ok(
+    !observatoryHud.includes("situation ||"),
+    "observatory-hud must not read situation (unlicensed copy leak)",
+  );
+  assert.ok(
+    !observatoryHud.includes("boardLine"),
+    "observatory-hud must not read boardLine (unlicensed copy leak)",
+  );
+
+  // LockbugStrip is the licensed copy source
+  assert.ok(
+    observatoryHud.includes("LockbugStrip"),
+    "observatory-hud must use LockbugStrip (the fail-closed licensed copy)",
+  );
+});
+
+test("observatory variant must not mount LensOverlay", () => {
+  const hdmiStagePath = join(GLASS_ROOT, "src/components/theater/hdmi-stage.tsx");
+  const hdmiStage = readFileSync(hdmiStagePath, "utf-8");
+
+  // LensOverlay should be gated: not mounted when variant === "observatory"
+  const lensOverlayLine = hdmiStage.match(/\{!replaySrc.*?<LensOverlay.*?\}/s);
+  assert.ok(lensOverlayLine, "HdmiStage must conditionally mount LensOverlay");
+  assert.ok(
+    lensOverlayLine[0].includes('variant !== "observatory"'),
+    'HdmiStage must NOT mount LensOverlay when variant === "observatory" (ObservatoryHUD owns stage chrome)',
+  );
+});
+

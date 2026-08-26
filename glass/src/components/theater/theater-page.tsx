@@ -3,7 +3,6 @@ import { CommandBar } from "@/components/theater/command-bar";
 import { HdmiStage } from "@/components/theater/hdmi-stage";
 import { ObservatoryHUD } from "@/components/theater/observatory-hud";
 import { IntelligenceChamber } from "@/components/theater/intelligence-chamber";
-import { GhostStickOverlay } from "@/components/theater/ghost-stick";
 import { useTheaterLoop } from "@/lib/coupling/loop";
 
 export function TheaterPage() {
@@ -33,7 +32,6 @@ export function TheaterPage() {
         <div className="relative h-full w-full">
           <HdmiStage variant="observatory" />
           <ObservatoryHUD />
-          <GhostStickOverlay />
         </div>
       </div>
 

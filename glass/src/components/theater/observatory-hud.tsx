@@ -1,31 +1,13 @@
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 import { LockbugStrip } from "./lockbug-strip";
-import { LiveHealthGlyph } from "./live-health-glyph";
 
 export function ObservatoryHUD() {
-  const livePaint = useTheater((s) => s.livePaint);
-  const sameSeq = useTheater((s) => s.sameSeq);
-  const planeDim = useTheater((s) => s.planeDim);
   const videoAgeS = useTheater((s) => s.videoAgeS);
-  const situation = useTheater((s) => s.situation);
-  const boardLine = useTheater((s) => s.boardLine);
-  const gameTitle = useTheater((s) => s.gameTitle);
-  const vlmLocked = useTheater((s) => s.agentPlane.vlmLocked);
-  const hdmi = useTheater((s) => s.hdmi);
   const pllLock = useTheater((s) => s.pllLock);
   const syncLagMs = useTheater((s) => s.syncLagMs);
   const bindKind = useTheater((s) => s.bindKind);
   const stageMode = useTheater((s) => s.stageMode);
-
-  const widgetsOk = livePaint && sameSeq && !planeDim;
-  const situationText = widgetsOk && (situation || boardLine)
-    ? [gameTitle, situation || boardLine].filter(Boolean).join(" · ")
-    : widgetsOk && vlmLocked
-      ? "VLM lock · board"
-      : hdmi === "menu"
-        ? "menu"
-        : "";
 
   if (stageMode === "replay") return null;
 
@@ -34,21 +16,14 @@ export function ObservatoryHUD() {
       {/* Top HUD: LIVE pulse + licensed situation strip + SYNC */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-1 font-mono text-[11px] font-extrabold tracking-[0.14em] uppercase shadow-[var(--shadow-border)]",
-                videoAgeS < 2 ? "bg-bg text-live" : "bg-bg text-veto",
-              )}
-            >
-              {videoAgeS < 2 ? "LIVE" : `AGE ${videoAgeS.toFixed(1)}s`}
-            </span>
-            {situationText ? (
-              <span className="truncate font-mono text-xs text-subtle-foreground">
-                {situationText}
-              </span>
-            ) : null}
-          </div>
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-1 font-mono text-[11px] font-extrabold tracking-[0.14em] uppercase shadow-[var(--shadow-border)]",
+              videoAgeS < 2 ? "bg-bg text-live" : "bg-bg text-veto",
+            )}
+          >
+            {videoAgeS < 2 ? "LIVE" : `AGE ${videoAgeS.toFixed(1)}s`}
+          </span>
           <LockbugStrip />
         </div>
         <div className="flex flex-col items-end gap-1.5">
