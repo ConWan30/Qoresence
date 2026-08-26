@@ -88,6 +88,7 @@ class ScoreboardVlmReferee:
         self._last: dict[str, Any] | None = None
         self._last_raw = ""
         self._last_reason: str = "tick"
+        self._last_http_status: int | None = None
         self._calls = 0
 
     def stats(self) -> dict[str, Any]:
@@ -97,6 +98,7 @@ class ScoreboardVlmReferee:
             "has_result": self._last is not None,
             "last": self._last,
             "last_reason": self._last_reason,
+            "last_http_status": self._last_http_status,
             "calls": self._calls,
             "gameplay_interval_s": _GAMEPLAY_INTERVAL_S,
             "menu_interval_s": _MENU_INTERVAL_S,
@@ -242,6 +244,14 @@ class ScoreboardVlmReferee:
             import requests
 
             r = requests.post(url, headers=headers, json=body, timeout=14)
+            with self._lock:
+                self._last_http_status = r.status_code
+            if r.status_code == 402:
+                # HTTP 402 Payment Required: clear _last to HOLD seeing-path
+                with self._lock:
+                    self._last = None
+                log.warning("scoreboard VLM HTTP 402 — HOLD seeing-path (no credit)")
+                return None
             if r.status_code != 200:
                 raise RuntimeError(f"HTTP {r.status_code}: {r.text[:180]}")
             data = r.json()
@@ -257,6 +267,14 @@ class ScoreboardVlmReferee:
             )
             try:
                 with urllib.request.urlopen(req, timeout=14) as resp:
+                    code = resp.getcode()
+                    with self._lock:
+                        self._last_http_status = code
+                    if code == 402:
+                        with self._lock:
+                            self._last = None
+                        log.warning("scoreboard VLM HTTP 402 — HOLD seeing-path (no credit)")
+                        return None
                     raw = resp.read().decode("utf-8", errors="replace")
                 data = json.loads(raw)
             except Exception as e2:

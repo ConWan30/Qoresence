@@ -566,9 +566,17 @@ class VisualRuntime:
         A2A still schedules the referee, but without extract() scores never land.
         """
         profile = str(self.config.game_profile or self.config.game_category or "")
-        football = "football" in profile.lower() or "ncaa" in profile.lower() or "madden" in profile.lower()
-        if "madden" in profile.lower():
+        football = "football" in profile.lower() or "ncaa" in profile.lower() or "madden" in profile.lower() or "cfb" in profile.lower()
+        
+        # Map title/profile to canonical profile_id
+        title_lower = str(getattr(context, "game_title", "") or "").lower() if context else ""
+        config_lower = profile.lower()
+        
+        if "college" in title_lower or "college" in config_lower or "ncaa" in title_lower or "ncaa" in config_lower or "cfb" in title_lower or "cfb" in config_lower:
+            profile = "cfb_27"
+        elif "madden" in title_lower or "madden" in config_lower:
             profile = "madden_27"
+        
         if context is None:
             if not football:
                 return None
@@ -580,8 +588,9 @@ class VisualRuntime:
                 game_profile=profile,
                 confidence=0.0,
             )
-        elif "madden" in profile.lower() or "madden" in str(getattr(context, "game_profile", "") or "").lower():
-            context.game_profile = "madden_27"
+        else:
+            # Update context.game_profile based on merged title + config
+            context.game_profile = profile
         try:
             cat = getattr(context.game_category, "value", context.game_category)
             if not football and str(cat) != "football":

@@ -25,7 +25,7 @@ OVERLAY_STATES = frozenset({"menu", "lobby", "hub", "paused"})
 GAMEPLAY_STATES = frozenset({"gameplay", "playing", "in_game", "replay", "spectating"})
 
 FOOTBALL_PROFILES = frozenset(
-    {"ncaa_football_27", "ncaa_cfb_26", "ncaa_cfb_27", "madden_27", "madden"}
+    {"ncaa_football_27", "ncaa_cfb_26", "ncaa_cfb_27", "cfb_27", "madden_27", "madden"}
 )
 SHOOTER_PROFILES = frozenset({"call_of_duty", "cod"})
 

@@ -103,6 +103,7 @@ class VisionStack:
         # Game-aware JSON prompt: VLM returns structured VisualContext fields
         _football_profiles = {
             GameProfileId.NCAA_FOOTBALL_27,
+            GameProfileId.CFB_27,
             GameProfileId.MADDEN_27,
         }
         prompt_category = (
@@ -315,8 +316,8 @@ class VisionStack:
             category = context.game_category
 
             # Explicit game title takes priority
-            if "ncaa" in title or "college football" in title:
-                return GameProfileId.NCAA_FOOTBALL_27, context.confidence
+            if "college football" in title or "ncaa" in title or "cfb" in title:
+                return GameProfileId.CFB_27, context.confidence
             if "madden" in title or "nfl" in title:
                 return GameProfileId.MADDEN_27, context.confidence
             if "call of duty" in title or "cod" in title or "warzone" in title:
@@ -325,7 +326,7 @@ class VisionStack:
             # Fall back to category + game_state
             if state == GameState.GAMEPLAY or state == GameState.PAUSED:
                 if category == GameCategory.FOOTBALL:
-                    return GameProfileId.NCAA_FOOTBALL_27, context.confidence
+                    return GameProfileId.CFB_27, context.confidence
                 if category == GameCategory.SHOOTER:
                     return GameProfileId.CALL_OF_DUTY, context.confidence
 
