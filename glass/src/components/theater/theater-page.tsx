@@ -32,6 +32,7 @@ export function TheaterPage() {
           <div className="grid min-h-0 flex-1 items-start gap-3 min-[640px]:grid-cols-[minmax(0,1fr)_minmax(17.5rem,21rem)] min-[640px]:gap-4">
             <HdmiStage variant="deck" />
             <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto" data-ops-strip="director-receipt">
+              <SituationCard />
               <HighlightDirector />
               <AgentRail />
             </aside>
@@ -41,7 +42,6 @@ export function TheaterPage() {
             <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto">
               <ConnectCard />
               <PadSyncCard />
-              <SituationCard />
               <CouplingCard />
             </aside>
           </div>
