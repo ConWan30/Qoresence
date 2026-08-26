@@ -113,7 +113,7 @@ def test_visual_runtime_merge_scoreboard_cfb_title(monkeypatch):
     """
     monkeypatch.setenv("QORESENCE_EASY_OCR", "0")
     
-    from qoresence.core import VisualConfig
+    from qoresence.core import RetinaEventBus, VisualConfig
     from qoresence.lobes.visual import VisualRuntime
     
     # Config defaults to madden but title is CFB
@@ -123,7 +123,8 @@ def test_visual_runtime_merge_scoreboard_cfb_title(monkeypatch):
         game_category="football",
     )
     
-    runtime = VisualRuntime(config)
+    bus = RetinaEventBus()
+    runtime = VisualRuntime(config, bus, session_head_ns=0)
     
     import numpy as np
     
@@ -145,7 +146,7 @@ def test_visual_runtime_merge_scoreboard_madden_title(monkeypatch):
     """VisualRuntime._merge_scoreboard with game_title="Madden NFL 27" → madden_27."""
     monkeypatch.setenv("QORESENCE_EASY_OCR", "0")
     
-    from qoresence.core import VisualConfig
+    from qoresence.core import RetinaEventBus, VisualConfig
     from qoresence.lobes.visual import VisualRuntime
     
     config = VisualConfig(
@@ -154,7 +155,8 @@ def test_visual_runtime_merge_scoreboard_madden_title(monkeypatch):
         game_category="football",
     )
     
-    runtime = VisualRuntime(config)
+    bus = RetinaEventBus()
+    runtime = VisualRuntime(config, bus, session_head_ns=0)
     
     import numpy as np
     

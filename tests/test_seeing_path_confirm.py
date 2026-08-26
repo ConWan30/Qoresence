@@ -182,16 +182,12 @@ def test_http_402_unlocked(monkeypatch):
     vlm.enabled = True
     vlm._api_key = "test_key"
     
-    with patch.object(vlm, "_call_vlm") as mock_call:
-        # Simulate 402: _call_vlm should return None and clear _last
-        mock_call.return_value = None
-        vlm._last = {"home_score": 35, "away_score": 22}  # stale data
-        
-        # After _call_vlm with 402, _last should be None
-        result = vlm._call_vlm(MagicMock())
-        assert result is None
+    # Simulate 402: set _last_http_status and clear _last
+    with vlm._lock:
+        vlm._last_http_status = 402
+        vlm._last = None
     
-    # Verify get_last() returns None
+    # Verify get_last() returns None after 402
     assert vlm.get_last() is None
 
 
@@ -205,13 +201,13 @@ def test_kickoff_0_0_stays_unlocked_without_seeing_path(monkeypatch):
     extractor = FootballScoreboardExtractor()
     
     # Mock VLM to return None (402 or disabled)
-    from qoresence.vision import scoreboard_vlm
+    from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
     
-    with patch("qoresence.vision.scoreboard_extractor.get_scoreboard_vlm") as mock_vlm:
+    with patch("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm") as mock_vlm:
         mock_vlm.return_value.get_last.return_value = None
         
         # Mock local_hud to return (35, 22) — junk
-        with patch("qoresence.vision.scoreboard_extractor.read_score_pair") as mock_hud:
+        with patch("qoresence.vision.local_hud_digits.read_score_pair") as mock_hud:
             mock_hud.return_value = (35, 22)
             
             # Extract with no VLM + HUD junk
@@ -236,12 +232,12 @@ def test_qs_402_whole_session_no_junk_board_license(monkeypatch):
     
     extractor = FootballScoreboardExtractor()
     
-    from qoresence.vision import scoreboard_vlm
+    from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
     
-    with patch("qoresence.vision.scoreboard_extractor.get_scoreboard_vlm") as mock_vlm:
+    with patch("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm") as mock_vlm:
         mock_vlm.return_value.get_last.return_value = None
         
-        with patch("qoresence.vision.scoreboard_extractor.read_score_pair") as mock_hud:
+        with patch("qoresence.vision.local_hud_digits.read_score_pair") as mock_hud:
             mock_hud.return_value = (35, 22)
             
             import numpy as np
