@@ -602,6 +602,28 @@ class ControllerRuntime:
             )
         except Exception:
             pass
+        try:
+            from qoresence.sync.haptic_probe import observe_imu as _haptic_imu
+
+            prev = self._prev_state
+            analog_slew = (
+                abs(int(state.r2) - int(prev.r2)) / 255.0
+                + abs(int(state.l2) - int(prev.l2)) / 255.0
+                + abs(int(state.lx) - int(prev.lx)) / 128.0
+                + abs(int(state.ly) - int(prev.ly)) / 128.0
+                + abs(int(state.rx) - int(prev.rx)) / 128.0
+                + abs(int(state.ry) - int(prev.ry)) / 128.0
+            )
+            _haptic_imu(
+                clock_ns=int(state.host_ts_ns),
+                gyro=(state.gyro_x, state.gyro_y, state.gyro_z),
+                accel=(state.accel_x, state.accel_y, state.accel_z),
+                analog_slew=float(analog_slew),
+                transport=str(self._last_transport or "unknown"),
+                hid_present=True,
+            )
+        except Exception:
+            pass
 
     def _push_hold(self, state: ControllerState, now_ns: int) -> None:
         """Throttled analog snapshot so IVC couples sprint/steer holds."""

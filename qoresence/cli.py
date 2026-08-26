@@ -242,6 +242,18 @@ class QoresenceApp:
         except Exception as e:
             log.debug("OTel exporter not started: %s", e)
 
+        # Private haptic probe (default OFF; env QORESENCE_HAPTIC_PROBE=1)
+        self.haptic_probe = None
+        try:
+            from qoresence.sync.haptic_probe import start_haptic_probe
+
+            self.haptic_probe = start_haptic_probe(
+                session_id=self.identity.session_id,
+                config=getattr(self.config, "haptic_probe", None),
+            )
+        except Exception as e:
+            log.debug("haptic probe not started: %s", e)
+
         # DECK_BRIDGE_MARKER: RetinaEventBus -> Deck ws live (LIVE FEED ONLY - no mock)
         try:
             from qoresence.core import EventType as _ET  # local import to avoid cycle
@@ -1015,6 +1027,15 @@ class QoresenceApp:
                 pass
             self.otel_exporter = None
 
+        if getattr(self, "haptic_probe", None):
+            try:
+                from qoresence.sync.haptic_probe import stop_haptic_probe
+
+                stop_haptic_probe()
+            except Exception:
+                pass
+            self.haptic_probe = None
+
         self.bus.close()
 
         elapsed = time.time() - self._start_time
@@ -1301,6 +1322,8 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             enabled=True,
             endpoint=getattr(args, "otel_endpoint", None) or config.otel.endpoint,
         )
+    if getattr(args, "haptic_probe", False):
+        config.haptic_probe = replace(config.haptic_probe, enabled=True)
     if args.controller:
         config.controller = replace(
             config.controller, enabled=True, poll_rate_hz=args.controller_rate
@@ -1500,6 +1523,11 @@ def main():
         type=str,
         default="http://127.0.0.1:4317",
         help="OTLP gRPC endpoint (default: local collector on loopback)",
+    )
+    parser.add_argument(
+        "--haptic-probe",
+        action="store_true",
+        help="Private DualSense haptic/vibration observation JSONL (default OFF)",
     )
 
     # Streamr Network publisher

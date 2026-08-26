@@ -575,6 +575,20 @@ class StemConfig:
 
 
 @dataclass
+class HapticProbeConfig:
+    """Private DualSense haptic/vibration observation probe.
+
+    Default OFF. When enabled (``--haptic-probe`` / ``QORESENCE_HAPTIC_PROBE=1``)
+    records actuator-echo / output-rumble transients to ``logs/haptic/``.
+    Observation plane only — never licenses score digits or HID identity.
+    """
+
+    enabled: bool = False
+    out_dir: str = "logs/haptic"
+    queue_size: int = 1024
+
+
+@dataclass
 class OtelConfig:
     """OpenTelemetry exporter configuration (observation plane only).
 
@@ -652,6 +666,9 @@ class RetinaUnifiedConfig:
 
     # ── Observation-plane OTel exporter (default OFF) ───────────────────────
     otel: OtelConfig = field(default_factory=OtelConfig)
+
+    # ── Private haptic probe (default OFF; observation only) ────────────────
+    haptic_probe: HapticProbeConfig = field(default_factory=HapticProbeConfig)
 
     # ── Fusion Engine ────────────────────────────────────────────────────────
     fusion_weights: FusionWeights = field(default_factory=FusionWeights)
@@ -798,6 +815,7 @@ class RetinaUnifiedConfig:
         - QORESENCE_JSONL_PATH
         - QORESENCE_STUDIO_ENABLED (1/0)
         - QORESENCE_STUDIO_MAX_REELS
+        - QORESENCE_HAPTIC_PROBE (1/0, private observation, default 0)
         """
         import os
 
@@ -972,6 +990,11 @@ class RetinaUnifiedConfig:
             society=__import__(
                 "qoresence.agents.society.config", fromlist=["AgentSocietyConfig"]
             ).AgentSocietyConfig.from_env(),
+            haptic_probe=HapticProbeConfig(
+                enabled=_bool("QORESENCE_HAPTIC_PROBE"),
+                out_dir=_str("QORESENCE_HAPTIC_PROBE_DIR", "logs/haptic") or "logs/haptic",
+                queue_size=_int("QORESENCE_HAPTIC_PROBE_QUEUE", 1024) or 1024,
+            ),
         )
 
     # ─────────────────────────────────────────────────────────────────────────
