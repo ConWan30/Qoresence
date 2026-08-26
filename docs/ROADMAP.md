@@ -77,7 +77,7 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 - [x] Docs: `docs/SESSION_THEATER.md`, `docs/CIVIF.md`; tests: `tests/test_session_theater.py`, `tests/test_session_clip_link.py`, `tests/test_session_recap.py`
 - [x] Private DualSense haptic probe (default OFF, `#76` / `#77`)
 - [ ] Streamer overlay / broadcast presentation (separate milestone; Qoreeval gate)
-- [ ] Operator-bot corps lock: `docs/GROK_BOT_CORPS.md`
+- [x] Operator-bot corps lock: `docs/GROK_BOT_CORPS.md`
 
 ---
 
