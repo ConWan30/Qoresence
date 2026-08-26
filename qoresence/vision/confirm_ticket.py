@@ -91,15 +91,13 @@ def mint_confirm_ticket(
     quarter: int | None = None,
     down: int | None = None,
 ) -> ConfirmTicket:
-    # Normalize and validate source
+    # Normalize and validate source: ONLY seeing-path sources allowed
     normalized_source = normalize_source(source)
-    if not normalized_source or not is_seeing_source(normalized_source):
-        forbidden = {"local_hud", "chrome", "menu"}
-        if normalized_source in forbidden or not normalized_source:
-            raise ConfirmTicketSourceError(
-                f"Cannot mint ConfirmTicket with source={source!r}. "
-                f"Only seeing-path sources {SEEING_PATH_SOURCES} are allowed."
-            )
+    if not is_seeing_source(normalized_source):
+        raise ConfirmTicketSourceError(
+            f"Cannot mint ConfirmTicket with source={source!r}. "
+            f"Only seeing-path sources {SEEING_PATH_SOURCES} are allowed."
+        )
     
     hs, aws = _norm_int(home_score), _norm_int(away_score)
     payload = {

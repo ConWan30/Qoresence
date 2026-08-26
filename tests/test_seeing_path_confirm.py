@@ -72,6 +72,30 @@ def test_mint_with_empty_source_raises():
         )
 
 
+def test_mint_with_unknown_source_raises():
+    """mint_confirm_ticket(..., source="unknown") raises ConfirmTicketSourceError."""
+    with pytest.raises(ConfirmTicketSourceError, match="seeing-path"):
+        mint_confirm_ticket(
+            session_id="test",
+            clock_ns=100,
+            home_score=21,
+            away_score=14,
+            source="unknown",
+        )
+
+
+def test_mint_with_hud_source_raises():
+    """mint_confirm_ticket(..., source="hud") raises ConfirmTicketSourceError."""
+    with pytest.raises(ConfirmTicketSourceError, match="seeing-path"):
+        mint_confirm_ticket(
+            session_id="test",
+            clock_ns=100,
+            home_score=21,
+            away_score=14,
+            source="hud",
+        )
+
+
 def test_mint_with_gemini_succeeds():
     """mint_confirm_ticket(..., source="gemini") succeeds."""
     ticket = mint_confirm_ticket(
