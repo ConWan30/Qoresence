@@ -27,18 +27,18 @@ export function TheaterPage() {
   return (
     <main className="holo-deck flex h-dvh min-h-0 flex-col overflow-hidden bg-bg text-fg" onPointerMove={onPrism}>
       <CommandBar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="mx-auto flex h-full max-w-[88rem] flex-1 flex-col overflow-y-auto px-4 py-3 sm:px-5 sm:py-3">
-          <div className="grid items-start gap-3 min-[640px]:grid-cols-[minmax(0,1fr)_minmax(17.5rem,21rem)] min-[640px]:gap-4">
+      <div className="mx-auto flex h-full max-w-[88rem] flex-1 flex-col overflow-hidden px-4 py-3 sm:px-5 sm:py-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden sm:gap-4">
+          <div className="grid min-h-0 flex-1 items-start gap-3 min-[640px]:grid-cols-[minmax(0,1fr)_minmax(17.5rem,21rem)] min-[640px]:gap-4">
             <HdmiStage variant="deck" />
-            <aside className="flex flex-col gap-3" data-ops-strip="director-receipt">
+            <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto" data-ops-strip="director-receipt">
               <HighlightDirector />
               <AgentRail />
             </aside>
           </div>
-          <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] lg:gap-5">
+          <div className="grid min-h-0 items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] lg:gap-5">
             <ClutchFeed />
-            <aside className="flex flex-col gap-4">
+            <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto">
               <ConnectCard />
               <PadSyncCard />
               <SituationCard />

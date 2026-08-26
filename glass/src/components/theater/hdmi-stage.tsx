@@ -280,7 +280,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
       data-clutch={variant === "deck" ? pulse : undefined}
       className={cn(
         "relative isolate",
-        variant === "lens" ? "h-full min-h-0 w-full" : "holo-plinth overflow-hidden rounded-xl",
+        variant === "lens" ? "h-full min-h-0 w-full" : "holo-plinth min-h-0 flex-1 overflow-hidden rounded-xl",
       )}
       data-holo-tone={variant === "deck" ? health.tone : undefined}
       onPointerDown={() => void useTheater.getState().ensureCapture()}
@@ -290,7 +290,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" }) {
           "holo-plinth-well relative isolate z-0 overflow-hidden",
           variant === "lens"
             ? "h-full w-full"
-            : "mx-auto aspect-video max-h-[calc(100dvh-13.5rem)] w-full max-w-[min(100%,calc((100dvh-13.5rem)*16/9))] rounded-[calc(var(--radius-xl)-1px)] md:max-h-[calc(100dvh-11.5rem)] md:max-w-[min(100%,calc((100dvh-11.5rem)*16/9))]",
+            : "mx-auto aspect-video w-full rounded-[calc(var(--radius-xl)-1px)]",
         )}
       >
         <div
