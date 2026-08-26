@@ -30,7 +30,8 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opa
 #cmdStatus .dot{color:var(--ok);text-shadow:0 0 12px var(--ok)}
 #cmdStatus .dot.warn{color:var(--amber);text-shadow:0 0 12px var(--amber)}
 #cmdStatus .dot.bad{color:var(--danger);text-shadow:0 0 12px var(--danger)}
-.glass-nav{display:flex;flex:1 1 12rem;min-width:0;overflow-x:auto;padding:4px;border-radius:12px;background:color-mix(in oklab,#0e2018 80%,transparent);box-shadow:0 0 0 1px var(--line)}
+.glass-nav{display:flex;flex:1 1 100%;width:100%;min-width:0;flex-wrap:wrap;gap:2px;overflow-x:hidden;overflow-y:visible;scrollbar-width:none;padding:4px;border-radius:12px;background:color-mix(in oklab,#0e2018 80%,transparent);box-shadow:0 0 0 1px var(--line)}
+.glass-nav::-webkit-scrollbar{display:none;width:0;height:0}
 .glass-nav a{display:inline-flex;min-width:4rem;height:36px;align-items:center;justify-content:center;padding:0 12px;border-radius:8px;color:var(--muted);text-decoration:none;font:500 12px/1 Sora,system-ui,sans-serif;letter-spacing:0;text-transform:none;opacity:1;transition:color .15s,background .15s,box-shadow .15s,transform .08s}
 .glass-nav a:hover{color:var(--text);background:color-mix(in oklab,#c6f26a 10%,transparent)}
 .glass-nav a:active{transform:translateY(1px)}

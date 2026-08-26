@@ -316,14 +316,24 @@ html.obs-lens body::after {
 /* Keep in sync with qoresence/deck/session.css .glass-nav */
 .glass-nav {
   display: flex;
-  flex: 1 1 12rem;
+  flex: 1 1 100%;
+  width: 100%;
   min-width: 0;
   flex-wrap: wrap;
   gap: 2px;
+  overflow-x: hidden;
+  overflow-y: visible;
+  scrollbar-width: none;
   padding: 4px;
   border-radius: 12px;
   background: color-mix(in oklab, #0e2018 80%, transparent);
   box-shadow: 0 0 0 1px color-mix(in oklab, #c6f26a 14%, transparent);
+}
+
+.glass-nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .glass-nav a {

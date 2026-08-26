@@ -182,13 +182,24 @@ h2 {
 
 .glass-nav {
   display: flex;
-  flex: 1 1 12rem;
+  flex: 1 1 100%;
+  width: 100%;
   min-width: 0;
-  overflow-x: auto;
+  flex-wrap: wrap;
+  gap: 2px;
+  overflow-x: hidden;
+  overflow-y: visible;
+  scrollbar-width: none;
   padding: 4px;
   border-radius: 12px;
   background: color-mix(in oklab, #0e2018 80%, transparent);
   box-shadow: 0 0 0 1px var(--line);
+}
+
+.glass-nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .glass-nav a {
@@ -600,10 +611,6 @@ h2 {
 .ConfidenceIndicator.suppressed, .ConfidenceIndicator.unavailable { color: var(--fast); }
 
 .empty { color: var(--muted); }
-
-@media (min-width: 1100px) {
-  .chrome-row { flex-wrap: nowrap; }
-}
 
 @media (max-width: 1099px) {
   .chrome-row > .ModeSwitcher { order: 1; }
