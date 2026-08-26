@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { BroadcastClock } from "./broadcast-clock";
 import { HoloTally } from "./holo-tally";
 import { LockbugStrip } from "./lockbug-strip";
+import { TheaterModeChip } from "@/components/session/theater-mode-chip";
 
 const GLASSES = [
   { href: "/", label: "Home" },
@@ -174,6 +175,7 @@ export function CommandBar() {
             {stageMode === "replay" ? "PVW clip" : "PGM hdmi"}
           </span>
           <BroadcastClock />
+          <TheaterModeChip />
 
           <nav className="glass-nav min-w-0" aria-label="Glasses">
             {GLASSES.map((g) => (
