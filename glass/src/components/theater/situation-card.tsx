@@ -23,7 +23,7 @@ export function SituationCard() {
 
   const widgetsOk = livePaint && sameSeq && !planeDim;
   const licensed = widgetsOk && boardLocked && homeScore != null && awayScore != null && (confirm != null || boardLocked);
-  const line = widgetsOk ? situation || boardLine : "";
+  const line = licensed ? situation || boardLine : "";
 
   // Fail-closed: unlocked shows □–□ · — & —
   const fallback = licensed
