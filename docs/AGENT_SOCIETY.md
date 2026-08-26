@@ -13,6 +13,8 @@ Agent Society is a **leftover package**. Default OFF. `--play` does **not** turn
 
 They are **not** ClutchBot, **not** a Twitch poster, and **not** a capture owner. Do not promote Streamr, Twitch, or DePIN as the product route.
 
+Cursor / Grok **operator bots** (Qorector, Nine-Bot Society, Qorefront, Qoreeval and the other specialists) are documented in [GROK_BOT_CORPS.md](GROK_BOT_CORPS.md). That charter is not this leftover package and must not reintroduce personality roles.
+
 ## Enable (opt-in leftover)
 
 ```powershell
