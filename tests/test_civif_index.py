@@ -140,3 +140,25 @@ def test_scan_clips_attaches_civif(tmp_path):
     rows = scan_clips(tmp_path)
     assert len(rows) == 1
     assert rows[0]["civif"]["schema_version"] == "civif-v0"
+
+
+def test_scan_clips_max_n_keeps_newest(tmp_path):
+    import os
+
+    for i, stem in enumerate(("old", "mid", "new")):
+        side = build_coupling_sidecar(
+            clip_id=stem,
+            session_id="",
+            start_ns=1000,
+            end_ns=2000,
+            frame_start=1,
+            frame_end=2,
+            video_path=f"{stem}.mp4",
+            events=[],
+            coupling={},
+            coupling_history=[],
+        )
+        _write_clip(tmp_path, stem, sidecar=side)
+        os.utime(tmp_path / f"{stem}.mp4", (1_000 + i, 1_000 + i))
+    rows = scan_clips(tmp_path, max_n=2)
+    assert [r["stem"] for r in rows] == ["new", "mid"]

@@ -29,6 +29,9 @@ __all__ = [
     "push_input",
     "start_ivc",
     "stop_ivc",
+    "HapticProbe",
+    "start_haptic_probe",
+    "stop_haptic_probe",
 ]
 
 _LAZY = {
@@ -52,6 +55,9 @@ _LAZY = {
     "get_last_coupling": ("qoresence.sync.ivc", "get_last_coupling"),
     "start_ivc": ("qoresence.sync.ivc", "start_ivc"),
     "stop_ivc": ("qoresence.sync.ivc", "stop_ivc"),
+    "HapticProbe": ("qoresence.sync.haptic_probe", "HapticProbe"),
+    "start_haptic_probe": ("qoresence.sync.haptic_probe", "start_haptic_probe"),
+    "stop_haptic_probe": ("qoresence.sync.haptic_probe", "stop_haptic_probe"),
 }
 
 

@@ -11,6 +11,7 @@ const GLASSES = [
   { href: "/", label: "Home" },
   { href: "/deck.html", label: "Theater" },
   { href: "/session.html", label: "Session", offApp: true },
+  { href: "/civif.html", label: "CIVIF", offApp: true },
   { href: "/overlay.html", label: "Lens" },
   { href: "/studio.html", label: "Foundry" },
   { href: "/mobile.html", label: "Mobile" },
@@ -25,25 +26,18 @@ function GlassNavLink({
   href,
   label,
   pathname,
-  compact,
   offApp,
 }: {
   href: string;
   label: string;
   pathname: string;
-  compact?: boolean;
   offApp?: boolean;
 }) {
   const on = glassOn(href, label, pathname);
-  const className = cn(
-    compact
-      ? "stream-key inline-flex h-8 min-w-14 items-center justify-center px-2.5 text-xs font-medium"
-      : "inline-flex h-9 min-w-16 items-center justify-center rounded-md px-3 text-xs font-medium",
-    on ? "stream-key-live" : "text-muted-foreground",
-  );
+  const className = cn(on && "stream-key-live");
   if (offApp) {
     return (
-      <a href={href} className={className}>
+      <a href={href} className={className} aria-current={on ? "page" : undefined}>
         {label}
       </a>
     );
@@ -52,6 +46,7 @@ function GlassNavLink({
     <Link
       to={href as "/" | "/deck.html" | "/overlay.html" | "/studio.html" | "/mobile.html"}
       className={className}
+      aria-current={on ? "page" : undefined}
     >
       {label}
     </Link>
@@ -154,7 +149,7 @@ export function CommandBar() {
   return (
     <header className="holo-header sticky top-0 z-50 isolate">
       <div className="flex flex-col gap-1.5 px-4 py-2 sm:px-5">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex shrink-0 items-center gap-2.5">
             <span className="holo-mark grid size-8 place-items-center rounded-md font-display text-sm font-extrabold">
               Q
@@ -180,7 +175,7 @@ export function CommandBar() {
           </span>
           <BroadcastClock />
 
-          <nav className="hidden min-w-0 rounded-lg bg-subtle/80 p-1 shadow-[var(--shadow-border)] md:flex">
+          <nav className="glass-nav min-w-0" aria-label="Glasses">
             {GLASSES.map((g) => (
               <GlassNavLink
                 key={g.href}
@@ -273,18 +268,6 @@ export function CommandBar() {
               SYNC {syncLagMs}ms{bindKind ? ` · ${bindKind}` : ""}
             </span>
           </div>
-          <nav className="flex flex-wrap gap-1 md:hidden">
-            {GLASSES.map((g) => (
-              <GlassNavLink
-                key={g.href}
-                href={g.href}
-                label={g.label}
-                pathname={active}
-                compact
-                offApp={"offApp" in g && g.offApp}
-              />
-            ))}
-          </nav>
         </div>
       </div>
     </header>

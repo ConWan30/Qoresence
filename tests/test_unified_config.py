@@ -187,6 +187,8 @@ class TestRetinaUnifiedConfigDefaults:
         assert config.screen.enabled is False
         assert config.outcome.enabled is False
         assert config.visual.enabled is False
+        assert config.haptic_probe.enabled is False
+        assert config.otel.enabled is False
 
     def test_safety_contracts_default_true(self):
         config = RetinaUnifiedConfig(

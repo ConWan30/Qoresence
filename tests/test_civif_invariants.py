@@ -253,3 +253,58 @@ def test_metrics_hook_tracks_ticks_and_highlights(tmp_path):
     assert hc[0]["min"] == 0.55
     assert hc[0]["max"] == 0.55
     assert hc[0]["mean"] == 0.55
+
+
+def test_civif_live_and_highlights_run_inline_not_threadpooled():
+    """CIVIF page showed live unavailable because live sat on the clip thread pool."""
+    import inspect
+
+    from qoresence.deck.server import create_app
+
+    app = create_app()
+    src = ""
+    for route in app.routes:
+        if getattr(route, "path", None) == "/api/civif/live":
+            src = inspect.getsource(route.endpoint)
+            break
+    assert src
+    assert "asyncio.to_thread" not in src
+    assert "handle_civif_live" in src
+
+
+def test_civif_html_skips_live_poll_while_inflight():
+    from pathlib import Path
+
+    html = (Path(__file__).resolve().parents[1] / "qoresence" / "deck" / "civif.html").read_text(
+        encoding="utf-8"
+    )
+    assert "let liveInflight" in html
+    assert "if (liveInflight) return" in html
+    assert html.count("setInterval(tickLive") == 1
+
+
+def test_civif_disk_routes_stay_threadpooled():
+    """Highlights/query/clips/narrative scan clips/ — must not hitch the JPEG loop."""
+    from pathlib import Path
+
+    text = (
+        Path(__file__).resolve().parents[1] / "qoresence" / "deck" / "server.py"
+    ).read_text(encoding="utf-8")
+
+    def chunk(path: str) -> str:
+        key = f'@app.get("{path}")'
+        start = text.index(key)
+        nxt = text.find("@app.get", start + len(key))
+        return text[start:nxt]
+
+    live = chunk("/api/civif/live")
+    assert "asyncio.to_thread" not in live
+    assert "handle_civif_live" in live
+    for path in (
+        "/api/civif/highlights",
+        "/api/civif/query",
+        "/api/clips",
+        "/api/civif/narrative",
+    ):
+        body = chunk(path)
+        assert "asyncio.to_thread" in body, path

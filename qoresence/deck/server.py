@@ -1764,25 +1764,23 @@ def create_app():  # type: ignore[no-untyped-def]
 
                 root = pathlib.Path(DEFAULT_OUT_DIR)
                 items: list[dict[str, Any]] = []
-                if root.exists():
-                    for p in sorted(
-                        root.glob("hdmi_clip_*.*"),
-                        key=lambda x: x.stat().st_mtime,
-                        reverse=True,
-                    ):
-                        if p.suffix.lower() not in {".mp4", ".avi"}:
-                            continue
-                        items.append(
-                            {
-                                "name": p.name,
-                                "path": str(p.resolve()),
-                                "url": f"/media/clips/{p.name}",
-                                "size_bytes": p.stat().st_size,
-                                "mtime": p.stat().st_mtime,
-                            }
-                        )
-                        if len(items) >= 40:
-                            break
+                if not root.exists():
+                    return items
+                videos = list(root.glob("hdmi_clip_*.mp4")) + list(
+                    root.glob("hdmi_clip_*.avi")
+                )
+                videos.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                for p in videos[:40]:
+                    st = p.stat()
+                    items.append(
+                        {
+                            "name": p.name,
+                            "path": str(p.resolve()),
+                            "url": f"/media/clips/{p.name}",
+                            "size_bytes": st.st_size,
+                            "mtime": st.st_mtime,
+                        }
+                    )
                 return items
 
             items = await asyncio.to_thread(_list_clips)
@@ -1810,14 +1808,10 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/api/civif/live")
     async def api_civif_live():  # type: ignore[no-untyped-def]
-        def _live() -> dict[str, Any]:
-            from qoresence.mcp.server import handle_civif_live
-
-            return handle_civif_live()
+        from qoresence.mcp.server import handle_civif_live
 
         try:
-            body = await asyncio.to_thread(_live)
-            return JSONResponse(body)
+            return JSONResponse(handle_civif_live())
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
@@ -2140,37 +2134,28 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/api/session/view")
     async def api_session_view(fixture: str = "", session_id: str = ""):  # type: ignore[no-untyped-def]
-        def _envelope() -> dict[str, Any]:
-            from qoresence.foundry.session_view import build_session_response
-
-            return build_session_response(
-                session_id=session_id, fixture=fixture, live_situation=_state.situation
-            )
+        # Inline like /health — a thread-pool hop queued behind clip/civif and starved Theater.
+        from qoresence.foundry.session_view import build_session_response
 
         try:
-            body = await asyncio.to_thread(_envelope)
-            return JSONResponse(body)
+            body = build_session_response(
+                session_id=session_id, fixture=fixture, live_situation=_state.situation
+            )
         except Exception:
-            from qoresence.foundry.session_view import build_session_response
-
-            return JSONResponse(build_session_response(session_id=""))
+            body = build_session_response(session_id="")
+        return JSONResponse(body)
 
     @app.get("/api/session/recap")
     async def api_session_recap(fixture: str = "", session_id: str = ""):  # type: ignore[no-untyped-def]
-        def _recap() -> dict[str, Any]:
-            from qoresence.foundry.session_view import build_session_recap
-
-            return build_session_recap(
-                session_id=session_id, fixture=fixture, live_situation=_state.situation
-            )
+        from qoresence.foundry.session_view import build_session_recap
 
         try:
-            body = await asyncio.to_thread(_recap)
-            return JSONResponse(body)
+            body = build_session_recap(
+                session_id=session_id, fixture=fixture, live_situation=_state.situation
+            )
         except Exception:
-            from qoresence.foundry.session_view import build_session_recap
-
-            return JSONResponse(build_session_recap(session_id=""))
+            body = build_session_recap(session_id="")
+        return JSONResponse(body)
 
     @app.get("/mobile.html")
     async def mobile_glass():  # type: ignore[no-untyped-def]

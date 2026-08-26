@@ -58,6 +58,16 @@ def test_session_page_is_not_clip_docked():
     assert "clip-dock.js" not in js
 
 
+def test_session_js_skips_poll_while_inflight():
+    """1s tickAll must not stack view+recap fetches while a poll is in flight."""
+    js = SESSION_JS.read_text(encoding="utf-8")
+    assert "let inflight" in js
+    assert "if (inflight) return" in js
+    assert "inflight = true" in js
+    assert "inflight = false" in js
+    assert js.count("setInterval") == 1
+
+
 def test_bodied_locked_shows_digits_and_r2():
     view = view_from_fixture("bodied_locked")
     assert view["board_locked"] is True
@@ -269,6 +279,24 @@ def test_fixtures_exist():
         "empty_not_persisted",
         "empty_persisted",
     } <= names
+
+
+def test_session_view_recap_run_inline_not_threadpooled():
+    """Theater Confirmed hung because view/recap waited on the clip/civif pool."""
+    import inspect
+
+    from qoresence.deck.server import create_app
+
+    app = create_app()
+    src: dict[str, str] = {}
+    for route in app.routes:
+        path = getattr(route, "path", None)
+        if path in ("/api/session/view", "/api/session/recap"):
+            src[path] = inspect.getsource(route.endpoint)
+    assert src.keys() >= {"/api/session/view", "/api/session/recap"}
+    for path, body in src.items():
+        assert "asyncio.to_thread" not in body, path
+        assert "build_session_" in body, path
 
 
 def test_api_session_view_overlays_deck_situation(monkeypatch):

@@ -352,9 +352,16 @@
     }
   }
   async function tickAll() {
-    await tick();
-    await tickRecap();
+    if (inflight) return;
+    inflight = true;
+    try {
+      await tick();
+      await tickRecap();
+    } finally {
+      inflight = false;
+    }
   }
+  let inflight = false;
   tickAll();
   setInterval(tickAll, 1000);
   document.addEventListener("pointermove", function (e) {

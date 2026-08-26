@@ -37,9 +37,12 @@ def _load_json(path):
     return None
 
 
-def scan_clips(clips_dir=None):
+def scan_clips(clips_dir=None, max_n=None):
     d = Path(clips_dir) if clips_dir is not None else _clips_dir()
     out = []
+    cap = int(max_n) if max_n is not None else None
+    if cap is not None and cap <= 0:
+        return out
     try:
         if not d.exists():
             return out
@@ -90,6 +93,8 @@ def scan_clips(clips_dir=None):
                     "civif": civif,
                 }
             )
+            if cap is not None and len(out) >= cap:
+                break
     except Exception as e:
         log.debug("scan_clips: %s", e)
     return out

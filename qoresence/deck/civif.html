@@ -3,29 +3,48 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050a08">
 <title>CIVIF — Coupled Event Record</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Sora:wght@400;500;600&family=Syne:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="/session.css">
 <style>
-:root{--bg:#080B10;--text:#EEF5F4;--muted:#91A1AD;--gold:#C8F26A;--cyan:#68D9E8;--line:rgba(190,214,232,.14);--dim:#5a6a75}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,sans-serif}
-header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
-header strong{color:var(--gold);letter-spacing:.08em;text-transform:uppercase;font-size:12px}
-a{color:var(--cyan)}section{padding:16px 20px;border-bottom:1px solid var(--line)}
-h2{margin:0 0 8px;font:800 11px/1 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+section{padding:16px 20px;border-bottom:1px solid var(--line)}
+section h2{margin:0 0 8px;font:800 11px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 pre{white-space:pre-wrap;color:var(--muted);max-width:52rem}
-button{appearance:none;background:transparent;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;margin:0 8px 8px 0;cursor:pointer}
-.flags{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0;font:700 11px/1 ui-monospace,monospace}
-.flag{padding:6px 10px;border-radius:999px;border:1px solid var(--line);color:var(--dim)}
-.flag.on{color:var(--gold);border-color:var(--gold)}
+button{appearance:none;background:transparent;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px 12px;margin:0 8px 8px 0;cursor:pointer}
+.flags{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0;font:700 11px/1 var(--font-mono)}
+.flag{padding:6px 10px;border-radius:999px;border:1px solid var(--line);color:var(--subtle-fg)}
+.flag.on{color:var(--live);border-color:var(--live)}
 .muted{opacity:.45}
 label{margin-right:14px;color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
-<header>
-  <strong>CIVIF</strong>
-  <a href="/deck.html">Theater</a>
-  <a href="/studio.html">Foundry</a>
-  <span style="color:var(--muted);font-size:12px">Live HDMI stays on Theater. This page polls JSON ~1 Hz, not JPEG.</span>
+<header class="SessionHeader holo-header">
+  <div class="chrome-row">
+    <div class="brand">
+      <span class="holo-mark" aria-hidden="true">Q</span>
+      <span class="brand-copy">
+        <strong>Retina Deck</strong>
+        <small>coupled event record</small>
+      </span>
+    </div>
+    <nav class="glass-nav" aria-label="Glasses">
+      <a href="/">Home</a>
+      <a href="/deck.html">Theater</a>
+      <a href="/session.html">Session</a>
+      <a href="/civif.html" aria-current="page">CIVIF</a>
+      <a href="/overlay.html">Lens</a>
+      <a href="/studio.html">Foundry</a>
+      <a href="/mobile.html">Mobile</a>
+    </nav>
+  </div>
+  <div class="status-row">
+    <span class="take-label">Live HDMI stays on Theater. This page polls JSON ~1 Hz, not JPEG.</span>
+  </div>
 </header>
 <section>
   <h2>Live record</h2>
@@ -59,7 +78,10 @@ label{margin-right:14px;color:var(--muted);font-size:13px}
 </section>
 <script>
 function yn(v){ return v ? "yes" : "no"; }
+let liveInflight = false;
 async function tickLive() {
+  if (liveInflight) return;
+  liveInflight = true;
   try {
     const r = await fetch("/api/civif/live");
     const d = await r.json();
@@ -91,6 +113,8 @@ async function tickLive() {
     renderCoach(d);
   } catch (e) {
     document.getElementById("live").textContent = "live unavailable";
+  } finally {
+    liveInflight = false;
   }
 }
 function selectedCoachKind() {
