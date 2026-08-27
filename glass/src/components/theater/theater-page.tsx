@@ -3,6 +3,12 @@ import { CommandBar } from "@/components/theater/command-bar";
 import { HdmiStage } from "@/components/theater/hdmi-stage";
 import { ObservatoryHUD } from "@/components/theater/observatory-hud";
 import { IntelligenceChamber } from "@/components/theater/intelligence-chamber";
+import { SituationCard } from "@/components/theater/situation-card";
+import { ClutchFeed } from "@/components/theater/clutch-feed";
+import { ConnectCard } from "@/components/theater/connect-card";
+import { PadSyncCard } from "@/components/theater/pad-sync-card";
+import { CouplingCard } from "@/components/theater/coupling-card";
+import { AgentRail } from "@/components/theater/agent-rail";
 import { useTheaterLoop } from "@/lib/coupling/loop";
 
 export function TheaterPage() {
@@ -27,15 +33,28 @@ export function TheaterPage() {
       {/* Command bar: intrinsic height, no shrink */}
       <CommandBar />
 
-      {/* HDMI stage: fills leftover viewport, no scroll */}
-      <div className="relative flex flex-1 flex-col overflow-hidden px-4 pb-3 sm:px-5 sm:pb-4">
-        <div className="relative h-full w-full">
-          <HdmiStage variant="observatory" />
-          <ObservatoryHUD />
+      {/* Split layout: HDMI stage (left) + Intelligence column (right) */}
+      <div className="mx-auto flex w-full max-w-[88rem] min-h-0 flex-1 flex-row gap-4 overflow-hidden px-4 pb-3 sm:px-5 sm:pb-4">
+        {/* LEFT: HDMI stage container with ObservatoryHUD overlay */}
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="relative h-full w-full">
+            <HdmiStage variant="observatory" />
+            <ObservatoryHUD />
+          </div>
         </div>
+
+        {/* RIGHT: Intelligence column - always visible, scrollable */}
+        <aside className="flex min-h-0 w-full min-w-[18rem] max-w-[21rem] flex-col gap-3 overflow-y-auto sm:gap-4">
+          <SituationCard />
+          <ClutchFeed />
+          <ConnectCard />
+          <PadSyncCard />
+          <CouplingCard />
+          <AgentRail />
+        </aside>
       </div>
 
-      {/* Intelligence chamber: drawer from right */}
+      {/* Intelligence chamber: optional drawer for extra access */}
       <IntelligenceChamber />
     </main>
   );
