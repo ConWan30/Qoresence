@@ -146,7 +146,7 @@ def snapshot_ghost_stick(
     live_paint: Any | None = None,
     situation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Cheap read of IVC + InputRing. Never copies BGR. Never emits bus events."""
+    """Cheap read of IVC + hid_by_seq. Never copies BGR. Never emits bus events."""
     on = ghost_stick_enabled()
     paint_reason = "no_frame"
     same_seq = False
@@ -175,20 +175,28 @@ def snapshot_ghost_stick(
         coupling_payload = {}
     coupling = float(coupling_payload.get("coupling") or coupling_payload.get("coupling_ema") or 0.0)
     lag = _lag_ms(coupling_payload)
-    video_ns = int(coupling_payload.get("video_clock_ns") or 0)
     if live_seq <= 0:
         try:
             live_seq = int(coupling_payload.get("frame_seq") or 0)
         except (TypeError, ValueError):
             live_seq = 0
 
+    # Read HID from delay line by seq, not HID[now]
     pose = None
-    if on and video_ns > 0:
+    if on and live_seq > 0:
         try:
-            from qoresence.sync.input_ring import get_input_ring
+            from qoresence.sync.hid_seq_line import get_sample
 
-            target = video_ns - int(lag * 1e6)
-            pose = get_input_ring().pose_at(target, max_age_ms=DEFAULT_HOLD_FRESH_MS)
+            sample = get_sample(live_seq)
+            if sample is not None:
+                # Convert HidSeqSample to AnalogPose for decide_ghost_stick
+                pose = AnalogPose(
+                    clock_ns=sample.hid_clock_ns,
+                    lx=sample.lx,
+                    ly=sample.ly,
+                    r2=sample.r2,
+                    l2=sample.l2,
+                )
         except Exception:
             pose = None
 

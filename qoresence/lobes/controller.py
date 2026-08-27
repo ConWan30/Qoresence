@@ -82,6 +82,8 @@ class ControllerState:
     # Timestamp
     device_ts: int = 0
     host_ts_ns: int = 0
+    # HID domain (observe vs play)
+    hid_domain: str = "play"
 
 
 # Button bitmasks (DualSense standard layout)
@@ -156,10 +158,13 @@ class ControllerRuntime:
         # HID device
         self._device: hid.Device | None = None
         self._device_path: str | None = None
+        self._device_vid: int | None = None
+        self._device_pid: int | None = None
         self._connected = False
         self._reconnects = 0
         self._reconnect_s = 1.5
         self._last_transport: str | None = None
+        self._hid_domain: str = "play"
         self._ever_connected = False
 
         # State
@@ -306,6 +311,9 @@ class ControllerRuntime:
             except Exception:
                 pass
         self._device = None
+        self._device_vid = None
+        self._device_pid = None
+        self._hid_domain = "play"
         self._connected = False
 
     def _open_device(self, *, quiet: bool = False) -> bool:
@@ -318,7 +326,9 @@ class ControllerRuntime:
                 path_b = path.encode() if isinstance(path, str) else path
                 self._device.open_path(path_b)
                 self._device_path = path if isinstance(path, str) else path.decode(errors="replace")
-                log.info("Controller HID opened by path: %s", self._device_path)
+                # Try to extract VID/PID from path or enumerate for domain detection
+                self._detect_domain_from_device()
+                log.info("Controller HID opened by path: %s (domain=%s)", self._device_path, self._hid_domain)
                 return True
             except Exception as e:
                 log.error("Failed to open HID path %s: %s", self.config.device_path, e)
@@ -332,7 +342,10 @@ class ControllerRuntime:
                 vid, pid = int(self.config.device_vid), int(self.config.device_pid)
                 self._device.open(vid, pid)
                 self._device_path = f"vid={vid:04x},pid={pid:04x}"
-                log.info("Controller HID opened: %s", self._device_path)
+                self._device_vid = vid
+                self._device_pid = pid
+                self._detect_domain(vid=vid, pid=pid, transport=None)
+                log.info("Controller HID opened: %s (domain=%s)", self._device_path, self._hid_domain)
                 return True
             except Exception as e:
                 log.error(
@@ -368,11 +381,16 @@ class ControllerRuntime:
                 self._device = HIDDevice()
                 path_b = path.encode() if isinstance(path, str) else path
                 self._device.open_path(path_b)
+                vid = int(c.get("vid") or 0)
+                pid = int(c.get("pid") or 0)
+                self._device_vid = vid
+                self._device_pid = pid
                 self._device_path = (
-                    f"{c.get('product') or 'Sony'} vid={int(c.get('vid') or 0):04x},"
-                    f"pid={int(c.get('pid') or 0):04x}"
+                    f"{c.get('product') or 'Sony'} vid={vid:04x},"
+                    f"pid={pid:04x}"
                 )
-                log.info("Controller HID opened: %s", self._device_path)
+                self._detect_domain(vid=vid, pid=pid, transport=None)
+                log.info("Controller HID opened: %s (domain=%s)", self._device_path, self._hid_domain)
                 return True
             except Exception as e:
                 last_err = e
@@ -384,8 +402,11 @@ class ControllerRuntime:
             try:
                 self._device = HIDDevice()
                 self._device.open(DS_EDGE_VID, pid)
+                self._device_vid = DS_EDGE_VID
+                self._device_pid = pid
                 self._device_path = f"vid={DS_EDGE_VID:04x},pid={pid:04x}"
-                log.info("Controller HID opened: %s", self._device_path)
+                self._detect_domain(vid=DS_EDGE_VID, pid=pid, transport=None)
+                log.info("Controller HID opened: %s (domain=%s)", self._device_path, self._hid_domain)
                 return True
             except Exception as e:
                 last_err = e
@@ -402,6 +423,29 @@ class ControllerRuntime:
         else:
             log.warning(msg)
         return False
+
+    def _detect_domain_from_device(self) -> None:
+        """Detect domain from open device info."""
+        if not self._device:
+            self._hid_domain = "play"
+            return
+        try:
+            info = self._device.get_product_string()
+            # Try to get VID/PID from manufacturer string or path
+            self._detect_domain(vid=self._device_vid, pid=self._device_pid, transport=None)
+        except Exception:
+            self._hid_domain = "play"
+
+    def _detect_domain(self, *, vid: int | None, pid: int | None, transport: str | None) -> None:
+        """Classify HID domain (observe vs play)."""
+        try:
+            from qoresence.sync.hid_domain import classify_hid_domain
+
+            domain = classify_hid_domain(vid=vid, pid=pid, transport=transport)
+            self._hid_domain = domain.value
+        except Exception as e:
+            log.debug("HID domain detection failed: %s", e)
+            self._hid_domain = "play"
 
     def _enumerate_devices(self) -> list[dict]:
         """List all HID devices for debugging."""
@@ -504,10 +548,19 @@ class ControllerRuntime:
         state = ControllerState()
         state.device_ts = int(time.time() * 1_000_000)
         state.host_ts_ns = clock_ns()
+        state.hid_domain = self._hid_domain
         if len(report) < 8:
             return state
         parsed = parse_report(report)
         self._last_transport = str(parsed.get("transport") or "") or None
+        # Re-detect domain now that we have transport info
+        if self._last_transport and self._device_vid and self._device_pid:
+            self._detect_domain(
+                vid=self._device_vid,
+                pid=self._device_pid,
+                transport=self._last_transport,
+            )
+            state.hid_domain = self._hid_domain
         state.buttons = int(parsed["buttons"])
         state.l2 = int(parsed["l2"])
         state.r2 = int(parsed["r2"])
@@ -669,17 +722,20 @@ class ControllerRuntime:
         name: str,
         value: float,
         clock_ns: int,
+        hid_domain: str,
         buttons_mask: int | None = None,
     ) -> None:
         """Best-effort InputRing edge for IVC / clip sidecar (additive)."""
         try:
             from qoresence.sync.event_bind import HidOnset, get_event_binder
+            from qoresence.sync.hid_domain import allow_imu_bodied
             from qoresence.sync.imu_ring import get_imu_ring
             from qoresence.sync.input_ring import push as _ring_push
 
             frame_seq = self._latest_frame_seq()
             precursor = None
-            if kind in {"press", "trigger"}:
+            # Only set imu_precursor for PLAY pad
+            if kind in {"press", "trigger"} and allow_imu_bodied(hid_domain):
                 try:
                     precursor = get_imu_ring().precursor_ms(clock_ns)
                 except Exception:
@@ -693,6 +749,7 @@ class ControllerRuntime:
                     "buttons_mask": buttons_mask,
                     "frame_seq": frame_seq,
                     "imu_precursor_ms": precursor,
+                    "hid_domain": hid_domain,
                 }
             )
             if kind in {"press", "trigger"}:
@@ -737,7 +794,7 @@ class ControllerRuntime:
                 clock_ns_override=now_ns,
                 session_head_ns=self.session_head_ns,
             )
-            self._push_input_ring(kind="trigger", name="L2", value=amp, clock_ns=now_ns)
+            self._push_input_ring(kind="trigger", name="L2", value=amp, clock_ns=now_ns, hid_domain=state.hid_domain)
         # R2 — debounce: count consecutive readings above threshold
         if state.r2 > self._trigger_threshold:
             self._r2_above_count += 1
@@ -759,7 +816,7 @@ class ControllerRuntime:
                 clock_ns_override=now_ns,
                 session_head_ns=self.session_head_ns,
             )
-            self._push_input_ring(kind="trigger", name="R2", value=amp, clock_ns=now_ns)
+            self._push_input_ring(kind="trigger", name="R2", value=amp, clock_ns=now_ns, hid_domain=state.hid_domain)
 
         self._prev_l2 = state.l2
         self._prev_r2 = state.r2
@@ -801,7 +858,7 @@ class ControllerRuntime:
                 # InputRing: edge only (center → outside)
                 if not was_outside:
                     mag = min(1.0, max(dx, dy) / 127.0)
-                    self._push_input_ring(kind="stick", name=stick, value=mag, clock_ns=now_ns)
+                    self._push_input_ring(kind="stick", name=stick, value=mag, clock_ns=now_ns, hid_domain=state.hid_domain)
 
     def _emit_tremor_sample(self, state: ControllerState, now_ns: int) -> None:
         """Emit IMU tremor sample for biometric correlation."""
@@ -858,6 +915,7 @@ class ControllerRuntime:
                     name=name,
                     value=1.0,
                     clock_ns=now_ns,
+                    hid_domain=state.hid_domain,
                     buttons_mask=int(pressed) if pressed else None,
                 )
             elif released & mask:
@@ -874,7 +932,7 @@ class ControllerRuntime:
                     clock_ns_override=now_ns,
                     session_head_ns=self.session_head_ns,
                 )
-                self._push_input_ring(kind="release", name=name, value=0.0, clock_ns=now_ns)
+                self._push_input_ring(kind="release", name=name, value=0.0, clock_ns=now_ns, hid_domain=state.hid_domain)
 
     def _emit_controller_event(self, state: ControllerState, now_ns: int) -> None:
         """Emit periodic full state snapshot."""
