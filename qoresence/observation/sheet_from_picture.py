@@ -144,21 +144,44 @@ def map_visual_phase_to_sheet(
     return None
 
 
-def get_visual_phase_from_context(visual_context: dict[str, Any]) -> str | None:
+def get_visual_phase_from_context(visual_context: dict[str, Any] | Any) -> str | None:
     """Extract visual_phase from visual_context payload (fail-closed).
 
     Looks for visual_phase in:
     1. visual_context.details.visual_phase (preferred)
     2. visual_context.visual_phase (fallback)
+    
+    Coerces VisualContext dataclass to dict automatically.
 
     Args:
-        visual_context: Visual context payload from VLM
+        visual_context: Visual context payload from VLM or VisualContext dataclass
 
     Returns:
         visual_phase string or None if not found
     """
     if not visual_context:
         return None
+    
+    # Coerce VisualContext dataclass to dict if needed
+    if not isinstance(visual_context, dict):
+        if hasattr(visual_context, "to_dict"):
+            try:
+                visual_context = visual_context.to_dict()
+            except Exception:
+                return None
+        elif hasattr(visual_context, "details"):
+            # Try to read details directly from dataclass
+            try:
+                details = getattr(visual_context, "details", None)
+                if isinstance(details, dict) and "visual_phase" in details:
+                    vp = details.get("visual_phase")
+                    if vp is not None:
+                        return str(vp).strip().lower()
+            except Exception:
+                pass
+            return None
+        else:
+            return None
 
     # Preferred: details.visual_phase
     details = visual_context.get("details")

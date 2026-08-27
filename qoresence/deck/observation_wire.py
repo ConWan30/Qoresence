@@ -69,26 +69,50 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
         frame_seq = int(frame_seq)
         clock_ns = int(clock_ns or 0)
 
-        # Get game_profile
-        game_profile = situation.get("game_profile")
-
-        # Get visual_context from VisualOracle
-        visual_context: dict[str, Any] | None = None
+        # Get visual_context from VisualRuntime (live lobe context)
+        visual_context_obj = None
+        visual_context_dict: dict[str, Any] | None = None
+        
         try:
-            from qoresence.vision.visual_oracle import get_visual_oracle
-
-            oracle = get_visual_oracle()
-            if oracle is not None:
-                visual_context = oracle.latest_context()
+            from qoresence.lobes.visual import get_last_visual_context
+            
+            visual_context_obj = get_last_visual_context()
+            if visual_context_obj is not None:
+                # Coerce VisualContext dataclass to dict for sheet_from_picture
+                if hasattr(visual_context_obj, "to_dict"):
+                    visual_context_dict = visual_context_obj.to_dict()
+                elif isinstance(visual_context_obj, dict):
+                    visual_context_dict = visual_context_obj
+                elif hasattr(visual_context_obj, "__dict__"):
+                    visual_context_dict = visual_context_obj.__dict__
         except Exception:
-            visual_context = None
+            pass
 
-        # Extract visual_phase from visual_context
+        # Extract visual_phase from visual_context (fail-closed)
         visual_phase = None
-        if visual_context:
+        if visual_context_dict:
             from qoresence.observation.sheet_from_picture import get_visual_phase_from_context
 
-            visual_phase = get_visual_phase_from_context(visual_context)
+            visual_phase = get_visual_phase_from_context(visual_context_dict)
+        
+        # Get game_profile with fallback chain
+        # 1. situation.game_profile (most reliable, from SituationModel)
+        # 2. visual_context.game_profile
+        # 3. profile_from_title(situation.game_title or visual_context.game_title)
+        game_profile = situation.get("game_profile")
+        if not game_profile and visual_context_dict:
+            game_profile = visual_context_dict.get("game_profile")
+        if not game_profile:
+            # Try to infer from game_title
+            game_title = situation.get("game_title")
+            if not game_title and visual_context_dict:
+                game_title = visual_context_dict.get("game_title")
+            if game_title:
+                title_lower = str(game_title).lower()
+                if "madden" in title_lower:
+                    game_profile = "madden_27"
+                elif any(x in title_lower for x in ["college football", "ncaa", "cfb"]):
+                    game_profile = "ncaa_football_27"
 
         # Determine which control lookup to use (Madden vs CFB)
         is_madden = False
@@ -106,7 +130,7 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
             observations = observe_button_press(
                 frame_seq=frame_seq,
                 clock_ns=clock_ns,
-                visual_context=visual_context,
+                visual_context=visual_context_dict,
             )
         elif is_cfb:
             from qoresence.observation.cfb_controls import observe_button_press
@@ -114,18 +138,37 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
             observations = observe_button_press(
                 frame_seq=frame_seq,
                 clock_ns=clock_ns,
-                visual_context=visual_context,
+                visual_context=visual_context_dict,
             )
 
-        # Return None if no observations (no HID input at this frame)
-        if not observations:
+        # Get HID button from hid_by_seq even if we don't have game profile
+        # NEVER drop unlabeled observations - they are honest empty state
+        hid_button = None
+        verb = None
+        mode = None
+        
+        if observations:
+            # Take the first observation (most recent button press)
+            obs = observations[0]
+            hid_button = obs.hid_button
+            verb = obs.verb
+            mode = obs.mode
+        else:
+            # No game profile match OR no visual context for verb lookup
+            # BUT: still check if there's HID input at this frame (unlabeled press)
+            try:
+                from qoresence.sync.hid_seq_line import get_sample
+                
+                sample = get_sample(frame_seq)
+                if sample and sample.buttons:
+                    # Unlabeled HID press: hid_button present, verb/mode None
+                    hid_button = sample.buttons[0] if sample.buttons else None
+            except Exception:
+                pass
+        
+        # Return None only if NO HID input at all (not just unlabeled)
+        if hid_button is None:
             return None
-
-        # Take the first observation (most recent button press)
-        obs = observations[0]
-        hid_button = obs.hid_button
-        verb = obs.verb
-        mode = obs.mode
 
         # Detect sheet conflict (picture sheet vs pad sheet)
         conflict = None
