@@ -4,9 +4,9 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 export const QS_BASE = "https://api.quicksilverpro.io/v1";
-export const QS_CHAT_MODEL = "nemotron-3.5-lightning";
+export const QS_CHAT_MODEL = "deepseek-v4-flash";
 export const QS_FALLBACK = "gpt-4o-mini";
-export const QS_SCENE_MODEL = "gemini-3.5-flash-lite";
+export const QS_SCENE_MODEL = "deepseek-v4-flash";
 
 const KEY_ENV = [
   "QUICKSILVER_API_KEY",
