@@ -144,12 +144,16 @@ export type TheaterState = {
   companion: AgentCompanion;
   actuators: ActuatorReceipt[];
   framed: boolean;
-  /** LAYER A/B: Observatory observation fields */
+  /** LAYER A/B: Observatory observation fields (per-frame wire) */
   observationHidButton: string | null;
   observationVerb: string | null;
   observationMode: string | null;
   observationVisualPhase: string | null;
   observationConflict: { pictureSheet: string; padSheet: string; kind: string; reason: string | null } | null;
+  /** Sticky hidButton: last simple press + verb (may be null) + timestamp for TTL. */
+  stickyHidButton: string | null;
+  stickyHidButtonVerb: string | null;
+  stickyHidButtonAt: number;
   setR2: (v: number) => void;
   setLeft: (v: number) => void;
   setHdmi: (m: HdmiMode) => void;
@@ -326,6 +330,9 @@ export const useTheater = create<TheaterState>((set, get) => ({
   observationMode: null,
   observationVisualPhase: null,
   observationConflict: null,
+  stickyHidButton: null,
+  stickyHidButtonVerb: null,
+  stickyHidButtonAt: 0,
   livePaint: true,
   sameSeq: true,
   planeDim: false,
@@ -605,12 +612,30 @@ export const useTheater = create<TheaterState>((set, get) => ({
       padBinds: ing.padBinds,
       padJitterMs: ing.padJitterMs,
       padHidSeq: ing.padHidSeq || s.padHidSeq,
-      observationHidButton: ing.observation.hidButton,
       observationVerb: ing.observation.verb,
       observationMode: ing.observation.mode,
       observationVisualPhase: ing.observation.visualPhase,
       observationConflict: ing.observation.conflict,
     });
+    // Sticky hidButton: store last simple press (single button, not combo) with TTL.
+    // Clear on Dark / planeDim / !sameSeq / !livePaint / replay.
+    // Do NOT write observationHidButton every frame — that nulls TTL when observation is empty.
+    const clearSticky = s.stageMode === "replay" || !paint || !sameSeq || planeDim;
+    if (clearSticky) {
+      if (s.stickyHidButton !== null) {
+        set({ stickyHidButton: null, stickyHidButtonVerb: null, stickyHidButtonAt: 0 });
+      }
+    } else if (ing.observation.hidButton) {
+      // Only sticky simple presses (no combos like "L2+R2" or multi-button chords).
+      const isSimple = !ing.observation.hidButton.includes("+") && !ing.observation.hidButton.includes(",");
+      if (isSimple) {
+        set({
+          stickyHidButton: ing.observation.hidButton,
+          stickyHidButtonVerb: ing.observation.verb,
+          stickyHidButtonAt: Date.now(),
+        });
+      }
+    }
     if (clutchAdvanced(s.clutch, clutch)) {
       get().ingestMoment({
         key: `clutch:${clutch.kind}:${clutch.why}`,
