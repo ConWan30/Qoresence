@@ -18,6 +18,11 @@ const GLASSES = [
   { href: "/mobile.html", label: "Mobile" },
 ] as const;
 
+const GAMER_GLASSES = [
+  { href: "/deck.html", label: "Theater" },
+  { href: "/session.html", label: "Session", offApp: true },
+] as const;
+
 function glassOn(href: string, label: string, pathname: string) {
   if (href === "/") return pathname === "/" || pathname === "home";
   return pathname === href || pathname === label.toLowerCase();
@@ -57,6 +62,7 @@ function GlassNavLink({
 export function CommandBar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isSessionRoute = pathname === "/session.html" || pathname === "/civif.html";
+  const isGamerRoute = pathname === "/deck.html" || pathname === "/session.html";
   const hdmi = useTheater((s) => s.hdmi);
   const pllLock = useTheater((s) => s.pllLock);
   const ticketLive = useTheater((s) => s.ticketLive);
@@ -187,7 +193,7 @@ export function CommandBar() {
           <TheaterModeChip />
 
           <nav className="glass-nav min-w-0" aria-label="Glasses">
-            {GLASSES.map((g) => (
+            {(isGamerRoute ? GAMER_GLASSES : GLASSES).map((g) => (
               <GlassNavLink
                 key={g.href}
                 href={g.href}
