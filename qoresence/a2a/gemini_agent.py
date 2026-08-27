@@ -1,7 +1,8 @@
-"""Gemini scene agent via Quicksilver Pro (OpenAI-compatible vision/chat).
+"""Scene agent via Quicksilver Pro (OpenAI-compatible text/vision).
 
 Default: stub (no network). Live when QORESENCE_A2A_GEMINI=1 and API key set.
-Model default: gemini-3.5-flash-lite @ https://api.quicksilverpro.io/v1
+Model default: deepseek-v4-flash (text) @ https://api.quicksilverpro.io/v1
+Legacy: gemini-3.5-flash-lite (vision) when explicitly set via QORESENCE_A2A_GEMINI_MODEL
 
 Supports Trio P3 bidirectional tool calls: the agent can invoke
 query-memory and zoom-redetect during scene proposal.
@@ -22,7 +23,9 @@ from qoresence.agents.llm_client import DEFAULT_BASE_URL, _resolve_api_key
 
 log = logging.getLogger(__name__)
 
-GEMINI_MODEL = "gemini-3.5-flash-lite"
+# Model default: deepseek-v4-flash (text-only, cheap)
+# Can override to gemini-3.5-flash-lite (vision) via QORESENCE_A2A_GEMINI_MODEL
+GEMINI_MODEL = "deepseek-v4-flash"
 
 
 class GeminiSceneAgent:
@@ -43,7 +46,10 @@ class GeminiSceneAgent:
         api_key_file: str | None = None,
         tools: ToolRegistry | None = None,
     ) -> None:
-        env_live = os.environ.get("QORESENCE_A2A_GEMINI", "0").strip() in {"1", "true", "yes"}
+        # Live when QORESENCE_A2A_DEEPSEEK=1 (default) or QORESENCE_A2A_GEMINI=1 (legacy vision)
+        env_deepseek = os.environ.get("QORESENCE_A2A_DEEPSEEK", "0").strip() in {"1", "true", "yes"}
+        env_gemini = os.environ.get("QORESENCE_A2A_GEMINI", "0").strip() in {"1", "true", "yes"}
+        env_live = env_deepseek or env_gemini
         self.live = env_live if live is None else bool(live)
         self.model = model or os.environ.get("QORESENCE_A2A_GEMINI_MODEL", GEMINI_MODEL)
         self.base_url = base_url.rstrip("/")
@@ -114,7 +120,7 @@ class GeminiSceneAgent:
             frame_seq=frame_seq,
             coupling=coupling,
             drive_phase=drive_phase,
-            model="stub-gemini",
+            model="stub-scene",
         )
 
     def _stub_tool_enrichment(self, sit: dict[str, Any]) -> str:
@@ -185,8 +191,10 @@ class GeminiSceneAgent:
 
         prompt += 'Reply JSON: {"summary":"...","tension":0.0-1.0,"tags":["..."]}'
 
+        # DeepSeek is text-only (not a VLM). Only attach JPEG for vision models (Gemini).
+        is_vision_model = "gemini" in self.model.lower()
         content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
-        if jpeg_bytes:
+        if jpeg_bytes and is_vision_model:
             b64 = base64.b64encode(jpeg_bytes).decode("ascii")
             content.append(
                 {
@@ -228,7 +236,8 @@ class GeminiSceneAgent:
                     "max_tokens": 180,
                     "temperature": 0.4,
                 }
-                if jpeg_bytes:
+                # Only attach JPEG for vision models (Gemini), not text-only (DeepSeek)
+                if jpeg_bytes and is_vision_model:
                     b64 = base64.b64encode(jpeg_bytes).decode("ascii")
                     follow_body["messages"][0]["content"].append(
                         {

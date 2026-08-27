@@ -67,8 +67,8 @@ def test_society_config_default_off():
     cfg = AgentSocietyConfig()
     assert cfg.enabled is False
     assert cfg.roles == ()
-    assert cfg.model_reason == "nemotron-3.5-lightning"
-    assert cfg.model_scene == "gemini-3.5-flash-lite"
+    assert cfg.model_reason == "deepseek-v4-flash"
+    assert cfg.model_scene == "deepseek-v4-flash"
     env = AgentSocietyConfig.from_env()
     assert env.roles == ()
 

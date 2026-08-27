@@ -9,9 +9,9 @@ from pathlib import Path
 from .types import KNOWN_ROLES
 
 DEFAULT_BASE = "https://api.quicksilverpro.io/v1"
-# Phrasing/reason = Nemotron. Vision/confirm = Gemini. Do not conflate.
-DEFAULT_REASON = "nemotron-3.5-lightning"
-DEFAULT_SCENE = "gemini-3.5-flash-lite"
+# Phrasing/reason/scene = DeepSeek V4 Flash (text-only, cheap)
+DEFAULT_REASON = "deepseek-v4-flash"
+DEFAULT_SCENE = "deepseek-v4-flash"
 DEFAULT_KEY_FILE = ".secrets/quicksilver.key"
 CLUTCHBOT_KEY_FILE = ".secrets/quicksilver_clutchbot.key"
 
