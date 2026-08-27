@@ -107,9 +107,9 @@ class CfbControlLookup:
         Returns:
             Mode key (e.g. "preplay_offense") or None if cannot be determined
 
-        Hypothesis (non-binding):
-        - preplay vs in-play may already exist in visual_context
-        - We do NOT invent a new VLM score path
+        Uses visual_phase from visual_context.details.visual_phase to map picture
+        language to the active CFB control sheet. Fail-closed: unknown/missing
+        phase → None.
         """
         # Fail-closed: only map if we can honestly determine the mode
         game_state = visual_context.get("game_state", "")
@@ -124,10 +124,10 @@ class CfbControlLookup:
         if game_state != "gameplay":
             return None
 
-        # Hypothesis: check for preplay indicators (not implemented yet)
-        # For now, remain fail-closed and return None
-        # Future: integrate with existing play_type, phase, or situation signals
-        return None
+        # Use visual_phase → sheet mapper (fail-closed)
+        from qoresence.observation.sheet_from_picture import map_context_to_sheet
+
+        return map_context_to_sheet(visual_context)
 
 
 def observe_button_press(

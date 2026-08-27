@@ -433,6 +433,10 @@ class HdmiClipBuffer:
             _write_stem_audio_sidecar(final_path)
         except Exception as e:
             log.debug("stem audio sidecar skipped: %s", e)
+        try:
+            _write_observation_sidecar(final_path, snapshot=snapshot)
+        except Exception as e:
+            log.debug("observation sidecar skipped: %s", e)
         return ClipExportResult(
             path=str(final_path.resolve()),
             frames=written,
@@ -734,6 +738,149 @@ def _write_otel_sidecar(
         return out
     except Exception as e:
         log.debug("otel sidecar write failed: %s", e)
+        return None
+
+
+def _write_observation_sidecar(
+    mp4_path: Path,
+    snapshot: list[tuple[float, bytes, int, int, int]],
+) -> Path | None:
+    """Write clips/<stem>.observations.json with pad observations using hid_by_seq.
+
+    Attaches observation-plane pad naming to the clip sidecar for the SAME frame_seq:
+    {frame_seq, clock_ns, hid_button, verb, mode/sheet, game_profile, source}.
+
+    Uses hid_by_seq[frame_seq] of the clip's observed frames, NOT HID[now] at export time.
+    Verb may be None (unlabeled when no visual_phase).
+    """
+    import json
+
+    try:
+        if not snapshot:
+            return None
+
+        # Extract frame sequences from snapshot
+        # snapshot entries: (ts, jpeg, w, h, seq)
+        frame_seqs = [int(row[4]) for row in snapshot if len(row) >= 5]
+        if not frame_seqs:
+            return None
+
+        # Try to get visual_context for the clip window (from latest VLM result)
+        visual_context = None
+        try:
+            from qoresence.vision.visual_oracle import get_visual_oracle
+
+            oracle = get_visual_oracle()
+            if oracle is not None:
+                visual_context = oracle.latest_context()
+        except Exception:
+            visual_context = None
+
+        # Collect observations for each frame with HID input
+        from qoresence.observation.madden_controls import (
+            MaddenControlLookup,
+            observe_button_press as madden_observe,
+        )
+        from qoresence.observation.cfb_controls import (
+            CfbControlLookup,
+            observe_button_press as cfb_observe,
+        )
+        from qoresence.sync.hid_seq_line import get_sample
+
+        # Determine game profile to select correct lookup
+        game_profile = ""
+        if visual_context:
+            if hasattr(visual_context, "game_profile"):
+                game_profile = str(visual_context.game_profile or "")
+            elif isinstance(visual_context, dict):
+                game_profile = str(visual_context.get("game_profile") or "")
+
+        is_madden = "madden" in game_profile.lower()
+        is_cfb = any(x in game_profile.lower() for x in ["cfb", "college", "ncaa"])
+
+        observations = []
+        for frame_seq in frame_seqs:
+            sample = get_sample(frame_seq)
+            if sample is None:
+                continue
+
+            # Get clock_ns from sample
+            clock_ns = sample.clock_ns
+
+            # Get visual_context dict for this frame (if available)
+            vc_dict = None
+            if visual_context is not None:
+                if hasattr(visual_context, "to_dict"):
+                    vc_dict = visual_context.to_dict()
+                elif isinstance(visual_context, dict):
+                    vc_dict = visual_context
+
+            # Observe button presses using the appropriate game's lookup
+            if is_madden:
+                frame_obs = madden_observe(
+                    frame_seq=frame_seq, clock_ns=clock_ns, visual_context=vc_dict
+                )
+            elif is_cfb:
+                frame_obs = cfb_observe(
+                    frame_seq=frame_seq, clock_ns=clock_ns, visual_context=vc_dict
+                )
+            else:
+                # Unknown game profile - still record button presses but no verb
+                frame_obs = []
+                for btn_name in sample.buttons or []:
+                    from qoresence.observation.madden_controls import ControlObservation
+
+                    obs = ControlObservation(
+                        frame_seq=frame_seq,
+                        clock_ns=clock_ns,
+                        hid_button=btn_name,
+                        verb=None,
+                        mode=None,
+                        source="observation_plane",
+                    )
+                    frame_obs.append(obs)
+
+            # Add game_profile to each observation and check for conflicts
+            for obs in frame_obs:
+                obs_dict = obs.to_dict()
+                obs_dict["game_profile"] = game_profile
+                observations.append(obs_dict)
+
+                # Check for sheet conflict (Layer 3)
+                try:
+                    from qoresence.observation.sheet_conflict import check_observation_conflict
+
+                    conflict = check_observation_conflict(obs_dict, vc_dict)
+                    if conflict is not None:
+                        # Add conflict as a separate entry
+                        observations.append(conflict.to_dict())
+                except Exception as e:
+                    log.debug("conflict check failed: %s", e)
+
+        if not observations:
+            # No HID input during this clip
+            return None
+
+        # Write observation sidecar
+        out = Path(mp4_path).with_name(Path(mp4_path).stem + ".observations.json")
+        payload = {
+            "source": "observation_plane",
+            "game_profile": game_profile,
+            "observations": observations,
+            "note": "Observations use hid_by_seq[frame_seq], not HID[now] at export time",
+        }
+        tmp = out.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+        tmp.replace(out)
+        log.info(
+            "observation sidecar: %s (%d observations, %d unique frames)",
+            out.name,
+            len(observations),
+            len(set(o["frame_seq"] for o in observations)),
+        )
+        return out
+    except Exception as e:
+        log.debug("observation sidecar write failed: %s", e)
         return None
 
 
