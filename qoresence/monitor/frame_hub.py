@@ -73,6 +73,21 @@ class FrameHub:
                     }
                 )
                 self._prev_thumb = thumb
+                hub_seq = self._seq
+                hub_clock = ts_ns
+                age_s = 0.0 if self._ts > 0 else None
+            # Snapshot HID at this seq (outside lock, never blocks grab)
+            try:
+                from qoresence.sync.hid_seq_line import snapshot_at_seq
+
+                snapshot_at_seq(
+                    hub_seq=hub_seq,
+                    hub_clock_ns=hub_clock,
+                    feed_pll=True,
+                    video_age_s=age_s,
+                )
+            except Exception as e:
+                log.debug("hid_seq_line snapshot failed for seq=%s: %s", hub_seq, e)
         except Exception as e:
             log.debug("FrameHub.publish failed: %s", e)
 

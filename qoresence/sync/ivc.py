@@ -313,12 +313,17 @@ class InputVideoCoupler:
         couple_tid = ""
         try:
             from qoresence.sync.coupling_ticket import get_coupling_book, mint_coupling_ticket
+            from qoresence.sync.hid_domain import allow_coupling_ticket
             from qoresence.sync.play_phrase import LIVE_PHRASES
 
             book = get_coupling_book()
             pll_locked = bool(pll.get("pll_lock"))
             video_fresh = age_s <= _STALE_AGE_S
-            if ph.get("phrase") in LIVE_PHRASES and video_fresh and pll_locked:
+            # Only mint tickets from PLAY pad events
+            has_play_events = bool(events) and all(
+                allow_coupling_ticket(e.hid_domain) for e in events
+            )
+            if ph.get("phrase") in LIVE_PHRASES and video_fresh and pll_locked and has_play_events:
                 ticket = mint_coupling_ticket(
                     clock_ns=t_video,
                     frame_seq=seq,
@@ -362,39 +367,50 @@ class InputVideoCoupler:
         bind_offset = None
         bind_conf = 0.0
         if prec_evs:
-            payload["imu_precursor_ms"] = round(
-                sum(float(e.imu_precursor_ms or 0.0) for e in prec_evs) / len(prec_evs),
-                2,
-            )
-            payload["imu_bodied"] = True
-            payload["imu_precursor_name"] = str(prec_evs[-1].name)
-            hid_ns = int(prec_evs[-1].clock_ns)
+            # Only set imu_bodied from PLAY pad
+            allow_bodied = True
             try:
-                from qoresence.sync.lag_estimator import get_lag_estimator
+                from qoresence.sync.hid_domain import allow_imu_bodied
 
-                get_lag_estimator().observe_phase(
-                    (t_video - hid_ns) / 1e6,
-                    video_stale=age_s > _STALE_AGE_S,
+                allow_bodied = all(allow_imu_bodied(e.hid_domain) for e in prec_evs)
+            except Exception:
+                allow_bodied = True
+            if allow_bodied:
+                payload["imu_precursor_ms"] = round(
+                    sum(float(e.imu_precursor_ms or 0.0) for e in prec_evs) / len(prec_evs),
+                    2,
                 )
-                pll = get_lag_estimator().snapshot()
-            except Exception:
-                pass
-            try:
-                from qoresence.sync.optical import bind_offset_ms
-
-                luma = get_frame_hub().luma_ring()
-                gyro_sign = 0.0
+                payload["imu_bodied"] = True
+                payload["imu_precursor_name"] = str(prec_evs[-1].name)
+                hid_ns = int(prec_evs[-1].clock_ns)
                 try:
-                    from qoresence.sync.imu_ring import get_imu_ring
+                    from qoresence.sync.lag_estimator import get_lag_estimator
 
-                    last_imu = get_imu_ring().last()
-                    if last_imu is not None:
-                        gyro_sign = float(last_imu.gyro_z)
+                    get_lag_estimator().observe_phase(
+                        (t_video - hid_ns) / 1e6,
+                        video_stale=age_s > _STALE_AGE_S,
+                    )
+                    pll = get_lag_estimator().snapshot()
                 except Exception:
+                    pass
+                try:
+                    from qoresence.sync.optical import bind_offset_ms
+
+                    luma = get_frame_hub().luma_ring()
                     gyro_sign = 0.0
-                bind_offset, bind_conf = bind_offset_ms(luma, hid_ns, gyro_sign)
-            except Exception:
-                bind_offset, bind_conf = None, 0.0
+                    try:
+                        from qoresence.sync.imu_ring import get_imu_ring
+
+                        last_imu = get_imu_ring().last()
+                        if last_imu is not None:
+                            gyro_sign = float(last_imu.gyro_z)
+                    except Exception:
+                        gyro_sign = 0.0
+                    bind_offset, bind_conf = bind_offset_ms(luma, hid_ns, gyro_sign)
+                except Exception:
+                    bind_offset, bind_conf = None, 0.0
+            else:
+                payload["imu_bodied"] = False
         else:
             payload["imu_bodied"] = False
         payload["lag_center_ms"] = pll.get("lag_center_ms")
