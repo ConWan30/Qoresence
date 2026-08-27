@@ -1,0 +1,132 @@
+{
+  "source": "https://www.ea.com/games/ea-sports-college-football/college-football-27/controls-hub/playstation-hub",
+  "fetched": "2026-08-27",
+  "game": "College Football 27",
+  "platform": "PlayStation",
+  "modes": {
+    "ball_in_air": {
+      "L2": ["Strafe"],
+      "L1": ["OFF Spectacular Catch Modifier"],
+      "R2": ["Sprint"],
+      "Triangle": ["OFF Aggressive Catch", "DEF Ball Hawk"],
+      "Square": ["OFF RAC", "DEF Swat"],
+      "Circle": ["Switch Player"],
+      "Cross": ["OFF Possession Catch", "DEF Play Receiver"]
+    },
+    "blocking_mechanics": {
+      "Left Stick": ["Player Movement/Block on Collision"],
+      "Circle": ["Switch Player"],
+      "Right Stick Up": ["Aggressive Impact Block"],
+      "Right Stick Down": ["Aggressive Cut Block"]
+    },
+    "defense_engaged": {
+      "R2": ["Effort/Block Steer"],
+      "Triangle": ["Swat"],
+      "Circle": ["Switch Player"],
+      "Cross": ["Disengage"],
+      "Right Stick Up": ["Rip"],
+      "Right Stick Down": ["Bull Rush"],
+      "Right Stick Left/Right": ["Club/Swim"]
+    },
+    "defense_pursuit": {
+      "L2+R2": ["Defensive Crossover"],
+      "L1": ["Defensive Assist"],
+      "R2": ["Sprint"],
+      "R1": ["Strip Ball"],
+      "Square": ["Aggressive/Dive Tackle"],
+      "Circle": ["Switch Player"],
+      "Cross": ["Conservative Tackle"],
+      "Right Stick Up": ["Hit Stick (Up)"],
+      "Right Stick Down": ["Cut Stick (Down)"],
+      "Right Stick Bull Rush": ["Flick"]
+    },
+    "defensive_coverage_mechanics": {
+      "L2": ["Strafe"],
+      "L1": ["Defensive Assist"],
+      "Left Stick": ["Player Movement"],
+      "Circle": ["Switch Player"],
+      "Cross + Left Stick": ["Possession Catch/Chuck Receiver"],
+      "Right Stick": ["Directional Player Switch (Flick)"]
+    },
+    "passing": {
+      "L2": ["Free Form on Placement"],
+      "L1": ["High Pass Modifier"],
+      "R1 + face buttons": ["Pump Fake (Double Tap)"],
+      "Left Stick + R2": ["Scramble"],
+      "R1": ["Receiver 5"],
+      "Triangle": ["Receiver 4"],
+      "Square": ["Receiver 3"],
+      "Circle": ["Receiver 2"],
+      "Cross": ["Receiver 1"],
+      "L2 + Right Stick": ["Playmaker (Flick)"],
+      "L3": ["Throw Ball Away"],
+      "R2 + Right Stick": ["QB Special Moves"]
+    },
+    "player_locked_receiver": {
+      "L2": ["Individual Play-Art"],
+      "L2 Hold": ["Footfire"],
+      "L2 + Left Stick": ["Cut Moves"],
+      "L2 + R2 + Left Stick": ["Quick Cuts"],
+      "L3": ["Player Lock (Press Hold)"],
+      "Left Stick": ["Route Running/Move"],
+      "Cross": ["Call for Ball"],
+      "Right Stick": ["Hop"],
+      "Right Stick On the Line Flick": ["Change Up"],
+      "Right Stick On the Line Hold": ["Foot Fire"],
+      "Right Stick Off the Line Flick": ["Press Counter"]
+    },
+    "preplay_defense": {
+      "L2": ["Global Coverage"],
+      "L1": ["Custom Adjustments"],
+      "D-Pad Right": ["Substitution"],
+      "D-Pad Up": ["Zoom Camera In"],
+      "D-Pad Left": ["Coach Vision"],
+      "D-Pad Down": ["Zoom Camera Out"],
+      "L3": ["Player Lock (Press Twice)"],
+      "R2": ["Show Playart"],
+      "R1": ["Defensive Keys"],
+      "Triangle": ["Defender Select"],
+      "Square": ["Audible"],
+      "Circle": ["Switch Player"],
+      "Cross": ["Individual Adjustment"],
+      "Right Stick Left": ["Defensive Line"],
+      "Right Stick Right": ["Linebackers"],
+      "R3": ["Pre-play Menu"]
+    },
+    "preplay_offense": {
+      "L2": ["Pass Protection"],
+      "L1": ["Custom Adjustments"],
+      "D-Pad Right": ["Substitution"],
+      "D-Pad Up": ["Zoom Camera In"],
+      "D-Pad Left": ["Coach Vision"],
+      "D-Pad Down": ["Zoom Camera Out"],
+      "L3": ["Player Lock (Press Twice)"],
+      "Left Stick": ["Motion Player (Hold)"],
+      "Touchpad": ["Call Timeout"],
+      "R2": ["Show Playart"],
+      "R1": ["Fake Snap"],
+      "Triangle": ["Hot Route"],
+      "Square": ["Audible"],
+      "Circle": ["Switch Player"],
+      "Cross": ["Snap Ball"],
+      "R3": ["Pre-play Menu"],
+      "Right Stick Up": ["Untarget Defender (Pass Plays)"],
+      "Right Stick Left/Right": ["Slide Protection (Pass Plays)", "Playmaker Flip (Run Plays)"]
+    },
+    "running": {
+      "L2+R2+Cross": ["Celebration"],
+      "L1": ["Pitch"],
+      "R2": ["Sprint"],
+      "R1": ["Protect Ball (Hold)"],
+      "Triangle": ["Hurdle"],
+      "Square": ["Slide (Tap)/Give Up (Tap)/Dive (Hold)"],
+      "Circle": ["Spin"],
+      "Cross": ["Stiff Arm"],
+      "Right Stick": ["Spin"],
+      "Right Stick Up": ["Truck (Flick)"],
+      "Right Stick Down": ["Stop and Go"],
+      "Right Stick Up Hold": ["Reach for It"],
+      "Right Stick Post Play": ["Celebration"]
+    }
+  }
+}
