@@ -267,6 +267,13 @@ class DeckState:
             out["actuators"] = actuators_health(out)
         except Exception:
             out["actuators"] = {"registry": [], "receipts": []}
+        # LAYER A: observation object on the Deck wire (sheet-from-picture, named clutch, conflict)
+        try:
+            from qoresence.deck.observation_wire import build_observation_wire
+
+            out["observation"] = build_observation_wire(self.situation)
+        except Exception:
+            out["observation"] = None
         return out
 
 

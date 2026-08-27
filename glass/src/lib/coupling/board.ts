@@ -75,6 +75,8 @@ export type DeckIngest = {
   ghostStick: GhostStick;
   companion: AgentCompanion;
   actuators: ActuatorReceipt[];
+  /** LAYER A: Observation wire — play-pad observation (may be empty). */
+  observation: Observation;
 };
 
 export type GhostStick = {
@@ -99,6 +101,34 @@ export const EMPTY_GHOST: GhostStick = {
   lagMs: 80,
   frameSeq: 0,
   reason: "off",
+};
+
+/** LAYER A: Observation wire — play-pad observation aligned to HDMI clock. */
+export type Observation = {
+  frameSeq: number;
+  clockNs: number;
+  hidButton: string | null;
+  verb: string | null;
+  mode: string | null;
+  visualPhase: string | null;
+  gameProfile: string | null;
+  conflict: {
+    pictureSheet: string;
+    padSheet: string;
+    kind: string;
+    reason: string | null;
+  } | null;
+};
+
+export const EMPTY_OBSERVATION: Observation = {
+  frameSeq: 0,
+  clockNs: 0,
+  hidButton: null,
+  verb: null,
+  mode: null,
+  visualPhase: null,
+  gameProfile: null,
+  conflict: null,
 };
 
 function asPhrase(raw: unknown): Phrase {
@@ -514,6 +544,7 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     ghostStick: parseGhostStick(snap.ghost_stick || m.ghost_stick, widgetsOk),
     companion: parseCompanion(snap.companion || m.companion || m),
     actuators: parseActuatorReceipts(snap.actuators || m.actuators),
+    observation: parseObservation(snap.observation || m.observation),
   };
 }
 
@@ -532,6 +563,29 @@ function parseGhostStick(raw: unknown, widgetsOk: boolean): GhostStick {
     lagMs: num(g.lag_ms ?? g.lagMs, 80),
     frameSeq: num(g.frame_seq ?? g.frameSeq),
     reason: paint ? "ok" : reason,
+  };
+}
+
+function parseObservation(raw: unknown): Observation {
+  if (!raw || typeof raw !== "object") return EMPTY_OBSERVATION;
+  const o = rec(raw);
+  const conflict = o.conflict && typeof o.conflict === "object" ? rec(o.conflict) : null;
+  return {
+    frameSeq: num(o.frame_seq ?? o.frameSeq, 0),
+    clockNs: num(o.clock_ns ?? o.clockNs, 0),
+    hidButton: o.hid_button != null ? String(o.hid_button) : null,
+    verb: o.verb != null ? String(o.verb) : null,
+    mode: o.mode != null ? String(o.mode) : null,
+    visualPhase: o.visual_phase != null ? String(o.visual_phase) : null,
+    gameProfile: o.game_profile != null ? String(o.game_profile) : null,
+    conflict: conflict
+      ? {
+          pictureSheet: String(conflict.picture_sheet || ""),
+          padSheet: String(conflict.pad_sheet || ""),
+          kind: String(conflict.kind || "sheet_mismatch"),
+          reason: conflict.reason != null ? String(conflict.reason) : null,
+        }
+      : null,
   };
 }
 

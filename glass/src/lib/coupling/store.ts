@@ -28,7 +28,7 @@ import { EMPTY_PLANE, type AgentPlane } from "./agent-plane";
 import type { ActuatorReceipt } from "./actuators.ts";
 import { EMPTY_COMPANION, type AgentCompanion } from "./companion.ts";
 import { armCapture as armCaptureDevice, armShare as armShareDevice, getDeckSrc, thawDeck as thawDeckDevice, wakePad as wakePadDevice, sampleCapture, type CaptureStatus, type VideoDevice } from "./hardware";
-import { boardLine, situationLine, EMPTY_GHOST, type DeckIngest, type GhostStick } from "./board";
+import { boardLine, situationLine, EMPTY_GHOST, EMPTY_OBSERVATION, type DeckIngest, type GhostStick, type Observation } from "./board";
 import { clutchAdvanced, scoreClutch, QUIET_CLUTCH, type ClutchSnap, type FeedMoment } from "./clutch";
 import { measureLag } from "./sync";
 import { qsEnhance, qsProbe } from "./quicksilver";
@@ -144,6 +144,11 @@ export type TheaterState = {
   companion: AgentCompanion;
   actuators: ActuatorReceipt[];
   framed: boolean;
+  /** LAYER A/B: Observatory observation fields */
+  observationVerb: string | null;
+  observationMode: string | null;
+  observationVisualPhase: string | null;
+  observationConflict: { pictureSheet: string; padSheet: string; kind: string; reason: string | null } | null;
   setR2: (v: number) => void;
   setLeft: (v: number) => void;
   setHdmi: (m: HdmiMode) => void;
@@ -315,6 +320,10 @@ export const useTheater = create<TheaterState>((set, get) => ({
   companion: EMPTY_COMPANION,
   actuators: [],
   framed: false,
+  observationVerb: null,
+  observationMode: null,
+  observationVisualPhase: null,
+  observationConflict: null,
   livePaint: true,
   sameSeq: true,
   planeDim: false,
@@ -594,6 +603,10 @@ export const useTheater = create<TheaterState>((set, get) => ({
       padBinds: ing.padBinds,
       padJitterMs: ing.padJitterMs,
       padHidSeq: ing.padHidSeq || s.padHidSeq,
+      observationVerb: ing.observation.verb,
+      observationMode: ing.observation.mode,
+      observationVisualPhase: ing.observation.visualPhase,
+      observationConflict: ing.observation.conflict,
     });
     if (clutchAdvanced(s.clutch, clutch)) {
       get().ingestMoment({
