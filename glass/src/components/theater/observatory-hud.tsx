@@ -1,6 +1,7 @@
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 import { LockbugStrip } from "./lockbug-strip";
+import { ObservatoryInstrument } from "./observatory-instrument";
 
 export function ObservatoryHUD() {
   const videoAgeS = useTheater((s) => s.videoAgeS);
@@ -37,6 +38,9 @@ export function ObservatoryHUD() {
           </span>
         </div>
       </div>
+
+      {/* Observatory Instrument: sheet chip, last named press, honesty */}
+      <ObservatoryInstrument />
 
       {/* Bottom HUD: PGM label */}
       <div className="flex items-end justify-between">
