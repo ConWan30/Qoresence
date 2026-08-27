@@ -257,6 +257,7 @@ class ScoreboardVlmReferee:
             data = r.json()
         except Exception as e:
             # stdlib fallback
+            import urllib.error
             import urllib.request
 
             req = urllib.request.Request(
@@ -277,6 +278,17 @@ class ScoreboardVlmReferee:
                         return None
                     raw = resp.read().decode("utf-8", errors="replace")
                 data = json.loads(raw)
+            except urllib.error.HTTPError as http_err:
+                # HTTPError has a .code attribute for the HTTP status
+                with self._lock:
+                    self._last_http_status = http_err.code
+                if http_err.code == 402:
+                    with self._lock:
+                        self._last = None
+                    log.warning("scoreboard VLM HTTP 402 — HOLD seeing-path (no credit)")
+                    return None
+                log.warning("scoreboard VLM HTTP error: %s / %s", e, http_err)
+                return None
             except Exception as e2:
                 log.warning("scoreboard VLM HTTP failed: %s / %s", e, e2)
                 return None

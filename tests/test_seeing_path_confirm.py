@@ -195,28 +195,54 @@ def test_is_seeing_source_none():
 
 
 def test_http_402_unlocked(monkeypatch):
-    """HTTP 402 → VLM get_last() is None + EasyOCR off → score_vlm_locked is False."""
+    """HTTP 402 → VLM get_last() is None + EasyOCR off → score_vlm_locked is False.
+    
+    This test drives 402 through _call_vlm by mocking requests.post to fail,
+    then mocking urllib.request.urlopen to raise HTTPError with code 402.
+    """
     # Ensure EasyOCR is off
     monkeypatch.setenv("QORESENCE_EASY_OCR", "0")
     
-    # Mock VLM to return 402
     from qoresence.vision import scoreboard_vlm
+    import urllib.error
     
     vlm = scoreboard_vlm.ScoreboardVlmReferee()
     vlm.enabled = True
     vlm._api_key = "test_key"
     
-    # Simulate 402: set _last_http_status and clear _last
-    with vlm._lock:
-        vlm._last_http_status = 402
-        vlm._last = None
-    
-    # Verify get_last() returns None after 402
-    assert vlm.get_last() is None
+    # Mock requests.post to fail so urllib fallback runs
+    with patch("requests.post") as mock_requests:
+        mock_requests.side_effect = Exception("requests unavailable")
+        
+        # Mock urllib.request.urlopen to raise HTTPError 402
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            # Create HTTPError with code 402
+            http_error = urllib.error.HTTPError(
+                url="http://test.com",
+                code=402,
+                msg="Payment Required",
+                hdrs={},
+                fp=None,
+            )
+            mock_urlopen.side_effect = http_error
+            
+            # Call _call_vlm which should catch 402 and clear _last
+            import numpy as np
+            frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+            result = vlm._call_vlm(frame)
+            
+            # Verify _last was cleared
+            assert vlm.get_last() is None
+            assert vlm._last_http_status == 402
+            assert result is None
 
 
 def test_kickoff_0_0_stays_unlocked_without_seeing_path(monkeypatch):
-    """Kickoff 0-0 stays unlocked without seeing-path (no confirm_ticket_id)."""
+    """Kickoff 0-0 stays unlocked without seeing-path (no confirm_ticket_id).
+    
+    CRITICAL: ctx.home_score and ctx.away_score must be None when unlicensed.
+    Glass widgetsOk stays dark by spine honesty (null scores).
+    """
     monkeypatch.setenv("QORESENCE_EASY_OCR", "0")
     
     # Reset stabilizer
@@ -245,10 +271,18 @@ def test_kickoff_0_0_stays_unlocked_without_seeing_path(monkeypatch):
             # Without seeing-path, score_vlm_locked should be False
             assert not getattr(result, "score_vlm_locked", False)
             assert not getattr(result, "confirm_ticket_id", "")
+            
+            # CRITICAL: unlicensed HUD digits must NOT serialize
+            assert result.home_score is None, "home_score must be None when unlicensed"
+            assert result.away_score is None, "away_score must be None when unlicensed"
 
 
 def test_qs_402_whole_session_no_junk_board_license(monkeypatch):
-    """QS 402 whole session + EasyOCR off → no junk board license (35-22 never licensed)."""
+    """QS 402 whole session + EasyOCR off → no junk board license (35-22 never licensed).
+    
+    CRITICAL: ctx.home_score and ctx.away_score must be None when unlicensed.
+    Glass widgetsOk stays dark by spine honesty (null scores).
+    """
     monkeypatch.setenv("QORESENCE_EASY_OCR", "0")
     
     # Reset stabilizer
@@ -268,13 +302,17 @@ def test_qs_402_whole_session_no_junk_board_license(monkeypatch):
             from qoresence.vision.visual_context import GameCategory, VisualContext
             
             frame = np.zeros((720, 1280, 3), dtype=np.uint8)
-            ctx = VisualContext(game_category=GameCategory.FOOTBALL)
             
-            # Multiple frames, all should stay unlocked
+            # Multiple frames, all should stay unlocked AND scores None
             for _ in range(10):
+                ctx = VisualContext(game_category=GameCategory.FOOTBALL)
                 result = extractor.extract(frame, ctx, allow_ocr=False)
                 assert not getattr(result, "score_vlm_locked", False)
                 assert not getattr(result, "confirm_ticket_id", "")
+                
+                # CRITICAL: unlicensed HUD digits must NOT serialize
+                assert result.home_score is None, "home_score must be None when unlicensed"
+                assert result.away_score is None, "away_score must be None when unlicensed"
 
 
 def test_license_from_tickets_veto_with_flag_but_no_id():
