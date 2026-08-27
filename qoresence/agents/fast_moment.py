@@ -82,6 +82,19 @@ class FastMomentEngine:
                 key, msg = self._pick_soft_chat(red=red, close=close, late=late, heat_ok=heat_ok)
                 if msg and self._cooldown_ok(f"fast_chat:{key}", self.chat_cooldown_s):
                     msg = self._sanitize_soft(msg)
+                    # EA vocabulary enrichment: add named verb at clutch frame (fail-closed)
+                    try:
+                        from qoresence.agents.ea_vocabulary import enrich_clutch_line
+
+                        msg = enrich_clutch_line(
+                            base_message=msg,
+                            frame_seq=frame_seq or 0,
+                            clock_ns=coup.get("clock_ns") or 0,
+                            visual_context=situation.visual_context if hasattr(situation, "visual_context") else None,
+                            game_profile=situation.game_profile if hasattr(situation, "game_profile") else None,
+                        )
+                    except Exception as e:
+                        log.debug("EA vocabulary enrichment failed: %s", e)
                     moments.append(
                         ScoredMoment(
                             triggered=True,
