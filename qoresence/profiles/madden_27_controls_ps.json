@@ -1,0 +1,131 @@
+{
+  "source": "https://www.ea.com/games/madden-nfl/madden-nfl-27/controls-hub/playstation-controls-hub",
+  "fetched": "2026-08-27",
+  "game": "Madden NFL 27",
+  "platform": "PlayStation",
+  "modes": {
+    "ball_in_air": {
+      "L2": ["Strafe"],
+      "L1": ["DEF Defensive Assist", "OFF Spectacular Catch"],
+      "R2": ["Sprint"],
+      "Triangle": ["OFF Aggressive Catch", "DEF Ball Hawk"],
+      "Square": ["OFF RAC", "DEF Swat"],
+      "Circle": ["Switch Player"],
+      "Cross": ["OFF Possession Catch", "DEF Play Receiver"]
+    },
+    "blocking": {
+      "Left Stick": ["Player Movement/Block on Collision"],
+      "R2": ["Block Steer / Effort"],
+      "Circle": ["Switch Player"],
+      "Right Stick Up": ["Aggressive Impact Block"],
+      "Right Stick Down": ["Aggressive Cut Block"]
+    },
+    "defense_engaged": {
+      "Left Stick": ["Player Movement"],
+      "R2": ["Block Steer / Effort"],
+      "Triangle": ["Swat"],
+      "Cross": ["Switch Player"],
+      "Circle": ["Disengage"],
+      "Right Stick Up": ["Bull Rush"],
+      "Right Stick Up Left/Right": ["Club"],
+      "Right Stick Left/Right": ["Rip"],
+      "Rotate Right Stick": ["Spin"],
+      "Right Stick Down Left/Right": ["Swim"],
+      "Right Stick Down": ["Long Arm"]
+    },
+    "defense_pursuit": {
+      "L2": ["Strafe"],
+      "L1": ["Defensive Assist"],
+      "R2": ["Sprint"],
+      "R1": ["Strip Ball"],
+      "Square": ["Dive Tackle"],
+      "Circle": ["Switch Player"],
+      "Cross": ["Breakdown Tackle"],
+      "Right Stick Up": ["Hit Stick (Up)"],
+      "Right Stick Down": ["Cut Stick (Down)"],
+      "Right Stick Flick": ["Blow-Up Blocker"]
+    },
+    "defensive_coverage": {
+      "L2": ["Strafe"],
+      "L1": ["Defensive Assist"],
+      "Left Stick": ["Player Movement"],
+      "Left Stick Down": ["Takeoff Stance (Towards LOS)"],
+      "Triangle": ["Pass Break Up/Attempt Interception"],
+      "Circle": ["Switch Player"],
+      "Cross + Left Stick": ["Press/Chuck Receiver"]
+    },
+    "passing": {
+      "L2": ["Free Form (Placement)"],
+      "L1": ["High Pass Modifier"],
+      "R1 + face buttons": ["Pump Fake (Double Tap)"],
+      "Left Stick + R2": ["Scramble"],
+      "Cross": ["Receiver 1"],
+      "Circle": ["Receiver 2"],
+      "Square": ["Receiver 3"],
+      "Triangle": ["Receiver 4"],
+      "R1": ["Receiver 5"],
+      "L2 + Right Stick": ["Playmaker (Flick)"],
+      "R3": ["Throw Ball Away"]
+    },
+    "player_locked_receiver": {
+      "L2": ["Foot Fire Release"],
+      "Left Stick Down": ["Take Off (Presnap Towards LOS)"],
+      "L3": ["Player Lock"],
+      "Left Stick": ["Route Running/Move Player"],
+      "R2": ["Just-Go Release"],
+      "Cross": ["Conservative Change-up Release"],
+      "Right Stick": ["Hop Step Release"]
+    },
+    "preplay_defense": {
+      "L2": ["Global Coverage"],
+      "L1": ["Custom Adjustments"],
+      "D-Pad Up": ["Zoom Camera In"],
+      "D-Pad Left": ["Coach / X-Factor Vision"],
+      "D-Pad Right": ["Preplay Subs"],
+      "D-Pad Down": ["Zoom Camera Out"],
+      "L3": ["Player Lock"],
+      "Touchpad": ["Call Timeout"],
+      "R2": ["X-Factor Vision"],
+      "R1": ["Defensive Keys"],
+      "Triangle": ["Coverage Audibles"],
+      "Square": ["Audible"],
+      "Circle": ["Switch Player"],
+      "Cross": ["DEF Hot Route"],
+      "R3": ["Pre-play Menu"],
+      "Right Stick Left/Right": ["DL Shift / LB Shift"]
+    },
+    "preplay_offense": {
+      "L2": ["Pass Protection"],
+      "L1": ["Custom Adjustments"],
+      "D-Pad Up": ["Zoom Camera In"],
+      "D-Pad Left": ["Coach Vision"],
+      "D-Pad Down": ["Zoom Camera Out"],
+      "D-Pad Right": ["Preplay Subs"],
+      "Left Stick": ["Motion Player (Hold)"],
+      "L3": ["Player Lock"],
+      "Touchpad": ["Call Timeout"],
+      "R2": ["Show Play Art"],
+      "R1": ["Fake Snap"],
+      "Triangle": ["Hot Route"],
+      "Square": ["Audible"],
+      "Circle": ["Switch Player"],
+      "Cross": ["Snap Ball"],
+      "R3": ["Pre-play Menu"]
+    },
+    "running": {
+      "L2+R2+Cross": ["Celebration"],
+      "L2+Right Stick Up": ["Effort Reach"],
+      "L1": ["Pitch"],
+      "R2": ["Sprint"],
+      "R1": ["Protect Ball"],
+      "Triangle": ["Hurdle"],
+      "Square": ["Slide/Give Up (Tap) Dive (Hold)"],
+      "Circle": ["Spin"],
+      "Cross": ["Stiff Arm"],
+      "Right Stick Up": ["Truck"],
+      "Right Stick Down": ["Dead Leg"],
+      "Right Stick Left/Right": ["Juke"],
+      "Rotate Right Stick": ["Spin"]
+    }
+  }
+}
