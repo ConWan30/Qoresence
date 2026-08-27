@@ -27,11 +27,11 @@ const SHEET_LABELS: Record<string, string> = {
 };
 
 export function ObservatoryInstrument() {
+  const hidButton = useTheater((s) => s.observationHidButton);
   const verb = useTheater((s) => s.observationVerb);
   const mode = useTheater((s) => s.observationMode);
   const visualPhase = useTheater((s) => s.observationVisualPhase);
   const conflict = useTheater((s) => s.observationConflict);
-  const padHeld = useTheater((s) => s.padHeld);
   const stageMode = useTheater((s) => s.stageMode);
   const livePaint = useTheater((s) => s.livePaint);
   const planeDim = useTheater((s) => s.planeDim);
@@ -45,9 +45,13 @@ export function ObservatoryInstrument() {
   const unlabeled = !sheetLabel;
 
   // Last named press: DualSense button · EA verb (fade if no input)
-  const currentButton = padHeld[0] || null;
-  const hasPress = Boolean(currentButton && verb);
-  const pressDisplay = hasPress ? `${currentButton} · ${verb}` : null;
+  // hidButton from hid_by_seq observation (honest: may be unlabeled)
+  const hasPress = Boolean(hidButton);
+  const pressDisplay = hasPress
+    ? verb
+      ? `${hidButton} · ${verb}`
+      : `${hidButton} · □`
+    : null;
 
   // Honesty: conflict when picture sheet != pad sheet
   const hasConflict = Boolean(conflict);

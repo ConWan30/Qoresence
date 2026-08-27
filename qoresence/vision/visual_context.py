@@ -202,6 +202,11 @@ class VisualContext:
         d["details"] = self.details
         d["score_vlm_locked"] = self.score_vlm_locked
         d["confirm_ticket_id"] = self.confirm_ticket_id
+        
+        # Include visual_phase at top level for convenience if present in details
+        if isinstance(self.details, dict) and "visual_phase" in self.details:
+            d["visual_phase"] = self.details.get("visual_phase")
+        
         return d
 
     @staticmethod
@@ -355,6 +360,18 @@ class VisualContext:
         ctx.score_vlm_locked = bool(raw.get("score_vlm_locked", False))
         ctx.confirm_ticket_id = str(raw.get("confirm_ticket_id") or "")
 
+        # Extract visual_phase from top-level or details and store in details for consistency
+        visual_phase = raw.get("visual_phase")
+        if visual_phase is not None:
+            # Store in details for consistent access pattern
+            if not isinstance(ctx.details, dict):
+                ctx.details = {}
+            ctx.details["visual_phase"] = str(visual_phase).strip().lower() if visual_phase else None
+        elif isinstance(ctx.details, dict) and "visual_phase" in ctx.details:
+            # Already in details, normalize it
+            vp = ctx.details.get("visual_phase")
+            ctx.details["visual_phase"] = str(vp).strip().lower() if vp else None
+
         return ctx
 
 
@@ -397,6 +414,10 @@ def build_football_prompt() -> str:
         "If the team names or HOME/AWAY labels clearly show the HOME team is on the LEFT, "
         "set home_left to true; otherwise set it to false or null. "
         "Possession should be 'home' when the team on the right has the ball, 'away' when the team on the left has it. "
+        "Identify the visual_phase of play from this allowlist: "
+        '"huddle_offense", "huddle_defense", "snap", "running", "passing", "ball_in_air", '
+        '"coverage", "defense_pursuit", "defense_engaged", "blocking", "player_locked_receiver". '
+        "If the phase is unclear or not in the allowlist, set visual_phase to null. "
         "Respond ONLY with valid JSON, no other text.\n\n"
         '{"game_state": "menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown", '
         '"game_title": "", '
@@ -418,6 +439,7 @@ def build_football_prompt() -> str:
         '"away_team": null, '
         '"player_name": null, '
         '"player_jersey": null, '
+        '"visual_phase": null, '
         '"quality": {"has_screen_tearing": false, "has_lag_indicator": false, "frame_quality": "ok"}, '
         '"confidence": 0.0}'
     )

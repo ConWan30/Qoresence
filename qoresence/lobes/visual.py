@@ -437,6 +437,7 @@ class VisualRuntime:
         if self._frame_provider is None:
             log.warning("No frame provider set - visual lobe will not analyze frames")
 
+        _register_runtime(self)
         self._running = True
         self._start_time = time.time()
         self._thread = threading.Thread(target=self._run_loop, name="qoresence-visual", daemon=True)
@@ -452,6 +453,7 @@ class VisualRuntime:
         self._running = False
         if self._thread:
             self._thread.join(timeout=5.0)
+        _unregister_runtime(self)
         log.info("Visual lobe stopped")
 
     def is_running(self) -> bool:
@@ -775,3 +777,41 @@ class MockVLMClient:
             reasoning="Mock: insufficient modality data",
             modalities_checked=list(other_modalities.keys()),
         )
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# MODULE REGISTRY (same pattern as controller runtime)
+# ────────────────────────────────────────────────────────────────────────────
+
+_active: VisualRuntime | None = None
+_active_lock = threading.Lock()
+
+
+def _register_runtime(runtime: VisualRuntime) -> None:
+    global _active
+    with _active_lock:
+        _active = runtime
+
+
+def _unregister_runtime(runtime: VisualRuntime) -> None:
+    global _active
+    with _active_lock:
+        if _active is runtime:
+            _active = None
+
+
+def get_visual_runtime() -> VisualRuntime | None:
+    """Process-local visual lobe (None if not started)."""
+    return _active
+
+
+def get_last_visual_context() -> VisualContext | None:
+    """Get last VisualContext from active visual runtime.
+    
+    Convenience wrapper for observation wire and other consumers.
+    Returns None if visual lobe is not started or has no context yet.
+    """
+    runtime = get_visual_runtime()
+    if runtime is None:
+        return None
+    return runtime.get_last_context()

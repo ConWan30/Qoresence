@@ -145,6 +145,7 @@ export type TheaterState = {
   actuators: ActuatorReceipt[];
   framed: boolean;
   /** LAYER A/B: Observatory observation fields */
+  observationHidButton: string | null;
   observationVerb: string | null;
   observationMode: string | null;
   observationVisualPhase: string | null;
@@ -320,6 +321,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
   companion: EMPTY_COMPANION,
   actuators: [],
   framed: false,
+  observationHidButton: null,
   observationVerb: null,
   observationMode: null,
   observationVisualPhase: null,
@@ -603,6 +605,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       padBinds: ing.padBinds,
       padJitterMs: ing.padJitterMs,
       padHidSeq: ing.padHidSeq || s.padHidSeq,
+      observationHidButton: ing.observation.hidButton,
       observationVerb: ing.observation.verb,
       observationMode: ing.observation.mode,
       observationVisualPhase: ing.observation.visualPhase,

@@ -768,11 +768,15 @@ def _write_observation_sidecar(
         # Try to get visual_context for the clip window (from latest VLM result)
         visual_context = None
         try:
-            from qoresence.vision.visual_oracle import get_visual_oracle
+            from qoresence.lobes.visual import get_last_visual_context
 
-            oracle = get_visual_oracle()
-            if oracle is not None:
-                visual_context = oracle.latest_context()
+            ctx = get_last_visual_context()
+            if ctx is not None:
+                # Coerce VisualContext dataclass to dict
+                if hasattr(ctx, "to_dict"):
+                    visual_context = ctx.to_dict()
+                elif isinstance(ctx, dict):
+                    visual_context = ctx
         except Exception:
             visual_context = None
 
