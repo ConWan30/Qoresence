@@ -2,6 +2,7 @@
  *
  * Sheet chip: active sheet (Huddle, Run, Pass, Coverage, …) or UNLABELED
  * Last named press: DualSense button · EA verb (e.g. "Cross · Snap Ball")
+ * Sticky press: simple button stays visible ~500ms after HID drops (TTL)
  * Honesty: conflict display when picture sheet != pad sheet
  *
  * Instrument look: coupling gauge, not sports overlay. Phosphor dark mono.
@@ -10,6 +11,8 @@
 
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
+
+const STICKY_HID_TTL_MS = 500;
 
 const SHEET_LABELS: Record<string, string> = {
   preplay_offense: "Huddle",
@@ -27,30 +30,34 @@ const SHEET_LABELS: Record<string, string> = {
 };
 
 export function ObservatoryInstrument() {
-  const hidButton = useTheater((s) => s.observationHidButton);
-  const verb = useTheater((s) => s.observationVerb);
   const mode = useTheater((s) => s.observationMode);
-  const visualPhase = useTheater((s) => s.observationVisualPhase);
   const conflict = useTheater((s) => s.observationConflict);
   const stageMode = useTheater((s) => s.stageMode);
   const livePaint = useTheater((s) => s.livePaint);
   const planeDim = useTheater((s) => s.planeDim);
+  const sameSeq = useTheater((s) => s.sameSeq);
+  const stickyButton = useTheater((s) => s.stickyHidButton);
+  const stickyVerb = useTheater((s) => s.stickyHidButtonVerb);
+  const stickyAt = useTheater((s) => s.stickyHidButtonAt);
 
   // Observatory off during replay or when picture is dark
-  if (stageMode === "replay" || !livePaint || planeDim) return null;
+  if (stageMode === "replay" || !livePaint || planeDim || !sameSeq) return null;
 
   // Sheet chip: human label for active sheet or unlabeled mark
   const sheetLabel = mode ? SHEET_LABELS[mode] || mode.toUpperCase() : null;
   const sheetDisplay = sheetLabel || "□ UNLABELED";
   const unlabeled = !sheetLabel;
 
-  // Last named press: DualSense button · EA verb (fade if no input)
-  // hidButton from hid_by_seq observation (honest: may be unlabeled)
-  const hasPress = Boolean(hidButton);
+  // Sticky hidButton: last simple press stays visible ~500ms on HDMI clock.
+  // Unlabeled stays unlabeled (Cross · □). Verb only if observation had one.
+  // Clear on Dark / planeDim / seq_skew / !livePaint / replay (handled above).
+  const now = Date.now();
+  const withinTTL = stickyAt > 0 && now - stickyAt < STICKY_HID_TTL_MS;
+  const hasPress = Boolean(stickyButton && withinTTL);
   const pressDisplay = hasPress
-    ? verb
-      ? `${hidButton} · ${verb}`
-      : `${hidButton} · □`
+    ? stickyVerb
+      ? `${stickyButton} · ${stickyVerb}`
+      : `${stickyButton} · □`
     : null;
 
   // Honesty: conflict when picture sheet != pad sheet
