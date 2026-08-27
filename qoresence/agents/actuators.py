@@ -159,7 +159,8 @@ def license_from_tickets(
             text="ticket live",
             evidence={"coupling_ticket_id": cid},
         )
-    if tid or score_vlm_locked:
+    # License board only if BOTH confirm_ticket_id AND score_vlm_locked (seeing-path source)
+    if tid and score_vlm_locked:
         return ActuatorReceipt(
             actuator="license",
             path="confirm",
@@ -168,8 +169,9 @@ def license_from_tickets(
             ticket_id=tid,
             kind="ticket",
             text="board licensed",
-            evidence={"confirm_ticket_id": tid, "score_vlm_locked": bool(score_vlm_locked)},
+            evidence={"confirm_ticket_id": tid, "score_vlm_locked": True},
         )
+    # score_vlm_locked flag alone is a veto, never a license
     return ActuatorReceipt(
         actuator="license",
         path="confirm",
@@ -177,7 +179,7 @@ def license_from_tickets(
         frame_seq=frame_seq,
         kind="veto",
         text="license veto",
-        evidence={"score_vlm_locked": False},
+        evidence={"score_vlm_locked": False, "confirm_ticket_id": tid or ""},
     )
 
 

@@ -35,7 +35,7 @@ def test_mint_is_deterministic_for_same_board():
     assert a.ticket_id == b.ticket_id
     assert len(a.ticket_id) == 16
     assert a.model == "gemini-3.5-flash-lite"
-    assert a.source == "gemini_scoreboard"
+    assert a.source == "gemini"
 
 
 def test_different_scores_make_different_tickets():

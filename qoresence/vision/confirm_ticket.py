@@ -17,6 +17,39 @@ from typing import Any
 DOMAIN = "QORESENCE-CONFIRM-TICKET-v0"
 SCORE_PAIR = re.compile(r"\b(\d{1,2})\s*[-–—]\s*(\d{1,2})\b")
 
+# Seeing-path sources (VLM / OCR scorebug) that license score_vlm_locked
+SEEING_PATH_SOURCES = frozenset({"gemini", "quicksilver", "easyocr_scorebug"})
+
+# Source aliases for normalization
+SOURCE_ALIASES = {
+    "gemini_scoreboard": "gemini",
+    "qs": "quicksilver",
+    "easyocr": "easyocr_scorebug",
+    "paddle": "easyocr_scorebug",
+}
+
+
+class ConfirmTicketSourceError(ValueError):
+    """Raised when attempting to mint a ticket from a non-seeing-path source."""
+
+    pass
+
+
+def normalize_source(source: str | None) -> str:
+    """Normalize source aliases to canonical form."""
+    if not source:
+        return ""
+    s = str(source).strip().lower()
+    return SOURCE_ALIASES.get(s, s)
+
+
+def is_seeing_source(source: str | None) -> bool:
+    """Return True if source is a seeing-path source (VLM / OCR scorebug)."""
+    if not source:
+        return False
+    s = normalize_source(source)
+    return s in SEEING_PATH_SOURCES
+
 
 @dataclass(frozen=True)
 class ConfirmTicket:
@@ -26,7 +59,7 @@ class ConfirmTicket:
     home_score: int | None
     away_score: int | None
     model: str = "gemini-3.5-flash-lite"
-    source: str = "gemini_scoreboard"
+    source: str = "gemini"
     frame_seq: int | None = None
     crop_hash: str = ""
     quarter: int | None = None
@@ -52,12 +85,20 @@ def mint_confirm_ticket(
     home_score: int | None,
     away_score: int | None,
     model: str = "gemini-3.5-flash-lite",
-    source: str = "gemini_scoreboard",
+    source: str = "gemini",
     frame_seq: int | None = None,
     crop_hash: str = "",
     quarter: int | None = None,
     down: int | None = None,
 ) -> ConfirmTicket:
+    # Normalize and validate source: ONLY seeing-path sources allowed
+    normalized_source = normalize_source(source)
+    if not is_seeing_source(normalized_source):
+        raise ConfirmTicketSourceError(
+            f"Cannot mint ConfirmTicket with source={source!r}. "
+            f"Only seeing-path sources {SEEING_PATH_SOURCES} are allowed."
+        )
+    
     hs, aws = _norm_int(home_score), _norm_int(away_score)
     payload = {
         "v": DOMAIN,
@@ -66,7 +107,7 @@ def mint_confirm_ticket(
         "home_score": hs,
         "away_score": aws,
         "model": str(model or "gemini-3.5-flash-lite"),
-        "source": str(source or "gemini_scoreboard"),
+        "source": normalized_source,
         "frame_seq": _norm_int(frame_seq),
         "crop_hash": str(crop_hash or ""),
         "quarter": _norm_int(quarter),

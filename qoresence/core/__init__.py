@@ -25,6 +25,7 @@ from .types import (
 )
 from .unified_config import (
     CALL_OF_DUTY_PROFILE,
+    CFB_27_PROFILE,
     GAME_PROFILE_ALIASES,
     GAME_PROFILE_REGISTRY,
     MADDEN_27_PROFILE,
@@ -47,6 +48,7 @@ from .unified_config import (
     VisualConfig,
     get_game_profile,
     normalize_game_profile,
+    profile_from_title,
     register_game_profile,
 )
 

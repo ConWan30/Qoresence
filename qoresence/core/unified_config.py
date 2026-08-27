@@ -16,6 +16,7 @@ class GameProfileId(StrEnum):
     """First-class game profiles (equal citizens)."""
 
     NCAA_FOOTBALL_27 = "ncaa_football_27"
+    CFB_27 = "cfb_27"
     MADDEN_27 = "madden_27"
     CALL_OF_DUTY = "call_of_duty"
     VALORANT = "valorant"
@@ -41,6 +42,41 @@ class GameProfile:
 NCAA_FOOTBALL_27_PROFILE = GameProfile(
     profile_id=GameProfileId.NCAA_FOOTBALL_27,
     display_name="NCAA College Football 27",
+    event_types=(
+        "snap",
+        "down_advanced",
+        "first_down",
+        "score_changed",
+        "touchdown",
+        "field_goal",
+        "safety",
+        "two_point_conversion",
+        "playclock_reset",
+        "quarter_changed",
+        "two_minute_warning",
+        "possession_changed",
+        "timeout_called",
+        "penalty",
+        "turnover",
+        "red_zone_entry",
+    ),
+    outcome_fields=(
+        "home_score",
+        "away_score",
+        "quarter",
+        "down",
+        "yards_to_go",
+        "possession",
+        "play_clock",
+        "game_clock",
+        "field_position",
+    ),
+    category="football",
+)
+
+CFB_27_PROFILE = GameProfile(
+    profile_id=GameProfileId.CFB_27,
+    display_name="College Football 27",
     event_types=(
         "snap",
         "down_advanced",
@@ -245,6 +281,7 @@ FORTNITE_PROFILE = GameProfile(
 # Registry of all known profiles (extensible)
 GAME_PROFILE_REGISTRY: dict[GameProfileId, GameProfile] = {
     NCAA_FOOTBALL_27_PROFILE.profile_id: NCAA_FOOTBALL_27_PROFILE,
+    CFB_27_PROFILE.profile_id: CFB_27_PROFILE,
     MADDEN_27_PROFILE.profile_id: MADDEN_27_PROFILE,
     CALL_OF_DUTY_PROFILE.profile_id: CALL_OF_DUTY_PROFILE,
     VALORANT_PROFILE.profile_id: VALORANT_PROFILE,
@@ -262,8 +299,16 @@ GAME_PROFILE_ALIASES: dict[str, GameProfileId] = {
     "ea_madden": GameProfileId.MADDEN_27,
     "ea_sports_madden_27": GameProfileId.MADDEN_27,
     "ncaa_27": GameProfileId.NCAA_FOOTBALL_27,
-    "college_football_27": GameProfileId.NCAA_FOOTBALL_27,
-    "ea_sports_college_football_27": GameProfileId.NCAA_FOOTBALL_27,
+    "college_football_27": GameProfileId.CFB_27,
+    "cfb_27": GameProfileId.CFB_27,
+    "cfb27": GameProfileId.CFB_27,
+    "cfb": GameProfileId.CFB_27,
+    "college football 27": GameProfileId.CFB_27,
+    "ea_sports_college_football_27": GameProfileId.CFB_27,
+    "ncaa_cfb_27": GameProfileId.CFB_27,
+    "ncaa": GameProfileId.CFB_27,
+    "college football": GameProfileId.CFB_27,
+    "college": GameProfileId.CFB_27,
     "cod": GameProfileId.CALL_OF_DUTY,
     "call_of_duty": GameProfileId.CALL_OF_DUTY,
     "modern_warfare": GameProfileId.CALL_OF_DUTY,
@@ -304,6 +349,29 @@ def get_game_profile(profile_id: GameProfileId | str) -> GameProfile:
 def register_game_profile(profile: GameProfile) -> None:
     """Register a new game profile (for extensibility)."""
     GAME_PROFILE_REGISTRY[profile.profile_id] = profile
+
+
+def profile_from_title(game_title: str | None) -> GameProfileId:
+    """Map game title text to a canonical GameProfileId.
+    
+    College Football / NCAA / CFB → CFB_27
+    Madden → MADDEN_27
+    """
+    if not game_title:
+        return GameProfileId.NCAA_FOOTBALL_27  # legacy default
+    
+    title_lower = str(game_title).lower().strip()
+    
+    # CFB aliases
+    if any(k in title_lower for k in ("college football", "ncaa", "cfb")):
+        return GameProfileId.CFB_27
+    
+    # Madden aliases
+    if "madden" in title_lower:
+        return GameProfileId.MADDEN_27
+    
+    # Default fallback
+    return GameProfileId.NCAA_FOOTBALL_27
 
 
 # ──────────────────────────────────────────────────────────────────────────────

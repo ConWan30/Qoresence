@@ -408,8 +408,8 @@ class FootballScoreboardExtractor:
                 local_hud = read_score_pair(frame, getattr(ctx, "game_profile", None))
             except Exception:
                 local_hud = None
-            if local_hud is not None:
-                parsed["home_score"], parsed["away_score"] = local_hud
+            # Do NOT copy local_hud into parsed. HUD may corroborate a seeing-path
+            # mint but must not source the board when VLM get_last() is None.
         if tokens:
             joined = " ".join(t.text for t in tokens).upper()
             is_paused = any(
@@ -495,21 +495,14 @@ class FootballScoreboardExtractor:
                     pass
 
         if not parsed:
-            # No OCR/VLM this frame — still publish a held stabilizer lock so a
-            # null VLM (transition / blur) does not wipe a good score lock
-            # (invariant #5). update(None, None) returns the held lock unchanged.
-            stab = FootballScoreboardExtractor._stabilizer
-            if stab is not None:
-                sh, sa = stab.update(None, None)
-                if sh is not None:
-                    ctx.home_score = sh
-                if sa is not None:
-                    ctx.away_score = sa
+            # No OCR/VLM this frame — never publish held stabilizer digits without
+            # a seeing-path ticket. Glass stays dark by spine honesty (null scores).
             return ctx
 
         # Stabilize scores so one bad frame cannot flip 17-17 → 17-2
         raw_h, raw_a = parsed.get("home_score"), parsed.get("away_score")
         stab = FootballScoreboardExtractor._stabilizer
+        seeing_path_minted_this_frame = False
         if stab is not None and (raw_h is not None or raw_a is not None):
             if (
                 vlm_scores
@@ -548,7 +541,7 @@ class FootballScoreboardExtractor:
                         home_score=int(sh),
                         away_score=int(sa),
                         model=str(getattr(ctx, "model", "") or "gemini-3.5-flash-lite"),
-                        source="gemini_scoreboard",
+                        source="gemini",
                         frame_seq=_ti(stamp.get("seq")),
                         crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
                         quarter=_ti(parsed.get("quarter")),
@@ -570,74 +563,27 @@ class FootballScoreboardExtractor:
                     log.warning("confirm ticket mint failed — refuse score_vlm_locked: %s", e)
                     ctx.score_vlm_locked = False
                 if not locked_ok:
-                    # Keep stabilized digits for OCR continuity, but unlicensed.
-                    pass
+                    # Unlicensed → do not serialize digits. Glass stays dark.
+                    sh, sa = None, None
+                    seeing_path_minted_this_frame = False
+                else:
+                    seeing_path_minted_this_frame = True
             else:
                 sh, sa = stab.update(raw_h, raw_a)
-                if (
-                    local_hud is not None
-                    and _may_mint_lock(ctx)
-                    and sh is not None
-                    and sa is not None
-                    and (sh, sa) == tuple(local_hud)
-                ):
-                    # Local HUD match must still mint — never lock without ticket.
-                    try:
-                        import time as _time_hud
-
-                        from qoresence.monitor.frame_hub import get_latest_stamp
-                        from qoresence.vision.confirm_ticket import (
-                            get_ticket_book,
-                            mint_confirm_ticket,
-                        )
-
-                        stamp = {}
-                        try:
-                            stamp = get_latest_stamp() or {}
-                        except Exception:
-                            stamp = {}
-
-                        def _ti_hud(v: Any) -> int | None:
-                            try:
-                                return int(v) if v is not None and v != "" else None
-                            except (TypeError, ValueError):
-                                return None
-
-                        ticket = mint_confirm_ticket(
-                            session_id=str(getattr(ctx, "session_id", "") or ""),
-                            clock_ns=int(stamp.get("clock_ns") or _time_hud.monotonic_ns()),
-                            home_score=int(sh),
-                            away_score=int(sa),
-                            model=str(getattr(ctx, "model", "") or "local_hud"),
-                            source="local_hud",
-                            frame_seq=_ti_hud(stamp.get("seq")),
-                            crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
-                            quarter=_ti_hud(parsed.get("quarter")),
-                            down=_ti_hud(parsed.get("down")),
-                        )
-                        get_ticket_book().put(ticket)
-                        ctx.confirm_ticket_id = ticket.ticket_id
-                        if isinstance(ctx.details, dict):
-                            ctx.details["confirm_ticket"] = ticket.to_dict()
-                        ctx.score_vlm_locked = True
-                        log.info(
-                            "scoreboard HUD lock %s-%s ticket=%s",
-                            sh,
-                            sa,
-                            ticket.ticket_id,
-                        )
-                    except Exception as e:
-                        log.warning(
-                            "local HUD lock refused — mint failed: %s", e
-                        )
-                        ctx.score_vlm_locked = False
-            if sh is not None:
-                parsed["home_score"] = sh
+            
+            # Only write stabilized scores if seeing-path minted this frame
+            if seeing_path_minted_this_frame:
+                if sh is not None:
+                    parsed["home_score"] = sh
+                else:
+                    parsed.pop("home_score", None)
+                if sa is not None:
+                    parsed["away_score"] = sa
+                else:
+                    parsed.pop("away_score", None)
             else:
+                # No seeing-path ticket → clear scores
                 parsed.pop("home_score", None)
-            if sa is not None:
-                parsed["away_score"] = sa
-            else:
                 parsed.pop("away_score", None)
             if (raw_h, raw_a) != (sh, sa):
                 log.debug(
@@ -647,20 +593,22 @@ class FootballScoreboardExtractor:
                     sh,
                     sa,
                 )
-        elif stab is not None:
-            # No score candidates this frame (e.g. partial VLM with only
-            # quarter, OCR empty) — publish held lock so a null/partial VLM
-            # does not wipe a good score lock (invariant #5).
-            sh, sa = stab.update(None, None)
-            if sh is not None:
-                parsed["home_score"] = sh
-            if sa is not None:
-                parsed["away_score"] = sa
+        else:
+            # No stabilizer or no score candidates → never publish held lock
+            parsed.pop("home_score", None)
+            parsed.pop("away_score", None)
 
-        if parsed.get("home_score") is not None:
-            ctx.home_score = parsed["home_score"]
-        if parsed.get("away_score") is not None:
-            ctx.away_score = parsed["away_score"]
+        # Only write scores to ctx if seeing-path minted this frame
+        if seeing_path_minted_this_frame:
+            if parsed.get("home_score") is not None:
+                ctx.home_score = parsed["home_score"]
+            if parsed.get("away_score") is not None:
+                ctx.away_score = parsed["away_score"]
+        else:
+            # Unlicensed → clear ctx scores
+            ctx.home_score = None
+            ctx.away_score = None
+            ctx.score_vlm_locked = False
         if parsed.get("quarter") is not None:
             ctx.quarter = parsed["quarter"]
         if parsed.get("clock_seconds") is not None:
