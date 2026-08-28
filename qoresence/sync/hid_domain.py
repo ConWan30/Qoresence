@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import enum
 import logging
-from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +29,59 @@ class HidDomain(enum.Enum):
 
     OBSERVE = "observe"  # laptop USB Edge — observation only, no bind
     PLAY = "play"  # PS5 DualSense — the play pad
+    PICTURE = "picture"  # HDMI HUD control legend — observation only, no bind
+
+
+def rank_hid_collection(*, usage_page: int | None = None, usage: int | None = None) -> int:
+    """Lower is better. DualSense gamepad collection first; vendor/touchpad last."""
+    page = int(usage_page or 0)
+    use = int(usage or 0)
+    if page == 0x01 and use in {0x04, 0x05}:  # Generic Desktop Joystick / Gamepad
+        return 0
+    if page == 0x01:
+        return 1
+    if page >= 0xFF00:
+        return 8
+    return 5
+
+
+def infer_transport(
+    *,
+    transport: str | None = None,
+    path: str | None = None,
+    bus_type: int | None = None,
+) -> str | None:
+    """Infer usb vs bt from hidapi bus_type / path when transport is unset.
+
+    Used so DualSense Edge USB is OBSERVE at open, before the first parsed report.
+    """
+    t = str(transport or "").strip().lower()
+    if t in {"usb", "wired"}:
+        return "usb"
+    if t in {"bt", "bluetooth", "wireless"}:
+        return "bt"
+
+    if bus_type is not None:
+        try:
+            bt = int(bus_type)
+        except (TypeError, ValueError):
+            bt = None
+        else:
+            # hidapi: HID_API_BUS_USB=1, HID_API_BUS_BLUETOOTH=2
+            if bt == 1:
+                return "usb"
+            if bt == 2:
+                return "bt"
+
+    p = str(path or "").lower()
+    if not p:
+        return None
+    if "bthenum" in p or "bluetooth" in p or "&col01" in p and "bth" in p:
+        return "bt"
+    if "vid_" in p or "vid=" in p or "&mi_" in p or "usb" in p or "hid#" in p:
+        if "bth" not in p and "bluetooth" not in p:
+            return "usb"
+    return None
 
 
 def classify_hid_domain(
@@ -39,6 +91,7 @@ def classify_hid_domain(
     transport: str | None = None,
     product: str | None = None,
     path: str | None = None,
+    bus_type: int | None = None,
 ) -> HidDomain:
     """Classify HID as OBSERVE (laptop USB Edge) or PLAY (everything else).
 
@@ -48,6 +101,7 @@ def classify_hid_domain(
         transport: "usb" or "bt" or "unknown"
         product: Product string from HID enumerate
         path: HID device path
+        bus_type: hidapi bus_type (1=usb, 2=bluetooth)
 
     Returns:
         HidDomain.OBSERVE if laptop USB DualSense Edge, else HidDomain.PLAY
@@ -58,13 +112,13 @@ def classify_hid_domain(
 
     # Laptop USB DualSense Edge = observe
     if int(vid) == DS_EDGE_VID and int(pid) == DS_EDGE_PID:
-        trans = str(transport or "").lower()
+        trans = infer_transport(transport=transport, path=path, bus_type=bus_type)
         if trans == "usb":
             log.info(
                 "HID domain: OBSERVE (laptop USB DualSense Edge vid=%04x pid=%04x transport=%s)",
                 vid,
                 pid,
-                transport,
+                trans,
             )
             return HidDomain.OBSERVE
 
@@ -105,4 +159,6 @@ def domain_reason(domain: HidDomain | str | None) -> str:
     d = str(domain).lower()
     if d == HidDomain.OBSERVE.value:
         return "hid_observe"
+    if d == HidDomain.PICTURE.value:
+        return "hid_picture"
     return d

@@ -112,6 +112,7 @@ export type Observation = {
   mode: string | null;
   visualPhase: string | null;
   gameProfile: string | null;
+  hidSource?: string | null;
   conflict: {
     pictureSheet: string;
     padSheet: string;
@@ -128,6 +129,7 @@ export const EMPTY_OBSERVATION: Observation = {
   mode: null,
   visualPhase: null,
   gameProfile: null,
+  hidSource: null,
   conflict: null,
 };
 
@@ -578,6 +580,7 @@ function parseObservation(raw: unknown): Observation {
     mode: o.mode != null ? String(o.mode) : null,
     visualPhase: o.visual_phase != null ? String(o.visual_phase) : null,
     gameProfile: o.game_profile != null ? String(o.game_profile) : null,
+    hidSource: o.hid_source != null ? String(o.hid_source) : null,
     conflict: conflict
       ? {
           pictureSheet: String(conflict.picture_sheet || ""),

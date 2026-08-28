@@ -154,6 +154,7 @@ export type TheaterState = {
   stickyHidButton: string | null;
   stickyHidButtonVerb: string | null;
   stickyHidButtonAt: number;
+  stickyHidSource: string | null;
   setR2: (v: number) => void;
   setLeft: (v: number) => void;
   setHdmi: (m: HdmiMode) => void;
@@ -333,6 +334,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
   stickyHidButton: null,
   stickyHidButtonVerb: null,
   stickyHidButtonAt: 0,
+  stickyHidSource: null,
   livePaint: true,
   sameSeq: true,
   planeDim: false,
@@ -623,7 +625,12 @@ export const useTheater = create<TheaterState>((set, get) => ({
     const clearSticky = s.stageMode === "replay" || !paint || !sameSeq || planeDim;
     if (clearSticky) {
       if (s.stickyHidButton !== null) {
-        set({ stickyHidButton: null, stickyHidButtonVerb: null, stickyHidButtonAt: 0 });
+        set({
+          stickyHidButton: null,
+          stickyHidButtonVerb: null,
+          stickyHidButtonAt: 0,
+          stickyHidSource: null,
+        });
       }
     } else if (ing.observation.hidButton) {
       // Only sticky simple presses (no combos like "L2+R2" or multi-button chords).
@@ -633,6 +640,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
           stickyHidButton: ing.observation.hidButton,
           stickyHidButtonVerb: ing.observation.verb,
           stickyHidButtonAt: Date.now(),
+          stickyHidSource: ing.observation.hidSource ?? null,
         });
       }
     }

@@ -102,6 +102,10 @@ class VisualContext:
     score_vlm_locked: bool = False
     confirm_ticket_id: str = ""
 
+    # HDMI HUD control callout (fail-closed). Null unless a named DualSense
+    # prompt is visible on this frame. Never inferred from visual_phase.
+    visible_control: dict | None = None
+
     # Provenance
     raw_response: str = ""
     frame_hash: str = ""
@@ -202,11 +206,13 @@ class VisualContext:
         d["details"] = self.details
         d["score_vlm_locked"] = self.score_vlm_locked
         d["confirm_ticket_id"] = self.confirm_ticket_id
-        
+        if self.visible_control is not None:
+            d["visible_control"] = self.visible_control
+
         # Include visual_phase at top level for convenience if present in details
         if isinstance(self.details, dict) and "visual_phase" in self.details:
             d["visual_phase"] = self.details.get("visual_phase")
-        
+
         return d
 
     @staticmethod
@@ -360,6 +366,26 @@ class VisualContext:
         ctx.score_vlm_locked = bool(raw.get("score_vlm_locked", False))
         ctx.confirm_ticket_id = str(raw.get("confirm_ticket_id") or "")
 
+        vc = raw.get("visible_control")
+        if vc is None and isinstance(fb, dict):
+            vc = fb.get("visible_control")
+        if vc is None and isinstance(raw.get("details"), dict):
+            vc = raw["details"].get("visible_control")
+        if isinstance(vc, dict):
+            btn = vc.get("button")
+            glyph = vc.get("glyph")
+            prompt = vc.get("prompt")
+            ctx.visible_control = {
+                "button": str(btn).strip() if btn not in (None, "", "null") else None,
+                "glyph": str(glyph).strip() if glyph not in (None, "", "null") else None,
+                "prompt": str(prompt).strip() if prompt not in (None, "", "null") else None,
+            }
+            if not isinstance(ctx.details, dict):
+                ctx.details = {}
+            ctx.details["visible_control"] = ctx.visible_control
+        else:
+            ctx.visible_control = None
+
         # Extract visual_phase from top-level or details and store in details for consistency
         visual_phase = raw.get("visual_phase")
         if visual_phase is not None:
@@ -418,6 +444,13 @@ def build_football_prompt() -> str:
         '"huddle_offense", "huddle_defense", "snap", "running", "passing", "ball_in_air", '
         '"coverage", "defense_pursuit", "defense_engaged", "blocking", "player_locked_receiver". '
         "If the phase is unclear or not in the allowlist, set visual_phase to null. "
+        "If a DualSense / PlayStation button prompt is clearly visible on this HUD "
+        "(Cross/✕, Circle/○, Square/□, Triangle/△, L1, R1, L2, R2, OPTIONS, CREATE, L3, R3), "
+        "set visible_control.button to that name, glyph to the on-screen mark if readable, "
+        "and prompt to the HUD verb text (e.g. Snap) or null. "
+        "If no control callout is visible, set visible_control to "
+        '{"button": null, "glyph": null, "prompt": null}. '
+        "NEVER infer a button from player motion, sprint, analog sticks, or visual_phase. "
         "Respond ONLY with valid JSON, no other text.\n\n"
         '{"game_state": "menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown", '
         '"game_title": "", '
@@ -440,6 +473,7 @@ def build_football_prompt() -> str:
         '"player_name": null, '
         '"player_jersey": null, '
         '"visual_phase": null, '
+        '"visible_control": {"button": null, "glyph": null, "prompt": null}, '
         '"quality": {"has_screen_tearing": false, "has_lag_indicator": false, "frame_quality": "ok"}, '
         '"confidence": 0.0}'
     )

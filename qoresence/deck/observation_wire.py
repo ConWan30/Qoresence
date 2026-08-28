@@ -20,7 +20,8 @@ Emits small observation dict:
 }
 
 Unlabeled is the honest empty state (verb/mode/visual_phase/conflict may be null).
-Never invents Snap Ball. Only emits when there's actual HID input at frame_seq.
+Never invents Snap Ball. Emits when USB hid_by_seq has buttons at frame_seq
+or a PictureHidTicket exists for that seq. Picture never writes InputRing.
 """
 
 from __future__ import annotations
@@ -49,10 +50,11 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
             mode: str | null,               # Sheet key (e.g. "preplay_offense") or null
             visual_phase: str | null,       # Picture phase (e.g. "huddle_offense") or null
             game_profile: str | null,       # Game profile (e.g. "madden_27")
+            hid_source: str | null,         # usb_play | usb_observe | picture
             conflict: {                     # Present when picture sheet != pad sheet
                 picture_sheet: str,
                 pad_sheet: str,
-                kind: str,                  # "sheet_mismatch" | "lag" | "wrong_sheet"
+                kind: str,                  # "sheet_mismatch" | "lag" | "wrong_sheet" | "hid_mismatch"
                 reason: str | null          # Optional detail (e.g. "syncLagMs=250ms")
             } | null
         }
@@ -72,10 +74,10 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
         # Get visual_context from VisualRuntime (live lobe context)
         visual_context_obj = None
         visual_context_dict: dict[str, Any] | None = None
-        
+
         try:
             from qoresence.lobes.visual import get_last_visual_context
-            
+
             visual_context_obj = get_last_visual_context()
             if visual_context_obj is not None:
                 # Coerce VisualContext dataclass to dict for sheet_from_picture
@@ -94,7 +96,7 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
             from qoresence.observation.sheet_from_picture import get_visual_phase_from_context
 
             visual_phase = get_visual_phase_from_context(visual_context_dict)
-        
+
         # Get game_profile with fallback chain
         # 1. situation.game_profile (most reliable, from SituationModel)
         # 2. visual_context.game_profile
@@ -122,7 +124,7 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
             is_madden = "madden" in gp
             is_cfb = any(x in gp for x in ["cfb", "college", "ncaa"])
 
-        # Observe button press(es) at frame_seq using appropriate controls
+        # Observe USB button press(es) at frame_seq using appropriate controls
         observations: list[Any] = []
         if is_madden:
             from qoresence.observation.madden_controls import observe_button_press
@@ -141,38 +143,62 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
                 visual_context=visual_context_dict,
             )
 
-        # Get HID button from hid_by_seq even if we don't have game profile
-        # NEVER drop unlabeled observations - they are honest empty state
+        usb_button = None
+        usb_domain = None
+        try:
+            from qoresence.sync.hid_seq_line import get_sample
+
+            sample = get_sample(frame_seq)
+            if sample is not None:
+                usb_domain = sample.hid_domain
+                if sample.buttons:
+                    usb_button = sample.buttons[0]
+        except Exception:
+            pass
+        if usb_button is None and observations:
+            usb_button = observations[0].hid_button
+
+        pic = None
+        try:
+            from qoresence.sync.picture_hid_book import get_picture_hid_book
+
+            pic = get_picture_hid_book().latest_live(frame_seq)
+        except Exception:
+            pic = None
+        pic_button = pic.hid_button if pic is not None else None
+
         hid_button = None
+        hid_source = None
         verb = None
         mode = None
-        
-        if observations:
-            # Take the first observation (most recent button press)
-            obs = observations[0]
-            hid_button = obs.hid_button
-            verb = obs.verb
-            mode = obs.mode
-        else:
-            # No game profile match OR no visual context for verb lookup
-            # BUT: still check if there's HID input at this frame (unlabeled press)
-            try:
-                from qoresence.sync.hid_seq_line import get_sample
-                
-                sample = get_sample(frame_seq)
-                if sample and sample.buttons:
-                    # Unlabeled HID press: hid_button present, verb/mode None
-                    hid_button = sample.buttons[0] if sample.buttons else None
-            except Exception:
-                pass
-        
-        # Return None only if NO HID input at all (not just unlabeled)
+        conflict = None
+
+        if usb_button:
+            hid_button = usb_button
+            domain = str(usb_domain or "").lower()
+            hid_source = "usb_observe" if domain == "observe" else "usb_play"
+            if observations:
+                verb = observations[0].verb
+                mode = observations[0].mode
+            if pic_button and pic_button != usb_button:
+                conflict = {
+                    "picture_sheet": pic_button,
+                    "pad_sheet": usb_button,
+                    "kind": "hid_mismatch",
+                    "reason": f"usb {usb_button} ≠ picture {pic_button}",
+                }
+        elif pic_button:
+            hid_button = pic_button
+            hid_source = "picture"
+            verb = pic.verb
+            mode = pic.mode
+
+        # Return None only if NO USB HID and NO picture ticket (not just unlabeled)
         if hid_button is None:
             return None
 
-        # Detect sheet conflict (picture sheet vs pad sheet)
-        conflict = None
-        if visual_phase and mode:
+        # Detect sheet conflict (picture sheet vs pad sheet) unless hid mismatch
+        if conflict is None and visual_phase and mode:
             try:
                 from qoresence.observation.sheet_conflict import detect_sheet_conflict
                 from qoresence.observation.sheet_from_picture import map_visual_phase_to_sheet
@@ -205,6 +231,7 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
             "mode": mode,
             "visual_phase": visual_phase,
             "game_profile": game_profile,
+            "hid_source": hid_source,
             "conflict": conflict,
         }
 

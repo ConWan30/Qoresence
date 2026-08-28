@@ -567,5 +567,31 @@ class TestPresenceTouchFile:
             bus.close()
 
 
+class TestHidStaleReconnect:
+    """Empty HID reads mark stale on the controller thread, not grab."""
+
+    def test_note_empty_read_marks_stale_after_threshold(self):
+        from qoresence.lobes.controller import HID_STALE_EMPTY
+
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="stale_test", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="stale_test")
+            runtime = ControllerRuntime(
+                config=ControllerConfig(enabled=True),
+                bus=bus,
+                session_head_ns=identity.session_head_ns,
+            )
+            try:
+                for _ in range(HID_STALE_EMPTY - 1):
+                    assert runtime._note_empty_read() is False
+                    assert runtime._hid_stale is False
+                assert runtime._note_empty_read() is True
+                assert runtime._hid_stale is True
+                assert runtime.get_stats()["hid_stale"] is True
+            finally:
+                bus.close()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

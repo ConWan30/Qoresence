@@ -406,3 +406,23 @@ test("seq-skew ghosts unlocked OCR digits", () => {
   assert.equal(ing.homeScore, null);
   assert.equal(ing.awayScore, null);
 });
+
+test("observation hid_source picture lands on ingest", () => {
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    schema_version: "qoresence-deck-v0",
+    situation: { game_state: "gameplay" },
+    video: { has_frame: true, age_s: 0.04, frames: 10, pushes: 10 },
+    observation: {
+      frame_seq: 42,
+      clock_ns: 1,
+      hid_button: "Cross",
+      verb: "Snap Ball",
+      hid_source: "picture",
+    },
+  });
+  assert.ok(ing);
+  assert.equal(ing.observation.hidButton, "Cross");
+  assert.equal(ing.observation.verb, "Snap Ball");
+  assert.equal(ing.observation.hidSource, "picture");
+});

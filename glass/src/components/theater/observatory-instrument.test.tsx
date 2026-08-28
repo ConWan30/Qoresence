@@ -10,6 +10,7 @@ describe("Observatory sticky hidButton", () => {
       stickyHidButton: null,
       stickyHidButtonVerb: null,
       stickyHidButtonAt: 0,
+      stickyHidSource: null,
       observationMode: null,
       observationConflict: null,
       stageMode: "live",
@@ -316,5 +317,29 @@ describe("Observatory sticky hidButton", () => {
     const state = useTheater.getState();
     expect(state.stickyHidButton).toBe("Cross");
     expect(state.stickyHidButtonVerb).toBe(null);
+  });
+
+  it("stickies picture hid_source without claiming USB heard the pad", () => {
+    useTheater.getState().ingestDeck({
+      observation: {
+        frameSeq: 1,
+        clockNs: 0,
+        hidButton: "Cross",
+        verb: "Snap Ball",
+        mode: "preplay_offense",
+        visualPhase: "huddle_offense",
+        gameProfile: "madden_27",
+        hidSource: "picture",
+        conflict: null,
+      },
+      paint: true,
+      sameSeq: true,
+      planeDim: false,
+    } as any);
+
+    const state = useTheater.getState();
+    expect(state.stickyHidButton).toBe("Cross");
+    expect(state.stickyHidButtonVerb).toBe("Snap Ball");
+    expect(state.stickyHidSource).toBe("picture");
   });
 });
