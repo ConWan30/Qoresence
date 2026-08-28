@@ -18,8 +18,7 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import Any
 
 log = logging.getLogger(__name__)
@@ -221,3 +220,16 @@ def get_sample(hub_seq: int) -> HidSeqSample | None:
         return get_hid_seq_line().get(hub_seq)
     except Exception:
         return None
+
+
+def put_sample(sample: HidSeqSample) -> None:
+    """Test helper — inject a seq-aligned HID snapshot without FrameHub."""
+    line = get_hid_seq_line()
+    seq = int(sample.hub_seq)
+    with line._lock:
+        line._samples[seq] = sample
+        if seq not in line._seq_order:
+            line._seq_order.append(seq)
+        while len(line._seq_order) > line._capacity:
+            old_seq = line._seq_order.pop(0)
+            line._samples.pop(old_seq, None)

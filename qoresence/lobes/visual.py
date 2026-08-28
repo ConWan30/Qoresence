@@ -11,6 +11,7 @@ prefer_local=True or no Quicksilver key is present.
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import re
 import threading
@@ -170,6 +171,21 @@ class VLMClient:
     def _parse_response(self, content: str, latency_ms: float) -> VisualContext:
         """Parse VLM response into the canonical VisualContext."""
         details = {"raw_response": content}
+
+        start = content.find("{")
+        end = content.rfind("}")
+        if start != -1 and end > start:
+            try:
+                parsed = json.loads(content[start : end + 1])
+                if isinstance(parsed, dict):
+                    ctx = VisualContext.from_dict(parsed)
+                    ctx.details = {**details, **(ctx.details or {})}
+                    ctx.raw_response = content[:500]
+                    ctx.model = self.model_name
+                    ctx.latency_ms = latency_ms
+                    return ctx
+            except json.JSONDecodeError:
+                pass
 
         # Prefer explicit GAME_STATE / CONFIDENCE in the response
         state_match = re.search(r"GAME_STATE:\s*(\w+)", content, re.IGNORECASE)
@@ -527,6 +543,18 @@ class VisualRuntime:
 
     def _analyze_frame(self, frame: np.ndarray) -> None:
         """Classify, then always merge Gemini scoreboard lock/ticket on football."""
+        hub_seq: int | None = None
+        hub_clock = clock_ns()
+        try:
+            from qoresence.monitor.frame_hub import get_latest_stamp
+
+            st = get_latest_stamp()
+            if st.get("has_frame"):
+                hub_seq = int(st.get("seq") or 0) or None
+                hub_clock = int(st.get("clock_ns") or hub_clock)
+        except Exception:
+            pass
+
         # Keep local vision processing bounded; the local ONNX classifier runs at
         # 224x224 anyway, and downstream scoreboard extractors should not have to
         # allocate on full-res HDMI frames.
@@ -542,10 +570,13 @@ class VisualRuntime:
             game_profile=self.config.game_profile or self.config.game_category,
         )
         context = self._merge_scoreboard(frame, context)
+        if context is not None:
+            self._maybe_mint_picture_hid(context, frame_seq=hub_seq, clock_ns=hub_clock)
         if context and (
             context.confidence >= self.config.min_confidence
             or context.score_vlm_locked
             or context.home_score is not None
+            or context.visible_control
         ):
             self._last_context = context
             self._emit_visual_context(context)
@@ -569,16 +600,16 @@ class VisualRuntime:
         """
         profile = str(self.config.game_profile or self.config.game_category or "")
         football = "football" in profile.lower() or "ncaa" in profile.lower() or "madden" in profile.lower() or "cfb" in profile.lower()
-        
+
         # Map title/profile to canonical profile_id
         title_lower = str(getattr(context, "game_title", "") or "").lower() if context else ""
         config_lower = profile.lower()
-        
+
         if "college" in title_lower or "college" in config_lower or "ncaa" in title_lower or "ncaa" in config_lower or "cfb" in title_lower or "cfb" in config_lower:
             profile = "cfb_27"
         elif "madden" in title_lower or "madden" in config_lower:
             profile = "madden_27"
-        
+
         if context is None:
             if not football:
                 return None
@@ -608,6 +639,29 @@ class VisualRuntime:
             log.debug("scoreboard merge skipped: %s", e)
             return context
 
+    def _maybe_mint_picture_hid(
+        self,
+        context: VisualContext,
+        *,
+        frame_seq: int | None,
+        clock_ns: int,
+    ) -> None:
+        """Mint PictureHidTicket on the visual worker (never grab thread)."""
+        try:
+            from qoresence.vision.picture_hid_ticket import try_mint_picture_hid_from_context
+
+            model = str(getattr(self.config, "model_name", "") or "gemini-3.5-flash-lite")
+            source = "quicksilver" if "quicksilver" in model.lower() else "gemini"
+            try_mint_picture_hid_from_context(
+                context,
+                frame_seq=frame_seq,
+                clock_ns=clock_ns,
+                source=source,
+                model=model,
+            )
+        except Exception as e:
+            log.debug("picture hid mint skipped: %s", e)
+
     # Prompts
     # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -615,13 +669,9 @@ class VisualRuntime:
         """Build classification prompt based on game category."""
         category = self.config.game_category
         if category == "football":
-            return """Look at this image. If it shows NCAA College Football gameplay (scoreboard, yard lines, players, football field), answer football. If it shows a menu/lobby, answer menu. Otherwise answer unknown.
+            from qoresence.vision.visual_context import build_football_prompt
 
-Respond ONLY with:
-GAME_STATE: football|menu|unknown
-CONFIDENCE: 0.0-1.0
-
-Do not add any explanation."""
+            return build_football_prompt()
         elif category == "shooter":
             return """Look at this image. If it shows Call of Duty (Warzone/Multiplayer) gameplay (weapon, mini-map, kill feed, operator), answer shooter. If it shows a menu/lobby, answer menu. Otherwise answer unknown.
 
@@ -807,7 +857,7 @@ def get_visual_runtime() -> VisualRuntime | None:
 
 def get_last_visual_context() -> VisualContext | None:
     """Get last VisualContext from active visual runtime.
-    
+
     Convenience wrapper for observation wire and other consumers.
     Returns None if visual lobe is not started or has no context yet.
     """

@@ -51,6 +51,29 @@ class TestHidDomainClassification:
         domain_edge_bt = classify_hid_domain(vid=0x054C, pid=0x0DF2, transport="bt")
         assert domain_edge_bt == HidDomain.PLAY
 
+    def test_edge_usb_observe_from_path_without_transport(self):
+        """Edge USB is OBSERVE at open even before a parsed report (transport=None)."""
+        path = r"\\?\HID#VID_054C&PID_0DF2&MI_03#7&abc#{"
+        domain = classify_hid_domain(vid=0x054C, pid=0x0DF2, transport=None, path=path)
+        assert domain == HidDomain.OBSERVE
+
+    def test_edge_usb_observe_from_bus_type(self):
+        domain = classify_hid_domain(vid=0x054C, pid=0x0DF2, transport=None, bus_type=1)
+        assert domain == HidDomain.OBSERVE
+
+    def test_picture_domain_veto_bind(self):
+        assert not allow_bind(HidDomain.PICTURE)
+        assert not allow_imu_bodied("picture")
+        assert not allow_coupling_ticket("picture")
+        assert not allow_pll_observe_phase("picture")
+
+    def test_gamepad_collection_ranks_ahead_of_vendor(self):
+        from qoresence.sync.hid_domain import rank_hid_collection
+
+        assert rank_hid_collection(usage_page=0x01, usage=0x05) < rank_hid_collection(
+            usage_page=0xFF00, usage=0x01
+        )
+
     def test_observe_hid_veto_imu_bodied(self):
         """imu_bodied / imu_precursor can only be set from PLAY pad."""
         assert not allow_imu_bodied(HidDomain.OBSERVE)

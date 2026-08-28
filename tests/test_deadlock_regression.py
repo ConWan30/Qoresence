@@ -390,3 +390,46 @@ class TestStemConductorEmitOutsideLock:
         finally:
             cond.stop()
             bus.close()
+
+
+class TestFrameHubHidHotPlug:
+    """USB Edge plug / HID ingest must not freeze FrameHub.publish (grab path)."""
+
+    def test_framehub_publish_and_hid_ingest_do_not_deadlock(self, tmp_path):
+        import numpy as np
+
+        from qoresence.core import ControllerConfig
+        from qoresence.lobes.controller import ControllerRuntime
+        from qoresence.monitor.frame_hub import FrameHub
+        from qoresence.sync.hid_report import CROSS, pack_usb_report
+
+        bus = RetinaEventBus(
+            session_id="hid_hotplug",
+            jsonl_path=tmp_path / "events.jsonl",
+            enable_ws=False,
+        )
+
+        def _slow_sub(event) -> None:
+            time.sleep(0.002)
+
+        bus.subscribe(_slow_sub)
+        hub = FrameHub()
+        runtime = ControllerRuntime(
+            config=ControllerConfig(enabled=True),
+            bus=bus,
+            session_head_ns=0,
+        )
+        frame = np.zeros((48, 64, 3), dtype=np.uint8)
+        report = pack_usb_report(buttons=CROSS)
+
+        def _work() -> None:
+            for i in range(8):
+                hub.publish(frame, clock_ns=time.monotonic_ns(), seq=i + 1)
+                runtime.ingest_report(report, host_ts_ns=time.monotonic_ns())
+
+        try:
+            _run_with_deadline(_work)
+            assert hub.get_latest_stamp()["has_frame"]
+            assert runtime.get_stats()["reports"] >= 8
+        finally:
+            bus.close()

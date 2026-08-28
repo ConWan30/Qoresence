@@ -4,6 +4,31 @@ from __future__ import annotations
 
 import pytest
 
+from qoresence.sync.hid_seq_line import HidSeqSample, get_hid_seq_line, put_sample
+
+
+def _put_hid(seq: int, buttons: tuple[str, ...]) -> None:
+    put_sample(
+        HidSeqSample(
+            hub_seq=seq,
+            hub_clock_ns=1,
+            hid_clock_ns=1,
+            lx=0.0,
+            ly=0.0,
+            r2=0.0,
+            l2=0.0,
+            buttons=buttons,
+            hid_domain="play",
+        )
+    )
+
+
+@pytest.fixture(autouse=True)
+def _clear_hid():
+    get_hid_seq_line().clear()
+    yield
+    get_hid_seq_line().clear()
+
 
 def test_ea_vocab_unlabeled_returns_none():
     """Unlabeled verb → no dictionary words in the line."""
@@ -22,7 +47,6 @@ def test_ea_vocab_unlabeled_returns_none():
 def test_ea_vocab_clutch_huddle_offense_cross_snap_ball():
     """Clutch + huddle_offense + Cross → line may say Snap Ball."""
     from qoresence.agents.ea_vocabulary import enrich_clutch_line
-    from unittest.mock import Mock, patch
 
     visual_context = {
         "game_profile": "madden_27",
@@ -32,17 +56,7 @@ def test_ea_vocab_clutch_huddle_offense_cross_snap_ball():
         },
     }
 
-    # Mock hid_by_seq
-    from qoresence.sync.hid_seq_line import HidSeqSample, put_sample
-
-    sample = HidSeqSample(
-        frame_seq=200,
-        clock_ns=2000000000,
-        buttons=("Cross",),
-        hold_energy=0.5,
-        edge_energy=0.5,
-    )
-    put_sample(sample)
+    _put_hid(200, ("Cross",))
 
     base = "Clutch window opening"
     enriched = enrich_clutch_line(
@@ -59,9 +73,7 @@ def test_ea_vocab_clutch_huddle_offense_cross_snap_ball():
 def test_ea_vocab_cfb_l3_passing_vs_madden_r3():
     """CFB L3 passing dump vs Madden R3."""
     from qoresence.agents.ea_vocabulary import get_ea_vocabulary_at_frame
-    from qoresence.sync.hid_seq_line import HidSeqSample, put_sample
 
-    # CFB L3 in passing → Throw Ball Away
     visual_context_cfb = {
         "game_profile": "ncaa_football_27",
         "game_state": "gameplay",
@@ -69,15 +81,7 @@ def test_ea_vocab_cfb_l3_passing_vs_madden_r3():
             "visual_phase": "passing",
         },
     }
-
-    sample_cfb = HidSeqSample(
-        frame_seq=300,
-        clock_ns=3000000000,
-        buttons=("L3",),
-        hold_energy=0.5,
-        edge_energy=0.5,
-    )
-    put_sample(sample_cfb)
+    _put_hid(300, ("L3",))
 
     verb_cfb = get_ea_vocabulary_at_frame(
         frame_seq=300,
@@ -87,7 +91,6 @@ def test_ea_vocab_cfb_l3_passing_vs_madden_r3():
     )
     assert verb_cfb == "Throw Ball Away"
 
-    # Madden R3 in running → different verb
     visual_context_madden = {
         "game_profile": "madden_27",
         "game_state": "gameplay",
@@ -95,15 +98,7 @@ def test_ea_vocab_cfb_l3_passing_vs_madden_r3():
             "visual_phase": "running",
         },
     }
-
-    sample_madden = HidSeqSample(
-        frame_seq=400,
-        clock_ns=4000000000,
-        buttons=("R3",),
-        hold_energy=0.5,
-        edge_energy=0.5,
-    )
-    put_sample(sample_madden)
+    _put_hid(400, ("Cross",))
 
     verb_madden = get_ea_vocabulary_at_frame(
         frame_seq=400,
@@ -111,8 +106,7 @@ def test_ea_vocab_cfb_l3_passing_vs_madden_r3():
         visual_context=visual_context_madden,
         game_profile="madden_27",
     )
-    # R3 in Madden running → Dive (or other Madden-specific verb)
-    assert verb_madden is not None
+    assert verb_madden == "Stiff Arm"
     assert verb_madden != "Throw Ball Away"
 
 
@@ -146,16 +140,7 @@ def test_ea_vocab_phrase_strings_stay_gone():
         },
     }
 
-    from qoresence.sync.hid_seq_line import HidSeqSample, put_sample
-
-    sample = HidSeqSample(
-        frame_seq=600,
-        clock_ns=6000000000,
-        buttons=("Cross",),
-        hold_energy=0.5,
-        edge_energy=0.5,
-    )
-    put_sample(sample)
+    _put_hid(600, ("Cross",))
 
     verb = get_ea_vocabulary_at_frame(
         frame_seq=600,

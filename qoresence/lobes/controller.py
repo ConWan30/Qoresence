@@ -29,6 +29,23 @@ HIDDevice = hid.device
 
 log = logging.getLogger(__name__)
 
+HID_STALE_EMPTY = 250  # ~2s of 8ms empty reads → drop handle on controller thread
+
+_HOLD_BUTTONS = (
+    (1 << 0, "Cross"),
+    (1 << 1, "Circle"),
+    (1 << 2, "Square"),
+    (1 << 3, "Triangle"),
+    (1 << 4, "L1"),
+    (1 << 5, "R1"),
+    (1 << 6, "L2"),
+    (1 << 7, "R2"),
+    (1 << 8, "CREATE"),
+    (1 << 9, "OPTIONS"),
+    (1 << 10, "L3"),
+    (1 << 11, "R3"),
+)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # DUALSHOCK EDGE HID CONSTANTS
@@ -166,6 +183,11 @@ class ControllerRuntime:
         self._last_transport: str | None = None
         self._hid_domain: str = "play"
         self._ever_connected = False
+        self._device_bus_type: int | None = None
+        self._empty_reads = 0
+        self._hid_stale = False
+        self._hub_seq_cache: int | None = None
+        self._hub_seq_cache_mono: float = 0.0
 
         # State
         self._running = False
@@ -256,6 +278,7 @@ class ControllerRuntime:
             "transport": self._last_transport,
             "reports": int(self._reports_read),
             "reconnects": int(self._reconnects),
+            "hid_stale": bool(self._hid_stale),
             "last_trigger": self._last_trigger_value
             if hasattr(self, "_last_trigger_value")
             else 0.0,
@@ -314,6 +337,7 @@ class ControllerRuntime:
         self._device_vid = None
         self._device_pid = None
         self._hid_domain = "play"
+        self._device_bus_type = None
         self._connected = False
 
     def _open_device(self, *, quiet: bool = False) -> bool:
@@ -344,7 +368,7 @@ class ControllerRuntime:
                 self._device_path = f"vid={vid:04x},pid={pid:04x}"
                 self._device_vid = vid
                 self._device_pid = pid
-                self._detect_domain(vid=vid, pid=pid, transport=None)
+                self._detect_domain(vid=vid, pid=pid, transport=None, path=self._device_path)
                 log.info("Controller HID opened: %s (domain=%s)", self._device_path, self._hid_domain)
                 return True
             except Exception as e:
@@ -361,15 +385,18 @@ class ControllerRuntime:
         candidates = list_controllers()
         sony = [c for c in candidates if int(c.get("vid") or 0) == DS_EDGE_VID]
 
-        # Prefer Edge product string / Edge PID, then any Sony pad
-        def _rank(c: dict) -> int:
+        # Prefer Edge product string / Edge PID, then gamepad collection, then any Sony pad
+        def _rank(c: dict) -> tuple[int, int]:
+            from qoresence.sync.hid_domain import rank_hid_collection
+
             pid = int(c.get("pid") or 0)
             prod = (c.get("product") or "").lower()
-            if "edge" in prod or pid == DS_EDGE_PID:
-                return 0
-            if pid in _SONY_CONTROLLER_PIDS:
-                return 1
-            return 2
+            coll = rank_hid_collection(
+                usage_page=c.get("usage_page"),
+                usage=c.get("usage"),
+            )
+            edge = 0 if ("edge" in prod or pid == DS_EDGE_PID) else (1 if pid in _SONY_CONTROLLER_PIDS else 2)
+            return (coll, edge)
 
         sony.sort(key=_rank)
         last_err: Exception | None = None
@@ -389,7 +416,17 @@ class ControllerRuntime:
                     f"{c.get('product') or 'Sony'} vid={vid:04x},"
                     f"pid={pid:04x}"
                 )
-                self._detect_domain(vid=vid, pid=pid, transport=None)
+                try:
+                    self._device_bus_type = int(c.get("bus_type")) if c.get("bus_type") is not None else None
+                except (TypeError, ValueError):
+                    self._device_bus_type = None
+                self._detect_domain(
+                    vid=vid,
+                    pid=pid,
+                    transport=None,
+                    path=str(c.get("path") or ""),
+                    bus_type=self._device_bus_type,
+                )
                 log.info("Controller HID opened: %s (domain=%s)", self._device_path, self._hid_domain)
                 return True
             except Exception as e:
@@ -405,7 +442,7 @@ class ControllerRuntime:
                 self._device_vid = DS_EDGE_VID
                 self._device_pid = pid
                 self._device_path = f"vid={DS_EDGE_VID:04x},pid={pid:04x}"
-                self._detect_domain(vid=DS_EDGE_VID, pid=pid, transport=None)
+                self._detect_domain(vid=DS_EDGE_VID, pid=pid, transport=None, path=self._device_path)
                 log.info("Controller HID opened: %s (domain=%s)", self._device_path, self._hid_domain)
                 return True
             except Exception as e:
@@ -430,18 +467,36 @@ class ControllerRuntime:
             self._hid_domain = "play"
             return
         try:
-            info = self._device.get_product_string()
-            # Try to get VID/PID from manufacturer string or path
-            self._detect_domain(vid=self._device_vid, pid=self._device_pid, transport=None)
+            self._detect_domain(
+                vid=self._device_vid,
+                pid=self._device_pid,
+                transport=None,
+                path=self._device_path,
+                bus_type=self._device_bus_type,
+            )
         except Exception:
             self._hid_domain = "play"
 
-    def _detect_domain(self, *, vid: int | None, pid: int | None, transport: str | None) -> None:
+    def _detect_domain(
+        self,
+        *,
+        vid: int | None,
+        pid: int | None,
+        transport: str | None,
+        path: str | None = None,
+        bus_type: int | None = None,
+    ) -> None:
         """Classify HID domain (observe vs play)."""
         try:
             from qoresence.sync.hid_domain import classify_hid_domain
 
-            domain = classify_hid_domain(vid=vid, pid=pid, transport=transport)
+            domain = classify_hid_domain(
+                vid=vid,
+                pid=pid,
+                transport=transport,
+                path=path or self._device_path,
+                bus_type=bus_type if bus_type is not None else self._device_bus_type,
+            )
             self._hid_domain = domain.value
         except Exception as e:
             log.debug("HID domain detection failed: %s", e)
@@ -488,6 +543,8 @@ class ControllerRuntime:
                         self._connected = True
                         self._ever_connected = True
                         self._reconnects += 1
+                        self._empty_reads = 0
+                        self._hid_stale = False
                         self._prev_state = ControllerState()
                         log.info("DualSense hot-plug: %s", self._device_path)
                         if not emitted_start:
@@ -498,9 +555,15 @@ class ControllerRuntime:
 
             report = self._read_report()
             if report is None:
+                if self._note_empty_read():
+                    log.warning("HID stale (empty reads) — drop handle on controller thread")
+                    self._drop_device()
+                    last_retry = 0.0
                 time.sleep(0.001)
                 continue
 
+            self._empty_reads = 0
+            self._hid_stale = False
             self._reports_read += 1
 
             state = self._decode_report(report)
@@ -559,6 +622,8 @@ class ControllerRuntime:
                 vid=self._device_vid,
                 pid=self._device_pid,
                 transport=self._last_transport,
+                path=self._device_path,
+                bus_type=self._device_bus_type,
             )
             state.hid_domain = self._hid_domain
         state.buttons = int(parsed["buttons"])
@@ -591,7 +656,7 @@ class ControllerRuntime:
         if changed:
             pressed = changed & state.buttons
             released = changed & ~state.buttons
-            self._emit_button_events(pressed, released, now_ns)
+            self._emit_button_events(pressed, released, now_ns, hid_domain=state.hid_domain)
 
         # Trigger onsets (edge detection)
         self._check_trigger_onsets(state, now_ns)
@@ -605,9 +670,8 @@ class ControllerRuntime:
         ):
             self._emit_tremor_sample(state, now_ns)
 
-        # Generic controller event (full state dump at lower rate)
-        if self._reports_read % 10 == 0:  # ~100Hz if poll=1000Hz
-            self._emit_controller_event(state, now_ns)
+        # Do not emit a 100Hz full-state controller_event — bus subscribers
+        # can stall the HID poll loop (AGENTS.md lock-order). Heartbeat covers stats.
 
         # Update rolling buffer
         self._add_to_buffer(
@@ -632,13 +696,27 @@ class ControllerRuntime:
         self._push_hold(state, now_ns)
         self._prev_state = state
 
+    def _note_empty_read(self) -> bool:
+        """Count empty HID reads. True → drop handle. Controller thread only."""
+        self._empty_reads += 1
+        if self._empty_reads >= HID_STALE_EMPTY:
+            self._hid_stale = True
+            return True
+        return False
+
     def _latest_frame_seq(self) -> int | None:
+        now = time.monotonic()
+        if self._hub_seq_cache is not None and (now - self._hub_seq_cache_mono) < 0.008:
+            return self._hub_seq_cache
         try:
             from qoresence.monitor.frame_hub import get_latest_stamp
 
             st = get_latest_stamp()
             if st.get("has_frame"):
-                return int(st.get("seq") or 0) or None
+                seq = int(st.get("seq") or 0) or None
+                self._hub_seq_cache = seq
+                self._hub_seq_cache_mono = now
+                return seq
         except Exception:
             return None
         return None
@@ -711,6 +789,7 @@ class ControllerRuntime:
                 right=_mag(state.rx, state.ry),
                 lx=_axis(state.lx),
                 ly=_axis(state.ly),
+                buttons=tuple(name for bit, name in _HOLD_BUTTONS if state.buttons & bit),
             )
         except Exception:
             pass
@@ -875,7 +954,9 @@ class ControllerRuntime:
             session_head_ns=self.session_head_ns,
         )
 
-    def _emit_button_events(self, pressed: int, released: int, now_ns: int) -> None:
+    def _emit_button_events(
+        self, pressed: int, released: int, now_ns: int, hid_domain: str
+    ) -> None:
         """Emit button press/release events."""
         for name, mask in [
             ("cross", Buttons.CROSS),
@@ -915,7 +996,7 @@ class ControllerRuntime:
                     name=name,
                     value=1.0,
                     clock_ns=now_ns,
-                    hid_domain=state.hid_domain,
+                    hid_domain=hid_domain,
                     buttons_mask=int(pressed) if pressed else None,
                 )
             elif released & mask:
@@ -932,7 +1013,7 @@ class ControllerRuntime:
                     clock_ns_override=now_ns,
                     session_head_ns=self.session_head_ns,
                 )
-                self._push_input_ring(kind="release", name=name, value=0.0, clock_ns=now_ns, hid_domain=state.hid_domain)
+                self._push_input_ring(kind="release", name=name, value=0.0, clock_ns=now_ns, hid_domain=hid_domain)
 
     def _emit_controller_event(self, state: ControllerState, now_ns: int) -> None:
         """Emit periodic full state snapshot."""
@@ -1082,6 +1163,10 @@ def list_controllers() -> list[dict]:
                     "path": d["path"].decode() if isinstance(d["path"], bytes) else d["path"],
                     "product": d.get("product_string", ""),
                     "manufacturer": d.get("manufacturer_string", ""),
+                    "usage_page": d.get("usage_page"),
+                    "usage": d.get("usage"),
+                    "bus_type": d.get("bus_type"),
+                    "interface_number": d.get("interface_number"),
                 }
             )
     return result

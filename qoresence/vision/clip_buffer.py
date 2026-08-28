@@ -781,13 +781,11 @@ def _write_observation_sidecar(
             visual_context = None
 
         # Collect observations for each frame with HID input
-        from qoresence.observation.madden_controls import (
-            MaddenControlLookup,
-            observe_button_press as madden_observe,
-        )
         from qoresence.observation.cfb_controls import (
-            CfbControlLookup,
             observe_button_press as cfb_observe,
+        )
+        from qoresence.observation.madden_controls import (
+            observe_button_press as madden_observe,
         )
         from qoresence.sync.hid_seq_line import get_sample
 
@@ -809,7 +807,7 @@ def _write_observation_sidecar(
                 continue
 
             # Get clock_ns from sample
-            clock_ns = sample.clock_ns
+            clock_ns = int(getattr(sample, "hub_clock_ns", 0) or getattr(sample, "clock_ns", 0) or 0)
 
             # Get visual_context dict for this frame (if available)
             vc_dict = None
@@ -880,7 +878,7 @@ def _write_observation_sidecar(
             "observation sidecar: %s (%d observations, %d unique frames)",
             out.name,
             len(observations),
-            len(set(o["frame_seq"] for o in observations)),
+            len({o["frame_seq"] for o in observations}),
         )
         return out
     except Exception as e:

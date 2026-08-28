@@ -39,6 +39,7 @@ export function ObservatoryInstrument() {
   const stickyButton = useTheater((s) => s.stickyHidButton);
   const stickyVerb = useTheater((s) => s.stickyHidButtonVerb);
   const stickyAt = useTheater((s) => s.stickyHidButtonAt);
+  const stickySource = useTheater((s) => s.stickyHidSource);
 
   // Observatory off during replay or when picture is dark
   if (stageMode === "replay" || !livePaint || planeDim || !sameSeq) return null;
@@ -59,6 +60,8 @@ export function ObservatoryInstrument() {
       ? `${stickyButton} · ${stickyVerb}`
       : `${stickyButton} · □`
     : null;
+  const sourceMark =
+    stickySource === "picture" ? "pic" : stickySource === "usb_observe" ? "obs" : null;
 
   // Honesty: conflict when picture sheet != pad sheet
   const hasConflict = Boolean(conflict);
@@ -84,6 +87,11 @@ export function ObservatoryInstrument() {
       {pressDisplay && (
         <div className="rounded border border-photon/50 bg-bg/75 px-3 py-1.5 font-mono text-[10px] tracking-wide text-photon backdrop-blur-sm">
           {pressDisplay}
+          {sourceMark ? (
+            <span className="ml-1 opacity-50" data-hid-source={stickySource || undefined}>
+              {sourceMark}
+            </span>
+          ) : null}
         </div>
       )}
 

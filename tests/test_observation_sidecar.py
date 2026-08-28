@@ -47,25 +47,19 @@ class TestObservationSidecarGeneration:
             details={"visual_phase": "huddle_offense"},
         )
 
-        # Mock the visual oracle to return this context
-        try:
-            from qoresence.vision.visual_oracle import get_visual_oracle
-
-            oracle = get_visual_oracle()
-            if oracle is not None:
-                oracle._latest_context = visual_ctx
-        except Exception:
-            pass
-
-        # Create snapshot with this frame
         snapshot = [(time.monotonic(), b"fake_jpeg", 640, 480, 100)]
 
-        # Write observation sidecar
+        from unittest.mock import patch
+
         with tempfile.TemporaryDirectory() as tmpdir:
             mp4_path = Path(tmpdir) / "test_clip.mp4"
             mp4_path.touch()
 
-            sidecar = _write_observation_sidecar(mp4_path, snapshot=snapshot)
+            with patch(
+                "qoresence.lobes.visual.get_last_visual_context",
+                return_value=visual_ctx,
+            ):
+                sidecar = _write_observation_sidecar(mp4_path, snapshot=snapshot)
             assert sidecar is not None
             assert sidecar.exists()
 
@@ -146,25 +140,19 @@ class TestObservationSidecarGeneration:
             # NO visual_phase in details
         )
 
-        # Mock the visual oracle
-        try:
-            from qoresence.vision.visual_oracle import get_visual_oracle
-
-            oracle = get_visual_oracle()
-            if oracle is not None:
-                oracle._latest_context = visual_ctx
-        except Exception:
-            pass
-
-        # Create snapshot
         snapshot = [(time.monotonic(), b"fake_jpeg", 640, 480, 200)]
 
-        # Write observation sidecar
+        from unittest.mock import patch
+
         with tempfile.TemporaryDirectory() as tmpdir:
             mp4_path = Path(tmpdir) / "test_clip.mp4"
             mp4_path.touch()
 
-            sidecar = _write_observation_sidecar(mp4_path, snapshot=snapshot)
+            with patch(
+                "qoresence.lobes.visual.get_last_visual_context",
+                return_value=visual_ctx,
+            ):
+                sidecar = _write_observation_sidecar(mp4_path, snapshot=snapshot)
             if sidecar is not None:
                 data = json.loads(sidecar.read_text())
                 # Should have observations but verb=None (unlabeled)
@@ -198,22 +186,19 @@ class TestObservationSidecarGeneration:
             details={"visual_phase": "passing"},
         )
 
-        try:
-            from qoresence.vision.visual_oracle import get_visual_oracle
-
-            oracle = get_visual_oracle()
-            if oracle is not None:
-                oracle._latest_context = cfb_ctx
-        except Exception:
-            pass
-
         snapshot_cfb = [(time.monotonic(), b"fake_jpeg", 640, 480, 300)]
+
+        from unittest.mock import patch
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mp4_path = Path(tmpdir) / "cfb_clip.mp4"
             mp4_path.touch()
 
-            sidecar = _write_observation_sidecar(mp4_path, snapshot=snapshot_cfb)
+            with patch(
+                "qoresence.lobes.visual.get_last_visual_context",
+                return_value=cfb_ctx,
+            ):
+                sidecar = _write_observation_sidecar(mp4_path, snapshot=snapshot_cfb)
             if sidecar is not None:
                 data = json.loads(sidecar.read_text())
                 l3_obs = [o for o in data["observations"] if o["hid_button"] == "L3"]
@@ -234,20 +219,17 @@ class TestObservationSidecarGeneration:
             details={"visual_phase": "passing"},
         )
 
-        try:
-            oracle = get_visual_oracle()
-            if oracle is not None:
-                oracle._latest_context = madden_ctx
-        except Exception:
-            pass
-
         snapshot_madden = [(time.monotonic(), b"fake_jpeg", 640, 480, 400)]
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mp4_path = Path(tmpdir) / "madden_clip.mp4"
             mp4_path.touch()
 
-            sidecar = _write_observation_sidecar(mp4_path, snapshot=snapshot_madden)
+            with patch(
+                "qoresence.lobes.visual.get_last_visual_context",
+                return_value=madden_ctx,
+            ):
+                sidecar = _write_observation_sidecar(mp4_path, snapshot=snapshot_madden)
             if sidecar is not None:
                 data = json.loads(sidecar.read_text())
                 r3_obs = [o for o in data["observations"] if o["hid_button"] == "R3"]
@@ -269,6 +251,7 @@ class TestObservationSidecarGeneration:
         """No HID input during clip → no sidecar written."""
         from qoresence.monitor.frame_hub import get_frame_hub
         from qoresence.sync.hid_seq_line import get_hid_seq_line
+        from qoresence.sync.input_ring import set_hold
         from qoresence.vision.clip_buffer import _write_observation_sidecar
 
         hub = get_frame_hub()
@@ -276,9 +259,9 @@ class TestObservationSidecarGeneration:
         hub.clear()
         line.clear()
 
-        # Publish frame with NO buttons pressed at seq=500
         t0 = time.monotonic_ns()
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        set_hold(clock_ns=t0, r2=0.0, l2=0.0, lx=0.0, ly=0.0, buttons=())
         hub.publish(frame, clock_ns=t0, seq=500)
 
         # Note: no set_hold() call, so no HID sample for this frame
