@@ -22,7 +22,11 @@ import cv2
 import numpy as np
 
 from qoresence.agents.llm_client import DEFAULT_BASE_URL, _resolve_api_key
-from qoresence.vision.scorebug_crops import CFB_PRIMARY_SCOREBUG, is_madden_profile, primary_scorebug_crop
+from qoresence.vision.scorebug_crops import (
+    CFB_PRIMARY_SCOREBUG,
+    is_madden_profile,
+    primary_scorebug_crop,
+)
 
 log = logging.getLogger(__name__)
 
