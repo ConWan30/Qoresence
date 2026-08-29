@@ -47,14 +47,15 @@ export function ObservatoryHUD() {
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <span
-            data-sync={pllLock ? "lock" : "open"}
+            data-sync={licensed && pllLock ? "lock" : "open"}
             className={cn(
               "rounded-sm px-2.5 py-1 font-mono text-[10px] tracking-[0.12em] uppercase shadow-[var(--shadow-border)]",
-              pllLock ? "bg-bg text-sync" : "bg-bg text-muted-foreground",
+              licensed && pllLock ? "bg-bg text-sync" : "bg-bg text-muted-foreground",
             )}
           >
-            SYNC {pllLock ? `${syncLagMs}ms` : "—"}
-            {bindKind ? ` · ${bindKind}` : ""}
+            {/* Measured SYNC only under a licensed lock — never a fake 0 ms on HOLD. */}
+            SYNC {licensed && pllLock ? `${syncLagMs}ms` : "—"}
+            {licensed && bindKind ? ` · ${bindKind}` : ""}
           </span>
         </div>
       </div>

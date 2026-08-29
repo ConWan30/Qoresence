@@ -283,8 +283,8 @@ export function CommandBar() {
             <span data-vlm={vlmLocked ? "lock" : "wait"} className={vlmLocked ? "text-live" : ""}>
               {vlmLocked ? "VLM LOCK" : "VLM WAIT"}
             </span>
-            <span data-sync={pllLock ? "lock" : "open"} className={pllLock ? "text-sync" : ""}>
-              SYNC {pllLock ? `${syncLagMs}ms` : "—"}{bindKind ? ` · ${bindKind}` : ""}
+            <span data-sync={licensed && pllLock ? "lock" : "open"} className={licensed && pllLock ? "text-sync" : ""}>
+              SYNC {licensed && pllLock ? `${syncLagMs}ms` : "—"}{licensed && bindKind ? ` · ${bindKind}` : ""}
             </span>
           </div>
         </div>
