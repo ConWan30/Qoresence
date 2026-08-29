@@ -145,9 +145,14 @@ def garbage_lock_reason(
         prior_h, prior_a, prior_ht, prior_at = ident
         teams_changed = False
         if prior_ht and prior_at and ht and at:
-            prior_pair = {prior_ht.strip().upper(), prior_at.strip().upper()}
-            now_pair = {ht.strip().upper(), at.strip().upper()}
-            teams_changed = prior_pair != now_pair
+            try:
+                from qoresence.vision.confirm_ticket import board_sides_same
+
+                teams_changed = not board_sides_same(prior_ht, prior_at, ht, at)
+            except Exception:
+                prior_pair = {prior_ht.strip().upper(), prior_at.strip().upper()}
+                now_pair = {ht.strip().upper(), at.strip().upper()}
+                teams_changed = prior_pair != now_pair
         if home == 0 and away == 0:
             if teams_changed:
                 return "zero_zero_after_identity_swap"
