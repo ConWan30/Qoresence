@@ -235,8 +235,27 @@ class SituationModel:
             except Exception:
                 id_ok = True
                 sides_ok = True
+            # Hysteresis patch: when incoming licensed lock has incompatible identity,
+            # adopt it. New confirm_ticket_id overrides prior identity.
+            ticket_changed = tid and tid != self._state.confirm_ticket_id
+            licensed_incoming = ctx.score_vlm_locked and tid
+            force_adopt = licensed_incoming and (not id_ok or ticket_changed)
             ident: dict[str, Any] = {}
             if id_ok and sides_ok:
+                ident = {
+                    "home_team": getattr(ctx, "home_team", None),
+                    "away_team": getattr(ctx, "away_team", None),
+                    "home_team_name": getattr(ctx, "home_team_name", None),
+                    "away_team_name": getattr(ctx, "away_team_name", None),
+                    "home_color": getattr(ctx, "home_color", None),
+                    "away_color": getattr(ctx, "away_color", None),
+                    "home_logo": getattr(ctx, "home_logo", None),
+                    "away_logo": getattr(ctx, "away_logo", None),
+                    "home_hex": getattr(ctx, "home_hex", None),
+                    "away_hex": getattr(ctx, "away_hex", None),
+                }
+            elif force_adopt:
+                # New licensed lock with incompatible identity: adopt incoming.
                 ident = {
                     "home_team": getattr(ctx, "home_team", None),
                     "away_team": getattr(ctx, "away_team", None),
