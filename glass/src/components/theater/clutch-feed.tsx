@@ -9,6 +9,7 @@ export function ClutchFeed() {
   const moments = useTheater((s) => s.moments);
   const lastClipUrl = useTheater((s) => s.lastClipUrl);
   const playClip = useTheater((s) => s.playClip);
+  const note = useTheater((s) => s.matchAgent);
   const live = clutch.kind !== "quiet";
 
   // Chrome motion license (fail-closed): a freshly landed row may play the
@@ -71,11 +72,35 @@ export function ClutchFeed() {
           style={{ width: `${Math.round(Math.max(clutch.score, 0) * 100)}%` }}
         />
       </div>
-      {moments.length === 0 ? (
+      {note ? (
+        <article
+          data-match-agent="licensed"
+          data-path={note.path}
+          className={cn(
+            "flex min-h-14 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
+            note.path === "confirm"
+              ? "border border-live/40 bg-live/10 text-live"
+              : "border border-fast/45 bg-fast/10 text-fast",
+          )}
+        >
+          <span className="min-w-0 truncate text-xs">{note.text}</span>
+          <span
+            data-path-chip={note.path}
+            className={cn(
+              "shrink-0 font-mono text-[10px] tracking-wide uppercase",
+              note.path === "confirm" ? "text-live" : "text-fast",
+            )}
+          >
+            path={note.path}
+          </span>
+        </article>
+      ) : null}
+      {moments.length === 0 && !note ? (
         <p className="text-xs text-muted-foreground">
           Fast chat and score locks land here. Clip chips replay on the HDMI stage — LIVE kills the player.
         </p>
-      ) : (
+      ) : null}
+      {moments.length > 0 ? (
         <div className="flex flex-col gap-2">
           {moments.slice(0, 8).map((e) => {
             const href = momentPlayHref(e, lastClipUrl);
@@ -128,7 +153,7 @@ export function ClutchFeed() {
             );
           })}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

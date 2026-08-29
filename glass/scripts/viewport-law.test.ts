@@ -60,6 +60,23 @@ test("viewport law: LIVE rail mounts SituationCard then ClutchFeed", () => {
   );
 });
 
+test("MatchAgent last_note binds only on ClutchFeed, fail-closed", () => {
+  const clutchFeed = readFileSync(join(GLASS_ROOT, "src/components/theater/clutch-feed.tsx"), "utf-8");
+  const observatory = readFileSync(join(GLASS_ROOT, "src/components/theater/observatory-hud.tsx"), "utf-8");
+  const lens = readFileSync(join(GLASS_ROOT, "src/components/theater/lens-overlay.tsx"), "utf-8");
+  const commandBar = readFileSync(join(GLASS_ROOT, "src/components/theater/command-bar.tsx"), "utf-8");
+  assert.ok(clutchFeed.includes("s.matchAgent"), "ClutchFeed binds licensed match_agent note");
+  assert.ok(clutchFeed.includes("path={note.path}"), "licensed note paints path=fast|confirm chip");
+  assert.ok(clutchFeed.includes("data-match-agent"), "licensed note has a chrome marker");
+  assert.ok(
+    !clutchFeed.includes("VLM LOCK") && !clutchFeed.includes("0 ms"),
+    "ClutchFeed must not invent VLM LOCK or fake 0 ms",
+  );
+  assert.ok(!observatory.includes("matchAgent"), "MatchAgent never lands on ObservatoryHUD");
+  assert.ok(!lens.includes("matchAgent"), "MatchAgent never lands on LensOverlay");
+  assert.ok(!commandBar.includes("matchAgent"), "MatchAgent never lands on CommandBar");
+});
+
 test("viewport law: theater-page.tsx first viewport must be the HDMI stage", () => {
   const theaterPagePath = join(GLASS_ROOT, "src/components/theater/theater-page.tsx");
   const theaterPage = readFileSync(theaterPagePath, "utf-8");

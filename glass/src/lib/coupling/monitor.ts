@@ -4,6 +4,7 @@ import { fetchAgentPlane, parseAgentPlane, type AgentPlane } from "./agent-plane
 import { parseDeckMessage, type DeckIngest } from "./board";
 import { parseHdmiClipList } from "./clip";
 import { parseFeedMoment, parseSnapshotMoments, type FeedMoment } from "./clutch";
+import { parseMatchAgentNote } from "./match-agent";
 import { parseStemProgram, type StemProgram } from "./stem";
 import { getDeckOrigin, probeDeck } from "./qoresence-deck";
 import { useTheater } from "./store";
@@ -96,29 +97,22 @@ export function startDeckMonitor(
     const wsFresh = wsOpen && st0.deckLive && Date.now() - st0.deckAt < WS_OPTICS_HOLD_MS;
     const clipsBody = await readJson(`${probe.origin}/api/clips`);
     useTheater.getState().ingestClips(parseHdmiClipList(clipsBody, probe.origin));
-    // WS already carries optics/moments — skip the 4 extra HTTP hits that jank LIVE.
-    if (wsFresh) return;
+    // match_agent lives on /api/situation (and /health), not /retina WS.
+    // Harvest even while WS is fresh — do not ingest optics/board from this poll.
+    if (wsFresh) {
+      const sit = await readJson(`${probe.origin}/api/situation`);
+      if (sit != null) useTheater.getState().ingestMatchAgent(parseMatchAgentNote(sit));
+      return;
+    }
     const [body, snap, events, planeBody] = await Promise.all([
       readJson(`${probe.origin}/api/situation`),
       readJson(`${probe.origin}/api/agent/snapshot`),
       readJson(`${probe.origin}/api/agent/events?limit=12`),
       readJson(`${probe.origin}/api/agent/plane`),
     ]);
-    // Rule B: WS fresh → poll refreshes plane/moments/events only (no optics/board ingest).
-    if (body) {
-      if (wsFresh) {
-        for (const fm of parseSnapshotMoments(body)) onMoment?.(fm);
-      } else {
-        ingestRaw(body, "poll");
-      }
-    }
-    if (snap) {
-      if (wsFresh) {
-        for (const fm of parseSnapshotMoments(snap)) onMoment?.(fm);
-      } else {
-        ingestRaw(snap, "poll");
-      }
-    }
+    if (body != null) useTheater.getState().ingestMatchAgent(parseMatchAgentNote(body));
+    if (body) ingestRaw(body, "poll");
+    if (snap) ingestRaw(snap, "poll");
     const evBag = events && typeof events === "object" ? (events as Record<string, unknown>) : null;
     const list = evBag && Array.isArray(evBag.events) ? evBag.events : [];
     for (const ev of list) {
