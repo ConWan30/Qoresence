@@ -29,6 +29,7 @@ import type { ActuatorReceipt } from "./actuators.ts";
 import { EMPTY_COMPANION, type AgentCompanion } from "./companion.ts";
 import { armCapture as armCaptureDevice, armShare as armShareDevice, getDeckSrc, thawDeck as thawDeckDevice, wakePad as wakePadDevice, sampleCapture, type CaptureStatus, type VideoDevice } from "./hardware";
 import { boardLine, situationLine, EMPTY_GHOST, EMPTY_OBSERVATION, type DeckIngest, type GhostStick, type Observation } from "./board";
+import type { MatchAgentNote } from "./match-agent";
 import { clutchAdvanced, scoreClutch, QUIET_CLUTCH, type ClutchSnap, type FeedMoment } from "./clutch";
 import { measureLag } from "./sync";
 import { qsEnhance, qsProbe } from "./quicksilver";
@@ -96,6 +97,8 @@ export type TheaterState = {
   gameTitle: string;
   clutch: ClutchSnap;
   moments: FeedMoment[];
+  /** Licensed MatchAgent last_note from /api/situation. null = fail-closed empty. */
+  matchAgent: MatchAgentNote | null;
   /** One-shot licensed clutch/climax land trigger for chrome motion. Bumps
    *  only on a licensed start (widgetsOk + board lock). Path tints the glow:
    *  brass = fast, aperture = confirm. Never drives the picture. */
@@ -182,6 +185,7 @@ export type TheaterState = {
   opticsFromWs: boolean;
   ghostStick: GhostStick;
   ingestAgentPlane: (plane: AgentPlane) => void;
+  ingestMatchAgent: (note: MatchAgentNote | null) => void;
   ingestMoment: (m: FeedMoment) => void;
   ingestStemProgram: (p: StemProgram) => void;
   ingestClips: (clips: HdmiClipFile[]) => void;
@@ -287,6 +291,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
   gameTitle: "",
   clutch: QUIET_CLUTCH,
   moments: [],
+  matchAgent: null,
   clutchPulseSeq: 0,
   clutchPulsePath: "",
   why: "confirm: none · couple: none · phrase=HUDDLE",
@@ -733,6 +738,21 @@ export const useTheater = create<TheaterState>((set, get) => ({
     });
   },
   ingestStemProgram: (p) => set({ stemProgram: p }),
+  ingestMatchAgent: (note) => {
+    const s = get();
+    const prev = s.matchAgent;
+    if (prev == null && note == null) return;
+    if (
+      prev &&
+      note &&
+      prev.text === note.text &&
+      prev.path === note.path &&
+      prev.ticketId === note.ticketId
+    ) {
+      return;
+    }
+    set({ matchAgent: note });
+  },
   ingestMoment: (m) => {
     const s = get();
     const row = { url: "", name: "", ...m };
