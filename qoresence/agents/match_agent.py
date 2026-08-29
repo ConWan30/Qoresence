@@ -134,6 +134,23 @@ class MatchAgent:
         with self._lock:
             return dict(self._last) if self._last else None
 
+    def surface_last_note(self) -> dict[str, Any]:
+        """Fail-closed snapshot for /health + /api/situation. Empty when OFF/quiet/unlicensed."""
+        if not self.enabled or not self.live:
+            return {}
+        with self._lock:
+            if not self._last:
+                return {}
+            note = self._last
+            if not note.get("ok") or not note.get("live"):
+                return {}
+            return {
+                "text": str(note.get("text") or ""),
+                "ticket_id": str(note.get("ticket_id") or ""),
+                "path": str(note.get("path") or ""),
+                "model": str(note.get("model") or ""),
+            }
+
     def collect_evidence(self) -> dict[str, Any]:
         civif: dict[str, Any] = {}
         try:
@@ -272,6 +289,14 @@ _agent: MatchAgent | None = None
 
 def get_match_agent() -> MatchAgent | None:
     return _agent
+
+
+def surface_last_note() -> dict[str, Any]:
+    """Fail-closed snapshot for Deck JSON. Empty when OFF/quiet/unlicensed."""
+    agent = get_match_agent()
+    if agent is None:
+        return {}
+    return agent.surface_last_note()
 
 
 def start_match_agent(*, enabled: bool = False, poll_s: float = _POLL_S) -> MatchAgent | None:

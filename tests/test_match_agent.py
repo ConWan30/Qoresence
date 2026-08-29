@@ -107,3 +107,66 @@ def test_match_agent_default_off():
     agent = MatchAgent(enabled=False)
     assert agent.enabled is False
     assert agent.start() is False
+
+
+def test_surface_last_note_empty_when_disabled():
+    agent = MatchAgent(enabled=False)
+    surface = agent.surface_last_note()
+    assert surface == {}
+
+
+def test_surface_last_note_empty_when_not_live():
+    agent = MatchAgent(enabled=True)
+    if agent.live:
+        return
+    surface = agent.surface_last_note()
+    assert surface == {}
+
+
+def test_surface_last_note_empty_when_no_note():
+    agent = MatchAgent(enabled=True)
+    surface = agent.surface_last_note()
+    assert surface == {}
+
+
+def test_surface_last_note_present_when_live_note_exists():
+    agent = MatchAgent(enabled=True)
+    agent._last = {
+        "ok": True,
+        "live": True,
+        "text": "Board licensed on this seq.",
+        "ticket_id": "abc123",
+        "path": "confirm",
+        "model": "deepseek-v4-flash",
+    }
+    surface = agent.surface_last_note()
+    assert surface["text"] == "Board licensed on this seq."
+    assert surface["ticket_id"] == "abc123"
+    assert surface["path"] == "confirm"
+    assert surface["model"] == "deepseek-v4-flash"
+
+
+def test_surface_last_note_empty_when_note_not_ok():
+    agent = MatchAgent(enabled=True)
+    agent._last = {
+        "ok": False,
+        "live": True,
+        "text": "Some text",
+        "ticket_id": "abc123",
+        "path": "confirm",
+    }
+    surface = agent.surface_last_note()
+    assert surface == {}
+
+
+def test_surface_last_note_empty_when_note_not_live():
+    agent = MatchAgent(enabled=True)
+    agent._last = {
+        "ok": True,
+        "live": False,
+        "text": "Some text",
+        "ticket_id": "abc123",
+        "path": "confirm",
+    }
+    surface = agent.surface_last_note()
+    assert surface == {}

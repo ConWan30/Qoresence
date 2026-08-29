@@ -327,6 +327,12 @@ def _situation_payload() -> dict[str, Any]:
     coup["climax_score"] = climax
     out["coupling"] = coup
     out["schema_version"] = SCHEMA_VERSION
+    try:
+        from qoresence.agents import surface_last_note
+
+        out["match_agent"] = surface_last_note()
+    except Exception:
+        out["match_agent"] = {}
     return out
 
 
@@ -1074,6 +1080,12 @@ def create_app():  # type: ignore[no-untyped-def]
             body["actuators"] = actuators_health(body)
         except Exception:
             body["actuators"] = {"registry": [], "receipts": []}
+        try:
+            from qoresence.agents import surface_last_note
+
+            body["match_agent"] = surface_last_note()
+        except Exception:
+            body["match_agent"] = {}
         return JSONResponse(body)
 
     @app.get("/api/situation")
