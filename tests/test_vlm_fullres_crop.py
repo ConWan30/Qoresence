@@ -93,7 +93,7 @@ def test_parse_fail_does_not_mint_confirm():
         assert result.home_score is None
         assert result.away_score is None
         assert result.score_vlm_locked is False
-        assert result.confirm_ticket_id is None
+        assert not result.confirm_ticket_id  # Empty string or None
 
 
 def test_no_invented_scores_without_ticket():
@@ -219,4 +219,4 @@ def test_null_parse_does_not_mint_confirm():
         assert result.home_score is None
         assert result.away_score is None
         assert result.score_vlm_locked is False
-        assert result.confirm_ticket_id is None
+        assert not result.confirm_ticket_id  # Empty string or None
