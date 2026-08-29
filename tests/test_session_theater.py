@@ -283,17 +283,24 @@ def test_fixtures_exist():
 
 def test_session_view_recap_run_inline_not_threadpooled():
     """Theater Confirmed hung because view/recap waited on the clip/civif pool."""
-    import inspect
+    from pathlib import Path
 
-    from qoresence.deck.server import create_app
+    text = (
+        Path(__file__).resolve().parents[1] / "qoresence" / "deck" / "server.py"
+    ).read_text(encoding="utf-8")
 
-    app = create_app()
-    src: dict[str, str] = {}
-    for route in app.routes:
-        path = getattr(route, "path", None)
-        if path in ("/api/session/view", "/api/session/recap"):
-            src[path] = inspect.getsource(route.endpoint)
-    assert src.keys() >= {"/api/session/view", "/api/session/recap"}
+    def chunk(path: str) -> str:
+        key = f'@app.get("{path}")'
+        start = text.index(key)
+        nxt = text.find("@app.get", start + len(key))
+        if nxt == -1:
+            nxt = text.find("@app.post", start + len(key))
+        return text[start:nxt] if nxt != -1 else text[start:]
+
+    src = {
+        "/api/session/view": chunk("/api/session/view"),
+        "/api/session/recap": chunk("/api/session/recap"),
+    }
     for path, body in src.items():
         assert "asyncio.to_thread" not in body, path
         assert "build_session_" in body, path
