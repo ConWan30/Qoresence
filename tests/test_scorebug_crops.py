@@ -74,3 +74,24 @@ def test_vlm_madden_crop_takes_bottom_strip():
     assert crop is not None
     assert int(crop[:, :, 0].max()) == 255
     assert int(crop[:, :, 1].max()) == 0
+
+
+def test_vlm_madden_menu_still_uses_hud_crop():
+    """Madden profile + game_state='menu' must still crop the bottom HUD, not center pause plate.
+    
+    Regression test for 2026-08-29 bug: live Madden gameplay had game_state wrongly
+    classified as 'menu', causing VLM to crop the center field (0.12–0.52 y) instead
+    of the bottom HUD (0.93–1.00 y) where the scorebug actually is.
+    """
+    h, w = 720, 1280
+    frame = np.zeros((h, w, 3), dtype=np.uint8)
+    # Pause plate region (center): red channel
+    frame[int(h * 0.12) : int(h * 0.52), int(w * 0.22) : int(w * 0.78), 2] = 255
+    # Madden HUD strip (bottom): blue channel
+    frame[int(h * 0.93) :, :, 0] = 255
+    
+    crop = ScoreboardVlmReferee._crop(frame, game_state="menu", game_profile="madden_27")
+    assert crop is not None
+    # Must contain blue (HUD), not red (pause plate)
+    assert int(crop[:, :, 0].max()) == 255, "Madden menu crop must include bottom HUD (blue)"
+    assert int(crop[:, :, 2].max()) == 0, "Madden menu crop must NOT include center pause plate (red)"

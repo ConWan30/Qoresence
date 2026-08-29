@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 
 from qoresence.agents.llm_client import DEFAULT_BASE_URL, _resolve_api_key
-from qoresence.vision.scorebug_crops import CFB_PRIMARY_SCOREBUG, primary_scorebug_crop
+from qoresence.vision.scorebug_crops import CFB_PRIMARY_SCOREBUG, is_madden_profile, primary_scorebug_crop
 
 log = logging.getLogger(__name__)
 
@@ -203,10 +203,18 @@ class ScoreboardVlmReferee:
         menu = gst in {"menu", "lobby", "hub", "paused", "pause"}
         # Gameplay: profile-aware scorebug. Menu: pause plate only.
         # Never stitch pause+bottom — that used to feed Gemini the other-games crawl.
+        # EXCEPTION: Madden HUD always first, even if game_state is wrongly 'menu'.
         scorebug = primary_scorebug_crop(game_profile)
-        src = cls._slice(frame, _PAUSE_FRAC if menu else scorebug)
-        if src is None:
-            src = cls._slice(frame, scorebug if menu else _PAUSE_FRAC)
+        is_madden = is_madden_profile(game_profile)
+        # Madden: HUD first (even on menu), pause fallback. Others: menu → pause first.
+        if is_madden:
+            src = cls._slice(frame, scorebug)
+            if src is None:
+                src = cls._slice(frame, _PAUSE_FRAC)
+        else:
+            src = cls._slice(frame, _PAUSE_FRAC if menu else scorebug)
+            if src is None:
+                src = cls._slice(frame, scorebug if menu else _PAUSE_FRAC)
         if src is None:
             return None
         out = src
