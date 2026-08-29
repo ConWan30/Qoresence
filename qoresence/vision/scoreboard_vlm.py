@@ -230,9 +230,23 @@ class ScoreboardVlmReferee:
         # Never stitch pause+bottom — that used to feed Gemini the other-games crawl.
         # EXCEPTION: Madden HUD always first, even if game_state is wrongly 'menu'.
         # EXCEPTION: CFB scorebug always first, even if game_state is wrongly 'menu' (#108 pattern).
-        scorebug = primary_scorebug_crop(game_profile)
+        
+        # Determine effective profile from title+profile for crop selection
         is_madden = is_madden_profile(game_profile)
         is_cfb = cls._is_cfb_context(game_profile, game_title)
+        
+        # Resolve which profile to use for the crop: title-based CFB detection overrides madden profile
+        effective_profile = game_profile
+        if is_cfb and not is_madden:
+            # Pure CFB detection from title - use cfb_27
+            effective_profile = "cfb_27"
+        elif is_cfb and is_madden:
+            # Both markers present (e.g. title="College Football", profile="madden_27")
+            # Title wins - use CFB crop
+            effective_profile = "cfb_27"
+        
+        scorebug = primary_scorebug_crop(effective_profile)
+        
         # Madden: HUD first (even on menu), pause fallback.
         # CFB: scorebug first (even on menu), pause fallback.
         # Others: menu → pause first.
