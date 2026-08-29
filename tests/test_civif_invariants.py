@@ -217,7 +217,7 @@ def test_highlight_segments_respect_bodied_flag(tmp_path):
         tmp_path,
         "seg_bodied",
         coupling={"coupling": 0.8, "imu_bodied": True},
-        events=[{"clock_ns": 1_100_000_000, "name": "R2", "kind": "press"}],
+        events=[{"clock_ns": 1_100_000_000, "name": "R2", "kind": "press", "hid_domain": "play"}],
         situation={"board_locked": True, "home_score": 7, "away_score": 0},
     )
     hits = {h["stem"]: h for h in rank_highlights(tmp_path, limit=8)["hits"]}

@@ -39,7 +39,7 @@ def test_tick_unbodied_wipes_input_ticks():
 def test_tick_bodied_keeps_mapped_edges():
     rec = build_coupled_tick(
         coupling={"video_clock_ns": 20, "frame_seq": 2, "imu_bodied": True},
-        events=[{"name": "R2", "kind": "press", "clock_ns": 19, "value": 1.0}],
+        events=[{"name": "R2", "kind": "press", "clock_ns": 19, "value": 1.0, "hid_domain": "play"}],
     )
     d = rec.to_dict()
     assert d["controller_bodied"] is True
@@ -91,7 +91,7 @@ def test_coach_from_sidecar_shows_sequence_when_bodied():
         frame_start=0,
         frame_end=1,
         video_path="b.mp4",
-        events=[{"clock_ns": 1_100, "name": "X", "kind": "press"}],
+        events=[{"clock_ns": 1_100, "name": "X", "kind": "press", "hid_domain": "play"}],
         coupling={"imu_bodied": True, "coupling": 0.5},
         coupling_history=[],
     )
@@ -131,7 +131,7 @@ def test_highlights_key_inputs_only_when_bodied(tmp_path):
         tmp_path,
         "bodied",
         coupling={"coupling": 0.8, "imu_bodied": True},
-        events=[{"clock_ns": 1_100_000_000, "name": "R2", "kind": "press"}],
+        events=[{"clock_ns": 1_100_000_000, "name": "R2", "kind": "press", "hid_domain": "play"}],
         situation={"board_locked": True, "home_score": 7, "away_score": 0, "clutch_kind": "score"},
     )
     hits = {h["stem"]: h for h in rank_highlights(tmp_path, limit=8)["hits"]}
@@ -148,7 +148,7 @@ def test_query_filters(tmp_path):
         "hi_lock",
         session_id="sess-a",
         coupling={"coupling": 0.9, "imu_bodied": True},
-        events=[{"clock_ns": 1_100_000_000, "name": "L2", "kind": "press"}],
+        events=[{"clock_ns": 1_100_000_000, "name": "L2", "kind": "press", "hid_domain": "play"}],
         situation={"board_locked": True, "home_score": 3, "away_score": 0, "clutch_score": 0.8},
     )
     q = get_coupled_clips(

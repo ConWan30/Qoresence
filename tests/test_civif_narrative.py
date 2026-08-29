@@ -43,7 +43,7 @@ def test_bodied_narrative_includes_event_count():
     out = narrative_from_sidecar(
         _side(
             events=[
-                {"clock_ns": 1_100_000_000, "name": "R2", "kind": "trigger"},
+                {"clock_ns": 1_100_000_000, "name": "R2", "kind": "trigger", "hid_domain": "play"},
             ]
         )
     )
