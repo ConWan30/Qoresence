@@ -367,7 +367,7 @@ class FootballScoreboardExtractor:
             # Get full-res frame from FrameHub if available (never wait on grab thread)
             vlm_frame = frame
             try:
-                from qoresence.monitor.frame_hub import get_latest_stamp, get_latest
+                from qoresence.monitor.frame_hub import get_latest, get_latest_stamp
                 
                 stamp = get_latest_stamp()
                 if stamp.get("has_frame"):
