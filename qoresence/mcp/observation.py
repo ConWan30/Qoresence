@@ -19,6 +19,30 @@ def _num(v: Any) -> int | None:
         return None
 
 
+def _hydrate_control(
+    control: dict[str, Any] | None,
+    situation: dict[str, Any],
+    clock_ns: int | None,
+    seq: int | None,
+) -> dict[str, Any] | None:
+    """Attach pad-label wire when the caller omitted control. Fail closed."""
+    if isinstance(control, dict):
+        return control
+    try:
+        from qoresence.deck.observation_wire import build_observation_wire
+
+        wire_sit = dict(situation) if isinstance(situation, dict) else {}
+        if seq is not None and wire_sit.get("frame_seq") is None:
+            wire_sit["frame_seq"] = seq
+        if clock_ns is not None and wire_sit.get("clock_ns") is None:
+            wire_sit["clock_ns"] = clock_ns
+        if wire_sit.get("frame_seq") is None:
+            return None
+        return build_observation_wire(wire_sit)
+    except Exception:
+        return None
+
+
 def build_observation(
     *,
     situation: dict[str, Any] | None = None,
@@ -34,6 +58,7 @@ def build_observation(
     coup = coupling if isinstance(coupling, dict) else {}
     glass = glass_link if isinstance(glass_link, dict) else {}
     silence: list[str] = []
+    control = _hydrate_control(control, sit, clock_ns, seq)
 
     title_locked = (
         bool(sit.get("title_claim")) or str(sit.get("title_hysteresis") or "") == "locked"
