@@ -288,3 +288,52 @@ def stop_match_agent() -> None:
     if _agent is not None:
         _agent.stop()
         _agent = None
+
+
+def surface_last_note() -> dict[str, Any]:
+    """Fail-closed Deck poll surface for last_note().
+
+    Empty when OFF (agent is None or enabled=False), quiet (last_note is None),
+    or unlicensed (missing ticket_id OR path == "hold" OR empty text).
+
+    Licensed note (ticket_id present AND path in {fast, confirm} AND non-empty text)
+    returns ok=True with text, live, ticket_id, path, model.
+
+    Does NOT include the evidence bag. DualSense/PS5: observation only; never
+    claim a pad press; picture_hid tickets are labels not InputRing.
+    """
+    empty = {
+        "ok": False,
+        "text": "",
+        "live": False,
+        "ticket_id": "",
+        "path": "hold",
+        "model": "",
+    }
+    try:
+        agent = get_match_agent()
+        if agent is None or not agent.enabled:
+            return empty
+        note = agent.last_note()
+        if note is None:
+            return empty
+        live = bool(note.get("live"))
+        if not live:
+            return empty
+        tid = str(note.get("ticket_id") or "")
+        path = str(note.get("path") or "hold")
+        text = str(note.get("text") or "")
+        if not tid or path == "hold" or not text:
+            return empty
+        if path not in {"fast", "confirm"}:
+            return empty
+        return {
+            "ok": True,
+            "text": text[:280],
+            "live": live,
+            "ticket_id": tid,
+            "path": path,
+            "model": str(note.get("model") or ""),
+        }
+    except Exception:
+        return empty

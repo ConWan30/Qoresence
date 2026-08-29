@@ -327,6 +327,19 @@ def _situation_payload() -> dict[str, Any]:
     coup["climax_score"] = climax
     out["coupling"] = coup
     out["schema_version"] = SCHEMA_VERSION
+    try:
+        from qoresence.agents.match_agent import surface_last_note
+
+        out["match_note"] = surface_last_note()
+    except Exception:
+        out["match_note"] = {
+            "ok": False,
+            "text": "",
+            "live": False,
+            "ticket_id": "",
+            "path": "hold",
+            "model": "",
+        }
     return out
 
 
@@ -1074,6 +1087,19 @@ def create_app():  # type: ignore[no-untyped-def]
             body["actuators"] = actuators_health(body)
         except Exception:
             body["actuators"] = {"registry": [], "receipts": []}
+        try:
+            from qoresence.agents.match_agent import surface_last_note
+
+            body["match_note"] = surface_last_note()
+        except Exception:
+            body["match_note"] = {
+                "ok": False,
+                "text": "",
+                "live": False,
+                "ticket_id": "",
+                "path": "hold",
+                "model": "",
+            }
         return JSONResponse(body)
 
     @app.get("/api/situation")
@@ -2670,6 +2696,19 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                         health["otel"] = {"enabled": False}
                 except Exception:
                     health["otel"] = {"enabled": False}
+                try:
+                    from qoresence.agents.match_agent import surface_last_note
+
+                    health["match_note"] = surface_last_note()
+                except Exception:
+                    health["match_note"] = {
+                        "ok": False,
+                        "text": "",
+                        "live": False,
+                        "ticket_id": "",
+                        "path": "hold",
+                        "model": "",
+                    }
                 self.wfile.write(json.dumps(health).encode())
                 return
             if self.path == "/api/situation":

@@ -107,3 +107,90 @@ def test_match_agent_default_off():
     agent = MatchAgent(enabled=False)
     assert agent.enabled is False
     assert agent.start() is False
+
+
+def test_surface_last_note_off():
+    """Empty when agent is None or enabled=False."""
+    from qoresence.agents.match_agent import surface_last_note, start_match_agent
+
+    start_match_agent(enabled=False)
+    result = surface_last_note()
+    assert result["ok"] is False
+    assert result["text"] == ""
+    assert result["live"] is False
+    assert result["ticket_id"] == ""
+    assert result["path"] == "hold"
+    assert result["model"] == ""
+
+
+def test_surface_last_note_quiet():
+    """Empty when last_note is None."""
+    from qoresence.agents.match_agent import surface_last_note, start_match_agent
+
+    agent = start_match_agent(enabled=True)
+    assert agent is not None
+    result = surface_last_note()
+    assert result["ok"] is False
+    assert result["text"] == ""
+
+
+def test_surface_last_note_unlicensed():
+    """Empty when live=False (stub) even if ticket_id present."""
+    from qoresence.agents.match_agent import MatchAgent, surface_last_note
+
+    agent = MatchAgent(enabled=False)
+    pic = mint_picture_hid_ticket(
+        clock_ns=2, frame_seq=4, hid_button="Cross", game_state="gameplay"
+    )
+    bag = build_match_evidence(picture=pic, civif={"controller_bodied": False})
+    note = agent.propose(bag)
+    assert note["live"] is False
+    agent._last = note
+    from qoresence.agents import match_agent
+
+    match_agent._agent = agent
+    result = surface_last_note()
+    assert result["ok"] is False
+    assert result["text"] == ""
+    match_agent._agent = None
+
+
+def test_surface_last_note_licensed():
+    """Returns ok=True with text when live=True + ticket_id + path=confirm/fast + text."""
+    from qoresence.agents.match_agent import MatchAgent, surface_last_note
+
+    agent = MatchAgent(enabled=True)
+    note = {
+        "ok": True,
+        "live": True,
+        "text": "DAL 21 NO 13 on this frame",
+        "ticket_id": "test-ticket-123",
+        "path": "confirm",
+        "model": "test-model",
+        "evidence": {},
+    }
+    agent._last = note
+    from qoresence.agents import match_agent
+
+    match_agent._agent = agent
+    result = surface_last_note()
+    assert result["ok"] is True
+    assert result["text"] == "DAL 21 NO 13 on this frame"
+    assert result["live"] is True
+    assert result["ticket_id"] == "test-ticket-123"
+    assert result["path"] == "confirm"
+    assert result["model"] == "test-model"
+    match_agent._agent = None
+
+
+def test_situation_payload_carries_match_note():
+    """_situation_payload()["match_note"] is empty when agent is off."""
+    from unittest.mock import patch
+
+    from qoresence.deck.server import _situation_payload
+
+    with patch("qoresence.agents.match_agent.get_match_agent", return_value=None):
+        out = _situation_payload()
+        assert "match_note" in out
+        assert out["match_note"]["ok"] is False
+        assert out["match_note"]["text"] == ""
