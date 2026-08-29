@@ -133,15 +133,23 @@ class ScoreboardVlmReferee:
         Cadence:
           - force / score_changed / menu_exit → immediate (if not inflight)
           - gameplay → ~1.5s (≈0.7 Hz board reads; not 60 fps)
-          - menu/hub → ~8s
+          - menu/hub → ~8s (but football titles use gameplay interval even on menu)
         """
         if not self.enabled or frame is None or getattr(frame, "size", 0) == 0:
             return
         gst = (game_state or "").lower()
         is_gameplay = gst in {"gameplay", "playing", "in_game", ""}
+        
+        # Football titles (CFB 27 / Madden 27): use gameplay interval even when
+        # classifier says menu, because HUD-first crop is valid on menu/hub.
+        profile_lower = (game_profile or "").lower()
+        is_football = any(
+            kw in profile_lower for kw in ("football", "cfb", "madden", "ncaa")
+        )
+        
         if force or reason in {"score_changed", "menu_exit", "first_lock"}:
             interval = 0.0
-        elif is_gameplay:
+        elif is_gameplay or is_football:
             interval = max(0.8, _GAMEPLAY_INTERVAL_S)
         else:
             interval = max(4.0, _MENU_INTERVAL_S)
@@ -233,6 +241,17 @@ class ScoreboardVlmReferee:
         ok, buf = cv2.imencode(".jpg", crop_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
         if not ok:
             return None
+        
+        # Save last VLM crop so operator can see what DeepSeek saw
+        try:
+            import pathlib
+            
+            logs_dir = pathlib.Path("logs")
+            logs_dir.mkdir(exist_ok=True)
+            cv2.imwrite(str(logs_dir / "vlm_last_crop.jpg"), crop_bgr)
+        except Exception:
+            pass
+        
         b64 = base64.b64encode(buf.tobytes()).decode("ascii")
         url = f"{self.base_url}/chat/completions"
         headers = {
@@ -313,21 +332,59 @@ class ScoreboardVlmReferee:
                 return None
         text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         self._last_raw = str(text)[:500]
-        return self._parse_json(str(text))
+        parsed = self._parse_json(str(text))
+        
+        # HTTP 200 but parse failed: log preview and try extra recovery
+        if parsed is None and text:
+            preview = str(text)[:200].replace("\n", " ")
+            log.info("scoreboard VLM HTTP 200 parse fail, last_raw preview: %s", preview)
+            
+            # Try extra JSON recovery: strip fences and extract first {...}
+            text_stripped = text.strip()
+            # Remove markdown code fences
+            text_stripped = re.sub(r"^```(?:json)?\s*", "", text_stripped)
+            text_stripped = re.sub(r"\s*```$", "", text_stripped)
+            # Try to find first complete JSON object
+            match = re.search(r"\{[^{}]*\}", text_stripped)
+            if match:
+                try:
+                    test_obj = json.loads(match.group(0))
+                    if isinstance(test_obj, dict):
+                        parsed = self._parse_json(match.group(0))
+                except Exception:
+                    pass
+        
+        return parsed
 
     @staticmethod
     def _parse_json(text: str) -> dict[str, Any] | None:
+        if not text or not isinstance(text, str):
+            return None
+        
         text = text.strip()
         # strip fences
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
+        
         # find first {…}
         m = re.search(r"\{[\s\S]*\}", text)
         if not m:
             return None
+        
         try:
             obj = json.loads(m.group(0))
         except Exception:
+            # Try to recover: replace common JSON errors
+            try:
+                # Replace single quotes with double quotes (common LLM error)
+                fixed = m.group(0).replace("'", '"')
+                # Remove trailing commas before } or ]
+                fixed = re.sub(r",\s*([}\]])", r"\1", fixed)
+                obj = json.loads(fixed)
+            except Exception:
+                return None
+        
+        if not isinstance(obj, dict):
             return None
         out: dict[str, Any] = {}
         for k in ("home_score", "away_score", "quarter", "down", "yards_to_go", "play_clock"):

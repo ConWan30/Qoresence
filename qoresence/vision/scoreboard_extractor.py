@@ -354,6 +354,7 @@ class FootballScoreboardExtractor:
             pass
 
         # Smarter DeepSeek board cadence (does not block) — not every frame
+        # Crop VLM from FrameHub full-res frame, NOT the downscaled classify copy
         try:
             from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
 
@@ -362,8 +363,22 @@ class FootballScoreboardExtractor:
                 gst = getattr(ctx.game_state, "value", None) or str(ctx.game_state or "")
             except Exception:
                 gst = None
+            
+            # Get full-res frame from FrameHub if available (never wait on grab thread)
+            vlm_frame = frame
+            try:
+                from qoresence.monitor.frame_hub import get_latest_stamp, get_latest
+                
+                stamp = get_latest_stamp()
+                if stamp.get("has_frame"):
+                    full_res = get_latest()
+                    if full_res is not None:
+                        vlm_frame = full_res
+            except Exception:
+                pass
+            
             get_scoreboard_vlm().schedule(
-                frame,
+                vlm_frame,
                 game_state=gst,
                 reason="tick",
                 game_profile=getattr(ctx, "game_profile", None),
