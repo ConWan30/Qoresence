@@ -48,7 +48,7 @@ def test_bodied_events_are_searchable(tmp_path):
         frame_start=1,
         frame_end=2,
         video_path="hdmi_r2.mp4",
-        events=[{"clock_ns": 1500, "name": "R2", "kind": "trigger"}],
+        events=[{"clock_ns": 1500, "name": "R2", "kind": "trigger", "hid_domain": "play"}],
         coupling={"coupling": 0.8},
         coupling_history=[],
     )

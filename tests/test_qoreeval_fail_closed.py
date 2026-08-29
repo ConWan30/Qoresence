@@ -16,6 +16,8 @@ Three fail-closed residuals from a real laptop observation hour:
 
 from __future__ import annotations
 
+import numpy as np
+
 from qoresence.core.coupled_event import input_bodied
 from qoresence.vision.confirm_ticket import ConfirmTicketBook, mint_confirm_ticket
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
@@ -423,24 +425,34 @@ def test_garbage_board_identity_compatibility():
     assert t1.ticket_id != t2.ticket_id, "Different identity must mint new ticket"
 
 
-def test_refuse_zero_zero_after_identity_swap():
+def test_refuse_zero_zero_after_identity_swap(monkeypatch):
     """Refuse 0-0 lock during GAMEPLAY after identity swap (the 23-tick residual).
     
     Reproduces 07:46→07:47 sequence: DAL 27-NO 0 → IND 0-DET 0 locked for 8 min.
     The system should refuse to lock IND 0-0 during gameplay because:
     1. Prior lock was DAL-NO
     2. New identity IND-DET is incompatible  
-    3. 0-0 is suspicious after identity swap (must fail closed)
+    3. Identity swap without title lock must fail closed
     """
     from qoresence.vision.confirm_ticket import get_ticket_book, ConfirmTicketBook
-    from qoresence.vision.scoreboard_extractor import FootballScoreboardExtractor, _may_mint_lock
+    from qoresence.vision.scoreboard_extractor import FootballScoreboardExtractor, _ScoreStabilizer
+    import numpy as np
     
     # Reset ticket book and stabilizer
     book = ConfirmTicketBook()
     import qoresence.vision.confirm_ticket as ct_mod
     old_book = ct_mod._BOOK
     ct_mod._BOOK = book
-    FootballScoreboardExtractor._stabilizer = None
+    FootballScoreboardExtractor._stabilizer = _ScoreStabilizer(window=6, need=2)
+    
+    # Fake VLM that will return IND 0 - DET 0
+    class _FakeVlm:
+        def __init__(self, last):
+            self._last = last
+        def schedule(self, *a, **k):
+            return None
+        def get_last(self):
+            return dict(self._last) if self._last else None
     
     try:
         # Step 1: Lock DAL 27 - NO 0 (gameplay, session b80e)
@@ -455,48 +467,124 @@ def test_refuse_zero_zero_after_identity_swap():
         )
         book.put(t1)
         
-        # Step 2: Try to mint IND 0 - DET 0 during GAMEPLAY
+        # Step 2: Try to extract IND 0 - DET 0 during GAMEPLAY with grounded VLM
         # This is the 07:47:06–07:55:03 locked 0-0 sequence
-        ctx = VisualContext()
-        ctx.game_state = GameState.GAMEPLAY  # Not loading/cutscene!
-        ctx.game_category = GameCategory.FOOTBALL
-        ctx.game_profile = "madden_27"
-        ctx.home_team = "IND"
-        ctx.away_team = "DET"
-        ctx.session_id = "sess-b80e"
-        
-        vlm = {
-            "home_score": 0,
-            "away_score": 0,
-            "left_team": "IND",
-            "right_team": "DET",
-            "quarter": 1,
-            "clock_seconds": 900,  # Grounded VLM
-        }
-        
-        # _may_mint_lock should return True (gameplay state)
-        can_mint = _may_mint_lock(ctx, vlm)
-        assert can_mint is True, "Gameplay allows lock attempts"
-        
-        # But the actual VLM lock path should refuse 0-0 after identity swap
-        # We need to test the full extraction path
-        # For now, verify that attempting to mint this ticket would create
-        # a different ticket (identity changed)
-        t2 = mint_confirm_ticket(
-            session_id="sess-b80e",
-            clock_ns=200_000_000,
-            home_score=0,
-            away_score=0,
-            home_team="IND",
-            away_team="DET",
-            quarter=1,
+        monkeypatch.delenv("QORESENCE_EASY_OCR", raising=False)
+        monkeypatch.setattr(
+            "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm",
+            lambda: _FakeVlm({
+                "home_score": 0,
+                "away_score": 0,
+                "left_team": "IND",
+                "right_team": "DET",
+                "quarter": 1,
+                "clock_seconds": 900,  # Grounded VLM
+                "home_left": False,
+            })
+        )
+        monkeypatch.setattr(
+            "qoresence.vision.local_hud_digits.read_score_pair",
+            lambda *a, **k: None,
         )
         
-        # Different identity → different ticket
-        assert t1.ticket_id != t2.ticket_id
+        ctx = VisualContext()
+        ctx.game_state = GameState.GAMEPLAY
+        ctx.game_category = GameCategory.FOOTBALL
+        ctx.game_profile = "madden_27"
+        ctx.session_id = "sess-b80e"
+        ctx.home_team = "IND"
+        ctx.away_team = "DET"
         
-        # The scoreboard extractor's identity check should refuse to lock this
-        # (tested by running extract with the VLM that returns IND 0-0)
+        # Create noise frame
+        frame = np.full((720, 1280, 3), 40, dtype=np.uint8)
+        
+        ext = FootballScoreboardExtractor()
+        result = ext.extract(frame, ctx)
+        
+        # ASSERT: Lock must be refused (fail-closed)
+        assert result.score_vlm_locked is False, "Must refuse 0-0 after identity swap"
+        assert result.confirm_ticket_id is None or result.confirm_ticket_id == "", \
+            "No confirm ticket after refused lock"
+        
+    finally:
+        ct_mod._BOOK = old_book
+
+
+def test_refuse_incompatible_identity_swap_non_zero(monkeypatch):
+    """Refuse ANY score after identity swap, not just 0-0.
+    
+    Observed 07:46 sequence: DAL 27-NO 0 → loading → IND 82-DET 86 gameplay ticks.
+    Identity-incompatible garbage is not only 0-0. Operator: DAL-NO must not
+    become IND-DET without a new title lock.
+    """
+    from qoresence.vision.confirm_ticket import get_ticket_book, ConfirmTicketBook
+    from qoresence.vision.scoreboard_extractor import FootballScoreboardExtractor, _ScoreStabilizer
+    import numpy as np
+    
+    # Reset ticket book and stabilizer
+    book = ConfirmTicketBook()
+    import qoresence.vision.confirm_ticket as ct_mod
+    old_book = ct_mod._BOOK
+    ct_mod._BOOK = book
+    FootballScoreboardExtractor._stabilizer = _ScoreStabilizer(window=6, need=2)
+    
+    class _FakeVlm:
+        def __init__(self, last):
+            self._last = last
+        def schedule(self, *a, **k):
+            return None
+        def get_last(self):
+            return dict(self._last) if self._last else None
+    
+    try:
+        # Step 1: Lock DAL 27 - NO 0
+        t1 = mint_confirm_ticket(
+            session_id="sess-b80e",
+            clock_ns=100_000_000,
+            home_score=27,
+            away_score=0,
+            home_team="DAL",
+            away_team="NO",
+            quarter=2,
+        )
+        book.put(t1)
+        
+        # Step 2: Try to lock IND 82 - DET 86 during GAMEPLAY (non-0-0 garbage)
+        monkeypatch.delenv("QORESENCE_EASY_OCR", raising=False)
+        monkeypatch.setattr(
+            "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm",
+            lambda: _FakeVlm({
+                "home_score": 82,
+                "away_score": 86,
+                "left_team": "IND",
+                "right_team": "DET",
+                "quarter": 1,
+                "clock_seconds": 800,
+                "home_left": False,
+            })
+        )
+        monkeypatch.setattr(
+            "qoresence.vision.local_hud_digits.read_score_pair",
+            lambda *a, **k: None,
+        )
+        
+        ctx = VisualContext()
+        ctx.game_state = GameState.GAMEPLAY
+        ctx.game_category = GameCategory.FOOTBALL
+        ctx.game_profile = "madden_27"
+        ctx.session_id = "sess-b80e"
+        ctx.home_team = "IND"
+        ctx.away_team = "DET"
+        
+        frame = np.full((720, 1280, 3), 40, dtype=np.uint8)
+        
+        ext = FootballScoreboardExtractor()
+        result = ext.extract(frame, ctx)
+        
+        # ASSERT: Lock must be refused (fail-closed) for ANY incompatible identity swap
+        assert result.score_vlm_locked is False, "Must refuse 82-86 after identity swap"
+        assert result.confirm_ticket_id is None or result.confirm_ticket_id == "", \
+            "No confirm ticket after refused lock"
         
     finally:
         ct_mod._BOOK = old_book

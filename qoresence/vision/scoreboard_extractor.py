@@ -563,123 +563,128 @@ class FootballScoreboardExtractor:
                 and _may_mint_lock(ctx, vlm)
                 and not _ScoreStabilizer._looks_suspicious_pair((raw_h, raw_a))
             ):
-                # Check identity compatibility with prior lock before allowing 0-0
-                # after identity swap (DAL-NO must not become IND-DET with 0-0)
+                # Check identity compatibility with prior lock before allowing lock
+                # after identity swap (DAL-NO must not become IND-DET without title lock)
                 allow_lock = True
-                if int(raw_h or 0) == 0 and int(raw_a or 0) == 0:
-                    # 0-0 after identity swap must fail closed
-                    try:
-                        from qoresence.profiles.cfb27_product import identity_compatible
-                        from qoresence.vision.confirm_ticket import get_ticket_book
+                try:
+                    from qoresence.profiles.cfb27_product import identity_compatible
+                    from qoresence.vision.confirm_ticket import get_ticket_book
+                    
+                    prior_ticket = get_ticket_book().latest()
+                    if prior_ticket is not None:
+                        # Get new identity from context
+                        new_home = str(getattr(ctx, "home_team", "") or "")
+                        new_away = str(getattr(ctx, "away_team", "") or "")
+                        # Get prior identity from prior ticket
+                        prior_home = str(prior_ticket.home_team or "")
+                        prior_away = str(prior_ticket.away_team or "")
                         
-                        prior_ticket = get_ticket_book().latest()
-                        if prior_ticket is not None:
-                            # Get new identity from context
-                            new_home = str(getattr(ctx, "home_team", "") or "")
-                            new_away = str(getattr(ctx, "away_team", "") or "")
-                            # Get prior identity from prior ticket
-                            prior_home = str(prior_ticket.home_team or "")
-                            prior_away = str(prior_ticket.away_team or "")
-                            
-                            # If both prior and new have identity, check compatibility
-                            if (prior_home or prior_away) and (new_home or new_away):
-                                profile = str(getattr(ctx, "game_profile", "") or "")
-                                id_ok = identity_compatible(
-                                    prior_home, prior_away, new_home, new_away, profile=profile
+                        # If prior has identity and new has identity, check compatibility
+                        # Empty prior → allow (initial lock). Empty new → allow (no identity this frame).
+                        # Non-empty prior + non-empty incompatible new → refuse.
+                        if (prior_home or prior_away) and (new_home or new_away):
+                            # Both prior and new have identity; check compatibility
+                            profile = str(getattr(ctx, "game_profile", "") or "")
+                            id_ok = identity_compatible(
+                                prior_home, prior_away, new_home, new_away, profile=profile
+                            )
+                            if not id_ok:
+                                # Identity incompatible → refuse lock (fail-closed)
+                                allow_lock = False
+                                log.info(
+                                    "refuse lock after identity swap: %s-%s → %s-%s (%s-%s)",
+                                    prior_home, prior_away, new_home, new_away, raw_h, raw_a
                                 )
-                                if not id_ok:
-                                    # Identity incompatible + 0-0 → refuse lock (fail-closed)
-                                    allow_lock = False
-                                    log.info(
-                                        "refuse 0-0 lock after identity swap: %s-%s → %s-%s",
-                                        prior_home, prior_away, new_home, new_away
-                                    )
-                    except Exception as e:
-                        # If identity check fails, refuse 0-0 to be safe (fail-closed)
-                        log.debug("identity check failed for 0-0, refuse lock: %s", e)
-                        allow_lock = False
+                except Exception as e:
+                    # If identity check fails, refuse to be safe (fail-closed)
+                    log.debug("identity check failed, refuse lock: %s", e)
+                    allow_lock = False
                 
                 if allow_lock:
                     # Vision referee is trusted — force lock after a single coherent pair
                     stab._stable = (int(raw_h), int(raw_a))
                     stab._recent.clear()
                     stab._recent.append((int(raw_h), int(raw_a)))
-                sh, sa = stab._stable
-                # Fail-closed: score_vlm_locked only after ConfirmTicket mint succeeds.
-                locked_ok = False
-                try:
-                    import time as _time_ticket
-
-                    from qoresence.monitor.frame_hub import get_latest_stamp
-                    from qoresence.vision.confirm_ticket import get_ticket_book, mint_confirm_ticket
-
-                    stamp = {}
+                    sh, sa = stab._stable
+                    # Fail-closed: score_vlm_locked only after ConfirmTicket mint succeeds.
+                    locked_ok = False
                     try:
-                        stamp = get_latest_stamp() or {}
-                    except Exception:
+                        import time as _time_ticket
+
+                        from qoresence.monitor.frame_hub import get_latest_stamp
+                        from qoresence.vision.confirm_ticket import get_ticket_book, mint_confirm_ticket
+
                         stamp = {}
-
-                    def _ti(v: Any) -> int | None:
                         try:
-                            return int(v) if v is not None and v != "" else None
-                        except (TypeError, ValueError):
-                            return None
-
-                    # Resolve model and source from VLM referee or context
-                    vlm_model = None
-                    if vlm:
-                        try:
-                            from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
-                            vlm_model = get_scoreboard_vlm().model
+                            stamp = get_latest_stamp() or {}
                         except Exception:
-                            pass
-                    model_str = str(
-                        vlm_model
-                        or getattr(ctx, "model", "")
-                        or "deepseek-v4-flash-vision-exp"
-                    )
-                    # Infer source from model string
-                    source_str = "deepseek"
-                    if "gemini" in model_str.lower():
-                        source_str = "gemini"
-                    elif "quicksilver" in model_str.lower():
-                        source_str = "quicksilver"
+                            stamp = {}
 
-                    ticket = mint_confirm_ticket(
-                        session_id=str(getattr(ctx, "session_id", "") or ""),
-                        clock_ns=int(stamp.get("clock_ns") or _time_ticket.monotonic_ns()),
-                        home_score=int(sh),
-                        away_score=int(sa),
-                        home_team=str(getattr(ctx, "home_team", "") or ""),
-                        away_team=str(getattr(ctx, "away_team", "") or ""),
-                        model=model_str,
-                        source=source_str,
-                        frame_seq=_ti(stamp.get("seq")),
-                        crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
-                        quarter=_ti(parsed.get("quarter")),
-                        down=_ti(parsed.get("down")),
-                    )
-                    get_ticket_book().put(ticket)
-                    ctx.confirm_ticket_id = ticket.ticket_id
-                    if isinstance(ctx.details, dict):
-                        ctx.details["confirm_ticket"] = ticket.to_dict()
-                    ctx.score_vlm_locked = True
-                    locked_ok = True
-                    log.info(
-                        "scoreboard VLM lock %s-%s ticket=%s",
-                        sh,
-                        sa,
-                        ticket.ticket_id,
-                    )
-                except Exception as e:
-                    log.warning("confirm ticket mint failed — refuse score_vlm_locked: %s", e)
-                    ctx.score_vlm_locked = False
-                if not locked_ok:
-                    # Unlicensed → do not serialize digits. Glass stays dark.
-                    sh, sa = None, None
-                    seeing_path_minted_this_frame = False
+                        def _ti(v: Any) -> int | None:
+                            try:
+                                return int(v) if v is not None and v != "" else None
+                            except (TypeError, ValueError):
+                                return None
+
+                        # Resolve model and source from VLM referee or context
+                        vlm_model = None
+                        if vlm:
+                            try:
+                                from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+                                vlm_model = get_scoreboard_vlm().model
+                            except Exception:
+                                pass
+                        model_str = str(
+                            vlm_model
+                            or getattr(ctx, "model", "")
+                            or "deepseek-v4-flash-vision-exp"
+                        )
+                        # Infer source from model string
+                        source_str = "deepseek"
+                        if "gemini" in model_str.lower():
+                            source_str = "gemini"
+                        elif "quicksilver" in model_str.lower():
+                            source_str = "quicksilver"
+
+                        ticket = mint_confirm_ticket(
+                            session_id=str(getattr(ctx, "session_id", "") or ""),
+                            clock_ns=int(stamp.get("clock_ns") or _time_ticket.monotonic_ns()),
+                            home_score=int(sh),
+                            away_score=int(sa),
+                            home_team=str(getattr(ctx, "home_team", "") or ""),
+                            away_team=str(getattr(ctx, "away_team", "") or ""),
+                            model=model_str,
+                            source=source_str,
+                            frame_seq=_ti(stamp.get("seq")),
+                            crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
+                            quarter=_ti(parsed.get("quarter")),
+                            down=_ti(parsed.get("down")),
+                        )
+                        get_ticket_book().put(ticket)
+                        ctx.confirm_ticket_id = ticket.ticket_id
+                        if isinstance(ctx.details, dict):
+                            ctx.details["confirm_ticket"] = ticket.to_dict()
+                        ctx.score_vlm_locked = True
+                        locked_ok = True
+                        log.info(
+                            "scoreboard VLM lock %s-%s ticket=%s",
+                            sh,
+                            sa,
+                            ticket.ticket_id,
+                        )
+                    except Exception as e:
+                        log.warning("confirm ticket mint failed — refuse score_vlm_locked: %s", e)
+                        ctx.score_vlm_locked = False
+                    if not locked_ok:
+                        # Unlicensed → do not serialize digits. Glass stays dark.
+                        sh, sa = None, None
+                        seeing_path_minted_this_frame = False
+                    else:
+                        seeing_path_minted_this_frame = True
                 else:
-                    seeing_path_minted_this_frame = True
+                    # Identity check refused lock → fall back to consensus path
+                    sh, sa = stab.update(raw_h, raw_a)
+                    seeing_path_minted_this_frame = False
             else:
                 sh, sa = stab.update(raw_h, raw_a)
             

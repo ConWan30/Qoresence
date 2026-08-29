@@ -119,7 +119,7 @@ def test_highlights_rank_bodied_and_locked(tmp_path):
     _write(
         "hdmi_hi",
         coupling={"coupling": 0.9, "imu_bodied": True},
-        events=[{"clock_ns": 1_100_000_000, "name": "R2", "kind": "press"}],
+        events=[{"clock_ns": 1_100_000_000, "name": "R2", "kind": "press", "hid_domain": "play"}],
         situation={"board_locked": True, "home_score": 14, "away_score": 7},
     )
     out = rank_highlights(tmp_path, limit=8)
