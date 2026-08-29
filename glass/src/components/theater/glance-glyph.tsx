@@ -1,3 +1,4 @@
+import { pictureLagMs, syncChipText } from "@/lib/coupling/pad-sync";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +12,8 @@ export function GlanceGlyph({ compact }: { compact?: boolean }) {
   const boardLocked = useTheater((s) => s.boardLocked);
   const confirm = useTheater((s) => s.confirm);
   const syncLagMs = useTheater((s) => s.syncLagMs);
+  const pllLock = useTheater((s) => s.pllLock);
+  const videoAgeS = useTheater((s) => s.videoAgeS);
 
   const planeOk = livePaint && sameSeq && !planeDim;
   // Fail-closed: when Dark Theater / Same-Seq / paint dark, all glyphs off.
@@ -66,7 +69,7 @@ export function GlanceGlyph({ compact }: { compact?: boolean }) {
         data-sync="trail"
         className="font-mono text-[10px] tabular-nums tracking-wide text-sync uppercase"
       >
-        SYNC {Number.isFinite(syncLagMs) ? Math.round(syncLagMs) : "—"}ms
+        SYNC {syncChipText(pictureLagMs(videoAgeS, 0, pllLock && deckLive ? syncLagMs : 0))}
       </span>
     </div>
   );

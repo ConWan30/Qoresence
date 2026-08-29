@@ -558,6 +558,7 @@ function shortenLabel(label: string): string {
   return t.slice(0, 42) || "capture";
 }
 
+/** Optional lab WebHID opener. Default live path is DualSense-on-PS5 (empty laptop HID). Not a SYNC repair. */
 export async function wakePad(): Promise<PadSample> {
   const gp = readPad();
   if (gp.connected) return gp;

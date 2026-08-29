@@ -154,6 +154,40 @@ test("copy leak prevention: observatory-hud must not use situationText", () => {
   );
 });
 
+test("empty HID copy is DualSense-on-PS5 success, not PAD WAIT", () => {
+  const files = [
+    "src/components/theater/command-bar.tsx",
+    "src/components/theater/pad-sync-card.tsx",
+    "src/components/theater/lens-overlay.tsx",
+    "src/components/theater/connect-card.tsx",
+    "src/components/theater/observatory-hud.tsx",
+    "src/lib/coupling/pad-sync.ts",
+    "src/lib/coupling/store.ts",
+  ];
+  const banned = [
+    "PAD WAIT",
+    "press R2",
+    "wake the pad",
+    "USB to this laptop",
+    "click this glass",
+    "DualSense not on this box",
+    "no DualSense on this box",
+    "press in-game to bind",
+  ];
+  for (const rel of files) {
+    const src = readFileSync(join(GLASS_ROOT, rel), "utf-8");
+    for (const needle of banned) {
+      assert.ok(!src.includes(needle), `${rel} must not coach empty HID as an error (${needle})`);
+    }
+  }
+  const padSync = readFileSync(join(GLASS_ROOT, "src/lib/coupling/pad-sync.ts"), "utf-8");
+  assert.ok(padSync.includes("pad_not_on_this_host"), "empty HID reason is pad_not_on_this_host");
+  assert.ok(padSync.includes("UNBOUND"), "SYNC chip admits UNBOUND when unmeasured");
+  const hud = readFileSync(join(GLASS_ROOT, "src/components/theater/observatory-hud.tsx"), "utf-8");
+  assert.ok(hud.includes("UNBOUND"), "Observatory SYNC is lag admission, not a trophy 0");
+  assert.ok(!hud.includes("SYNC 0"), "Observatory must never decorate SYNC 0");
+});
+
 test("observatory variant must not mount LensOverlay", () => {
   const hdmiStagePath = join(GLASS_ROOT, "src/components/theater/hdmi-stage.tsx");
   const hdmiStage = readFileSync(hdmiStagePath, "utf-8");

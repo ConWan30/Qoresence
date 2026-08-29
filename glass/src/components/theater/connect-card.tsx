@@ -50,7 +50,7 @@ export function ConnectCard() {
       ) : null}
 
       <div className="grid grid-cols-2 gap-2">
-        <Kv label="Pad" value={padConnected ? padName : "press a button"} hot={padConnected} />
+        <Kv label="Pad" value={padConnected ? padName : "on PS5"} hot={padConnected} />
         <Kv
           label="HDMI"
           value={captureStatus === "live" ? captureLabel : captureStatus}
@@ -98,8 +98,8 @@ export function ConnectCard() {
         <Button size="sm" variant="secondary" disabled={busy} onClick={() => void armShare()}>
           Share picture
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => void wakePad()}>
-          Wake pad
+        <Button size="sm" variant="ghost" onClick={() => void wakePad()} title="Optional lab WebHID — DualSense stays on the PS5. Not a SYNC repair.">
+          Lab HID
         </Button>
       </div>
     </section>

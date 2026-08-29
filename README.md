@@ -62,8 +62,8 @@ Every lobe is **OFF** until you opt in.
  └───────┬──────────────────────────────┬─────────────────────┘
          │                              │
          ▼                              ▼
-  Deck LIVE / Session / Mobile   DualSense → InputRing → IVC
-  Retina Monitor                        │
+  Deck LIVE / Session / Mobile   DualSense-on-PS5 (empty laptop HID, default)
+  Retina Monitor                 optional path A: DualSense → InputRing → IVC
          │                              │
          └──────────┬───────────────────┘
                     ▼
