@@ -113,8 +113,8 @@ def test_coupling_min_uses_sidecar(tmp_path, monkeypatch):
 
     mock_module = MagicMock()
     mock_module.get_session_timeline = lambda: _MockTimeline()
-    
-    sys.modules['qoresence.agents.session_timeline'] = mock_module
+
+    sys.modules["qoresence.agents.session_timeline"] = mock_module
     monkeypatch.setenv("QORESENCE_CLIPS_DIR", str(tmp_path))
 
     low = build_coupling_sidecar(

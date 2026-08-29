@@ -237,7 +237,6 @@ def test_metrics_hook_tracks_ticks_and_highlights(tmp_path):
     stats = snapshot()
     rows = list(stats.values())
     assert rows
-    # session_id may be empty → "_"
     tickish = [r for r in rows if r["tick_count"] >= 2]
     assert tickish
     row = tickish[0]
@@ -256,18 +255,20 @@ def test_metrics_hook_tracks_ticks_and_highlights(tmp_path):
 
 
 def test_civif_live_and_highlights_run_inline_not_threadpooled():
-    """CIVIF page showed live unavailable because live sat on the clip thread pool."""
-    import inspect
+    """CIVIF live must not sit on the clip thread pool.
 
-    from qoresence.deck.server import create_app
+    CI installs FastAPI after the main pytest job, so create_app() is None.
+    Read the route source the same way as test_civif_disk_routes_stay_threadpooled.
+    """
+    from pathlib import Path
 
-    app = create_app()
-    src = ""
-    for route in app.routes:
-        if getattr(route, "path", None) == "/api/civif/live":
-            src = inspect.getsource(route.endpoint)
-            break
-    assert src
+    text = (
+        Path(__file__).resolve().parents[1] / "qoresence" / "deck" / "server.py"
+    ).read_text(encoding="utf-8")
+    key = '@app.get("/api/civif/live")'
+    start = text.index(key)
+    nxt = text.find("@app.get", start + len(key))
+    src = text[start:nxt]
     assert "asyncio.to_thread" not in src
     assert "handle_civif_live" in src
 
