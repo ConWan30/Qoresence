@@ -8,7 +8,6 @@ from pathlib import Path
 from qoresence.foundry.session_view import (
     build_session_recap,
     recap_from_envelope,
-    view_from_fixture,
 )
 from qoresence.mcp.server import TOOL_DEFS
 
