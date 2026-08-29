@@ -368,13 +368,13 @@ class InputVideoCoupler:
         bind_conf = 0.0
         if prec_evs:
             # Only set imu_bodied from PLAY pad
-            allow_bodied = True
+            allow_bodied = False
             try:
                 from qoresence.sync.hid_domain import allow_imu_bodied
 
                 allow_bodied = all(allow_imu_bodied(e.hid_domain) for e in prec_evs)
             except Exception:
-                allow_bodied = True
+                allow_bodied = False
             if allow_bodied:
                 payload["imu_precursor_ms"] = round(
                     sum(float(e.imu_precursor_ms or 0.0) for e in prec_evs) / len(prec_evs),

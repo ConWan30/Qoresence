@@ -93,6 +93,8 @@ def mint_confirm_ticket(
     crop_hash: str = "",
     quarter: int | None = None,
     down: int | None = None,
+    home_team: str | None = None,
+    away_team: str | None = None,
 ) -> ConfirmTicket:
     # Normalize and validate source: ONLY seeing-path sources allowed
     normalized_source = normalize_source(source)
@@ -103,6 +105,36 @@ def mint_confirm_ticket(
         )
     
     hs, aws = _norm_int(home_score), _norm_int(away_score)
+    q = _norm_int(quarter)
+    ht = str(home_team or "").strip()
+    at = str(away_team or "").strip()
+    
+    # Check if board identity (teams + scores + quarter) is unchanged
+    book = get_ticket_book()
+    last_identity = book.last_board_identity()
+    current_identity = (hs, aws, q, ht, at)
+    last_ticket = book.latest()
+    
+    # Reuse ticket ID if board identity (scores + quarter + teams) is unchanged AND we had a lock
+    # Mint new ticket_id ONLY when home/away/identity/quarter actually change OR lock drops
+    if (last_identity == current_identity and last_ticket is not None
+        and hs is not None and aws is not None):
+        # Board identity unchanged - reuse existing ticket but fill session_id
+        return ConfirmTicket(
+            ticket_id=last_ticket.ticket_id,
+            session_id=str(session_id or ""),  # Fill session_id
+            clock_ns=int(clock_ns or 0),
+            home_score=hs,
+            away_score=aws,
+            model=str(model or "deepseek-v4-flash-vision-exp"),
+            source=normalized_source,
+            frame_seq=_norm_int(frame_seq),
+            crop_hash=str(crop_hash or ""),
+            quarter=q,
+            down=_norm_int(down),
+        )
+    
+    # Board identity changed - mint new ticket
     payload = {
         "v": DOMAIN,
         "session_id": str(session_id or ""),
@@ -113,7 +145,7 @@ def mint_confirm_ticket(
         "source": normalized_source,
         "frame_seq": _norm_int(frame_seq),
         "crop_hash": str(crop_hash or ""),
-        "quarter": _norm_int(quarter),
+        "quarter": q,
         "down": _norm_int(down),
     }
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
@@ -183,16 +215,29 @@ class ConfirmTicketBook:
         self._latest: ConfirmTicket | None = None
         self._by_id: dict[str, ConfirmTicket] = {}
         self._last_fast: dict[str, Any] | None = None
+        # Track (home_score, away_score, quarter, home_team, away_team)
+        self._last_board_identity: tuple[int | None, int | None, int | None, str, str] | None = None
 
-    def put(self, ticket: ConfirmTicket) -> ConfirmTicket:
+    def put(self, ticket: ConfirmTicket, *, home_team: str = "", away_team: str = "") -> ConfirmTicket:
         with self._lock:
             self._latest = ticket
             self._by_id[ticket.ticket_id] = ticket
+            self._last_board_identity = (
+                ticket.home_score,
+                ticket.away_score,
+                ticket.quarter,
+                str(home_team or "").strip(),
+                str(away_team or "").strip(),
+            )
         return ticket
 
     def latest(self) -> ConfirmTicket | None:
         with self._lock:
             return self._latest
+    
+    def last_board_identity(self) -> tuple[int | None, int | None, int | None, str, str] | None:
+        with self._lock:
+            return self._last_board_identity
 
     def get(self, ticket_id: str | None) -> ConfirmTicket | None:
         if not ticket_id:

@@ -79,6 +79,8 @@ def _may_mint_lock(ctx: VisualContext | None, vlm: dict[str, Any] | None = None)
 
     Play-call / pause still paints the match scorebug. Refusing mint there
     left confirm empty while DeepSeek already had NO 0 / DAL 10.
+    
+    OPERATOR LAW: Refuse lock on loading/cutscene (garbage boards during matchup swap).
     """
     if ctx is None:
         return False
@@ -86,6 +88,11 @@ def _may_mint_lock(ctx: VisualContext | None, vlm: dict[str, Any] | None = None)
         gst = str(getattr(ctx.game_state, "value", None) or ctx.game_state or "").lower()
     except Exception:
         gst = ""
+    
+    # Refuse lock during loading/cutscene
+    if gst in {"loading", "cutscene", "intro", "replay"}:
+        return False
+    
     if gst in {"", "gameplay", "playing", "in_game"}:
         return True
     if not _vlm_board_grounded(vlm):
@@ -243,6 +250,10 @@ class _ScoreStabilizer:
     def _looks_suspicious_pair(pair: tuple[int | None, int | None]) -> bool:
         h, a = pair
         if h is None or a is None:
+            return True
+        # OPERATOR LAW: Never lock 0-0 without strong evidence (this is a common OCR failure)
+        # 0-0 will be rejected unless both local HUD digits AND VLM grounding agree
+        if h == 0 and a == 0:
             return True
         # One side multi-digit / large, other tiny 1–4 → down/quarter/play-clock leak
         # Classic failures: 17-2, 12-2, 21-1
@@ -593,31 +604,67 @@ class FootballScoreboardExtractor:
                         source_str = "gemini"
                     elif "quicksilver" in model_str.lower():
                         source_str = "quicksilver"
+                    
+                    # Apply team identity early so home_team/away_team are available for ticket
+                    try:
+                        from qoresence.profiles.team_identity import apply_identity_to_context
+                        apply_identity_to_context(ctx, parsed)
+                    except Exception:
+                        pass
 
-                    ticket = mint_confirm_ticket(
-                        session_id=str(getattr(ctx, "session_id", "") or ""),
-                        clock_ns=int(stamp.get("clock_ns") or _time_ticket.monotonic_ns()),
-                        home_score=int(sh),
-                        away_score=int(sa),
-                        model=model_str,
-                        source=source_str,
-                        frame_seq=_ti(stamp.get("seq")),
-                        crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
-                        quarter=_ti(parsed.get("quarter")),
-                        down=_ti(parsed.get("down")),
-                    )
-                    get_ticket_book().put(ticket)
-                    ctx.confirm_ticket_id = ticket.ticket_id
-                    if isinstance(ctx.details, dict):
-                        ctx.details["confirm_ticket"] = ticket.to_dict()
-                    ctx.score_vlm_locked = True
-                    locked_ok = True
-                    log.info(
-                        "scoreboard VLM lock %s-%s ticket=%s",
-                        sh,
-                        sa,
-                        ticket.ticket_id,
-                    )
+                    # Check identity compatibility for 0-0 locks
+                    # Refuse 0-0 unless: crop shows zeros AND identity is compatible with prior lock
+                    if sh == 0 and sa == 0:
+                        # Get prior lock identity
+                        book = get_ticket_book()
+                        prior_identity = book.last_board_identity()
+                        if prior_identity is not None:
+                            prior_h, prior_a, prior_q, prior_ht, prior_at = prior_identity
+                            # Identity must be compatible (same teams) to lock 0-0
+                            # Reject matchup swaps like DAL-NO → IND-DET without new title lock
+                            home_team_now = str(getattr(ctx, "home_team", "") or "").strip()
+                            away_team_now = str(getattr(ctx, "away_team", "") or "").strip()
+                            teams_changed = False
+                            if prior_ht and prior_at and home_team_now and away_team_now:
+                                teams_changed = (prior_ht != home_team_now) or (prior_at != away_team_now)
+                            if teams_changed:
+                                log.info(
+                                    "scoreboard refuse 0-0 lock: identity changed %s-%s → %s-%s",
+                                    prior_ht,
+                                    prior_at,
+                                    home_team_now,
+                                    away_team_now,
+                                )
+                                locked_ok = False
+                    
+                    if locked_ok:
+                        home_team_now = str(getattr(ctx, "home_team", "") or "").strip()
+                        away_team_now = str(getattr(ctx, "away_team", "") or "").strip()
+                        ticket = mint_confirm_ticket(
+                            session_id=str(getattr(ctx, "session_id", "") or ""),
+                            clock_ns=int(stamp.get("clock_ns") or _time_ticket.monotonic_ns()),
+                            home_score=int(sh),
+                            away_score=int(sa),
+                            model=model_str,
+                            source=source_str,
+                            frame_seq=_ti(stamp.get("seq")),
+                            crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
+                            quarter=_ti(parsed.get("quarter")),
+                            down=_ti(parsed.get("down")),
+                            home_team=home_team_now,
+                            away_team=away_team_now,
+                        )
+                        get_ticket_book().put(ticket, home_team=home_team_now, away_team=away_team_now)
+                        ctx.confirm_ticket_id = ticket.ticket_id
+                        if isinstance(ctx.details, dict):
+                            ctx.details["confirm_ticket"] = ticket.to_dict()
+                        ctx.score_vlm_locked = True
+                        log.info(
+                            "scoreboard VLM lock %s-%s ticket=%s",
+                            sh,
+                            sa,
+                            ticket.ticket_id,
+                        )
                 except Exception as e:
                     log.warning("confirm ticket mint failed — refuse score_vlm_locked: %s", e)
                     ctx.score_vlm_locked = False
