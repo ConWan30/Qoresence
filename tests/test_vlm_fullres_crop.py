@@ -43,13 +43,19 @@ def test_vlm_uses_fullres_from_hub_not_downscaled():
     
     captured_frame = None
     
-    def mock_schedule(self, frame, **kwargs):
+    # Create a mock VLM referee
+    mock_vlm = Mock()
+    mock_vlm.get_last.return_value = None
+    
+    def mock_schedule(frame, **kwargs):
         nonlocal captured_frame
         captured_frame = frame
     
+    mock_vlm.schedule = mock_schedule
+    
     with patch("qoresence.monitor.frame_hub.get_latest_stamp") as mock_stamp, \
          patch("qoresence.monitor.frame_hub.get_latest") as mock_latest, \
-         patch.object(ScoreboardVlmReferee, "schedule", mock_schedule):
+         patch("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", return_value=mock_vlm):
         
         mock_stamp.return_value = {"has_frame": True, "seq": 42, "clock_ns": 1000}
         mock_latest.return_value = fullres_frame
@@ -65,7 +71,7 @@ def test_vlm_uses_fullres_from_hub_not_downscaled():
         ext.extract(downscaled_frame, ctx, allow_ocr=False)
         
         # VLM should have received full-res frame from hub, not downscaled
-        assert captured_frame is not None
+        assert captured_frame is not None, "VLM schedule should have been called"
         assert captured_frame.shape == (720, 1280, 3), \
             f"Expected full-res (720, 1280, 3), got {captured_frame.shape}"
         assert captured_frame[0, 0, 0] == 42, "Should use full-res frame from hub"
@@ -238,13 +244,19 @@ def test_downscaled_then_crop_is_not_vlm_source():
     
     captured = None
     
-    def capture_schedule(self, frame, **kwargs):
+    # Create a mock VLM referee
+    mock_vlm = Mock()
+    mock_vlm.get_last.return_value = None
+    
+    def capture_schedule(frame, **kwargs):
         nonlocal captured
         captured = frame
     
+    mock_vlm.schedule = capture_schedule
+    
     with patch("qoresence.monitor.frame_hub.get_latest_stamp") as mock_stamp, \
          patch("qoresence.monitor.frame_hub.get_latest") as mock_latest, \
-         patch.object(ScoreboardVlmReferee, "schedule", capture_schedule):
+         patch("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", return_value=mock_vlm):
         
         mock_stamp.return_value = {"has_frame": True, "seq": 1, "clock_ns": 1000}
         mock_latest.return_value = hub_frame
@@ -260,7 +272,7 @@ def test_downscaled_then_crop_is_not_vlm_source():
         ext.extract(classify_frame, ctx, allow_ocr=False)
         
         # VLM should receive the hub_frame (1280x720), not classify_frame (640x360)
-        assert captured is not None
+        assert captured is not None, "VLM schedule should have been called"
         assert captured.shape[0] == 720, \
             f"VLM frame height should be 720 (full-res), got {captured.shape[0]}"
         assert captured[0, 0, 1] == 100, "Should be hub frame (green marker)"
