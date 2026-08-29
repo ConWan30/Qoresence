@@ -1,7 +1,7 @@
 """Seeing-path ConfirmTicket contract tests.
 
 This test suite enforces Contract (1): ConfirmTicket mint = seeing-path only.
-- source ∈ {gemini, quicksilver, easyocr_scorebug}
+- source ∈ {deepseek, gemini, quicksilver, easyocr_scorebug}
 - NOT local_hud / chrome / menu
 - HTTP 402 → unlocked (VLM get_last() is None + EasyOCR off → no confirm_ticket_id)
 - license_from_tickets requires BOTH confirm_ticket_id AND score_vlm_locked
@@ -96,6 +96,20 @@ def test_mint_with_hud_source_raises():
         )
 
 
+def test_mint_with_deepseek_succeeds():
+    """mint_confirm_ticket(..., source="deepseek") succeeds."""
+    ticket = mint_confirm_ticket(
+        session_id="test",
+        clock_ns=100,
+        home_score=21,
+        away_score=14,
+        source="deepseek",
+    )
+    assert ticket.source == "deepseek"
+    assert ticket.home_score == 21
+    assert ticket.away_score == 14
+
+
 def test_mint_with_gemini_succeeds():
     """mint_confirm_ticket(..., source="gemini") succeeds."""
     ticket = mint_confirm_ticket(
@@ -152,6 +166,26 @@ def test_source_alias_easyocr():
 def test_source_alias_paddle():
     """Source alias paddle → easyocr_scorebug."""
     assert normalize_source("paddle") == "easyocr_scorebug"
+
+
+def test_source_alias_deepseek_scoreboard():
+    """Source alias deepseek_scoreboard → deepseek."""
+    assert normalize_source("deepseek_scoreboard") == "deepseek"
+
+
+def test_source_alias_deepseek_vlm():
+    """Source alias deepseek-vlm → deepseek."""
+    assert normalize_source("deepseek-vlm") == "deepseek"
+
+
+def test_source_alias_ds_vision():
+    """Source alias ds-vision → deepseek."""
+    assert normalize_source("ds-vision") == "deepseek"
+
+
+def test_is_seeing_source_deepseek():
+    """is_seeing_source("deepseek") returns True."""
+    assert is_seeing_source("deepseek") is True
 
 
 def test_is_seeing_source_gemini():

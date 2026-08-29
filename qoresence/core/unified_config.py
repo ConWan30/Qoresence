@@ -455,9 +455,9 @@ class VisualConfig:
     """Visual lobe (VLM) configuration."""
 
     enabled: bool = False
-    # Cloud VLM via Quicksilver Pro (OpenAI-compatible). LocalVLM remains default for --play.
-    model_endpoint: str = "https://api.quicksilverpro.io/v1"
-    model_name: str = "gemini-3.5-flash-lite"
+    # Cloud VLM via DeepSeek (OpenAI-compatible). LocalVLM remains default for --play.
+    model_endpoint: str = "https://api.deepseek.com"
+    model_name: str = "deepseek-v4-flash-vision-exp"
     api_key: str | None = None
     frame_sample_rate: int = 30  # analyze every N frames
     max_frame_dim: int = 640

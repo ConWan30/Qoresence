@@ -1,7 +1,7 @@
 """Picture HID ticket — HDMI HUD control legend licensed onto FrameHub seq.
 
 Sibling of ConfirmTicket, not a ConfirmTicket and not a coupling ticket.
-Mint only from seeing-path vision (gemini / quicksilver). Never write
+Mint only from seeing-path vision (deepseek / gemini / quicksilver). Never write
 picture presses into InputRing. hid_domain=picture never binds.
 
 Fail-closed: unlabeled when the frame does not show a named DualSense
@@ -22,7 +22,7 @@ from qoresence.vision.confirm_ticket import is_seeing_source, normalize_source
 DOMAIN = "QORESENCE-PICTURE-HID-TICKET-v0"
 
 # Control glyphs are VLM/HUD, not EasyOCR scorebug.
-PICTURE_HID_SOURCES = frozenset({"gemini", "quicksilver"})
+PICTURE_HID_SOURCES = frozenset({"deepseek", "gemini", "quicksilver"})
 
 BUTTON_ALLOWLIST = frozenset(
     {
@@ -79,7 +79,7 @@ class PictureHidTicketError(ValueError):
 
 
 def is_picture_hid_source(source: str | None) -> bool:
-    """True when source may license a PictureHidTicket (gemini / quicksilver)."""
+    """True when source may license a PictureHidTicket (deepseek / gemini / quicksilver)."""
     if not source:
         return False
     s = normalize_source(source)
@@ -118,8 +118,8 @@ class PictureHidTicket:
     clock_ns: int
     frame_seq: int
     hid_button: str
-    source: str = "gemini"
-    model: str = "gemini-3.5-flash-lite"
+    source: str = "deepseek"
+    model: str = "deepseek-v4-flash-vision-exp"
     prompt_text: str | None = None
     visual_phase: str | None = None
     game_profile: str | None = None
@@ -137,8 +137,8 @@ def mint_picture_hid_ticket(
     clock_ns: int,
     frame_seq: int,
     hid_button: str | None,
-    source: str = "gemini",
-    model: str = "gemini-3.5-flash-lite",
+    source: str = "deepseek",
+    model: str = "deepseek-v4-flash-vision-exp",
     prompt_text: str | None = None,
     visual_phase: str | None = None,
     game_profile: str | None = None,
@@ -176,7 +176,7 @@ def mint_picture_hid_ticket(
         "frame_seq": seq,
         "hid_button": button,
         "source": normalized_source,
-        "model": str(model or "gemini-3.5-flash-lite"),
+        "model": str(model or "deepseek-v4-flash-vision-exp"),
         "prompt_text": (str(prompt_text).strip() or None) if prompt_text else None,
         "visual_phase": (str(visual_phase).strip() or None) if visual_phase else None,
         "game_profile": (str(game_profile).strip() or None) if game_profile else None,
@@ -243,8 +243,8 @@ def try_mint_picture_hid_from_context(
     *,
     frame_seq: int | None,
     clock_ns: int,
-    source: str = "gemini",
-    model: str = "gemini-3.5-flash-lite",
+    source: str = "deepseek",
+    model: str = "deepseek-v4-flash-vision-exp",
     session_id: str = "",
 ) -> PictureHidTicket | None:
     """Mint+store from VisualContext visible_control. None if unlabeled."""
