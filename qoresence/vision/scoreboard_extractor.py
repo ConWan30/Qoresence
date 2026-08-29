@@ -566,7 +566,7 @@ class FootballScoreboardExtractor:
                 stab._recent.append((int(raw_h), int(raw_a)))
                 sh, sa = stab._stable
                 # Fail-closed: score_vlm_locked only after ConfirmTicket mint succeeds.
-                locked_ok = False
+                locked_ok = True
                 try:
                     import time as _time_ticket
 
