@@ -302,17 +302,12 @@ def surface_last_note() -> dict[str, Any]:
     Does NOT include the evidence bag. DualSense/PS5: observation only; never
     claim a pad press; picture_hid tickets are labels not InputRing.
     """
-    empty = {
-        "ok": False,
-        "text": "",
-        "live": False,
-        "ticket_id": "",
-        "path": "hold",
-        "model": "",
-    }
+    empty: dict[str, Any] = {}
     try:
         agent = get_match_agent()
         if agent is None or not agent.enabled:
+            return empty
+        if not agent.live:
             return empty
         note = agent.last_note()
         if note is None:

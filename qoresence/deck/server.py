@@ -330,16 +330,9 @@ def _situation_payload() -> dict[str, Any]:
     try:
         from qoresence.agents.match_agent import surface_last_note
 
-        out["match_note"] = surface_last_note()
+        out["match_agent"] = surface_last_note()
     except Exception:
-        out["match_note"] = {
-            "ok": False,
-            "text": "",
-            "live": False,
-            "ticket_id": "",
-            "path": "hold",
-            "model": "",
-        }
+        out["match_agent"] = {}
     return out
 
 
@@ -1090,16 +1083,9 @@ def create_app():  # type: ignore[no-untyped-def]
         try:
             from qoresence.agents.match_agent import surface_last_note
 
-            body["match_note"] = surface_last_note()
+            body["match_agent"] = surface_last_note()
         except Exception:
-            body["match_note"] = {
-                "ok": False,
-                "text": "",
-                "live": False,
-                "ticket_id": "",
-                "path": "hold",
-                "model": "",
-            }
+            body["match_agent"] = {}
         return JSONResponse(body)
 
     @app.get("/api/situation")
@@ -2699,16 +2685,9 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 try:
                     from qoresence.agents.match_agent import surface_last_note
 
-                    health["match_note"] = surface_last_note()
+                    health["match_agent"] = surface_last_note()
                 except Exception:
-                    health["match_note"] = {
-                        "ok": False,
-                        "text": "",
-                        "live": False,
-                        "ticket_id": "",
-                        "path": "hold",
-                        "model": "",
-                    }
+                    health["match_agent"] = {}
                 self.wfile.write(json.dumps(health).encode())
                 return
             if self.path == "/api/situation":
