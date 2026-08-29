@@ -1,4 +1,3 @@
-import { useCallback, type PointerEvent } from "react";
 import { CommandBar } from "@/components/theater/command-bar";
 import { HdmiStage } from "@/components/theater/hdmi-stage";
 import { ObservatoryHUD } from "@/components/theater/observatory-hud";
@@ -10,22 +9,8 @@ import { useTheaterLoop } from "@/lib/coupling/loop";
 export function TheaterPage() {
   useTheaterLoop();
 
-  const onPrism = useCallback((e: PointerEvent<HTMLElement>) => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - r.left) / Math.max(1, r.width) - 0.5) * 2;
-    const y = ((e.clientY - r.top) / Math.max(1, r.height) - 0.5) * 2;
-    e.currentTarget.style.setProperty("--holo-x", x.toFixed(3));
-    e.currentTarget.style.setProperty("--holo-y", y.toFixed(3));
-    document.body.style.setProperty("--holo-x", x.toFixed(3));
-    document.body.style.setProperty("--holo-y", y.toFixed(3));
-  }, []);
-
   return (
-    <main
-      className="holo-deck flex h-dvh flex-col overflow-hidden bg-bg text-fg"
-      onPointerMove={onPrism}
-    >
+    <main className="flex h-dvh flex-col overflow-hidden bg-bg text-fg">
       {/* Command bar: intrinsic height, no shrink */}
       <CommandBar />
 

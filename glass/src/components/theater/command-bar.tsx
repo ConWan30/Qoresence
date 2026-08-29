@@ -284,7 +284,7 @@ export function CommandBar() {
               {vlmLocked ? "VLM LOCK" : "VLM WAIT"}
             </span>
             <span data-sync={pllLock ? "lock" : "open"} className={pllLock ? "text-sync" : ""}>
-              SYNC {syncLagMs}ms{bindKind ? ` · ${bindKind}` : ""}
+              SYNC {pllLock ? `${syncLagMs}ms` : "—"}{bindKind ? ` · ${bindKind}` : ""}
             </span>
           </div>
         </div>
