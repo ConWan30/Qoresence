@@ -43,7 +43,7 @@ export function ObservatoryHUD() {
           >
             {stale ? `AGE ${videoAgeS.toFixed(1)}s` : licensed ? "LIVE" : "HOLD"}
           </span>
-          <LockbugStrip />
+          <LockbugStrip pulse />
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <span

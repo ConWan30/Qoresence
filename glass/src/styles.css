@@ -382,3 +382,82 @@ html.obs-lens body {
   color: var(--color-primary-foreground);
   box-shadow: var(--shadow-border);
 }
+
+/* ---------------------------------------------------------------------------
+ * Qoreglass motion law — licensed-moment animation. CHROME ONLY, one-shot.
+ *
+ * Fires ONLY when a licensed clutch/climax lands (widgetsOk + board lock). The
+ * trigger gate lives in the glass (store token + component `licensed`), never
+ * in CSS — a `data-land` attribute is added for one animation, then removed.
+ *
+ * Painted surfaces are chrome: the Clutch Feed row (.clutch-row) and the
+ * Lockbug (.lockbug-lock). No rule here touches .hdmi-picture or the plinth
+ * well — the picture is the star and never glows, blooms, or scales.
+ *
+ * Path tint: brass (--color-fast #D7B36A) = fast, aperture (--color-live
+ * #9BE7FF) = confirm. Enter 80ms, settle 150ms (--ease-out). One shot — no
+ * loop, no scale, no bounce. Bloom ≤ 12px (aperture / lockbug law).
+ * prefers-reduced-motion: static brass/aperture hairline, no glow animation.
+ * ------------------------------------------------------------------------- */
+@keyframes clutch-row-land {
+  0% {
+    transform: translateY(3px);
+    box-shadow:
+      var(--shadow-border),
+      0 0 0 1px color-mix(in oklab, var(--clutch-tint) 55%, transparent);
+  }
+  /* ~80ms enter to peak (35% of the 230ms one-shot), then 150ms settle out. */
+  35% {
+    transform: translateY(0);
+    box-shadow:
+      var(--shadow-border),
+      0 0 12px color-mix(in oklab, var(--clutch-tint) 38%, transparent);
+  }
+  100% {
+    transform: translateY(0);
+    box-shadow: var(--shadow-border);
+  }
+}
+
+@keyframes lockbug-lock {
+  0% {
+    text-shadow: none;
+  }
+  35% {
+    text-shadow: 0 0 12px color-mix(in oklab, var(--clutch-tint) 55%, transparent);
+  }
+  100% {
+    text-shadow: none;
+  }
+}
+
+/* Row settled / reduced-motion state = the tinted hairline it already carries
+ * (border-fast / border-live). The one-shot only adds transient glow + slide. */
+.clutch-row[data-land="fast"] {
+  --clutch-tint: var(--color-fast); /* brass — path=fast */
+  animation: clutch-row-land 230ms var(--ease-out) 1;
+}
+
+.clutch-row[data-land="confirm"] {
+  --clutch-tint: var(--color-live); /* aperture — path=confirm */
+  animation: clutch-row-land 230ms var(--ease-out) 1;
+}
+
+.lockbug-lock[data-land="fast"] {
+  --clutch-tint: var(--color-fast); /* brass — path=fast */
+  animation: lockbug-lock 230ms var(--ease-out) 1;
+}
+
+.lockbug-lock[data-land="confirm"] {
+  --clutch-tint: var(--color-live); /* aperture — path=confirm */
+  animation: lockbug-lock 230ms var(--ease-out) 1;
+}
+
+/* prefers-reduced-motion is already law (motion → 0 / instant fill). State it
+ * explicitly for moment-motion: no glow animation, static hairline remains. */
+@media (prefers-reduced-motion: reduce) {
+  .clutch-row[data-land],
+  .lockbug-lock[data-land] {
+    animation: none !important;
+  }
+}
