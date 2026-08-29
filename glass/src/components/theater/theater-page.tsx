@@ -4,6 +4,7 @@ import { HdmiStage } from "@/components/theater/hdmi-stage";
 import { ObservatoryHUD } from "@/components/theater/observatory-hud";
 import { IntelligenceChamber } from "@/components/theater/intelligence-chamber";
 import { ClutchFeed } from "@/components/theater/clutch-feed";
+import { SituationCard } from "@/components/theater/situation-card";
 import { useTheaterLoop } from "@/lib/coupling/loop";
 
 export function TheaterPage() {
@@ -38,9 +39,14 @@ export function TheaterPage() {
           </div>
         </div>
 
-        {/* RIGHT: Intelligence column - clutch feed only */}
+        {/* RIGHT: Situation scorebug plate + ClutchFeed. No page scroll. */}
         <aside className="flex min-h-0 w-full min-w-[18rem] max-w-[21rem] flex-col gap-3 sm:gap-4">
-          <ClutchFeed />
+          <div className="shrink-0">
+            <SituationCard />
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ClutchFeed />
+          </div>
         </aside>
       </div>
 

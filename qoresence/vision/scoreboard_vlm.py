@@ -37,6 +37,8 @@ SCOREBOARD_MODEL = os.environ.get("QORESENCE_SCOREBOARD_VLM_MODEL", "deepseek-v4
 # - force on score/menu transitions from caller
 _GAMEPLAY_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_INTERVAL", "1.5"))
 _MENU_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_MENU_INTERVAL", "8.0"))
+# 26px 360p HUD strips look like tickers to the VLM. Upscale height only.
+_MIN_CROP_H = 96
 
 # CFB 26/27: in-game scorebug is the red/blue bar (~y 0.78–0.93).
 # The national ticker / other-games crawl is the last ~7% (y > 0.93).
@@ -52,11 +54,16 @@ Return STRICT JSON, no markdown:
  "left_team": "<wordmark or null>", "left_color": "<jersey/bug color>", "left_logo": "<mascot/logo>",
  "right_team": "<wordmark or null>", "right_color": "<jersey/bug color>", "right_logo": "<mascot/logo>",
  "quarter": <1-4|null>, "clock": "<m:ss>"|null, "down": <1-4|null>,
- "yards_to_go": <int|null>, "play_clock": <int|null>, "paused": <bool>}
+ "yards_to_go": <int|null>, "play_clock": <int|null>, "paused": <bool>,
+ "visible_control": {"button": "<Cross|Circle|Square|Triangle|L1|R1|L2|R2|null>",
+  "glyph": "<mark or null>", "prompt": "<on-screen verb or null>"}}
 Rules:
 - IGNORE the bottom ticker / crawl / "scores around the country" strip. Those are OTHER games. Never copy a ticker pair.
 - If you see many small scores in a row, that is a ticker — set scores null rather than using it.
+- Madden NFL 27: the compact lower-center HUD (two team marks + TWO large scores + down/distance + play clock) IS this match's scorebug. It is not a ticker. Read it.
+- A ticker is a ROW OF MANY small scores. Two scores next to two team logos is the match.
 - Read ONLY the primary scorebug for the match on this screen (the two LARGE scores next to the two team wordmarks, with down & distance).
+- visible_control: if a DualSense callout is on this crop (Cross/Circle/Square/Triangle/L1/R1/L2/R2 plus an on-screen verb like Preplay/Snap), fill it. Else nulls.
 - Bind EACH SIDE: the name, jersey/scorebug color, and logo on that side stay with THAT side's score. Never swap a mustang onto a cardinal, or blue onto a red bug.
 - left_* is the LEFT scorebug (usually away). right_* is the RIGHT scorebug (usually home).
 - left_color / right_color: dominant jersey or bug color (blue, red, crimson, orange, gold, purple, green, black, white, maroon, navy).
@@ -102,8 +109,10 @@ class ScoreboardVlmReferee:
         self._last_reason: str = "tick"
         self._last_http_status: int | None = None
         self._calls = 0
+        self._last_crop_wh: tuple[int, int] | None = None
 
     def stats(self) -> dict[str, Any]:
+        raw = self._last_raw or ""
         return {
             "enabled": self.enabled,
             "model": self.model,
@@ -111,6 +120,8 @@ class ScoreboardVlmReferee:
             "last": self._last,
             "last_reason": self._last_reason,
             "last_http_status": self._last_http_status,
+            "last_raw_preview": raw[:200].replace("\n", " ") if raw else "",
+            "last_crop_wh": list(self._last_crop_wh) if self._last_crop_wh else None,
             "calls": self._calls,
             "gameplay_interval_s": _GAMEPLAY_INTERVAL_S,
             "menu_interval_s": _MENU_INTERVAL_S,
@@ -141,9 +152,15 @@ class ScoreboardVlmReferee:
             return
         gst = (game_state or "").lower()
         is_gameplay = gst in {"gameplay", "playing", "in_game", ""}
+        profile_lower = str(game_profile or "").lower()
+        title_lower = str(game_title or "").lower()
+        is_football = any(
+            kw in profile_lower or kw in title_lower
+            for kw in ("football", "cfb", "madden", "ncaa")
+        )
         if force or reason in {"score_changed", "menu_exit", "first_lock"}:
             interval = 0.0
-        elif is_gameplay:
+        elif is_gameplay or is_football:
             interval = max(0.8, _GAMEPLAY_INTERVAL_S)
         else:
             interval = max(4.0, _MENU_INTERVAL_S)
@@ -262,14 +279,34 @@ class ScoreboardVlmReferee:
             return None
         out = src
         mh, mw = out.shape[:2]
-        max_dim = 640
-        if max(mh, mw) > max_dim:
-            sc = max_dim / max(mh, mw)
-            out = cv2.resize(out, (int(mw * sc), int(mh * sc)))
+        # Never crush HUD height. Width-cap only when the strip is already tall enough.
+        if mw > 960 and mh >= _MIN_CROP_H:
+            sc = 960 / mw
+            out = cv2.resize(out, (960, max(8, int(mh * sc))))
+            mh, mw = out.shape[:2]
+        if mh < _MIN_CROP_H and mh > 0:
+            sc = _MIN_CROP_H / float(mh)
+            out = cv2.resize(
+                out,
+                (max(8, int(round(mw * sc))), _MIN_CROP_H),
+                interpolation=cv2.INTER_CUBIC,
+            )
         return out
 
     def _call_vlm(self, crop_bgr: np.ndarray) -> dict[str, Any] | None:
-        ok, buf = cv2.imencode(".jpg", crop_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+        try:
+            self._last_crop_wh = (int(crop_bgr.shape[1]), int(crop_bgr.shape[0]))
+        except Exception:
+            self._last_crop_wh = None
+        try:
+            import pathlib
+
+            logs_dir = pathlib.Path("logs")
+            logs_dir.mkdir(exist_ok=True)
+            cv2.imwrite(str(logs_dir / "vlm_last_crop.jpg"), crop_bgr)
+        except Exception:
+            pass
+        ok, buf = cv2.imencode(".jpg", crop_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
         if not ok:
             return None
         b64 = base64.b64encode(buf.tobytes()).decode("ascii")
@@ -283,7 +320,12 @@ class ScoreboardVlmReferee:
         body = {
             "model": self.model,
             "temperature": 0.0,
-            "max_tokens": 180,
+            "max_tokens": 400,
+            # V4-flash-vision thinking is ON by default and eats the token budget
+            # (HTTP 200, finish=length, empty content). JSON lives in content only
+            # when thinking is disabled.
+            "thinking": {"type": "disabled"},
+            "response_format": {"type": "json_object"},
             "messages": [
                 {
                     "role": "user",
@@ -353,9 +395,42 @@ class ScoreboardVlmReferee:
             except Exception as e2:
                 log.warning("scoreboard VLM HTTP failed: %s / %s", e, e2)
                 return None
-        text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        self._last_raw = str(text)[:500]
-        return self._parse_json(str(text))
+        choice = (data.get("choices") or [{}])[0]
+        text, finish = self._choice_text(choice)
+        preview = str(text)[:200].replace("\n", " ")
+        if preview:
+            self._last_raw = str(text)[:800]
+        if not str(text).strip():
+            msg = choice.get("message") or {}
+            log.info(
+                "scoreboard VLM HTTP 200 empty content finish=%s keys=%s",
+                finish,
+                list(msg.keys()) if isinstance(msg, dict) else [],
+            )
+            return None
+        parsed = self._parse_json(str(text))
+        if parsed is None:
+            log.info(
+                "scoreboard VLM HTTP 200 parse fail finish=%s last_raw: %s",
+                finish,
+                preview,
+            )
+        return parsed
+
+    @staticmethod
+    def _choice_text(choice: dict[str, Any]) -> tuple[str, str]:
+        """DeepSeek-v4 vision often fills reasoning_content and leaves content empty."""
+        msg = choice.get("message") if isinstance(choice, dict) else None
+        if not isinstance(msg, dict):
+            msg = {}
+        content = str(msg.get("content") or "").strip()
+        reasoning = str(msg.get("reasoning_content") or "").strip()
+        finish = str((choice or {}).get("finish_reason") or "")
+        if "{" in content:
+            return content, finish
+        if "{" in reasoning:
+            return reasoning, finish
+        return content or reasoning, finish
 
     @staticmethod
     def _parse_json(text: str) -> dict[str, Any] | None:
@@ -418,6 +493,18 @@ class ScoreboardVlmReferee:
         ):
             v = obj.get(side_k)
             out[side_k] = str(v).strip() if v not in (None, "") else None
+        vc = obj.get("visible_control")
+        if isinstance(vc, dict):
+            button = vc.get("button")
+            glyph = vc.get("glyph")
+            prompt = vc.get("prompt")
+            out["visible_control"] = {
+                "button": str(button).strip() if button not in (None, "", "null") else None,
+                "glyph": str(glyph).strip() if glyph not in (None, "", "null") else None,
+                "prompt": str(prompt).strip() if prompt not in (None, "", "null") else None,
+            }
+        else:
+            out["visible_control"] = None
         # sanity
         hs, aws = out.get("home_score"), out.get("away_score")
         if hs is not None and not (0 <= hs <= 99):

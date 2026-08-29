@@ -18,13 +18,14 @@ CFB_SCOREBUG_CROPS: tuple[tuple[float, float, float, float], ...] = (
     (0.18, 0.82, 0.12, 0.42),  # wider pause plate
 )
 
-# Evidence: eye_check_80093078000000 / 77134656000000 + late 20260814 clips.
-# White HUD bar starts at y≈0.9375 (720p) / 0.9361 (360p) and runs to 1.00.
-# y1=0.93 is a 3–4 px pad above the measured edge so glyphs are not clipped.
+# Evidence: eye_lock.jpg / eye_sit.jpg (2026-08-28, 640×360 Madden 27).
+# Compact lower-center HUD (logos + two scores + down/distance) lives in
+# y≈0.82–1.00. The old y=0.93–1.00 primary is only ~26px at 360p; DeepSeek
+# treats that thin bar as a ticker and returns null scores (HTTP 200).
 # Pause crops are inherited CFB fallbacks (no Madden pause-score plate measured).
 MADDEN_SCOREBUG_CROPS: tuple[tuple[float, float, float, float], ...] = (
-    (0.00, 1.00, 0.93, 1.00),  # primary white HUD strip (full width)
-    (0.00, 1.00, 0.92, 1.00),  # 1% pad (one clip row measured 0.9167)
+    (0.00, 1.00, 0.82, 1.00),  # primary: compact HUD + field pad (360p-readable)
+    (0.00, 1.00, 0.93, 1.00),  # measured white-strip fallback
     (0.00, 1.00, 0.86, 1.00),  # MNP / broadcast overlay sits above 0.93
     (0.30, 0.70, 0.18, 0.55),  # inherited pause fallback
     (0.18, 0.82, 0.12, 0.42),  # inherited wider pause fallback

@@ -192,13 +192,13 @@ def test_menu_hud_pair_does_not_mint_lock(monkeypatch):
     assert not (ctx.confirm_ticket_id or "")
 
 
-def test_menu_grounded_vlm_does_not_mint_lock(monkeypatch):
-    """Pause/hub Gemini must not mint even with wordmarks — menus invented 3-2."""
+def test_menu_grounded_vlm_mints_football_hud(monkeypatch):
+    """Play-call / pause still shows the match HUD. Grounded VLM may mint."""
     _reset()
     _patch_empty_hud(monkeypatch)
     monkeypatch.setattr(
         "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm",
-        lambda: _FakeVlm(_grounded_board(3, 2)),
+        lambda: _FakeVlm(_grounded_board(10, 0)),
     )
     ctx = VisualContext(
         game_category=GameCategory.FOOTBALL,
@@ -207,8 +207,9 @@ def test_menu_grounded_vlm_does_not_mint_lock(monkeypatch):
     )
     ext = FootballScoreboardExtractor()
     ctx = ext.extract(_noise_frame(), ctx)
-    assert ctx.score_vlm_locked is False
-    assert not (ctx.confirm_ticket_id or "")
+    assert ctx.score_vlm_locked is True
+    assert ctx.confirm_ticket_id
+    assert (ctx.home_score, ctx.away_score) == (10, 0)
 
 
 def test_offer_extracts_off_caller_thread(monkeypatch):

@@ -174,7 +174,7 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
         try:
             from qoresence.sync.picture_hid_book import get_picture_hid_book
 
-            pic = get_picture_hid_book().latest_live(frame_seq)
+            pic = get_picture_hid_book().latest_nearby(frame_seq)
         except Exception:
             pic = None
         pic_button = pic.hid_button if pic is not None else None

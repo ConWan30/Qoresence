@@ -37,18 +37,20 @@ def test_madden_uses_evidence_bands():
     assert scorebug_crops_for_profile("madden_27") is MADDEN_SCOREBUG_CROPS
     assert scorebug_crops_for_profile("Madden") is MADDEN_SCOREBUG_CROPS
     assert primary_scorebug_crop("madden_27") == MADDEN_PRIMARY_SCOREBUG
-    # Measured HUD centroid (y=0.97, x=0.5) is inside Madden primary, outside CFB.
+    # Compact HUD + white-strip centroid are inside Madden primary, outside CFB.
     assert crop_contains(MADDEN_PRIMARY_SCOREBUG, x=0.50, y=0.97)
+    assert crop_contains(MADDEN_PRIMARY_SCOREBUG, x=0.50, y=0.88)
     assert not crop_contains(CFB_PRIMARY_SCOREBUG, x=0.50, y=0.97)
-    # CFB scorebug centroid stays in CFB primary, not Madden primary.
+    # CFB scorebug centroid stays in CFB primary.
     assert crop_contains(CFB_PRIMARY_SCOREBUG, x=0.50, y=0.85)
-    assert not crop_contains(MADDEN_PRIMARY_SCOREBUG, x=0.50, y=0.85)
+    # Mid-field is not a Madden HUD.
+    assert not crop_contains(MADDEN_PRIMARY_SCOREBUG, x=0.50, y=0.50)
 
 
-def test_madden_primary_is_full_width_bottom_strip():
+def test_madden_primary_is_full_width_readable_hud():
     x1, x2, y1, y2 = MADDEN_PRIMARY_SCOREBUG
     assert x1 == 0.0 and x2 == 1.0
-    assert y1 == 0.93 and y2 == 1.0
+    assert y1 == 0.82 and y2 == 1.0
 
 
 def test_vlm_default_crop_still_excludes_ticker():
@@ -73,7 +75,6 @@ def test_vlm_madden_crop_takes_bottom_strip():
     crop = ScoreboardVlmReferee._crop(frame, game_state="gameplay", game_profile="madden_27")
     assert crop is not None
     assert int(crop[:, :, 0].max()) == 255
-    assert int(crop[:, :, 1].max()) == 0
 
 
 def test_vlm_madden_menu_still_uses_hud_crop():
@@ -95,6 +96,64 @@ def test_vlm_madden_menu_still_uses_hud_crop():
     # Must contain blue (HUD), not red (pause plate)
     assert int(crop[:, :, 0].max()) == 255, "Madden menu crop must include bottom HUD (blue)"
     assert int(crop[:, :, 2].max()) == 0, "Madden menu crop must NOT include center pause plate (red)"
+
+
+def test_madden_360p_crop_is_tall_enough_for_vlm():
+    """640×360 Madden HUD must not be sent as a ~26px ticker strip."""
+    h, w = 360, 640
+    frame = np.zeros((h, w, 3), dtype=np.uint8)
+    frame[int(h * 0.93) :, :, 0] = 200
+    frame[int(h * 0.82) : int(h * 0.93), :, 1] = 40
+    crop = ScoreboardVlmReferee._crop(frame, game_state="gameplay", game_profile="madden_27")
+    assert crop is not None
+    assert crop.shape[0] >= 96
+    assert int(crop[:, :, 0].max()) >= 150
+
+
+def test_choice_text_prefers_reasoning_json_when_content_empty():
+    text, finish = ScoreboardVlmReferee._choice_text(
+        {
+            "finish_reason": "length",
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "reasoning_content": 'scratch\n{"home_score": 0, "away_score": 3}',
+            },
+        }
+    )
+    assert finish == "length"
+    assert "home_score" in text
+    parsed = ScoreboardVlmReferee._parse_json(text)
+    assert parsed is not None
+    assert parsed["home_score"] == 0
+    assert parsed["away_score"] == 3
+
+
+def test_parse_json_keeps_visible_control():
+    parsed = ScoreboardVlmReferee._parse_json(
+        '{"home_score": 0, "away_score": 10, "left_team": "SF", "right_team": "LV",'
+        ' "clock": "2:25", "quarter": 1, "down": 2,'
+        ' "visible_control": {"button": "Cross", "glyph": null, "prompt": "Preplay"}}'
+    )
+    assert parsed is not None
+    assert parsed["home_score"] == 0
+    assert parsed["away_score"] == 10
+    assert parsed["left_team"] == "SF"
+    assert parsed["visible_control"]["button"] == "Cross"
+    assert parsed["visible_control"]["prompt"] == "Preplay"
+
+
+def test_football_profile_uses_gameplay_interval_on_menu(monkeypatch):
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    monkeypatch.setattr(ref, "_call_vlm", lambda crop: None)
+    frame = np.zeros((360, 640, 3), dtype=np.uint8)
+    frame[:, :] = 12
+    ref._last_call = __import__("time").time() - 2.0
+    before = ref._last_call
+    ref.schedule(frame, game_state="menu", game_profile="madden_27", reason="tick")
+    # 2s ago is past 1.5s gameplay, still inside 8s menu — must schedule.
+    assert ref._last_call > before
 
 
 def test_vlm_cfb_menu_uses_scorebug_not_pause():
