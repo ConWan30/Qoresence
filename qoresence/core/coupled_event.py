@@ -62,7 +62,7 @@ def input_bodied(events: list[dict[str, Any]], coupling: dict[str, Any]) -> tupl
         all_play = True
         try:
             from qoresence.sync.hid_domain import allow_bind
-            
+
             for e in events:
                 if not isinstance(e, dict):
                     continue
@@ -77,7 +77,7 @@ def input_bodied(events: list[dict[str, Any]], coupling: dict[str, Any]) -> tupl
         except Exception:
             # If we can't check hid_domain, fail closed (unbodied)
             all_play = False
-        
+
         if not all_play:
             # At least one OBSERVE/PICTURE event or missing hid_domain → fail closed
             return False, "hid_observe"

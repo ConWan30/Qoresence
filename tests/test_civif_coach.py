@@ -41,8 +41,8 @@ def test_bodied_reports_sequence_and_intervals():
     out = coach_from_sidecar(
         _side(
             events=[
-                {"clock_ns": 1_100_000_000, "name": "R2", "kind": "trigger"},
-                {"clock_ns": 1_250_000_000, "name": "X", "kind": "press"},
+                {"clock_ns": 1_100_000_000, "name": "R2", "kind": "trigger", "hid_domain": "play"},
+                {"clock_ns": 1_250_000_000, "name": "X", "kind": "press", "hid_domain": "play"},
             ]
         )
     )
