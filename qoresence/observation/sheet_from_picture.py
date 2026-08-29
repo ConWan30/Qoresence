@@ -31,6 +31,8 @@ VISUAL_PHASE_ALLOWLIST = frozenset(
         "defense_engaged",
         "blocking",
         "player_locked_receiver",
+        "offense",  # Generic offense from possession
+        "defense",  # Generic defense from possession
     }
 )
 
@@ -114,9 +116,9 @@ def map_visual_phase_to_sheet(
         return None
 
     # Map picture phase to sheet key
-    if phase == "huddle_offense":
+    if phase == "huddle_offense" or phase == "offense":
         return "preplay_offense"
-    elif phase == "huddle_defense":
+    elif phase == "huddle_defense" or phase == "defense":
         return "preplay_defense"
     elif phase == "snap":
         # Snap happens during preplay (before ball is snapped)
@@ -142,6 +144,49 @@ def map_visual_phase_to_sheet(
 
     # Should never reach here (allowlist check above), but fail-closed anyway
     return None
+
+
+def infer_offense_defense_from_possession(
+    scoreboard_data: dict[str, Any] | None,
+    is_home_team: bool,
+) -> str | None:
+    """Infer offense or defense phase from scoreboard possession (fail-closed).
+
+    Args:
+        scoreboard_data: Scoreboard VLM result with possession_side and home_left
+        is_home_team: True if we're controlling the home team, False for away
+
+    Returns:
+        "offense" or "defense" or None if cannot determine
+
+    Logic:
+        - possession_side (left|right) + home_left tells us who has the ball
+        - If we're the team with the ball → offense, else defense
+        - If possession_side is null/missing → None (fail-closed)
+    """
+    if not scoreboard_data:
+        return None
+
+    possession_side = scoreboard_data.get("possession_side")
+    home_left = scoreboard_data.get("home_left")
+
+    # Fail-closed: missing possession or home_left
+    if possession_side is None or home_left is None:
+        return None
+
+    # Determine which side (left/right) is the home team
+    home_side = "left" if home_left else "right"
+    away_side = "right" if home_left else "left"
+
+    # Determine which side has possession
+    if possession_side not in {"left", "right"}:
+        return None
+
+    # If we're home team
+    if is_home_team:
+        return "offense" if possession_side == home_side else "defense"
+    else:  # we're away team
+        return "offense" if possession_side == away_side else "defense"
 
 
 def get_visual_phase_from_context(visual_context: dict[str, Any] | Any) -> str | None:

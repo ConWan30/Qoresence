@@ -48,7 +48,8 @@ Return STRICT JSON, no markdown:
  "left_team": "<wordmark or null>", "left_color": "<jersey/bug color>", "left_logo": "<mascot/logo>",
  "right_team": "<wordmark or null>", "right_color": "<jersey/bug color>", "right_logo": "<mascot/logo>",
  "quarter": <1-4|null>, "clock": "<m:ss>"|null, "down": <1-4|null>,
- "yards_to_go": <int|null>, "play_clock": <int|null>, "paused": <bool>}
+ "yards_to_go": <int|null>, "play_clock": <int|null>, "paused": <bool>,
+ "possession_side": "<left|right|null>"}
 Rules:
 - IGNORE the bottom ticker / crawl / "scores around the country" strip. Those are OTHER games. Never copy a ticker pair.
 - If you see many small scores in a row, that is a ticker — set scores null rather than using it.
@@ -62,6 +63,8 @@ Rules:
 - Convention: AWAY left, HOME right. If HOME is on the LEFT, set home_left true.
 - Read the BIG score digits only (not records, TOTAL, play clock, ticker).
 - 0 is valid. Prefer 20-0 over inventing 20-20. Unsure → null.
+- possession_side: which side has the FOOTBALL SYMBOL / POSSESSION MARK next to their team abbreviation ("left", "right", or null if unclear/missing).
+- If no football symbol is visible, or you're uncertain, set possession_side null. Fail-closed: null when unsure.
 """
 
 
@@ -364,6 +367,16 @@ class ScoreboardVlmReferee:
         ):
             v = obj.get(side_k)
             out[side_k] = str(v).strip() if v not in (None, "") else None
+        # possession_side: left|right|null (fail-closed)
+        poss = obj.get("possession_side")
+        if poss is not None:
+            poss_str = str(poss).strip().lower()
+            if poss_str in {"left", "right"}:
+                out["possession_side"] = poss_str
+            else:
+                out["possession_side"] = None
+        else:
+            out["possession_side"] = None
         # sanity
         hs, aws = out.get("home_score"), out.get("away_score")
         if hs is not None and not (0 <= hs <= 99):
