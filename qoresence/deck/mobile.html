@@ -4,41 +4,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#05080a">
+<meta name="theme-color" content="#05060a">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/glass-192.png">
 <title>Qoresence · Mobile Glass</title>
 <style>
-:root{--bg:#05080a;--ink:#e8f2ec;--dim:#7a8c82;--lime:#c6f26a;--cyan:#4fe0d4;--amber:#ffc14a}
+/* Aperture Glass — self-hosted woff2, no runtime Google Fonts. */
+@font-face{font-family:'Instrument Sans';font-weight:400;font-style:normal;font-display:swap;src:url('/fonts/instrument-sans-400.woff2') format('woff2')}
+@font-face{font-family:'Instrument Sans';font-weight:500;font-style:normal;font-display:swap;src:url('/fonts/instrument-sans-500.woff2') format('woff2')}
+@font-face{font-family:'Instrument Sans';font-weight:600;font-style:normal;font-display:swap;src:url('/fonts/instrument-sans-600.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:500;font-style:normal;font-display:swap;src:url('/fonts/ibm-plex-mono-500.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:600;font-style:normal;font-display:swap;src:url('/fonts/ibm-plex-mono-600.woff2') format('woff2')}
+:root{--bg:#05060a;--ink:#e8eaf2;--dim:#8b90a0;--lime:#9be7ff;--cyan:#9be7ff;--amber:#d7b36a}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'Instrument Sans',system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}
 body{display:flex;flex-direction:column;min-height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 #stage{flex:1;position:relative;background:#000;min-height:40vh}
 #rtc,#mjpeg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
 #mjpeg{display:none}
 #stage.mjpeg #rtc{display:none}
 #stage.mjpeg #mjpeg{display:block}
-#badge{position:absolute;left:10px;top:10px;z-index:2;font:700 10px/1.2 ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;background:rgba(8,11,16,.78);border:1px solid rgba(198,242,106,.35);border-radius:999px;padding:7px 11px}
-#badge.fb{border-color:rgba(255,193,74,.45);color:var(--amber)}
-#strip{flex:0 0 auto;padding:10px 14px 14px;background:linear-gradient(180deg,rgba(5,8,10,.2),#05080a)}
+#badge{position:absolute;left:10px;top:10px;z-index:2;font:700 10px/1.2 ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;background:rgba(5,6,10,.78);border:1px solid rgba(155,231,255,.35);border-radius:999px;padding:7px 11px}
+#badge.fb{border-color:rgba(215,179,106,.45);color:var(--amber)}
+#strip{flex:0 0 auto;padding:10px 14px 14px;background:linear-gradient(180deg,rgba(5,6,10,.2),#05060a)}
 #prov{font:600 10px/1.3 ui-monospace,monospace;color:var(--dim);letter-spacing:.04em;margin-bottom:8px}
 #row{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
-#score{font:800 22px/1 Syne,system-ui,sans-serif;letter-spacing:-.03em}
+#score{font:600 22px/1 'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 #meta{font:600 12px/1.3 ui-monospace,monospace;color:var(--dim)}
 #meta strong{color:var(--lime);font-weight:700}
-#wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font:600 14px/1.45 system-ui;color:var(--ink);background:rgba(5,8,10,.72);z-index:3}
+#wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font:600 14px/1.45 system-ui;color:var(--ink);background:rgba(5,6,10,.72);z-index:3}
 #wait.hide{display:none}
 #wait small{display:block;margin-top:8px;color:var(--dim);font-size:12px}
 #pair{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;background:var(--bg);z-index:5;gap:18px}
 #pair.hide{display:none}
-#pair h1{font:800 26px/1.1 Syne,system-ui,sans-serif;letter-spacing:-.03em;color:var(--lime)}
+#pair h1{font:600 26px/1.1 'Instrument Sans',system-ui,sans-serif;letter-spacing:-.03em;color:var(--lime)}
 #pair p{font:500 13px/1.5 system-ui;color:var(--dim);max-width:320px}
 #pair .dot{width:10px;height:10px;border-radius:50%;background:var(--lime);box-shadow:0 0 12px var(--lime);animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
-#pair .host{font:700 15px/1.3 ui-monospace,monospace;color:var(--cyan);background:rgba(79,224,212,.08);border:1px solid rgba(79,224,212,.3);border-radius:10px;padding:10px 14px;max-width:90vw;overflow:auto}
+#pair .host{font:700 15px/1.3 ui-monospace,monospace;color:var(--cyan);background:rgba(155,231,255,.08);border:1px solid rgba(155,231,255,.3);border-radius:10px;padding:10px 14px;max-width:90vw;overflow:auto}
 #pair button{font:700 14px/1 system-ui;color:var(--bg);background:var(--lime);border:none;border-radius:999px;padding:14px 28px;letter-spacing:.02em;cursor:pointer}
 #pair button:active{transform:translateY(1px)}
-#pair input{font:600 15px/1 ui-monospace,monospace;color:var(--ink);background:rgba(255,255,255,.05);border:1px solid rgba(198,242,106,.25);border-radius:10px;padding:12px 14px;width:220px;text-align:center}
+#pair input{font:600 15px/1 ui-monospace,monospace;color:var(--ink);background:rgba(255,255,255,.05);border:1px solid rgba(155,231,255,.25);border-radius:10px;padding:12px 14px;width:220px;text-align:center}
 #pair .manual{display:none;flex-direction:column;gap:12px;align-items:center}
 #pair.show-manual .manual{display:flex}
 #pair .switch{font:600 12px/1 system-ui;color:var(--dim);text-decoration:underline;cursor:pointer;background:none;border:none;padding:4px}

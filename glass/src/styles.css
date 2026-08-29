@@ -1,47 +1,92 @@
 @import "tailwindcss";
 
-@theme {
-  --color-bg: #050a08;
-  --color-surface: #08140f;
-  --color-subtle: #0e2018;
-  --color-fg: #e8f2ec;
-  --color-foreground: #e8f2ec;
-  --color-muted-foreground: #8ea396;
-  --color-subtle-foreground: #5d7166;
-  --color-primary: #c6f26a;
-  --color-primary-foreground: #050a08;
-  --color-border: color-mix(in oklab, #c6f26a 14%, transparent);
-  --color-ring: #c6f26a;
-  --color-field: #0a1610;
-  --color-live: #c6f26a;
-  --color-sync: #4fe0d4;
-  --color-fast: #ffc14a;
-  --color-veto: #ff7d91;
-  --color-photon: #8ea396;
-  --color-flare: #c6f26a;
-  --color-iris: #4fe0d4;
-  --color-card: #08140f;
-  --color-card-foreground: #e8f2ec;
-  --color-background: #050a08;
-  --color-muted: #8ea396;
+/* ---------------------------------------------------------------------------
+ * Aperture Glass — self-hosted type. No runtime Google Fonts stylesheet that
+ * can blank the Deck offline. woff2 live in src/fonts and are bundled by Vite
+ * into /assets and served by the Deck static mount.
+ * ------------------------------------------------------------------------- */
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/instrument-sans-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/instrument-sans-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/instrument-sans-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2");
+}
 
-  --font-display: "Syne", "Sora", system-ui, sans-serif;
-  --font-sans: "Sora", "Segoe UI", system-ui, sans-serif;
+/* ---------------------------------------------------------------------------
+ * Aperture Glass tokens. One palette for every glass. Void well, iron chrome,
+ * aperture live. Digits are IBM Plex Mono so a lock is a fill, not a restyle.
+ * ------------------------------------------------------------------------- */
+@theme {
+  --color-bg: #05060a; /* void */
+  --color-surface: #0b0d14; /* well */
+  --color-subtle: #12151e; /* plate */
+  --color-fg: #e8eaf2; /* star */
+  --color-foreground: #e8eaf2;
+  --color-muted-foreground: #8b90a0; /* iron */
+  --color-subtle-foreground: #5b6070; /* iron dim */
+  --color-primary: #9be7ff; /* aperture */
+  --color-primary-foreground: #05060a;
+  --color-border: color-mix(in oklab, #8b90a0 22%, transparent); /* iron hairline */
+  --color-ring: #9be7ff;
+  --color-field: #12151e;
+  --color-live: #9be7ff; /* aperture */
+  --color-sync: #9be7ff; /* iris */
+  --color-fast: #d7b36a; /* brass — clutch path=fast */
+  --color-veto: #e07a7a;
+  --color-photon: #8b90a0; /* iron */
+  --color-flare: #9be7ff;
+  --color-iris: #9be7ff;
+  --color-card: #0b0d14;
+  --color-card-foreground: #e8eaf2;
+  --color-background: #05060a;
+  --color-muted: #8b90a0;
+
+  --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
 
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
-  --radius: 12px;
+  /* Machined plates, not broadcast pills. */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius: 8px;
 
-  --shadow-border: 0 0 0 1px color-mix(in oklab, #c6f26a 14%, transparent);
-  --shadow-border-hover: 0 0 0 1px color-mix(in oklab, #c6f26a 42%, transparent);
-  --shadow-live: 0 0 28px color-mix(in oklab, #c6f26a 28%, transparent);
-  --shadow-sync: 0 0 22px color-mix(in oklab, #4fe0d4 18%, transparent);
-  --holo-x: 0;
-  --holo-y: 0;
+  --shadow-border: 0 0 0 1px color-mix(in oklab, #8b90a0 22%, transparent);
+  --shadow-border-hover: 0 0 0 1px color-mix(in oklab, #9be7ff 40%, transparent);
+  /* Aperture bloom, 12px max — lockbug only, never the picture. */
+  --shadow-live: 0 0 12px color-mix(in oklab, #9be7ff 22%, transparent);
+  --shadow-sync: 0 0 10px color-mix(in oklab, #9be7ff 14%, transparent);
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -68,43 +113,11 @@
     color: var(--color-fg);
   }
 
+  /* Picture is the aperture: flat void field. No scanlines, no radial wash. */
   body {
     font-family: var(--font-sans);
     line-height: 1.5;
-    background:
-      radial-gradient(980px 520px at calc(92% + var(--holo-x, 0) * 4%) calc(-12% + var(--holo-y, 0) * 3%), rgba(79, 224, 212, 0.11), transparent 58%),
-      radial-gradient(760px 560px at calc(-10% + var(--holo-x, 0) * 3%) calc(8% + var(--holo-y, 0) * 4%), rgba(198, 242, 106, 0.07), transparent 55%),
-      linear-gradient(180deg, #07110c 0%, var(--color-bg) 26%, #06140f 100%);
-  }
-
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.16;
-    background-image: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 47px,
-      rgba(198, 242, 106, 0.07) 48px
-    );
-  }
-
-  body::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.1;
-    background: repeating-linear-gradient(
-      -18deg,
-      transparent 0 11px,
-      color-mix(in oklab, #c6f26a 9%, transparent) 11px 12px
-    );
-    mix-blend-mode: screen;
+    background: var(--color-bg);
   }
 
   #root {
@@ -146,14 +159,10 @@
   }
 }
 
+/* overlay.html only — OBS lens is transparent, no page wash. */
 html.obs-lens,
 html.obs-lens body {
   background: transparent !important;
-}
-
-html.obs-lens body::before,
-html.obs-lens body::after {
-  display: none;
 }
 
 /* Never filter this <img> — contrast/brightness on JPEG blocks looks specky. */
@@ -162,159 +171,53 @@ html.obs-lens body::after {
   transition: none !important;
 }
 
-.holo-deck {
-  --holo-x: 0;
-  --holo-y: 0;
+/* ---------------------------------------------------------------------------
+ * Machined chrome. Iron hairlines and flat plates — no bloom on the picture.
+ * ------------------------------------------------------------------------- */
+.holo-header {
+  background: color-mix(in oklab, var(--color-surface) 84%, var(--color-bg));
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(10px);
 }
 
 .holo-plate {
   position: relative;
-  background:
-    linear-gradient(165deg, color-mix(in oklab, #c6f26a 8%, transparent), transparent 42%),
-    var(--color-surface);
-  box-shadow:
-    0 0 0 1px color-mix(in oklab, #c6f26a 18%, transparent),
-    0 18px 40px color-mix(in oklab, #000 70%, transparent);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-border);
 }
 
+/* HDMI bezel — a machined iron frame around the void well. No tilt, no glow. */
 .holo-plinth {
   position: relative;
   isolation: isolate;
-  padding: 2px;
-  background:
-    conic-gradient(
-      from calc(210deg + var(--holo-x, 0) * 18deg),
-      #c6f26a,
-      #4fe0d4,
-      #050a08,
-      #c6f26a,
-      #4fe0d4,
-      #c6f26a
-    );
-  box-shadow:
-    0 0 0 1px color-mix(in oklab, #c6f26a 28%, transparent),
-    0 28px 60px color-mix(in oklab, #c6f26a 14%, transparent);
+  padding: 1px;
+  background: var(--color-subtle);
+  box-shadow: var(--shadow-border);
 }
 
-.holo-plinth::before {
-  content: "";
-  position: absolute;
-  inset: -14px -10px -22px;
-  z-index: -1;
-  pointer-events: none;
-  border-radius: inherit;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, #c6f26a 18%, transparent), transparent 42%),
-    color-mix(in oklab, #4fe0d4 8%, transparent);
-  transform: perspective(1200px) rotateX(calc(var(--holo-y, 0) * -8deg))
-    rotateY(calc(var(--holo-x, 0) * 10deg)) translateZ(-40px);
-  filter: blur(0.5px);
-  opacity: 0.55;
-}
-
-.holo-plinth[data-holo-tone="amber"] {
-  box-shadow:
-    0 0 0 1px color-mix(in oklab, #ffc14a 32%, transparent),
-    0 20px 44px color-mix(in oklab, #000 62%, transparent);
-}
-
+/* Video-health tone: 1px hairline tint only. Never a bloom on the picture. */
 .holo-plinth[data-holo-tone="red"] {
-  box-shadow:
-    0 0 0 1px color-mix(in oklab, #ff7d91 55%, transparent),
-    0 20px 50px color-mix(in oklab, #ff7d91 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-veto) 55%, transparent);
 }
 
 .holo-plinth-well {
   position: relative;
   overflow: hidden;
-  background: #050a08;
+  background: var(--color-bg);
 }
 
-/* Clutch lamp stays neon crimson — chrome + well inset only. Never filter the JPEG. */
-.holo-plinth-well::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 6;
-  pointer-events: none;
-  border-radius: inherit;
-  box-shadow: inset 0 0 0 0 transparent;
-}
-
+/* Clutch on the bezel is a hairline tint keyed by path — brass fast, aperture
+ * hot. No animation, no bloom, no glow on the picture. */
 .holo-plinth[data-clutch="near"] {
-  animation: clutch-rim-near 1.35s ease-in-out infinite;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-fast) 60%, transparent);
 }
 
 .holo-plinth[data-clutch="hot"] {
-  animation: clutch-rim-hot 0.72s ease-in-out infinite;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-live) 72%, transparent);
 }
 
-.holo-plinth[data-clutch="near"] .holo-plinth-well::after {
-  animation: clutch-well-near 1.35s ease-in-out infinite;
-}
-
-.holo-plinth[data-clutch="hot"] .holo-plinth-well::after {
-  animation: clutch-well-hot 0.72s ease-in-out infinite;
-}
-
-@keyframes clutch-rim-near {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px color-mix(in oklab, #ff1238 42%, transparent),
-      0 18px 42px color-mix(in oklab, #ff1238 18%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 0 0 2px color-mix(in oklab, #ff1238 78%, transparent),
-      0 0 36px color-mix(in oklab, #ff1238 46%, transparent),
-      0 24px 64px color-mix(in oklab, #ff1238 32%, transparent);
-  }
-}
-
-@keyframes clutch-rim-hot {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px #ff1238,
-      0 0 28px color-mix(in oklab, #ff1238 48%, transparent),
-      0 22px 56px color-mix(in oklab, #ff1238 28%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 0 0 3px #ff1238,
-      0 0 54px color-mix(in oklab, #ff1238 72%, transparent),
-      0 18px 72px color-mix(in oklab, #ff1238 44%, transparent);
-  }
-}
-
-@keyframes clutch-well-near {
-  0%,
-  100% {
-    box-shadow: inset 0 0 28px 3px color-mix(in oklab, #ff1238 20%, transparent);
-  }
-  50% {
-    box-shadow: inset 0 0 52px 10px color-mix(in oklab, #ff1238 46%, transparent);
-  }
-}
-
-@keyframes clutch-well-hot {
-  0%,
-  100% {
-    box-shadow: inset 0 0 36px 6px color-mix(in oklab, #ff1238 36%, transparent);
-  }
-  50% {
-    box-shadow: inset 0 0 68px 16px color-mix(in oklab, #ff1238 62%, transparent);
-  }
-}
-
-.holo-header {
-  background: color-mix(in oklab, #050a08 90%, #08140f);
-  border-bottom: 1px solid color-mix(in oklab, #c6f26a 14%, transparent);
-  backdrop-filter: blur(14px);
-}
-
-/* Keep in sync with qoresence/deck/session.css .glass-nav */
+/* Keep in sync with qoresence/deck/session.css .glass-nav.
+ * glass-nav is NOT a scroll strip: wrap, overflow-x hidden, flex 1 1 100%. */
 .glass-nav {
   display: flex;
   flex: 1 1 100%;
@@ -325,10 +228,10 @@ html.obs-lens body::after {
   overflow-x: hidden;
   overflow-y: visible;
   scrollbar-width: none;
-  padding: 4px;
-  border-radius: 12px;
-  background: color-mix(in oklab, #0e2018 80%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in oklab, #c6f26a 14%, transparent);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--color-subtle) 72%, transparent);
+  box-shadow: var(--shadow-border);
 }
 
 .glass-nav::-webkit-scrollbar {
@@ -340,27 +243,27 @@ html.obs-lens body::after {
 .glass-nav a {
   display: inline-flex;
   min-width: 4rem;
-  height: 36px;
+  height: 34px;
   align-items: center;
   justify-content: center;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   color: var(--color-muted-foreground);
   text-decoration: none;
-  font-size: 12px;
+  font-family: var(--font-sans);
+  font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   transition:
     color 150ms var(--ease-out),
     background 150ms var(--ease-out),
-    box-shadow 150ms var(--ease-out),
-    transform 80ms var(--ease-out);
+    box-shadow 150ms var(--ease-out);
 }
 
 .glass-nav a:hover {
   color: var(--color-fg);
-  background: color-mix(in oklab, #c6f26a 10%, transparent);
+  background: color-mix(in oklab, var(--color-primary) 10%, transparent);
 }
 
 .glass-nav a:active {
@@ -374,148 +277,108 @@ html.obs-lens body::after {
 
 .glass-nav a[aria-current="page"],
 .glass-nav a.stream-key-live {
-  color: #050a08;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, #fff 18%, transparent), transparent 38%),
-    #c6f26a;
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, #fff 28%, transparent),
-    0 6px 0 #5a7a22,
-    0 0 22px color-mix(in oklab, #c6f26a 42%, transparent);
+  color: var(--color-primary-foreground);
+  background: var(--color-primary);
 }
 
 .glass-nav a[aria-current="page"]:hover,
 .glass-nav a.stream-key-live:hover {
-  color: #050a08;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, #fff 24%, transparent), transparent 38%),
-    #c6f26a;
+  color: var(--color-primary-foreground);
+  background: color-mix(in oklab, var(--color-primary) 92%, #fff);
 }
 
-.glass-nav a[aria-current="page"]:active,
-.glass-nav a.stream-key-live:active {
-  transform: translateY(3px);
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, #fff 28%, transparent),
-    0 3px 0 #5a7a22,
-    0 0 16px color-mix(in oklab, #c6f26a 34%, transparent);
-}
-
+/* Machined keys — flat plate, iron hairline. Active = flat aperture fill. */
 .stream-key {
-  border-radius: 10px;
-  border: 1px solid color-mix(in oklab, #c6f26a 16%, transparent);
-  background:
-    linear-gradient(180deg, color-mix(in oklab, #e8f2ec 8%, transparent), transparent 40%),
-    #0e2018;
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, #e8f2ec 12%, transparent),
-    0 6px 0 #000,
-    0 10px 18px color-mix(in oklab, #000 80%, transparent);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-subtle);
+  color: var(--color-muted-foreground);
+  box-shadow: var(--shadow-border);
+  transition:
+    color 150ms var(--ease-out),
+    background 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out);
+}
+
+.stream-key:hover {
+  color: var(--color-fg);
+  box-shadow: var(--shadow-border-hover);
 }
 
 .stream-key-live {
-  color: #050a08;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, #fff 18%, transparent), transparent 38%),
-    #c6f26a;
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, #fff 28%, transparent),
-    0 6px 0 #5a7a22,
-    0 0 22px color-mix(in oklab, #c6f26a 42%, transparent);
+  color: var(--color-primary-foreground);
+  background: var(--color-primary);
+  border-color: transparent;
+}
+
+.stream-key-live:hover {
+  color: var(--color-primary-foreground);
+  background: color-mix(in oklab, var(--color-primary) 92%, #fff);
 }
 
 .stream-key-clip {
-  color: #050a08;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, #fff 22%, transparent), transparent 40%),
-    #4fe0d4;
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, #fff 40%, transparent),
-    0 6px 0 #1d6e68,
-    0 0 20px color-mix(in oklab, #4fe0d4 22%, transparent);
+  color: var(--color-primary);
+  border-color: color-mix(in oklab, var(--color-primary) 40%, transparent);
+  background: var(--color-subtle);
 }
 
+.stream-key-clip:hover {
+  color: var(--color-primary);
+  background: color-mix(in oklab, var(--color-primary) 12%, var(--color-subtle));
+}
+
+/* Tally lamp — AIR aperture, STANDBY iron, STALL veto. */
 .holo-tally {
-  letter-spacing: 0.18em;
+  letter-spacing: 0.12em;
 }
 
 .holo-tally-lamp {
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 999px;
   background: currentColor;
-  box-shadow: 0 0 10px currentColor;
+  box-shadow: 0 0 8px currentColor;
 }
 
 .holo-tally-air {
-  color: #c6f26a;
-  background: color-mix(in oklab, #c6f26a 14%, transparent);
+  color: var(--color-live);
+  background: color-mix(in oklab, var(--color-live) 12%, transparent);
 }
 
 .holo-tally-standby {
-  color: #5d7166;
-  background: color-mix(in oklab, #8ea396 8%, transparent);
+  color: var(--color-muted-foreground);
+  background: color-mix(in oklab, var(--color-muted-foreground) 8%, transparent);
 }
 
 .holo-tally-stall {
-  color: #ff7d91;
-  background: color-mix(in oklab, #ff7d91 10%, transparent);
+  color: var(--color-veto);
+  background: color-mix(in oklab, var(--color-veto) 10%, transparent);
 }
 
+/* Signal bar under the HDMI bezel — iris freshness, iron on HOLD. */
 .signal-prism {
-  height: 5px;
+  height: 4px;
   overflow: hidden;
-  background: color-mix(in oklab, #4fe0d4 8%, #050a08);
+  background: color-mix(in oklab, var(--color-sync) 8%, var(--color-bg));
 }
 
 .signal-prism-fill {
   height: 100%;
   transition: width 180ms var(--ease-out);
-  background: linear-gradient(90deg, #050a08, #4fe0d4, #c6f26a);
+  background: linear-gradient(90deg, var(--color-bg), var(--color-sync));
 }
 
 .signal-prism-fill.is-hold {
-  background: linear-gradient(90deg, #5d7166, #8ea396);
+  background: linear-gradient(90deg, var(--color-subtle-foreground), var(--color-muted-foreground));
 }
 
 .signal-prism-fill.is-stall {
-  background: #ff7d91;
+  background: var(--color-veto);
 }
 
+/* Wordmark tile. */
 .holo-mark {
-  background: conic-gradient(from 200deg, #c6f26a, #4fe0d4, #c6f26a);
-  color: #050a08;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .holo-plinth::before {
-    transform: none;
-  }
-
-  .holo-plinth[data-clutch="near"],
-  .holo-plinth[data-clutch="hot"],
-  .holo-plinth[data-clutch="near"] .holo-plinth-well::after,
-  .holo-plinth[data-clutch="hot"] .holo-plinth-well::after {
-    animation: none;
-  }
-
-  .holo-plinth[data-clutch="near"] {
-    box-shadow:
-      0 0 0 2px color-mix(in oklab, #ff1238 70%, transparent),
-      0 20px 48px color-mix(in oklab, #ff1238 28%, transparent);
-  }
-
-  .holo-plinth[data-clutch="hot"] {
-    box-shadow:
-      0 0 0 3px #ff1238,
-      0 0 40px color-mix(in oklab, #ff1238 55%, transparent);
-  }
-
-  .holo-plinth[data-clutch="near"] .holo-plinth-well::after {
-    box-shadow: inset 0 0 40px 8px color-mix(in oklab, #ff1238 38%, transparent);
-  }
-
-  .holo-plinth[data-clutch="hot"] .holo-plinth-well::after {
-    box-shadow: inset 0 0 56px 12px color-mix(in oklab, #ff1238 52%, transparent);
-  }
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  box-shadow: var(--shadow-border);
 }

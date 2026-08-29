@@ -1,21 +1,26 @@
+/* Aperture Glass — self-hosted woff2, no runtime Google Fonts. */
+@font-face { font-family: "Instrument Sans"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/instrument-sans-400.woff2") format("woff2"); }
+@font-face { font-family: "Instrument Sans"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/instrument-sans-500.woff2") format("woff2"); }
+@font-face { font-family: "Instrument Sans"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/instrument-sans-600.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/ibm-plex-mono-500.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/ibm-plex-mono-600.woff2") format("woff2"); }
+
 :root {
-  --bg: #050a08;
-  --surface: #08140f;
-  --subtle: #0e2018;
-  --fg: #e8f2ec;
-  --muted: #8ea396;
-  --subtle-fg: #5d7166;
-  --live: #c6f26a;
-  --sync: #4fe0d4;
-  --fast: #ffc14a;
-  --veto: #ff7d91;
-  --photon: #8ea396;
-  --line: color-mix(in oklab, #c6f26a 14%, transparent);
-  --font-display: "Syne", "Sora", system-ui, sans-serif;
-  --font-sans: "Sora", "Segoe UI", system-ui, sans-serif;
+  --bg: #05060a; /* void */
+  --surface: #0b0d14; /* well */
+  --subtle: #12151e; /* plate */
+  --fg: #e8eaf2; /* star */
+  --muted: #8b90a0; /* iron */
+  --subtle-fg: #5b6070; /* iron dim */
+  --live: #9be7ff; /* aperture */
+  --sync: #9be7ff; /* iris */
+  --fast: #d7b36a; /* brass */
+  --veto: #e07a7a;
+  --photon: #8b90a0;
+  --line: color-mix(in oklab, #8b90a0 22%, transparent); /* iron hairline */
+  --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
-  --holo-x: 0;
-  --holo-y: 0;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
@@ -29,43 +34,11 @@ html, body {
   color: var(--fg);
 }
 
+/* Flat void field — no scanlines, no lime/ice radials. */
 body {
   font: 15px/1.5 var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  background:
-    radial-gradient(980px 520px at calc(92% + var(--holo-x, 0) * 4%) calc(-12% + var(--holo-y, 0) * 3%), rgba(79, 224, 212, 0.11), transparent 58%),
-    radial-gradient(760px 560px at calc(-10% + var(--holo-x, 0) * 3%) calc(8% + var(--holo-y, 0) * 4%), rgba(198, 242, 106, 0.07), transparent 55%),
-    linear-gradient(180deg, #07110c 0%, var(--bg) 26%, #06140f 100%);
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.16;
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 47px,
-    rgba(198, 242, 106, 0.07) 48px
-  );
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.1;
-  background: repeating-linear-gradient(
-    -18deg,
-    transparent 0 11px,
-    color-mix(in oklab, #c6f26a 9%, transparent) 11px 12px
-  );
-  mix-blend-mode: screen;
+  background: var(--bg);
 }
 
 .holo-deck {
@@ -92,9 +65,9 @@ h2 {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: color-mix(in oklab, #050a08 90%, #08140f);
+  background: color-mix(in oklab, var(--surface) 84%, var(--bg));
   border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(10px);
 }
 
 .SessionHeader {
@@ -135,9 +108,10 @@ h2 {
   border-radius: 8px;
   font-family: var(--font-display);
   font-size: 14px;
-  font-weight: 800;
-  background: conic-gradient(from 200deg, #c6f26a, #4fe0d4, #c6f26a);
-  color: #050a08;
+  font-weight: 600;
+  background: var(--live);
+  color: var(--bg);
+  box-shadow: var(--line) 0 0 0 1px;
 }
 
 .brand-copy {
@@ -149,7 +123,7 @@ h2 {
 .brand-copy strong {
   font-family: var(--font-display);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1;
   color: var(--fg);
@@ -159,7 +133,7 @@ h2 {
 .brand-copy small {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--subtle-fg);
 }
@@ -167,7 +141,7 @@ h2 {
 .take-label {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--subtle-fg);
 }
@@ -176,7 +150,7 @@ h2 {
   font-family: var(--font-mono);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   color: var(--photon);
 }
 
@@ -190,9 +164,9 @@ h2 {
   overflow-x: hidden;
   overflow-y: visible;
   scrollbar-width: none;
-  padding: 4px;
-  border-radius: 12px;
-  background: color-mix(in oklab, #0e2018 80%, transparent);
+  padding: 3px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--subtle) 72%, transparent);
   box-shadow: 0 0 0 1px var(--line);
 }
 
@@ -205,28 +179,27 @@ h2 {
 .glass-nav a {
   display: inline-flex;
   min-width: 4rem;
-  height: 36px;
+  height: 34px;
   align-items: center;
   justify-content: center;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: 4px;
   color: var(--muted);
   text-decoration: none;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   transition:
     color 150ms var(--ease-out),
     background 150ms var(--ease-out),
-    box-shadow 150ms var(--ease-out),
-    transform 80ms var(--ease-out);
+    box-shadow 150ms var(--ease-out);
 }
 
 .glass-nav a:hover {
   color: var(--fg);
-  background: color-mix(in oklab, #c6f26a 10%, transparent);
+  background: color-mix(in oklab, var(--live) 10%, transparent);
 }
 
 .glass-nav a:active {
@@ -240,31 +213,14 @@ h2 {
 
 .glass-nav a[aria-current="page"],
 .glass-nav a.stream-key-live {
-  color: #050a08;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, #fff 18%, transparent), transparent 38%),
-    #c6f26a;
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, #fff 28%, transparent),
-    0 6px 0 #5a7a22,
-    0 0 22px color-mix(in oklab, #c6f26a 42%, transparent);
+  color: var(--bg);
+  background: var(--live);
 }
 
 .glass-nav a[aria-current="page"]:hover,
 .glass-nav a.stream-key-live:hover {
-  color: #050a08;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, #fff 24%, transparent), transparent 38%),
-    #c6f26a;
-}
-
-.glass-nav a[aria-current="page"]:active,
-.glass-nav a.stream-key-live:active {
-  transform: translateY(3px);
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, #fff 28%, transparent),
-    0 3px 0 #5a7a22,
-    0 0 16px color-mix(in oklab, #c6f26a 34%, transparent);
+  color: var(--bg);
+  background: color-mix(in oklab, var(--live) 92%, #fff);
 }
 
 .ModeSwitcher {
@@ -277,39 +233,39 @@ h2 {
 .ModeSwitcher button {
   appearance: none;
   display: inline-flex;
-  height: 40px;
+  height: 38px;
   min-width: 4.5rem;
   align-items: center;
   justify-content: center;
   padding: 0 12px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in oklab, #c6f26a 16%, transparent);
-  background:
-    linear-gradient(180deg, color-mix(in oklab, #e8f2ec 8%, transparent), transparent 40%),
-    #0e2018;
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, #e8f2ec 12%, transparent),
-    0 6px 0 #000,
-    0 10px 18px color-mix(in oklab, #000 80%, transparent);
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--subtle);
+  box-shadow: 0 0 0 1px var(--line);
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
+  transition:
+    color 150ms var(--ease-out),
+    background 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out);
+}
+
+.stream-key:hover,
+.ModeSwitcher button:hover {
+  color: var(--fg);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--live) 40%, transparent);
 }
 
 .ModeSwitcher button[aria-pressed="true"],
 .stream-key-live {
-  color: #050a08;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, #fff 18%, transparent), transparent 38%),
-    #c6f26a;
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, #fff 28%, transparent),
-    0 6px 0 #5a7a22,
-    0 0 22px color-mix(in oklab, #c6f26a 42%, transparent);
+  color: var(--bg);
+  background: var(--live);
+  border-color: transparent;
 }
 
 .key-num {
@@ -326,46 +282,46 @@ h2 {
   padding: 4px 10px;
   font-family: var(--font-mono);
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .holo-tally-lamp {
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 999px;
   background: currentColor;
-  box-shadow: 0 0 10px currentColor;
+  box-shadow: 0 0 8px currentColor;
 }
 
 .holo-tally-air {
-  color: #c6f26a;
-  background: color-mix(in oklab, #c6f26a 14%, transparent);
+  color: var(--live);
+  background: color-mix(in oklab, var(--live) 12%, transparent);
 }
 
 .holo-tally-standby {
-  color: #5d7166;
-  background: color-mix(in oklab, #8ea396 8%, transparent);
+  color: var(--muted);
+  background: color-mix(in oklab, var(--muted) 8%, transparent);
 }
 
 .holo-tally-stall {
-  color: #ff7d91;
-  background: color-mix(in oklab, #ff7d91 10%, transparent);
+  color: var(--veto);
+  background: color-mix(in oklab, var(--veto) 10%, transparent);
 }
 
 .StateBadge {
-  font: 700 10px/1 var(--font-mono);
+  font: 600 10px/1 var(--font-mono);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: 4px;
   border: 1px solid var(--line);
   color: var(--subtle-fg);
 }
 
-.StateBadge.on { color: var(--live); border-color: color-mix(in oklab, #c6f26a 42%, transparent); }
-.StateBadge.warn { color: var(--veto); border-color: color-mix(in oklab, #ff7d91 42%, transparent); }
+.StateBadge.on { color: var(--live); border-color: color-mix(in oklab, var(--live) 42%, transparent); }
+.StateBadge.warn { color: var(--veto); border-color: color-mix(in oklab, var(--veto) 42%, transparent); }
 
 .fixture-field {
   margin-left: auto;
@@ -384,9 +340,9 @@ h2 {
   background: var(--subtle);
   color: var(--fg);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 6px 10px;
-  font: 600 11px/1.2 var(--font-mono);
+  font: 500 11px/1.2 var(--font-mono);
 }
 
 .deck-shell {
@@ -397,69 +353,35 @@ h2 {
 
 .holo-plate {
   position: relative;
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 16px 18px;
-  background:
-    linear-gradient(165deg, color-mix(in oklab, #c6f26a 8%, transparent), transparent 42%),
-    var(--surface);
-  box-shadow:
-    0 0 0 1px color-mix(in oklab, #c6f26a 18%, transparent),
-    0 18px 40px color-mix(in oklab, #000 70%, transparent);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
 }
 
+/* Machined iron bezel — no conic, no tilt, no bloom on the picture. */
 .holo-plinth {
   position: relative;
   isolation: isolate;
-  padding: 2px;
-  border-radius: 16px;
+  padding: 1px;
+  border-radius: 12px;
   overflow: hidden;
-  background:
-    conic-gradient(
-      from calc(210deg + var(--holo-x, 0) * 18deg),
-      #c6f26a,
-      #4fe0d4,
-      #050a08,
-      #c6f26a,
-      #4fe0d4,
-      #c6f26a
-    );
-  box-shadow:
-    0 0 0 1px color-mix(in oklab, #c6f26a 28%, transparent),
-    0 28px 60px color-mix(in oklab, #c6f26a 14%, transparent);
-}
-
-.holo-plinth::before {
-  content: "";
-  position: absolute;
-  inset: -14px -10px -22px;
-  z-index: -1;
-  pointer-events: none;
-  border-radius: inherit;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, #c6f26a 18%, transparent), transparent 42%),
-    color-mix(in oklab, #4fe0d4 8%, transparent);
-  transform: perspective(1200px) rotateX(calc(var(--holo-y, 0) * -8deg))
-    rotateY(calc(var(--holo-x, 0) * 10deg)) translateZ(-40px);
-  filter: blur(0.5px);
-  opacity: 0.55;
+  background: var(--subtle);
+  box-shadow: 0 0 0 1px var(--line);
 }
 
 .holo-plinth[data-holo-tone="amber"] {
-  box-shadow:
-    0 0 0 1px color-mix(in oklab, #ffc14a 32%, transparent),
-    0 20px 44px color-mix(in oklab, #000 62%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--fast) 42%, transparent);
 }
 
 .holo-plinth[data-holo-tone="red"] {
-  box-shadow:
-    0 0 0 1px color-mix(in oklab, #ff7d91 55%, transparent),
-    0 20px 50px color-mix(in oklab, #ff7d91 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--veto) 55%, transparent);
 }
 
 .holo-plinth-well {
   position: relative;
   overflow: hidden;
-  background: #050a08;
+  background: var(--bg);
 }
 
 .confirmed-well {
@@ -469,7 +391,7 @@ h2 {
   justify-content: center;
   gap: 10px;
   padding: 28px 32px 24px;
-  border-radius: calc(16px - 1px);
+  border-radius: calc(12px - 1px);
 }
 
 .pgm-chip {
@@ -477,11 +399,11 @@ h2 {
   top: 12px;
   left: 12px;
   border-radius: 4px;
-  background: color-mix(in oklab, #050a08 75%, transparent);
+  background: color-mix(in oklab, var(--bg) 75%, transparent);
   padding: 4px 8px;
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--photon);
   backdrop-filter: blur(6px);
@@ -493,30 +415,30 @@ h2 {
 .recap h2,
 .hud h2 {
   font: 500 10px/1 var(--font-mono);
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .signal-prism {
-  height: 5px;
+  height: 4px;
   overflow: hidden;
-  background: color-mix(in oklab, #4fe0d4 8%, #050a08);
+  background: color-mix(in oklab, var(--sync) 8%, var(--bg));
 }
 
 .signal-prism-fill {
   height: 100%;
   width: 40%;
   transition: width 180ms var(--ease-out);
-  background: linear-gradient(90deg, #050a08, #4fe0d4, #c6f26a);
+  background: linear-gradient(90deg, var(--bg), var(--sync));
 }
 
 .signal-prism-fill.is-hold {
-  background: linear-gradient(90deg, #5d7166, #8ea396);
+  background: linear-gradient(90deg, var(--subtle-fg), var(--muted));
 }
 
 .signal-prism-fill.is-stall {
-  background: #ff7d91;
+  background: var(--veto);
 }
 
 .deck-grid {
@@ -534,12 +456,15 @@ h2 {
   min-width: 0;
 }
 
+/* Licensed digits are IBM Plex Mono tabular-nums — never Sans. Glow (12px max)
+ * only on the locked score, never washing the plate. */
 .LockedValue {
-  font: 800 42px/1.05 var(--font-display);
-  letter-spacing: -0.04em;
+  font: 600 42px/1.05 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
   color: var(--live);
   display: block;
-  text-shadow: 0 0 28px color-mix(in oklab, #c6f26a 28%, transparent);
+  text-shadow: 0 0 12px color-mix(in oklab, var(--live) 22%, transparent);
 }
 
 .LockedValue[data-kind="score"] {
@@ -554,7 +479,7 @@ h2 {
 }
 
 .LockedValue[data-kind="card"] {
-  font: 700 13px/1.3 var(--font-mono);
+  font: 600 13px/1.3 var(--font-mono);
   letter-spacing: 0.04em;
   color: var(--live);
   text-shadow: none;
@@ -565,13 +490,14 @@ h2 {
 .moment-type {
   font-family: var(--font-display);
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.2;
 }
 .moment-time {
   color: var(--muted);
-  font: 700 12px/1.4 var(--font-mono);
+  font: 500 12px/1.4 var(--font-mono);
+  font-variant-numeric: tabular-nums;
   margin-top: 8px;
 }
 
@@ -587,16 +513,16 @@ h2 {
 .TimelineMarker { list-style: none; margin: 0; padding: 0; }
 
 .NarrativeCard {
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 12px 14px;
   margin: 0 0 10px;
-  background: color-mix(in oklab, #050a08 50%, transparent);
+  background: color-mix(in oklab, var(--bg) 50%, transparent);
   box-shadow: 0 0 0 1px var(--line);
 }
 
 .NarrativeCard header { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
 .NarrativeCard .etype {
-  font: 800 12px/1 var(--font-mono);
+  font: 600 12px/1 var(--font-mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -606,7 +532,7 @@ h2 {
 
 .gamer .analyst-only { display: none; }
 
-.ConfidenceIndicator { font: 700 11px/1 var(--font-mono); color: var(--subtle-fg); }
+.ConfidenceIndicator { font: 600 11px/1 var(--font-mono); color: var(--subtle-fg); }
 .ConfidenceIndicator.confirmed { color: var(--live); }
 .ConfidenceIndicator.suppressed, .ConfidenceIndicator.unavailable { color: var(--fast); }
 
@@ -635,5 +561,4 @@ h2 {
     transition: none !important;
     animation: none !important;
   }
-  .holo-plinth::before { transform: none; }
 }

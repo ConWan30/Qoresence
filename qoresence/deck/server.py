@@ -1206,6 +1206,19 @@ def create_app():  # type: ignore[no-untyped-def]
             str(p), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"}
         )
 
+    @app.get("/fonts/{name}")
+    async def glass_font(name: str):  # type: ignore[no-untyped-def]
+        # Self-hosted Aperture Glass woff2 for the static shells (Instrument
+        # Sans + IBM Plex Mono). No runtime Google Fonts. Strict allowlist.
+        if not name.endswith(".woff2") or "/" in name or "\\" in name or ".." in name:
+            return Response(status_code=404)
+        p = pathlib.Path(__file__).parent / "fonts" / name
+        if not p.is_file():
+            return Response(status_code=404)
+        return FileResponse(
+            str(p), media_type="font/woff2", headers={"Cache-Control": "public, max-age=31536000"}
+        )
+
     @app.get("/api/timeline")
     async def api_timeline():  # type: ignore[no-untyped-def]
         """SessionTimeline snapshot — why-last, drives, recent causal events."""
