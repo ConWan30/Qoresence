@@ -1,8 +1,8 @@
-"""Gaming scoreboard referee via Quicksilver vision (Gemini).
+"""Gaming scoreboard referee via DeepSeek vision.
 
 Classical EasyOCR misreads stylized CFB digits (20-0 → 20-20). When a
-Quicksilver key is present, we crop the scorebug / pause plate and ask
-gemini-3.5-flash-lite for a strict JSON board read.
+DeepSeek key is present, we crop the scorebug / pause plate and ask
+deepseek-v4-flash-vision-exp for a strict JSON board read.
 
 Sparse + non-blocking: never call from the streamer grab thread.
 """
@@ -26,8 +26,8 @@ from qoresence.vision.scorebug_crops import CFB_PRIMARY_SCOREBUG, primary_scoreb
 
 log = logging.getLogger(__name__)
 
-SCOREBOARD_MODEL = os.environ.get("QORESENCE_SCOREBOARD_VLM_MODEL", "gemini-3.5-flash-lite")
-# Smarter Gemini cadence (not every frame):
+SCOREBOARD_MODEL = os.environ.get("QORESENCE_SCOREBOARD_VLM_MODEL", "deepseek-v4-flash-vision-exp")
+# Smarter DeepSeek cadence (not every frame):
 # - gameplay: ~1.5–2 Hz board (default 0.6s min is too hot; use 1.5s)
 # - menu/hub: sparse
 # - force on score/menu transitions from caller
@@ -66,21 +66,28 @@ Rules:
 
 
 class ScoreboardVlmReferee:
-    """Sparse Gemini scoreboard reads → last JSON result."""
+    """Sparse DeepSeek scoreboard reads → last JSON result."""
 
     def __init__(self) -> None:
         env = os.environ.get("QORESENCE_SCOREBOARD_VLM", "1").strip().lower()
         self.enabled = env in {"1", "true", "yes", "on"}
         self.model = SCOREBOARD_MODEL
-        self.base_url = (os.environ.get("QUICKSILVER_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
-        key_file = os.environ.get("QUICKSILVER_API_KEY_FILE") or (
-            ".secrets/quicksilver_clutchbot.key"
-            if __import__("pathlib").Path(".secrets/quicksilver_clutchbot.key").exists()
+        self.base_url = (
+            os.environ.get("DEEPSEEK_BASE_URL")
+            or os.environ.get("QORESENCE_DEEPSEEK_BASE_URL")
+            or "https://api.deepseek.com"
+        ).rstrip("/")
+        key_file = os.environ.get("DEEPSEEK_API_KEY_FILE") or (
+            ".secrets/deepseek.key"
+            if __import__("pathlib").Path(".secrets/deepseek.key").exists()
             else None
         )
-        self._api_key = _resolve_api_key(os.environ.get("QUICKSILVER_API_KEY"), key_file)
+        self._api_key = _resolve_api_key(
+            os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("QORESENCE_DEEPSEEK_API_KEY"),
+            key_file,
+        )
         if self.enabled and not self._api_key:
-            log.info("Scoreboard VLM disabled — no Quicksilver API key")
+            log.info("Scoreboard VLM disabled — no DeepSeek API key")
             self.enabled = False
         self._lock = threading.Lock()
         self._inflight = False
@@ -219,7 +226,7 @@ class ScoreboardVlmReferee:
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
-            "User-Agent": "Qoresence-ScoreboardGemini/1.0",
+            "User-Agent": "Qoresence-ScoreboardVLM/1.0",
             "Accept": "application/json",
         }
         body = {

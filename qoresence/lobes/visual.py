@@ -3,9 +3,9 @@ Qoresence Visual Lobe
 
 VLM integration for game-state classification and cross-modal verification.
 
-Cloud path: Quicksilver Pro Gemini vision (default gemini-3.5-flash-lite).
+Cloud path: DeepSeek vision (default deepseek-v4-flash-vision-exp).
 That is the confirm-path referee: board + scene. LocalVLM only when
-prefer_local=True or no Quicksilver key is present.
+prefer_local=True or no DeepSeek key is present.
 """
 
 from __future__ import annotations
@@ -59,14 +59,14 @@ class CrossModalVerdict:
 
 
 class VLMClient:
-    """Cloud VLM via Quicksilver Pro (or any OpenAI-compatible vision endpoint)."""
+    """Cloud VLM via DeepSeek (or any OpenAI-compatible vision endpoint)."""
 
     def __init__(self, config: VisualConfig):
         self.config = config
         self.endpoint = config.model_endpoint.rstrip("/")
         self.model_name = config.model_name
         self.api_key = config.api_key
-        # Resolve Quicksilver key if not set on config
+        # Resolve DeepSeek key if not set on config
         if not self.api_key:
             try:
                 import pathlib
@@ -75,13 +75,17 @@ class VLMClient:
 
                 key_file = None
                 for p in (
+                    ".secrets/deepseek.key",
                     ".secrets/quicksilver_clutchbot.key",
                     ".secrets/quicksilver_vlm.key",
                 ):
                     if pathlib.Path(p).exists():
                         key_file = p
                         break
-                self.api_key = _resolve_api_key(None, key_file)
+                self.api_key = _resolve_api_key(
+                    os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("QORESENCE_DEEPSEEK_API_KEY"),
+                    key_file,
+                )
             except Exception:
                 pass
         self.max_dim = config.max_frame_dim
@@ -90,7 +94,7 @@ class VLMClient:
         # Headers
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": "Qoresence-VisualGemini/1.0",
+            "User-Agent": "Qoresence-VisualVLM/1.0",
             "Accept": "application/json",
         }
         if self.api_key:
@@ -382,15 +386,15 @@ class VisualRuntime:
         self._frame_provider = frame_provider
         self._modality_provider = modality_provider
 
-        # Gemini is the vision/confirm client. Local ONNX only if asked, or if
-        # there is no Quicksilver key (offline play still has to start).
-        self._client_kind = "cloud:gemini"
+        # DeepSeek is the vision/confirm client. Local ONNX only if asked, or if
+        # there is no DeepSeek key (offline play still has to start).
+        self._client_kind = "cloud:deepseek"
         _prefer = bool(getattr(config, "prefer_local", False))
         _local_path = getattr(config, "local_model_path", None)
         _fallback = bool(getattr(config, "local_fallback", True))
         _cloud = VLMClient(config)
-        _has_gemini = bool(getattr(_cloud, "api_key", None))
-        if _prefer or not _has_gemini:
+        _has_deepseek = bool(getattr(_cloud, "api_key", None))
+        if _prefer or not _has_deepseek:
             try:
                 from qoresence.vision.local_vlm import LocalVLMClient as _LocalVLM
 
@@ -403,7 +407,7 @@ class VisualRuntime:
                     self._client_kind = (
                         "local:onnx" if _local.is_available() else "local:heuristic"
                     )
-                    why = "prefer_local" if _prefer else "no Quicksilver key"
+                    why = "prefer_local" if _prefer else "no DeepSeek key"
                     log.info(
                         "VisualRuntime using %s (%s, path=%s)",
                         self._client_kind,
@@ -412,17 +416,17 @@ class VisualRuntime:
                     )
                 else:
                     self._client = _cloud
-                    self._client_kind = "cloud:gemini"
+                    self._client_kind = "cloud:deepseek"
             except Exception as e:
-                log.warning("LocalVLM init failed (%s), using Gemini if keyed", e)
+                log.warning("LocalVLM init failed (%s), using DeepSeek if keyed", e)
                 self._client = _cloud
-                self._client_kind = "cloud:gemini"
+                self._client_kind = "cloud:deepseek"
         else:
             self._client = _cloud
-            self._client_kind = "cloud:gemini"
+            self._client_kind = "cloud:deepseek"
             log.info(
-                "VisualRuntime using Gemini confirm (%s)",
-                getattr(config, "model_name", "gemini-3.5-flash-lite"),
+                "VisualRuntime using DeepSeek confirm (%s)",
+                getattr(config, "model_name", "deepseek-v4-flash-vision-exp"),
             )
 
         # Prompts
@@ -593,7 +597,7 @@ class VisualRuntime:
         self._frames_analyzed += 1
 
     def _merge_scoreboard(self, frame: np.ndarray, context: VisualContext | None) -> VisualContext | None:
-        """Always run the extractor so Gemini get_last() becomes a lock + ticket.
+        """Always run the extractor so DeepSeek get_last() becomes a lock + ticket.
 
         Cloud VisualRuntime used to skip this; LocalVLM was the only caller.
         A2A still schedules the referee, but without extract() scores never land.
@@ -650,8 +654,8 @@ class VisualRuntime:
         try:
             from qoresence.vision.picture_hid_ticket import try_mint_picture_hid_from_context
 
-            model = str(getattr(self.config, "model_name", "") or "gemini-3.5-flash-lite")
-            source = "quicksilver" if "quicksilver" in model.lower() else "gemini"
+            model = str(getattr(self.config, "model_name", "") or "deepseek-v4-flash-vision-exp")
+            source = "deepseek"
             try_mint_picture_hid_from_context(
                 context,
                 frame_seq=frame_seq,

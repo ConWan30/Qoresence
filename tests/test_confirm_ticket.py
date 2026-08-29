@@ -1,4 +1,4 @@
-"""Confirm ticket: Gemini lock licenses score speech."""
+"""Confirm ticket: DeepSeek lock licenses score speech."""
 
 from __future__ import annotations
 

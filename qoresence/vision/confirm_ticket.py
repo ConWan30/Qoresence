@@ -1,8 +1,8 @@
-"""Confirm ticket — Gemini visual lock that licenses score speech.
+"""Confirm ticket — DeepSeek visual lock that licenses score speech.
 
 Observation plane only. Not a humanity proof. Not a chain receipt.
 Nemotron / Society / confirm-chat may emit score digits only when they
-cite a live ticket minted from a Gemini board lock.
+cite a live ticket minted from a DeepSeek board lock.
 """
 
 from __future__ import annotations
@@ -18,10 +18,13 @@ DOMAIN = "QORESENCE-CONFIRM-TICKET-v0"
 SCORE_PAIR = re.compile(r"\b(\d{1,2})\s*[-–—]\s*(\d{1,2})\b")
 
 # Seeing-path sources (VLM / OCR scorebug) that license score_vlm_locked
-SEEING_PATH_SOURCES = frozenset({"gemini", "quicksilver", "easyocr_scorebug"})
+SEEING_PATH_SOURCES = frozenset({"deepseek", "gemini", "quicksilver", "easyocr_scorebug"})
 
 # Source aliases for normalization
 SOURCE_ALIASES = {
+    "deepseek_scoreboard": "deepseek",
+    "deepseek-vlm": "deepseek",
+    "ds-vision": "deepseek",
     "gemini_scoreboard": "gemini",
     "qs": "quicksilver",
     "easyocr": "easyocr_scorebug",
@@ -58,8 +61,8 @@ class ConfirmTicket:
     clock_ns: int
     home_score: int | None
     away_score: int | None
-    model: str = "gemini-3.5-flash-lite"
-    source: str = "gemini"
+    model: str = "deepseek-v4-flash-vision-exp"
+    source: str = "deepseek"
     frame_seq: int | None = None
     crop_hash: str = ""
     quarter: int | None = None
@@ -84,8 +87,8 @@ def mint_confirm_ticket(
     clock_ns: int,
     home_score: int | None,
     away_score: int | None,
-    model: str = "gemini-3.5-flash-lite",
-    source: str = "gemini",
+    model: str = "deepseek-v4-flash-vision-exp",
+    source: str = "deepseek",
     frame_seq: int | None = None,
     crop_hash: str = "",
     quarter: int | None = None,
@@ -106,7 +109,7 @@ def mint_confirm_ticket(
         "clock_ns": int(clock_ns or 0),
         "home_score": hs,
         "away_score": aws,
-        "model": str(model or "gemini-3.5-flash-lite"),
+        "model": str(model or "deepseek-v4-flash-vision-exp"),
         "source": normalized_source,
         "frame_seq": _norm_int(frame_seq),
         "crop_hash": str(crop_hash or ""),

@@ -86,7 +86,7 @@ def _may_mint_lock(ctx: VisualContext | None) -> bool:
 
 
 def _vlm_board_grounded(vlm: dict[str, Any] | None) -> bool:
-    """True when Gemini reported this match's scorebug, not a lone invented pair.
+    """True when DeepSeek reported this match's scorebug, not a lone invented pair.
 
     HUD blob reads fail on 640×480 Madden, so a grounded gameplay referee must
     be allowed to mint without local digits. Bare ``home/away`` (+ optional
@@ -353,7 +353,7 @@ class FootballScoreboardExtractor:
         except Exception:
             pass
 
-        # Smarter Gemini board cadence (does not block) — not every frame
+        # Smarter DeepSeek board cadence (does not block) — not every frame
         try:
             from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
 
@@ -535,13 +535,33 @@ class FootballScoreboardExtractor:
                         except (TypeError, ValueError):
                             return None
 
+                    # Resolve model and source from VLM referee or context
+                    vlm_model = None
+                    if vlm:
+                        try:
+                            from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+                            vlm_model = get_scoreboard_vlm().model
+                        except Exception:
+                            pass
+                    model_str = str(
+                        vlm_model
+                        or getattr(ctx, "model", "")
+                        or "deepseek-v4-flash-vision-exp"
+                    )
+                    # Infer source from model string
+                    source_str = "deepseek"
+                    if "gemini" in model_str.lower():
+                        source_str = "gemini"
+                    elif "quicksilver" in model_str.lower():
+                        source_str = "quicksilver"
+
                     ticket = mint_confirm_ticket(
                         session_id=str(getattr(ctx, "session_id", "") or ""),
                         clock_ns=int(stamp.get("clock_ns") or _time_ticket.monotonic_ns()),
                         home_score=int(sh),
                         away_score=int(sa),
-                        model=str(getattr(ctx, "model", "") or "gemini-3.5-flash-lite"),
-                        source="gemini",
+                        model=model_str,
+                        source=source_str,
                         frame_seq=_ti(stamp.get("seq")),
                         crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
                         quarter=_ti(parsed.get("quarter")),
