@@ -39,23 +39,18 @@ Isolated the test by monkeypatching `qoresence.agents.session_timeline.get_sessi
 
 - `main` left at: `85e8fb2d421002ef80ec65b3a0d7dca0b3be7731`
 - `feat/madden-control-labels` old HEAD: `f6adcc219aec4e96f5e35fb015030f2ff37a4a03`
-- `feat/madden-control-labels` new HEAD: `2b55240aea7eb7efbcb98bb82d80c879e9dda35a`
+- `feat/madden-control-labels` isolation HEAD: `4aee77068fc3bcdb787cacbd75180ef3686902e0`
 
-## Lint
+## Addendum — CI-GATE-2 (2026-08-29)
 
-Did NOT run `ruff --fix` repo-wide.  
-Pre-existing W293/F401/F841 on seeing-path / session-recap / sheet-conflict remain HOLD.
+Next `-x` stopper after isolation: `tests/test_civif_invariants.py::test_civif_live_and_highlights_run_inline_not_threadpooled`
+
+`create_app()` returns `None` when FastAPI is missing. CI installs FastAPI *after* the main pytest job (`pip install fastapi httpx` in Glass SPA land hygiene). The test now reads `/api/civif/live` from `qoresence/deck/server.py` source, same as `test_civif_disk_routes_stay_threadpooled`. Product routes unchanged.
+
+Lint: `qoresence.core` now exports `CFB_27_PROFILE` and `profile_from_title`. Isolation W293 stripped. Remaining pre-existing ruff on other files still being landed. No `ci.yml` change. No glass paint. No merge.
 
 ## CI
 
 - `pytest -x` remains enabled in `.github/workflows/ci.yml`
 - Test `test_coupling_min_uses_sidecar` now passes
-- CI gate for PR #105 can proceed
-
-## Verification Steps
-
-1. `pytest tests/test_civif_index.py::test_coupling_min_uses_sidecar -q` → PASS
-2. `pytest tests/test_civif_index.py -q` → PASS
-3. `pytest tests/test_madden_controls_observation.py tests/test_mcp.py -q` → PASS
-4. `git diff` confirms no changes to `.github/workflows/ci.yml`, `qoresence/foundry/index.py`, or `glass/`
-5. No secrets in diff
+- CIVIF live route test no longer requires FastAPI at pytest time
