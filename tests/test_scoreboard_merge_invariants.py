@@ -374,8 +374,9 @@ def test_ocr_home_left_override(monkeypatch):
     # OCR path needs consensus; run twice to satisfy the stabilizer need=2.
     for _ in range(2):
         out = ext.extract(_blank_frame(), ctx)
-    assert out.home_score == 20
-    assert out.away_score == 0
+    assert out.home_score is None  # no seeing-path remint
+    assert out.away_score is None  # no seeing-path remint
+    assert out.score_vlm_locked is False
     assert out.home_left is True
 
 
