@@ -1215,7 +1215,6 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             enabled=True,
             prefer_local=bool(getattr(args, "visual_prefer_local", False)),
             local_fallback=True,
-            model_name="gemini-3.5-flash-lite",
             frame_sample_rate=args.visual_sample_rate,
             game_profile=args.game_profile or config.visual.game_profile,
         )
@@ -1343,7 +1342,6 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             enabled=True,
             prefer_local=bool(getattr(args, "visual_prefer_local", False)),
             local_fallback=True,
-            model_name="gemini-3.5-flash-lite",
             frame_sample_rate=args.visual_sample_rate,
             game_profile=getattr(args, "game_profile", None) or config.visual.game_profile,
             **_vlm_extra,
@@ -2142,7 +2140,6 @@ def main():
                         enabled=True,
                         prefer_local=bool(getattr(args, "visual_prefer_local", False)),
                         local_fallback=True,
-                        model_name="gemini-3.5-flash-lite",
                         frame_sample_rate=getattr(
                             args, "visual_sample_rate", config.visual.frame_sample_rate
                         ),
