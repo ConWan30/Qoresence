@@ -208,7 +208,8 @@ def test_situation_model_sets_game_profile_from_visual_context():
     )
     sm.update(event)
     state = sm.to_dict()
-    assert state["game_profile"] == "ncaa_football_27"
+    # NCAA/college title is mapped to canonical cfb_27 profile per 2026-08-29 fix
+    assert state["game_profile"] == "cfb_27"
     assert state["game_title"] == "NCAA College Football 27"
 
 
