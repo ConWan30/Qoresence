@@ -133,8 +133,8 @@ class TestOffenseDefenseSheetMapping:
 class TestR2VerbDifferentiation:
     """Test that R2 shows different verbs for offense vs defense sheets."""
 
-    def test_r2_offense_snap_ball(self):
-        """R2 + offense phase → Snap Ball (Madden)."""
+    def test_r2_offense_show_play_art(self):
+        """R2 + offense phase → Show Play Art (Madden)."""
         from qoresence.observation.madden_controls import MaddenControlLookup
 
         lookup = MaddenControlLookup()
@@ -146,7 +146,7 @@ class TestR2VerbDifferentiation:
         mode = lookup.map_game_state_to_mode(ctx)
         assert mode == "preplay_offense"
         verb = lookup.lookup_verb("R2", mode)
-        assert "Snap Ball" in verb
+        assert "Show Play Art" in verb
 
     def test_r2_defense_xfactor_vision(self):
         """R2 + defense phase → X-Factor Vision (Madden)."""
@@ -163,8 +163,8 @@ class TestR2VerbDifferentiation:
         verb = lookup.lookup_verb("R2", mode)
         assert "X-Factor Vision" in verb
 
-    def test_r2_cfb_offense_snap_ball(self):
-        """R2 + offense phase → Snap Ball (CFB)."""
+    def test_r2_cfb_offense_show_playart(self):
+        """R2 + offense phase → Show Playart (CFB)."""
         from qoresence.observation.cfb_controls import CfbControlLookup
 
         lookup = CfbControlLookup()
@@ -176,10 +176,10 @@ class TestR2VerbDifferentiation:
         mode = lookup.map_game_state_to_mode(ctx)
         assert mode == "preplay_offense"
         verb = lookup.lookup_verb("R2", mode)
-        assert "Snap Ball" in verb
+        assert "Show Playart" in verb
 
-    def test_r2_cfb_defense_xfactor_vision(self):
-        """R2 + defense phase → X-Factor Vision (CFB)."""
+    def test_r2_cfb_defense_show_playart(self):
+        """R2 + defense phase → Show Playart (CFB)."""
         from qoresence.observation.cfb_controls import CfbControlLookup
 
         lookup = CfbControlLookup()
@@ -191,7 +191,7 @@ class TestR2VerbDifferentiation:
         mode = lookup.map_game_state_to_mode(ctx)
         assert mode == "preplay_defense"
         verb = lookup.lookup_verb("R2", mode)
-        assert "X-Factor Vision" in verb
+        assert "Show Playart" in verb
 
 
 class TestScoreboardVLMPossession:
