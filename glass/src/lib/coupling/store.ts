@@ -643,6 +643,18 @@ export const useTheater = create<TheaterState>((set, get) => ({
           stickyHidSource: ing.observation.hidSource ?? null,
         });
       }
+    } else if (ing.padHeld.length > 0) {
+      // FALLBACK: show raw hid button name from controller.buttons when observation.hidButton is null.
+      // Fast path: no confirm required for the RAW name. Only first button (no combos).
+      const rawButton = ing.padHeld[0];
+      if (rawButton && !rawButton.includes("+") && !rawButton.includes(",")) {
+        set({
+          stickyHidButton: rawButton,
+          stickyHidButtonVerb: null,
+          stickyHidButtonAt: Date.now(),
+          stickyHidSource: "usb",
+        });
+      }
     }
     if (clutchAdvanced(s.clutch, clutch)) {
       get().ingestMoment({

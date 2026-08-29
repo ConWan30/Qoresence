@@ -342,4 +342,90 @@ describe("Observatory sticky hidButton", () => {
     expect(state.stickyHidButtonVerb).toBe("Snap Ball");
     expect(state.stickyHidSource).toBe("picture");
   });
+
+  it("FALLBACK: shows raw button from padHeld when observation.hidButton is null", () => {
+    const now = Date.now();
+    vi.setSystemTime(now);
+
+    useTheater.getState().ingestDeck({
+      observation: {
+        frameSeq: 1,
+        clockNs: 0,
+        hidButton: null,
+        verb: null,
+        mode: null,
+        visualPhase: null,
+        gameProfile: null,
+        conflict: null,
+      },
+      padHeld: ["r2_btn"],
+      padConnected: true,
+      padReports: 10,
+      paint: true,
+      sameSeq: true,
+      planeDim: false,
+    } as any);
+
+    const state = useTheater.getState();
+    expect(state.stickyHidButton).toBe("r2_btn");
+    expect(state.stickyHidButtonVerb).toBe(null);
+    expect(state.stickyHidSource).toBe("usb");
+    expect(state.stickyHidButtonAt).toBe(now);
+  });
+
+  it("FALLBACK: only shows first button from padHeld, no combos", () => {
+    const now = Date.now();
+    vi.setSystemTime(now);
+
+    useTheater.getState().ingestDeck({
+      observation: {
+        frameSeq: 1,
+        clockNs: 0,
+        hidButton: null,
+        verb: null,
+        mode: null,
+        visualPhase: null,
+        gameProfile: null,
+        conflict: null,
+      },
+      padHeld: ["l2", "r2"],
+      padConnected: true,
+      paint: true,
+      sameSeq: true,
+      planeDim: false,
+    } as any);
+
+    const state = useTheater.getState();
+    expect(state.stickyHidButton).toBe("l2");
+    expect(state.stickyHidButtonVerb).toBe(null);
+  });
+
+  it("FALLBACK: prefers observation.hidButton over padHeld when both exist", () => {
+    const now = Date.now();
+    vi.setSystemTime(now);
+
+    useTheater.getState().ingestDeck({
+      observation: {
+        frameSeq: 1,
+        clockNs: 0,
+        hidButton: "Cross",
+        verb: "Snap Ball",
+        mode: "preplay_offense",
+        visualPhase: "huddle_offense",
+        gameProfile: "madden_27",
+        hidSource: "usb_observe",
+        conflict: null,
+      },
+      padHeld: ["cross"],
+      padConnected: true,
+      paint: true,
+      sameSeq: true,
+      planeDim: false,
+    } as any);
+
+    const state = useTheater.getState();
+    expect(state.stickyHidButton).toBe("Cross");
+    expect(state.stickyHidButtonVerb).toBe("Snap Ball");
+    expect(state.stickyHidSource).toBe("usb_observe");
+  });
 });
