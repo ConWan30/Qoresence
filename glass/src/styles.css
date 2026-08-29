@@ -266,6 +266,10 @@ html.obs-lens body {
   background: color-mix(in oklab, var(--color-primary) 10%, transparent);
 }
 
+.glass-nav a:active {
+  transform: translateY(1px);
+}
+
 .glass-nav a:focus-visible {
   outline: 2px solid var(--color-live);
   outline-offset: 2px;

@@ -21,7 +21,7 @@ body.qore-has-clip-dock{padding-bottom:0}
 #qore-clip-dock a.civif{
   border-radius:4px;padding:5px 10px;font:500 12px/1 'Instrument Sans',system-ui,sans-serif;
   text-transform:none;text-decoration:none;letter-spacing:0;
-  background:color-mix(in oklab,#12151e 80%,transparent);color:#8b90a0;
+  background:color-mix(in oklab,#12151e 80%,transparent);color:#8ea396;
   box-shadow:0 0 0 1px color-mix(in oklab,#8b90a0 22%,transparent);
 }
 #qore-clip-dock a.civif:hover{color:#e8eaf2;background:color-mix(in oklab,#9be7ff 10%,transparent)}
