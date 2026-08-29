@@ -563,10 +563,47 @@ class FootballScoreboardExtractor:
                 and _may_mint_lock(ctx, vlm)
                 and not _ScoreStabilizer._looks_suspicious_pair((raw_h, raw_a))
             ):
-                # Vision referee is trusted — force lock after a single coherent pair
-                stab._stable = (int(raw_h), int(raw_a))
-                stab._recent.clear()
-                stab._recent.append((int(raw_h), int(raw_a)))
+                # Check identity compatibility with prior lock before allowing 0-0
+                # after identity swap (DAL-NO must not become IND-DET with 0-0)
+                allow_lock = True
+                if int(raw_h or 0) == 0 and int(raw_a or 0) == 0:
+                    # 0-0 after identity swap must fail closed
+                    try:
+                        from qoresence.profiles.cfb27_product import identity_compatible
+                        from qoresence.vision.confirm_ticket import get_ticket_book
+                        
+                        prior_ticket = get_ticket_book().latest()
+                        if prior_ticket is not None:
+                            # Get new identity from context
+                            new_home = str(getattr(ctx, "home_team", "") or "")
+                            new_away = str(getattr(ctx, "away_team", "") or "")
+                            # Get prior identity from prior ticket
+                            prior_home = str(prior_ticket.home_team or "")
+                            prior_away = str(prior_ticket.away_team or "")
+                            
+                            # If both prior and new have identity, check compatibility
+                            if (prior_home or prior_away) and (new_home or new_away):
+                                profile = str(getattr(ctx, "game_profile", "") or "")
+                                id_ok = identity_compatible(
+                                    prior_home, prior_away, new_home, new_away, profile=profile
+                                )
+                                if not id_ok:
+                                    # Identity incompatible + 0-0 → refuse lock (fail-closed)
+                                    allow_lock = False
+                                    log.info(
+                                        "refuse 0-0 lock after identity swap: %s-%s → %s-%s",
+                                        prior_home, prior_away, new_home, new_away
+                                    )
+                    except Exception as e:
+                        # If identity check fails, refuse 0-0 to be safe (fail-closed)
+                        log.debug("identity check failed for 0-0, refuse lock: %s", e)
+                        allow_lock = False
+                
+                if allow_lock:
+                    # Vision referee is trusted — force lock after a single coherent pair
+                    stab._stable = (int(raw_h), int(raw_a))
+                    stab._recent.clear()
+                    stab._recent.append((int(raw_h), int(raw_a)))
                 sh, sa = stab._stable
                 # Fail-closed: score_vlm_locked only after ConfirmTicket mint succeeds.
                 locked_ok = False

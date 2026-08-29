@@ -67,6 +67,8 @@ class ConfirmTicket:
     crop_hash: str = ""
     quarter: int | None = None
     down: int | None = None
+    home_team: str = ""
+    away_team: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -130,6 +132,8 @@ def mint_confirm_ticket(
         clock_ns=int(clock_ns or 0),
         home_score=hs,
         away_score=aws,
+        home_team=str(home_team or "").strip().upper(),
+        away_team=str(away_team or "").strip().upper(),
         model=str(model or "deepseek-v4-flash-vision-exp"),
         source=normalized_source,
         frame_seq=_norm_int(frame_seq),
