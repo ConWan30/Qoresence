@@ -37,3 +37,7 @@ A verb is an EA sheet label. It is not a snap, catch, score, possession, or elig
 - tests/test_madden_controls_observation.py
 - tests/test_mcp.py
 - docs/build_receipts/MADDEN_CONTROL_LABELS.md
+
+## Local green
+
+head=3ce65fea692389b4e1d4f14c0fdd0243e8eaa4fa
