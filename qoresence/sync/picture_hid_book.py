@@ -52,6 +52,37 @@ class PictureHidBook:
         """Fail-closed: ticket for this seq only — never reuse another frame."""
         return self.get(frame_seq)
 
+    def latest_nearby(
+        self,
+        frame_seq: int | None,
+        *,
+        max_age_seq: int = 90,
+    ) -> PictureHidTicket | None:
+        """HUD legend from sparse VLM: exact seq, else the newest ticket not older than max_age_seq.
+
+        Bind/Ghost still use hid_by_seq exact. This is observation-only so Preplay
+        does not vanish for 89 frames between 1.5s scoreboard VLM ticks.
+        """
+        exact = self.get(frame_seq)
+        if exact is not None:
+            return exact
+        if frame_seq is None:
+            return None
+        try:
+            seq = int(frame_seq)
+        except (TypeError, ValueError):
+            return None
+        window = max(1, int(max_age_seq))
+        with self._lock:
+            best: PictureHidTicket | None = None
+            best_d = window + 1
+            for s, ticket in self._by_seq.items():
+                d = seq - int(s)
+                if 0 <= d <= window and d < best_d:
+                    best = ticket
+                    best_d = d
+            return best
+
     def clear(self) -> None:
         with self._lock:
             self._by_seq.clear()

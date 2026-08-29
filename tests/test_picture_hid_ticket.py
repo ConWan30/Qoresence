@@ -152,6 +152,10 @@ def test_book_exact_seq_fail_closed():
     assert book.latest_live(10) is t
     assert book.latest_live(11) is None
     assert book.get(None) is None
+    assert book.latest_nearby(10) is t
+    assert book.latest_nearby(40) is t
+    assert book.latest_nearby(101) is None
+    assert book.latest_nearby(9) is None
 
 
 def test_try_mint_from_context_puts_book():

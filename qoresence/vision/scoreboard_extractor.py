@@ -74,15 +74,25 @@ def _fix_digits_in(token: str) -> str:
     return token.translate(mapping)
 
 
-def _may_mint_lock(ctx: VisualContext | None) -> bool:
-    """New locks only during gameplay. Menu/end screens invented 3-2."""
+def _may_mint_lock(ctx: VisualContext | None, vlm: dict[str, Any] | None = None) -> bool:
+    """New locks during gameplay, or on football HUD when classifier says menu.
+
+    Play-call / pause still paints the match scorebug. Refusing mint there
+    left confirm empty while DeepSeek already had NO 0 / DAL 10.
+    """
     if ctx is None:
         return False
     try:
         gst = str(getattr(ctx.game_state, "value", None) or ctx.game_state or "").lower()
     except Exception:
         gst = ""
-    return gst in {"", "gameplay", "playing", "in_game"}
+    if gst in {"", "gameplay", "playing", "in_game"}:
+        return True
+    if not _vlm_board_grounded(vlm):
+        return False
+    profile = str(getattr(ctx, "game_profile", "") or "").lower()
+    title = str(getattr(ctx, "game_title", "") or "").lower()
+    return any(k in profile or k in title for k in ("madden", "cfb", "football", "ncaa"))
 
 
 def _vlm_board_grounded(vlm: dict[str, Any] | None) -> bool:
@@ -445,8 +455,36 @@ class FootballScoreboardExtractor:
         if vlm and not local_board and not _vlm_board_grounded(vlm):
             # Bare scores with no wordmarks/clock invented this morning's 3-2.
             # Grounded gameplay Gemini may still lock when HUD blobs miss.
+            # Keep visible_control so picture HID can still mint from this tick.
+            _vc_only = vlm.get("visible_control") if isinstance(vlm, dict) else None
             vlm = None
+            if isinstance(_vc_only, dict) and (_vc_only.get("button") or _vc_only.get("glyph")):
+                vlm = {"visible_control": _vc_only}
         if vlm:
+            try:
+                from qoresence.monitor.frame_hub import get_latest_stamp
+                from qoresence.vision.picture_hid_ticket import try_mint_picture_hid_from_context
+                from qoresence.vision.scoreboard_vlm import SCOREBOARD_MODEL
+
+                stamp = get_latest_stamp() or {}
+                try:
+                    _gst = getattr(ctx.game_state, "value", None) or str(ctx.game_state or "")
+                except Exception:
+                    _gst = ""
+                try_mint_picture_hid_from_context(
+                    {
+                        "game_state": _gst,
+                        "game_profile": getattr(ctx, "game_profile", None),
+                        "visible_control": vlm.get("visible_control"),
+                    },
+                    frame_seq=stamp.get("seq"),
+                    clock_ns=int(stamp.get("clock_ns") or 0),
+                    source="deepseek",
+                    model=SCOREBOARD_MODEL,
+                )
+            except Exception:
+                pass
+        if vlm and (vlm.get("home_score") is not None or vlm.get("away_score") is not None):
             # Only merge when VLM actually read a board — never wipe a good
             # lock with a later None-None (transition frames / blur).
             vlm_has_board = vlm.get("home_score") is not None and vlm.get("away_score") is not None
@@ -508,7 +546,7 @@ class FootballScoreboardExtractor:
             if (
                 vlm_scores
                 and (local_board or _vlm_board_grounded(vlm))
-                and _may_mint_lock(ctx)
+                and _may_mint_lock(ctx, vlm)
                 and not _ScoreStabilizer._looks_suspicious_pair((raw_h, raw_a))
             ):
                 # Vision referee is trusted — force lock after a single coherent pair

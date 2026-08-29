@@ -46,6 +46,20 @@ test("viewport law: theater-page.tsx must not have overflow-y: auto on main", ()
   );
 });
 
+test("viewport law: LIVE rail mounts SituationCard then ClutchFeed", () => {
+  const theaterPagePath = join(GLASS_ROOT, "src/components/theater/theater-page.tsx");
+  const theaterPage = readFileSync(theaterPagePath, "utf-8");
+  const sit = theaterPage.indexOf("<SituationCard");
+  const clutch = theaterPage.indexOf("<ClutchFeed");
+  assert.ok(sit > -1, "SituationCard (scorebug plate) must be on the LIVE rail");
+  assert.ok(clutch > -1, "ClutchFeed must stay on the LIVE rail");
+  assert.ok(sit < clutch, "SituationCard must sit above ClutchFeed");
+  assert.ok(
+    !theaterPage.includes("<AgentRail"),
+    "Receipt / AgentRail stays out of the LIVE rail",
+  );
+});
+
 test("viewport law: theater-page.tsx first viewport must be the HDMI stage", () => {
   const theaterPagePath = join(GLASS_ROOT, "src/components/theater/theater-page.tsx");
   const theaterPage = readFileSync(theaterPagePath, "utf-8");

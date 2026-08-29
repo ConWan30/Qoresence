@@ -228,6 +228,18 @@ class DeckState:
             out["confirm"] = get_ticket_book().mismatch()
         except Exception:
             out["confirm"] = {"last_fast": None, "last_confirm": None, "lag_ns": None}
+        try:
+            from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+
+            out["scoreboard_vlm"] = get_scoreboard_vlm().stats()
+        except Exception:
+            out["scoreboard_vlm"] = {"enabled": False}
+        try:
+            from qoresence.operator_bus.mailbox import get_operator_mailbox
+
+            out["operator_bus"] = get_operator_mailbox().stats()
+        except Exception:
+            out["operator_bus"] = {"inbox": 0, "outbox": 0}
         if controller:
             out["controller"] = controller
         # Session timeline why-strip / active drive (optional)
@@ -916,6 +928,56 @@ def create_app():  # type: ignore[no-untyped-def]
         from fastapi.staticfiles import StaticFiles
 
         app.mount("/assets", StaticFiles(directory=str(_gassets)), name="glass-assets")
+
+    @app.get("/api/operator/bus")
+    def api_operator_bus_get():  # type: ignore[no-untyped-def]
+        """Peek operator RCP mailbox. Enqueue-only sibling of A2A — no Retina emit."""
+        try:
+            from qoresence.operator_bus.mailbox import get_operator_mailbox
+
+            box = get_operator_mailbox()
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "schema": "qoresence-operator-bus-1",
+                    "plane": "qoresence-observation",
+                    "stats": box.stats(),
+                    "inbox": box.peek_inbox(20),
+                    "outbox": box.peek_outbox(20),
+                }
+            )
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.post("/api/operator/bus")
+    async def api_operator_bus_post(request: Request):  # type: ignore[no-untyped-def]
+        """Enqueue one RCP envelope into inbox. Never emit_raw."""
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"ok": False, "error": "json required"}, status_code=400)
+        try:
+            from qoresence.operator_bus.mailbox import get_operator_mailbox
+
+            env = get_operator_mailbox().enqueue_inbox(body if isinstance(body, dict) else {})
+            return JSONResponse({"ok": True, "id": env.id, "envelope": env.to_dict()})
+        except ValueError as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/api/operator/bus/prompt")
+    def api_operator_bus_prompt():  # type: ignore[no-untyped-def]
+        from qoresence.operator_bus.prompt import QOECTOR_BUS_PROMPT
+
+        return JSONResponse(
+            {
+                "ok": True,
+                "from": "grok-build",
+                "to": "qorector",
+                "prompt": QOECTOR_BUS_PROMPT,
+            }
+        )
 
     @app.get("/health")
     def health():  # type: ignore[no-untyped-def]
