@@ -654,6 +654,7 @@ class FootballScoreboardExtractor:
                 "right_team",
                 "right_color",
                 "right_logo",
+                "possession_side",
             ):
                 if vlm.get(k):
                     parsed[k] = vlm[k]
@@ -665,6 +666,41 @@ class FootballScoreboardExtractor:
             apply_identity_to_context(ctx, parsed)
         except Exception:
             pass
+        
+        # Enrich visual_phase with possession-based offense/defense (fail-closed)
+        try:
+            from qoresence.observation.sheet_from_picture import infer_offense_defense_from_possession
+            
+            possession_side = parsed.get("possession_side")
+            home_left_val = parsed.get("home_left")
+            
+            if possession_side is not None and home_left_val is not None:
+                # Store possession_side in ctx for downstream use
+                ctx.possession = "home" if (
+                    (possession_side == "left" and home_left_val) or
+                    (possession_side == "right" and not home_left_val)
+                ) else "away"
+                
+                # For sheet licensing: assume we're controlling home team by default
+                # (this can be overridden by situation/profile config if needed)
+                is_home_team = True  # TODO: get from situation or profile
+                
+                # Infer offense/defense from possession
+                offense_defense = infer_offense_defense_from_possession(
+                    {"possession_side": possession_side, "home_left": home_left_val},
+                    is_home_team=is_home_team,
+                )
+                
+                if offense_defense and isinstance(ctx.details, dict):
+                    ctx.details["visual_phase"] = offense_defense
+                    log.debug(
+                        "enriched visual_phase=%s from possession=%s (home_left=%s)",
+                        offense_defense,
+                        possession_side,
+                        home_left_val,
+                    )
+        except Exception as e:
+            log.debug("possession-based visual_phase enrichment skipped: %s", e)
         try:
             from qoresence.profiles.nfl_roster import apply_roster_to_context
 
