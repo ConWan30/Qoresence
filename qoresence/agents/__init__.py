@@ -12,6 +12,7 @@ from .drive_graph import DriveGraph, active_drive_graph
 from .eventsub_client import TwitchEventSubClient
 from .fast_moment import FastMomentEngine
 from .helix_client import TwitchHelixClient
+from .match_agent import MatchAgent, start_match_agent, stop_match_agent
 from .moment_scorer import MomentScorer
 from .prediction_lifecycle import PredictionLifecycleManager, get_prediction_lifecycle
 from .session_memory import SessionMemory
@@ -21,6 +22,9 @@ from .twitch_client import TwitchIRCClient
 
 __all__ = [
     "ClutchBotAgent",
+    "MatchAgent",
+    "start_match_agent",
+    "stop_match_agent",
     "TwitchIRCClient",
     "TwitchHelixClient",
     "TwitchEventSubClient",

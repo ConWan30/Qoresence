@@ -48,3 +48,11 @@ def test_confirm_chat_ok_with_confirm_ticket():
 
 def test_unknown_path_silent():
     assert outbound_chat_allowed(path="ambient", coupling_ticket=object()) is False
+
+
+def test_fast_chat_ok_with_picture_hid_ticket():
+    assert outbound_chat_allowed(path="fast", picture_ticket=object()) is True
+
+
+def test_fast_chat_silent_without_coupling_or_picture():
+    assert outbound_chat_allowed(path="fast") is False

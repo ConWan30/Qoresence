@@ -549,6 +549,14 @@ class ClutchBotConfig:
 
 
 @dataclass(frozen=True)
+class MatchAgentConfig:
+    """Match-observer agent. Default OFF. Quicksilver DeepSeek v4 like ClutchBot."""
+
+    enabled: bool = False
+    poll_s: float = 1.0
+
+
+@dataclass(frozen=True)
 class FusionWeights:
     """Weights for the presence fusion engine (must sum to 1.0)."""
 
@@ -720,6 +728,7 @@ class RetinaUnifiedConfig:
     visual: VisualConfig = field(default_factory=VisualConfig)
     game_detection: GameDetectionConfig = field(default_factory=GameDetectionConfig)
     clutchbot: ClutchBotConfig = field(default_factory=ClutchBotConfig)
+    match_agent: MatchAgentConfig = field(default_factory=MatchAgentConfig)
     agent_glass: AgentGlassConfig = field(default_factory=AgentGlassConfig)
     studio: StudioConfig = field(default_factory=StudioConfig)
     society: object = field(default_factory=lambda: __import__(
@@ -1031,6 +1040,10 @@ class RetinaUnifiedConfig:
                 deck_port=_int("QORESENCE_DECK_PORT", 8765),
                 llm_max_tokens=_int("QORESENCE_CLUTCHBOT_LLM_MAX_TOKENS", 256),
                 twitch=_twitch(),
+            ),
+            match_agent=MatchAgentConfig(
+                enabled=_bool("QORESENCE_MATCH_AGENT"),
+                poll_s=_float("QORESENCE_MATCH_AGENT_POLL_S", 1.0),
             ),
             agent_glass=AgentGlassConfig(
                 enabled=_bool("QORESENCE_AGENT_GLASS_ENABLED"),
