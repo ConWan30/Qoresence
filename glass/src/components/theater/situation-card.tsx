@@ -43,8 +43,10 @@ export function SituationCard() {
       <p
         data-situation={line || fallback}
         className={cn(
-          "font-display text-xl font-extrabold leading-snug tracking-tight",
-          line ? "text-fg" : "text-muted-foreground"
+          // Digits AND empty glyphs share IBM Plex Mono tabular-nums so a lock
+          // is a fill, not a restyle. Never paint scores in Sans.
+          "font-mono text-lg font-semibold tabular-nums leading-snug tracking-tight",
+          line ? "text-fg" : "text-muted-foreground",
         )}
       >
         {line || fallback}

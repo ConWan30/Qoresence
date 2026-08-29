@@ -69,7 +69,6 @@ export function CommandBar() {
   const boardLine = useTheater((s) => s.boardLine);
   const situation = useTheater((s) => s.situation);
   const gameTitle = useTheater((s) => s.gameTitle);
-  const vlmLocked = useTheater((s) => s.agentPlane.vlmLocked);
   const heatVetoed = useTheater((s) => s.heatVetoed);
   const padConnected = useTheater((s) => s.padConnected);
   const padName = useTheater((s) => s.padName);
@@ -279,9 +278,6 @@ export function CommandBar() {
             </span>
             <span data-monitor={deckLive ? "live" : "wait"} className={deckLive ? "text-live" : ""}>
               {deckLive ? "MONITOR LIVE" : "MONITOR WAIT"}
-            </span>
-            <span data-vlm={vlmLocked ? "lock" : "wait"} className={vlmLocked ? "text-live" : ""}>
-              {vlmLocked ? "VLM LOCK" : "VLM WAIT"}
             </span>
             <span data-sync={licensed && pllLock ? "lock" : "open"} className={licensed && pllLock ? "text-sync" : ""}>
               SYNC {licensed && pllLock ? `${syncLagMs}ms` : "—"}{licensed && bindKind ? ` · ${bindKind}` : ""}
