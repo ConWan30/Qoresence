@@ -3,11 +3,7 @@ import { CommandBar } from "@/components/theater/command-bar";
 import { HdmiStage } from "@/components/theater/hdmi-stage";
 import { ObservatoryHUD } from "@/components/theater/observatory-hud";
 import { IntelligenceChamber } from "@/components/theater/intelligence-chamber";
-import { SituationCard } from "@/components/theater/situation-card";
 import { ClutchFeed } from "@/components/theater/clutch-feed";
-import { ConnectCard } from "@/components/theater/connect-card";
-import { PadSyncCard } from "@/components/theater/pad-sync-card";
-import { CouplingCard } from "@/components/theater/coupling-card";
 import { useTheaterLoop } from "@/lib/coupling/loop";
 
 export function TheaterPage() {
@@ -42,13 +38,9 @@ export function TheaterPage() {
           </div>
         </div>
 
-        {/* RIGHT: Intelligence column - always visible, no page scroll */}
+        {/* RIGHT: Intelligence column - clutch feed only */}
         <aside className="flex min-h-0 w-full min-w-[18rem] max-w-[21rem] flex-col gap-3 sm:gap-4">
-          <SituationCard />
           <ClutchFeed />
-          <ConnectCard />
-          <PadSyncCard />
-          <CouplingCard />
         </aside>
       </div>
 
