@@ -511,3 +511,70 @@ def test_deck_html_fmt_gates_unlocked_digits():
     )
     assert "score_vlm_locked||s.scoreboard_locked||s.confirm_ticket_id" in html
     assert "locked&&s.home_score!=null" in html.replace(" ", "")
+
+
+def test_identity_hysteresis_adopt_on_new_licensed_lock():
+    """New licensed lock with incompatible identity adopts incoming identity.
+    
+    Regression test for identity hysteresis: when a licensed score arrives with
+    a new confirm_ticket_id and incompatible team identity, the SituationModel
+    must adopt the new identity instead of retaining the old one.
+    
+    Scenario: MEM/COLO 21-17 locked → incoming IND/DET 0-0 Q1 with new ticket
+    Expected: situation wordmarks become IND/DET, not leftover MEM/COLO.
+    """
+    sm = SituationModel()
+    
+    # First: lock MEM/COLO with 21-17
+    sm.update(
+        _visual_context_event(
+            {
+                "game_category": "football",
+                "game_state": "gameplay",
+                "home_score": 21,
+                "away_score": 17,
+                "home_team": "MEM",
+                "away_team": "COLO",
+                "home_team_name": "Memphis",
+                "away_team_name": "Colorado",
+                "score_vlm_locked": True,
+                "confirm_ticket_id": "ticket-mem-colo",
+            }
+        )
+    )
+    assert sm.state.home_team == "MEM"
+    assert sm.state.away_team == "COLO"
+    assert sm.state.home_team_name == "Memphis"
+    assert sm.state.away_team_name == "Colorado"
+    assert (sm.state.home_score, sm.state.away_score) == (21, 17)
+    assert sm.state.score_vlm_locked is True
+    assert sm.state.confirm_ticket_id == "ticket-mem-colo"
+    
+    # Second: new licensed lock IND/DET 0-0 Q1 with new ticket (incompatible identity)
+    sm.update(
+        _visual_context_event(
+            {
+                "game_category": "football",
+                "game_state": "gameplay",
+                "quarter": 1,
+                "home_score": 0,
+                "away_score": 0,
+                "home_team": "IND",
+                "away_team": "DET",
+                "home_team_name": "Colts",
+                "away_team_name": "Lions",
+                "score_vlm_locked": True,
+                "confirm_ticket_id": "ticket-ind-det",
+            }
+        )
+    )
+    
+    # Assert: identity should be updated to IND/DET, not stuck on MEM/COLO
+    assert sm.state.home_team == "IND", "home_team should update to IND"
+    assert sm.state.away_team == "DET", "away_team should update to DET"
+    assert sm.state.home_team_name == "Colts", "home_team_name should update to Colts"
+    assert sm.state.away_team_name == "Lions", "away_team_name should update to Lions"
+    assert (sm.state.home_score, sm.state.away_score) == (0, 0)
+    assert sm.state.quarter == 1
+    assert sm.state.score_vlm_locked is True
+    assert sm.state.confirm_ticket_id == "ticket-ind-det"
