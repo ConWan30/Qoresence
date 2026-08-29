@@ -34,47 +34,71 @@ from qoresence.vision.visual_context import GameCategory, GameState, VisualConte
 
 def test_vlm_uses_fullres_from_hub_not_downscaled():
     """VLM should crop from FrameHub full-res frame, not downscaled classify copy."""
+    # This test verifies the fix: scoreboard_extractor now gets full-res frame
+    # from FrameHub for VLM, not the downscaled classify frame.
+    
+    # The actual fix is in scoreboard_extractor.py lines 356-374.
+    # Here we test the logic more directly by checking that when get_latest()
+    # returns a larger frame, that frame is preferred over the classify frame.
+    
     # Simulate: classify frame is 640x360, but hub has 1280x720
     downscaled_frame = np.zeros((360, 640, 3), dtype=np.uint8)
     fullres_frame = np.zeros((720, 1280, 3), dtype=np.uint8)
-    
-    # Mark full-res frame so we can detect it was used
     fullres_frame[:, :, 0] = 42  # Blue channel marker
     
-    captured_frame = None
+    # Mock the FrameHub to return full-res frame
+    from qoresence.monitor import frame_hub
+    original_get_latest = frame_hub.get_latest
+    original_get_latest_stamp = frame_hub.get_latest_stamp
     
-    # Create a mock VLM referee
-    mock_vlm = Mock()
-    mock_vlm.get_last.return_value = None
-    
-    def mock_schedule(frame, **kwargs):
-        nonlocal captured_frame
-        captured_frame = frame
-    
-    mock_vlm.schedule = mock_schedule
-    
-    with patch("qoresence.vision.scoreboard_extractor.get_latest_stamp") as mock_stamp, \
-         patch("qoresence.vision.scoreboard_extractor.get_latest") as mock_latest, \
-         patch("qoresence.vision.scoreboard_extractor.get_scoreboard_vlm", return_value=mock_vlm):
+    try:
+        frame_hub.get_latest_stamp = lambda: {"has_frame": True, "seq": 42, "clock_ns": 1000}
+        frame_hub.get_latest = lambda: fullres_frame
         
-        mock_stamp.return_value = {"has_frame": True, "seq": 42, "clock_ns": 1000}
-        mock_latest.return_value = fullres_frame
+        # Mock VLM to capture what frame it receives
+        captured_frame = None
         
-        ext = FootballScoreboardExtractor()
-        ctx = VisualContext(
-            game_category=GameCategory.FOOTBALL,
-            game_state=GameState.GAMEPLAY,
-            game_profile="cfb_27",
-        )
+        class MockVlmReferee:
+            def __init__(self):
+                pass
+            
+            def get_last(self):
+                return None
+            
+            def schedule(self, frame, **kwargs):
+                nonlocal captured_frame
+                captured_frame = frame
         
-        # Extract with downscaled frame (this is what visual.py passes)
-        ext.extract(downscaled_frame, ctx, allow_ocr=False)
+        from qoresence.vision import scoreboard_vlm
+        original_vlm = None
+        try:
+            original_vlm = scoreboard_vlm._vlm
+        except:
+            pass
         
-        # VLM should have received full-res frame from hub, not downscaled
-        assert captured_frame is not None, "VLM schedule should have been called"
-        assert captured_frame.shape == (720, 1280, 3), \
-            f"Expected full-res (720, 1280, 3), got {captured_frame.shape}"
-        assert captured_frame[0, 0, 0] == 42, "Should use full-res frame from hub"
+        try:
+            scoreboard_vlm._vlm = MockVlmReferee()
+            
+            ext = FootballScoreboardExtractor()
+            ctx = VisualContext(
+                game_category=GameCategory.FOOTBALL,
+                game_state=GameState.GAMEPLAY,
+                game_profile="cfb_27",
+            )
+            
+            # Extract with downscaled frame (this is what visual.py passes)
+            ext.extract(downscaled_frame, ctx, allow_ocr=False)
+            
+            # VLM should have received full-res frame from hub, not downscaled
+            assert captured_frame is not None, "VLM schedule should have been called"
+            assert captured_frame.shape == (720, 1280, 3), \
+                f"Expected full-res (720, 1280, 3), got {captured_frame.shape}"
+            assert captured_frame[0, 0, 0] == 42, "Should use full-res frame from hub"
+        finally:
+            scoreboard_vlm._vlm = original_vlm
+    finally:
+        frame_hub.get_latest = original_get_latest
+        frame_hub.get_latest_stamp = original_get_latest_stamp
 
 
 def test_football_uses_gameplay_interval_even_on_menu():
@@ -242,40 +266,59 @@ def test_downscaled_then_crop_is_not_vlm_source():
     hub_frame = np.zeros((720, 1280, 3), dtype=np.uint8)
     hub_frame[:, :, 1] = 100  # Green channel marker
     
-    captured = None
+    # Mock the FrameHub to return full-res frame
+    from qoresence.monitor import frame_hub
+    original_get_latest = frame_hub.get_latest
+    original_get_latest_stamp = frame_hub.get_latest_stamp
     
-    # Create a mock VLM referee
-    mock_vlm = Mock()
-    mock_vlm.get_last.return_value = None
-    
-    def capture_schedule(frame, **kwargs):
-        nonlocal captured
-        captured = frame
-    
-    mock_vlm.schedule = capture_schedule
-    
-    with patch("qoresence.vision.scoreboard_extractor.get_latest_stamp") as mock_stamp, \
-         patch("qoresence.vision.scoreboard_extractor.get_latest") as mock_latest, \
-         patch("qoresence.vision.scoreboard_extractor.get_scoreboard_vlm", return_value=mock_vlm):
+    try:
+        frame_hub.get_latest_stamp = lambda: {"has_frame": True, "seq": 1, "clock_ns": 1000}
+        frame_hub.get_latest = lambda: hub_frame
         
-        mock_stamp.return_value = {"has_frame": True, "seq": 1, "clock_ns": 1000}
-        mock_latest.return_value = hub_frame
+        # Mock VLM to capture what frame it receives
+        captured = None
         
-        ext = FootballScoreboardExtractor()
-        ctx = VisualContext(
-            game_category=GameCategory.FOOTBALL,
-            game_state=GameState.GAMEPLAY,
-            game_profile="madden_27",
-        )
+        class MockVlmReferee:
+            def __init__(self):
+                pass
+            
+            def get_last(self):
+                return None
+            
+            def schedule(self, frame, **kwargs):
+                nonlocal captured
+                captured = frame
         
-        # Extract using classify_frame (downscaled)
-        ext.extract(classify_frame, ctx, allow_ocr=False)
+        from qoresence.vision import scoreboard_vlm
+        original_vlm = None
+        try:
+            original_vlm = scoreboard_vlm._vlm
+        except:
+            pass
         
-        # VLM should receive the hub_frame (1280x720), not classify_frame (640x360)
-        assert captured is not None, "VLM schedule should have been called"
-        assert captured.shape[0] == 720, \
-            f"VLM frame height should be 720 (full-res), got {captured.shape[0]}"
-        assert captured[0, 0, 1] == 100, "Should be hub frame (green marker)"
+        try:
+            scoreboard_vlm._vlm = MockVlmReferee()
+            
+            ext = FootballScoreboardExtractor()
+            ctx = VisualContext(
+                game_category=GameCategory.FOOTBALL,
+                game_state=GameState.GAMEPLAY,
+                game_profile="madden_27",
+            )
+            
+            # Extract using classify_frame (downscaled)
+            ext.extract(classify_frame, ctx, allow_ocr=False)
+            
+            # VLM should receive the hub_frame (1280x720), not classify_frame (640x360)
+            assert captured is not None, "VLM schedule should have been called"
+            assert captured.shape[0] == 720, \
+                f"VLM frame height should be 720 (full-res), got {captured.shape[0]}"
+            assert captured[0, 0, 1] == 100, "Should be hub frame (green marker)"
+        finally:
+            scoreboard_vlm._vlm = original_vlm
+    finally:
+        frame_hub.get_latest = original_get_latest
+        frame_hub.get_latest_stamp = original_get_latest_stamp
 
 
 def test_null_parse_does_not_mint_confirm():
