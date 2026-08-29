@@ -53,11 +53,28 @@ def input_events(data: dict[str, Any]) -> list[dict[str, Any]]:
     return []
 
 
+def _event_allows_bodied(ev: dict[str, Any]) -> bool:
+    """PLAY pad only. Laptop USB DualSense Edge (OBSERVE) must not body."""
+    try:
+        from qoresence.sync.hid_domain import allow_bind
+
+        return bool(allow_bind(ev.get("hid_domain")))
+    except Exception:
+        return False
+
+
+def play_input_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [e for e in events if isinstance(e, dict) and _event_allows_bodied(e)]
+
+
 def input_bodied(events: list[dict[str, Any]], coupling: dict[str, Any]) -> tuple[bool, str]:
-    if events:
+    play = play_input_events(events)
+    if play:
         return True, "input_ring"
     if coupling.get("imu_bodied"):
         return True, "imu_bodied"
+    if events:
+        return False, "hid_observe"
     return False, "pad_not_on_this_host"
 
 
@@ -169,10 +186,11 @@ def validate_coupling(data: dict[str, Any]) -> list[str]:
     inp = data.get("input") if isinstance(data.get("input"), dict) else None
     if inp is not None:
         bodied = bool(inp.get("bodied"))
-        if bodied and not events and not (inp.get("reason") == "imu_bodied"):
-            errors.append("bodied true with empty events")
-        if events and inp.get("bodied") is False:
-            errors.append("bodied false with events present")
+        play = play_input_events(events)
+        if bodied and not play and not (inp.get("reason") == "imu_bodied"):
+            errors.append("bodied true with empty play events")
+        if play and inp.get("bodied") is False:
+            errors.append("bodied false with play events present")
     sit = data.get("situation") if isinstance(data.get("situation"), dict) else {}
     if sit.get("home_score") is not None or sit.get("away_score") is not None:
         if not sit.get("board_locked"):

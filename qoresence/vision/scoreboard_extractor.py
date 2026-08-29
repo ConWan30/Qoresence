@@ -74,25 +74,32 @@ def _fix_digits_in(token: str) -> str:
     return token.translate(mapping)
 
 
+_LOADING_STATES = frozenset({"loading", "cutscene", "intro", "replay"})
+_MENU_STATES = frozenset({"menu", "paused", "lobby", "results", "spectating"})
+
+
+def _game_state_token(ctx: VisualContext | None) -> str:
+    if ctx is None:
+        return ""
+    try:
+        return str(getattr(ctx.game_state, "value", None) or ctx.game_state or "").lower()
+    except Exception:
+        return ""
+
+
 def _may_mint_lock(ctx: VisualContext | None, vlm: dict[str, Any] | None = None) -> bool:
     """New locks during gameplay, or on football HUD when classifier says menu.
 
     Play-call / pause still paints the match scorebug. Refusing mint there
     left confirm empty while DeepSeek already had NO 0 / DAL 10.
-    
+
     OPERATOR LAW: Refuse lock on loading/cutscene (garbage boards during matchup swap).
     """
     if ctx is None:
         return False
-    try:
-        gst = str(getattr(ctx.game_state, "value", None) or ctx.game_state or "").lower()
-    except Exception:
-        gst = ""
-    
-    # Refuse lock during loading/cutscene
-    if gst in {"loading", "cutscene", "intro", "replay"}:
+    gst = _game_state_token(ctx)
+    if gst in _LOADING_STATES:
         return False
-    
     if gst in {"", "gameplay", "playing", "in_game"}:
         return True
     if not _vlm_board_grounded(vlm):
@@ -100,6 +107,58 @@ def _may_mint_lock(ctx: VisualContext | None, vlm: dict[str, Any] | None = None)
     profile = str(getattr(ctx, "game_profile", "") or "").lower()
     title = str(getattr(ctx, "game_title", "") or "").lower()
     return any(k in profile or k in title for k in ("madden", "cfb", "football", "ncaa"))
+
+
+def garbage_lock_reason(
+    *,
+    home: int,
+    away: int,
+    home_team: str = "",
+    away_team: str = "",
+    game_state: str = "",
+    book: Any = None,
+) -> str | None:
+    """Why this pair must not mint. None = lock may proceed.
+
+    Receipt 1.1: refuse 0-0 after identity swap (not every 0-0), refuse 82-86-class
+    first locks, refuse a live-identity ticker swap (9-47 DAL-DET over IND-DET).
+    """
+    gst = str(game_state or "").lower()
+    if gst in _LOADING_STATES:
+        return "game_state"
+    if _ScoreStabilizer._looks_suspicious_pair((home, away)):
+        return "suspicious_pair"
+
+    if book is None:
+        try:
+            from qoresence.vision.confirm_ticket import get_ticket_book
+
+            book = get_ticket_book()
+        except Exception:
+            book = None
+    ident = book.last_board_identity() if book is not None else None
+    stale = bool(book.identity_stale()) if book is not None else False
+    ht = str(home_team or "").strip()
+    at = str(away_team or "").strip()
+
+    if ident is not None:
+        prior_h, prior_a, prior_ht, prior_at = ident
+        teams_changed = False
+        if prior_ht and prior_at and ht and at:
+            prior_pair = {prior_ht.strip().upper(), prior_at.strip().upper()}
+            now_pair = {ht.strip().upper(), at.strip().upper()}
+            teams_changed = prior_pair != now_pair
+        if home == 0 and away == 0:
+            if teams_changed:
+                return "zero_zero_after_identity_swap"
+            if (prior_h or 0) > 0 or (prior_a or 0) > 0:
+                return "zero_zero_after_nonzero"
+        if teams_changed and not stale:
+            return "identity_swap"
+
+    if home == 0 and away == 0 and gst in _MENU_STATES:
+        return "zero_zero_menu"
+    return None
 
 
 def _vlm_board_grounded(vlm: dict[str, Any] | None) -> bool:
@@ -251,9 +310,9 @@ class _ScoreStabilizer:
         h, a = pair
         if h is None or a is None:
             return True
-        # OPERATOR LAW: Never lock 0-0 without strong evidence (this is a common OCR failure)
-        # 0-0 will be rejected unless both local HUD digits AND VLM grounding agree
-        if h == 0 and a == 0:
+        # Receipt 1.1: 82-86 after a matchup swap is ticker/clock garbage, not football.
+        # 0-0 is a real kickoff — refuse that only after an identity swap, not here.
+        if max(h, a) > 70 or min(h, a) >= 50:
             return True
         # One side multi-digit / large, other tiny 1–4 → down/quarter/play-clock leak
         # Classic failures: 17-2, 12-2, 21-1
@@ -549,6 +608,15 @@ class FootballScoreboardExtractor:
             # a seeing-path ticket. Glass stays dark by spine honesty (null scores).
             return ctx
 
+        gst_now = _game_state_token(ctx)
+        if gst_now in _LOADING_STATES:
+            try:
+                from qoresence.vision.confirm_ticket import get_ticket_book
+
+                get_ticket_book().mark_identity_stale()
+            except Exception:
+                pass
+
         # Stabilize scores so one bad frame cannot flip 17-17 → 17-2
         raw_h, raw_a = parsed.get("home_score"), parsed.get("away_score")
         stab = FootballScoreboardExtractor._stabilizer
@@ -566,12 +634,16 @@ class FootballScoreboardExtractor:
                 stab._recent.append((int(raw_h), int(raw_a)))
                 sh, sa = stab._stable
                 # Fail-closed: score_vlm_locked only after ConfirmTicket mint succeeds.
-                locked_ok = True
+                locked_ok = False
                 try:
                     import time as _time_ticket
 
                     from qoresence.monitor.frame_hub import get_latest_stamp
-                    from qoresence.vision.confirm_ticket import get_ticket_book, mint_confirm_ticket
+                    from qoresence.vision.confirm_ticket import (
+                        get_ticket_book,
+                        mint_confirm_ticket,
+                        resolve_session_id,
+                    )
 
                     stamp = {}
                     try:
@@ -604,7 +676,7 @@ class FootballScoreboardExtractor:
                         source_str = "gemini"
                     elif "quicksilver" in model_str.lower():
                         source_str = "quicksilver"
-                    
+
                     # Apply team identity early so home_team/away_team are available for ticket
                     try:
                         from qoresence.profiles.team_identity import apply_identity_to_context
@@ -612,36 +684,32 @@ class FootballScoreboardExtractor:
                     except Exception:
                         pass
 
-                    # Check identity compatibility for 0-0 locks
-                    # Refuse 0-0 unless: crop shows zeros AND identity is compatible with prior lock
-                    if sh == 0 and sa == 0:
-                        # Get prior lock identity
-                        book = get_ticket_book()
-                        prior_identity = book.last_board_identity()
-                        if prior_identity is not None:
-                            prior_h, prior_a, prior_q, prior_ht, prior_at = prior_identity
-                            # Identity must be compatible (same teams) to lock 0-0
-                            # Reject matchup swaps like DAL-NO → IND-DET without new title lock
-                            home_team_now = str(getattr(ctx, "home_team", "") or "").strip()
-                            away_team_now = str(getattr(ctx, "away_team", "") or "").strip()
-                            teams_changed = False
-                            if prior_ht and prior_at and home_team_now and away_team_now:
-                                teams_changed = (prior_ht != home_team_now) or (prior_at != away_team_now)
-                            if teams_changed:
-                                log.info(
-                                    "scoreboard refuse 0-0 lock: identity changed %s-%s → %s-%s",
-                                    prior_ht,
-                                    prior_at,
-                                    home_team_now,
-                                    away_team_now,
-                                )
-                                locked_ok = False
-                    
-                    if locked_ok:
-                        home_team_now = str(getattr(ctx, "home_team", "") or "").strip()
-                        away_team_now = str(getattr(ctx, "away_team", "") or "").strip()
+                    book = get_ticket_book()
+                    home_team_now = str(getattr(ctx, "home_team", "") or "").strip()
+                    away_team_now = str(getattr(ctx, "away_team", "") or "").strip()
+                    refuse = garbage_lock_reason(
+                        home=int(sh),
+                        away=int(sa),
+                        home_team=home_team_now,
+                        away_team=away_team_now,
+                        game_state=_game_state_token(ctx),
+                        book=book,
+                    )
+                    if refuse:
+                        log.info(
+                            "scoreboard refuse lock %s-%s (%s) %s-%s",
+                            sh,
+                            sa,
+                            refuse,
+                            home_team_now,
+                            away_team_now,
+                        )
+                        ctx.score_vlm_locked = False
+                    else:
                         ticket = mint_confirm_ticket(
-                            session_id=str(getattr(ctx, "session_id", "") or ""),
+                            session_id=resolve_session_id(
+                                str(getattr(ctx, "session_id", "") or "")
+                            ),
                             clock_ns=int(stamp.get("clock_ns") or _time_ticket.monotonic_ns()),
                             home_score=int(sh),
                             away_score=int(sa),
@@ -653,12 +721,14 @@ class FootballScoreboardExtractor:
                             down=_ti(parsed.get("down")),
                             home_team=home_team_now,
                             away_team=away_team_now,
+                            book=book,
                         )
-                        get_ticket_book().put(ticket, home_team=home_team_now, away_team=away_team_now)
+                        book.put(ticket, home_team=home_team_now, away_team=away_team_now)
                         ctx.confirm_ticket_id = ticket.ticket_id
                         if isinstance(ctx.details, dict):
                             ctx.details["confirm_ticket"] = ticket.to_dict()
                         ctx.score_vlm_locked = True
+                        locked_ok = True
                         log.info(
                             "scoreboard VLM lock %s-%s ticket=%s",
                             sh,
@@ -668,6 +738,7 @@ class FootballScoreboardExtractor:
                 except Exception as e:
                     log.warning("confirm ticket mint failed — refuse score_vlm_locked: %s", e)
                     ctx.score_vlm_locked = False
+                    locked_ok = False
                 if not locked_ok:
                     # Unlicensed → do not serialize digits. Glass stays dark.
                     sh, sa = None, None

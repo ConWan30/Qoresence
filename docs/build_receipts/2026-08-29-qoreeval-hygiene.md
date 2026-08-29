@@ -1,79 +1,44 @@
 # Qoreeval Hygiene Fixes
 
-**Date**: 2026-08-29  
-**Branch**: cursor/qoreeval-hygiene-fixes-9ca4  
-**Commit**: ad02c5c
+**Date**: 2026-08-29
+**Branch**: cursor/qoreeval-hygiene-fixes-9ca4
+**PR**: #113 (OPEN — do not merge until operator types GO MERGE)
 
 ## Summary
 
-Three observation-plane hygiene fixes addressing Qoreeval hour residuals (146 ticks, HOLD):
+Three observation-plane hygiene fixes for Receipt 1.1 residuals. DualSense stays
+on the PS5. No Qoremem, overlay, or HUD verbs.
 
-1. **ConfirmTicket remint reduction**: Reuse ticket_id when board identity (teams+scores+quarter) unchanged
-2. **Garbage lock prevention**: Refuse 0-0 and absurd swaps after matchup swap, require identity compatibility
-3. **OBSERVE bodied fail-closed**: Laptop USB DualSense Edge (OBSERVE) → unbodied
+1. **Confirm remint**: reuse `ticket_id` when scores + teams are unchanged, on
+   the same book the extractor `put()`s. Fill `session_id` from SessionAuthority.
+2. **Garbage board**: refuse 0-0 after identity swap (not every 0-0), refuse
+   82-86-class first locks, refuse live ticker identity swap (9-47 DAL-DET over
+   IND-DET). Loading/cutscene marks identity stale and cannot mint.
+3. **OBSERVE bodied**: `input_bodied` ignores laptop USB DualSense Edge
+   (`hid_domain=observe`). `controller_bodied` is false unless PLAY events or
+   `imu_bodied`. IVC `allow_bodied` stays fail-closed.
 
-## Changes
+## Receipt 1.1 mapping
 
-### 1. ConfirmTicket Remint (qoresence/vision/confirm_ticket.py)
+| Residual | What failed | What this PR does |
+|---|---|---|
+| Remint | 85 remints while session+lock+teams+score unchanged; `session_id=""` | `mint_confirm_ticket(book=)` reuses id from the book `put()` updates. Quarter flicker does not remint. Empty session_id → SessionAuthority.current() |
+| Garbage | DAL 27–NO 0 → loading → IND 82–DET 86 → IND 0–DET 0 locked ~8 min | 82-86 is a suspicious pair. 0-0 after a different matchup is refused. Kickoff 0-0 of a new session is allowed. Loading cannot mint and stales identity so a later IND 3–DET 31 can lock |
+| Bodied vs OBSERVE | `controller_bodied=true` on 72 ticks with Edge USB; `imu_bodied` never | Events with `hid_domain=observe` return `(False, "hid_observe")`. CIVIF ticks wipe `input_ticks` |
 
-**Problem**: 108 unique tickets / 124 present; 85 remints with session+lock+teams+score UNCHANGED. `last_confirm.session_id` empty on all 124 ticks.
+## What the first pass on this branch got wrong
 
-**Fix**:
-- Track `_last_board_identity: (home_score, away_score, quarter, home_team, away_team)`
-- `mint_confirm_ticket()` checks if identity unchanged → reuse existing `ticket_id`
-- Fill `session_id` on every ticket (was empty)
-- New ticket only when home/away/quarter/identity actually changes OR lock drops
+- Remint tests constructed a local `ConfirmTicketBook` while `mint_confirm_ticket`
+  read the process global — reuse never ran on the book the test put into.
+- `_looks_suspicious_pair((0,0))=True` refused real kickoff 0-0.
+- `_looks_suspicious_pair((82,86))` stayed False; tests asserted that.
+- `locked_ok` started False and was never set True, so the VLM mint path minted
+  nothing.
+- OBSERVE was gated only on `imu_bodied`. InputRing Edge events still bodied.
 
-**Impact**: Reduces ticket churn from 124 to ~39 (85 remints avoided). Longest same-ticket span: 13 ticks.
+## Operator notes
 
-### 2. Garbage Locks (qoresence/vision/scoreboard_extractor.py)
-
-**Problem**: 26 dirty ticks locked garbage boards:
-- DAL 27–NO 0 → loading → IND 82–DET 86 → cutscene → IND 0–DET 0 (stuck ~8min)
-- 0–0 after matchup swap is NOT kickoff-valid, it's a stuck false board
-
-**Fix**:
-- `_looks_suspicious_pair((0, 0))` → True (reject 0-0 by default)
-- `_may_mint_lock()` refuses lock during `loading`, `cutscene`, `intro`, `replay`
-- Identity compatibility check in ticket minting: refuse 0-0 when teams changed vs prior lock
-- Operator law: Never invent 0 scores
-
-**Impact**: No lock on loading/cutscene. 0-0 only if identity holds AND crop agrees.
-
-### 3. OBSERVE Bodied (qoresence/sync/ivc.py)
-
-**Problem**: `controller_bodied=true` on 72 ticks with laptop USB OBSERVE pad. `imu_bodied` never true. After 08:09 restart, bodied stayed false (correct).
-
-**Fix**:
-- `allow_bodied` default changed from `True` to `False` in IVC exception handler (fail-closed)
-- Only PLAY pad can set `imu_bodied=True`
-- OBSERVE HID (laptop USB DualSense Edge) → unbodied
-
-**Impact**: Observation plane honors HID domain. Timing/pattern coaches withheld when unbodied.
-
-## Tests
-
-`tests/test_qoreeval_hygiene.py`:
-- `test_confirm_ticket_reuses_id_when_board_identity_unchanged`
-- `test_confirm_ticket_fills_session_id`
-- `test_refuse_zero_zero_lock`
-- `test_refuse_zero_zero_after_matchup_swap`
-- `test_refuse_absurd_swap_like_82_86`
-- `test_refuse_lock_on_loading_cutscene`
-- `test_observe_hid_does_not_set_imu_bodied`
-- `test_confirm_ticket_remint_reduces_churn`
-- `test_suspicious_pairs_caught`
-
-## Files Modified
-
-- `qoresence/sync/ivc.py`: IVC allow_bodied fail-closed default
-- `qoresence/vision/confirm_ticket.py`: Ticket remint logic + identity tracking
-- `qoresence/vision/scoreboard_extractor.py`: Garbage lock prevention + identity checks
-- `tests/test_qoreeval_hygiene.py`: Comprehensive test coverage
-
-## Operator Notes
-
-- Do not merge (per task spec)
+- Do not merge until GO MERGE
 - #111 stays closed HOLD
-- No Qoremem, overlay factory, or picture HUD verbs
-- Receipt 1.1 work list complete
+- Next soak only after this lands on main and the operator plays **one**
+  session without a bounce

@@ -81,6 +81,22 @@ def _norm_int(v: Any) -> int | None:
         return None
 
 
+def resolve_session_id(explicit: str | None = None) -> str:
+    """Fill confirm session_id from SessionAuthority when the caller left it empty."""
+    s = str(explicit or "").strip()
+    if s:
+        return s
+    try:
+        from qoresence.core.session import SessionAuthority
+
+        ident = SessionAuthority.current()
+        if ident is not None:
+            return str(ident.session_id or "")
+    except Exception:
+        pass
+    return ""
+
+
 def mint_confirm_ticket(
     *,
     session_id: str,
@@ -95,6 +111,7 @@ def mint_confirm_ticket(
     down: int | None = None,
     home_team: str | None = None,
     away_team: str | None = None,
+    book: ConfirmTicketBook | None = None,
 ) -> ConfirmTicket:
     # Normalize and validate source: ONLY seeing-path sources allowed
     normalized_source = normalize_source(source)
@@ -103,26 +120,34 @@ def mint_confirm_ticket(
             f"Cannot mint ConfirmTicket with source={source!r}. "
             f"Only seeing-path sources {SEEING_PATH_SOURCES} are allowed."
         )
-    
+
     hs, aws = _norm_int(home_score), _norm_int(away_score)
     q = _norm_int(quarter)
     ht = str(home_team or "").strip()
     at = str(away_team or "").strip()
-    
-    # Check if board identity (teams + scores + quarter) is unchanged
-    book = get_ticket_book()
-    last_identity = book.last_board_identity()
-    current_identity = (hs, aws, q, ht, at)
-    last_ticket = book.latest()
-    
-    # Reuse ticket ID if board identity (scores + quarter + teams) is unchanged AND we had a lock
-    # Mint new ticket_id ONLY when home/away/identity/quarter actually change OR lock drops
-    if (last_identity == current_identity and last_ticket is not None
-        and hs is not None and aws is not None):
-        # Board identity unchanged - reuse existing ticket but fill session_id
+    sid = resolve_session_id(session_id)
+
+    # Reuse ticket_id when scores + teams are unchanged. Quarter flicker is not a remint.
+    live_book = book if book is not None else get_ticket_book()
+    last_identity = live_book.last_board_identity()
+    last_ticket = live_book.latest()
+    if last_identity is not None:
+        _lhs, _laws, last_ht, last_at = last_identity
+        if not ht and last_ht:
+            ht = last_ht
+        if not at and last_at:
+            at = last_at
+    current_identity = (hs, aws, ht, at)
+
+    if (
+        last_identity == current_identity
+        and last_ticket is not None
+        and hs is not None
+        and aws is not None
+    ):
         return ConfirmTicket(
             ticket_id=last_ticket.ticket_id,
-            session_id=str(session_id or ""),  # Fill session_id
+            session_id=sid,
             clock_ns=int(clock_ns or 0),
             home_score=hs,
             away_score=aws,
@@ -133,11 +158,10 @@ def mint_confirm_ticket(
             quarter=q,
             down=_norm_int(down),
         )
-    
-    # Board identity changed - mint new ticket
+
     payload = {
         "v": DOMAIN,
-        "session_id": str(session_id or ""),
+        "session_id": sid,
         "clock_ns": int(clock_ns or 0),
         "home_score": hs,
         "away_score": aws,
@@ -215,8 +239,9 @@ class ConfirmTicketBook:
         self._latest: ConfirmTicket | None = None
         self._by_id: dict[str, ConfirmTicket] = {}
         self._last_fast: dict[str, Any] | None = None
-        # Track (home_score, away_score, quarter, home_team, away_team)
-        self._last_board_identity: tuple[int | None, int | None, int | None, str, str] | None = None
+        # Track (home_score, away_score, home_team, away_team)
+        self._last_board_identity: tuple[int | None, int | None, str, str] | None = None
+        self._identity_stale = False
 
     def put(self, ticket: ConfirmTicket, *, home_team: str = "", away_team: str = "") -> ConfirmTicket:
         with self._lock:
@@ -225,19 +250,36 @@ class ConfirmTicketBook:
             self._last_board_identity = (
                 ticket.home_score,
                 ticket.away_score,
-                ticket.quarter,
                 str(home_team or "").strip(),
                 str(away_team or "").strip(),
             )
+            self._identity_stale = False
         return ticket
 
     def latest(self) -> ConfirmTicket | None:
         with self._lock:
             return self._latest
-    
-    def last_board_identity(self) -> tuple[int | None, int | None, int | None, str, str] | None:
+
+    def last_board_identity(self) -> tuple[int | None, int | None, str, str] | None:
         with self._lock:
             return self._last_board_identity
+
+    def mark_identity_stale(self) -> None:
+        """Loading/cutscene: prior matchup must not license the next board."""
+        with self._lock:
+            self._identity_stale = True
+
+    def identity_stale(self) -> bool:
+        with self._lock:
+            return bool(self._identity_stale)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._latest = None
+            self._by_id.clear()
+            self._last_fast = None
+            self._last_board_identity = None
+            self._identity_stale = False
 
     def get(self, ticket_id: str | None) -> ConfirmTicket | None:
         if not ticket_id:
