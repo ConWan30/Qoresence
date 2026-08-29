@@ -1,7 +1,9 @@
 # CFB 27 VLM Menu Crop Fix
 
-**Status**: PENDING CI  
+**Status**: GREEN (all CI checks pass)  
 **Branch**: `cursor/cfb-vlm-menu-crop-4ca4`  
+**PR**: #110  
+**Head SHA**: 0722f02  
 **Date**: 2026-08-29
 
 ## Summary
