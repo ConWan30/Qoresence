@@ -159,13 +159,13 @@ export function mergeAgentPlane(
         : "Scoreboard VLM locked.",
       model: "quicksilver",
       policyOk: true,
-      reason: "gemini-3.5-flash-lite scoreboard VLM",
+      reason: "deepseek-v4-flash-vision-exp scoreboard VLM",
     };
   } else if (plane.geminiLive && byRole.gemini?.action === "quiet") {
     byRole.gemini = {
       role: "gemini",
       action: "note",
-      text: "Gemini VLM live — waiting for an honest board lock",
+      text: "DeepSeek VLM live — waiting for an honest board lock",
       model: "quicksilver",
       policyOk: true,
       reason: "a2a gemini",

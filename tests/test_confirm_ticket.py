@@ -19,8 +19,7 @@ def test_mint_is_deterministic_for_same_board():
         clock_ns=100,
         home_score=21,
         away_score=14,
-        model="gemini-3.5-flash-lite",
-        source="gemini",
+        model="deepseek-v4-flash-vision-exp",
         frame_seq=9,
         crop_hash="abc",
     )
@@ -29,15 +28,14 @@ def test_mint_is_deterministic_for_same_board():
         clock_ns=100,
         home_score=21,
         away_score=14,
-        model="gemini-3.5-flash-lite",
-        source="gemini",
+        model="deepseek-v4-flash-vision-exp",
         frame_seq=9,
         crop_hash="abc",
     )
     assert a.ticket_id == b.ticket_id
     assert len(a.ticket_id) == 16
-    assert a.model == "gemini-3.5-flash-lite"
-    assert a.source == "gemini"
+    assert a.model == "deepseek-v4-flash-vision-exp"
+    assert a.source == "deepseek"
 
 
 def test_different_scores_make_different_tickets():
