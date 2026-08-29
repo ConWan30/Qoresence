@@ -53,9 +53,9 @@ def test_vlm_uses_fullres_from_hub_not_downscaled():
     
     mock_vlm.schedule = mock_schedule
     
-    with patch("qoresence.monitor.frame_hub.get_latest_stamp") as mock_stamp, \
-         patch("qoresence.monitor.frame_hub.get_latest") as mock_latest, \
-         patch("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", return_value=mock_vlm):
+    with patch("qoresence.vision.scoreboard_extractor.get_latest_stamp") as mock_stamp, \
+         patch("qoresence.vision.scoreboard_extractor.get_latest") as mock_latest, \
+         patch("qoresence.vision.scoreboard_extractor.get_scoreboard_vlm", return_value=mock_vlm):
         
         mock_stamp.return_value = {"has_frame": True, "seq": 42, "clock_ns": 1000}
         mock_latest.return_value = fullres_frame
@@ -254,9 +254,9 @@ def test_downscaled_then_crop_is_not_vlm_source():
     
     mock_vlm.schedule = capture_schedule
     
-    with patch("qoresence.monitor.frame_hub.get_latest_stamp") as mock_stamp, \
-         patch("qoresence.monitor.frame_hub.get_latest") as mock_latest, \
-         patch("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", return_value=mock_vlm):
+    with patch("qoresence.vision.scoreboard_extractor.get_latest_stamp") as mock_stamp, \
+         patch("qoresence.vision.scoreboard_extractor.get_latest") as mock_latest, \
+         patch("qoresence.vision.scoreboard_extractor.get_scoreboard_vlm", return_value=mock_vlm):
         
         mock_stamp.return_value = {"has_frame": True, "seq": 1, "clock_ns": 1000}
         mock_latest.return_value = hub_frame
