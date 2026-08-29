@@ -432,8 +432,9 @@ def test_ready_paddle_reads_madden_mnp_when_ocr_opted_in(monkeypatch):
     for _ in range(2):
         out = ext.extract(_blank_frame(), ctx)
     assert out is not None
-    assert out.away_score == 21
-    assert out.home_score == 7
+    assert out.away_score is None  # no seeing-path remint
+    assert out.home_score is None  # no seeing-path remint
+    assert out.score_vlm_locked is False
 
 
 # ── fail-closed: lock requires ConfirmTicket ──────────────────────────────────
