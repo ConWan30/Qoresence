@@ -8,7 +8,6 @@ import { ClutchFeed } from "@/components/theater/clutch-feed";
 import { ConnectCard } from "@/components/theater/connect-card";
 import { PadSyncCard } from "@/components/theater/pad-sync-card";
 import { CouplingCard } from "@/components/theater/coupling-card";
-import { AgentRail } from "@/components/theater/agent-rail";
 import { useTheaterLoop } from "@/lib/coupling/loop";
 
 export function TheaterPage() {
@@ -43,14 +42,13 @@ export function TheaterPage() {
           </div>
         </div>
 
-        {/* RIGHT: Intelligence column - always visible, scrollable */}
-        <aside className="flex min-h-0 w-full min-w-[18rem] max-w-[21rem] flex-col gap-3 overflow-y-auto sm:gap-4">
+        {/* RIGHT: Intelligence column - always visible, no page scroll */}
+        <aside className="flex min-h-0 w-full min-w-[18rem] max-w-[21rem] flex-col gap-3 sm:gap-4">
           <SituationCard />
           <ClutchFeed />
           <ConnectCard />
           <PadSyncCard />
           <CouplingCard />
-          <AgentRail />
         </aside>
       </div>
 
