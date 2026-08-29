@@ -27,6 +27,7 @@ def build_observation(
     glass_link: dict[str, Any] | None = None,
     clock_ns: int | None = None,
     seq: int | None = None,
+    control: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     sit = situation if isinstance(situation, dict) else {}
     vid = video if isinstance(video, dict) else {}
@@ -114,6 +115,40 @@ def build_observation(
     if glass_out.get("lan") and glass_out.get("url"):
         allowed.append(f"phone glass at {glass_out['url']} (LAN opt-in)")
 
+    ctrl_in = control if isinstance(control, dict) else {}
+    hid_button = ctrl_in.get("hid_button")
+    verb = ctrl_in.get("verb")
+    mode = ctrl_in.get("mode")
+    if hid_button:
+        control_out: dict[str, Any] = {
+            "plane": PLANE,
+            "hid_button": str(hid_button),
+            "verb": str(verb) if verb else None,
+            "mode": str(mode) if mode else None,
+            "visual_phase": ctrl_in.get("visual_phase"),
+            "conflict": ctrl_in.get("conflict"),
+            "frame_seq": ctrl_in.get("frame_seq") or pad.get("frame_seq"),
+            "labeled": bool(verb),
+        }
+        if verb and mode:
+            allowed.append(
+                f"pad label {hid_button} = {verb} (sheet {mode})"
+            )
+        else:
+            silence.append("control_unlabeled")
+    else:
+        control_out = {
+            "plane": PLANE,
+            "hid_button": None,
+            "verb": None,
+            "mode": None,
+            "visual_phase": ctrl_in.get("visual_phase"),
+            "conflict": None,
+            "frame_seq": ctrl_in.get("frame_seq") or pad.get("frame_seq"),
+            "labeled": False,
+        }
+        silence.append("no_control_edge")
+
     return {
         "ok": True,
         "plane": PLANE,
@@ -121,6 +156,7 @@ def build_observation(
         "title": title,
         "score": score,
         "pad": pad,
+        "control": control_out,
         "video": {
             "has_frame": has_frame,
             "age_s": vid.get("age_s"),

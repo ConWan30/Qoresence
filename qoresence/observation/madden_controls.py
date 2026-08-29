@@ -9,7 +9,7 @@ Architecture:
 - Maps visual_context.game_state to one of 10 Madden modes (fail-closed)
 - Returns verb(s) for the active button(s) in that mode
 - Never invents plays from analog/phrase
-- Emits small observation events: {frame_seq, clock_ns, hid, verb, mode, source}
+- Emits small observation events: {frame_seq, clock_ns, hid, verb, mode, source, plane}
 """
 
 from __future__ import annotations
@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Any
 
 log = logging.getLogger(__name__)
+
+PLANE = "qoresence-observation"
 
 # DualSense button names (internal mask → name)
 # Must match qoresence/sync/hid_report.py
@@ -53,6 +55,7 @@ class ControlObservation:
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "plane": PLANE,
             "frame_seq": self.frame_seq,
             "clock_ns": self.clock_ns,
             "hid_button": self.hid_button,
@@ -101,32 +104,35 @@ class MaddenControlLookup:
     def map_game_state_to_mode(self, visual_context: dict[str, Any]) -> str | None:
         """Map visual_context to one of the 10 Madden modes (fail-closed).
 
-        Args:
-            visual_context: Visual context payload with game_state, game_profile, etc.
-
-        Returns:
-            Mode key (e.g. "preplay_offense") or None if cannot be determined
-
-        Uses visual_phase from visual_context.details.visual_phase to map picture
-        language to the active Madden control sheet. Fail-closed: unknown/missing
-        phase → None.
+        Fail-closed: unknown/missing phase, wrong title, or non-gameplay → None.
         """
-        # Fail-closed: only map if we can honestly determine the mode
-        game_state = visual_context.get("game_state", "")
-        game_profile = visual_context.get("game_profile", "")
+        game_state = visual_context.get("game_state") or ""
+        if not game_state:
+            details = visual_context.get("details")
+            if isinstance(details, dict):
+                game_state = str(details.get("game_state") or "")
+        game_profile = visual_context.get("game_profile", "") or ""
 
-        # Only apply to Madden 27
-        if "madden" not in game_profile.lower():
+        if "madden" not in str(game_profile).lower():
             return None
 
-        # Only during gameplay
         if game_state != "gameplay":
             return None
 
-        # Use visual_phase → sheet mapper (fail-closed)
         from qoresence.observation.sheet_from_picture import map_context_to_sheet
 
         return map_context_to_sheet(visual_context)
+
+
+_lookup: MaddenControlLookup | None = None
+
+
+def get_madden_lookup() -> MaddenControlLookup:
+    """Process-wide cached legend — JSON load stays off the grab thread."""
+    global _lookup
+    if _lookup is None:
+        _lookup = MaddenControlLookup()
+    return _lookup
 
 
 def observe_button_press(
@@ -137,13 +143,8 @@ def observe_button_press(
 ) -> list[ControlObservation]:
     """Observe button press(es) from hid_by_seq at frame_seq.
 
-    Args:
-        frame_seq: Frame sequence number (FrameHub seq)
-        clock_ns: Frame clock_ns
-        visual_context: Optional visual context for mode detection
-
-    Returns:
-        List of ControlObservation for each active button (may be empty)
+    Returns a list of ControlObservation for each active button (may be empty).
+    Missing sheet / phase keeps verb and mode None (unlabeled).
     """
     observations: list[ControlObservation] = []
     try:
@@ -153,35 +154,22 @@ def observe_button_press(
         if sample is None:
             return observations
 
-        # Detect Madden mode from visual_context (fail-closed)
-        lookup = MaddenControlLookup()
+        lookup = get_madden_lookup()
         mode = lookup.map_game_state_to_mode(visual_context or {}) if visual_context else None
-
-        # Extract active buttons from HID sample
-        buttons_mask = 0
-        for btn_name in sample.buttons:
-            # sample.buttons is tuple[str, ...] of button names
-            # We need to check which buttons are pressed
-            # But actually, the buttons field in HidSeqSample is already a tuple of names!
-            pass
-
-        # Actually, let me check the HidSeqSample structure again...
-        # Looking at hid_seq_line.py line 44: buttons: tuple[str, ...]
-        # and line 129: buttons=hold.buttons
-        # So sample.buttons is already a tuple of button name strings!
 
         active_buttons = list(sample.buttons) if sample.buttons else []
 
         for btn_name in active_buttons:
             verb = lookup.lookup_verb(btn_name, mode)
-            obs = ControlObservation(
-                frame_seq=frame_seq,
-                clock_ns=clock_ns,
-                hid_button=btn_name,
-                verb=verb,
-                mode=mode,
+            observations.append(
+                ControlObservation(
+                    frame_seq=frame_seq,
+                    clock_ns=clock_ns,
+                    hid_button=btn_name,
+                    verb=verb,
+                    mode=mode,
+                )
             )
-            observations.append(obs)
 
     except Exception as e:
         log.debug("observe_button_press failed: %s", e)
@@ -196,18 +184,8 @@ def observe_hid_edge(
     button_name: str,
     visual_context: dict[str, Any] | None = None,
 ) -> ControlObservation:
-    """Observe a single HID edge (press/release) at frame_seq.
-
-    Args:
-        frame_seq: Frame sequence number
-        clock_ns: Frame clock_ns
-        button_name: DualSense button name (e.g. "Cross")
-        visual_context: Optional visual context for mode detection
-
-    Returns:
-        ControlObservation for this button edge
-    """
-    lookup = MaddenControlLookup()
+    """Observe a single HID edge (press/release) at frame_seq."""
+    lookup = get_madden_lookup()
     mode = lookup.map_game_state_to_mode(visual_context or {}) if visual_context else None
     verb = lookup.lookup_verb(button_name, mode)
     return ControlObservation(
