@@ -62,11 +62,11 @@ export function PadSyncCard() {
         </span>
       </div>
 
-      <p data-pad-sync-why={score.why} className="font-display text-xl font-extrabold leading-snug tracking-tight text-fg">
+      <p data-pad-sync-why={score.why} className="font-display text-xl font-extrabold leading-snug tracking-tight text-fg break-words">
         {score.why}
       </p>
 
-      <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
+      <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase break-words">
         {padConnected ? shortPad(padName) : "no DualSense on this box"}
         {padTransport ? ` · ${padTransport}` : ""}
         {padReports ? ` · ${padReports} reports` : ""}
@@ -81,26 +81,26 @@ export function PadSyncCard() {
       />
 
       <div className="grid grid-cols-2 gap-2 font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
-        <span>
+        <span className="truncate">
           R2 {ghost.r2.toFixed(2)}
           <span className="mx-1">·</span>
           L2 {ghost.l2.toFixed(2)}
         </span>
-        <span>
+        <span className="truncate">
           Stick {ghost.lx.toFixed(2)} {ghost.ly.toFixed(2)}
         </span>
-        <span>HID seq {padHidSeq || "—"}</span>
-        <span>VID seq {ghost.frameSeq || videoFrames || "—"}</span>
-        <span>Lag {Math.round(ghost.lagMs || syncLagMs)}ms</span>
-        <span>Jitter {Math.round(padJitterMs)}ms</span>
+        <span className="truncate">HID seq {padHidSeq || "—"}</span>
+        <span className="truncate">VID seq {ghost.frameSeq || videoFrames || "—"}</span>
+        <span className="truncate">Lag {Math.round(ghost.lagMs || syncLagMs)}ms</span>
+        <span className="truncate">Jitter {Math.round(padJitterMs)}ms</span>
       </div>
 
       {padHeld.length ? (
-        <p className="font-mono text-[10px] tracking-[0.14em] text-live uppercase">
+        <p className="font-mono text-[10px] tracking-[0.14em] text-live uppercase break-words">
           {padHeld.join(" · ")}
         </p>
       ) : (
-        <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
+        <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase break-words">
           {score.registering
             ? ticketLive
               ? "ticket live · waiting for a face button"
