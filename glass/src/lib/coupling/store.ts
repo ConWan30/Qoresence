@@ -96,6 +96,11 @@ export type TheaterState = {
   gameTitle: string;
   clutch: ClutchSnap;
   moments: FeedMoment[];
+  /** One-shot licensed clutch/climax land trigger for chrome motion. Bumps
+   *  only on a licensed start (widgetsOk + board lock). Path tints the glow:
+   *  brass = fast, aperture = confirm. Never drives the picture. */
+  clutchPulseSeq: number;
+  clutchPulsePath: "fast" | "confirm" | "";
   why: string;
   drill: DrillId;
   log: LogEntry[];
@@ -282,6 +287,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
   gameTitle: "",
   clutch: QUIET_CLUTCH,
   moments: [],
+  clutchPulseSeq: 0,
+  clutchPulsePath: "",
   why: "confirm: none · couple: none · phrase=HUDDLE",
   drill: null,
   log: [],
@@ -531,9 +538,14 @@ export const useTheater = create<TheaterState>((set, get) => ({
       log = pushLog(log, "ticket", `mint ${liveTicket.phrase} ${liveTicket.ticketId}`);
     }
     if (!s.deckLive) log = pushLog(log, "hw", "deck monitor live");
-    if (clutchAdvanced(s.clutch, clutch)) {
+    const clutchStart = clutchAdvanced(s.clutch, clutch);
+    if (clutchStart) {
       log = pushLog(log, "clutch", `${clutch.label} · ${clutch.why}`);
     }
+    // Licensed clutch/climax start = the only license for chrome motion:
+    // widgetsOk + board lock + real scores. Fail-closed: HOLD/unlocked = iron.
+    const licensedClutchStart =
+      clutchStart && widgetsOk && ing.boardLocked && ing.homeScore != null && ing.awayScore != null;
     set({
       deckLive: true,
       deckAt: Date.now(),
@@ -585,6 +597,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
               : s.situation,
       gameTitle: ing.gameTitle || s.gameTitle,
       clutch,
+      clutchPulseSeq: licensedClutchStart ? s.clutchPulseSeq + 1 : s.clutchPulseSeq,
+      clutchPulsePath: licensedClutchStart ? (liveTicket ? "fast" : "confirm") : s.clutchPulsePath,
       why,
       confirm,
       companion,
@@ -656,7 +670,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
         });
       }
     }
-    if (clutchAdvanced(s.clutch, clutch)) {
+    if (clutchStart) {
       get().ingestMoment({
         key: `clutch:${clutch.kind}:${clutch.why}`,
         title: `${clutch.label} · ${clutch.why}`,

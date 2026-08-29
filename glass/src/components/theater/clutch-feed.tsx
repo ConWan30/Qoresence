@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { momentPlayHref } from "@/lib/coupling/clip";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,46 @@ export function ClutchFeed() {
   const lastClipUrl = useTheater((s) => s.lastClipUrl);
   const playClip = useTheater((s) => s.playClip);
   const live = clutch.kind !== "quiet";
+
+  // Chrome motion license (fail-closed): a freshly landed row may play the
+  // one-shot brass/aperture land envelope only when the glass is licensed —
+  // widgetsOk + board lock + real scores. HOLD / unlocked = iron, no motion.
+  const livePaint = useTheater((s) => s.livePaint);
+  const sameSeq = useTheater((s) => s.sameSeq);
+  const planeDim = useTheater((s) => s.planeDim);
+  const boardLocked = useTheater((s) => s.boardLocked);
+  const homeScore = useTheater((s) => s.homeScore);
+  const awayScore = useTheater((s) => s.awayScore);
+  const confirm = useTheater((s) => s.confirm);
+  const licensed =
+    livePaint && sameSeq && !planeDim && boardLocked && homeScore != null && awayScore != null && (confirm != null || boardLocked);
+
+  const seenRef = useRef<Set<string>>(new Set());
+  const initRef = useRef(false);
+  const [landKey, setLandKey] = useState<string | null>(null);
+  useEffect(() => {
+    const top = moments[0];
+    // Do not animate rows already on the rail at first paint (page refresh).
+    if (!initRef.current) {
+      initRef.current = true;
+      for (const m of moments) seenRef.current.add(m.key);
+      return;
+    }
+    if (!top || seenRef.current.has(top.key)) return;
+    for (const m of moments) seenRef.current.add(m.key);
+    // Only a licensed, path-tinted row lands; unlicensed / no-path stays iron.
+    if (licensed && (top.path === "fast" || top.path === "confirm")) {
+      const key = top.key;
+      setLandKey(key);
+      const id = window.setTimeout(() => setLandKey((k) => (k === key ? null : k)), 260);
+      return () => window.clearTimeout(id);
+    }
+  }, [moments, licensed]);
+  // Iron is instant: the moment the license drops, kill any in-flight row glow
+  // so HOLD can never keep a bloom on the plate (do not wait out the one-shot).
+  useEffect(() => {
+    if (!licensed) setLandKey(null);
+  }, [licensed]);
 
   return (
     <section className="holo-plate flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-xl p-3 sm:p-4">
@@ -38,8 +79,9 @@ export function ClutchFeed() {
         <div className="flex flex-col gap-2">
           {moments.slice(0, 8).map((e) => {
             const href = momentPlayHref(e, lastClipUrl);
+            const landAttr = licensed && e.key === landKey ? e.path || undefined : undefined;
             const className = cn(
-              "flex min-h-14 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
+              "clutch-row flex min-h-14 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
               href ? "cursor-pointer hover:opacity-90" : "",
               e.path === "confirm"
                 ? "border border-live/40 bg-live/10 text-live"
@@ -71,6 +113,7 @@ export function ClutchFeed() {
                 key={e.key}
                 type="button"
                 data-clutch-path={e.path || "none"}
+                data-land={landAttr}
                 data-clip-href={href}
                 className={className}
                 onPointerDown={(ev) => ev.stopPropagation()}
@@ -79,7 +122,7 @@ export function ClutchFeed() {
                 {inner}
               </button>
             ) : (
-              <article key={e.key} data-clutch-path={e.path || "none"} className={className}>
+              <article key={e.key} data-clutch-path={e.path || "none"} data-land={landAttr} className={className}>
                 {inner}
               </article>
             );

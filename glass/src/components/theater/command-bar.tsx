@@ -266,7 +266,7 @@ export function CommandBar() {
             </span>
             <span className="hidden min-w-0 items-center gap-2 sm:inline-flex">
               {sit ? <span className="truncate text-subtle-foreground">· {sit}</span> : null}
-              <LockbugStrip className="truncate" />
+              <LockbugStrip className="truncate" pulse />
             </span>
           </div>
           <div className="flex flex-wrap gap-x-3 font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
