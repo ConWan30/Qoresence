@@ -181,6 +181,7 @@ class ControllerRuntime:
         self._reconnects = 0
         self._reconnect_s = 1.5
         self._last_transport: str | None = None
+        self._domain_transport: str | None = None
         self._hid_domain: str = "play"
         self._ever_connected = False
         self._device_bus_type: int | None = None
@@ -337,6 +338,8 @@ class ControllerRuntime:
         self._device_vid = None
         self._device_pid = None
         self._hid_domain = "play"
+        self._last_transport = None
+        self._domain_transport = None
         self._device_bus_type = None
         self._connected = False
 
@@ -616,15 +619,24 @@ class ControllerRuntime:
             return state
         parsed = parse_report(report)
         self._last_transport = str(parsed.get("transport") or "") or None
-        # Re-detect domain now that we have transport info
+        # Classify once per transport, not every 1 kHz report (INFO log was stalling LIVE).
         if self._last_transport and self._device_vid and self._device_pid:
-            self._detect_domain(
-                vid=self._device_vid,
-                pid=self._device_pid,
-                transport=self._last_transport,
-                path=self._device_path,
-                bus_type=self._device_bus_type,
-            )
+            if self._domain_transport != self._last_transport:
+                self._detect_domain(
+                    vid=self._device_vid,
+                    pid=self._device_pid,
+                    transport=self._last_transport,
+                    path=self._device_path,
+                    bus_type=self._device_bus_type,
+                )
+                self._domain_transport = self._last_transport
+                log.info(
+                    "HID domain: %s (vid=%04x pid=%04x transport=%s)",
+                    self._hid_domain,
+                    self._device_vid,
+                    self._device_pid,
+                    self._last_transport,
+                )
             state.hid_domain = self._hid_domain
         state.buttons = int(parsed["buttons"])
         state.l2 = int(parsed["l2"])

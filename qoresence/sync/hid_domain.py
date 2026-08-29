@@ -114,7 +114,9 @@ def classify_hid_domain(
     if int(vid) == DS_EDGE_VID and int(pid) == DS_EDGE_PID:
         trans = infer_transport(transport=transport, path=path, bus_type=bus_type)
         if trans == "usb":
-            log.info(
+            # debug: classify can run on the HID poll thread. INFO here at 1 kHz
+            # stalls LIVE (age_s climbs, capture looks frozen).
+            log.debug(
                 "HID domain: OBSERVE (laptop USB DualSense Edge vid=%04x pid=%04x transport=%s)",
                 vid,
                 pid,

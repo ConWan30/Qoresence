@@ -74,6 +74,42 @@ class TestHidDomainClassification:
             usage_page=0xFF00, usage=0x01
         )
 
+    def test_observe_classify_is_not_info_on_the_poll_thread(self, caplog):
+        """INFO on every USB Edge report stalls LIVE. Classify must stay debug."""
+        import logging
+
+        with caplog.at_level(logging.INFO, logger="qoresence.sync.hid_domain"):
+            for _ in range(64):
+                assert classify_hid_domain(vid=0x054C, pid=0x0DF2, transport="usb") == HidDomain.OBSERVE
+        assert not [r for r in caplog.records if r.levelno >= logging.INFO]
+
+    def test_decode_classifies_domain_once_per_transport(self):
+        """HID poll is ~1 kHz. Domain classify once per usb/bt, not per report."""
+        from qoresence.core import ControllerConfig, RetinaEventBus, SessionAuthority
+        from qoresence.lobes.controller import ControllerRuntime
+
+        SessionAuthority.clear()
+        ident = SessionAuthority.mint(session_id="hid-log-once")
+        bus = RetinaEventBus(session_id="hid-log-once", enable_ws=False)
+        rt = ControllerRuntime(ControllerConfig(), bus, ident.session_head_ns)
+        rt._device_vid = 0x054C
+        rt._device_pid = 0x0DF2
+        calls = {"n": 0}
+        orig = rt._detect_domain
+
+        def _count(**kw):
+            calls["n"] += 1
+            return orig(**kw)
+
+        rt._detect_domain = _count  # type: ignore[method-assign]
+        report = bytes([0x01] + [128] * 63)
+        rt._decode_report(report)
+        rt._decode_report(report)
+        rt._decode_report(report)
+        assert calls["n"] == 1
+        assert rt._hid_domain == "observe"
+        bus.close()
+
     def test_observe_hid_veto_imu_bodied(self):
         """imu_bodied / imu_precursor can only be set from PLAY pad."""
         assert not allow_imu_bodied(HidDomain.OBSERVE)
