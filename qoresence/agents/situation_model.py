@@ -156,7 +156,7 @@ class SituationModel:
             self._state.game_state = (
                 ctx.game_state.value if hasattr(ctx.game_state, "value") else str(ctx.game_state)
             )
-        
+
         # Map title → canonical profile (same logic as visual.py _merge_scoreboard)
         # Ensures published situation has cfb_27 when title is CFB, even if config was madden_27
         ctx_profile = getattr(ctx, "game_profile", None)
