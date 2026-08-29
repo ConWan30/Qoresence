@@ -144,6 +144,7 @@ def test_situation_model_maps_cfb_title_to_cfb_profile():
     
     # Create a visual_context event with CFB title but madden profile
     event = BaseEvent(
+        session_id="test",
         source_lobe=SourceLobe.VISUAL,
         type=EventType.VISUAL_CONTEXT,
         payload={
