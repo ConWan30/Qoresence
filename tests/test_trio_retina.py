@@ -31,6 +31,7 @@ from qoresence.trio import (
     reset_trio_metrics,
     try_real_pq_commitment,
 )
+from qoresence.trio.metrics import PROMETHEUS_AVAILABLE
 
 
 class TestTrioRetinaConfig:
@@ -386,6 +387,7 @@ class TestWasmResult:
             assert result.error_description == desc
 
 
+@pytest.mark.skipif(not PROMETHEUS_AVAILABLE, reason="prometheus_client not installed")
 class TestTrioRetinaMetrics:
     """Tests for Prometheus metrics."""
 
