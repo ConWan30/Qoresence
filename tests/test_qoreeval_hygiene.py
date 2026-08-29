@@ -126,6 +126,84 @@ def test_confirm_ticket_fills_session_id_from_authority():
     assert resolve_session_id("explicit") == "explicit"
 
 
+def test_confirm_ticket_reuses_id_across_wordmark_flicker():
+    """Receipt 2: DAL / Dallas / Cowboys / empty must not remint the same board."""
+    book = ConfirmTicketBook()
+    t1 = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1,
+        home_score=21,
+        away_score=13,
+        quarter=4,
+        home_team="DAL",
+        away_team="NO",
+        book=book,
+    )
+    book.put(t1, home_team="DAL", away_team="NO")
+    t2 = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=2,
+        home_score=21,
+        away_score=13,
+        quarter=4,
+        home_team="Dallas Cowboys",
+        away_team="New Orleans Saints",
+        book=book,
+    )
+    assert t2.ticket_id == t1.ticket_id
+    book.put(t2, home_team="Dallas Cowboys", away_team="New Orleans Saints")
+    t3 = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=3,
+        home_score=21,
+        away_score=13,
+        quarter=4,
+        home_team="Cowboys",
+        away_team="Saints",
+        book=book,
+    )
+    assert t3.ticket_id == t1.ticket_id
+    book.put(t3, home_team="Cowboys", away_team="Saints")
+    t4 = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=4,
+        home_score=21,
+        away_score=13,
+        quarter=4,
+        home_team="",
+        away_team="",
+        book=book,
+    )
+    assert t4.ticket_id == t1.ticket_id
+
+
+def test_confirm_ticket_empty_then_named_reuses_id():
+    """First lock with empty teams, then DAL–NO at the same score, is not a remint."""
+    book = ConfirmTicketBook()
+    t1 = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1,
+        home_score=0,
+        away_score=0,
+        quarter=1,
+        home_team="",
+        away_team="",
+        book=book,
+    )
+    book.put(t1, home_team="", away_team="")
+    t2 = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=2,
+        home_score=0,
+        away_score=0,
+        quarter=1,
+        home_team="DAL",
+        away_team="NO",
+        book=book,
+    )
+    assert t2.ticket_id == t1.ticket_id
+
+
 def test_confirm_ticket_remint_reduces_churn():
     book = ConfirmTicketBook()
     ids = []
@@ -184,6 +262,31 @@ def test_refuse_zero_zero_after_matchup_swap():
             book=book,
         )
         == "zero_zero_after_identity_swap"
+    )
+
+
+def test_garbage_wordmark_flicker_is_not_identity_swap():
+    book = ConfirmTicketBook()
+    t1 = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1,
+        home_score=21,
+        away_score=13,
+        home_team="DAL",
+        away_team="NO",
+        book=book,
+    )
+    book.put(t1, home_team="DAL", away_team="NO")
+    assert (
+        garbage_lock_reason(
+            home=21,
+            away=13,
+            home_team="Dallas Cowboys",
+            away_team="Saints",
+            game_state="gameplay",
+            book=book,
+        )
+        is None
     )
 
 

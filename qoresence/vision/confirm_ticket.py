@@ -81,6 +81,42 @@ def _norm_int(v: Any) -> int | None:
         return None
 
 
+def _team_keyset(name: str | None) -> set[str]:
+    raw = str(name or "").strip()
+    if not raw:
+        return set()
+    try:
+        from qoresence.profiles.cfb27_product import _team_keys
+
+        keys = set(_team_keys(raw))
+    except Exception:
+        keys = set()
+    token = re.sub(r"[^A-Z0-9]+", "", raw.upper())
+    if token:
+        keys.add(token)
+    return keys
+
+
+def side_same(prev: str | None, cur: str | None) -> bool:
+    """True when a side is empty or catalog keys overlap (DAL == Dallas == Cowboys)."""
+    p = str(prev or "").strip()
+    c = str(cur or "").strip()
+    if not p or not c:
+        return True
+    if p.upper() == c.upper():
+        return True
+    return bool(_team_keyset(p) & _team_keyset(c))
+
+
+def board_sides_same(
+    last_home: str | None,
+    last_away: str | None,
+    home: str | None,
+    away: str | None,
+) -> bool:
+    return side_same(last_home, home) and side_same(last_away, away)
+
+
 def resolve_session_id(explicit: str | None = None) -> str:
     """Fill confirm session_id from SessionAuthority when the caller left it empty."""
     s = str(explicit or "").strip()
@@ -127,23 +163,27 @@ def mint_confirm_ticket(
     at = str(away_team or "").strip()
     sid = resolve_session_id(session_id)
 
-    # Reuse ticket_id when scores + teams are unchanged. Quarter flicker is not a remint.
+    # Reuse ticket_id when scores + matchup are unchanged. Raw wordmarks flicker
+    # (DAL / Dallas / Cowboys / empty). Quarter flicker is not a remint.
     live_book = book if book is not None else get_ticket_book()
     last_identity = live_book.last_board_identity()
     last_ticket = live_book.latest()
+    last_hs = last_aws = None
+    last_ht = last_at = ""
     if last_identity is not None:
-        _lhs, _laws, last_ht, last_at = last_identity
+        last_hs, last_aws, last_ht, last_at = last_identity
         if not ht and last_ht:
             ht = last_ht
         if not at and last_at:
             at = last_at
-    current_identity = (hs, aws, ht, at)
 
     if (
-        last_identity == current_identity
-        and last_ticket is not None
+        last_ticket is not None
         and hs is not None
         and aws is not None
+        and hs == last_hs
+        and aws == last_aws
+        and board_sides_same(last_ht, last_at, ht, at)
     ):
         return ConfirmTicket(
             ticket_id=last_ticket.ticket_id,
