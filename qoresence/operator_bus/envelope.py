@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any
 
 SCHEMA = "qoresence-operator-bus-1"
 PLANE = "qoresence-observation"
