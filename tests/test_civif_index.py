@@ -104,17 +104,13 @@ def test_unlocked_digits_not_indexed():
 
 
 def test_coupling_min_uses_sidecar(tmp_path, monkeypatch):
-    import sys
-    from unittest.mock import MagicMock
-
     class _MockTimeline:
         def recent(self, n):
             return []
 
-    mock_module = MagicMock()
-    mock_module.get_session_timeline = lambda: _MockTimeline()
+    import qoresence.agents.session_timeline as st
 
-    sys.modules["qoresence.agents.session_timeline"] = mock_module
+    monkeypatch.setattr(st, "get_session_timeline", lambda: _MockTimeline())
     monkeypatch.setenv("QORESENCE_CLIPS_DIR", str(tmp_path))
 
     low = build_coupling_sidecar(
