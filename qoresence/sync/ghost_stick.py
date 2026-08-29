@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from qoresence.sync.input_ring import DEFAULT_HOLD_FRESH_MS, AnalogPose
+from qoresence.sync.input_ring import AnalogPose
 
 COUPLING_FLOOR = 0.12
 DEFAULT_LAG_MS = 80.0

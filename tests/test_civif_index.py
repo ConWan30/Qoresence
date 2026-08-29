@@ -103,7 +103,16 @@ def test_unlocked_digits_not_indexed():
     assert card["home_score"] is None
 
 
-def test_coupling_min_uses_sidecar(tmp_path):
+def test_coupling_min_uses_sidecar(tmp_path, monkeypatch):
+    class _MockTimeline:
+        def recent(self, n):
+            return []
+
+    import qoresence.agents.session_timeline as st
+
+    monkeypatch.setattr(st, "get_session_timeline", lambda: _MockTimeline())
+    monkeypatch.setenv("QORESENCE_CLIPS_DIR", str(tmp_path))
+
     low = build_coupling_sidecar(
         clip_id="hdmi_low",
         session_id="",

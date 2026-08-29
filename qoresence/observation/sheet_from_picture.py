@@ -150,7 +150,7 @@ def get_visual_phase_from_context(visual_context: dict[str, Any] | Any) -> str |
     Looks for visual_phase in:
     1. visual_context.details.visual_phase (preferred)
     2. visual_context.visual_phase (fallback)
-    
+
     Coerces VisualContext dataclass to dict automatically.
 
     Args:
@@ -161,7 +161,7 @@ def get_visual_phase_from_context(visual_context: dict[str, Any] | Any) -> str |
     """
     if not visual_context:
         return None
-    
+
     # Coerce VisualContext dataclass to dict if needed
     if not isinstance(visual_context, dict):
         if hasattr(visual_context, "to_dict"):

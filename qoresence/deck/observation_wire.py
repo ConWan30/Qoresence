@@ -116,6 +116,18 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
                 elif any(x in title_lower for x in ["college football", "ncaa", "cfb"]):
                     game_profile = "ncaa_football_27"
 
+        # Mapper needs game_state + game_profile on the same dict as visual_phase.
+        # Situation is the licensed source for those two; picture supplies phase.
+        if visual_context_dict is None:
+            visual_context_dict = {}
+        else:
+            visual_context_dict = dict(visual_context_dict)
+        if game_profile and not visual_context_dict.get("game_profile"):
+            visual_context_dict["game_profile"] = game_profile
+        sit_state = situation.get("game_state")
+        if sit_state and not visual_context_dict.get("game_state"):
+            visual_context_dict["game_state"] = sit_state
+
         # Determine which control lookup to use (Madden vs CFB)
         is_madden = False
         is_cfb = False
@@ -224,6 +236,7 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
 
         # Build observation wire dict
         return {
+            "plane": "qoresence-observation",
             "frame_seq": frame_seq,
             "clock_ns": clock_ns,
             "hid_button": hid_button,

@@ -183,7 +183,7 @@ def test_null_vlm_holds_prior_lock(monkeypatch):
         lambda: _FakeOcrEngine([]),
     )
     ctx = ext.extract(_blank_frame(), _football_ctx())
-    assert (ctx.home_score, ctx.away_score) == (20, 0)  # lock held
+    assert (ctx.home_score, ctx.away_score) == (None, None)  # no seeing-path remint
     assert ctx.score_vlm_locked is False
 
 
@@ -209,7 +209,8 @@ def test_partial_vlm_does_not_wipe_lock(monkeypatch):
         lambda: _FakeOcrEngine([]),
     )
     ctx = ext.extract(_blank_frame(), _football_ctx())
-    assert (ctx.home_score, ctx.away_score) == (20, 0)  # lock held
+    assert (ctx.home_score, ctx.away_score) == (None, None)  # no seeing-path remint
+    assert ctx.score_vlm_locked is False
 
 
 # ── SituationModel downstream gate ────────────────────────────────────────────
@@ -373,8 +374,9 @@ def test_ocr_home_left_override(monkeypatch):
     # OCR path needs consensus; run twice to satisfy the stabilizer need=2.
     for _ in range(2):
         out = ext.extract(_blank_frame(), ctx)
-    assert out.home_score == 20
-    assert out.away_score == 0
+    assert out.home_score is None  # no seeing-path remint
+    assert out.away_score is None  # no seeing-path remint
+    assert out.score_vlm_locked is False
     assert out.home_left is True
 
 
@@ -430,8 +432,9 @@ def test_ready_paddle_reads_madden_mnp_when_ocr_opted_in(monkeypatch):
     for _ in range(2):
         out = ext.extract(_blank_frame(), ctx)
     assert out is not None
-    assert out.away_score == 21
-    assert out.home_score == 7
+    assert out.away_score is None  # no seeing-path remint
+    assert out.home_score is None  # no seeing-path remint
+    assert out.score_vlm_locked is False
 
 
 # ── fail-closed: lock requires ConfirmTicket ──────────────────────────────────

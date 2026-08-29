@@ -19,6 +19,30 @@ def _num(v: Any) -> int | None:
         return None
 
 
+def _hydrate_control(
+    control: dict[str, Any] | None,
+    situation: dict[str, Any],
+    clock_ns: int | None,
+    seq: int | None,
+) -> dict[str, Any] | None:
+    """Attach pad-label wire when the caller omitted control. Fail closed."""
+    if isinstance(control, dict):
+        return control
+    try:
+        from qoresence.deck.observation_wire import build_observation_wire
+
+        wire_sit = dict(situation) if isinstance(situation, dict) else {}
+        if seq is not None and wire_sit.get("frame_seq") is None:
+            wire_sit["frame_seq"] = seq
+        if clock_ns is not None and wire_sit.get("clock_ns") is None:
+            wire_sit["clock_ns"] = clock_ns
+        if wire_sit.get("frame_seq") is None:
+            return None
+        return build_observation_wire(wire_sit)
+    except Exception:
+        return None
+
+
 def build_observation(
     *,
     situation: dict[str, Any] | None = None,
@@ -27,12 +51,14 @@ def build_observation(
     glass_link: dict[str, Any] | None = None,
     clock_ns: int | None = None,
     seq: int | None = None,
+    control: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     sit = situation if isinstance(situation, dict) else {}
     vid = video if isinstance(video, dict) else {}
     coup = coupling if isinstance(coupling, dict) else {}
     glass = glass_link if isinstance(glass_link, dict) else {}
     silence: list[str] = []
+    control = _hydrate_control(control, sit, clock_ns, seq)
 
     title_locked = (
         bool(sit.get("title_claim")) or str(sit.get("title_hysteresis") or "") == "locked"
@@ -114,6 +140,40 @@ def build_observation(
     if glass_out.get("lan") and glass_out.get("url"):
         allowed.append(f"phone glass at {glass_out['url']} (LAN opt-in)")
 
+    ctrl_in = control if isinstance(control, dict) else {}
+    hid_button = ctrl_in.get("hid_button")
+    verb = ctrl_in.get("verb")
+    mode = ctrl_in.get("mode")
+    if hid_button:
+        control_out: dict[str, Any] = {
+            "plane": PLANE,
+            "hid_button": str(hid_button),
+            "verb": str(verb) if verb else None,
+            "mode": str(mode) if mode else None,
+            "visual_phase": ctrl_in.get("visual_phase"),
+            "conflict": ctrl_in.get("conflict"),
+            "frame_seq": ctrl_in.get("frame_seq") or pad.get("frame_seq"),
+            "labeled": bool(verb),
+        }
+        if verb and mode:
+            allowed.append(
+                f"pad label {hid_button} = {verb} (sheet {mode})"
+            )
+        else:
+            silence.append("control_unlabeled")
+    else:
+        control_out = {
+            "plane": PLANE,
+            "hid_button": None,
+            "verb": None,
+            "mode": None,
+            "visual_phase": ctrl_in.get("visual_phase"),
+            "conflict": None,
+            "frame_seq": ctrl_in.get("frame_seq") or pad.get("frame_seq"),
+            "labeled": False,
+        }
+        silence.append("no_control_edge")
+
     return {
         "ok": True,
         "plane": PLANE,
@@ -121,6 +181,7 @@ def build_observation(
         "title": title,
         "score": score,
         "pad": pad,
+        "control": control_out,
         "video": {
             "has_frame": has_frame,
             "age_s": vid.get("age_s"),

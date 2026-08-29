@@ -199,6 +199,7 @@ class TestObserveButtonPress:
         assert d["verb"] == "Snap Ball"
         assert d["mode"] == "preplay_offense"
         assert d["source"] == "ea_ps_controls_hub"
+        assert d["plane"] == "qoresence-observation"
 
 
 class TestObserveStaysOffGrabThread:
@@ -211,3 +212,66 @@ class TestObserveStaysOffGrabThread:
         # which is populated by FrameHub subscriber (off grab).
         # This test is a documentation placeholder.
         pass
+
+
+class TestPhaseMapsToSheet:
+    """visual_phase + gameplay + madden profile selects a sheet."""
+
+    def test_huddle_offense_maps_preplay(self):
+        from qoresence.observation.madden_controls import MaddenControlLookup
+
+        lookup = MaddenControlLookup()
+        mode = lookup.map_game_state_to_mode(
+            {
+                "game_state": "gameplay",
+                "game_profile": "madden_27",
+                "details": {"visual_phase": "huddle_offense"},
+            }
+        )
+        assert mode == "preplay_offense"
+
+    def test_observe_hid_edge_labeled_when_phase_present(self):
+        from qoresence.observation.madden_controls import observe_hid_edge
+
+        obs = observe_hid_edge(
+            frame_seq=7,
+            clock_ns=1,
+            button_name="Cross",
+            visual_context={
+                "game_state": "gameplay",
+                "game_profile": "madden_27",
+                "details": {"visual_phase": "huddle_offense"},
+            },
+        )
+        assert obs.mode == "preplay_offense"
+        assert obs.verb == "Snap Ball"
+        assert obs.to_dict()["plane"] == "qoresence-observation"
+
+    def test_ball_in_air_triangle_keeps_both_verbs(self):
+        from qoresence.observation.madden_controls import MaddenControlLookup
+
+        verb = MaddenControlLookup().lookup_verb("Triangle", "ball_in_air")
+        assert "OFF Aggressive Catch" in verb
+        assert "DEF Ball Hawk" in verb
+
+    def test_ncaa_profile_never_selects_madden_sheet(self):
+        from qoresence.observation.madden_controls import MaddenControlLookup
+
+        mode = MaddenControlLookup().map_game_state_to_mode(
+            {
+                "game_state": "gameplay",
+                "game_profile": "ncaa_football_27",
+                "details": {"visual_phase": "huddle_offense"},
+            }
+        )
+        assert mode is None
+
+
+class TestGrabLoopIsolation:
+    def test_streamer_does_not_import_madden_controls(self):
+        from pathlib import Path
+
+        src = Path("qoresence/lobes/streamer.py").read_text(encoding="utf-8")
+        assert "madden_controls" not in src
+        assert "observe_button_press" not in src
+        assert "observe_hid_edge" not in src

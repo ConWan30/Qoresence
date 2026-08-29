@@ -124,7 +124,7 @@ def test_grounded_vlm_updates_held_pair_without_hud(monkeypatch):
 
 
 def test_clock_grounded_vlm_locks_without_team_wordmarks(monkeypatch):
-    """640×480 Madden: clock on the bug is enough; wordmarks may be null."""
+    """640x480 Madden: clock on the bug is enough; wordmarks may be null."""
     _reset()
     _patch_empty_hud(monkeypatch)
     monkeypatch.setattr(
@@ -148,6 +148,7 @@ def test_clock_grounded_vlm_locks_without_team_wordmarks(monkeypatch):
 
 
 def test_honest_18_13_from_hud_locks(monkeypatch):
+    """HUD-only pair is not a seeing-path mint. Digits stay off the plane."""
     _reset()
     monkeypatch.delenv("QORESENCE_EASY_OCR", raising=False)
     monkeypatch.setattr(
@@ -162,9 +163,9 @@ def test_honest_18_13_from_hud_locks(monkeypatch):
     frame = _noise_frame()
     ctx = ext.extract(frame, _gameplay())
     ctx = ext.extract(frame, ctx)
-    assert (ctx.home_score, ctx.away_score) == (18, 13)
-    assert ctx.score_vlm_locked is True
-    assert ctx.confirm_ticket_id
+    assert (ctx.home_score, ctx.away_score) == (None, None)
+    assert ctx.score_vlm_locked is False
+    assert not (ctx.confirm_ticket_id or "")
 
 
 def test_menu_hud_pair_does_not_mint_lock(monkeypatch):

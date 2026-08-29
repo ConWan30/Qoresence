@@ -334,3 +334,47 @@ def test_wrap_observation_refuses_truth_plane_and_missing_record():
         assert missing["reason"] == "no_record"
     finally:
         mcp_server.handle_get_events = orig_events
+
+
+def test_observation_pack_includes_unlabeled_control_by_default():
+    from qoresence.mcp.observation import build_observation
+
+    pack = build_observation(
+        situation={
+            "game_profile": "madden_27",
+            "title_claim": True,
+            "title_hysteresis": "locked",
+            "home_score": 14,
+            "away_score": 10,
+            "score_vlm_locked": True,
+        },
+        video={"has_frame": True},
+        coupling={"phrase": "SNAP", "coupling": 0.6, "frame_seq": 12},
+        glass_link={"url": "http://192.168.1.9:8765/mobile.html", "lan": True},
+    )
+    assert pack["control"]["labeled"] is False
+    assert "no_control_edge" in pack["must_not_invent"]
+
+
+def test_observation_pack_control_label_is_legend_not_outcome():
+    from qoresence.mcp.observation import build_observation
+
+    pack = build_observation(
+        situation={"game_profile": "madden_27", "title_claim": True, "title_hysteresis": "locked"},
+        video={"has_frame": True},
+        control={
+            "hid_button": "Cross",
+            "verb": "Snap Ball",
+            "mode": "preplay_offense",
+            "visual_phase": "huddle_offense",
+            "frame_seq": 18421,
+        },
+    )
+    assert pack["control"]["labeled"] is True
+    assert pack["control"]["verb"] == "Snap Ball"
+    assert pack["control"]["plane"] == "qoresence-observation"
+    line = "pad label Cross = Snap Ball (sheet preplay_offense)"
+    assert line in pack["may_say"]
+    blob = " ".join(pack["may_say"]).lower()
+    assert "they snapped" not in blob
+    assert "caught" not in blob
