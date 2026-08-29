@@ -401,7 +401,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
     const p = await wakePadDevice();
     get().setPad({ connected: p.connected, name: p.name, held: p.held });
     if (!p.connected) {
-      const log = pushLog(get().log, "veto", "Pad not seen — click this glass, then press R2");
+      const log = pushLog(get().log, "hw", "pad_not_on_this_host — DualSense stays on the PS5");
       set({ log });
     }
   },

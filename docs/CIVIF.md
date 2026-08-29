@@ -101,7 +101,7 @@ Highlights may still rank on coupling score and locked board without pad analyti
 ## Operator usage (`/civif.html`)
 
 - **board_locked yes/no** — trust score digits only when yes.
-- **controller_bodied yes/no** — trust pad timing only when yes (PAD WAIT on Theater is the same honesty).
+- **controller_bodied yes/no** — trust pad timing only when yes. Unbodied (`pad_not_on_this_host`) is DualSense-on-PS5, the default live topology — not a Theater alarm.
 - HDMI stays on Theater; this page does not poll JPEG.
 - **Coach panel** — Timing, Pattern, and Situation reports from `GET /api/civif/live` (`coaching_reports`, plus legacy `coaching_report` for Timing).
 

@@ -20,7 +20,7 @@ export function SessionNow() {
         <DownPill />
       </div>
       <p className="font-mono text-[10px] tracking-wide text-subtle-foreground">
-        Watching HDMI + DualSense + scorebug. Fast chat, score locks, and clips land here.
+        Watching HDMI + scorebug. DualSense stays on the PS5. Fast chat, score locks, and clips land here.
       </p>
     </section>
   );

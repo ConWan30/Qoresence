@@ -64,9 +64,7 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
           <GlanceGlyph compact={mobileCompact} />
           <div className="flex flex-wrap items-center gap-2">
             <Chip>{hdmiLabel}</Chip>
-            <Chip hot={padConnected}>
-              {padConnected ? `PAD ${padName}` : "PAD WAIT"}
-            </Chip>
+            {padConnected ? <Chip hot>{`PAD ${padName}`}</Chip> : null}
             <Chip hot={pllLock} cold={!pllLock}>
               {pllLock ? "PLL LOCK" : "PLL OPEN"}
             </Chip>
@@ -128,8 +126,12 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
       )}
 
       <div className="flex items-end justify-between gap-3 p-3 sm:p-4">
-        {variant === "deck" ? (
+        {variant === "deck" && padConnected ? (
           <DualSensePad r2={r2} left={left} r2Frame={r2Frame} leftFrame={leftFrame} live={ticketLive} />
+        ) : variant === "deck" ? (
+          <span className="font-mono text-[10px] tracking-[0.14em] text-subtle-foreground uppercase">
+            Playing on TV
+          </span>
         ) : (
           <span className="font-mono text-[10px] tracking-[0.14em] text-subtle-foreground uppercase">
             Retina Lens

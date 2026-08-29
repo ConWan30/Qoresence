@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { pictureLagMs, syncChipText } from "@/lib/coupling/pad-sync";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 import { BroadcastClock } from "./broadcast-clock";
@@ -77,6 +78,7 @@ export function CommandBar() {
   const captureError = useTheater((s) => s.captureError);
   const deckLive = useTheater((s) => s.deckLive);
   const syncLagMs = useTheater((s) => s.syncLagMs);
+  const videoAgeS = useTheater((s) => s.videoAgeS);
   const bindKind = useTheater((s) => s.bindKind);
   const armCapture = useTheater((s) => s.armCapture);
   const stageMode = useTheater((s) => s.stageMode);
@@ -133,7 +135,7 @@ export function CommandBar() {
 
   const dot = heatVetoed ? "bg-veto" : ticketLive ? "bg-live" : pllLock ? "bg-sync" : "bg-muted-foreground";
 
-  const padText = padConnected ? `PAD ${padName}` : "PAD WAIT";
+  const syncLabel = syncChipText(pictureLagMs(videoAgeS, 0, pllLock && deckLive ? syncLagMs : 0));
   const hdmiText =
     captureStatus === "live"
       ? `HDMI ${captureLabel}`
@@ -270,17 +272,19 @@ export function CommandBar() {
             </span>
           </div>
           <div className="flex flex-wrap gap-x-3 font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
-            <span data-pad={padConnected ? "live" : "wait"} className={padConnected ? "text-live" : ""}>
-              {padText}
-            </span>
+            {padConnected ? (
+              <span data-pad="live" className="text-live">
+                {`PAD ${padName}`}
+              </span>
+            ) : null}
             <span data-capture={captureStatus} className={captureStatus === "live" ? "text-live" : captureError ? "text-veto" : ""}>
               {hdmiText}
             </span>
             <span data-monitor={deckLive ? "live" : "wait"} className={deckLive ? "text-live" : ""}>
               {deckLive ? "MONITOR LIVE" : "MONITOR WAIT"}
             </span>
-            <span data-sync={licensed && pllLock ? "lock" : "open"} className={licensed && pllLock ? "text-sync" : ""}>
-              SYNC {licensed && pllLock ? `${syncLagMs}ms` : "—"}{licensed && bindKind ? ` · ${bindKind}` : ""}
+            <span data-sync={syncLabel === "UNBOUND" ? "unbound" : "lock"} className={syncLabel === "UNBOUND" ? "" : "text-sync"}>
+              SYNC {syncLabel}{licensed && bindKind && syncLabel !== "UNBOUND" ? ` · ${bindKind}` : ""}
             </span>
           </div>
         </div>

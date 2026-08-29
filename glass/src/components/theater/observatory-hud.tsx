@@ -1,3 +1,4 @@
+import { pictureLagMs, syncChipText } from "@/lib/coupling/pad-sync";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 import { LockbugStrip } from "./lockbug-strip";
@@ -9,6 +10,7 @@ export function ObservatoryHUD() {
   const syncLagMs = useTheater((s) => s.syncLagMs);
   const bindKind = useTheater((s) => s.bindKind);
   const stageMode = useTheater((s) => s.stageMode);
+  const deckLive = useTheater((s) => s.deckLive);
   // Licensed gate — same fail-closed primitives the LockbugStrip uses.
   const livePaint = useTheater((s) => s.livePaint);
   const sameSeq = useTheater((s) => s.sameSeq);
@@ -24,6 +26,8 @@ export function ObservatoryHUD() {
   const licensed =
     widgetsOk && boardLocked && homeScore != null && awayScore != null && (confirm != null || boardLocked);
   const stale = videoAgeS >= 2;
+  const lag = pictureLagMs(videoAgeS, 0, pllLock && deckLive ? syncLagMs : 0);
+  const syncLabel = syncChipText(lag);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-3 sm:p-4">
@@ -47,15 +51,15 @@ export function ObservatoryHUD() {
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <span
-            data-sync={licensed && pllLock ? "lock" : "open"}
+            data-sync={syncLabel === "UNBOUND" ? "unbound" : "lock"}
             className={cn(
               "rounded-sm px-2.5 py-1 font-mono text-[10px] tracking-[0.12em] uppercase shadow-[var(--shadow-border)]",
-              licensed && pllLock ? "bg-bg text-sync" : "bg-bg text-muted-foreground",
+              syncLabel === "UNBOUND" ? "bg-bg text-muted-foreground" : "bg-bg text-sync",
             )}
           >
-            {/* Measured SYNC only under a licensed lock — never a fake 0 ms on HOLD. */}
-            SYNC {licensed && pllLock ? `${syncLagMs}ms` : "—"}
-            {licensed && bindKind ? ` · ${bindKind}` : ""}
+            {/* Measured lag or UNBOUND — never a decorated 0. Observatory admits picture lag. */}
+            SYNC {syncLabel}
+            {licensed && bindKind && syncLabel !== "UNBOUND" ? ` · ${bindKind}` : ""}
           </span>
         </div>
       </div>

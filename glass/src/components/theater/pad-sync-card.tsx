@@ -1,5 +1,5 @@
 import { DualSensePad } from "@/components/theater/dualsense-pad";
-import { scorePadSync } from "@/lib/coupling/pad-sync";
+import { pictureLagMs, scorePadSync, syncChipText } from "@/lib/coupling/pad-sync";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +45,9 @@ export function PadSyncCard() {
     energy: Math.max(padEnergy, ghost.r2, ghost.l2),
     held: padHeld,
   });
+  const lag = pictureLagMs(videoAgeS, 0, ghost.lagMs || syncLagMs);
+  const lagLine =
+    lag != null ? `Picture is late by ${lag}ms.` : "Picture lag UNBOUND.";
 
   return (
     <section className="holo-plate flex flex-col gap-3 rounded-xl p-4" data-pad-sync={score.lock}>
@@ -58,56 +61,64 @@ export function PadSyncCard() {
             score.lock === "lock" ? "text-live" : score.lock === "drift" ? "text-veto" : "text-subtle-foreground",
           )}
         >
-          {score.hid === "live" ? "HID live" : "HID wait"} · {score.lock}
+          {padConnected ? (score.hid === "live" ? "HID live" : "HID wait") : "PS5 pad"} · {score.lock}
         </span>
       </div>
 
       <p data-pad-sync-why={score.why} className="font-display text-xl font-extrabold leading-snug tracking-tight text-fg break-words">
-        {score.why}
+        {padConnected ? score.why : "Playing on TV."}
       </p>
 
       <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase break-words">
-        {padConnected ? shortPad(padName) : "no DualSense on this box"}
-        {padTransport ? ` · ${padTransport}` : ""}
-        {padReports ? ` · ${padReports} reports` : ""}
+        {padConnected
+          ? `${shortPad(padName)}${padTransport ? ` · ${padTransport}` : ""}${padReports ? ` · ${padReports} reports` : ""}`
+          : "DualSense on the PS5 · pad_not_on_this_host"}
       </p>
 
-      <DualSensePad
-        r2={r2}
-        left={left}
-        live={score.registering}
-        r2Frame={r2Frame}
-        leftFrame={leftFrame}
-      />
+      {padConnected ? (
+        <DualSensePad
+          r2={r2}
+          left={left}
+          live={score.registering}
+          r2Frame={r2Frame}
+          leftFrame={leftFrame}
+        />
+      ) : null}
 
-      <div className="grid grid-cols-2 gap-2 font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
-        <span className="truncate">
-          R2 {ghost.r2.toFixed(2)}
-          <span className="mx-1">·</span>
-          L2 {ghost.l2.toFixed(2)}
-        </span>
-        <span className="truncate">
-          Stick {ghost.lx.toFixed(2)} {ghost.ly.toFixed(2)}
-        </span>
-        <span className="truncate">HID seq {padHidSeq || "—"}</span>
-        <span className="truncate">VID seq {ghost.frameSeq || videoFrames || "—"}</span>
-        <span className="truncate">Lag {Math.round(ghost.lagMs || syncLagMs)}ms</span>
-        <span className="truncate">Jitter {Math.round(padJitterMs)}ms</span>
-      </div>
+      {padConnected ? (
+        <div className="grid grid-cols-2 gap-2 font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
+          <span className="truncate">
+            R2 {ghost.r2.toFixed(2)}
+            <span className="mx-1">·</span>
+            L2 {ghost.l2.toFixed(2)}
+          </span>
+          <span className="truncate">
+            Stick {ghost.lx.toFixed(2)} {ghost.ly.toFixed(2)}
+          </span>
+          <span className="truncate">HID seq {padHidSeq || "—"}</span>
+          <span className="truncate">VID seq {ghost.frameSeq || videoFrames || "—"}</span>
+          <span className="truncate">Lag {syncChipText(lag)}</span>
+          <span className="truncate">Jitter {Math.round(padJitterMs)}ms</span>
+        </div>
+      ) : (
+        <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase break-words">
+          {lagLine} Play clock is the TV.
+        </p>
+      )}
 
-      {padHeld.length ? (
+      {padConnected && padHeld.length ? (
         <p className="font-mono text-[10px] tracking-[0.14em] text-live uppercase break-words">
           {padHeld.join(" · ")}
         </p>
-      ) : (
+      ) : padConnected ? (
         <p className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase break-words">
           {score.registering
             ? ticketLive
               ? "ticket live · waiting for a face button"
-              : "reports climbing · press in-game to see buttons"
-            : "wake the pad — USB to this laptop, then press R2"}
+              : "reports climbing"
+            : "HID on this host · optional lab"}
         </p>
-      )}
+      ) : null}
     </section>
   );
 }

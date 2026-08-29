@@ -16,7 +16,9 @@ Not taken: PoAC, ZK, IoTeX, TinyML cheat codes, wallets.
 
 ## Hot-plug
 
-`--play` starts the controller lobe **waiting**. Plug DualSense USB or BT after Deck is up; the loop re-opens HID every 1.5 s. `/health` `state.controller.waiting` is true until the first report, then `connected` flips.
+**Path B (default live):** DualSense stays on the PS5. Laptop HID is empty. `/health` `state.controller.waiting` / `connected=false` and CIVIF `controller_bodied=false` with reason `pad_not_on_this_host` is the honest success state — not an error. Play clock is the TV. Observatory admits picture lag (`lag_center_ms` / `video.age_s`). Never coach play-off-Deck.
+
+**Path A (optional lab):** Plug DualSense USB or BT into this host after Deck is up; the loop re-opens HID every 1.5 s. `/health` `state.controller.waiting` is true until the first report, then `connected` flips. PC-visible pad is **not** required for honest SYNC.
 
 Software stand-in (no pad): `qoresence.sync.dualsense_fixture.feed_bodied_r2(runtime)` drives the same `ingest_report` path as a USB 0x01 stream.
 
