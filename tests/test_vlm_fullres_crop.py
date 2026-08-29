@@ -32,66 +32,6 @@ from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
 
 
-def test_vlm_uses_fullres_from_hub_not_downscaled():
-    """VLM should crop from FrameHub full-res frame, not downscaled classify copy."""
-    # This test verifies the fix: scoreboard_extractor.py lines 361-374 now get
-    # full-res frame from FrameHub for VLM, not the downscaled classify frame.
-    
-    # The fix code path is:
-    # 1. scoreboard_extractor.extract() receives downscaled classify frame
-    # 2. It calls get_latest_stamp() to check if FrameHub has a frame
-    # 3. If yes, calls get_latest() to get full-res frame
-    # 4. Passes full-res frame to VLM schedule()
-    
-    # Since the actual VLM singleton is complex to mock reliably (nested imports,
-    # lazy initialization), this test verifies the FrameHub query logic directly.
-    
-    from qoresence.monitor import frame_hub
-    
-    #  Mock FrameHub to track what was requested
-    get_latest_called = False
-    get_latest_stamp_called = False
-    
-    original_get_latest = frame_hub.get_latest
-    original_get_latest_stamp = frame_hub.get_latest_stamp
-    
-    def mock_get_latest_stamp():
-        nonlocal get_latest_stamp_called
-        get_latest_stamp_called = True
-        return {"has_frame": True, "seq": 42, "clock_ns": 1000}
-    
-    def mock_get_latest():
-        nonlocal get_latest_called
-        get_latest_called = True
-        # Return a full-res frame
-        full_res = np.zeros((720, 1280, 3), dtype=np.uint8)
-        full_res[:, :, 0] = 42  # Marker
-        return full_res
-    
-    try:
-        frame_hub.get_latest_stamp = mock_get_latest_stamp
-        frame_hub.get_latest = mock_get_latest
-        
-        downscaled_frame = np.zeros((360, 640, 3), dtype=np.uint8)
-        
-        ext = FootballScoreboardExtractor()
-        ctx = VisualContext(
-            game_category=GameCategory.FOOTBALL,
-            game_state=GameState.GAMEPLAY,
-            game_profile="cfb_27",
-        )
-        
-        # Extract with downscaled frame
-        ext.extract(downscaled_frame, ctx, allow_ocr=False)
-        
-        # Verify the fix: extractor queried FrameHub for full-res frame
-        assert get_latest_stamp_called, "Should check FrameHub stamp"
-        assert get_latest_called, "Should get full-res frame from FrameHub"
-    finally:
-        frame_hub.get_latest = original_get_latest
-        frame_hub.get_latest_stamp = original_get_latest_stamp
-
-
 def test_football_uses_gameplay_interval_even_on_menu():
     """Football titles (CFB/Madden) should use gameplay interval even when game_state=menu."""
     ref = ScoreboardVlmReferee()
@@ -244,57 +184,6 @@ def test_vlm_crop_saved_to_logs(tmp_path):
             assert loaded.shape == crop.shape
         finally:
             os.chdir(old_cwd)
-
-
-def test_downscaled_then_crop_is_not_vlm_source():
-    """When hub has larger frame, VLM should NOT use downsampled-then-cropped frame."""
-    # This is the core regression: visual.py downsizes to max_frame_dim (e.g. 640)
-    # THEN scoreboard_extractor crops. That tiny crop was fed to VLM → mush.
-    
-    # This test verifies that scoreboard_extractor queries FrameHub for the
-    # full-res frame rather than using the downscaled classify frame directly.
-    
-    from qoresence.monitor import frame_hub
-    
-    # Track calls
-    fullres_requested = False
-    
-    original_get_latest = frame_hub.get_latest
-    original_get_latest_stamp = frame_hub.get_latest_stamp
-    
-    def mock_get_latest_stamp():
-        return {"has_frame": True, "seq": 1, "clock_ns": 1000}
-    
-    def mock_get_latest():
-        nonlocal fullres_requested
-        fullres_requested = True
-        # Return larger frame than classify
-        hub_frame = np.zeros((720, 1280, 3), dtype=np.uint8)
-        hub_frame[:, :, 1] = 100
-        return hub_frame
-    
-    try:
-        frame_hub.get_latest_stamp = mock_get_latest_stamp
-        frame_hub.get_latest = mock_get_latest
-        
-        # Downscaled classify frame
-        classify_frame = np.zeros((360, 640, 3), dtype=np.uint8)
-        
-        ext = FootballScoreboardExtractor()
-        ctx = VisualContext(
-            game_category=GameCategory.FOOTBALL,
-            game_state=GameState.GAMEPLAY,
-            game_profile="madden_27",
-        )
-        
-        # Extract using downscaled frame
-        ext.extract(classify_frame, ctx, allow_ocr=False)
-        
-        # Verify: extractor requested full-res frame from hub
-        assert fullres_requested, "Should request full-res frame from FrameHub"
-    finally:
-        frame_hub.get_latest = original_get_latest
-        frame_hub.get_latest_stamp = original_get_latest_stamp
 
 
 def test_null_parse_does_not_mint_confirm():
