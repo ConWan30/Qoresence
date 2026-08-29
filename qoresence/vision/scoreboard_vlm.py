@@ -95,6 +95,7 @@ class ScoreboardVlmReferee:
             self.enabled = False
         self._lock = threading.Lock()
         self._inflight = False
+        self._inflight_since = 0.0
         self._last_call = 0.0
         self._last: dict[str, Any] | None = None
         self._last_raw = ""
@@ -127,6 +128,7 @@ class ScoreboardVlmReferee:
         reason: str = "tick",
         game_state: str | None = None,
         game_profile: str | None = None,
+        game_title: str | None = None,
     ) -> None:
         """Kick a background VLM read if due; never blocks.
 
@@ -148,14 +150,22 @@ class ScoreboardVlmReferee:
 
         now = time.time()
         with self._lock:
+            # Watchdog: clear stale inflight if thread is older than HTTP timeout (14s + 2s buffer)
+            if self._inflight and (now - self._inflight_since) > 16.0:
+                log.info("scoreboard VLM watchdog: clearing stale inflight (%.1fs)", now - self._inflight_since)
+                self._inflight = False
+            
             if self._inflight:
+                log.info("scoreboard VLM skip: inflight")
                 return
             if not force and (now - self._last_call) < interval:
+                log.info("scoreboard VLM skip: interval (%.1fs < %.1fs)", now - self._last_call, interval)
                 return
             self._inflight = True
+            self._inflight_since = now
             self._last_call = now
             self._last_reason = reason
-        crop = self._crop(frame, game_state=gst, game_profile=game_profile)
+        crop = self._crop(frame, game_state=gst, game_profile=game_profile, game_title=game_title)
         if crop is None:
             with self._lock:
                 self._inflight = False
@@ -176,8 +186,10 @@ class ScoreboardVlmReferee:
                         parsed.get("paused"),
                         reason,
                     )
+                else:
+                    log.info("scoreboard VLM → null parse (reason=%s)", reason)
             except Exception as e:
-                log.debug("scoreboard VLM failed: %s", e)
+                log.info("scoreboard VLM failed: %s (reason=%s)", e, reason)
             finally:
                 with self._lock:
                     self._inflight = False
@@ -193,12 +205,21 @@ class ScoreboardVlmReferee:
             return None
         return crop
 
+    @staticmethod
+    def _is_cfb_context(game_profile: str | None = None, game_title: str | None = None) -> bool:
+        """Detect CFB/college/NCAA from profile or title."""
+        profile_lower = str(game_profile or "").lower()
+        title_lower = str(game_title or "").lower()
+        cfb_markers = ("cfb", "college", "ncaa", "college football")
+        return any(m in profile_lower or m in title_lower for m in cfb_markers)
+
     @classmethod
     def _crop(
         cls,
         frame: np.ndarray,
         game_state: str | None = None,
         game_profile: str | None = None,
+        game_title: str | None = None,
     ) -> np.ndarray | None:
         h, w = frame.shape[:2]
         if h < 40 or w < 40:
@@ -208,10 +229,14 @@ class ScoreboardVlmReferee:
         # Gameplay: profile-aware scorebug. Menu: pause plate only.
         # Never stitch pause+bottom — that used to feed Gemini the other-games crawl.
         # EXCEPTION: Madden HUD always first, even if game_state is wrongly 'menu'.
+        # EXCEPTION: CFB scorebug always first, even if game_state is wrongly 'menu' (#108 pattern).
         scorebug = primary_scorebug_crop(game_profile)
         is_madden = is_madden_profile(game_profile)
-        # Madden: HUD first (even on menu), pause fallback. Others: menu → pause first.
-        if is_madden:
+        is_cfb = cls._is_cfb_context(game_profile, game_title)
+        # Madden: HUD first (even on menu), pause fallback.
+        # CFB: scorebug first (even on menu), pause fallback.
+        # Others: menu → pause first.
+        if is_madden or is_cfb:
             src = cls._slice(frame, scorebug)
             if src is None:
                 src = cls._slice(frame, _PAUSE_FRAC)
@@ -265,6 +290,7 @@ class ScoreboardVlmReferee:
             r = requests.post(url, headers=headers, json=body, timeout=14)
             with self._lock:
                 self._last_http_status = r.status_code
+            log.info("scoreboard VLM HTTP %d", r.status_code)
             if r.status_code == 402:
                 # HTTP 402 Payment Required: clear _last to HOLD seeing-path
                 with self._lock:
@@ -290,6 +316,7 @@ class ScoreboardVlmReferee:
                     code = resp.getcode()
                     with self._lock:
                         self._last_http_status = code
+                    log.info("scoreboard VLM HTTP %d", code)
                     if code == 402:
                         with self._lock:
                             self._last = None
@@ -301,6 +328,7 @@ class ScoreboardVlmReferee:
                 # HTTPError has a .code attribute for the HTTP status
                 with self._lock:
                     self._last_http_status = http_err.code
+                log.info("scoreboard VLM HTTP %d (error)", http_err.code)
                 if http_err.code == 402:
                     with self._lock:
                         self._last = None

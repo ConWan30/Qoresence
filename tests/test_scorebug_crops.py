@@ -95,3 +95,52 @@ def test_vlm_madden_menu_still_uses_hud_crop():
     # Must contain blue (HUD), not red (pause plate)
     assert int(crop[:, :, 0].max()) == 255, "Madden menu crop must include bottom HUD (blue)"
     assert int(crop[:, :, 2].max()) == 0, "Madden menu crop must NOT include center pause plate (red)"
+
+
+def test_vlm_cfb_menu_uses_scorebug_not_pause():
+    """CFB profile + game_state='menu' must crop the scorebug (y=0.78-0.93), not center pause plate.
+    
+    Regression test for 2026-08-29 CFB 27 bug: when game_state was 'menu', the VLM
+    cropped the center pause plate (0.12-0.52) instead of the CFB scorebug (0.78-0.93),
+    causing DeepSeek to return None-None scores because it saw grass instead of the score.
+    Same #108 exception pattern as Madden: known profile should use its scorebug first.
+    """
+    h, w = 720, 1280
+    frame = np.zeros((h, w, 3), dtype=np.uint8)
+    # Pause plate region (center): red channel
+    frame[int(h * 0.12) : int(h * 0.52), int(w * 0.22) : int(w * 0.78), 2] = 255
+    # CFB scorebug strip (y=0.78-0.93): green channel
+    frame[int(h * 0.78) : int(h * 0.93), :, 1] = 255
+    
+    crop = ScoreboardVlmReferee._crop(frame, game_state="menu", game_profile="cfb_27")
+    assert crop is not None
+    # Must contain green (CFB scorebug), not red (pause plate)
+    assert int(crop[:, :, 1].max()) == 255, "CFB menu crop must include scorebug (green)"
+    assert int(crop[:, :, 2].max()) == 0, "CFB menu crop must NOT include center pause plate (red)"
+
+
+def test_vlm_cfb_title_overrides_madden_profile():
+    """When title is 'College Football 27' but profile is madden_27, use CFB scorebug.
+    
+    Regression test for 2026-08-29: /health showed game_profile=madden_27 with
+    game_title='EA SPORTS College Football 27'. The crop logic must check BOTH
+    profile and title to detect CFB, using the CFB scorebug (y=0.78-0.93) not
+    Madden HUD (y=0.93-1.00).
+    """
+    h, w = 720, 1280
+    frame = np.zeros((h, w, 3), dtype=np.uint8)
+    # Madden HUD strip (bottom): blue channel
+    frame[int(h * 0.93) :, :, 0] = 255
+    # CFB scorebug strip (y=0.78-0.93): green channel
+    frame[int(h * 0.78) : int(h * 0.93), :, 1] = 255
+    
+    crop = ScoreboardVlmReferee._crop(
+        frame,
+        game_state="menu",
+        game_profile="madden_27",
+        game_title="EA SPORTS College Football 27"
+    )
+    assert crop is not None
+    # Must contain green (CFB scorebug), not blue (Madden HUD)
+    assert int(crop[:, :, 1].max()) == 255, "CFB title must use CFB scorebug (green)"
+    assert int(crop[:, :, 0].max()) == 0, "CFB title must NOT use Madden HUD (blue)"
