@@ -20,7 +20,8 @@ def reset_ticket_book():
 
 def test_confirm_ticket_reuses_id_when_board_identity_unchanged():
     """Mint a new ticket_id ONLY when home/away/quarter/identity actually change."""
-    book = ConfirmTicketBook()
+    reset_ticket_book()
+    book = get_ticket_book()
     
     # First ticket: DAL 27, NO 0, Q1
     t1 = mint_confirm_ticket(
@@ -77,7 +78,8 @@ def test_confirm_ticket_reuses_id_when_board_identity_unchanged():
 
 def test_confirm_ticket_fills_session_id():
     """session_id must be filled when reusing ticket_id."""
-    book = ConfirmTicketBook()
+    reset_ticket_book()
+    book = get_ticket_book()
     
     t1 = mint_confirm_ticket(
         session_id="sess-alpha",
@@ -113,7 +115,8 @@ def test_refuse_zero_zero_lock():
 
 def test_refuse_zero_zero_after_matchup_swap():
     """0-0 after matchup swap (DAL-NO → IND-DET) must be rejected unless identity compatible."""
-    book = ConfirmTicketBook()
+    reset_ticket_book()
+    book = get_ticket_book()
     
     # Lock DAL 27, NO 0
     t1 = mint_confirm_ticket(
@@ -175,7 +178,8 @@ def test_ivc_allow_bodied_defaults_to_false():
 
 def test_confirm_ticket_remint_reduces_churn():
     """Reusing ticket_id for unchanged board reduces ticket churn (85 remints avoided)."""
-    book = ConfirmTicketBook()
+    reset_ticket_book()
+    book = get_ticket_book()
     
     # Simulate 10 ticks with same board
     ticket_ids = []
