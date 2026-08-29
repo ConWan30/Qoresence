@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
-import pytest
-
 from qoresence.sync.hid_domain import HidDomain, allow_imu_bodied
-from qoresence.vision.confirm_ticket import (
-    ConfirmTicketBook,
-    get_ticket_book,
-    mint_confirm_ticket,
-)
-from qoresence.vision.scoreboard_extractor import (
-    _ScoreStabilizer,
-    _may_mint_lock,
-)
+from qoresence.vision.confirm_ticket import get_ticket_book, mint_confirm_ticket
+from qoresence.vision.scoreboard_extractor import _ScoreStabilizer, _may_mint_lock
 from qoresence.vision.visual_context import VisualContext
+
+
+def reset_ticket_book():
+    """Reset singleton ticket book between tests."""
+    book = get_ticket_book()
+    with book._lock:
+        book._latest = None
+        book._by_id.clear()
+        book._last_fast = None
+        book._last_board_identity = None
 
 
 def test_confirm_ticket_reuses_id_when_board_identity_unchanged():
