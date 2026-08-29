@@ -1,34 +1,35 @@
-/* Overlay only — do not push the HDMI stage off-screen. */
+/* Overlay only — do not push the HDMI stage off-screen. Aperture Glass. */
 body.qore-has-clip-dock{padding-bottom:0}
 #qore-clip-dock{
   position:fixed;left:12px;right:12px;bottom:10px;z-index:2147483000;
   display:flex;align-items:center;gap:6px;
   max-width:min(72rem,calc(100vw - 24px));margin:0 auto;
   padding:6px 8px;border-radius:999px;
-  background:rgba(5,10,8,.72);backdrop-filter:blur(10px);
-  font-family:ui-sans-serif,system-ui,sans-serif;pointer-events:auto;
+  background:rgba(5,6,10,.74);backdrop-filter:blur(10px);
+  box-shadow:0 0 0 1px color-mix(in oklab,#8b90a0 22%,transparent);
+  font-family:'Instrument Sans',ui-sans-serif,system-ui,sans-serif;pointer-events:auto;
 }
 #qore-clip-dock .row{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;flex:0 0 auto}
 #qore-clip-dock button,#qore-clip-player button{
-  border:0;border-radius:999px;padding:5px 10px;font:700 10px/1 ui-monospace,monospace;
+  border:0;border-radius:999px;padding:5px 10px;font:600 10px/1 'IBM Plex Mono',ui-monospace,monospace;
   text-transform:uppercase;cursor:pointer;white-space:nowrap;
 }
-#qore-clip-dock .live,#qore-clip-player .back{background:#c8f26a;color:#050a08}
-#qore-clip-dock .replay{background:#1b2a14;color:#c8f26a}
-#qore-clip-dock .make{background:#c8f26a;color:#050a08}
-#qore-clip-dock .toggle{background:#111;color:#c8f26a}
+#qore-clip-dock .live,#qore-clip-player .back{background:#9be7ff;color:#05060a}
+#qore-clip-dock .replay{background:#12151e;color:#9be7ff}
+#qore-clip-dock .make{background:#9be7ff;color:#05060a}
+#qore-clip-dock .toggle{background:#0b0d14;color:#9be7ff}
 #qore-clip-dock a.civif{
-  border-radius:8px;padding:5px 10px;font:500 12px/1 Sora,system-ui,sans-serif;
+  border-radius:4px;padding:5px 10px;font:500 12px/1 'Instrument Sans',system-ui,sans-serif;
   text-transform:none;text-decoration:none;letter-spacing:0;
-  background:color-mix(in oklab,#0e2018 80%,transparent);color:#8ea396;
-  box-shadow:0 0 0 1px color-mix(in oklab,#c6f26a 14%,transparent);
+  background:color-mix(in oklab,#12151e 80%,transparent);color:#8b90a0;
+  box-shadow:0 0 0 1px color-mix(in oklab,#8b90a0 22%,transparent);
 }
-#qore-clip-dock a.civif:hover{color:#e8f2ec;background:color-mix(in oklab,#c6f26a 10%,transparent)}
+#qore-clip-dock a.civif:hover{color:#e8eaf2;background:color-mix(in oklab,#9be7ff 10%,transparent)}
 #qore-clip-dock a.civif:active{transform:translateY(1px)}
-#qore-clip-dock a.civif:focus-visible{outline:2px solid #c6f26a;outline-offset:2px}
+#qore-clip-dock a.civif:focus-visible{outline:2px solid #9be7ff;outline-offset:2px}
 #qore-clip-dock .tile{
   display:flex;align-items:center;gap:4px;height:26px;min-width:0;
-  border-radius:999px;padding:0 8px;background:#111;color:#e8edf0;
+  border-radius:999px;padding:0 8px;background:#0b0d14;color:#e8eaf2;
 }
 #qore-clip-dock .tile .go{display:none}
 #qore-clip-dock .tile small{display:none}
@@ -36,7 +37,7 @@ body.qore-has-clip-dock{padding-bottom:0}
   display:none;flex:1 1 auto;gap:4px;overflow-x:auto;min-width:0;
 }
 #qore-clip-dock.open .tiles{display:flex}
-#qore-clip-dock .meta{color:#c8f26a;font:700 9px/1 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase}
+#qore-clip-dock .meta{color:#9be7ff;font:600 9px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase}
 #qore-clip-player{
   display:none;position:absolute;inset:0;z-index:40;background:#000;
 }
@@ -47,5 +48,5 @@ body.qore-has-clip-dock{padding-bottom:0}
 #qore-clip-player .hud{
   position:absolute;top:10px;left:10px;z-index:2;display:flex;gap:8px;align-items:center;
 }
-#qore-clip-player .label{color:#c8f26a;font:700 11px/1 ui-monospace,monospace;letter-spacing:.1em}
-.qore-play-hint{color:#c8f26a;font:700 10px/1 ui-monospace,monospace}
+#qore-clip-player .label{color:#9be7ff;font:600 11px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.1em}
+.qore-play-hint{color:#9be7ff;font:600 10px/1 'IBM Plex Mono',ui-monospace,monospace}

@@ -1,29 +1,35 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Retina Lens — LIVE</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@700&family=Syne:wght@800&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#050a08;--paper:#E8F2EC;--muted:#8EA396;--dim:#5D7166;--lime:#C6F26A;--cyan:#4FE0D4;--amber:#FFC14A;--rose:#FF7D91}
+/* Aperture Glass — self-hosted woff2, no runtime Google Fonts. */
+@font-face{font-family:'Instrument Sans';font-weight:400;font-style:normal;font-display:swap;src:url('/fonts/instrument-sans-400.woff2') format('woff2')}
+@font-face{font-family:'Instrument Sans';font-weight:500;font-style:normal;font-display:swap;src:url('/fonts/instrument-sans-500.woff2') format('woff2')}
+@font-face{font-family:'Instrument Sans';font-weight:600;font-style:normal;font-display:swap;src:url('/fonts/instrument-sans-600.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:500;font-style:normal;font-display:swap;src:url('/fonts/ibm-plex-mono-500.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:600;font-style:normal;font-display:swap;src:url('/fonts/ibm-plex-mono-600.woff2') format('woff2')}
+:root{--ink:#05060A;--paper:#E8EAF2;--muted:#8B90A0;--dim:#5B6070;--aperture:#9BE7FF;--brass:#D7B36A;--veto:#E07A7A}
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font-family:Syne,IBM Plex Mono,system-ui,sans-serif}
-#ribbon{position:absolute;top:0;left:0;height:3px;width:100%;background:linear-gradient(90deg,#17332B 0%,var(--cyan) 42%,var(--lime) 100%);opacity:.12;transition:opacity .8s;box-shadow:0 0 18px rgba(104,217,232,.35)}
-#pill{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:rgba(8,11,16,.78);backdrop-filter:blur(16px);border:1px solid rgba(200,242,106,.38);border-radius:999px;padding:11px 22px;color:var(--paper);font:700 13px/1 JetBrains Mono,monospace;letter-spacing:.04em;box-shadow:0 14px 38px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.06);opacity:0;transition:opacity .8s;white-space:nowrap}
-#pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 13px var(--lime)}
+/* OBS lens stays transparent — no page wash. */
+html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font-family:'Instrument Sans',system-ui,sans-serif}
+#ribbon{position:absolute;top:0;left:0;height:3px;width:100%;background:linear-gradient(90deg,#0B0D14 0%,var(--aperture) 100%);opacity:.12;transition:opacity .8s;box-shadow:0 0 12px rgba(155,231,255,.30)}
+#pill{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:rgba(5,6,10,.80);backdrop-filter:blur(16px);border:1px solid rgba(155,231,255,.34);border-radius:6px;padding:11px 22px;color:var(--paper);font:600 14px/1 'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:.04em;box-shadow:0 14px 38px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.05);opacity:0;transition:opacity .8s;white-space:nowrap}
+#pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--aperture);box-shadow:0 0 12px var(--aperture)}
 #pill.show{opacity:1}#pill.hide{opacity:0}
-#spark{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%) scale(.88);font:800 82px/.98 Syne,sans-serif;letter-spacing:-.065em;color:var(--lime);text-align:center;text-shadow:0 10px 42px rgba(198,242,106,.32);opacity:0;transition:all .55s cubic-bezier(.34,1.56,.64,1);filter:saturate(1.05)}
+#spark{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%) scale(.94);font:600 82px/.98 'Instrument Sans',sans-serif;letter-spacing:-.03em;color:var(--aperture);text-align:center;text-shadow:0 0 42px rgba(155,231,255,.28);opacity:0;transition:opacity .35s cubic-bezier(.22,1,.36,1),transform .35s cubic-bezier(.22,1,.36,1)}
 #spark.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
-#eye{position:absolute;right:22px;top:16px;padding:8px 11px;border:1px solid rgba(190,214,232,.2);border-radius:10px;background:rgba(8,11,16,.72);backdrop-filter:blur(13px);color:var(--muted);font:700 10px/1 JetBrains Mono,monospace;letter-spacing:.05em;box-shadow:0 10px 24px rgba(0,0,0,.2)}
-#eye strong{color:var(--lime);font-weight:800}
-#body,#pad,#bind{position:absolute;right:22px;padding:7px 11px;border-radius:10px;background:rgba(8,11,16,.72);backdrop-filter:blur(13px);font:700 10px/1 JetBrains Mono,monospace;letter-spacing:.08em;text-transform:uppercase;opacity:0;transition:opacity .35s;pointer-events:none}
-#body{top:52px;border:1px solid rgba(79,224,212,.4);color:var(--cyan)}
-#pad{top:88px;border:1px solid rgba(190,214,232,.22);color:var(--muted)}
-#bind{top:124px;border:1px solid rgba(198,242,106,.35);color:var(--lime)}
+#eye{position:absolute;right:22px;top:16px;padding:8px 11px;border:1px solid rgba(139,144,160,.24);border-radius:6px;background:rgba(5,6,10,.74);backdrop-filter:blur(13px);color:var(--muted);font:500 10px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.05em;box-shadow:0 10px 24px rgba(0,0,0,.20)}
+#eye strong{color:var(--aperture);font-weight:600}
+#body,#pad,#bind{position:absolute;right:22px;padding:7px 11px;border-radius:6px;background:rgba(5,6,10,.74);backdrop-filter:blur(13px);font:600 10px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;opacity:0;transition:opacity .35s;pointer-events:none}
+#body{top:52px;border:1px solid rgba(155,231,255,.36);color:var(--aperture)}
+#pad{top:88px;border:1px solid rgba(139,144,160,.24);color:var(--muted)}
+#bind{top:124px;border:1px solid rgba(215,179,106,.36);color:var(--brass)}
 #body.show,#pad.show,#bind.show{opacity:1}
-#wait{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(570px,80vw);padding:18px 23px;color:var(--paper);font:700 15px/1.45 Inter,sans-serif;text-align:center;background:rgba(8,11,16,.86);backdrop-filter:blur(17px);border:1px solid rgba(104,217,232,.35);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.06);z-index:9}
-#wait::before{content:"RETINA LENS / ";color:var(--cyan);font:800 9px/1 JetBrains Mono,monospace;letter-spacing:.14em;margin-right:8px}
-#wait.connected{background:rgba(8,11,16,.78);color:var(--muted);border-color:rgba(200,242,106,.28);font-weight:500;font-size:14px}
-#wait.connected::before{color:var(--lime)}
-@media(max-width:900px){#eye{right:12px;top:12px}#pill{bottom:5%;max-width:88vw;overflow:hidden;text-overflow:ellipsis;font-size:11px}#spark{font-size:56px}}
+#wait{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(570px,80vw);padding:18px 23px;color:var(--paper);font:500 15px/1.45 'Instrument Sans',sans-serif;text-align:center;background:rgba(5,6,10,.86);backdrop-filter:blur(17px);border:1px solid rgba(155,231,255,.30);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.05);z-index:9}
+#wait::before{content:"RETINA LENS / ";color:var(--aperture);font:600 9px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.14em;margin-right:8px}
+#wait.connected{background:rgba(5,6,10,.80);color:var(--muted);border-color:rgba(139,144,160,.24);font-weight:500;font-size:14px}
+#wait.connected::before{color:var(--aperture)}
+@media(max-width:900px){#eye{right:12px;top:12px}#pill{bottom:5%;max-width:88vw;overflow:hidden;text-overflow:ellipsis;font-size:12px}#spark{font-size:56px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.001ms!important}}
 </style></head><body>
 <div id="ribbon"></div><div id="pill" class="hide">Waiting for game — run --play</div><div id="spark"></div><div id="eye">● <strong>waiting</strong> — no game</div><div id="body" aria-live="polite"></div><div id="pad" aria-live="polite"></div><div id="bind" aria-live="polite"></div><div id="wait">OBS URL must be http://127.0.0.1:8765/overlay.html (not file://) · then: python -m qoresence.cli --play</div>
@@ -49,7 +55,7 @@ function fmtClock(s){
   const sec=Number(s.game_clock_seconds)|0;
   return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
 }
-function setRibbon(wp,clip){const pct=Math.round((wp||0)*100);ribbon.style.background='linear-gradient(90deg,#1A3A2A 0%,#F5C542 '+pct+'%,#E8EDF0 100%)';ribbon.style.opacity=(0.08+(clip||0)*0.6).toFixed(2)}
+function setRibbon(wp,clip){const pct=Math.round((wp||0)*100);ribbon.style.background='linear-gradient(90deg,#0B0D14 0%,#9BE7FF '+pct+'%,#E8EAF2 100%)';ribbon.style.opacity=(0.08+(clip||0)*0.6).toFixed(2)}
 function setPill(t,show){pill.textContent=t;pill.className=show?'show':'hide'}
 function setSpark(w,icon){spark.textContent=(icon||'⚡')+' '+(w||'');spark.className='show';setTimeout(()=>spark.className='',2600)}
 function setEye(html){eye.innerHTML=html}
@@ -57,7 +63,7 @@ function hideWait(){wait.style.display='none'}
 function showWait(msg, bad){
   wait.textContent=msg;
   wait.style.display='block';
-  if(bad){wait.style.background='rgba(231,76,60,.95)';wait.style.color='#fff';wait.classList.remove('connected')}
+  if(bad){wait.style.background='rgba(224,122,122,.95)';wait.style.color='#05060A';wait.classList.remove('connected')}
   else{wait.style.background='';wait.style.color='';wait.classList.add('connected')}
 }
 function handle(m){
