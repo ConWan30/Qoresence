@@ -209,7 +209,8 @@ def test_partial_vlm_does_not_wipe_lock(monkeypatch):
         lambda: _FakeOcrEngine([]),
     )
     ctx = ext.extract(_blank_frame(), _football_ctx())
-    assert (ctx.home_score, ctx.away_score) == (20, 0)  # lock held
+    assert (ctx.home_score, ctx.away_score) == (None, None)  # no seeing-path remint
+    assert ctx.score_vlm_locked is False
 
 
 # ── SituationModel downstream gate ────────────────────────────────────────────
