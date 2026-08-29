@@ -156,6 +156,18 @@ class SituationModel:
             self._state.game_state = (
                 ctx.game_state.value if hasattr(ctx.game_state, "value") else str(ctx.game_state)
             )
+
+        # Map title → canonical profile (same logic as visual.py _merge_scoreboard)
+        # Ensures published situation has cfb_27 when title is CFB, even if config was madden_27
+        ctx_profile = getattr(ctx, "game_profile", None)
+        ctx_title = getattr(ctx, "game_title", None)
+        if ctx_profile or ctx_title:
+            title_lower = str(ctx_title or "").lower()
+            profile_lower = str(ctx_profile or "").lower()
+            if "college" in title_lower or "ncaa" in title_lower or "cfb" in title_lower or "college football" in title_lower:
+                ctx.game_profile = "cfb_27"
+            elif "madden" in title_lower or "madden" in profile_lower:
+                ctx.game_profile = "madden_27"
         # Fail-closed: never adopt score_vlm_locked without a ConfirmTicket id.
         tid = str(getattr(ctx, "confirm_ticket_id", "") or "")
         if tid:

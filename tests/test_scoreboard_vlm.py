@@ -95,3 +95,70 @@ def test_large_score_pair_home_on_left():
     pair = FootballScoreboardExtractor._parse_large_score_pair(tokens, home_left=True)
     # left-of-center is home, right-of-center is away
     assert pair == (20, 0)
+
+
+def test_vlm_watchdog_clears_stale_inflight():
+    """Inflight watchdog clears _inflight if VLM thread is stale (>16s).
+    
+    Regression test for 2026-08-29: if a VLM thread hangs or _inflight sticks,
+    the next tick should be able to run after the HTTP timeout (~14s) + 2s buffer.
+    """
+    import numpy as np
+    import time
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test-key"  # Enable scheduling
+    
+    h, w = 720, 1280
+    frame = np.zeros((h, w, 3), dtype=np.uint8)
+    frame[int(h * 0.78) : int(h * 0.93), :, 1] = 255
+    
+    # Manually set inflight + old timestamp
+    with ref._lock:
+        ref._inflight = True
+        ref._inflight_since = time.time() - 20.0  # 20s ago (stale)
+    
+    # schedule should clear stale inflight and allow a new call
+    ref.schedule(frame, force=True, game_state="gameplay", game_profile="cfb_27")
+    
+    # Check that inflight was cleared and reset
+    with ref._lock:
+        # After watchdog clears and new schedule runs, inflight is True again (new call)
+        assert ref._inflight is True, "Watchdog should clear stale, then schedule sets new inflight"
+        # The new inflight_since should be recent (< 2s)
+        assert (time.time() - ref._inflight_since) < 2.0, "New inflight_since should be recent"
+
+
+def test_situation_model_maps_cfb_title_to_cfb_profile():
+    """SituationModel corrects game_profile when title is CFB but profile is madden.
+    
+    Regression test for 2026-08-29: /health showed game_profile=madden_27 with
+    game_title='EA SPORTS College Football 27'. The situation model must re-map
+    the profile based on title so published situation has cfb_27 not madden_27.
+    """
+    from qoresence.agents.situation_model import SituationModel
+    from qoresence.core import BaseEvent, EventType, SourceLobe
+    
+    model = SituationModel()
+    
+    # Create a visual_context event with CFB title but madden profile
+    event = BaseEvent(
+        session_id="test",
+        source_lobe=SourceLobe.VISUAL,
+        type=EventType.VISUAL_CONTEXT,
+        payload={
+            "game_state": "menu",
+            "game_profile": "madden_27",
+            "game_title": "EA SPORTS College Football 27",
+            "confidence": 0.9,
+        },
+        clock_ns=1_000_000_000,
+        session_head_ns=0,
+    )
+    
+    model.update(event)
+    
+    # The published state should have cfb_27, not madden_27
+    assert model.state.game_profile == "cfb_27", "CFB title must map to cfb_27 profile"
+    assert model.state.game_title == "EA SPORTS College Football 27"

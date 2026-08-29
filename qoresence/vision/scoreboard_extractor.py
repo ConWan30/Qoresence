@@ -367,6 +367,7 @@ class FootballScoreboardExtractor:
                 game_state=gst,
                 reason="tick",
                 game_profile=getattr(ctx, "game_profile", None),
+                game_title=getattr(ctx, "game_title", None),
             )
         except Exception as e:
             log.debug("scoreboard VLM schedule: %s", e)
