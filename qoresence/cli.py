@@ -419,6 +419,7 @@ class QoresenceApp:
 
         # Agent runtimes
         self.clutchbot: ClutchBotAgent | None = None
+        self.match_agent = None
         self.stem = None
         self.agent_glass = None
         # AgentGlass (glass D) — read-only spectator bridge, default OFF, no capture
@@ -566,6 +567,16 @@ class QoresenceApp:
                 session_head_ns=self.identity.session_head_ns,
             )
             log.info("ClutchBot agent initialized")
+
+        match_cfg = getattr(self.config, "match_agent", None)
+        if match_cfg is not None and bool(getattr(match_cfg, "enabled", False)):
+            from qoresence.agents.match_agent import start_match_agent
+
+            self.match_agent = start_match_agent(
+                enabled=True,
+                poll_s=float(getattr(match_cfg, "poll_s", 1.0) or 1.0),
+            )
+            log.info("MatchAgent initialized (Quicksilver DeepSeek v4)")
 
         stem_cfg = getattr(self.config, "stem", None)
         if stem_cfg is not None and (
@@ -953,6 +964,15 @@ class QoresenceApp:
 
         if self.clutchbot:
             self.clutchbot.stop()
+
+        if getattr(self, "match_agent", None) is not None:
+            try:
+                from qoresence.agents.match_agent import stop_match_agent
+
+                stop_match_agent()
+            except Exception:
+                pass
+            self.match_agent = None
 
         if getattr(self, "stem", None) is not None:
             try:
@@ -1371,6 +1391,12 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
     except Exception:
         pass
 
+    if getattr(args, "match_agent", False):
+        from qoresence.core.unified_config import MatchAgentConfig
+
+        _ma = getattr(config, "match_agent", MatchAgentConfig())
+        config.match_agent = replace(_ma, enabled=True)
+
     # ClutchBot agent (explicit or via --stream preset)
     if args.clutchbot or args.stream:
         from pathlib import Path as _P_cb
@@ -1715,6 +1741,12 @@ def main():
         action="store_true",
         help="Enable A2A bus (Gemini scene ↔ DeepSeek chat via Quicksilver). "
         "Also QORESENCE_A2A=1. Live agents: QORESENCE_A2A_GEMINI=1 QORESENCE_A2A_DEEPSEEK=1.",
+    )
+    parser.add_argument(
+        "--match-agent",
+        action="store_true",
+        help="Match-observer agent (DeepSeek v4 via Quicksilver, same key as ClutchBot). "
+        "Default OFF. Also QORESENCE_MATCH_AGENT=1. Observation only; DualSense stays on the PS5.",
     )
     parser.add_argument(
         "--ghost-stick",

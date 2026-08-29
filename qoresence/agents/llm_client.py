@@ -30,6 +30,13 @@ except ImportError:
 DEFAULT_BASE_URL = "https://api.quicksilverpro.io/v1"
 DEFAULT_MODEL = "deepseek-v4-flash"
 FALLBACK_MODEL = "gpt-4o-mini"
+CLUTCHBOT_KEY_FILE = ".secrets/quicksilver_clutchbot.key"
+
+
+def default_quicksilver_key_file() -> str | None:
+    """Same key file ClutchBot / A2A DeepSeek use. Never invent a path that is missing."""
+    p = pathlib.Path(CLUTCHBOT_KEY_FILE)
+    return str(p) if p.exists() else None
 
 
 def _resolve_api_key(api_key: str | None, api_key_file: str | None) -> str | None:
@@ -78,12 +85,37 @@ class LLMConfig:
             model=str(getattr(cfg, "llm_model", DEFAULT_MODEL) or DEFAULT_MODEL),
             base_url=str(getattr(cfg, "llm_base_url", DEFAULT_BASE_URL) or DEFAULT_BASE_URL),
             api_key=getattr(cfg, "llm_api_key", None),
-            api_key_file=getattr(cfg, "llm_api_key_file", None),
+            api_key_file=getattr(cfg, "llm_api_key_file", None) or default_quicksilver_key_file(),
             fallback_model=str(
                 getattr(cfg, "llm_fallback_model", FALLBACK_MODEL) or FALLBACK_MODEL
             ),
             timeout_s=float(getattr(cfg, "llm_timeout_s", 6.0) or 6.0),
             max_tokens=int(getattr(cfg, "llm_max_tokens", 256) or 256),
+        )
+
+    @classmethod
+    def from_quicksilver_env(cls, *, enabled: bool = False) -> LLMConfig:
+        """Match-observer / A2A path: DeepSeek v4 on Quicksilver, ClutchBot key file."""
+        import os
+
+        model = os.environ.get("QORESENCE_MATCH_AGENT_MODEL") or os.environ.get(
+            "QORESENCE_CLUTCHBOT_LLM_MODEL", DEFAULT_MODEL
+        )
+        base = os.environ.get("QORESENCE_CLUTCHBOT_LLM_BASE_URL", DEFAULT_BASE_URL)
+        key_file = (
+            os.environ.get("QORESENCE_CLUTCHBOT_LLM_API_KEY_FILE")
+            or os.environ.get("QUICKSILVER_API_KEY_FILE")
+            or default_quicksilver_key_file()
+        )
+        return cls(
+            enabled=bool(enabled),
+            provider="quicksilver",
+            model=str(model or DEFAULT_MODEL),
+            base_url=str(base or DEFAULT_BASE_URL),
+            api_key=os.environ.get("QORESENCE_CLUTCHBOT_LLM_API_KEY") or None,
+            api_key_file=key_file,
+            timeout_s=8.0,
+            max_tokens=180,
         )
 
 
@@ -230,6 +262,7 @@ class QuicksilverLLMClient:
         event_payload: dict[str, Any] | None,
         persona: str = "neutral",
         base_message: str | None = None,
+        system_prompt: str | None = None,
     ) -> str | None:
         """Rewrite/enhance a chat message via LLM. Returns None on failure (caller keeps template)."""
         if not self.is_available():
@@ -238,7 +271,8 @@ class QuicksilverLLMClient:
         messages = [
             {
                 "role": "system",
-                "content": _build_system_prompt(
+                "content": system_prompt
+                or _build_system_prompt(
                     persona, game_title if isinstance(game_title, str) else None
                 ),
             },
