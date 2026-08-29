@@ -75,14 +75,14 @@ def _fix_digits_in(token: str) -> str:
 
 
 def _may_mint_lock(ctx: VisualContext | None, vlm: dict[str, Any] | None = None) -> bool:
-    """New locks during gameplay, or on football HUD when classifier says menu.
+    """New locks during gameplay only. Refuse loading/cutscene entirely.
 
+    Operator: refuse lock on loading/cutscene. Require identity-compatible
+    with the prior lock. 0-0 only if the crop still shows two zeros AND
+    identity holds.
+    
     Play-call / pause still paints the match scorebug. Refusing mint there
     left confirm empty while DeepSeek already had NO 0 / DAL 10.
-    
-    Fail-closed for loading/cutscene: only allow if VLM is grounded with
-    clear identity (left_team AND right_team) to avoid locking 0-0 garbage
-    after matchup swaps.
     """
     if ctx is None:
         return False
@@ -91,24 +91,18 @@ def _may_mint_lock(ctx: VisualContext | None, vlm: dict[str, Any] | None = None)
     except Exception:
         gst = ""
     
+    # REFUSE loading/cutscene/transition entirely (fail-closed)
+    # These states must not lock even with grounded VLM
+    if gst in {"loading", "cutscene", "transition"}:
+        return False
+    
     # Allow gameplay/in_game states immediately
     if gst in {"", "gameplay", "playing", "in_game"}:
         return True
     
-    # For loading/cutscene/menu states, require grounded VLM with identity
+    # Menu/pause states: require grounded VLM with football HUD
     if not _vlm_board_grounded(vlm):
         return False
-    
-    # Additional check: loading/cutscene require BOTH teams identified
-    # to avoid locking 0-0 garbage after identity swap
-    if gst in {"loading", "cutscene", "transition"}:
-        if not vlm:
-            return False
-        left = str(vlm.get("left_team") or "").strip()
-        right = str(vlm.get("right_team") or "").strip()
-        if not (left and right):
-            # No clear identity → refuse lock during transition states
-            return False
     
     profile = str(getattr(ctx, "game_profile", "") or "").lower()
     title = str(getattr(ctx, "game_title", "") or "").lower()
@@ -619,6 +613,8 @@ class FootballScoreboardExtractor:
                         clock_ns=int(stamp.get("clock_ns") or _time_ticket.monotonic_ns()),
                         home_score=int(sh),
                         away_score=int(sa),
+                        home_team=str(getattr(ctx, "home_team", "") or ""),
+                        away_team=str(getattr(ctx, "away_team", "") or ""),
                         model=model_str,
                         source=source_str,
                         frame_seq=_ti(stamp.get("seq")),

@@ -55,22 +55,32 @@ def input_events(data: dict[str, Any]) -> list[dict[str, Any]]:
 
 def input_bodied(events: list[dict[str, Any]], coupling: dict[str, Any]) -> tuple[bool, str]:
     # Fail-closed: only PLAY HID events count as bodied. OBSERVE HID → unbodied.
+    # Missing hid_domain → fail closed (unbodied), not open.
     if events:
         # Check that ALL events are from PLAY domain (not OBSERVE, not PICTURE)
+        # Missing hid_domain is fail-closed (unbodied)
+        all_play = True
         try:
             from qoresence.sync.hid_domain import allow_bind
             
-            all_play = all(
-                allow_bind(e.get("hid_domain")) 
-                for e in events 
-                if isinstance(e, dict)
-            )
-            if not all_play:
-                # At least one OBSERVE or PICTURE event → fail closed (unbodied)
-                return False, "hid_observe"
+            for e in events:
+                if not isinstance(e, dict):
+                    continue
+                domain = e.get("hid_domain")
+                # Missing hid_domain → fail closed (unbodied)
+                if domain is None:
+                    all_play = False
+                    break
+                if not allow_bind(domain):
+                    all_play = False
+                    break
         except Exception:
-            # If we can't check hid_domain, fail open for legacy events
-            pass
+            # If we can't check hid_domain, fail closed (unbodied)
+            all_play = False
+        
+        if not all_play:
+            # At least one OBSERVE/PICTURE event or missing hid_domain → fail closed
+            return False, "hid_observe"
         return True, "input_ring"
     if coupling.get("imu_bodied"):
         return True, "imu_bodied"

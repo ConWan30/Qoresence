@@ -93,6 +93,8 @@ def mint_confirm_ticket(
     crop_hash: str = "",
     quarter: int | None = None,
     down: int | None = None,
+    home_team: str | None = None,
+    away_team: str | None = None,
 ) -> ConfirmTicket:
     # Normalize and validate source: ONLY seeing-path sources allowed
     normalized_source = normalize_source(source)
@@ -103,13 +105,16 @@ def mint_confirm_ticket(
         )
     
     hs, aws = _norm_int(home_score), _norm_int(away_score)
-    # Hash payload excludes clock_ns: same board → same ticket_id
-    # Operator intent: ticket licenses a board state, not a specific frame
+    # Hash payload excludes clock_ns but INCLUDES identity (home/away team)
+    # Operator intent: DAL 27-0 and IND 27-0 must be different tickets
+    # Mint only when home/away/identity/quarter change or lock drops
     hash_payload = {
         "v": DOMAIN,
         "session_id": str(session_id or ""),
         "home_score": hs,
         "away_score": aws,
+        "home_team": str(home_team or "").strip().upper(),
+        "away_team": str(away_team or "").strip().upper(),
         "model": str(model or "deepseek-v4-flash-vision-exp"),
         "source": normalized_source,
         "quarter": _norm_int(quarter),
