@@ -45,6 +45,11 @@ export function ClutchFeed() {
       return () => window.clearTimeout(id);
     }
   }, [moments, licensed]);
+  // Iron is instant: the moment the license drops, kill any in-flight row glow
+  // so HOLD can never keep a bloom on the plate (do not wait out the one-shot).
+  useEffect(() => {
+    if (!licensed) setLandKey(null);
+  }, [licensed]);
 
   return (
     <section className="holo-plate flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-xl p-3 sm:p-4">
@@ -74,7 +79,7 @@ export function ClutchFeed() {
         <div className="flex flex-col gap-2">
           {moments.slice(0, 8).map((e) => {
             const href = momentPlayHref(e, lastClipUrl);
-            const landAttr = e.key === landKey ? e.path || undefined : undefined;
+            const landAttr = licensed && e.key === landKey ? e.path || undefined : undefined;
             const className = cn(
               "clutch-row flex min-h-14 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
               href ? "cursor-pointer hover:opacity-90" : "",

@@ -23,6 +23,11 @@ function useClutchLand(enabled: boolean): "fast" | "confirm" | null {
     return () => window.clearTimeout(id);
     // Fire on each new licensed clutch/climax start (seq), not on gate flips.
   }, [seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Iron is instant: the moment the license drops, kill any in-flight glow so
+  // HOLD can never keep a bloom on □–□ (do not wait out the one-shot timer).
+  useEffect(() => {
+    if (!enabled) setLand(null);
+  }, [enabled]);
   return land;
 }
 
@@ -70,7 +75,7 @@ export function LockbugStrip({ className, pulse = false }: { className?: string;
     <p
       data-lockbug={licensed ? "locked" : "unlocked"}
       data-situation={licensed ? "live" : "dark"}
-      data-land={land ?? undefined}
+      data-land={licensed ? (land ?? undefined) : undefined}
       className={cn(
         "lockbug-lock font-mono text-[11px] tracking-wide tabular-nums",
         licensed ? "text-fg" : "text-subtle-foreground/70",
