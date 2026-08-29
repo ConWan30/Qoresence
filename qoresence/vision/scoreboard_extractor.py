@@ -79,6 +79,10 @@ def _may_mint_lock(ctx: VisualContext | None, vlm: dict[str, Any] | None = None)
 
     Play-call / pause still paints the match scorebug. Refusing mint there
     left confirm empty while DeepSeek already had NO 0 / DAL 10.
+    
+    Fail-closed for loading/cutscene: only allow if VLM is grounded with
+    clear identity (left_team AND right_team) to avoid locking 0-0 garbage
+    after matchup swaps.
     """
     if ctx is None:
         return False
@@ -86,10 +90,26 @@ def _may_mint_lock(ctx: VisualContext | None, vlm: dict[str, Any] | None = None)
         gst = str(getattr(ctx.game_state, "value", None) or ctx.game_state or "").lower()
     except Exception:
         gst = ""
+    
+    # Allow gameplay/in_game states immediately
     if gst in {"", "gameplay", "playing", "in_game"}:
         return True
+    
+    # For loading/cutscene/menu states, require grounded VLM with identity
     if not _vlm_board_grounded(vlm):
         return False
+    
+    # Additional check: loading/cutscene require BOTH teams identified
+    # to avoid locking 0-0 garbage after identity swap
+    if gst in {"loading", "cutscene", "transition"}:
+        if not vlm:
+            return False
+        left = str(vlm.get("left_team") or "").strip()
+        right = str(vlm.get("right_team") or "").strip()
+        if not (left and right):
+            # No clear identity → refuse lock during transition states
+            return False
+    
     profile = str(getattr(ctx, "game_profile", "") or "").lower()
     title = str(getattr(ctx, "game_title", "") or "").lower()
     return any(k in profile or k in title for k in ("madden", "cfb", "football", "ncaa"))

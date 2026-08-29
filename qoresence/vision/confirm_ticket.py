@@ -103,23 +103,35 @@ def mint_confirm_ticket(
         )
     
     hs, aws = _norm_int(home_score), _norm_int(away_score)
-    payload = {
+    # Hash payload excludes clock_ns: same board → same ticket_id
+    # Operator intent: ticket licenses a board state, not a specific frame
+    hash_payload = {
         "v": DOMAIN,
         "session_id": str(session_id or ""),
-        "clock_ns": int(clock_ns or 0),
         "home_score": hs,
         "away_score": aws,
         "model": str(model or "deepseek-v4-flash-vision-exp"),
         "source": normalized_source,
-        "frame_seq": _norm_int(frame_seq),
-        "crop_hash": str(crop_hash or ""),
         "quarter": _norm_int(quarter),
         "down": _norm_int(down),
     }
-    raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    raw = json.dumps(hash_payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     ticket_id = hashlib.sha256(raw).hexdigest()[:16]
-    fields = {k: v for k, v in payload.items() if k != "v"}
-    return ConfirmTicket(ticket_id=ticket_id, **fields)
+    
+    # Full ticket includes clock_ns (for display/debug), but not in hash
+    return ConfirmTicket(
+        ticket_id=ticket_id,
+        session_id=str(session_id or ""),
+        clock_ns=int(clock_ns or 0),
+        home_score=hs,
+        away_score=aws,
+        model=str(model or "deepseek-v4-flash-vision-exp"),
+        source=normalized_source,
+        frame_seq=_norm_int(frame_seq),
+        crop_hash=str(crop_hash or ""),
+        quarter=_norm_int(quarter),
+        down=_norm_int(down),
+    )
 
 
 def license_score_text(
