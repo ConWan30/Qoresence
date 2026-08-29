@@ -245,7 +245,7 @@ def test_extractor_init_does_not_start_paddle_when_ocr_off(monkeypatch):
         raise AssertionError("Paddle warmup must stay off unless QORESENCE_EASY_OCR=1")
 
     monkeypatch.setattr(
-        "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_ocr_engine",
+        "qoresence.vision.scoreboard_ocr_engine.get_scoreboard_engine",
         _boom,
     )
     FootballScoreboardExtractor._stabilizer = None
