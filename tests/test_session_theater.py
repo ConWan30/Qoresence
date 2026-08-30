@@ -268,7 +268,7 @@ def test_gamer_and_analyst_share_normalized_view():
     assert "data-mode=\"gamer\"" in html
     assert "data-mode=\"analyst\"" in html
     assert ".gamer .analyst-only" in (DECK / "session.css").read_text(encoding="utf-8")
-    
+
 
 def test_fixtures_exist():
     names = {p.stem for p in FIXTURE_DIR.glob("*.json")}
