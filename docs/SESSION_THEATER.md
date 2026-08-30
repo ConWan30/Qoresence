@@ -38,6 +38,40 @@ Optional: `?session_id=` or `?fixture=<allowlisted-name>` on both APIs and the p
 
 The client uses **one** `tickAll` timer: fetch view, then recap. Do not point the browser at raw fixture JSON.
 
+## Seeing-path pilot checklist
+
+The gamer sentence (“recap of what was on the TV”) is false until a normal PS5 session can **license a score once** and stay honest when it cannot. This is an operator checklist, not a new product page. No launcher, overlay, Remote Play, or MCP `civif_session_view`.
+
+Digits on Now require `score_vlm_locked` **and** a non-empty ConfirmTicket. Flag-only lock stays dark. When blank, Now shows one `board_why` sentence (quota / menu / no key) — not operator `confirm: none`.
+
+### Laptop prerequisites (not code)
+
+- Capture card owned by Qoresence: `--play --deck --streamer-device 0 --streamer-fps 30 --game-profile madden_27` (or `cfb_27`).
+- `/health` `state.video.age_s` < 1 and `frames` climbing. If `age_s` climbs, stop — do not add OCR to a dying grab path.
+- Seeing engine **one of**: Quicksilver/DeepSeek key that `scoreboard_vlm` can call, **or** `QORESENCE_EASY_OCR=1` (blocks the subscriber tick — only if `age_s` stays healthy).
+- Pad may stay on the PS5. Empty HID is success. Do not require Remote Play for this gate.
+- Do not enable EasyOCR “to make it a product” if it freezes LIVE. Prefer VLM crop/cadence/quota **speech** first.
+
+### Proof commands
+
+```powershell
+curl http://127.0.0.1:8765/health
+curl http://127.0.0.1:8765/api/session/view
+```
+
+`/health` exposes `board_why`, `score_vlm_locked`, and `has_confirm_ticket` (boolean — not the ticket id). `GET /api/session/view` puts the same why on `view.board_why`. Licensed Now uses `board_why=confirm_ticket` plus `confirmed.available`.
+
+### Laptop proof (after merge, on the box)
+
+One Madden (or CFB) hour, pad on PS5:
+
+1. `age_s` < 1, frames up.
+2. At least one Now HUD pair that matches the TV, with `board_why=confirm_ticket`.
+3. When blank, `board_why` matches the room (menu vs quota vs no key).
+4. Optional: existing `hdmi_clip_*` Open clip after a lock — no new clip IDs.
+
+Until (2), do not start the one-launcher / auto-clip / friend-recap product face.
+
 ### View envelope
 
 `ok`, `status`, `session`, `view`, `freshness.{generated_at,last_event_at,age_ms,stale}`
@@ -76,7 +110,7 @@ Public fields: `schema`, `ok`, `status`, `session`, `duration_ms`, `event_count`
 ## Shipped milestones
 
 | Milestone | `main` SHA | PR | Issue |
-|-----------|------------|----|-------|
+|-----------|------------|-----|-------|
 | Phase 1–2 foundation | `da0fa95` | [#63](https://github.com/ConWan30/Qoresence/pull/63) | — |
 | Phase 1–2 docs | `85e104a` | [#66](https://github.com/ConWan30/Qoresence/pull/66) | — |
 | Phase 3 `GET /api/session/view` | `4ebdf92` | [#67](https://github.com/ConWan30/Qoresence/pull/67) | [#64](https://github.com/ConWan30/Qoresence/issues/64) |
@@ -115,5 +149,6 @@ Flat `session-recap-1`. One `tickAll` timer. Chromium smoke: zero `/session_fixt
 - `tests/test_session_theater.py`
 - `tests/test_session_clip_link.py`
 - `tests/test_session_recap.py`
+- `tests/test_board_why.py`
 
 Do not mix [#65](https://github.com/ConWan30/Qoresence/issues/65) full-matrix `pytest tests/ -x` into Session Theater work without new evidence.
