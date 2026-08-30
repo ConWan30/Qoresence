@@ -79,7 +79,7 @@ Files touched:
 | `docs/install.html` | Theme color matches home. Nav → Glasses / Pilot gates / Limits. Footer carries the principle line + wiki. |
 | `docs/PAGES_REDESIGN_NOTES.md` | This file. |
 
-Assets reused (no new generated art): `deck-live-demo.mp4`, `deck-live-demo.jpg`, `qoresence-social-preview.png`.
+Watch demo (2026-08-30): `docs/assets/deck-live-demo.mp4` is a web transcode of the 2026-08-14 Edge window-capture (`Retina Deck — observation plane … 19-50-11.mp4`). Full 6m45s, 1280×720 H.264, no audio. Poster from the LIVE field at 00:12. Source file stays off-repo.
 
 ## Content assumptions (shipped on `e8ecbab` / current `main`)
 
