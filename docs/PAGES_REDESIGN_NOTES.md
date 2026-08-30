@@ -3,6 +3,56 @@
 Branch: `feat/pages-redesign-2026`  
 Live today: https://conwan30.github.io/Qoresence/ (still the previous long-scroll until this lands on `main`).
 
+## Aperture Glass migration (2026-08-30)
+
+The public site now mirrors the Retina Deck's **Aperture Glass** token system
+(`glass/src/styles.css`) instead of the earlier "night field-ops / phosphor
+broadcast" palette. One aesthetic for every surface — the operator Deck and the
+GitHub Pages site share the same machined iron chrome.
+
+| Before (phosphor broadcast) | After (Aperture Glass) |
+|---|---|
+| Phosphor green `#c6f26a`, signal teal `#4fe0d4` | Aperture cyan `#9be7ff`, brass clutch `#d7b36a`, veto `#e07a7a` |
+| Scanlines + radial wash on `body` | Flat void `#05060a` — no scanlines, no radial wash (deck law) |
+| Syne (display) + Sora (body) | Instrument Sans (display + body) + IBM Plex Mono (data) |
+| Broadcast pills, radii 16–28px | Machined plates, radii 2–12px |
+| Green-tinted hairlines | Iron hairlines `color-mix(in oklab, #8b90a0 22%, transparent)` |
+| Inline `<style>` per page | Shared `docs/aperture.css` (single source of truth, mirrors the deck's one `styles.css`) |
+
+## Operator glass layout (2026-08-30)
+
+The token port was not enough — the public site still read as a marketing
+scroll. This pass copies Retina Deck *chrome*, not just the palette:
+
+- Command bar (`holo-header`) with Q mark, **Retina Deck / local switcher**,
+  STANDBY tally, glass-nav tray, and 01/02/03 stream keys.
+- Status strip is HOLD on purpose: `PLL open · couple none`, `□–□ · — & —`,
+  `PAD unbound / HDMI wait / MONITOR WAIT / SYNC UNBOUND`. Never fake LIVE.
+- Proof/Watch is a theater: HDMI `holo-plinth` + Situation / Clutch Feed rail
+  — same split as `TheaterPage` (`hdmi-stage` + intel column).
+- Iron signal prism under the picture (HOLD fill, not iris freshness).
+- Content / IA / claim ceiling unchanged. Product stays local-first.
+- Inner pages (install / dark / trace) share the same command bar. Single-column
+  heroes collapse the two-col `gap` so lede sits under the title, not 80px away.
+
+Deck laws that carried over:
+- **Flat void field.** No scanlines, no radial wash, no bloom on the picture.
+- **Machined chrome.** Iron hairline borders, flat plates, aperture bloom ≤ 12px
+  only on the spine pulse (decorative iron, not content glow).
+- **One-shot motion.** `cubic-bezier(0.23, 1, 0.32, 1)`, 80–400ms tiers.
+  `prefers-reduced-motion` kills ambient motion.
+- **Path tints.** Brass `#d7b36a` = fast, aperture `#9be7ff` = confirm — same as
+  the Clutch Feed `data-land` rule in the deck.
+- **HOLD on the public site.** Empty glyphs stay empty. No invented 0–0.
+
+Files touched:
+- `docs/aperture.css` — new shared token system (ported from `glass/src/styles.css`).
+- `docs/index.html` — links `aperture.css`; content/IA unchanged.
+- `docs/install.html` — links `aperture.css`; content unchanged.
+- `docs/dark.html` — links `aperture.css`; content unchanged.
+- `docs/trace.html` — links `aperture.css`; table gets `class="spans"`; timeline
+  caption updated from "phosphor/signal" to "aperture/iris".
+
 ## Audit of the previous `docs/index.html`
 
 **Kept (it already worked):**
@@ -29,7 +79,7 @@ Live today: https://conwan30.github.io/Qoresence/ (still the previous long-scrol
 | `docs/install.html` | Theme color matches home. Nav → Glasses / Pilot gates / Limits. Footer carries the principle line + wiki. |
 | `docs/PAGES_REDESIGN_NOTES.md` | This file. |
 
-Assets reused (no new generated art): `deck-live-demo.mp4`, `deck-live-demo.jpg`, `qoresence-social-preview.png`.
+Watch demo (2026-08-30): `docs/assets/deck-live-demo.mp4` is a web transcode of the 2026-08-14 Edge window-capture (`Retina Deck — observation plane … 19-50-11.mp4`). Full 6m45s, 1280×720 H.264, no audio. Poster from the LIVE field at 00:12. Source file stays off-repo.
 
 ## Content assumptions (shipped on `e8ecbab` / current `main`)
 

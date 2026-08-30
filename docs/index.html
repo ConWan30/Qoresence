@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#050a08">
+  <meta name="theme-color" content="#05060a">
   <meta name="description" content="Qoresence is a Gaming Streaming Observatory Engine. One HDMI capture, one DualSense clock, many glasses — Deck, Lens, Mobile Glass, Foundry Ghost Cut, AgentGlass. Nothing leaves the box unless you ask.">
   <meta name="color-scheme" content="dark">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
@@ -22,278 +22,137 @@
   <meta name="twitter:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Sora:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <style>
-    :root{
-      --night:#050a08; --field:#08140f; --panel:rgba(10,22,16,.82);
-      --chalk:#e8f2ec; --mist:#8ea396; --dim:#5d7166;
-      --phosphor:#c6f26a; --signal:#4fe0d4; --confirm:#ffc14a; --alert:#ff7d91;
-      --line:rgba(198,242,106,.14); --line-hi:rgba(79,224,212,.28);
-      --max:1180px;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    html{scroll-behavior:smooth}
-    body{
-      color:var(--chalk);
-      background:
-        radial-gradient(980px 520px at 92% -12%, rgba(79,224,212,.11), transparent 58%),
-        radial-gradient(760px 560px at -10% 8%, rgba(198,242,106,.07), transparent 55%),
-        linear-gradient(180deg, #07110c 0%, var(--night) 26%, #06140f 100%);
-      font-family:Sora,ui-sans-serif,system-ui,sans-serif;
-      line-height:1.55;
-      overflow-x:hidden;
-    }
-    body::before{
-      content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.16;
-      background-image:repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(198,242,106,.07) 48px);
-    }
-    a{color:inherit}
-    :focus-visible{outline:2px solid var(--phosphor);outline-offset:3px}
-    .wrap{width:min(var(--max), calc(100% - 40px));margin:0 auto}
-    .site-header{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--line);background:rgba(5,10,8,.8);backdrop-filter:blur(20px)}
-    .nav{min-height:74px;display:flex;align-items:center;justify-content:space-between;gap:20px}
-    .wordmark{display:flex;align-items:center;gap:12px;text-decoration:none}
-    .mark{width:36px;height:36px;border-radius:50%;object-fit:cover;display:block;box-shadow:0 0 18px rgba(155,231,255,.28)}
-    .wordmark b{display:block;font:800 15px/1 Syne,sans-serif;letter-spacing:.04em}
-    .wordmark small{display:block;margin-top:4px;color:var(--dim);font:600 9px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase}
-    .nav-links{display:flex;align-items:center;gap:18px}
-    .nav-links a{color:var(--mist);font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-decoration:none;text-transform:uppercase}
-    .nav-links a:hover,.nav-links a.is-active{color:var(--phosphor)}
-    .nav-cta{padding:10px 14px;border:1px solid rgba(198,242,106,.45);border-radius:999px;color:var(--phosphor)!important}
-    .menu-toggle{display:none;border:1px solid var(--line);background:transparent;color:var(--chalk);padding:8px 10px;font:700 11px/1 "IBM Plex Mono",monospace}
-    .progress{position:absolute;left:0;bottom:0;height:2px;width:0;background:linear-gradient(90deg,var(--phosphor),var(--signal));box-shadow:0 0 12px rgba(198,242,106,.4)}
-
-    .hero{display:grid;grid-template-columns:1.08fr .92fr;gap:clamp(32px,6vw,80px);align-items:center;padding:clamp(56px,8vw,108px) 0 72px}
-    .kicker{display:inline-flex;align-items:center;gap:8px;color:var(--phosphor);font:700 11px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase}
-    .kicker i{width:7px;height:7px;border-radius:50%;background:var(--phosphor);box-shadow:0 0 0 5px rgba(198,242,106,.12),0 0 16px var(--phosphor)}
-    h1{margin:18px 0 20px;font:800 clamp(3rem,6.6vw,6.1rem)/.9 Syne,sans-serif;letter-spacing:-.06em}
-    h1 em{font-style:normal;color:var(--phosphor)}
-    .lede{max-width:36rem;color:var(--mist);font-size:1.06rem}
-    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
-    .chip{padding:7px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase}
-    .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
-    .button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 18px;border:1px solid var(--line-hi);border-radius:999px;background:rgba(255,255,255,.03);color:var(--chalk);font:700 11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-decoration:none;text-transform:uppercase;transition:transform .2s,border-color .2s,background .2s}
-    .button:hover{border-color:var(--phosphor);background:rgba(198,242,106,.08);transform:translateY(-2px)}
-    .button.primary{background:var(--phosphor);color:var(--night);border-color:var(--phosphor);box-shadow:0 14px 36px rgba(198,242,106,.16)}
-    .hero-note{margin-top:16px;color:var(--dim);font:500 12px/1.5 "IBM Plex Mono",monospace}
-
-    .instrument{position:relative;min-height:540px;padding:22px 20px 18px;border:1px solid var(--line-hi);border-radius:28px;background:linear-gradient(160deg,rgba(14,32,24,.85),rgba(5,10,8,.92));box-shadow:0 30px 80px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
-    .instrument::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 40%,rgba(198,242,106,.06) 50%,transparent 60%);animation:scan 9s ease-in-out infinite}
-    .inst-top{position:relative;z-index:1;display:flex;justify-content:space-between;font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
-    .inst-top strong{color:var(--chalk)}
-    .spine-wrap{position:relative;z-index:1;height:410px;margin:18px 8px 10px}
-    .spine{position:absolute;left:50%;top:12px;bottom:12px;width:2px;background:linear-gradient(180deg,var(--phosphor),var(--signal));box-shadow:0 0 18px rgba(198,242,106,.35);transform:translateX(-50%)}
-    .pulse{position:absolute;left:50%;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:var(--phosphor);box-shadow:0 0 16px var(--phosphor);animation:fall 5.6s linear infinite}
-    .node{position:absolute;width:calc(50% - 28px);padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(5,10,8,.72);font:600 11px/1.35 "IBM Plex Mono",monospace}
-    .node b{display:block;color:var(--chalk);font-size:12px;letter-spacing:.04em}
-    .node span{color:var(--mist);font-size:10px}
-    .node.left{right:calc(50% + 22px);text-align:right}
-    .node.right{left:calc(50% + 22px)}
-    .n1{top:8%} .n2{top:28%} .n3{top:48%} .n4{top:68%} .n5{top:86%}
-    .dot{position:absolute;left:50%;width:9px;height:9px;margin-left:-4px;border-radius:50%;background:var(--signal);box-shadow:0 0 10px var(--signal)}
-    .d1{top:12%} .d2{top:32%} .d3{top:52%} .d4{top:72%} .d5{top:90%}
-    .inst-foot{position:relative;z-index:1;display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid var(--line);color:var(--dim);font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase}
-    .inst-foot em{color:var(--phosphor);font-style:normal}
-
-    .section{padding:88px 0;border-top:1px solid var(--line)}
-    h2{margin:10px 0 0;font:800 clamp(2rem,4vw,3.6rem)/.98 Syne,sans-serif;letter-spacing:-.05em}
-    .section-head{display:flex;justify-content:space-between;gap:28px;align-items:end;margin-bottom:32px}
-    .section-head p{max-width:24rem;color:var(--mist)}
-
-    .demo-frame{position:relative;border:1px solid var(--line-hi);border-radius:24px;overflow:hidden;background:#050a08;box-shadow:0 24px 70px rgba(0,0,0,.35)}
-    .demo-chrome{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);background:rgba(8,18,12,.92);font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
-    .demo-chrome strong{color:var(--phosphor)}
-    .demo-frame video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#000}
-    .demo-frame img{display:block;width:100%;height:auto;background:#000}
-    .demo-cap{margin-top:14px;color:var(--dim);font:500 12px/1.55 "IBM Plex Mono",monospace}
-    .demo-cap a{color:var(--signal);text-decoration:none}
-    .demo-cap a:hover{color:var(--phosphor)}
-
-    .thesis{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
-    .thesis-copy,.principle{padding:32px;border:1px solid var(--line);border-radius:24px;background:var(--panel)}
-    .thesis-copy p+p{margin-top:14px;color:var(--mist)}
-    .principle{border-color:rgba(198,242,106,.28);background:linear-gradient(160deg,rgba(198,242,106,.1),rgba(5,10,8,.85))}
-    .principle blockquote{font:800 clamp(1.5rem,2.8vw,2.4rem)/1.05 Syne,sans-serif;letter-spacing:-.04em}
-    .principle em{color:var(--phosphor);font-style:normal}
-    .principle footer{margin-top:28px;color:var(--dim);font:600 10px/1.4 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase}
-
-    .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-    .flow article{padding:16px 14px;border:1px solid var(--line);border-radius:16px;background:rgba(8,18,12,.58)}
-    .flow .idx{color:var(--signal);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em}
-    .flow h3{margin:14px 0 6px;font:800 1.05rem/1 Syne,sans-serif}
-    .flow p{color:var(--mist);font-size:.82rem}
-
-    .orch{display:grid;gap:0}
-    .step{display:grid;grid-template-columns:88px 1fr 120px;gap:18px;align-items:start;padding:22px 0;border-bottom:1px solid var(--line)}
-    .step:last-child{border-bottom:0}
-    .step .num{color:var(--phosphor);font:800 13px/1 "IBM Plex Mono",monospace}
-    .step h3{font:700 1.15rem/1.2 Syne,sans-serif}
-    .step p{margin-top:6px;color:var(--mist);font-size:.92rem}
-    .step .tag{justify-self:end;color:var(--signal);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em}
-
-    .glasses{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
-    .glass{grid-column:span 3;padding:26px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(160deg,rgba(14,32,24,.7),rgba(5,10,8,.8));min-height:210px}
-    .glass:last-child{grid-column:2 / span 4}
-    .glass .idx{color:var(--signal);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.14em}
-    .glass h3{margin:26px 0 8px;font:800 1.5rem/1 Syne,sans-serif;letter-spacing:-.03em}
-    .glass p{color:var(--mist);font-size:.95rem}
-    .glass code{color:var(--phosphor);font-family:"IBM Plex Mono",monospace;font-size:.8rem}
-
-    .caps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .cap{padding:20px;border:1px solid var(--line);border-radius:18px;background:rgba(8,18,12,.6)}
-    .cap h3{margin:0 0 8px;font:800 1.08rem Syne,sans-serif}
-    .cap p{color:var(--mist);font-size:.88rem}
-
-    .profiles{display:grid;grid-template-columns:1.2fr 1fr 1fr .9fr;gap:12px}
-    .profile{padding:22px;border:1px solid var(--line);border-radius:18px;background:rgba(8,18,12,.55)}
-    .profile.lead{border-color:rgba(198,242,106,.28)}
-    .profile .idx{color:var(--confirm);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em}
-    .profile h3{margin:14px 0 8px;font:800 1.25rem Syne,sans-serif}
-    .profile p{color:var(--mist);font-size:.88rem}
-
-    table.contrast{width:100%;border-collapse:collapse;font-size:.92rem}
-    table.contrast th,table.contrast td{padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-    table.contrast th{color:var(--dim);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase}
-    table.contrast td:first-child{color:var(--phosphor);font-weight:600;white-space:nowrap}
-    table.contrast td{color:var(--mist)}
-
-    .gates{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-    .gate{padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(8,18,12,.55)}
-    .gate strong{display:block;color:var(--phosphor);font:800 11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase}
-    .gate span{display:block;margin-top:10px;color:var(--mist);font-size:.88rem}
-
-    .limits{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .limit{padding:22px;border:1px solid var(--line);border-radius:18px}
-    .limit.ok{border-color:rgba(79,224,212,.28);background:rgba(79,224,212,.04)}
-    .limit.no{border-color:rgba(255,125,145,.22);background:rgba(255,125,145,.04)}
-    .limit h3{margin-bottom:10px;font:800 1.1rem Syne,sans-serif}
-    .limit ul{margin:0 0 0 1.1rem;color:var(--mist)}
-    .limit li{margin:.35rem 0}
-
-    .faq details{padding:16px 0;border-bottom:1px solid var(--line)}
-    .faq summary{cursor:pointer;font:700 1.05rem/1.3 Syne,sans-serif;list-style:none}
-    .faq summary::-webkit-details-marker{display:none}
-    .faq summary::after{content:"＋";float:right;color:var(--phosphor);font-family:"IBM Plex Mono",monospace}
-    .faq details[open] summary::after{content:"–"}
-    .faq p{margin-top:10px;color:var(--mist);max-width:52rem}
-
-    .community{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .community a{display:block;padding:20px;border:1px solid var(--line);border-radius:16px;text-decoration:none;background:rgba(8,18,12,.5)}
-    .community a:hover{border-color:var(--phosphor)}
-    .community b{display:block;font:800 1.1rem Syne,sans-serif}
-    .community span{display:block;margin-top:8px;color:var(--mist);font-size:.88rem}
-
-    .download{display:grid;grid-template-columns:1fr auto;gap:28px;align-items:center;padding:36px;border:1px solid var(--line-hi);border-radius:28px;background:radial-gradient(500px 180px at 90% 0,rgba(79,224,212,.12),transparent 70%),linear-gradient(130deg,rgba(14,32,24,.9),rgba(5,10,8,.92))}
-    .download h2{margin-top:8px}
-    .download p{max-width:36rem;margin-top:10px;color:var(--mist)}
-
-    footer.site-footer{padding:28px 0 52px;color:var(--dim);font:500 11px/1.6 "IBM Plex Mono",monospace}
-    .footer-row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:18px;border-top:1px solid var(--line)}
-    footer a{color:var(--mist);text-decoration:none} footer a:hover{color:var(--phosphor)}
-
-    @keyframes fall{0%{top:6%;opacity:0}8%{opacity:1}92%{opacity:1}100%{top:92%;opacity:0}}
-    @keyframes scan{0%,30%{transform:translateX(-120%)}70%,100%{transform:translateX(120%)}}
-    @media (max-width:1040px){
-      .hero,.thesis,.download,.profiles{grid-template-columns:1fr}
-      .glasses,.caps,.uses,.gates,.community,.limits,.flow{grid-template-columns:1fr 1fr}
-      .glass,.glass:last-child{grid-column:span 1}
-      .step{grid-template-columns:64px 1fr}
-      .step .tag{display:none}
-      table.contrast td:first-child{white-space:normal}
-    }
-    @media (max-width:680px){
-      .wrap{width:min(var(--max),calc(100% - 28px))}
-      .nav-links{display:none;position:absolute;top:74px;left:14px;right:14px;padding:14px;flex-direction:column;align-items:stretch;border:1px solid var(--line-hi);border-radius:14px;background:rgba(5,10,8,.96)}
-      .nav-links.open{display:flex}
-      .menu-toggle{display:block}
-      .glasses,.caps,.gates,.community,.limits,.flow{grid-template-columns:1fr}
-      .instrument{min-height:460px}
-    }
-    @media (prefers-reduced-motion:reduce){
-      html{scroll-behavior:auto}
-      *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
-    }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./aperture.css">
 </head>
 <body>
-  <header class="site-header">
-    <div class="wrap nav">
-      <a class="wordmark" href="#top"><img class="mark" src="assets/qoresence-logo.png" width="36" height="36" alt="Qoresence"><span><b>Qoresence</b><small>observatory engine</small></span></a>
-      <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="site-nav">MENU</button>
-      <nav id="site-nav" class="nav-links" data-nav aria-label="Primary">
-        <a href="#watch">Watch</a>
-        <a href="#otel">Trace</a>
-        <a href="#plane">Plane</a>
-        <a href="#spine">Spine</a>
-        <a href="#glasses">Glasses</a>
-        <a href="#proof">Proof</a>
-        <a href="#privacy">Limits</a>
-        <a href="./install.html">Install</a>
-        <a href="https://github.com/ConWan30/Qoresence">GitHub</a>
-        <a class="nav-cta" href="https://github.com/ConWan30/Qoresence/releases/latest">Download</a>
-      </nav>
+  <a class="skip" href="#top">Skip to content</a>
+  <header class="holo-header">
+    <div class="command">
+      <div class="command-row">
+        <a class="wordmark" href="#top">
+          <span class="holo-mark" aria-hidden="true">Q</span>
+          <span><b>Retina Deck</b><small>local switcher</small></span>
+        </a>
+        <div class="holo-tally holo-tally-standby" data-tally="standby"><span class="holo-tally-lamp" aria-hidden="true"></span>Standby</div>
+        <span class="pgm-chip">PGM site</span>
+        <time class="bcast-clock" data-clock datetime="">--:--:--</time>
+        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="site-nav">MENU</button>
+        <nav id="site-nav" class="glass-nav" data-nav aria-label="Glasses">
+          <a href="#watch">Theater</a>
+          <a href="#otel">Trace</a>
+          <a href="#glasses">Glasses</a>
+          <a href="#proof">Proof</a>
+          <a href="./install.html">Install</a>
+          <a href="https://github.com/ConWan30/Qoresence">GitHub</a>
+        </nav>
+        <div class="mode-bar" data-mode-bar="site">
+          <a class="stream-key stream-key-live" href="https://github.com/ConWan30/Qoresence/releases/latest"><span>01</span>Download</a>
+          <a class="stream-key" href="#watch"><span>02</span>Replay</a>
+          <a class="stream-key stream-key-clip" href="./install.html"><span>03</span>Install</a>
+        </div>
+      </div>
+      <div class="command-status">
+        <div class="status-line">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>PLL open · couple none</span>
+          <span class="lockbug" data-lockbug="unlocked">□–□ · — &amp; —</span>
+        </div>
+        <div class="status-meta">
+          <em>PAD unbound</em>
+          <span>HDMI wait</span>
+          <span>MONITOR WAIT</span>
+          <span>SYNC UNBOUND</span>
+          <span>site · not a live session</span>
+        </div>
+      </div>
     </div>
     <div class="progress" data-progress aria-hidden="true"></div>
   </header>
 
   <main id="top">
-    <section class="wrap hero">
-      <div>
-        <div class="kicker"><i></i> Gaming Streaming Observatory Engine</div>
-        <h1>See the session<br><em>as it actually happened.</em></h1>
-        <p class="lede">Qoresence is a local-first observatory engine for gamers. HDMI video and DualSense HID share one monotonic clock. Deck, Session Theater, Lens, Stem Program, Mobile Glass, Ghost Cut, and MCP hang off that clock. The capture card opens once. Nothing else is allowed to open it.</p>
-        <p class="hero-note">Local-first · one clock · many glasses · observation plane only — no humanity, eligibility, or on-chain claims</p>
-        <div class="chips" aria-label="Invariants">
-          <span class="chip">127.0.0.1 default</span>
-          <span class="chip">no second capture</span>
-          <span class="chip">local-only clips</span>
-          <span class="chip">Stem not OBS</span>
-          <span class="chip">observation only</span>
-        </div>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Get Windows package</a>
-          <a class="button" href="#watch">Watch a session</a>
-          <a class="button" href="https://github.com/ConWan30/Qoresence">View source</a>
-        </div>
-        <p class="hero-note">Windows-first pilot · lobes default OFF</p>
+    <section class="wrap mast">
+      <div class="kicker"><i></i> Gaming Streaming Observatory Engine</div>
+      <h1>See the session<br><em>as it actually <wbr>happened.</em></h1>
+      <p class="lede">Qoresence is a local-first observatory engine for gamers. HDMI video and DualSense HID share one monotonic clock. Deck, Session Theater, Lens, Stem Program, Mobile Glass, Ghost Cut, and MCP hang off that clock. The capture card opens once. Nothing else is allowed to open it.</p>
+      <p class="hero-note">Local-first · one clock · many glasses · observation plane only — no humanity, eligibility, or on-chain claims</p>
+      <div class="chips" aria-label="Invariants">
+        <span class="chip">127.0.0.1 default</span>
+        <span class="chip">no second capture</span>
+        <span class="chip">local-only clips</span>
+        <span class="chip">Stem not OBS</span>
+        <span class="chip">observation only</span>
       </div>
-      <div class="instrument" aria-label="Causal clock spine: HDMI, HID, IVC, Bus, Glasses">
-        <div class="inst-top"><strong>SESSION / CLOCK SPINE</strong><span>monotonic ns</span></div>
-        <div class="spine-wrap">
-          <div class="spine"></div>
-          <div class="pulse"></div>
-          <span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><span class="dot d4"></span><span class="dot d5"></span>
-          <div class="node left n1"><b>HDMI</b><span>capture card · FrameHub</span></div>
-          <div class="node right n2"><b>HID</b><span>DualSense · InputRing</span></div>
-          <div class="node left n3"><b>IVC</b><span>couple video to press</span></div>
-          <div class="node right n4"><b>Bus</b><span>situation · moment · why</span></div>
-          <div class="node left n5"><b>Glasses</b><span>Lens · Deck · Mobile · Cut · MCP</span></div>
-        </div>
-        <div class="inst-foot"><span>one device / <em>one owner</em></span><span>no second capture</span></div>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Get Windows package</a>
+        <a class="button" href="#watch">Watch a session</a>
+        <a class="button" href="https://github.com/ConWan30/Qoresence">View source</a>
       </div>
+      <p class="hero-note">Windows-first pilot · lobes default OFF · this page is HOLD, never a fake live feed</p>
     </section>
 
-    <section class="section" id="watch">
+    <section class="theater" id="watch">
       <div class="wrap">
         <div class="section-head">
           <div><div class="kicker">Proof / Watch</div><h2>Retina Deck<br>while a match is on.</h2></div>
           <p>Window-capture of the operator glass. HDMI and DualSense on one clock. Not a second open of the card.</p>
         </div>
-        <div class="demo-frame">
-          <div class="demo-chrome">
-            <span><strong>NCAA 27</strong> · DualSense Edge · one clock</span>
-            <span>Deck / LIVE · FrameHub</span>
+        <div class="theater-grid">
+          <div>
+            <div class="holo-plinth" data-holo-tone="iron">
+              <div class="holo-plinth-well">
+                <video
+                  class="hdmi-picture"
+                  controls
+                  playsinline
+                  preload="metadata"
+                  poster="./assets/deck-live-demo.jpg"
+                  src="./assets/deck-live-demo.mp4">
+                  Your browser cannot play this MP4.
+                </video>
+              </div>
+              <div class="signal-prism" aria-hidden="true"><div class="signal-prism-fill is-hold"></div></div>
+              <div class="demo-chrome">
+                <span><strong>NCAA 27</strong> · DualSense Edge · one clock</span>
+                <span>Deck / LIVE · FrameHub</span>
+              </div>
+            </div>
+            <p class="demo-cap">6m45s window-capture of a local NCAA 27 session · USB DualSense Edge · SMU–Louisville Q1 · not a second open of the card · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
           </div>
-          <video
-            controls
-            playsinline
-            preload="metadata"
-            poster="./assets/deck-live-demo.jpg"
-            src="./assets/deck-live-demo.mp4">
-            Your browser cannot play this MP4.
-          </video>
+          <aside class="intel" aria-label="Situation and clutch feed">
+            <section class="holo-plate">
+              <div class="plate-head">
+                <h2>Situation</h2>
+                <span class="plate-meta">scorebug</span>
+              </div>
+              <p class="situation-line">□–□ · — &amp; —</p>
+              <p class="situation-sub">title-presence from HDMI · unlocked glyphs stay empty</p>
+            </section>
+            <section class="holo-plate">
+              <div class="plate-head">
+                <h2>Clutch feed</h2>
+                <span class="plate-meta">03 · WATCHING · 0.00</span>
+              </div>
+              <div class="heat" aria-hidden="true"><i></i></div>
+              <div class="clutch-note">
+                <p>The <em>capture card</em> is the brain.</p>
+                <span>everything else is a glass</span>
+              </div>
+              <article class="clutch-row">
+                <span class="idx">01</span>
+                <div><b>HDMI</b><span>capture card · FrameHub</span></div>
+              </article>
+              <article class="clutch-row">
+                <span class="idx">02</span>
+                <div><b>HID</b><span>DualSense · InputRing</span></div>
+              </article>
+              <article class="clutch-row">
+                <span class="idx">03</span>
+                <div><b>IVC</b><span>couple video to press</span></div>
+              </article>
+            </section>
+          </aside>
         </div>
-        <p class="demo-cap">75s cut from a local NCAA 27 session · USB DualSense · scoreboard 0–0 Q1 · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
       </div>
     </section>
 
@@ -303,38 +162,45 @@
           <div><div class="kicker">Proof / Trace</div><h2>One clip, three sidecars.</h2></div>
           <p>OTel causal bus traces, DualSense button events, and IVC coupling history — all stamped on the same monotonic clock.</p>
         </div>
-        <div class="demo-frame">
-          <div class="demo-chrome">
-            <span><strong>Madden 27</strong> · DualSense Edge · OTel causal traces</span>
-            <span>clip + .coupling.json + .buttons.json + .otel.json</span>
+        <div class="demo-stack">
+          <div>
+            <div class="holo-plinth">
+              <div class="holo-plinth-well">
+                <video
+                  class="hdmi-picture"
+                  controls
+                  playsinline
+                  preload="metadata"
+                  poster="./assets/otel-controller-demo.jpg"
+                  src="./assets/otel-controller-demo.mp4">
+                  Your browser cannot play this MP4.
+                </video>
+              </div>
+              <div class="signal-prism" aria-hidden="true"><div class="signal-prism-fill is-hold"></div></div>
+              <div class="demo-chrome">
+                <span><strong>Madden 27</strong> · DualSense Edge · OTel causal traces</span>
+                <span>clip + .coupling.json + .buttons.json + .otel.json</span>
+              </div>
+            </div>
+            <p class="demo-cap">30s clip with controller input · sidecars: <a href="https://github.com/ConWan30/Qoresence/blob/main/docs/assets/otel-controller-demo.mp4">MP4</a> · press <code>square</code> + <code>L2</code> captured in <code>.buttons.json</code> · 56 coupling ticks in <code>.coupling.json</code> · 100% sampled OTel trace IDs in <code>.otel.json</code> · open any trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
           </div>
-          <video
-            controls
-            playsinline
-            preload="metadata"
-            poster="./assets/otel-controller-demo.jpg"
-            src="./assets/otel-controller-demo.mp4">
-            Your browser cannot play this MP4.
-          </video>
-        </div>
-        <p class="demo-cap">30s clip with controller input · sidecars: <a href="https://github.com/ConWan30/Qoresence/blob/main/docs/assets/otel-controller-demo.mp4">MP4</a> · press <code>square</code> + <code>L2</code> captured in <code>.buttons.json</code> · 56 coupling ticks in <code>.coupling.json</code> · 100% sampled OTel trace IDs in <code>.otel.json</code> · open any trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
-      </div>
-    </section>
-
-    <section class="section" id="trace-viewer">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Proof / Why</div><h2>Trace why a clip fired.</h2></div>
-          <p>The Qoresence Trace Viewer reads the same OTel causal trace that ships in every <code>.otel.json</code> sidecar. No account, no cloud dashboard, no jumping between tools.</p>
-        </div>
-        <div class="demo-frame">
-          <div class="demo-chrome">
-            <span><strong>Qoresence Trace Viewer</strong> · Jaeger trace · local</span>
-            <span>summary · timeline · spans</span>
+          <div id="trace-viewer">
+            <div class="section-head">
+              <div><div class="kicker">Proof / Why</div><h2>Trace why a clip fired.</h2></div>
+              <p>The Qoresence Trace Viewer reads the same OTel causal trace that ships in every <code>.otel.json</code> sidecar. No account, no cloud dashboard, no jumping between tools.</p>
+            </div>
+            <div class="holo-plinth">
+              <div class="holo-plinth-well">
+                <img class="hdmi-picture" src="./assets/trace-viewer-screenshot.png" alt="Qoresence Trace Viewer showing a causal session trace with streamer, controller, IVC, visual, clip export, and deck health spans on a shared monotonic clock." loading="lazy">
+              </div>
+              <div class="demo-chrome">
+                <span><strong>Qoresence Trace Viewer</strong> · Jaeger trace · local</span>
+                <span>summary · timeline · spans</span>
+              </div>
+            </div>
+            <p class="demo-cap">One session trace shows the causal chain: <code>streamer.grab</code> → <code>controller.poll</code> → <code>ivc.coupling</code> → <code>clip.export</code> · each span is tagged with <code>clock_ns</code>, source lobe, and event type · open any <code>.otel.json</code> trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="./trace.html?demo=1">View demo trace</a></p>
           </div>
-          <img src="./assets/trace-viewer-screenshot.png" alt="Qoresence Trace Viewer showing a causal session trace with streamer, controller, IVC, visual, clip export, and deck health spans on a shared monotonic clock." loading="lazy">
         </div>
-        <p class="demo-cap">One session trace shows the causal chain: <code>streamer.grab</code> → <code>controller.poll</code> → <code>ivc.coupling</code> → <code>clip.export</code> · each span is tagged with <code>clock_ns</code>, source lobe, and event type · open any <code>.otel.json</code> trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="./trace.html?demo=1">View demo trace</a></p>
       </div>
     </section>
 
@@ -591,6 +457,17 @@
     const menu = document.querySelector('[data-menu]');
     const nav = document.querySelector('[data-nav]');
     const bar = document.querySelector('[data-progress]');
+    const clock = document.querySelector('[data-clock]');
+    const pad = (n) => String(n).padStart(2, '0');
+    const tick = () => {
+      if (!clock) return;
+      const d = new Date();
+      const t = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+      clock.textContent = t;
+      clock.setAttribute('datetime', t);
+    };
+    tick();
+    setInterval(tick, 1000);
     if (menu && nav) {
       menu.addEventListener('click', () => {
         const open = nav.classList.toggle('open');
@@ -602,7 +479,7 @@
       }));
     }
     const sections = [...document.querySelectorAll('main section[id]')];
-    const links = [...document.querySelectorAll('.nav-links a[href^="#"]')];
+    const links = [...document.querySelectorAll('.glass-nav a[href^="#"]')];
     const mark = () => {
       const y = window.scrollY + 96;
       let current = '';

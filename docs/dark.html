@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#050a08">
+  <meta name="theme-color" content="#05060a">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <meta name="description" content="Qoresence would rather go dark than paint a last-good score. Local observatory: HDMI + DualSense on one clock. Observation plane only.">
@@ -16,40 +16,48 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
   <meta name="twitter:site" content="@Qoresence">
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Sora:wght@400;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
-  <style>
-    :root { --ink:#050a08; --panel:#0e2018; --line:rgba(198,242,106,.14); --line-hi:rgba(79,224,212,.3); --paper:#e8f2ec; --muted:#8ea396; --dim:#5d7166; --lime:#c6f26a; --cyan:#4fe0d4; --amber:#ffc14a; --max:760px; }
-    *{box-sizing:border-box} body{margin:0;color:var(--paper);background:radial-gradient(800px 480px at 80% -5%,rgba(79,224,212,.12),transparent 68%),var(--ink);font-family:Sora,ui-sans-serif,system-ui,sans-serif;line-height:1.6}
-    a{color:var(--cyan)} a:hover{color:var(--lime)}
-    .wrap{width:min(var(--max),calc(100% - 40px));margin:0 auto}
-    .header{position:sticky;top:0;z-index:10;border-bottom:1px solid rgba(190,214,232,.1);background:rgba(8,11,16,.8);backdrop-filter:blur(18px)}
-    .nav{min-height:74px;display:flex;align-items:center;justify-content:space-between;gap:20px}
-    .brand{display:flex;align-items:center;gap:11px;color:var(--paper);font:800 13px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-decoration:none;text-transform:uppercase}
-    .brand-mark{width:31px;height:31px;border-radius:8px;object-fit:cover;display:block;box-shadow:0 0 14px rgba(155,231,255,.25)}
-    .nav a{color:var(--muted);font:700 10px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;text-decoration:none;text-transform:uppercase}
-    .nav a:hover{color:var(--lime)}
-    .back{padding:10px 13px;border:1px solid var(--line-hi);border-radius:9px}
-    .hero{padding:72px 0 28px}
-    .eyebrow{color:var(--lime);font:800 10px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase}
-    h1{margin:18px 0 16px;font-family:Syne,sans-serif;font-size:clamp(2.4rem,6vw,3.6rem);line-height:.95;letter-spacing:-.06em}
-    h1 em{color:var(--lime);font-style:normal}
-    .lede{color:var(--muted);font-size:1.08rem}
-    article{padding:8px 0 72px}
-    article h2{margin:36px 0 10px;font-family:Syne,sans-serif;font-size:1.45rem;letter-spacing:-.04em}
-    article p{color:var(--muted);margin:0 0 14px}
-    article code{color:var(--lime);font-family:"IBM Plex Mono",monospace;font-size:.86em}
-    .code{margin:13px 0 18px;padding:15px 16px;border:1px solid var(--line);border-radius:12px;background:#070a0f;color:#d7e3e2;overflow:auto;font:600 12px/1.55 "IBM Plex Mono",monospace;white-space:pre}
-    .notice{margin:22px 0;padding:15px 17px;border-left:2px solid var(--amber);color:var(--muted);background:rgba(246,189,98,.06);font-size:.9rem}
-    .notice strong{color:var(--amber)}
-    .footer{padding:28px 0 56px;color:var(--dim);font:600 11px/1.6 "IBM Plex Mono",monospace}
-    .footer a{color:var(--muted);text-decoration:none}
-    .footer a:hover{color:var(--lime)}
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./aperture.css">
 </head>
 <body>
-  <header class="header"><div class="wrap nav"><a class="brand" href="./index.html"><img class="brand-mark" src="assets/qoresence-logo.png" width="31" height="31" alt="Qoresence">Qoresence</a><nav class="nav-links"><a href="./install.html">Install</a><a class="back" href="./index.html">Back to home</a></nav></div></header>
-  <main class="wrap">
-    <section class="hero">
+  <a class="skip" href="#dark-top">Skip to content</a>
+  <header class="holo-header">
+    <div class="command">
+      <div class="command-row">
+        <a class="wordmark" href="./index.html">
+          <span class="holo-mark" aria-hidden="true">Q</span>
+          <span><b>Retina Deck</b><small>local switcher</small></span>
+        </a>
+        <div class="holo-tally holo-tally-standby" data-tally="standby"><span class="holo-tally-lamp" aria-hidden="true"></span>Standby</div>
+        <span class="pgm-chip">PGM essay</span>
+        <time class="bcast-clock" data-clock datetime="">--:--:--</time>
+        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="dark-nav">MENU</button>
+        <nav id="dark-nav" class="glass-nav" data-nav aria-label="Essay navigation">
+          <a href="./install.html">Install</a>
+          <a href="./index.html">Home</a>
+        </nav>
+        <div class="mode-bar">
+          <a class="stream-key stream-key-live" href="https://github.com/ConWan30/Qoresence/releases/latest"><span>01</span>Download</a>
+          <a class="stream-key stream-key-clip" href="./index.html"><span>02</span>Home</a>
+        </div>
+      </div>
+      <div class="command-status">
+        <div class="status-line">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>PLL open · couple none</span>
+          <span class="lockbug">□–□ · — &amp; —</span>
+        </div>
+        <div class="status-meta">
+          <span>essay · Dark Theater</span>
+          <span>site · not a live session</span>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main id="dark-top" class="wrap doc-main essay">
+    <section class="hero hero--single">
       <div class="eyebrow">Essay / observation plane</div>
       <h1>The overlay that would rather go <em>dark.</em></h1>
       <p class="lede">Qoresence is a local-first Gaming Streaming Observatory Engine. It is not an AI coach, not anti-cheat, and not a second copy of your capture card.</p>
@@ -76,5 +84,26 @@
     </article>
   </main>
   <footer class="footer"><div class="wrap">Qoresence / observation plane / local-first<br>The capture card is the brain. Everything else is a glass.<br><a href="./index.html">Home</a> · <a href="./install.html">Install</a> · <a href="https://x.com/Qoresence">X</a> · <a href="https://github.com/ConWan30/Qoresence">Source</a></div></footer>
+  <script>
+    const menu = document.querySelector('[data-menu]');
+    const nav = document.querySelector('[data-nav]');
+    const clock = document.querySelector('[data-clock]');
+    const pad = (n) => String(n).padStart(2, '0');
+    const tick = () => {
+      if (!clock) return;
+      const d = new Date();
+      const t = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+      clock.textContent = t;
+      clock.setAttribute('datetime', t);
+    };
+    tick();
+    setInterval(tick, 1000);
+    if (menu && nav) {
+      menu.addEventListener('click', () => {
+        const open = nav.classList.toggle('open');
+        menu.setAttribute('aria-expanded', String(open));
+      });
+    }
+  </script>
 </body>
 </html>
