@@ -596,3 +596,4 @@ def test_session_js_board_why_speech_not_only_awaiting():
     assert "function boardWhySpeech" in js
     assert js.count("setInterval") == 1
     assert "civif_session_view" not in js
+
