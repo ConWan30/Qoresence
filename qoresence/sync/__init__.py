@@ -32,6 +32,10 @@ __all__ = [
     "HapticProbe",
     "start_haptic_probe",
     "stop_haptic_probe",
+    "HapticReceiptClock",
+    "start_receipt_clock",
+    "note_tick",
+    "note_obs",
 ]
 
 _LAZY = {
@@ -58,6 +62,10 @@ _LAZY = {
     "HapticProbe": ("qoresence.sync.haptic_probe", "HapticProbe"),
     "start_haptic_probe": ("qoresence.sync.haptic_probe", "start_haptic_probe"),
     "stop_haptic_probe": ("qoresence.sync.haptic_probe", "stop_haptic_probe"),
+    "HapticReceiptClock": ("qoresence.sync.haptic_receipt", "HapticReceiptClock"),
+    "start_receipt_clock": ("qoresence.sync.haptic_receipt", "start_receipt_clock"),
+    "note_tick": ("qoresence.sync.haptic_receipt", "note_tick"),
+    "note_obs": ("qoresence.sync.haptic_receipt", "note_obs"),
 }
 
 
