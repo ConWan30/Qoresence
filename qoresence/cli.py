@@ -1,1 +1,1 @@
-PLACEHOLDER_REPLACE_WITH_DISK_FILE
+LOAD_FROM_/workspace/qoresence/cli.py
