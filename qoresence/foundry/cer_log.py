@@ -78,6 +78,12 @@ class CerLog:
             self._n += 1
             n = self._n
         try:
+            from qoresence.sync.haptic_receipt import note_tick
+
+            note_tick(rec)
+        except Exception:
+            pass
+        try:
             from qoresence.foundry.civif_metrics import observe_tick
 
             observe_tick(rec)

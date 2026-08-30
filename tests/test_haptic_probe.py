@@ -23,6 +23,7 @@ from qoresence.sync.haptic_probe import (
     start_haptic_probe,
     stop_haptic_probe,
 )
+from qoresence.sync.haptic_receipt import reset_receipt_clock
 from qoresence.sync.haptic_schema import (
     HAPTIC_PLANE,
     HAPTIC_SCHEMA,
@@ -36,9 +37,12 @@ from qoresence.sync.haptic_schema import (
 @pytest.fixture(autouse=True)
 def _isolate_probe(tmp_path, monkeypatch):
     monkeypatch.delenv("QORESENCE_HAPTIC_PROBE", raising=False)
+    monkeypatch.delenv("QORESENCE_HAPTIC_RECEIPT", raising=False)
     reset_haptic_probe()
+    reset_receipt_clock()
     yield
     reset_haptic_probe()
+    reset_receipt_clock()
 
 
 def _oscillating_accel(i: int, *, amp: int = 420, hz: float = 125.0, rest: int = 1000) -> tuple[int, int, int]:
