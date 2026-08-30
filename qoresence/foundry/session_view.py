@@ -626,7 +626,7 @@ def _event_duration_bounds(ev: dict[str, Any]) -> tuple[int, int] | None:
     return start, end
 
 
-def _recap_events(events: list[dict[str, Any]]) -> list[dict[str, Any]:
+def _recap_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     indexed = list(enumerate(events))
 
     def key(item: tuple[int, dict[str, Any]]) -> tuple[int, int, int]:
