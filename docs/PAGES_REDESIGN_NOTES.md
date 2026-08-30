@@ -19,6 +19,22 @@ GitHub Pages site share the same machined iron chrome.
 | Green-tinted hairlines | Iron hairlines `color-mix(in oklab, #8b90a0 22%, transparent)` |
 | Inline `<style>` per page | Shared `docs/aperture.css` (single source of truth, mirrors the deck's one `styles.css`) |
 
+## Operator glass layout (2026-08-30)
+
+The token port was not enough — the public site still read as a marketing
+scroll. This pass copies Retina Deck *chrome*, not just the palette:
+
+- Command bar (`holo-header`) with Q mark, **Retina Deck / local switcher**,
+  STANDBY tally, glass-nav tray, and 01/02/03 stream keys.
+- Status strip is HOLD on purpose: `PLL open · couple none`, `□–□ · — & —`,
+  `PAD unbound / HDMI wait / MONITOR WAIT / SYNC UNBOUND`. Never fake LIVE.
+- Proof/Watch is a theater: HDMI `holo-plinth` + Situation / Clutch Feed rail
+  — same split as `TheaterPage` (`hdmi-stage` + intel column).
+- Iron signal prism under the picture (HOLD fill, not iris freshness).
+- Content / IA / claim ceiling unchanged. Product stays local-first.
+- Inner pages (install / dark / trace) share the same command bar. Single-column
+  heroes collapse the two-col `gap` so lede sits under the title, not 80px away.
+
 Deck laws that carried over:
 - **Flat void field.** No scanlines, no radial wash, no bloom on the picture.
 - **Machined chrome.** Iron hairline borders, flat plates, aperture bloom ≤ 12px
@@ -27,6 +43,7 @@ Deck laws that carried over:
   `prefers-reduced-motion` kills ambient motion.
 - **Path tints.** Brass `#d7b36a` = fast, aperture `#9be7ff` = confirm — same as
   the Clutch Feed `data-land` rule in the deck.
+- **HOLD on the public site.** Empty glyphs stay empty. No invented 0–0.
 
 Files touched:
 - `docs/aperture.css` — new shared token system (ported from `glass/src/styles.css`).

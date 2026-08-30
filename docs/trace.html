@@ -11,21 +11,48 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./aperture.css">
 </head>
 <body>
-  <header class="site-header">
-    <div class="wrap nav">
-      <a class="wordmark" href="./">
-        <img class="mark" src="assets/qoresence-logo.png" width="36" height="36" alt="Qoresence">
-        <span><b>Qoresence</b><small>observatory engine</small></span>
-      </a>
-      <div style="color:var(--dim);font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase">Trace Viewer</div>
+  <a class="skip" href="#trace-top">Skip to content</a>
+  <header class="holo-header">
+    <div class="command">
+      <div class="command-row">
+        <a class="wordmark" href="./">
+          <span class="holo-mark" aria-hidden="true">Q</span>
+          <span><b>Retina Deck</b><small>local switcher</small></span>
+        </a>
+        <div class="holo-tally holo-tally-standby" data-tally="standby"><span class="holo-tally-lamp" aria-hidden="true"></span>Standby</div>
+        <span class="pgm-chip">PGM trace</span>
+        <time class="bcast-clock" data-clock datetime="">--:--:--</time>
+        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="trace-nav">MENU</button>
+        <nav id="trace-nav" class="glass-nav" data-nav aria-label="Trace navigation">
+          <a href="./">Home</a>
+          <a href="./install.html">Install</a>
+          <a href="./trace.html" aria-current="page">Trace</a>
+        </nav>
+        <div class="mode-bar">
+          <a class="stream-key stream-key-live" href="https://github.com/ConWan30/Qoresence/releases/latest"><span>01</span>Download</a>
+          <a class="stream-key" href="./index.html#watch"><span>02</span>Replay</a>
+          <a class="stream-key stream-key-clip" href="./install.html"><span>03</span>Install</a>
+        </div>
+      </div>
+      <div class="command-status">
+        <div class="status-line">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>PLL open · couple none</span>
+          <span class="lockbug">□–□ · — &amp; —</span>
+        </div>
+        <div class="status-meta">
+          <span>trace viewer · local Jaeger</span>
+          <span>site · not a live session</span>
+        </div>
+      </div>
     </div>
   </header>
 
-  <main class="trace-main">
+  <main id="trace-top" class="trace-main">
     <div class="wrap">
       <div class="kicker"><i></i> Causal bus trace</div>
       <h1>Trace Viewer</h1>
@@ -91,6 +118,27 @@
   </main>
 
   <script>
+    (function () {
+      const menu = document.querySelector('[data-menu]');
+      const nav = document.querySelector('[data-nav]');
+      const clock = document.querySelector('[data-clock]');
+      const pad = (n) => String(n).padStart(2, '0');
+      const tick = () => {
+        if (!clock) return;
+        const d = new Date();
+        const t = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+        clock.textContent = t;
+        clock.setAttribute('datetime', t);
+      };
+      tick();
+      setInterval(tick, 1000);
+      if (menu && nav) {
+        menu.addEventListener('click', () => {
+          const open = nav.classList.toggle('open');
+          menu.setAttribute('aria-expanded', String(open));
+        });
+      }
+    })();
     const $ = (id) => document.getElementById(id);
     const isDeck = /^(127\.0\.0\.1|localhost):8765$/.test(window.location.host);
     if (isDeck) {

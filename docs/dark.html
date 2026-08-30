@@ -18,12 +18,45 @@
   <meta name="twitter:site" content="@Qoresence">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./aperture.css">
 </head>
 <body>
-  <header class="doc-header"><div class="wrap nav"><a class="brand" href="./index.html"><img class="brand-mark" src="assets/qoresence-logo.png" width="30" height="30" alt="Qoresence">Qoresence</a><nav class="nav-links"><a href="./install.html">Install</a><a class="back" href="./index.html">Back to home</a></nav></div></header>
-  <main class="wrap doc-main essay">
+  <a class="skip" href="#dark-top">Skip to content</a>
+  <header class="holo-header">
+    <div class="command">
+      <div class="command-row">
+        <a class="wordmark" href="./index.html">
+          <span class="holo-mark" aria-hidden="true">Q</span>
+          <span><b>Retina Deck</b><small>local switcher</small></span>
+        </a>
+        <div class="holo-tally holo-tally-standby" data-tally="standby"><span class="holo-tally-lamp" aria-hidden="true"></span>Standby</div>
+        <span class="pgm-chip">PGM essay</span>
+        <time class="bcast-clock" data-clock datetime="">--:--:--</time>
+        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="dark-nav">MENU</button>
+        <nav id="dark-nav" class="glass-nav" data-nav aria-label="Essay navigation">
+          <a href="./install.html">Install</a>
+          <a href="./index.html">Home</a>
+        </nav>
+        <div class="mode-bar">
+          <a class="stream-key stream-key-live" href="https://github.com/ConWan30/Qoresence/releases/latest"><span>01</span>Download</a>
+          <a class="stream-key stream-key-clip" href="./index.html"><span>02</span>Home</a>
+        </div>
+      </div>
+      <div class="command-status">
+        <div class="status-line">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>PLL open · couple none</span>
+          <span class="lockbug">□–□ · — &amp; —</span>
+        </div>
+        <div class="status-meta">
+          <span>essay · Dark Theater</span>
+          <span>site · not a live session</span>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main id="dark-top" class="wrap doc-main essay">
     <section class="hero hero--single">
       <div class="eyebrow">Essay / observation plane</div>
       <h1>The overlay that would rather go <em>dark.</em></h1>
@@ -51,5 +84,26 @@
     </article>
   </main>
   <footer class="footer"><div class="wrap">Qoresence / observation plane / local-first<br>The capture card is the brain. Everything else is a glass.<br><a href="./index.html">Home</a> · <a href="./install.html">Install</a> · <a href="https://x.com/Qoresence">X</a> · <a href="https://github.com/ConWan30/Qoresence">Source</a></div></footer>
+  <script>
+    const menu = document.querySelector('[data-menu]');
+    const nav = document.querySelector('[data-nav]');
+    const clock = document.querySelector('[data-clock]');
+    const pad = (n) => String(n).padStart(2, '0');
+    const tick = () => {
+      if (!clock) return;
+      const d = new Date();
+      const t = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+      clock.textContent = t;
+      clock.setAttribute('datetime', t);
+    };
+    tick();
+    setInterval(tick, 1000);
+    if (menu && nav) {
+      menu.addEventListener('click', () => {
+        const open = nav.classList.toggle('open');
+        menu.setAttribute('aria-expanded', String(open));
+      });
+    }
+  </script>
 </body>
 </html>

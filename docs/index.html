@@ -22,88 +22,137 @@
   <meta name="twitter:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./aperture.css">
 </head>
 <body>
-  <header class="site-header">
-    <div class="wrap nav">
-      <a class="wordmark" href="#top"><img class="mark" src="assets/qoresence-logo.png" width="36" height="36" alt="Qoresence"><span><b>Qoresence</b><small>observatory engine</small></span></a>
-      <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="site-nav">MENU</button>
-      <nav id="site-nav" class="nav-links" data-nav aria-label="Primary">
-        <a href="#watch">Watch</a>
-        <a href="#otel">Trace</a>
-        <a href="#plane">Plane</a>
-        <a href="#spine">Spine</a>
-        <a href="#glasses">Glasses</a>
-        <a href="#proof">Proof</a>
-        <a href="#privacy">Limits</a>
-        <a href="./install.html">Install</a>
-        <a href="https://github.com/ConWan30/Qoresence">GitHub</a>
-        <a class="nav-cta" href="https://github.com/ConWan30/Qoresence/releases/latest">Download</a>
-      </nav>
+  <a class="skip" href="#top">Skip to content</a>
+  <header class="holo-header">
+    <div class="command">
+      <div class="command-row">
+        <a class="wordmark" href="#top">
+          <span class="holo-mark" aria-hidden="true">Q</span>
+          <span><b>Retina Deck</b><small>local switcher</small></span>
+        </a>
+        <div class="holo-tally holo-tally-standby" data-tally="standby"><span class="holo-tally-lamp" aria-hidden="true"></span>Standby</div>
+        <span class="pgm-chip">PGM site</span>
+        <time class="bcast-clock" data-clock datetime="">--:--:--</time>
+        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="site-nav">MENU</button>
+        <nav id="site-nav" class="glass-nav" data-nav aria-label="Glasses">
+          <a href="#watch">Theater</a>
+          <a href="#otel">Trace</a>
+          <a href="#glasses">Glasses</a>
+          <a href="#proof">Proof</a>
+          <a href="./install.html">Install</a>
+          <a href="https://github.com/ConWan30/Qoresence">GitHub</a>
+        </nav>
+        <div class="mode-bar" data-mode-bar="site">
+          <a class="stream-key stream-key-live" href="https://github.com/ConWan30/Qoresence/releases/latest"><span>01</span>Download</a>
+          <a class="stream-key" href="#watch"><span>02</span>Replay</a>
+          <a class="stream-key stream-key-clip" href="./install.html"><span>03</span>Install</a>
+        </div>
+      </div>
+      <div class="command-status">
+        <div class="status-line">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>PLL open · couple none</span>
+          <span class="lockbug" data-lockbug="unlocked">□–□ · — &amp; —</span>
+        </div>
+        <div class="status-meta">
+          <em>PAD unbound</em>
+          <span>HDMI wait</span>
+          <span>MONITOR WAIT</span>
+          <span>SYNC UNBOUND</span>
+          <span>site · not a live session</span>
+        </div>
+      </div>
     </div>
     <div class="progress" data-progress aria-hidden="true"></div>
   </header>
 
   <main id="top">
-    <section class="wrap hero">
-      <div>
-        <div class="kicker"><i></i> Gaming Streaming Observatory Engine</div>
-        <h1>See the session<br><em>as it actually happened.</em></h1>
-        <p class="lede">Qoresence is a local-first observatory engine for gamers. HDMI video and DualSense HID share one monotonic clock. Deck, Session Theater, Lens, Stem Program, Mobile Glass, Ghost Cut, and MCP hang off that clock. The capture card opens once. Nothing else is allowed to open it.</p>
-        <p class="hero-note">Local-first · one clock · many glasses · observation plane only — no humanity, eligibility, or on-chain claims</p>
-        <div class="chips" aria-label="Invariants">
-          <span class="chip">127.0.0.1 default</span>
-          <span class="chip">no second capture</span>
-          <span class="chip">local-only clips</span>
-          <span class="chip">Stem not OBS</span>
-          <span class="chip">observation only</span>
-        </div>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Get Windows package</a>
-          <a class="button" href="#watch">Watch a session</a>
-          <a class="button" href="https://github.com/ConWan30/Qoresence">View source</a>
-        </div>
-        <p class="hero-note">Windows-first pilot · lobes default OFF</p>
+    <section class="wrap mast">
+      <div class="kicker"><i></i> Gaming Streaming Observatory Engine</div>
+      <h1>See the session<br><em>as it actually <wbr>happened.</em></h1>
+      <p class="lede">Qoresence is a local-first observatory engine for gamers. HDMI video and DualSense HID share one monotonic clock. Deck, Session Theater, Lens, Stem Program, Mobile Glass, Ghost Cut, and MCP hang off that clock. The capture card opens once. Nothing else is allowed to open it.</p>
+      <p class="hero-note">Local-first · one clock · many glasses · observation plane only — no humanity, eligibility, or on-chain claims</p>
+      <div class="chips" aria-label="Invariants">
+        <span class="chip">127.0.0.1 default</span>
+        <span class="chip">no second capture</span>
+        <span class="chip">local-only clips</span>
+        <span class="chip">Stem not OBS</span>
+        <span class="chip">observation only</span>
       </div>
-      <div class="instrument" aria-label="Causal clock spine: HDMI, HID, IVC, Bus, Glasses">
-        <div class="inst-top"><strong>SESSION / CLOCK SPINE</strong><span>monotonic ns</span></div>
-        <div class="spine-wrap">
-          <div class="spine"></div>
-          <div class="pulse"></div>
-          <span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><span class="dot d4"></span><span class="dot d5"></span>
-          <div class="node left n1"><b>HDMI</b><span>capture card · FrameHub</span></div>
-          <div class="node right n2"><b>HID</b><span>DualSense · InputRing</span></div>
-          <div class="node left n3"><b>IVC</b><span>couple video to press</span></div>
-          <div class="node right n4"><b>Bus</b><span>situation · moment · why</span></div>
-          <div class="node left n5"><b>Glasses</b><span>Lens · Deck · Mobile · Cut · MCP</span></div>
-        </div>
-        <div class="inst-foot"><span>one device / <em>one owner</em></span><span>no second capture</span></div>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Get Windows package</a>
+        <a class="button" href="#watch">Watch a session</a>
+        <a class="button" href="https://github.com/ConWan30/Qoresence">View source</a>
       </div>
+      <p class="hero-note">Windows-first pilot · lobes default OFF · this page is HOLD, never a fake live feed</p>
     </section>
 
-    <section class="section" id="watch">
+    <section class="theater" id="watch">
       <div class="wrap">
         <div class="section-head">
           <div><div class="kicker">Proof / Watch</div><h2>Retina Deck<br>while a match is on.</h2></div>
           <p>Window-capture of the operator glass. HDMI and DualSense on one clock. Not a second open of the card.</p>
         </div>
-        <div class="demo-frame">
-          <div class="demo-chrome">
-            <span><strong>NCAA 27</strong> · DualSense Edge · one clock</span>
-            <span>Deck / LIVE · FrameHub</span>
+        <div class="theater-grid">
+          <div>
+            <div class="holo-plinth" data-holo-tone="iron">
+              <div class="holo-plinth-well">
+                <video
+                  class="hdmi-picture"
+                  controls
+                  playsinline
+                  preload="metadata"
+                  poster="./assets/deck-live-demo.jpg"
+                  src="./assets/deck-live-demo.mp4">
+                  Your browser cannot play this MP4.
+                </video>
+              </div>
+              <div class="signal-prism" aria-hidden="true"><div class="signal-prism-fill is-hold"></div></div>
+              <div class="demo-chrome">
+                <span><strong>NCAA 27</strong> · DualSense Edge · one clock</span>
+                <span>Deck / REPLAY · FrameHub</span>
+              </div>
+            </div>
+            <p class="demo-cap">75s cut from a local NCAA 27 session · USB DualSense · scoreboard 0–0 Q1 · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
           </div>
-          <video
-            controls
-            playsinline
-            preload="metadata"
-            poster="./assets/deck-live-demo.jpg"
-            src="./assets/deck-live-demo.mp4">
-            Your browser cannot play this MP4.
-          </video>
+          <aside class="intel" aria-label="Situation and clutch feed">
+            <section class="holo-plate">
+              <div class="plate-head">
+                <h2>Situation</h2>
+                <span class="plate-meta">scorebug</span>
+              </div>
+              <p class="situation-line">□–□ · — &amp; —</p>
+              <p class="situation-sub">title-presence from HDMI · unlocked glyphs stay empty</p>
+            </section>
+            <section class="holo-plate">
+              <div class="plate-head">
+                <h2>Clutch feed</h2>
+                <span class="plate-meta">03 · WATCHING · 0.00</span>
+              </div>
+              <div class="heat" aria-hidden="true"><i></i></div>
+              <div class="clutch-note">
+                <p>The <em>capture card</em> is the brain.</p>
+                <span>everything else is a glass</span>
+              </div>
+              <article class="clutch-row">
+                <span class="idx">01</span>
+                <div><b>HDMI</b><span>capture card · FrameHub</span></div>
+              </article>
+              <article class="clutch-row">
+                <span class="idx">02</span>
+                <div><b>HID</b><span>DualSense · InputRing</span></div>
+              </article>
+              <article class="clutch-row">
+                <span class="idx">03</span>
+                <div><b>IVC</b><span>couple video to press</span></div>
+              </article>
+            </section>
+          </aside>
         </div>
-        <p class="demo-cap">75s cut from a local NCAA 27 session · USB DualSense · scoreboard 0–0 Q1 · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
       </div>
     </section>
 
@@ -113,38 +162,45 @@
           <div><div class="kicker">Proof / Trace</div><h2>One clip, three sidecars.</h2></div>
           <p>OTel causal bus traces, DualSense button events, and IVC coupling history — all stamped on the same monotonic clock.</p>
         </div>
-        <div class="demo-frame">
-          <div class="demo-chrome">
-            <span><strong>Madden 27</strong> · DualSense Edge · OTel causal traces</span>
-            <span>clip + .coupling.json + .buttons.json + .otel.json</span>
+        <div class="demo-stack">
+          <div>
+            <div class="holo-plinth">
+              <div class="holo-plinth-well">
+                <video
+                  class="hdmi-picture"
+                  controls
+                  playsinline
+                  preload="metadata"
+                  poster="./assets/otel-controller-demo.jpg"
+                  src="./assets/otel-controller-demo.mp4">
+                  Your browser cannot play this MP4.
+                </video>
+              </div>
+              <div class="signal-prism" aria-hidden="true"><div class="signal-prism-fill is-hold"></div></div>
+              <div class="demo-chrome">
+                <span><strong>Madden 27</strong> · DualSense Edge · OTel causal traces</span>
+                <span>clip + .coupling.json + .buttons.json + .otel.json</span>
+              </div>
+            </div>
+            <p class="demo-cap">30s clip with controller input · sidecars: <a href="https://github.com/ConWan30/Qoresence/blob/main/docs/assets/otel-controller-demo.mp4">MP4</a> · press <code>square</code> + <code>L2</code> captured in <code>.buttons.json</code> · 56 coupling ticks in <code>.coupling.json</code> · 100% sampled OTel trace IDs in <code>.otel.json</code> · open any trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
           </div>
-          <video
-            controls
-            playsinline
-            preload="metadata"
-            poster="./assets/otel-controller-demo.jpg"
-            src="./assets/otel-controller-demo.mp4">
-            Your browser cannot play this MP4.
-          </video>
-        </div>
-        <p class="demo-cap">30s clip with controller input · sidecars: <a href="https://github.com/ConWan30/Qoresence/blob/main/docs/assets/otel-controller-demo.mp4">MP4</a> · press <code>square</code> + <code>L2</code> captured in <code>.buttons.json</code> · 56 coupling ticks in <code>.coupling.json</code> · 100% sampled OTel trace IDs in <code>.otel.json</code> · open any trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
-      </div>
-    </section>
-
-    <section class="section" id="trace-viewer">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Proof / Why</div><h2>Trace why a clip fired.</h2></div>
-          <p>The Qoresence Trace Viewer reads the same OTel causal trace that ships in every <code>.otel.json</code> sidecar. No account, no cloud dashboard, no jumping between tools.</p>
-        </div>
-        <div class="demo-frame">
-          <div class="demo-chrome">
-            <span><strong>Qoresence Trace Viewer</strong> · Jaeger trace · local</span>
-            <span>summary · timeline · spans</span>
+          <div id="trace-viewer">
+            <div class="section-head">
+              <div><div class="kicker">Proof / Why</div><h2>Trace why a clip fired.</h2></div>
+              <p>The Qoresence Trace Viewer reads the same OTel causal trace that ships in every <code>.otel.json</code> sidecar. No account, no cloud dashboard, no jumping between tools.</p>
+            </div>
+            <div class="holo-plinth">
+              <div class="holo-plinth-well">
+                <img class="hdmi-picture" src="./assets/trace-viewer-screenshot.png" alt="Qoresence Trace Viewer showing a causal session trace with streamer, controller, IVC, visual, clip export, and deck health spans on a shared monotonic clock." loading="lazy">
+              </div>
+              <div class="demo-chrome">
+                <span><strong>Qoresence Trace Viewer</strong> · Jaeger trace · local</span>
+                <span>summary · timeline · spans</span>
+              </div>
+            </div>
+            <p class="demo-cap">One session trace shows the causal chain: <code>streamer.grab</code> → <code>controller.poll</code> → <code>ivc.coupling</code> → <code>clip.export</code> · each span is tagged with <code>clock_ns</code>, source lobe, and event type · open any <code>.otel.json</code> trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="./trace.html?demo=1">View demo trace</a></p>
           </div>
-          <img src="./assets/trace-viewer-screenshot.png" alt="Qoresence Trace Viewer showing a causal session trace with streamer, controller, IVC, visual, clip export, and deck health spans on a shared monotonic clock." loading="lazy">
         </div>
-        <p class="demo-cap">One session trace shows the causal chain: <code>streamer.grab</code> → <code>controller.poll</code> → <code>ivc.coupling</code> → <code>clip.export</code> · each span is tagged with <code>clock_ns</code>, source lobe, and event type · open any <code>.otel.json</code> trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="./trace.html?demo=1">View demo trace</a></p>
       </div>
     </section>
 
@@ -401,6 +457,17 @@
     const menu = document.querySelector('[data-menu]');
     const nav = document.querySelector('[data-nav]');
     const bar = document.querySelector('[data-progress]');
+    const clock = document.querySelector('[data-clock]');
+    const pad = (n) => String(n).padStart(2, '0');
+    const tick = () => {
+      if (!clock) return;
+      const d = new Date();
+      const t = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+      clock.textContent = t;
+      clock.setAttribute('datetime', t);
+    };
+    tick();
+    setInterval(tick, 1000);
     if (menu && nav) {
       menu.addEventListener('click', () => {
         const open = nav.classList.toggle('open');
@@ -412,7 +479,7 @@
       }));
     }
     const sections = [...document.querySelectorAll('main section[id]')];
-    const links = [...document.querySelectorAll('.nav-links a[href^="#"]')];
+    const links = [...document.querySelectorAll('.glass-nav a[href^="#"]')];
     const mark = () => {
       const y = window.scrollY + 96;
       let current = '';

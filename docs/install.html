@@ -10,12 +10,48 @@
   <title>Install Qoresence — Windows starter package</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./aperture.css">
 </head>
 <body>
-  <header class="doc-header"><div class="wrap nav"><a class="brand" href="./index.html"><img class="brand-mark" src="assets/qoresence-logo.png" width="30" height="30" alt="Qoresence">Qoresence</a><nav class="nav-links" aria-label="Install navigation"><a href="./index.html#glasses">Glasses</a><a href="./index.html#proof">Pilot gates</a><a href="./index.html#privacy">Limits</a><a class="back" href="./index.html">Back to home</a></nav></div></header>
-  <main>
+  <a class="skip" href="#install-top">Skip to content</a>
+  <header class="holo-header">
+    <div class="command">
+      <div class="command-row">
+        <a class="wordmark" href="./index.html">
+          <span class="holo-mark" aria-hidden="true">Q</span>
+          <span><b>Retina Deck</b><small>local switcher</small></span>
+        </a>
+        <div class="holo-tally holo-tally-standby" data-tally="standby"><span class="holo-tally-lamp" aria-hidden="true"></span>Standby</div>
+        <span class="pgm-chip">PGM site</span>
+        <time class="bcast-clock" data-clock datetime="">--:--:--</time>
+        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="install-nav">MENU</button>
+        <nav id="install-nav" class="glass-nav" data-nav aria-label="Install navigation">
+          <a href="./index.html#glasses">Glasses</a>
+          <a href="./index.html#proof">Pilot gates</a>
+          <a href="./index.html#privacy">Limits</a>
+          <a href="./index.html">Home</a>
+        </nav>
+        <div class="mode-bar">
+          <a class="stream-key stream-key-live" href="https://github.com/ConWan30/Qoresence/releases/latest"><span>01</span>Download</a>
+          <a class="stream-key stream-key-clip" href="./index.html"><span>02</span>Home</a>
+        </div>
+      </div>
+      <div class="command-status">
+        <div class="status-line">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>PLL open · couple none</span>
+          <span class="lockbug">□–□ · — &amp; —</span>
+        </div>
+        <div class="status-meta">
+          <em>PAD unbound</em>
+          <span>HDMI wait</span>
+          <span>install · not a live session</span>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main id="install-top">
     <section class="wrap hero hero--single"><div class="eyebrow">Windows starter package / local-first</div><h1>From download<br>to <em>live plane.</em></h1><p class="lede">Qoresence ships as a transparent Windows package: source included, dependencies installed into a local virtual environment, and no cloud account required for the core pilot.</p><div class="hero-strip"><span class="tag">Windows 10 / 11</span><span class="tag">Python 3.11+</span><span class="tag">Capture card optional at setup</span></div></section>
     <section class="section"><div class="wrap"><div class="kicker"><i></i> Choose your lane</div><h2>Choose your lane.</h2><p class="section-intro">The starter package is the fastest path for a Windows pilot. Developers can clone the repository instead. Both paths run the same code and the same health checks.</p><div class="choices"><article class="choice featured"><div class="label">Recommended / Windows</div><h3>Download the starter package</h3><p>A versioned ZIP with the Qoresence source, installer, launcher, pilot docs and MCP adapter. The installer creates <code>.venv</code> inside the package and keeps the environment local to it.</p><div class="actions"><a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Download Qoresence-Windows.zip</a><a class="button" href="https://github.com/ConWan30/Qoresence/releases">View releases</a></div></article><article class="choice"><div class="label">Developer / source</div><h3>Clone from GitHub</h3><p>Use this path when you want to contribute, inspect the architecture or run the full test suite.</p><div class="actions"><a class="button" href="https://github.com/ConWan30/Qoresence">Open repository</a></div></article></div></div></section>
     <section class="section"><div class="wrap"><div class="kicker"><i></i> Three steps</div><h2>Three steps to ready.</h2><p class="section-intro">The installer is intentionally boring. It does not hide the Python environment or silently turn on cloud integrations.</p><div class="steps"><article class="step"><div class="number">STEP / 01</div><h3>Unzip</h3><p>Extract the package to a folder you own, for example <code>C:\Qoresence</code>. Avoid a protected system directory.</p></article><article class="step"><div class="number">STEP / 02</div><h3>Install</h3><p>Right-click <code>Install-Qoresence.ps1</code> and run with PowerShell, or use the command below from the package folder.</p><div class="code" data-code="powershell -ExecutionPolicy Bypass -File .\Install-Qoresence.ps1">powershell -ExecutionPolicy Bypass -File .\Install-Qoresence.ps1<button class="copy" type="button" data-copy>copy</button></div></article><article class="step"><div class="number">STEP / 03</div><h3>Launch</h3><p>Connect the capture card when you are ready, then start the local Deck and AgentGlass surface.</p><div class="code" data-code=".\Start-Qoresence.bat">.\Start-Qoresence.bat<button class="copy" type="button" data-copy>copy</button></div></article></div></div></section>
@@ -31,6 +67,25 @@ curl http://127.0.0.1:8765/api/agent/diagnose<button class="copy" type="button" 
       const code = button.parentElement.dataset.code || button.parentElement.textContent.replace(/copy$/, '').trim();
       try { await navigator.clipboard.writeText(code); button.textContent = 'copied'; setTimeout(() => { button.textContent = 'copy'; }, 1400); } catch (_) { button.textContent = 'select'; }
     }));
+    const clock = document.querySelector('[data-clock]');
+    const pad = (n) => String(n).padStart(2, '0');
+    const tick = () => {
+      if (!clock) return;
+      const d = new Date();
+      const t = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+      clock.textContent = t;
+      clock.setAttribute('datetime', t);
+    };
+    tick();
+    setInterval(tick, 1000);
+    const menu = document.querySelector('[data-menu]');
+    const nav = document.querySelector('[data-nav]');
+    if (menu && nav) {
+      menu.addEventListener('click', () => {
+        const open = nav.classList.toggle('open');
+        menu.setAttribute('aria-expanded', String(open));
+      });
+    }
   </script>
 </body>
 </html>
