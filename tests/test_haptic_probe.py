@@ -50,7 +50,7 @@ def _oscillating_accel(i: int, *, amp: int = 420, hz: float = 125.0, rest: int =
     return (0, 0, z)
 
 
-# ── Schema ───────────────────────────────────────────────────────────────
+# ── Schema ───────────────────────────────────────────────────────────────────
 
 
 def test_schema_hard_plane_and_staged_licenses():
@@ -86,7 +86,7 @@ def test_intensity_bucket_never_emits_raw_device_units():
     assert closed["haptics_coupled"] is True
 
 
-# ── Echo detector (IMU as actuator microphone) ────────────────────────────
+# ── Echo detector (IMU as actuator microphone) ────────────────────────────────
 
 
 def test_echo_detector_emits_onset_offset_for_sustained_oscillation():
@@ -149,7 +149,7 @@ def test_echo_detector_downweights_analog_slew():
         assert got is None
 
 
-# ── HID output rumble (emulated path) ────────────────────────────────
+# ── HID output rumble (emulated path) ────────────────────────────────────────
 
 
 def test_parse_usb_and_bt_output_rumble_roundtrip():
@@ -165,7 +165,7 @@ def test_parse_usb_and_bt_output_rumble_roundtrip():
     assert parse_output_rumble(bytes(64)) is None
 
 
-# ── Probe runtime ────────────────────────────────────────────────
+# ── Probe runtime ────────────────────────────────────────────────────────────
 
 
 def test_default_off_zero_observation_activity(tmp_path, monkeypatch):
@@ -421,7 +421,7 @@ def test_bodied_r2_fixture_does_not_invent_haptic_from_precursor(tmp_path):
     assert trans == []
 
 
-# ── Phase 2 private metrics ─────────────────────────────────────────
+# ── Phase 2 private metrics ──────────────────────────────────────────────────
 
 
 def test_corroboration_metrics_from_logs_are_reproducible():
