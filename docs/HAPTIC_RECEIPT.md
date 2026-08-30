@@ -35,9 +35,21 @@ Laptop-bodied USB DualSense can expose `hid_output` and/or `imu_echo`. That is t
 - Not `haptics_confirmed`.
 - Not Streamr / DePIN / off-box distribution.
 
+## Live path
+
+`--play` starts an enqueue-only `HapticReceiptClock` (CerLog / OTel class):
+
+- IVC → `CerLog.observe` (lock already dropped) → `note_tick` (`put_nowait` only)
+- Haptic probe worker → `note_obs` (`put_nowait` only)
+- Worker joins last tick + last obs inside `window_ms` (default 120). Stale obs do not couple.
+- In-memory ring always. JSONL under `logs/haptic/*_receipt.jsonl` when `--haptic-probe` / `QORESENCE_HAPTIC_PROBE=1` or `QORESENCE_HAPTIC_RECEIPT=1`
+- Dark receipts (PS5-bound, no pulse) stay in the ring; JSONL writes on rail-signature change or a real `haptic_receipt`
+
+Not on `/api/civif/live`, Session Theater, or MCP.
+
 ## Code
 
-- Builder: `qoresence.sync.haptic_receipt`
+- Builder + clock: `qoresence.sync.haptic_receipt`
 - Existing pulse log: `haptic_obs-1` via `--haptic-probe` / `QORESENCE_HAPTIC_PROBE=1`
 - Offline co-occurrence metrics (not this clock): `scripts/haptic_corroboration.py`
 
