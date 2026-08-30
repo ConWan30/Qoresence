@@ -3,109 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#050a08">
+  <meta name="theme-color" content="#05060a">
   <meta name="description" content="Qoresence trace viewer — read Jaeger causal traces in the same UI language as Retina Deck.">
   <meta name="color-scheme" content="dark">
   <title>Qoresence Trace Viewer</title>
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Sora:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <style>
-    :root{
-      --night:#050a08; --field:#08140f; --panel:rgba(10,22,16,.82);
-      --chalk:#e8f2ec; --mist:#8ea396; --dim:#5d7166;
-      --phosphor:#c6f26a; --signal:#4fe0d4; --confirm:#ffc14a; --alert:#ff7d91;
-      --line:rgba(198,242,106,.14); --line-hi:rgba(79,224,212,.28);
-      --max:1180px;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    html{scroll-behavior:smooth}
-    body{
-      color:var(--chalk);
-      background:
-        radial-gradient(980px 520px at 92% -12%, rgba(79,224,212,.11), transparent 58%),
-        radial-gradient(760px 560px at -10% 8%, rgba(198,242,106,.07), transparent 55%),
-        linear-gradient(180deg, #07110c 0%, var(--night) 26%, #06140f 100%);
-      font-family:Sora,ui-sans-serif,system-ui,sans-serif;
-      line-height:1.55;
-      overflow-x:hidden;
-      min-height:100vh;
-    }
-    body::before{
-      content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.16;
-      background-image:repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(198,242,106,.07) 48px);
-    }
-    a{color:var(--signal);text-decoration:none}
-    a:hover{color:var(--phosphor)}
-    .wrap{width:min(var(--max), calc(100% - 40px));margin:0 auto}
-    .site-header{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--line);background:rgba(5,10,8,.9);backdrop-filter:blur(20px)}
-    .nav{min-height:74px;display:flex;align-items:center;justify-content:space-between;gap:20px}
-    .wordmark{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--chalk)}
-    .mark{object-fit:cover;border-radius:50%;width:36px;height:36px;display:grid;place-items:center;border:1px solid rgba(198,242,106,.55);border-radius:50%;color:var(--phosphor);box-shadow:0 0 24px rgba(198,242,106,.16), inset 0 0 14px rgba(198,242,106,.08);font:800 13px/1 Syne,sans-serif}
-    .wordmark b{display:block;font:800 15px/1 Syne,sans-serif;letter-spacing:.04em}
-    .wordmark small{display:block;margin-top:4px;color:var(--dim);font:600 9px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase}
-
-    main{padding:48px 0 96px}
-    h1{margin:0 0 14px;font:800 clamp(2rem,4vw,3.2rem)/.95 Syne,sans-serif;letter-spacing:-.04em}
-    h2{margin:40px 0 14px;font:700 1.1rem/1.2 Sora,sans-serif;color:var(--phosphor);letter-spacing:.02em}
-    .lede{max-width:36rem;color:var(--mist);font-size:1.05rem;margin-bottom:32px}
-
-    .card{border:1px solid var(--line);border-radius:24px;background:var(--panel);padding:24px;backdrop-filter:blur(12px)}
-    .card + .card{margin-top:20px}
-    .field{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
-    .field label{font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
-    .field input, .field select{
-      min-height:46px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:rgba(5,10,8,.6);color:var(--chalk);font:500 14px Sora,sans-serif;
-    }
-    .field input:focus, .field select:focus{outline:2px solid var(--phosphor);outline-offset:2px}
-    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
-    .row .field{flex:1;min-width:220px;margin-bottom:0}
-    button{
-      display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;border:1px solid var(--line-hi);border-radius:999px;background:rgba(255,255,255,.05);color:var(--chalk);font:700 11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:transform .2s,border-color .2s,background .2s;
-    }
-    button:hover{border-color:var(--phosphor);background:rgba(198,242,106,.1);transform:translateY(-1px)}
-    button.primary{background:var(--phosphor);color:var(--night);border-color:var(--phosphor)}
-
-    .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px}
-    .stat{padding:16px;border:1px solid var(--line);border-radius:16px;background:rgba(5,10,8,.4)}
-    .stat b{display:block;font:700 22px/1 Syne,sans-serif;color:var(--phosphor);margin-bottom:4px}
-    .stat span{font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
-
-    .trace-empty, .trace-error{color:var(--dim);padding:48px 0;text-align:center}
-    .trace-error{color:var(--alert)}
-
-    .timeline{position:relative;height:220px;border:1px solid var(--line);border-radius:16px;background:rgba(5,10,8,.6);overflow:auto;margin-bottom:20px}
-    .timeline-canvas{position:absolute;left:0;top:0;height:100%;min-width:100%}
-    .span-bar{position:absolute;height:22px;border-radius:6px;background:linear-gradient(90deg,rgba(198,242,106,.25),rgba(79,224,212,.25));border:1px solid rgba(198,242,106,.4);font:600 10px/22px "IBM Plex Mono",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px;color:var(--chalk);cursor:pointer}
-    .span-bar:hover{background:linear-gradient(90deg,rgba(198,242,106,.45),rgba(79,224,212,.45));z-index:10}
-    .span-bar.root{background:linear-gradient(90deg,rgba(198,242,106,.45),rgba(79,224,212,.45));border-color:var(--phosphor)}
-    .span-bar.child{background:linear-gradient(90deg,rgba(79,224,212,.2),rgba(79,224,212,.35));border-color:var(--signal)}
-
-    table{width:100%;border-collapse:collapse;font:13px/1.5 "IBM Plex Mono",monospace}
-    th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line)}
-    th{font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
-    td{color:var(--mist)}
-    tr:hover td{background:rgba(198,242,106,.05);color:var(--chalk)}
-    .op{font-weight:600;color:var(--chalk)}
-    .tag-pill{display:inline-block;padding:3px 8px;border:1px solid var(--line);border-radius:999px;font:600 10px/1 "IBM Plex Mono",monospace;color:var(--dim);margin-right:4px}
-    .tag-pill.key{color:var(--signal);border-color:var(--signal)}
-
-    .detail{padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(5,10,8,.5);margin-top:8px}
-    .detail h4{font:700 13px/1.2 Sora,sans-serif;color:var(--phosphor);margin-bottom:10px}
-    .detail pre{font:12px/1.5 "IBM Plex Mono",monospace;color:var(--dim);overflow:auto;max-height:240px}
-
-    .kicker{display:inline-flex;align-items:center;gap:8px;color:var(--phosphor);font:700 11px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;margin-bottom:8px}
-    .kicker i{width:7px;height:7px;border-radius:50%;background:var(--phosphor);box-shadow:0 0 0 5px rgba(198,242,106,.12),0 0 16px var(--phosphor)}
-
-    @media (max-width:680px){
-      .wrap{width:min(var(--max),calc(100% - 28px))}
-      .row{flex-direction:column}
-      .row .field{width:100%}
-    }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./aperture.css">
 </head>
 <body>
   <header class="site-header">
@@ -118,7 +25,7 @@
     </div>
   </header>
 
-  <main>
+  <main class="trace-main">
     <div class="wrap">
       <div class="kicker"><i></i> Causal bus trace</div>
       <h1>Trace Viewer</h1>
@@ -156,12 +63,12 @@
           <div class="timeline" id="timeline">
             <div class="timeline-canvas" id="canvas"></div>
           </div>
-          <p style="color:var(--dim);font:600 10px/1.4 'IBM Plex Mono',monospace">Width = monotonic clock window. Bars are colored by span kind: phosphor = root cascade, signal = child span.</p>
+          <p style="color:var(--dim);font:500 10px/1.4 var(--font-mono)">Width = monotonic clock window. Bars are colored by span kind: aperture = root cascade, iris = child span.</p>
         </div>
 
         <div class="card">
           <h2>Spans</h2>
-          <table>
+          <table class="spans">
             <thead>
               <tr>
                 <th>Operation</th>

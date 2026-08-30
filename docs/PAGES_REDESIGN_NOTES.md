@@ -3,6 +3,39 @@
 Branch: `feat/pages-redesign-2026`  
 Live today: https://conwan30.github.io/Qoresence/ (still the previous long-scroll until this lands on `main`).
 
+## Aperture Glass migration (2026-08-30)
+
+The public site now mirrors the Retina Deck's **Aperture Glass** token system
+(`glass/src/styles.css`) instead of the earlier "night field-ops / phosphor
+broadcast" palette. One aesthetic for every surface — the operator Deck and the
+GitHub Pages site share the same machined iron chrome.
+
+| Before (phosphor broadcast) | After (Aperture Glass) |
+|---|---|
+| Phosphor green `#c6f26a`, signal teal `#4fe0d4` | Aperture cyan `#9be7ff`, brass clutch `#d7b36a`, veto `#e07a7a` |
+| Scanlines + radial wash on `body` | Flat void `#05060a` — no scanlines, no radial wash (deck law) |
+| Syne (display) + Sora (body) | Instrument Sans (display + body) + IBM Plex Mono (data) |
+| Broadcast pills, radii 16–28px | Machined plates, radii 2–12px |
+| Green-tinted hairlines | Iron hairlines `color-mix(in oklab, #8b90a0 22%, transparent)` |
+| Inline `<style>` per page | Shared `docs/aperture.css` (single source of truth, mirrors the deck's one `styles.css`) |
+
+Deck laws that carried over:
+- **Flat void field.** No scanlines, no radial wash, no bloom on the picture.
+- **Machined chrome.** Iron hairline borders, flat plates, aperture bloom ≤ 12px
+  only on the spine pulse (decorative iron, not content glow).
+- **One-shot motion.** `cubic-bezier(0.23, 1, 0.32, 1)`, 80–400ms tiers.
+  `prefers-reduced-motion` kills ambient motion.
+- **Path tints.** Brass `#d7b36a` = fast, aperture `#9be7ff` = confirm — same as
+  the Clutch Feed `data-land` rule in the deck.
+
+Files touched:
+- `docs/aperture.css` — new shared token system (ported from `glass/src/styles.css`).
+- `docs/index.html` — links `aperture.css`; content/IA unchanged.
+- `docs/install.html` — links `aperture.css`; content unchanged.
+- `docs/dark.html` — links `aperture.css`; content unchanged.
+- `docs/trace.html` — links `aperture.css`; table gets `class="spans"`; timeline
+  caption updated from "phosphor/signal" to "aperture/iris".
+
 ## Audit of the previous `docs/index.html`
 
 **Kept (it already worked):**
