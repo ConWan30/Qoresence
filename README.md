@@ -19,9 +19,12 @@ Qoresence turns HDMI video, DualSense HID, and game situation into a **single ca
 
 Docs: [GitHub Pages](https://conwan30.github.io/Qoresence/) · [Install guide](https://conwan30.github.io/Qoresence/install.html) · [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Download](https://github.com/ConWan30/Qoresence/releases/latest)
 
+Public face: **[X @Qoresence](https://x.com/Qoresence)** — receipts from real play. The observatory stays on your machine.
+
 Every lobe is **OFF** until you opt in.
 
 [![GitHub](https://img.shields.io/badge/github-ConWan30%2FQoresence-181717?logo=github)](https://github.com/ConWan30/Qoresence)
+[![X](https://img.shields.io/badge/X-%40Qoresence-000000?logo=x)](https://x.com/Qoresence)
 [![Website](https://img.shields.io/badge/website-GitHub%20Pages-blue)](https://conwan30.github.io/Qoresence/)
 [![Wiki](https://img.shields.io/badge/wiki-operator%20glass-informational)](https://github.com/ConWan30/Qoresence/wiki)
 [![Python](https://img.shields.io/badge/python-3.11%2B-yellow)](https://www.python.org/)
@@ -47,6 +50,7 @@ Every lobe is **OFF** until you opt in.
 | **Aperture Glass** | One visual system: Retina Deck SPA + public GitHub Pages. Flat void, machined iron, HOLD glyphs. Never fake LIVE on the site |
 | **Fail-closed speech** | Unlocked scores stay empty. DualSense on the PS5 (no laptop HID) is success, not PAD WAIT. Same-Seq: widgets match the LIVE frame or they go dark |
 | **Session Theater** | `/session.html` — Now + Story + Recap over a fail-closed normalized pack; live `GET /api/session/view` and `/api/session/recap`; Open clip only for validated existing MP4s |
+| **CIVIF** | Coupled Input–Video Intelligence Framework. Live ticks + clip records; `/civif.html` and `GET /api/civif/live`. Session Theater is a query over that pack — not a second capture |
 | **Title-presence** | Optical title lock with a hard `plane` tag; on with `--play`; menu/pause fail-closed; does not yank an explicit `--game-profile` |
 | **Qoresence owns the card** | Physical HDMI has one owner — Qoresence Streamer; OBS uses Browser Source for Lens only (no dual-open) |
 | **FrameHub (no second capture)** | Streamer already holds BGR frames; monitor + IVC **subscribe** — never dual-open DShow |
@@ -90,6 +94,7 @@ Every lobe is **OFF** until you opt in.
     http://127.0.0.1:8765/overlay.html  — do NOT open the same physical card
     Deck:     http://127.0.0.1:8765/deck.html
     Session:  http://127.0.0.1:8765/session.html  (Now + Story + Recap; not HDMI)
+    CIVIF:    http://127.0.0.1:8765/civif.html
     Phone:    http://127.0.0.1:8765/mobile.html  (LAN: --deck-bind 0.0.0.0 + scan QR)
 ```
 
@@ -112,15 +117,16 @@ Every lobe is **OFF** until you opt in.
 
 | Theme | What landed |
 |-------|-------------|
-| **Aperture Glass + Pages** | One chrome for Deck SPA and GitHub Pages. HOLD command bar, theater Watch, 6m45s NCAA 27 demo. Never fake LIVE on the public site ([#125](https://github.com/ConWan30/Qoresence/pull/125)) |
+| **Aperture Glass + Pages** | One chrome for Deck SPA and GitHub Pages. HOLD command bar, theater Watch, 6m45s NCAA 27 demo. Never fake LIVE on the public site ([#125](https://github.com/ConWan30/Qoresence/pull/125)). Public face: [X @Qoresence](https://x.com/Qoresence) |
 | **Ticket-clock + confirm remint** | Coupling ticket licenses heat; confirm ticket + `score_vlm_locked` licenses digits. Same `ticket_id` reused across DAL/Dallas/empty flicker (#116) |
 | **DeepSeek confirm path** | Scoreboard / observation vision is `deepseek-v4-flash-vision-exp`. Quicksilver chat/scene on DeepSeek v4. Gemini is leftover naming, not the referee |
 | **Ghost Stick** | Default ON under `--play`. DualSense locus on the HDMI frame it belongs to. Same-Seq veto (`docs/GHOST_STICK.md`) |
 | **Empty HID is success** | DualSense stays on the PS5. No laptop HID is not PAD WAIT (TCBS). Bind owns DualSense↔HDMI join |
 | **MatchAgent** | Opt-in observer (`--match-agent` / `QORESENCE_MATCH_AGENT=1` on operator launchers). Fail-closed `last_note` on Clutch Feed. DualSense stays on the PS5 |
 | **Aperture Glass Theater** | Viewport HUD, Clutch Feed rail, licensed SituationCard, hid_by_seq press chip, observatory instrument. SPA served at existing Deck URLs |
-| **Seeing-path ConfirmTicket** | Unlicensed HUD digits never serialize. First-class `cfb_27` / Madden HUD crops. Identity swap does not invent 0–0 |
+| **Seeing-path ConfirmTicket** | Unlicensed HUD digits never serialize. First-class `cfb_27` / Madden HUD crops even when `game_state` is menu (#108 / #110). Identity swap does not invent 0–0 |
 | **HID log-once** | Classify HID domain once per transport — not 1 kHz INFO that freezes the capture thread (#117) |
+| **CIVIF** | Live coupled ticks + clip records; `/civif.html`. Score digits only when `board_locked`. Empty HID on this host is valid (`docs/CIVIF.md`) |
 | **Session Theater** | `/session.html` Now + Story + Recap; `GET /api/session/view` + `/api/session/recap`; fail-closed score/HID; validated `hdmi_clip_*` Open clip |
 | **Mobile Glass + QR** | `/mobile.html` FrameHub WebRTC (MJPEG fallback); Theater copy-link + QR when `--deck-bind 0.0.0.0` |
 | **Title-presence** | Hysteresis wrap on `GameAutoDetector`; on with `--play`; `--game-profile` pin honored |
@@ -176,6 +182,8 @@ python scripts/pilot_preflight.py
 # Pattern B: Close OBS Video Capture on the physical card (no dual-open)
 python -m qoresence.cli --streamer-list
 python -m qoresence.cli --play --deck --monitor --streamer-fps 60
+# Or double-click qoresence.bat (defaults: --play --deck --monitor --tray --a2a --controller --streamer-fps 60;
+# MatchAgent via QORESENCE_MATCH_AGENT=1 on this launcher only — --play itself does not enable it)
 
 # OBS (optional stream): Browser Source only → http://127.0.0.1:8765/overlay.html
 ```
@@ -184,10 +192,12 @@ python -m qoresence.cli --play --deck --monitor --streamer-fps 60
 |-----|--------|
 | http://127.0.0.1:8765/deck.html | Retina Deck — Aperture Glass Theater (LIVE) |
 | http://127.0.0.1:8765/session.html | Session Theater (Now + Story + Recap) |
+| http://127.0.0.1:8765/civif.html | CIVIF live ticks / highlights (JSON ~1 Hz) |
 | http://127.0.0.1:8765/api/session/view | Normalized live session envelope |
 | http://127.0.0.1:8765/api/session/recap | Read-only `session-recap-1` |
 | http://127.0.0.1:8765/overlay.html | Clutch Lens (OBS Browser Source) |
 | http://127.0.0.1:8765/mobile.html | Mobile Glass (phone view; WebRTC / MJPEG) |
+| http://127.0.0.1:8765/trace.html | Local OTel / coupling trace viewer |
 | http://127.0.0.1:8765/video | LIVE MJPEG |
 | http://127.0.0.1:8765/health | Capture + lock + ticket health (`age_s`, frames, `score_vlm_locked`) |
 | http://127.0.0.1:8765/api/situation | Snapshot (+ `controller` when IVC on; digits only when locked) |
@@ -281,6 +291,7 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | `--controller` | off | DualSense HID + InputRing + IVC. DualSense-on-PS5 emptiness is valid |
 | `--ghost-stick` | on with `--play` | Pad locus on Same-Seq LIVE. `--no-ghost-stick` / `QORESENCE_GHOST_STICK=0` to opt out |
 | `--match-agent` | off | Match observer via Quicksilver DeepSeek v4. Also `QORESENCE_MATCH_AGENT=1` on `qoresence.bat` |
+| `--tray` | off | System tray score / sync chip. On by default when you double-click `qoresence.bat` |
 | `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |
 | `--clutchbot` / leftover Twitch flags | off | Deck feed is already on with `--play`. Channel/token flags are leftover IRC/Helix — not the local route |
 | `--agent-glass` | off | HTTP/WS spectator API (MCP-ready) |
@@ -354,6 +365,9 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | [docs/A2A_CLUTCHBOT.md](docs/A2A_CLUTCHBOT.md) | Quicksilver A2A bus (does not replace confirm tickets) |
 | [docs/RELEASE_HARDENING.md](docs/RELEASE_HARDENING.md) | CI localhost · latency · soak preflight |
 | [docs/GHOST_STICK.md](docs/GHOST_STICK.md) | Ghost Stick on Same-Seq LIVE |
+| [docs/CIVIF.md](docs/CIVIF.md) | Coupled Input–Video Intelligence Framework |
+| [docs/DARK_THEATER_SAME_SEQ.md](docs/DARK_THEATER_SAME_SEQ.md) | Widgets match the LIVE frame or they go dark |
+| [docs/OPERATOR_BUS.md](docs/OPERATOR_BUS.md) | Local Grok-bot mailbox (enqueue-only; not a lobe) |
 | [docs/PLAY_PHRASE_COUPLING_TICKET.md](docs/PLAY_PHRASE_COUPLING_TICKET.md) | SNAP/SPRINT/CUT/RELEASE → coupling ticket |
 | [docs/RETINA_DECK_UIUX.md](docs/RETINA_DECK_UIUX.md) | Lens / Rail / Theater |
 | [docs/clutchbot_setup.md](docs/clutchbot_setup.md) | Leftover Twitch IRC/Helix (not the local route) |
@@ -363,7 +377,7 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | [docs/index.html](docs/index.html) | GitHub Pages landing (Aperture Glass) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to set up, test, and open PRs |
 
-**Community:** [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Discussions](https://github.com/ConWan30/Qoresence/discussions) · [Pages](https://conwan30.github.io/Qoresence/)  
+**Community:** [X @Qoresence](https://x.com/Qoresence) · [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Discussions](https://github.com/ConWan30/Qoresence/discussions) · [Pages](https://conwan30.github.io/Qoresence/)  
 *(If wiki/discussions/pages are first-time, enable once under Settings — see [docs/GITHUB_COMMUNITY.md](docs/GITHUB_COMMUNITY.md).)*
 
 ---
