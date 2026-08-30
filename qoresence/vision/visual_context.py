@@ -1,398 +1,508 @@
-"""Structured visual context extracted from HDMI frames.
+"""
+Game-aware visual context returned by the VLM.
 
-This is the output of the visual understanding pipeline:
-    HDMI frame → YOLO + OCR + heuristics → VisualContext
-
-The VisualContext is a compact, structured representation of what's
-happening on screen. It feeds into the Situation Model (Layer 2) and
-the Cognitive Cortex (Layer 3).
-
-This is NOT a raw frame or embedding. It's a parsed understanding
-of the game state that an LLM can consume as text.
+Modeled after QorTroller's Retina Visual Oracle (bridge/vapi_bridge/retina_visual_oracle.py).
+The VLM is asked to return JSON; this module defines the structured dataclass and
+football/shooter field sets.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
-from typing import Any, Optional
-
-# Scene types the visual pipeline can identify
-SCENE_TYPES = (
-    "gameplay",
-    "menu",
-    "scoreboard",
-    "loading",
-    "cutscene",
-    "unknown",
-)
-
-# Game genres for context-aware analysis
-GAME_GENRES = (
-    "football",
-    "soccer",
-    "basketball",
-    "hockey",
-    "racing",
-    "fighting",
-    "shooter",
-    "moba",
-    "unknown",
-)
-
-# Football-specific play types
-FOOTBALL_PLAYS = (
-    "run",
-    "pass",
-    "punt",
-    "field_goal",
-    "kickoff",
-    "kneel",
-    "unknown",
-)
-
-# Football field zones
-FIELD_ZONES = (
-    "own_endzone",
-    "own_redzone",
-    "own_territory",
-    "midfield",
-    "opp_territory",
-    "opp_redzone",
-    "opp_endzone",
-    "unknown",
-)
+from dataclasses import dataclass, field
+from enum import StrEnum
+from typing import Any
 
 
-@dataclass
-class DetectedObject:
-    """A single object detected by YOLO."""
+class GameState(StrEnum):
+    MENU = "menu"
+    LOBBY = "lobby"
+    LOADING = "loading"
+    GAMEPLAY = "gameplay"
+    PAUSED = "paused"
+    REPLAY = "replay"
+    RESULTS = "results"
+    SPECTATING = "spectating"
+    CUTSCENE = "cutscene"
+    UNKNOWN = "unknown"
 
-    label: str
-    confidence: float
-    x1: float = 0.0
-    y1: float = 0.0
-    x2: float = 0.0
-    y2: float = 0.0
-    track_id: Optional[int] = None
 
-    @property
-    def cx(self) -> float:
-        return (self.x1 + self.x2) / 2
-
-    @property
-    def cy(self) -> float:
-        return (self.y1 + self.y2) / 2
-
-    @property
-    def area(self) -> float:
-        return max(0, self.x2 - self.x1) * max(0, self.y2 - self.y1)
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> DetectedObject:
-        return cls(
-            label=str(data.get("label", "unknown")),
-            confidence=float(data.get("confidence", 0.0)),
-            x1=float(data.get("x1", 0.0)),
-            y1=float(data.get("y1", 0.0)),
-            x2=float(data.get("x2", 0.0)),
-            y2=float(data.get("y2", 0.0)),
-            track_id=data.get("track_id"),
-        )
+class GameCategory(StrEnum):
+    FOOTBALL = "football"
+    SHOOTER = "shooter"
+    UNKNOWN = "unknown"
 
 
 @dataclass
 class VisualContext:
-    """Structured understanding of a single HDMI frame.
+    """Structured VLM output for a gameplay frame."""
 
-    This is what the visual pipeline produces. Every field is optional
-    because not every frame has all information available.
-    """
-
-    # Temporal
-    timestamp: float = 0.0
-    frame_id: int = 0
-
-    # Scene classification
-    scene_type: str = "unknown"
-    scene_confidence: float = 0.0
-    game_genre: str = "unknown"
+    game_state: GameState = GameState.UNKNOWN
     game_title: str = ""
+    game_profile: str = ""  # profile id, e.g. "ncaa_football_27"
+    game_category: GameCategory = GameCategory.UNKNOWN
+    confidence: float = 0.0
 
-    # Detected objects (from YOLO)
-    objects: list[DetectedObject] = field(default_factory=list)
-    object_count: int = 0
+    # Football / NCAA
+    home_score: int | None = None
+    away_score: int | None = None
+    # True when the HOME team's score appears on the left side of the scoreboard.
+    # Default/None means away-left / home-right (the most common broadcast layout).
+    home_left: bool | None = None
+    quarter: int | None = None
+    down: int | None = None
+    yards_to_go: int | None = None
+    possession: str | None = None  # "home" | "away" | team abbreviation
+    clock_seconds: int | None = None
+    play_clock: int | None = None
+    play_type: str | None = None
+    field_position: str | None = None
+    down_distance_text: str | None = None
+    home_team_raw: str | None = None
+    away_team_raw: str | None = None
+    home_team: str | None = None
+    away_team: str | None = None
+    home_team_name: str | None = None
+    away_team_name: str | None = None
+    home_color: str | None = None
+    away_color: str | None = None
+    home_logo: str | None = None
+    away_logo: str | None = None
+    home_hex: str | None = None
+    away_hex: str | None = None
+    player_name_raw: str | None = None
+    player_jersey: int | None = None
+    on_screen_player: str | None = None
+    on_screen_player_team: str | None = None
+    on_screen_player_jersey: int | None = None
+    on_screen_player_pos: str | None = None
+    nameplate_ambiguous: bool = False
+    nameplate_match: str | None = None
+    roster_loaded: bool = False
 
-    # Text extracted (from OCR)
-    ocr_text: list[str] = field(default_factory=list)
-    score_home: Optional[int] = None
-    score_away: Optional[int] = None
-    clock: str = ""
-    quarter: Optional[int] = None
-    down: Optional[int] = None
-    distance: Optional[int] = None
-    yard_line: Optional[int] = None
+    # Shooter / Call of Duty
+    health: int | None = None
+    ammo: int | None = None
+    score: int | None = None
+    kills: int | None = None
+    deaths: int | None = None
+    round_info: str = ""
+    enemies_visible: int = 0
+    is_combat: bool = False
+    is_moving: bool = False
 
-    # Seeing-path receipt: why the board is held or live.
-    # "" = no hold (digits may be live). Non-empty = hold reason.
+    # Frame quality
+    has_screen_tearing: bool = False
+    has_lag_indicator: bool = False
+    frame_quality: str = "ok"  # ok|blurry|dark|overexposed
+
+    # Score provenance: True when the scoreboard VLM referee force-locked the
+    # score (overrides OCR). Downstream gates must trust VLM-locked scores even
+    # when they look like "drops" relative to a prior bad OCR lock (e.g. 20-20
+    # corrected to 20-0). See engineering invariants #4/#5.
+    score_vlm_locked: bool = False
+    confirm_ticket_id: str = ""
+    # Canonical seeing-path speech (enum). Empty until the extractor stamps it.
     board_why: str = ""
 
-    # Spatial understanding
-    field_zone: str = "unknown"
-    ball_visible: bool = False
-    ball_x: Optional[float] = None
-    ball_y: Optional[float] = None
-    player_count: int = 0
+    # HDMI HUD control callout (fail-closed). Null unless a named DualSense
+    # prompt is visible on this frame. Never inferred from visual_phase.
+    visible_control: dict | None = None
 
-    # Football-specific
-    play_type: str = "unknown"
-    formation: str = ""
-    possession: str = ""  # "home" or "away"
+    # Provenance
+    raw_response: str = ""
+    frame_hash: str = ""
 
-    # Motion
-    motion_level: float = 0.0  # 0=static, 1=high motion
-    camera_cut: bool = False
+    # VLM client metadata
+    model: str = ""
+    latency_ms: float = 0.0
+    details: dict = field(default_factory=dict)
 
-    # Quality
-    confidence: float = 0.0
-    source: str = "pipeline"  # "pipeline", "vlm", "hybrid"
+    def __post_init__(self) -> None:
+        """Normalize string/enum inputs."""
+        raw_state = ""
+        if isinstance(self.game_state, str):
+            raw_state = self.game_state.lower().strip()
+            if raw_state in {"football", "shooter"}:
+                try:
+                    self.game_category = GameCategory(raw_state)
+                except ValueError:
+                    self.game_category = GameCategory.UNKNOWN
+                self.game_state = GameState.GAMEPLAY
+            else:
+                try:
+                    self.game_state = GameState(raw_state)
+                except ValueError:
+                    self.game_state = GameState.UNKNOWN
+        if isinstance(self.game_category, str):
+            try:
+                self.game_category = GameCategory(self.game_category.lower().strip())
+            except ValueError:
+                self.game_category = GameCategory.UNKNOWN
 
     def to_dict(self) -> dict[str, Any]:
-        d = asdict(self)
-        d["objects"] = [o.to_dict() if hasattr(o, "to_dict") else o for o in self.objects]
+        d: dict[str, Any] = {
+            "game_state": self.game_state.value,
+            "game_title": self.game_title,
+            "game_profile": self.game_profile,
+            "game_category": self.game_category.value,
+            "confidence": self.confidence,
+        }
+
+        if self.game_category == GameCategory.FOOTBALL:
+            d["football"] = {
+                "home_score": self.home_score,
+                "away_score": self.away_score,
+                "home_left": self.home_left,
+                "quarter": self.quarter,
+                "down": self.down,
+                "yards_to_go": self.yards_to_go,
+                "possession": self.possession,
+                "clock_seconds": self.clock_seconds,
+                "play_clock": self.play_clock,
+                "play_type": self.play_type,
+                "field_position": self.field_position,
+                "down_distance_text": self.down_distance_text,
+                "home_team_raw": self.home_team_raw,
+                "away_team_raw": self.away_team_raw,
+                "home_team": self.home_team,
+                "away_team": self.away_team,
+                "home_team_name": self.home_team_name,
+                "away_team_name": self.away_team_name,
+                "home_color": self.home_color,
+                "away_color": self.away_color,
+                "home_logo": self.home_logo,
+                "away_logo": self.away_logo,
+                "home_hex": self.home_hex,
+                "away_hex": self.away_hex,
+                "player_name_raw": self.player_name_raw,
+                "player_jersey": self.player_jersey,
+                "on_screen_player": self.on_screen_player,
+                "on_screen_player_team": self.on_screen_player_team,
+                "on_screen_player_jersey": self.on_screen_player_jersey,
+                "on_screen_player_pos": self.on_screen_player_pos,
+                "nameplate_ambiguous": bool(self.nameplate_ambiguous),
+                "nameplate_match": self.nameplate_match,
+                "roster_loaded": bool(self.roster_loaded),
+            }
+        elif self.game_category == GameCategory.SHOOTER:
+            d["shooter"] = {
+                "health": self.health,
+                "ammo": self.ammo,
+                "score": self.score,
+                "round_info": self.round_info,
+                "enemies_visible": self.enemies_visible,
+                "is_combat": self.is_combat,
+                "is_moving": self.is_moving,
+            }
+
+        d["quality"] = {
+            "has_screen_tearing": self.has_screen_tearing,
+            "has_lag_indicator": self.has_lag_indicator,
+            "frame_quality": self.frame_quality,
+        }
+
+        d["raw_response"] = self.raw_response[:500]
+        d["frame_hash"] = self.frame_hash
+        d["model"] = self.model
+        d["latency_ms"] = self.latency_ms
+        d["details"] = self.details
+        d["score_vlm_locked"] = self.score_vlm_locked
+        d["confirm_ticket_id"] = self.confirm_ticket_id
+        d["board_why"] = self.board_why or ""
+        if self.visible_control is not None:
+            d["visible_control"] = self.visible_control
+
+        # Include visual_phase at top level for convenience if present in details
+        if isinstance(self.details, dict) and "visual_phase" in self.details:
+            d["visual_phase"] = self.details.get("visual_phase")
+
         return d
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> VisualContext:
-        objects = [DetectedObject.from_dict(o) if isinstance(o, dict) else o
-                    for o in data.get("objects", [])]
-        return cls(
-            timestamp=float(data.get("timestamp", 0.0)),
-            frame_id=int(data.get("frame_id", 0)),
-            scene_type=str(data.get("scene_type", "unknown")),
-            scene_confidence=float(data.get("scene_confidence", 0.0)),
-            game_genre=str(data.get("game_genre", "unknown")),
-            game_title=str(data.get("game_title", "")),
-            objects=objects,
-            object_count=int(data.get("object_count", len(objects))),
-            ocr_text=list(data.get("ocr_text", [])),
-            score_home=data.get("score_home"),
-            score_away=data.get("score_away"),
-            clock=str(data.get("clock", "")),
-            quarter=data.get("quarter"),
-            down=data.get("down"),
-            distance=data.get("distance"),
-            yard_line=data.get("yard_line"),
-            board_why=str(data.get("board_why", "") or ""),
-            field_zone=str(data.get("field_zone", "unknown")),
-            ball_visible=bool(data.get("ball_visible", False)),
-            ball_x=data.get("ball_x"),
-            ball_y=data.get("ball_y"),
-            player_count=int(data.get("player_count", 0)),
-            play_type=str(data.get("play_type", "unknown")),
-            formation=str(data.get("formation", "")),
-            possession=str(data.get("possession", "")),
-            motion_level=float(data.get("motion_level", 0.0)),
-            camera_cut=bool(data.get("camera_cut", False)),
-            confidence=float(data.get("confidence", 0.0)),
-            source=str(data.get("source", "pipeline")),
+    @staticmethod
+    def from_dict(raw: dict[str, Any]) -> VisualContext:
+        """Build a VisualContext from a parsed VLM JSON response.
+
+        Accepts both flat VLM output (legacy/LLM prompt shape) and the nested
+        ``to_dict`` round-trip shape. Also normalizes legacy state names such
+        as ``"football"`` / ``"shooter"`` into proper ``game_state`` +
+        ``game_category`` pairs.
+        """
+        ctx = VisualContext()
+        if not raw:
+            return ctx
+
+        def _state(s: Any) -> GameState:
+            if s is None:
+                return GameState.UNKNOWN
+            try:
+                return GameState(str(s).lower().strip())
+            except (ValueError, AttributeError):
+                return GameState.UNKNOWN
+
+        def _cat(s: Any) -> GameCategory:
+            if s is None:
+                return GameCategory.UNKNOWN
+            try:
+                return GameCategory(str(s).lower().strip())
+            except (ValueError, AttributeError):
+                return GameCategory.UNKNOWN
+
+        raw_state = str(raw.get("game_state", "")).lower().strip()
+        category = _cat(raw.get("game_category"))
+
+        # Legacy: VLM sometimes returns game_state="football"/"shooter"/"menu".
+        if raw_state in {"football", "shooter"}:
+            category = _cat(raw_state)
+            ctx.game_state = GameState.GAMEPLAY
+        else:
+            ctx.game_state = _state(raw_state) if raw_state else GameState.UNKNOWN
+
+        ctx.game_title = str(raw.get("game_title", ""))
+        ctx.game_profile = str(raw.get("game_profile", ""))
+        ctx.game_category = category
+        ctx.confidence = float(raw.get("confidence", 0.0))
+
+        # Football fields: support nested "football" block or flat top-level keys
+        fb = raw.get("football")
+        if fb is None and (
+            category == GameCategory.FOOTBALL
+            or ctx.game_title.lower() in {"ncaa football 27", "ncaa"}
+        ):
+            fb = raw
+        else:
+            fb = fb or {}
+
+        ctx.home_score = _to_int(fb.get("home_score"))
+        ctx.away_score = _to_int(fb.get("away_score"))
+        ctx.home_left = _to_bool(fb.get("home_left"))
+        ctx.quarter = _to_int(fb.get("quarter"))
+        ctx.down = _to_int(fb.get("down"))
+        ctx.yards_to_go = _to_int(fb.get("yards_to_go"))
+        ctx.possession = _to_str(fb.get("possession"))
+        ctx.clock_seconds = _to_int(fb.get("clock_seconds"))
+        ctx.play_clock = _to_int(fb.get("play_clock"))
+        ctx.play_type = _to_str(fb.get("play_type"))
+        ctx.field_position = _to_str(fb.get("field_position"))
+        ctx.down_distance_text = _to_str(fb.get("down_distance_text"))
+        ctx.home_team_raw = _to_str(fb.get("home_team_raw") or fb.get("home_team"))
+        ctx.away_team_raw = _to_str(fb.get("away_team_raw") or fb.get("away_team"))
+        ctx.home_team = _to_str(fb.get("home_team"))
+        ctx.away_team = _to_str(fb.get("away_team"))
+        ctx.home_team_name = _to_str(fb.get("home_team_name"))
+        ctx.away_team_name = _to_str(fb.get("away_team_name"))
+        ctx.home_color = _to_str(fb.get("home_color"))
+        ctx.away_color = _to_str(fb.get("away_color"))
+        ctx.home_logo = _to_str(fb.get("home_logo"))
+        ctx.away_logo = _to_str(fb.get("away_logo"))
+        ctx.home_hex = _to_str(fb.get("home_hex"))
+        ctx.away_hex = _to_str(fb.get("away_hex"))
+        ctx.player_name_raw = _to_str(fb.get("player_name") or fb.get("player_name_raw"))
+        ctx.player_jersey = _to_int(fb.get("player_jersey"))
+        ctx.nameplate_ambiguous = bool(fb.get("nameplate_ambiguous") or raw.get("nameplate_ambiguous"))
+        # Resolved names come from the local NFL roster — never trust the model
+        # to invent a club. Raw HUD strings are matched or dropped.
+        try:
+            from qoresence.profiles.nfl_roster import apply_roster_to_context, is_madden_profile
+
+            if is_madden_profile(ctx.game_profile) or is_madden_profile(raw.get("game_profile")):
+                apply_roster_to_context(
+                    ctx,
+                    {
+                        "home_team_raw": ctx.home_team_raw,
+                        "away_team_raw": ctx.away_team_raw,
+                        "player_name": ctx.player_name_raw,
+                        "player_jersey": ctx.player_jersey,
+                        "game_profile": ctx.game_profile or raw.get("game_profile"),
+                    },
+                )
+        except Exception:
+            pass
+
+        # Shooter fields: support nested "shooter" block or flat top-level keys
+        sh = raw.get("shooter")
+        if sh is None and category == GameCategory.SHOOTER:
+            sh = raw
+        else:
+            sh = sh or {}
+
+        ctx.health = _to_int(sh.get("health"))
+        ctx.ammo = _to_int(sh.get("ammo"))
+        ctx.score = _to_int(sh.get("score"))
+        # kills/deaths: new fields (also accept legacy flat score / details)
+        ctx.kills = (
+            _to_int(sh.get("kills")) if sh.get("kills") is not None else _to_int(raw.get("kills"))
         )
+        ctx.deaths = (
+            _to_int(sh.get("deaths"))
+            if sh.get("deaths") is not None
+            else _to_int(raw.get("deaths"))
+        )
+        # fallback: details.kills/deaths or score as kills
+        if (
+            ctx.kills is None
+            and isinstance(ctx.details, dict)
+            and ctx.details.get("kills") is not None
+        ):
+            ctx.kills = _to_int(ctx.details.get("kills"))
+        if (
+            ctx.deaths is None
+            and isinstance(ctx.details, dict)
+            and ctx.details.get("deaths") is not None
+        ):
+            ctx.deaths = _to_int(ctx.details.get("deaths"))
+        ctx.round_info = str(sh.get("round_info", ""))
+        ctx.enemies_visible = int(sh.get("enemies_visible", 0))
+        ctx.is_combat = bool(sh.get("is_combat", False))
+        ctx.is_moving = bool(sh.get("is_moving", False))
 
-    def to_prompt_text(self) -> str:
-        """Render as compact text for LLM consumption."""
-        parts = []
+        # Quality / provenance
+        qual = raw.get("quality") or {}
+        ctx.has_screen_tearing = bool(qual.get("has_screen_tearing", False))
+        ctx.has_lag_indicator = bool(qual.get("has_lag_indicator", False))
+        ctx.frame_quality = str(qual.get("frame_quality", "ok"))
 
-        # Scene
-        if self.scene_type != "unknown":
-            parts.append(f"Scene: {self.scene_type}")
-        if self.game_genre != "unknown":
-            parts.append(f"Genre: {self.game_genre}")
-        if self.game_title:
-            parts.append(f"Game: {self.game_title}")
+        ctx.raw_response = str(raw.get("raw_response", ""))[:500]
+        ctx.frame_hash = str(raw.get("frame_hash", ""))
+        ctx.model = str(raw.get("model", ""))
+        ctx.latency_ms = float(raw.get("latency_ms", 0.0))
+        ctx.details = raw.get("details") or {}
+        ctx.score_vlm_locked = bool(raw.get("score_vlm_locked", False))
+        ctx.confirm_ticket_id = str(raw.get("confirm_ticket_id") or "")
+        why = raw.get("board_why")
+        if why in (None, "") and isinstance(ctx.details, dict):
+            why = ctx.details.get("board_why")
+        ctx.board_why = str(why or "")
 
-        # Score
-        if self.score_home is not None and self.score_away is not None:
-            parts.append(f"Score: {self.score_home}-{self.score_away}")
-        if self.clock:
-            parts.append(f"Clock: {self.clock}")
-        if self.quarter:
-            parts.append(f"Q{self.quarter}")
-        if self.down and self.distance:
-            parts.append(f"{self.down} & {self.distance}")
-        if self.yard_line is not None:
-            parts.append(f"Ball on {self.yard_line}")
+        vc = raw.get("visible_control")
+        if vc is None and isinstance(fb, dict):
+            vc = fb.get("visible_control")
+        if vc is None and isinstance(raw.get("details"), dict):
+            vc = raw["details"].get("visible_control")
+        if isinstance(vc, dict):
+            btn = vc.get("button")
+            glyph = vc.get("glyph")
+            prompt = vc.get("prompt")
+            ctx.visible_control = {
+                "button": str(btn).strip() if btn not in (None, "", "null") else None,
+                "glyph": str(glyph).strip() if glyph not in (None, "", "null") else None,
+                "prompt": str(prompt).strip() if prompt not in (None, "", "null") else None,
+            }
+            if not isinstance(ctx.details, dict):
+                ctx.details = {}
+            ctx.details["visible_control"] = ctx.visible_control
+        else:
+            ctx.visible_control = None
 
-        # Objects
-        if self.objects:
-            labels = {}
-            for obj in self.objects:
-                labels[obj.label] = labels.get(obj.label, 0) + 1
-            obj_str = ", ".join(f"{count} {label}" for label, count in labels.items())
-            parts.append(f"Visible: {obj_str}")
-        elif self.object_count:
-            parts.append(f"Objects: {self.object_count}")
+        # Extract visual_phase from top-level or details and store in details for consistency
+        visual_phase = raw.get("visual_phase")
+        if visual_phase is not None:
+            # Store in details for consistent access pattern
+            if not isinstance(ctx.details, dict):
+                ctx.details = {}
+            ctx.details["visual_phase"] = str(visual_phase).strip().lower() if visual_phase else None
+        elif isinstance(ctx.details, dict) and "visual_phase" in ctx.details:
+            # Already in details, normalize it
+            vp = ctx.details.get("visual_phase")
+            ctx.details["visual_phase"] = str(vp).strip().lower() if vp else None
 
-        # Spatial
-        if self.field_zone != "unknown":
-            parts.append(f"Field: {self.field_zone}")
-        if self.ball_visible:
-            parts.append("Ball visible")
-        if self.play_type != "unknown":
-            parts.append(f"Play: {self.play_type}")
-        if self.formation:
-            parts.append(f"Formation: {self.formation}")
-        if self.possession:
-            parts.append(f"Possession: {self.possession}")
-
-        # Motion
-        if self.motion_level > 0.7:
-            parts.append("High motion")
-        elif self.motion_level < 0.2 and self.motion_level > 0:
-            parts.append("Static")
-        if self.camera_cut:
-            parts.append("Camera cut")
-
-        # OCR leftovers
-        if self.ocr_text:
-            remaining = [t for t in self.ocr_text if t not in str(parts)]
-            if remaining:
-                parts.append(f"Text: {', '.join(remaining[:5])}")
-
-        return " | ".join(parts) if parts else "No visual context"
-
-    def summary(self) -> str:
-        """One-line summary."""
-        return self.to_prompt_text()
-
-
-def build_football_prompt(ctx: VisualContext) -> str:
-    """Build a football-specific VLM prompt from visual context."""
-    score = ""
-    if ctx.score_home is not None and ctx.score_away is not None:
-        score = f"Score is {ctx.score_home}-{ctx.score_away}. "
-    clock = f"Clock: {ctx.clock}. " if ctx.clock else ""
-    down = ""
-    if ctx.down and ctx.distance:
-        down = f"{ctx.down}rd and {ctx.distance}. " if ctx.down == 3 else f"{ctx.down} and {ctx.distance}. "
-    field = f"Ball is at the {ctx.field_zone}. " if ctx.field_zone != "unknown" else ""
-    play = f"This looks like a {ctx.play_type} play. " if ctx.play_type != "unknown" else ""
-
-    return (
-        f"This is a football game. {score}{clock}{down}{field}{play}"
-        "Analyze this frame. Identify: formation, play type, "
-        "what's happening right now, and any notable observations. "
-        "Be specific and concise."
-    )
+        return ctx
 
 
-def build_shooter_prompt(ctx: VisualContext) -> str:
-    """Build a shooter-specific VLM prompt from visual context."""
-    return (
-        "This is a first-person shooter. Analyze this frame. "
-        "Identify: location/map, enemies visible, health/ammo status, "
-        "what's happening, and any tactical observations. "
-        "Be specific and concise."
-    )
-
-
-# ---------------------------------------------------------------------------
-# VLM-as-primary visual understanding (replaces YOLO+OCR+heuristics)
-# ---------------------------------------------------------------------------
-
-FOOTBALL_VLM_PROMPT = """You are watching a live Madden NFL football game on screen.
-Analyze this frame and return ONLY a JSON object with these fields:
-{
-    "scene_type": "gameplay" or "menu" or "scoreboard" or "loading" or "replay" or "celebration",
-    "play_phase": "pre_snap" or "huddle_offense" or "huddle_defense" or "snap" or "running" or "passing" or "ball_in_air" or "tackle" or "whistle" or "replay" or "between_plays",
-    "formation": "shotgun" or "under_center" or "pistol" or "i_form" or "singleback" or "empty" or "goal_line" or "wildcat" or "unknown",
-    "play_type": "run" or "pass" or "play_action" or "screen" or "rpo" or "punt" or "field_goal" or "kickoff" or "kneel" or "unknown",
-    "ball_visible": true or false,
-    "ball_carrier_visible": true or false,
-    "qb_visible": true or false,
-    "receivers_visible": number,
-    "defenders_near_ball": number,
-    "field_zone": "own_endzone" or "own_redzone" or "own_territory" or "midfield" or "opp_territory" or "opp_redzone" or "opp_endzone",
-    "hash_mark": "left" or "middle" or "right",
-    "score_home": number or null,
-    "score_away": number or null,
-    "quarter": 1-4 or "OT" or null,
-    "clock": "MM:SS" or null,
-    "down": 1-4 or null,
-    "distance": number or null,
-    "yard_line": number or null,
-    "possession": "home" or "away" or null,
-    "motion_level": "static" or "low" or "medium" or "high",
-    "camera_angle": "broadcast" or "sideline" or "endzone" or "all22" or "replay" or "unknown",
-    "notable": "brief description of anything unusual or important"
-}
-Return ONLY the JSON. No markdown, no explanation."""
-
-
-SHOOTER_VLM_PROMPT = """You are watching a first-person shooter game on screen.
-Analyze this frame and return ONLY a JSON object:
-{
-    "scene_type": "gameplay" or "menu" or "map" or "killcam" or "loading" or "scoreboard",
-    "location": "description of the area",
-    "enemies_visible": number,
-    "teammates_visible": number,
-    "health": number or null,
-    "ammo": number or null,
-    "weapon": "weapon name or unknown",
-    "in_combat": true or false,
-    "notable": "brief description"
-}
-Return ONLY the JSON. No markdown, no explanation."""
-
-
-def parse_vlm_visual_response(raw: str, timestamp: float = 0.0) -> VisualContext:
-    """Parse a VLM JSON response into a VisualContext."""
-    import json as _json
-    import re
-
-    text = raw.strip()
-    # Extract JSON from markdown fences if present
-    fence = re.search(r"```(?:json)?\s*([\s\S]+?)```", text)
-    if fence:
-        text = fence.group(1).strip()
-    # Find the JSON object
-    start = text.find("{")
-    end = text.rfind("}")
-    if start < 0 or end <= start:
-        return VisualContext(timestamp=timestamp, source="vlm", confidence=0.0)
-
+def _to_int(v: Any) -> int | None:
+    if v is None or v == "":
+        return None
     try:
-        data = _json.loads(text[start:end + 1])
-    except (_json.JSONDecodeError, ValueError):
-        return VisualContext(timestamp=timestamp, source="vlm", confidence=0.0)
+        return int(v)
+    except (ValueError, TypeError):
+        return None
 
-    motion_map = {"static": 0.1, "low": 0.3, "medium": 0.6, "high": 0.9}
-    motion = data.get("motion_level", "")
-    if isinstance(motion, str):
-        motion = motion_map.get(motion.lower(), 0.0)
-    else:
-        motion = float(motion) if motion else 0.0
 
-    return VisualContext(
-        timestamp=timestamp,
-        scene_type=str(data.get("scene_type", "unknown")),
-        scene_confidence=0.8,
-        game_genre="football" if "play_phase" in data or "formation" in data else "unknown",
-        score_home=data.get("score_home"),
-        score_away=data.get("score_away"),
-        clock=str(data.get("clock") or ""),
-        quarter=data.get("quarter") if isinstance(data.get("quarter"), int) else None,
-        down=data.get("down"),
-        distance=data.get("distance"),
-        yard_line=data.get("yard_line"),
-        field_zone=str(data.get("field_zone", "unknown")),
-        ball_visible=bool(data.get("ball_visible", False)),
-        play_type=str(data.get("play_type", "unknown")),
-        formation=str(data.get("formation", "")),
-        possession=str(data.get("possession") or ""),
-        motion_level=motion,
-        camera_cut=str(data.get("play_phase", "")) == "replay",
-        confidence=0.8,
-        source="vlm",
+def _to_bool(v: Any) -> bool | None:
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return v
+    s = str(v).strip().lower()
+    if s in {"1", "true", "yes", "on"}:
+        return True
+    if s in {"0", "false", "no", "off", "", "none", "null"}:
+        return False
+    return None
+
+
+def _to_str(v: Any) -> str | None:
+    if v is None:
+        return None
+    s = str(v).strip()
+    return s if s else None
+
+
+def build_football_prompt() -> str:
+    return (
+        "Analyze this EA College Football 27 or Madden NFL 27 gameplay frame. "
+        "Read THIS match's primary scorebug / HUD only. "
+        "IGNORE the bottom ticker or crawl of other games' scores. "
+        "Report home_score as the HOME team's score and away_score as the AWAY team's score, "
+        "regardless of which side of the scoreboard they appear on. "
+        "If the team names or HOME/AWAY labels clearly show the HOME team is on the LEFT, "
+        "set home_left to true; otherwise set it to false or null. "
+        "Possession should be 'home' when the team on the right has the ball, 'away' when the team on the left has it. "
+        "Identify the visual_phase of play from this allowlist: "
+        '"huddle_offense", "huddle_defense", "snap", "running", "passing", "ball_in_air", '
+        '"coverage", "defense_pursuit", "defense_engaged", "blocking", "player_locked_receiver". '
+        "If the phase is unclear or not in the allowlist, set visual_phase to null. "
+        "If a DualSense / PlayStation button prompt is clearly visible on this HUD "
+        "(Cross/✕, Circle/○, Square/□, Triangle/△, L1, R1, L2, R2, OPTIONS, CREATE, L3, R3), "
+        "set visible_control.button to that name, glyph to the on-screen mark if readable, "
+        "and prompt to the HUD verb text (e.g. Snap) or null. "
+        "If no control callout is visible, set visible_control to "
+        '{"button": null, "glyph": null, "prompt": null}. '
+        "NEVER infer a button from player motion, sprint, analog sticks, or visual_phase. "
+        "Respond ONLY with valid JSON, no other text.\n\n"
+        '{"game_state": "menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown", '
+        '"game_title": "", '
+        '"game_profile": "", '
+        '"game_category": "football", '
+        '"home_score": null, '
+        '"away_score": null, '
+        '"home_left": null, '
+        '"quarter": null, '
+        '"down": null, '
+        '"yards_to_go": null, '
+        '"possession": null, '
+        '"clock_seconds": null, '
+        '"play_clock": null, '
+        '"play_type": null, '
+        '"field_position": null, '
+        '"down_distance_text": null, '
+        '"home_team": null, '
+        '"away_team": null, '
+        '"player_name": null, '
+        '"player_jersey": null, '
+        '"visual_phase": null, '
+        '"visible_control": {"button": null, "glyph": null, "prompt": null}, '
+        '"quality": {"has_screen_tearing": false, "has_lag_indicator": false, "frame_quality": "ok"}, '
+        '"confidence": 0.0}'
     )
+
+
+def build_shooter_prompt() -> str:
+    return (
+        "Analyze this Call of Duty gameplay frame. "
+        "Read the HUD carefully. "
+        "Respond ONLY with valid JSON, no other text.\n\n"
+        '{"game_state": "menu|lobby|loading|gameplay|paused|replay|results|spectating|cutscene|unknown", '
+        '"game_title": "", '
+        '"game_profile": "", '
+        '"game_category": "shooter", '
+        '"shooter": {"health": null, "ammo": null, "score": null, "round_info": "", '
+        '"enemies_visible": 0, "is_combat": false, "is_moving": false}, '
+        '"quality": {"has_screen_tearing": false, "has_lag_indicator": false, "frame_quality": "ok"}, '
+        '"confidence": 0.0}'
+    )
+
+
+def build_vlm_prompt(game_category: str) -> str:
+    if game_category == "football":
+        return build_football_prompt()
+    return build_shooter_prompt()
