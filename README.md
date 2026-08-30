@@ -7,13 +7,14 @@
 
 **Gaming Streaming Observatory Engine** — local-first, one clock, many glasses.
 
-Qoresence turns HDMI video, DualSense HID, and game situation into a **single causal event bus**, then surfaces it through Retina Deck, native Retina Monitor, local HDMI clips, and **AgentGlass / MCP** for any AI agent. The capture card is the brain; everything else is a glass. Twitch is not a product route.
+Qoresence turns HDMI video, DualSense HID, and game situation into a **single causal event bus**, then surfaces it through **Retina Deck** (Aperture Glass), native Retina Monitor, local HDMI clips, and **AgentGlass / MCP**. Chat, heat, and score digits are licensed by the **shared clock plus tickets** — not by coworker personas. The capture card is the brain; everything else is a glass. Twitch is not a product route.
 
 | What it is | What it is not |
 |------------|----------------|
 | Observation of HDMI + DualSense on one monotonic clock | Anti-cheat, humanity, or eligibility claims |
 | Co-occurrence, coupling, presence evidence | Live path into QorTroller / PoAC / `*-truth` |
-| Local MP4 + button sidecars | Dual-opening the same capture card |
+| Empty glyphs (`□–□`) and DualSense-on-PS5 emptiness | Invented `0–0`, last-good overlay, PAD WAIT as failure |
+| Local MP4 + button / coupling / OTel sidecars | Dual-opening the same capture card |
 | Optional research wrap onto `qoresence-research` with a grant | On-chain by default |
 
 Docs: [GitHub Pages](https://conwan30.github.io/Qoresence/) · [Install guide](https://conwan30.github.io/Qoresence/install.html) · [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Download](https://github.com/ConWan30/Qoresence/releases/latest)
@@ -41,18 +42,21 @@ Every lobe is **OFF** until you opt in.
 
 | Idea | Why it matters |
 |------|----------------|
-| **One brain → N glasses** | Situation + events once; Lens (OBS), Rail/Theater, **Session Theater**, **Mobile Glass**, Monitor are *views* |
+| **One brain → N glasses** | Situation + events once; Lens (OBS), Retina Deck, **Session Theater**, **Mobile Glass**, Monitor, Stem are *views* |
+| **Ticket-clock** | Coupling ticket licenses heat / pad–picture join. Confirm ticket + `score_vlm_locked` licenses digits. Actuators: Aperture / Bind / License / Arm — not Agent Society coworkers |
+| **Aperture Glass** | One visual system: Retina Deck SPA + public GitHub Pages. Flat void, machined iron, HOLD glyphs. Never fake LIVE on the site |
+| **Fail-closed speech** | Unlocked scores stay empty. DualSense on the PS5 (no laptop HID) is success, not PAD WAIT. Same-Seq: widgets match the LIVE frame or they go dark |
 | **Session Theater** | `/session.html` — Now + Story + Recap over a fail-closed normalized pack; live `GET /api/session/view` and `/api/session/recap`; Open clip only for validated existing MP4s |
 | **Title-presence** | Optical title lock with a hard `plane` tag; on with `--play`; menu/pause fail-closed; does not yank an explicit `--game-profile` |
 | **Qoresence owns the card** | Physical HDMI has one owner — Qoresence Streamer; OBS uses Browser Source for Lens only (no dual-open) |
 | **FrameHub (no second capture)** | Streamer already holds BGR frames; monitor + IVC **subscribe** — never dual-open DShow |
 | **Input–Video Coupler (IVC)** | DualSense edges join `clock_ns` / `frame_seq` for co-occurrence *coupling* (observation only) |
-| **Two-speed ClutchBot** | `path=fast` video+input soft acts; OCR/outcome is `path=confirm` referee (never invents scores on fast) |
-| **A2A bus (optional)** | Gemini scene ↔ DeepSeek chat via Quicksilver; local policy veto; does not replace OCR |
-| **Agent Society (optional, default OFF)** | Narrow ops agents (warden, auditor, coach, editor) on glass/Foundry; Quicksilver phrasing only |
-| **Local HDMI Foundry** | True capture-ring clips (`clips/*.mp4`) + optional `.buttons.json` sidecars |
+| **Ghost Stick** | Pad locus painted on the HDMI frame it belongs to. Default ON under `--play`. Veto when Same-Seq / coupling drops |
+| **Two-speed ClutchBot** | `path=fast` video+input soft acts; OCR + DeepSeek vision is `path=confirm` referee (never invents scores on fast) |
+| **A2A bus (optional)** | Quicksilver scene/chat under local policy; does **not** replace OCR / confirm tickets |
+| **Local HDMI Foundry** | True capture-ring clips (`clips/*.mp4`) + `.buttons.json` / `.coupling.json` / `.otel.json` sidecars |
 | **Foundry RAG** | Search past clips by chapter/buttons/graph/timeline — software-only, no capture needed |
-| **OpenTelemetry (optional)** | Causal bus traces + metrics; per-clip `.otel.json` + `.coupling.json` sidecars — local OTLP, default OFF |
+| **OpenTelemetry (optional)** | Causal bus traces + metrics; per-clip sidecars — local OTLP, default OFF. Exporter may only enqueue |
 | **Causal event bus** | Every event carries `session_id` + `clock_ns` + `source_lobe` |
 
 **Language:** *co-occurrence / coupling / presence evidence* — **not** legitimacy verification.
@@ -67,21 +71,26 @@ Every lobe is **OFF** until you opt in.
         ▼
  ┌────────────────────────────────────────────────────────────┐
  │   StreamerRuntime OWNS card  (--streamer-device 0)          │
- │   clip_buffer · FrameHub · OCR · Foundry                   │
+ │   clip_buffer · FrameHub · OCR / DeepSeek vision · Foundry │
  └───────┬──────────────────────────────┬─────────────────────┘
          │                              │
          ▼                              ▼
-  Deck LIVE / Session / Mobile   DualSense-on-PS5 (empty laptop HID, default)
-  Retina Monitor                 optional path A: DualSense → InputRing → IVC
+  Deck LIVE (Aperture Glass SPA) DualSense-on-PS5 (empty laptop HID = success)
+  Session / Mobile / Monitor     optional: DualSense USB here → InputRing → IVC
+  Ghost Stick on Same-Seq LIVE
          │                              │
          └──────────┬───────────────────┘
                     ▼
-             RetinaEventBus → Situation / title-presence / ClutchBot / A2A / AgentGlass / MCP
+             RetinaEventBus → Situation / title-presence / tickets / ClutchBot / AgentGlass / MCP
+                    │
+    Coupling ticket  → heat / pad–picture (fast)
+    Confirm ticket   → score digits (confirm + score_vlm_locked)
                     │
     OBS (optional stream): Browser Source ONLY
     http://127.0.0.1:8765/overlay.html  — do NOT open the same physical card
-    Session: http://127.0.0.1:8765/session.html  (Now + Story + Recap; not HDMI)
-    Phone: http://127.0.0.1:8765/mobile.html  (LAN: --deck-bind 0.0.0.0 + scan QR)
+    Deck:     http://127.0.0.1:8765/deck.html
+    Session:  http://127.0.0.1:8765/session.html  (Now + Story + Recap; not HDMI)
+    Phone:    http://127.0.0.1:8765/mobile.html  (LAN: --deck-bind 0.0.0.0 + scan QR)
 ```
 
 **Planes**
@@ -89,42 +98,38 @@ Every lobe is **OFF** until you opt in.
 | Plane | Default | Role |
 |-------|---------|------|
 | Capture | Opt-in per lobe | Streamer, controller, screen, outcome, visual |
-| Situation | With `--play` | Score, down, clutch context |
-| Operator glass | `--deck` / `--monitor` | Theater, Session Theater, Lens, Mobile Glass, native monitor |
+| Situation | With `--play` | Score, down, clutch context — digits only when confirm-licensed |
+| Operator glass | `--deck` / `--monitor` | Aperture Glass Theater, Session Theater, Lens, Mobile Glass, native monitor |
 | Clutch (local) | `--play` | Deck feed + local HDMI clips (Twitch leftover, default-OFF) |
 | Stem | conductor on `--play` | Situation-directed program; `--stem-program` / `--stem-audio` / `--stem-record` default OFF |
 | Spectator | `--agent-glass` | HTTP/WS API + MCP for AI agents |
-| Society | `--agent-society` | Leftover stub (default OFF; `--play` does not enable; actuators, not coworkers) |
-| Research | Off | Fusion, trio-retina / WASM |
+| Society | `--agent-society` | **Leftover stub.** Default OFF. `--play` does not enable. Actuators, not coworkers |
+| Research | Off | Fusion, trio-retina / WASM, Streamr plugin |
 
 ---
 
 ## Recent milestones (shipped on `main`)
 
-| Commit / theme | What landed |
-|----------------|-------------|
-| **Session Theater** | `/session.html` Now + Story + Recap; `GET /api/session/view` + `/api/session/recap`; fail-closed score/HID; validated `hdmi_clip_*` Open clip (`da0fa95` → `27fc4a6`, docs tip `fef4d3c`) |
-| **Mobile Glass + QR** | `/mobile.html` FrameHub WebRTC (MJPEG fallback); Theater copy-link + QR when `--deck-bind 0.0.0.0`; phone cannot be opened remotely |
-| **Title-presence** | Hysteresis wrap on `GameAutoDetector`; on with `--play`; situation stays in sync; `--game-profile` pin honored |
-| **Pilot FREEZE v2** | `freeze_events_by_kind` + `freeze_events_excluding_deck_lock` for pre/post-C3 compare |
-| **Madden HUD crops** | Profile-aware scorebug bands from preexisting frames; CFB bands unchanged |
-| **Capture ownership** | Qoresence owns physical card (Pattern B); Pattern A VCam still documented |
-| **Retina Deck LIVE** | Async MJPEG, lower lag, streamer console UX |
-| **FrameHub + Retina Monitor** | `--monitor` native OpenCV glass; no second capture |
-| **Input–Video Coupler** | InputRing + IVC; coupling bus events; clip `.buttons.json` |
-| **DualSense Edge open** | Enumerate `0x0DF2` Edge; clip export 5-tuple fix |
-| **Deadlock hardening** | Re-entrancy guard in A2A + presence; AGENTS.md locking invariants; regression tests |
-| **Streamr integration** | Publish selected events to a local Streamr node via HTTP/MQTT/WebSocket |
-| **VLM score lock invariants** | Null/partial VLM does not wipe good OCR lock; VLM-locked scores override bad OCR |
-| **Clip Foundry export** | MP4 + chapter sidecar smoke test; Foundry export verified |
-| **A2A sparsity gating** | Ambient `scene_tick` / `video_ambient` require pressure, coupling, or high-climax must-fire |
-| **Blank-frame guard** | Scoreboard extractor rejects uniform/black frames to prevent invented scores |
-| **Health + A2A soak loggers** | `scripts/soak_logger.py` and `scripts/a2a_soak_logger.py` for long pilot validation |
-| **MCP universal glass** | `qoresence-mcp` exposes 12 tools including fail-closed `get_observation` and `wrap_observation` (research dest only) |
-| **OpenTelemetry integration** | `--otel` exports causal bus traces + controller/coupling metrics; `.otel.json` and `.coupling.json` clip sidecars; re-entrancy smoke alarm; Jaeger on localhost |
-| **Foundry RAG + proactive glass** | `search_clips`/`get_drive_graph` searchable session memory (clips+chapters+DriveGraph+timeline fallback) + `subscribe_events`/`diagnose_freeze` on `127.0.0.1:8765` — software-only, no capture card |
+| Theme | What landed |
+|-------|-------------|
+| **Aperture Glass + Pages** | One chrome for Deck SPA and GitHub Pages. HOLD command bar, theater Watch, 6m45s NCAA 27 demo. Never fake LIVE on the public site ([#125](https://github.com/ConWan30/Qoresence/pull/125)) |
+| **Ticket-clock + confirm remint** | Coupling ticket licenses heat; confirm ticket + `score_vlm_locked` licenses digits. Same `ticket_id` reused across DAL/Dallas/empty flicker (#116) |
+| **DeepSeek confirm path** | Scoreboard / observation vision is `deepseek-v4-flash-vision-exp`. Quicksilver chat/scene on DeepSeek v4. Gemini is leftover naming, not the referee |
+| **Ghost Stick** | Default ON under `--play`. DualSense locus on the HDMI frame it belongs to. Same-Seq veto (`docs/GHOST_STICK.md`) |
+| **Empty HID is success** | DualSense stays on the PS5. No laptop HID is not PAD WAIT (TCBS). Bind owns DualSense↔HDMI join |
+| **MatchAgent** | Opt-in observer (`--match-agent` / `QORESENCE_MATCH_AGENT=1` on operator launchers). Fail-closed `last_note` on Clutch Feed. DualSense stays on the PS5 |
+| **Aperture Glass Theater** | Viewport HUD, Clutch Feed rail, licensed SituationCard, hid_by_seq press chip, observatory instrument. SPA served at existing Deck URLs |
+| **Seeing-path ConfirmTicket** | Unlicensed HUD digits never serialize. First-class `cfb_27` / Madden HUD crops. Identity swap does not invent 0–0 |
+| **HID log-once** | Classify HID domain once per transport — not 1 kHz INFO that freezes the capture thread (#117) |
+| **Session Theater** | `/session.html` Now + Story + Recap; `GET /api/session/view` + `/api/session/recap`; fail-closed score/HID; validated `hdmi_clip_*` Open clip |
+| **Mobile Glass + QR** | `/mobile.html` FrameHub WebRTC (MJPEG fallback); Theater copy-link + QR when `--deck-bind 0.0.0.0` |
+| **Title-presence** | Hysteresis wrap on `GameAutoDetector`; on with `--play`; `--game-profile` pin honored |
+| **Deadlock hardening** | Re-entrancy guard in A2A + presence; OTel subscribe may only enqueue; `tests/test_deadlock_regression.py` |
+| **OpenTelemetry** | `--otel` causal bus traces + coupling metrics; `.otel.json` / `.coupling.json` clip sidecars; Jaeger on localhost |
+| **MCP universal glass** | 12 tools including fail-closed `get_observation` and grant-gated `wrap_observation` (`qoresence-research` only) |
+| **Foundry RAG** | `search_clips` / `get_drive_graph` searchable session memory — software-only, no capture card |
 
-Docs for each: [SESSION_THEATER](docs/SESSION_THEATER.md) · [CIVIF](docs/CIVIF.md) · [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md)
+Docs for each: [SESSION_THEATER](docs/SESSION_THEATER.md) · [CIVIF](docs/CIVIF.md) · [GHOST_STICK](docs/GHOST_STICK.md) · [TWO_SPEED_CLUTCHBOT](docs/TWO_SPEED_CLUTCHBOT.md) · [PLAY_PHRASE_COUPLING_TICKET](docs/PLAY_PHRASE_COUPLING_TICKET.md) · [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [OTEL](docs/OTEL.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md)
 
 ---
 
@@ -177,14 +182,15 @@ python -m qoresence.cli --play --deck --monitor --streamer-fps 60
 
 | URL | Glass |
 |-----|--------|
-| http://127.0.0.1:8765/deck.html | Ghost Theater / Rail (LIVE @ 60 fps) |
+| http://127.0.0.1:8765/deck.html | Retina Deck — Aperture Glass Theater (LIVE) |
 | http://127.0.0.1:8765/session.html | Session Theater (Now + Story + Recap) |
 | http://127.0.0.1:8765/api/session/view | Normalized live session envelope |
 | http://127.0.0.1:8765/api/session/recap | Read-only `session-recap-1` |
 | http://127.0.0.1:8765/overlay.html | Clutch Lens (OBS Browser Source) |
 | http://127.0.0.1:8765/mobile.html | Mobile Glass (phone view; WebRTC / MJPEG) |
 | http://127.0.0.1:8765/video | LIVE MJPEG |
-| http://127.0.0.1:8765/api/situation | Snapshot (+ `controller` when IVC on) |
+| http://127.0.0.1:8765/health | Capture + lock + ticket health (`age_s`, frames, `score_vlm_locked`) |
+| http://127.0.0.1:8765/api/situation | Snapshot (+ `controller` when IVC on; digits only when locked) |
 | http://127.0.0.1:8765/api/agent/snapshot | AgentGlass: curated state + coupling |
 | http://127.0.0.1:8765/api/agent/events | AgentGlass: cursor-paginated events |
 | http://127.0.0.1:8765/agent/stream | AgentGlass: live WebSocket stream |
@@ -194,8 +200,8 @@ python -m qoresence.cli --play --deck --monitor --streamer-fps 60
 ```powershell
 # within ~10s of start — use Write-Host so PowerShell always shows a labeled line:
 $h = Invoke-RestMethod http://127.0.0.1:8765/health
-Write-Host "has_frame=$($h.state.video.has_frame)  fps=$($h.state.video.target_fps)  score=$($h.state.situation.home_score)-$($h.state.situation.away_score)"
-# expect has_frame=True
+Write-Host "age_s=$($h.state.video.age_s)  frames=$($h.state.video.frames)  locked=$($h.state.situation.score_vlm_locked)"
+# healthy: age_s < 1, frames climbing. Unlocked scores stay empty — that is success.
 
 # open Deck (browser does not auto-open from CLI):
 Start-Process http://127.0.0.1:8765/deck.html
@@ -234,7 +240,7 @@ qoresence-mcp --help-tools
 }
 ```
 
-Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Summarize the last red-zone drive."*
+Agents must call `get_observation` before they speak. Unlocked scores and localhost URLs stay silent. Wrap dest is `qoresence-research` only, and only with an operator grant.
 
 ---
 
@@ -249,8 +255,10 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | `qoresence/sync/` | **InputRing**, **Input–Video Coupler** |
 | `qoresence/monitor/` | **FrameHub**, OpenCV Retina Monitor |
 | `qoresence/vision/clip_buffer.py` | HDMI ring + Foundry export + buttons sidecar |
-| `qoresence/deck/` | FastAPI Deck, overlay, LIVE, clip API |
-| `qoresence/agents/` | SituationModel, MomentScorer, ClutchBot, **AgentGlass**, **MCP** |
+| `qoresence/deck/` | FastAPI Deck, overlay, LIVE, clip API (serves Aperture Glass SPA) |
+| `glass/` | Retina Deck / Session Theater SPA source (Aperture Glass) |
+| `qoresence/agents/` | SituationModel, MomentScorer, ClutchBot, MatchAgent, **AgentGlass**, **MCP** |
+| `qoresence/observability/` | OTel exporter (enqueue-only on the bus thread) |
 | `qoresence/fusion/` | Presence fusion (optional) |
 | `qoresence/trio/` | trio-retina WASM validation (optional) |
 
@@ -270,11 +278,14 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | `--stem-program` | off | Stem Program-out (implies `--monitor`; replaces OBS Preview) |
 | `--stem-audio` | off | Capture-card audio only; never a laptop mic |
 | `--stem-record` | off | Session mux to `clips/stem_*.mp4` (disk; not a 1.0 gate) |
-| `--controller` | off | DualSense HID + InputRing + IVC |
+| `--controller` | off | DualSense HID + InputRing + IVC. DualSense-on-PS5 emptiness is valid |
+| `--ghost-stick` | on with `--play` | Pad locus on Same-Seq LIVE. `--no-ghost-stick` / `QORESENCE_GHOST_STICK=0` to opt out |
+| `--match-agent` | off | Match observer via Quicksilver DeepSeek v4. Also `QORESENCE_MATCH_AGENT=1` on `qoresence.bat` |
 | `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |
 | `--clutchbot` / leftover Twitch flags | off | Deck feed is already on with `--play`. Channel/token flags are leftover IRC/Helix — not the local route |
 | `--agent-glass` | off | HTTP/WS spectator API (MCP-ready) |
-| `--agent-society` | off | Leftover Society stub; opt-in only — `--play` does not enable (`--no-agent-society` still honored) |
+| `--agent-society` | off | Leftover Society stub; opt-in only — `--play` does not enable |
+| `--a2a` | off | Quicksilver scene/chat under local policy. Does not replace confirm tickets |
 | `--otel` | off | Causal traces + metrics to local OTLP; clip sidecars; Jaeger on `:16686` |
 
 ---
@@ -284,10 +295,11 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | Does | Does not |
 |------|----------|
 | Observe frames + HID + game situation | Claim humanity / eligibility |
-| Join inputs to video by **shared clock** | Anti-cheat / legitimacy “proof” |
-| Local MP4 + button sidecars | Dual-open the same capture card |
+| Join inputs to video by **shared clock + tickets** | Anti-cheat / legitimacy “proof” |
+| Empty glyphs and DualSense-on-PS5 emptiness | Invent 0–0 or treat empty HID as PAD WAIT |
+| Local MP4 + button / coupling / OTel sidecars | Dual-open the same capture card |
 | Overlays, Deck, local Foundry clips | Store biometrics in the cloud by default |
-| Optional research trio-retina | Require on-chain for MVP |
+| Optional research trio-retina / Streamr | Require on-chain, Twitch, or Agent Society for MVP |
 
 ---
 
@@ -297,7 +309,7 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 |------|---------|
 | **Frames / clips / timeline** | Local disk (`clips/`, `logs/`) — observation plane only |
 | **Leftover Twitch IRC/Helix** | Not a product route. Only if you still set channel + tokens |
-| **Quicksilver** | Optional: scoreboard VLM + A2A when enabled — **crops / metadata**, not continuous 60 fps upload by design |
+| **Quicksilver / DeepSeek vision** | Optional: scoreboard VLM + A2A when enabled — **crops / metadata**, not continuous 60 fps upload by design |
 | **Deck bind** | `127.0.0.1` only (not `0.0.0.0`) |
 | **Claims** | No anti-cheat / legitimacy / “proof of humanity” |
 
@@ -337,16 +349,18 @@ Then ask the AI: *"Clip that touchdown"*, *"What's my clutch factor?"*, or *"Sum
 | [docs/PRIORITY_INTEGRATIONS.md](docs/PRIORITY_INTEGRATIONS.md) | Timeline · prediction lifecycle · clip chapters |
 | [docs/DRIVE_GRAPH.md](docs/DRIVE_GRAPH.md) | DriveGraph climax · fast↔confirm match · Why/chapters |
 | [docs/AGENT_GLASS.md](docs/AGENT_GLASS.md) | AgentGlass / MCP spectator API |
-| [docs/AGENT_SOCIETY.md](docs/AGENT_SOCIETY.md) | Agent Society (default OFF; ops roles) |
+| [docs/AGENT_SOCIETY.md](docs/AGENT_SOCIETY.md) | Leftover stub — actuators, not coworkers |
 | [docs/STEM.md](docs/STEM.md) | Retina Stem (conductor / program-out; not OBS) |
-| [docs/STREAMR.md](docs/STREAMR.md) | Experimental Streamr (default OFF) |
-| [docs/A2A_CLUTCHBOT.md](docs/A2A_CLUTCHBOT.md) | Gemini↔DeepSeek A2A bus · Quicksilver Pro |
+| [docs/A2A_CLUTCHBOT.md](docs/A2A_CLUTCHBOT.md) | Quicksilver A2A bus (does not replace confirm tickets) |
 | [docs/RELEASE_HARDENING.md](docs/RELEASE_HARDENING.md) | CI localhost · latency · soak preflight |
+| [docs/GHOST_STICK.md](docs/GHOST_STICK.md) | Ghost Stick on Same-Seq LIVE |
+| [docs/PLAY_PHRASE_COUPLING_TICKET.md](docs/PLAY_PHRASE_COUPLING_TICKET.md) | SNAP/SPRINT/CUT/RELEASE → coupling ticket |
 | [docs/RETINA_DECK_UIUX.md](docs/RETINA_DECK_UIUX.md) | Lens / Rail / Theater |
 | [docs/clutchbot_setup.md](docs/clutchbot_setup.md) | Leftover Twitch IRC/Helix (not the local route) |
+| [docs/STREAMR.md](docs/STREAMR.md) | Experimental Streamr plugin (default OFF) |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases & versioning |
 | [docs/wiki/](docs/wiki/) | Wiki source (mirrors GitHub Wiki) |
-| [docs/index.html](docs/index.html) | GitHub Pages landing |
+| [docs/index.html](docs/index.html) | GitHub Pages landing (Aperture Glass) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to set up, test, and open PRs |
 
 **Community:** [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Discussions](https://github.com/ConWan30/Qoresence/discussions) · [Pages](https://conwan30.github.io/Qoresence/)  
@@ -361,7 +375,7 @@ python -m pytest tests/ -q
 python -m pytest tests/test_frame_hub.py tests/test_input_ring.py tests/test_ivc.py -q
 
 # critical invariants: never break these
-python -m pytest tests/test_deadlock_regression.py tests/test_security_localhost.py tests/test_agent_glass.py tests/test_mcp.py -v
+python -m pytest tests/test_deadlock_regression.py tests/test_otel_exporter.py tests/test_security_localhost.py tests/test_agent_glass.py tests/test_mcp.py -v
 ```
 
 ---
@@ -378,11 +392,13 @@ Qoresence/
 │   ├── monitor/          # FrameHub + Retina Monitor
 │   ├── vision/           # clip_buffer, OCR, VLM helpers
 │   ├── foundry/          # Clip ring + RAG search + DriveGraph
-│   ├── deck/             # Operator theater + Lens
-│   ├── agents/           # ClutchBot, AgentGlass, MCP
+│   ├── deck/             # Operator theater + Lens (serves glass SPA)
+│   ├── agents/           # ClutchBot, MatchAgent, AgentGlass, MCP
 │   ├── mcp/              # MCP server (FastMCP + stdio)
+│   ├── observability/    # OTel exporter (enqueue-only)
 │   ├── fusion/           # Optional presence fusion
 │   └── trio/             # Optional WASM path
+├── glass/                # Aperture Glass SPA (Deck + Session Theater)
 ├── tests/
 ├── examples/             # AgentGlass / MCP examples
 └── tools/obs/            # Virtual cam & overlay notes
@@ -394,7 +410,8 @@ Qoresence/
 
 - **Observation plane** by default; research modules opt-in  
 - **One physical DShow device → one owner**  
-- **Streamer decides** which lobes and social backends run  
+- **Ticket-clock:** coupling licenses heat; confirm + `score_vlm_locked` licenses digits  
+- **Streamer decides** which lobes run; leftover Twitch / Streamr / Society stay default-OFF  
 - See repository `LICENSE` for terms  
 
 ---
