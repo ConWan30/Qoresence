@@ -1,5 +1,10 @@
 # Qoresence
 
+<p align="center">
+  <img src="docs/assets/qoresence-logo.png" alt="Qoresence" width="128">
+</p>
+
+
 **Gaming Streaming Observatory Engine** — local-first, one clock, many glasses.
 
 Qoresence turns HDMI video, DualSense HID, and game situation into a **single causal event bus**, then surfaces it through Retina Deck, native Retina Monitor, local HDMI clips, and **AgentGlass / MCP** for any AI agent. The capture card is the brain; everything else is a glass. Twitch is not a product route.
@@ -19,6 +24,10 @@ Every lobe is **OFF** until you opt in.
 [![Website](https://img.shields.io/badge/website-GitHub%20Pages-blue)](https://conwan30.github.io/Qoresence/)
 [![Wiki](https://img.shields.io/badge/wiki-operator%20glass-informational)](https://github.com/ConWan30/Qoresence/wiki)
 [![Python](https://img.shields.io/badge/python-3.11%2B-yellow)](https://www.python.org/)
+
+<p align="center">
+  <img src="docs/assets/qoresence-social-preview.png" alt="Qoresence — one clock, N glasses" width="1200">
+</p>
 
 <p align="center">
   <a href="https://conwan30.github.io/Qoresence/">

@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#050a08">
   <meta name="description" content="Qoresence is a Gaming Streaming Observatory Engine. One HDMI capture, one DualSense clock, many glasses — Deck, Lens, Mobile Glass, Foundry Ghost Cut, AgentGlass. Nothing leaves the box unless you ask.">
   <meta name="color-scheme" content="dark">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <title>Qoresence — see the session as it actually happened</title>
   <link rel="canonical" href="https://conwan30.github.io/Qoresence/">
   <meta property="og:type" content="website">
@@ -51,7 +53,7 @@
     .site-header{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--line);background:rgba(5,10,8,.8);backdrop-filter:blur(20px)}
     .nav{min-height:74px;display:flex;align-items:center;justify-content:space-between;gap:20px}
     .wordmark{display:flex;align-items:center;gap:12px;text-decoration:none}
-    .mark{width:36px;height:36px;display:grid;place-items:center;border:1px solid rgba(198,242,106,.55);border-radius:50%;color:var(--phosphor);box-shadow:0 0 24px rgba(198,242,106,.16), inset 0 0 14px rgba(198,242,106,.08);font:800 13px/1 Syne,sans-serif}
+    .mark{width:36px;height:36px;border-radius:50%;object-fit:cover;display:block;box-shadow:0 0 18px rgba(155,231,255,.28)}
     .wordmark b{display:block;font:800 15px/1 Syne,sans-serif;letter-spacing:.04em}
     .wordmark small{display:block;margin-top:4px;color:var(--dim);font:600 9px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase}
     .nav-links{display:flex;align-items:center;gap:18px}
@@ -216,7 +218,7 @@
 <body>
   <header class="site-header">
     <div class="wrap nav">
-      <a class="wordmark" href="#top"><span class="mark" aria-hidden="true">Q</span><span><b>Qoresence</b><small>observatory engine</small></span></a>
+      <a class="wordmark" href="#top"><img class="mark" src="assets/qoresence-logo.png" width="36" height="36" alt="Qoresence"><span><b>Qoresence</b><small>observatory engine</small></span></a>
       <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="site-nav">MENU</button>
       <nav id="site-nav" class="nav-links" data-nav aria-label="Primary">
         <a href="#watch">Watch</a>
