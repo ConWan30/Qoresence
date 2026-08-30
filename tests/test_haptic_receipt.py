@@ -2,14 +2,28 @@
 
 from __future__ import annotations
 
+import time
+
 from qoresence.core.civif_tick import CoupledTickRecord, SituationSnapshot
 from qoresence.sync.haptic_receipt import (
     RECEIPT_SCHEMA,
+    HapticReceiptClock,
     build_receipt,
     receipt_from_tick_and_obs,
+    recent_receipts,
+    reset_receipt_clock,
+    start_receipt_clock,
     validate_receipt,
 )
 from qoresence.sync.haptic_schema import HAPTIC_PLANE, empty_record
+
+
+def setup_function() -> None:
+    reset_receipt_clock()
+
+
+def teardown_function() -> None:
+    reset_receipt_clock()
 
 
 def _tick(
@@ -136,3 +150,93 @@ def test_validate_rejects_digits_without_hdmi_license():
     rec = build_receipt(haptic_observed=False)
     rec["score"] = {"home": 7, "away": 0}
     assert "digits_without_hdmi_license" in validate_receipt(rec)
+
+
+def test_live_clock_joins_tick_and_obs(tmp_path):
+    path = tmp_path / "receipt.jsonl"
+    clock = HapticReceiptClock(persist=True, jsonl_path=path)
+    try:
+        clock.note_tick(_tick())
+        clock.note_obs(_obs())
+        clock.flush(timeout_s=2.0)
+        rec = clock.last()
+        assert rec is not None
+        assert rec["coupled"] is True
+        assert rec["kind"] == "haptic_receipt"
+        assert rec["public_surfaces"] is False
+        assert validate_receipt(rec) == []
+        dumped = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        assert dumped
+    finally:
+        clock.stop()
+
+
+def test_live_clock_stale_obs_does_not_couple():
+    clock = HapticReceiptClock(persist=False, window_ms=120.0)
+    try:
+        tick = _tick()
+        tick["clock_ns"] = 5_000_000_000
+        obs = _obs()
+        obs["t_start_ns"] = 8_000_000_000
+        clock.note_tick(tick)
+        clock.note_obs(obs)
+        clock.flush(timeout_s=2.0)
+        rec = clock.last()
+        assert rec is not None
+        assert rec["rails"]["haptic_out"]["licensed"] is False
+        assert rec["coupled"] is False
+    finally:
+        clock.stop()
+
+
+def test_live_clock_hot_path_does_not_block_when_worker_stalled():
+    clock = HapticReceiptClock(persist=False, queue_size=8, stall_worker=True)
+    try:
+        start = time.perf_counter()
+        for i in range(2000):
+            clock.note_tick(_tick())
+        elapsed = time.perf_counter() - start
+        assert elapsed < 0.75, f"hot path blocked ({elapsed:.3f}s)"
+    finally:
+        clock.stop()
+
+
+def test_cer_observe_enqueues_receipt_without_bus():
+    from qoresence.core import RetinaEventBus
+    from qoresence.foundry.cer_log import CerLog
+
+    clock = start_receipt_clock(persist=False, clock=HapticReceiptClock(persist=False))
+    bus = RetinaEventBus(session_id="cer_receipt", jsonl_path=None, enable_ws=False)
+    seen: list[str] = []
+    bus.subscribe(lambda ev: seen.append(str(getattr(ev, "type", ev))))
+    log = CerLog(jsonl_path=None)
+    log.observe(
+        {
+            "video_clock_ns": 5_000_000_000,
+            "frame_seq": 3,
+            "coupling": 0.4,
+            "controller_bodied": True,
+        }
+    )
+    clock.flush(timeout_s=2.0)
+    rec = clock.last() or (recent_receipts(1)[-1] if recent_receipts(1) else None)
+    assert rec is not None
+    assert rec["schema_version"] == RECEIPT_SCHEMA
+    assert rec["kind"] == "haptic_receipt_dark"
+    assert seen == []
+    bus.close()
+
+
+def test_start_receipt_from_env_writes_private_jsonl(tmp_path, monkeypatch):
+    monkeypatch.setenv("QORESENCE_HAPTIC_RECEIPT", "1")
+    clock = start_receipt_clock(session_id="envr", out_dir=tmp_path)
+    try:
+        assert clock.persist is True
+        assert clock._jsonl is not None
+        assert "receipt" in clock._jsonl.name
+        clock.note_tick(_tick(bodied=False, ticket=""))
+        clock.flush(timeout_s=2.0)
+        assert clock.last() is not None
+        assert clock.last()["public_surfaces"] is False
+    finally:
+        reset_receipt_clock()
