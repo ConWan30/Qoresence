@@ -31,7 +31,7 @@ Every lobe is **OFF** until you opt in.
 
 <p align="center">
   <a href="https://conwan30.github.io/Qoresence/">
-    <img src="docs/assets/qoresence-pages.png" alt="Qoresence GitHub Pages website" width="1200">
+    <img src="docs/assets/qoresence-pages.png" alt="Qoresence GitHub Pages — Aperture Glass, HOLD command bar" width="1200">
   </a>
 </p>
 
