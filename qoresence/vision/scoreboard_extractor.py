@@ -40,3 +40,47 @@ def _normalize_quarter_word(token: str) -> str:
         if token[0].lower() in "th":
             return "4th"
     return token
+
+
+def _fix_digits_in(token: str) -> str:
+    """Replace letters that look like digits, for short numeric tokens."""
+    if re.search(r"[a-z]{2,}", token, re.IGNORECASE):
+        return token
+    mapping = str.maketrans(
+        {
+            "J": "1",
+            "j": "1",
+            "I": "1",
+            "i": "1",
+            "l": "1",
+            "L": "1",
+            "O": "0",
+            "o": "0",
+            "S": "5",
+            "s": "5",
+            "B": "8",
+            "b": "8",
+            "G": "6",
+            "g": "6",
+            "Z": "2",
+            "z": "2",
+            "T": "7",
+            "t": "7",
+            "|": "",
+            ":": "",
+        }
+    )
+    return token.translate(mapping)
+
+
+_LOADING_STATES = frozenset({"loading", "cutscene", "intro", "replay"})
+_MENU_STATES = frozenset({"menu", "paused", "lobby", "results", "spectating"})
+
+
+def _game_state_token(ctx: VisualContext | None) -> str:
+    if ctx is None:
+        return ""
+    try:
+        return str(getattr(ctx.game_state, "value", None) or ctx.game_state or "").lower()
+    except Exception:
+        return ""
