@@ -220,6 +220,12 @@ class HapticProbe:
         )
         with self._lock:
             self._ring.append(rec)
+        try:
+            from qoresence.sync.haptic_receipt import note_obs
+
+            note_obs(rec)
+        except Exception:
+            pass
         if self.enabled:
             self._enqueue(("jsonl", rec))
         return rec
@@ -298,6 +304,12 @@ class HapticProbe:
         )
         with self._lock:
             self._ring.append(rec)
+        try:
+            from qoresence.sync.haptic_receipt import note_obs
+
+            note_obs(rec)
+        except Exception:
+            pass
         self._write_jsonl(rec)
 
     def _write_jsonl(self, rec: dict[str, Any]) -> None:
@@ -409,6 +421,16 @@ def start_haptic_probe(
         path = root / f"{safe}_{stamp}.jsonl"
     qsize = int(getattr(config, "queue_size", 1024) or 1024)
     started = HapticProbe(enabled=True, session_id=sid, jsonl_path=path, queue_size=qsize)
+    try:
+        from qoresence.sync.haptic_receipt import start_receipt_clock
+
+        start_receipt_clock(
+            persist=True,
+            session_id=sid,
+            out_dir=path.parent if path is not None else None,
+        )
+    except Exception:
+        pass
     with _probe_lock:
         old = _probe
         _probe = started
