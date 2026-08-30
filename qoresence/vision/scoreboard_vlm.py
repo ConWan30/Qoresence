@@ -108,6 +108,7 @@ class ScoreboardVlmReferee:
         self._last_raw = ""
         self._last_reason: str = "tick"
         self._last_http_status: int | None = None
+        self._last_result_ts: float = 0.0
         self._calls = 0
         self._last_crop_wh: tuple[int, int] | None = None
 
@@ -120,6 +121,7 @@ class ScoreboardVlmReferee:
             "last": self._last,
             "last_reason": self._last_reason,
             "last_http_status": self._last_http_status,
+            "vlm_status": self.vlm_status(),
             "last_raw_preview": raw[:200].replace("\n", " ") if raw else "",
             "last_crop_wh": list(self._last_crop_wh) if self._last_crop_wh else None,
             "calls": self._calls,
@@ -130,6 +132,38 @@ class ScoreboardVlmReferee:
     def get_last(self) -> dict[str, Any] | None:
         with self._lock:
             return dict(self._last) if self._last else None
+
+    def vlm_status(self) -> str:
+        """Classify the last VLM outcome. Observation only — no bus emit, no bodies."""
+        from qoresence.vision.board_why import classify_vlm_status, vlm_last_grounded
+
+        with self._lock:
+            last = dict(self._last) if self._last else None
+            http = self._last_http_status
+            last_ts = self._last_result_ts
+            has_key = bool(self._api_key)
+        age_s = (time.time() - last_ts) if last is not None and last_ts else None
+        grounded = vlm_last_grounded(last) if last is not None else None
+        return classify_vlm_status(
+            has_key=has_key,
+            http_status=http,
+            last=last,
+            age_s=age_s,
+            grounded=grounded,
+        )
+
+    def _hold_on_http(self, code: int) -> None:
+        """Fail-closed on auth/quota — clear last so we never mint a last-good board."""
+        with self._lock:
+            self._last_http_status = int(code)
+            self._last = None
+            self._last_result_ts = 0.0
+        if code == 402:
+            log.warning("scoreboard VLM HTTP 402 — HOLD seeing-path (no credit)")
+        elif code == 429:
+            log.warning("scoreboard VLM HTTP 429 — HOLD seeing-path (quota)")
+        elif code == 401:
+            log.warning("scoreboard VLM HTTP 401 — HOLD seeing-path (auth)")
 
     def schedule(
         self,
@@ -194,6 +228,7 @@ class ScoreboardVlmReferee:
                 if parsed:
                     with self._lock:
                         self._last = parsed
+                        self._last_result_ts = time.time()
                         self._calls += 1
                     log.info(
                         "scoreboard VLM → %s-%s q=%s (paused=%s reason=%s)",
@@ -344,17 +379,14 @@ class ScoreboardVlmReferee:
             import requests
 
             r = requests.post(url, headers=headers, json=body, timeout=14)
+            log.info("scoreboard VLM HTTP %d", r.status_code)
+            if r.status_code in {401, 402, 429}:
+                self._hold_on_http(r.status_code)
+                return None
             with self._lock:
                 self._last_http_status = r.status_code
-            log.info("scoreboard VLM HTTP %d", r.status_code)
-            if r.status_code == 402:
-                # HTTP 402 Payment Required: clear _last to HOLD seeing-path
-                with self._lock:
-                    self._last = None
-                log.warning("scoreboard VLM HTTP 402 — HOLD seeing-path (no credit)")
-                return None
             if r.status_code != 200:
-                raise RuntimeError(f"HTTP {r.status_code}: {r.text[:180]}")
+                raise RuntimeError(f"HTTP {r.status_code}")
             data = r.json()
         except Exception as e:
             # stdlib fallback
@@ -370,26 +402,21 @@ class ScoreboardVlmReferee:
             try:
                 with urllib.request.urlopen(req, timeout=14) as resp:
                     code = resp.getcode()
+                    log.info("scoreboard VLM HTTP %d", code)
+                    if code in {401, 402, 429}:
+                        self._hold_on_http(code)
+                        return None
                     with self._lock:
                         self._last_http_status = code
-                    log.info("scoreboard VLM HTTP %d", code)
-                    if code == 402:
-                        with self._lock:
-                            self._last = None
-                        log.warning("scoreboard VLM HTTP 402 — HOLD seeing-path (no credit)")
-                        return None
                     raw = resp.read().decode("utf-8", errors="replace")
                 data = json.loads(raw)
             except urllib.error.HTTPError as http_err:
-                # HTTPError has a .code attribute for the HTTP status
+                log.info("scoreboard VLM HTTP %d (error)", http_err.code)
+                if http_err.code in {401, 402, 429}:
+                    self._hold_on_http(http_err.code)
+                    return None
                 with self._lock:
                     self._last_http_status = http_err.code
-                log.info("scoreboard VLM HTTP %d (error)", http_err.code)
-                if http_err.code == 402:
-                    with self._lock:
-                        self._last = None
-                    log.warning("scoreboard VLM HTTP 402 — HOLD seeing-path (no credit)")
-                    return None
                 log.warning("scoreboard VLM HTTP error: %s / %s", e, http_err)
                 return None
             except Exception as e2:
@@ -523,4 +550,11 @@ def get_scoreboard_vlm() -> ScoreboardVlmReferee:
     with _vlm_lock:
         if _vlm is None:
             _vlm = ScoreboardVlmReferee()
-        return _vlm
+        ref = _vlm
+    try:
+        from qoresence.vision.scoreboard_extract_why import ensure_wrapped
+
+        ensure_wrapped()
+    except Exception:
+        pass
+    return ref
