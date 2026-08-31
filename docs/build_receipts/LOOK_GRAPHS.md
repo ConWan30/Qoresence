@@ -53,14 +53,14 @@ Not touched: StreamerRuntime, FrameHub ownership, Deck/Lens/Mobile chrome, Agent
 ## Tests run
 
 ```
-python -m pytest tests/test_look_graphs.py tests/test_drive_graph.py tests/test_seeing_path_confirm.py tests/test_scorebug_crops.py tests/test_security_localhost.py tests/test_deadlock_regression.py tests/test_otel_exporter.py tests/test_live_paint.py tests/test_coupling_ticket.py tests/test_title_presence.py tests/test_ghost_stick.py tests/test_confirm_ticket.py tests/test_learning_edge.py -q
-# 148 passed, 1 skipped
+python -m pytest tests/test_look_graphs.py tests/test_drive_graph.py tests/test_seeing_path_confirm.py tests/test_scorebug_crops.py tests/test_security_localhost.py tests/test_deadlock_regression.py tests/test_otel_exporter.py tests/test_live_paint.py tests/test_coupling_ticket.py tests/test_title_presence.py tests/test_ghost_stick.py tests/test_confirm_ticket.py tests/test_learning_edge.py tests/test_scoreboard_vlm.py -q
+# 165 passed, 1 skipped
 
 python -m pytest tests/ -q
-# 1339 passed, 5 skipped; 2 pre-existing failures on main (glass dist ordering, session_theater board_locked) — not this branch
+# 1346 passed, 5 skipped; 2 pre-existing failures on main (glass dist ordering, session_theater board_locked) — not this branch
 ```
 
-Named cases: flag off by default and `--play` does not enable; score-digit / frozen-field refuse; flag-off mint + crop tuple identity; no JSONL when off; reuse / remint / refuse edges; provenance write outside book lock; crop reorder of existing bands only; ticker-null next fallback; slack 12 join_ok, seq_skew refuses confirm; identity_swap blocks stale remint; confirm not licensed from tick; blank skip is not a crop overlay; DriveGraph confirmed TD still outranks t0 board.
+Named cases: flag off by default and `--play` does not enable; score-digit / frozen-field refuse; flag-off mint + crop tuple identity; no JSONL when off; reuse / remint / refuse edges; provenance write outside book lock; crop reorder of existing bands only; ticker-null next fallback; slack 12 join_ok, seq_skew refuses confirm; identity_swap blocks stale remint; confirm not licensed from tick; blank skip is not a crop overlay; DriveGraph confirmed TD still outranks t0 board; look gate flag-off permits; tick-alone refuses VLM schedule; open drive allows; seq_skew refuses VLM+OCR; stale reuse blocked.
 
 ## Closeout
 
