@@ -552,6 +552,12 @@ def write_closeout(
 ) -> tuple[Path, Path, dict[str, Any]]:
     samples = _load_jsonl(jsonl_path)
     events = _load_jsonl(events_path) if events_path else []
+    try:
+        from qoresence.graphs.scale_stack import note_session_wrap
+
+        note_session_wrap()
+    except Exception:
+        pass
     summary = summarize(samples, events=events)
     stamp = jsonl_path.stem.replace("session_", "")
     out_dir = jsonl_path.parent

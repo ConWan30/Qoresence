@@ -94,9 +94,20 @@ def classify_join(
 def record_live_paint(paint: Any, *, session_id: str = "", clock_ns: int | None = None) -> LookLicense | None:
     if paint is None:
         return None
+    hid = 0
+    if graph_enabled("same_seq_join"):
+        try:
+            from qoresence.sync.hid_seq_line import get_hid_seq_line
+
+            sample = get_hid_seq_line().latest()
+            if sample is not None:
+                hid = int(getattr(sample, "hub_seq", 0) or 0)
+        except Exception:
+            hid = 0
     return classify_join(
         live_seq=int(getattr(paint, "live_seq", 0) or 0),
         widget_seq=int(getattr(paint, "widget_seq", 0) or 0),
+        hid_seq=hid,
         plane_dim=bool(getattr(paint, "plane_dim", False)),
         same_seq=bool(getattr(paint, "same_seq", False)),
         session_id=session_id,

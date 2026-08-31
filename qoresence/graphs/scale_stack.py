@@ -188,3 +188,16 @@ def note_drive_closed() -> None:
     with _lock:
         if _licensed_scale == "drive":
             _licensed_scale = "tick"
+
+
+def note_session_wrap(*, session_id: str = "", frame_seq: int | None = None) -> LookLicense | None:
+    """Session closeout — wrap look is now in scale. Call once per written closeout."""
+    if not graph_enabled("scale_stack"):
+        return None
+    return license_scale(
+        "session",
+        look="wrap",
+        lower_licensed=True,
+        session_id=session_id,
+        frame_seq=frame_seq,
+    )

@@ -79,3 +79,44 @@ python -m qoresence.cli --play --deck --look-graphs
 # both flags: licenses may feed existing learning-edge kinds
 python -m qoresence.cli --play --deck --look-graphs --learning-edge
 ```
+
+## Live integration
+
+`--look-graphs` is a seeing-path latch, not a new capture owner. First live run stays on the existing `--play --deck` path; add the flag only after capture health is green.
+
+### Apply
+
+1. Prove the box without the flag: `python -m qoresence.cli --play --deck --streamer-fps 30` then `curl http://127.0.0.1:8765/health`. Need `state.video.age_s` < 1s, `state.video.frames` climbing, `state.fps` > 5. No `look_*` keys.
+2. Stop, restart with `--look-graphs` (or `$env:QORESENCE_LOOK_GRAPHS=1`). Do not add `--learning-edge` on the first live hour.
+3. Same `/health` curl now includes `state.look_scale`, `state.look_join`, `state.look_permit_confirm`, `state.look_refuse`. Those keys are omitted when the flag is off.
+4. Watch `logs/pilot/look_licenses.jsonl` (override `QORESENCE_LOOK_LICENSES_PATH`). Same-Seq does not append when `(kind, live, widget, hid)` is unchanged. Tick peek writes no JSONL.
+5. Confirm digits still require a seeing-path mint: `has_confirm_ticket` + `score_vlm_locked`. A LookLicense never carries `home_score` / `away_score`.
+6. After the session, closeout JSON includes `look_gate` and `look_licenses_applied` only when the flag stayed on. `write_closeout` notes one `session_wrap`.
+
+### What to read
+
+| Signal | Healthy live | Treat as refuse |
+|---|---|---|
+| `look_join` | `join_ok` or `slack_hold` | `seq_skew`, `plane_dim` |
+| `look_scale` | `phrase` or `drive` during a live snap/drive | stuck `tick` while you expect a confirm VLM |
+| `look_permit_confirm` | `true` only with an open drive (or session wrap) | `false` + `scale_tick` — tick peek must not schedule confirm VLM |
+| `look_refuse` | empty | `schedule_skip`, `seq_skew`, `plane_dim`, `scale_tick` |
+| `state.video.age_s` | &lt; 1s | climbing while `frames` flat — lock/cascade, not the crop graph |
+| JSONL kinds | `join_ok`, `phrase_coupling`, `drive_confirm`, `reuse` | sudden `session_wrap` mid-drive (closeout should be the only wrap) |
+
+### Dark-ship one graph
+
+Master flag on, one env `0` to isolate a live fault: `QORESENCE_LOOK_SAME_SEQ=0`, `QORESENCE_LOOK_SCALE=0`, `QORESENCE_LOOK_CROP=0`, `QORESENCE_LOOK_REFUSE=0`, `QORESENCE_LOOK_TICKET_DAG=0`, `QORESENCE_LOOK_NEGATIVE=0`.
+
+### Do not
+
+- Turn the flag on from `--play` alone
+- Lower DriveGraph cap / invent a second graph
+- Bind `0.0.0.0` or send licenses off-box
+- Treat `look_permit_confirm` as a score lock
+- Enable `--learning-edge` until look JSONL and `/health` look keys stay boring for a full session
+- Drop `--streamer-fps` below 30 to “fix” a refuse — if `age_s` climbs, capture the thread stacks (deadlock), then try 30 fps as a card-stress mitigation
+
+### Rollback
+
+Remove `--look-graphs` / unset `QORESENCE_LOOK_GRAPHS`. Behavior matches current main: no license read, no license write, crop tuples stay the same object, `/health` omits `look_*`. Keep the JSONL file as evidence; do not delete it to “clear” a refuse.

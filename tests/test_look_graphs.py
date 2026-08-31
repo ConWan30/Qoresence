@@ -79,9 +79,21 @@ def _graphs_off(monkeypatch, tmp_path):
     monkeypatch.setenv("QORESENCE_LOOK_LICENSES_PATH", str(tmp_path / "look.jsonl"))
     reset_all()
     get_ticket_book().clear()
+    try:
+        from qoresence.sync.hid_seq_line import get_hid_seq_line
+
+        get_hid_seq_line().clear()
+    except Exception:
+        pass
     yield
     reset_all()
     get_ticket_book().clear()
+    try:
+        from qoresence.sync.hid_seq_line import get_hid_seq_line
+
+        get_hid_seq_line().clear()
+    except Exception:
+        pass
 
 
 def _on(monkeypatch):
@@ -784,3 +796,95 @@ def test_classify_join_dedups_unchanged_sig(monkeypatch, tmp_path):
     skew = classify_join(live_seq=41, widget_seq=1, hid_seq=41)
     assert skew is not None and skew.kind == "seq_skew"
     assert len(load_licenses(path)) == 3
+
+
+# ── P10 live apply: HID join, session wrap, /health patch at deck boot ──
+
+
+def test_live_paint_reads_ghost_stick_hid_seq(monkeypatch):
+    from qoresence.graphs.same_seq_join import last_license, record_live_paint
+    from qoresence.sync.hid_seq_line import HidSeqSample, get_hid_seq_line, put_sample
+
+    _on(monkeypatch)
+    put_sample(
+        HidSeqSample(
+            hub_seq=10,
+            hub_clock_ns=1,
+            hid_clock_ns=1,
+            lx=0.1,
+            ly=0.0,
+            r2=0.0,
+            l2=0.0,
+            buttons=(),
+            hid_domain="test",
+        )
+    )
+    aligned = decide_live_paint(has_frame=True, live_seq=10, widget_seq=10, game_state="gameplay")
+    assert aligned.same_seq is True
+    lic = last_license()
+    assert lic is not None and lic.kind == "join_ok"
+    get_hid_seq_line().clear()
+    put_sample(
+        HidSeqSample(
+            hub_seq=1,
+            hub_clock_ns=1,
+            hid_clock_ns=1,
+            lx=0.1,
+            ly=0.0,
+            r2=0.0,
+            l2=0.0,
+            buttons=(),
+            hid_domain="test",
+        )
+    )
+    paint = type(aligned)(
+        aligned.paint,
+        100,
+        100,
+        True,
+        False,
+        "ok",
+        True,
+    )
+    hid_skew = record_live_paint(paint)
+    assert hid_skew is not None and hid_skew.kind == "seq_skew"
+    from qoresence.graphs.look_gate import permit_ocr_look
+
+    assert permit_ocr_look() is False
+
+
+def test_write_closeout_notes_session_wrap(monkeypatch, tmp_path):
+    from qoresence.graphs.scale_stack import licensed_scale
+    from qoresence.pilot import closeout
+
+    _on(monkeypatch)
+    path = tmp_path / "look.jsonl"
+    monkeypatch.setenv("QORESENCE_LOOK_LICENSES_PATH", str(path))
+    session = tmp_path / "session_p10.jsonl"
+    session.write_text(
+        '{"ts":"t0","clock_ns":0,"video_age_s":0.1,"frames":1,"has_frame":true,'
+        '"score_home":7,"score_away":0,"score_vlm_locked":true,"flags":[]}\n',
+        encoding="utf-8",
+    )
+    _j, _md, summary = closeout.write_closeout(session)
+    assert licensed_scale() == "session"
+    assert summary["look_gate"]["scale"] == "session"
+    kinds = [lic.kind for lic in load_licenses(path)]
+    assert "session_wrap" in kinds
+
+
+def test_deck_boot_installs_health_look_keys(monkeypatch):
+    from qoresence.deck.seeing_health import install_health_patch
+    from qoresence.deck.server import DeckState, create_app
+
+    _on(monkeypatch)
+    create_app()
+    install_health_patch()
+    st = DeckState()
+    snap = st._snapshot_fresh()
+    assert "look_scale" in snap
+    assert "look_join" in snap
+    assert "look_permit_confirm" in snap
+    assert "look_refuse" in snap
+    assert "ticket" not in str(snap.get("look_scale"))
+    assert snap.get("confirm_ticket_id") is None
