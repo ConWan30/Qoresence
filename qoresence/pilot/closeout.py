@@ -154,6 +154,14 @@ def summarize(
             out["learning_constraints_applied"] = applied
     except Exception:
         pass
+    try:
+        from qoresence.graphs.flags import closeout_applied as look_closeout
+
+        look_ids = look_closeout()
+        if look_ids is not None:
+            out["look_licenses_applied"] = look_ids
+    except Exception:
+        pass
     out["summary_metrics"] = {
         k: out[k]
         for k in (

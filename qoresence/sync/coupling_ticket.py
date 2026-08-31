@@ -51,16 +51,31 @@ def mint_coupling_ticket(
     imu_bodied: bool = False,
     pll_lock: bool = False,
     video_fresh: bool = True,
+    same_seq: bool | None = None,
+    plane_dim: bool = False,
 ) -> CouplingTicket | None:
     """Mint only for live phrases with PLL lock and fresh video.
 
     Fail-closed: IDLE/HUDDLE/unknown, unlocked PLL, or stale video → None.
+    When ``--look-graphs`` Same-Seq is on, seq_skew / plane_dim also refuse.
     """
     ph = str(phrase or "").upper()
     if ph not in LIVE_PHRASES:
         return None
     if not pll_lock or not video_fresh:
         return None
+    try:
+        from qoresence.graphs.same_seq_join import coupling_mint_allowed
+
+        if not coupling_mint_allowed(
+            same_seq=same_seq,
+            plane_dim=plane_dim,
+            live_seq=int(frame_seq) if frame_seq is not None else 0,
+            widget_seq=int(frame_seq) if frame_seq is not None else 0,
+        ):
+            return None
+    except Exception:
+        pass
     payload = {
         "v": DOMAIN,
         "clock_ns": int(clock_ns or 0),

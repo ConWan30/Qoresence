@@ -710,6 +710,17 @@ class FootballScoreboardExtractor:
                             away_team_now,
                         )
                         ctx.score_vlm_locked = False
+                        try:
+                            from qoresence.graphs.refuse_chain import apply_refuse
+                            from qoresence.graphs.ticket_provenance import record_refuse
+                            from qoresence.vision.board_why import refuse_to_board_why
+
+                            why = refuse_to_board_why(refuse, _game_state_token(ctx))
+                            sid = str(getattr(ctx, "session_id", "") or "")
+                            record_refuse(why, session_id=sid)
+                            apply_refuse(why, session_id=sid)
+                        except Exception:
+                            pass
                     else:
                         ticket = mint_confirm_ticket(
                             session_id=resolve_session_id(
@@ -729,6 +740,27 @@ class FootballScoreboardExtractor:
                             book=book,
                         )
                         book.put(ticket, home_team=home_team_now, away_team=away_team_now)
+                        try:
+                            from qoresence.graphs.crop_evidence import record_lock
+                            from qoresence.vision.scorebug_crops import (
+                                primary_scorebug_crop,
+                                scorebug_crops_for_profile,
+                            )
+
+                            prof = str(getattr(ctx, "game_profile", "") or "")
+                            bands = scorebug_crops_for_profile(prof)
+                            record_lock(
+                                prof,
+                                crop=list(primary_scorebug_crop(prof)),
+                                bands=bands,
+                                ticket_id=ticket.ticket_id,
+                                clock_ns=int(ticket.clock_ns),
+                                session_id=str(ticket.session_id or ""),
+                                crop_hash=str(ticket.crop_hash or ""),
+                                frame_seq=ticket.frame_seq,
+                            )
+                        except Exception:
+                            pass
                         ctx.confirm_ticket_id = ticket.ticket_id
                         if isinstance(ctx.details, dict):
                             ctx.details["confirm_ticket"] = ticket.to_dict()
