@@ -317,6 +317,29 @@ class ClutchBotAgent:
                     log.debug("pred lifecycle resolve: %s", e)
                 # Best-effort graph calibration sample on drive close / score resolve
                 self._log_drive_graph_sample(event)
+                try:
+                    from qoresence.agents.learning_edge import enabled as _le_on
+                    from qoresence.agents.learning_edge import maybe_record_on_resolve
+
+                    if _le_on():
+                        from qoresence.vision.confirm_ticket import get_ticket_book
+                        from qoresence.vision.scorebug_crops import primary_scorebug_crop
+
+                        sit = (
+                            self._situation.to_dict() if hasattr(self._situation, "to_dict") else {}
+                        )
+                        prof = str(sit.get("game_profile") or "")
+                        maybe_record_on_resolve(
+                            ticket=get_ticket_book().latest(),
+                            profile=prof,
+                            crop=list(primary_scorebug_crop(prof)),
+                            frame_seq=event.payload.get("frame_seq")
+                            if isinstance(event.payload, dict)
+                            else None,
+                            session_id=str(sit.get("session_id") or ""),
+                        )
+                except Exception:
+                    pass
 
         if getattr(self, "_learning_logger", None) is not None and moments:
             try:

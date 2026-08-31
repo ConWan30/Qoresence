@@ -146,6 +146,14 @@ def summarize(
         "freeze_classified": freezes,
         "nameplate_ambiguous_n": amb_n,
     }
+    try:
+        from qoresence.agents.learning_edge import closeout_applied
+
+        applied = closeout_applied()
+        if applied is not None:
+            out["learning_constraints_applied"] = applied
+    except Exception:
+        pass
     out["summary_metrics"] = {
         k: out[k]
         for k in (

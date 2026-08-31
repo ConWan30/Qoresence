@@ -1341,6 +1341,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             enabled=True,
             endpoint=getattr(args, "otel_endpoint", None) or config.otel.endpoint,
         )
+    if getattr(args, "learning_edge", False) or getattr(config, "learning_edge", False):
+        config.learning_edge = True
+        try:
+            from qoresence.agents.learning_edge import set_config_enabled
+
+            set_config_enabled(True)
+        except Exception:
+            pass
     if getattr(args, "haptic_probe", False):
         config.haptic_probe = replace(config.haptic_probe, enabled=True)
     if args.controller:
@@ -1541,6 +1549,13 @@ def main():
         "--otel",
         action="store_true",
         help="Export bus cascade traces + capture metrics via OTLP (local Collector)",
+    )
+    parser.add_argument(
+        "--learning-edge",
+        action="store_true",
+        help="Apply accepted-confirm constraints to the next splitter "
+        "(crop band / rank / try_open). Default OFF. Also QORESENCE_LEARNING_EDGE=1. "
+        "--play does not enable this.",
     )
     parser.add_argument(
         "--otel-endpoint",
