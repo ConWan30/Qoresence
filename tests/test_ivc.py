@@ -185,22 +185,27 @@ def test_ivc_lead_includes_slightly_after_frame(monkeypatch):
 def test_ivc_sprint_hold_phrase_off_no_ticket(monkeypatch):
     """Phrase lattice OFF: hold still couples, but no SPRINT mint."""
     from qoresence.sync.coupling_ticket import reset_coupling_book
+    from qoresence.sync.event_bind import get_event_binder
+    from qoresence.sync.input_ring import get_input_ring
     from qoresence.sync.lag_estimator import get_lag_estimator
     from qoresence.sync.play_phrase import note_game_state
 
     reset_coupling_book()
+    get_event_binder().clear()
+    get_input_ring().clear()
     note_game_state("gameplay")
+    hub = FrameHub()
+    ring = InputRing()
+    monkeypatch.setattr("qoresence.monitor.frame_hub.get_frame_hub", lambda: hub)
+    monkeypatch.setattr("qoresence.sync.input_ring.get_input_ring", lambda: ring)
+    t_video = time.monotonic_ns()
+    ring.set_hold(clock_ns=t_video, r2=0.95, l2=0.0, left=0.0, right=0.0)
+    hub.publish(np.zeros((8, 8, 3), dtype=np.uint8), clock_ns=t_video)
+    # Seed after publish: FrameHub.publish feeds observe_phase from the ring.
     est = get_lag_estimator()
     est.reset()
     for i in range(10):
         est.observe_phase(40.0 + 0.1 * i)
-    hub = FrameHub()
-    ring = InputRing()
-    t_video = time.monotonic_ns()
-    ring.set_hold(clock_ns=t_video, r2=0.95, l2=0.0, left=0.0, right=0.0)
-    hub.publish(np.zeros((8, 8, 3), dtype=np.uint8), clock_ns=t_video)
-    monkeypatch.setattr("qoresence.monitor.frame_hub.get_frame_hub", lambda: hub)
-    monkeypatch.setattr("qoresence.sync.input_ring.get_input_ring", lambda: ring)
     ivc = InputVideoCoupler(bus=None)
     payload = ivc.tick_once()
     assert payload is not None
