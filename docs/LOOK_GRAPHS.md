@@ -56,6 +56,12 @@ CIVIF ticks call `note_tick_peek` (no JSONL). Opening a drive on `SessionTimelin
 
 When both flags are on, a refuse license may mint an existing `LearningConstraint` kind from the latest seeing-path ticket.
 
+Same-Seq `classify_join` does not append JSONL when `(kind, live_seq, widget_seq, hid_seq)` is unchanged. LIVE paint at 30–60 fps can re-read the same frame without growing the license log.
+
+## Operator snapshot
+
+`look_gate.snapshot()` is query-only (no JSONL). Flag off → `None` (omit the keys). Flag on → `/health` exposes `look_scale`, `look_join`, `look_permit_confirm`, `look_refuse`. Closeout adds `look_gate` with the same four fields. No ticket ids. No score digits.
+
 ## Lock rule
 
 Record after `ConfirmTicketBook` / lobe locks release. Never `emit_raw` from a graph. Never acquire a lobe lock in a subscribe callback. The look gate does not take a lobe lock.

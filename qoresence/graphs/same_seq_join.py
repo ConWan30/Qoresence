@@ -14,12 +14,14 @@ from qoresence.graphs.look_license import LookLicense, append_license, make_lice
 
 _lock = threading.Lock()
 _last_license: LookLicense | None = None
+_last_sig: tuple[str, int, int, int] | None = None
 
 
 def reset() -> None:
-    global _last_license
+    global _last_license, _last_sig
     with _lock:
         _last_license = None
+        _last_sig = None
 
 
 def classify_join(
@@ -33,7 +35,7 @@ def classify_join(
     session_id: str = "",
     clock_ns: int | None = None,
 ) -> LookLicense | None:
-    global _last_license
+    global _last_license, _last_sig
     if not graph_enabled("same_seq_join"):
         return None
     live = int(live_seq or 0)
@@ -61,6 +63,10 @@ def classify_join(
         else:
             kind = "join_ok"
             ok = True
+    sig = (kind, live, widget, hid)
+    with _lock:
+        if _last_sig == sig and _last_license is not None:
+            return _last_license
     permits: dict[str, Any] = {
         "next_action": "look" if ok else "refuse",
         "frame_seq": live,
@@ -79,6 +85,7 @@ def classify_join(
         return None
     with _lock:
         _last_license = lic
+        _last_sig = sig
     append_license(lic)
     note_applied(lic.id)
     return lic

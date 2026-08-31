@@ -694,3 +694,93 @@ def test_look_graphs_off_splitter_still_keeps_confirm():
     nodes = g.ranked_chapter_nodes(k=8)
     kept, _ = split_chapter_units(g, k=8)
     assert [n.node_id for n in kept] == [n.node_id for n in nodes]
+
+
+# ── P9 operator snapshot + Same-Seq JSONL dedup ────────────────────────────
+
+
+def test_look_gate_snapshot_omitted_when_flag_off():
+    from qoresence.deck.seeing_health import attach_board_health
+    from qoresence.graphs.look_gate import snapshot
+    from qoresence.pilot import closeout
+
+    assert snapshot() is None
+    out = attach_board_health({}, {"confirm_ticket_id": "secret-ticket-id"})
+    assert "look_scale" not in out
+    assert "look_join" not in out
+    assert "look_permit_confirm" not in out
+    assert "look_refuse" not in out
+    summary = closeout.summarize([])
+    assert "look_gate" not in summary
+    assert "look_licenses_applied" not in summary
+
+
+def test_look_gate_snapshot_on_health_has_no_ticket_or_score(monkeypatch):
+    import json
+
+    from qoresence.deck.seeing_health import attach_board_health
+    from qoresence.graphs.look_gate import snapshot
+    from qoresence.pilot import closeout
+
+    _on(monkeypatch)
+    classify_join(live_seq=20, widget_seq=20)
+    snap = snapshot()
+    assert snap is not None
+    assert set(snap) == {"scale", "join", "permit_confirm", "refuse"}
+    assert snap["join"] == "join_ok"
+    assert snap["scale"] == "tick"
+    assert snap["permit_confirm"] is False
+    assert "scale_tick" in str(snap["refuse"])
+    blob = json.dumps(snap)
+    assert "ticket" not in blob.lower()
+    assert "score" not in blob.lower()
+    assert "21" not in blob and "14" not in blob
+
+    out = attach_board_health(
+        {},
+        {"confirm_ticket_id": "secret-ticket-id", "home_score": 21, "away_score": 14},
+    )
+    assert out["look_join"] == "join_ok"
+    assert out["look_scale"] == "tick"
+    assert out["look_permit_confirm"] is False
+    assert "scale_tick" in out["look_refuse"]
+    look_blob = json.dumps({k: out[k] for k in out if str(k).startswith("look_")})
+    assert "secret-ticket-id" not in look_blob
+    assert "21" not in look_blob
+    assert "ticket" not in look_blob.lower()
+
+    summary = closeout.summarize([])
+    assert "look_gate" in summary
+    assert summary["look_gate"]["join"] == "join_ok"
+    assert "look_licenses_applied" in summary
+    assert "secret-ticket-id" not in json.dumps(summary["look_gate"])
+
+
+def test_look_gate_snapshot_does_not_write_jsonl(monkeypatch, tmp_path):
+    from qoresence.graphs.look_gate import snapshot
+
+    _on(monkeypatch)
+    path = tmp_path / "look.jsonl"
+    monkeypatch.setenv("QORESENCE_LOOK_LICENSES_PATH", str(path))
+    snap = snapshot()
+    assert snap is not None
+    assert not path.exists() or path.read_text(encoding="utf-8") == ""
+
+
+def test_classify_join_dedups_unchanged_sig(monkeypatch, tmp_path):
+    _on(monkeypatch)
+    path = tmp_path / "look.jsonl"
+    monkeypatch.setenv("QORESENCE_LOOK_LICENSES_PATH", str(path))
+    a = classify_join(live_seq=40, widget_seq=40, hid_seq=40)
+    b = classify_join(live_seq=40, widget_seq=40, hid_seq=40)
+    assert a is not None and b is not None
+    assert a.id == b.id
+    assert a is b
+    rows = load_licenses(path)
+    assert len(rows) == 1
+    c = classify_join(live_seq=41, widget_seq=41, hid_seq=41)
+    assert c is not None and c.id != a.id
+    assert len(load_licenses(path)) == 2
+    skew = classify_join(live_seq=41, widget_seq=1, hid_seq=41)
+    assert skew is not None and skew.kind == "seq_skew"
+    assert len(load_licenses(path)) == 3

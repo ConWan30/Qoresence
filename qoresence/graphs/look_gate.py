@@ -6,6 +6,8 @@ Never takes a lobe lock. Query-only on the hot path (no JSONL).
 
 from __future__ import annotations
 
+from typing import Any
+
 from qoresence.graphs.flags import enabled, graph_enabled
 
 _FORCE_REASONS = frozenset({"score_changed", "menu_exit", "first_lock", "confirm", "drive"})
@@ -120,3 +122,45 @@ def _phrase_or_drive_open() -> bool:
         return get_coupling_book().latest() is not None
     except Exception:
         return False
+
+
+def snapshot() -> dict[str, Any] | None:
+    """Operator glass for /health. None when flag off. No ticket ids. No JSONL."""
+    if not enabled():
+        return None
+    join = ""
+    scale = ""
+    skip = ""
+    try:
+        from qoresence.graphs.same_seq_join import last_license
+
+        lic = last_license()
+        if lic is not None:
+            join = str(lic.kind or "")
+    except Exception:
+        pass
+    try:
+        from qoresence.graphs.scale_stack import licensed_scale
+
+        scale = str(licensed_scale() or "")
+    except Exception:
+        pass
+    try:
+        from qoresence.graphs.refuse_chain import schedule_skip_unit
+
+        skip = str(schedule_skip_unit() or "")
+    except Exception:
+        pass
+    reasons: list[str] = []
+    if skip == "confirm":
+        reasons.append("schedule_skip")
+    if join in {"seq_skew", "plane_dim"}:
+        reasons.append(join)
+    if graph_enabled("scale_stack") and not _active_drive() and scale not in {"drive", "session"}:
+        reasons.append("scale_tick")
+    return {
+        "scale": scale or "tick",
+        "join": join,
+        "permit_confirm": not reasons,
+        "refuse": ",".join(reasons),
+    }
