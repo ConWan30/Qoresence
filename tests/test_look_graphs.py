@@ -874,12 +874,10 @@ def test_write_closeout_notes_session_wrap(monkeypatch, tmp_path):
 
 
 def test_deck_boot_installs_health_look_keys(monkeypatch):
-    from qoresence.deck.seeing_health import install_health_patch
     from qoresence.deck.server import DeckState, create_app
 
     _on(monkeypatch)
     create_app()
-    install_health_patch()
     st = DeckState()
     snap = st._snapshot_fresh()
     assert "look_scale" in snap
