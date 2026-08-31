@@ -744,6 +744,9 @@ class RetinaUnifiedConfig:
     # ── Observation-plane OTel exporter (default OFF) ───────────────────────
     otel: OtelConfig = field(default_factory=OtelConfig)
 
+    # Learning edge: next-run splitter constraints. Default OFF. --play does not enable.
+    learning_edge: bool = False
+
     # ── Private haptic probe (default OFF; observation only) ────────────────
     haptic_probe: HapticProbeConfig = field(default_factory=HapticProbeConfig)
 
@@ -1076,6 +1079,7 @@ class RetinaUnifiedConfig:
                 out_dir=_str("QORESENCE_HAPTIC_PROBE_DIR", "logs/haptic") or "logs/haptic",
                 queue_size=_int("QORESENCE_HAPTIC_PROBE_QUEUE", 1024) or 1024,
             ),
+            learning_edge=_bool("QORESENCE_LEARNING_EDGE"),
         )
 
     # ─────────────────────────────────────────────────────────────────────────

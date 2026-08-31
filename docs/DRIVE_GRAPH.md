@@ -9,7 +9,7 @@ Causal **time-DAG** over a `SessionTimeline` drive: fast heat → arm → confir
 | Why strip | `phase · climax · best_label · path` |
 | Chapters | `ranked_chapter_nodes` seeds REPLAY marks |
 | Predictions | Prefer `try_open` when phase armed/pressure + climax ≥ 0.25 |
-| Learning | Thin samples: match_rate, climax.score, phase |
+| Learning | Thin samples: match_rate, climax.score, phase. Typed next-run constraints: `docs/LEARNING_EDGE.md` (`--learning-edge`, default OFF) |
 
 **Source of truth:** SessionTimeline only (shared `clock_ns`). No parallel log.
 
