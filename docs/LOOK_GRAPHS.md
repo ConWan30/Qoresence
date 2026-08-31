@@ -50,7 +50,11 @@ When `--learning-edge` is also on, a LookLicense may mint an existing constraint
 | `permit_ocr_look` | Same-Seq `seq_skew` / `plane_dim` |
 | `permit_confirm_mint(reuse=True)` | identity stale / refuse-chain mint block |
 
-`score_changed` / `menu_exit` / `first_lock` / `force` still license a drive-scale confirm look. The gate is query-only on the hot path — it does not append JSONL.
+`score_changed` / `menu_exit` / `first_lock` / `force` still license a drive-scale confirm look unless refuse-chain `schedule_skip` names confirm (quota / auth / suspicious). The gate is query-only on the hot path — it does not append JSONL.
+
+CIVIF ticks call `note_tick_peek` (no JSONL). Opening a drive on `SessionTimeline` escalates to drive-scale confirm (after the timeline lock). Closing the drive drops back to tick. `split_chapter_units` drops skipped chapter kinds when `--look-graphs` is on, even if `--learning-edge` is off.
+
+When both flags are on, a refuse license may mint an existing `LearningConstraint` kind from the latest seeing-path ticket.
 
 ## Lock rule
 

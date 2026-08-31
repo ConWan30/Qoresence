@@ -119,6 +119,7 @@ def apply_refuse(
             _skip_unit = "confirm"
     append_license(lic)
     note_applied(lic.id)
+    _maybe_learning_constraint(lic)
     if "mint_blocked" in successors:
         try:
             from qoresence.graphs.ticket_provenance import note_identity_stale
@@ -166,3 +167,22 @@ def clear_mint_block() -> None:
     global _mint_blocked
     with _lock:
         _mint_blocked = False
+
+
+def _maybe_learning_constraint(lic: LookLicense) -> None:
+    """When both flags are on and a seeing-path ticket exists, write an existing kind."""
+    try:
+        import os
+
+        from qoresence.agents.learning_constraint import DEFAULT_CONSTRAINT_LOG, append_constraint
+        from qoresence.graphs.look_license import maybe_constraint_from_license
+        from qoresence.vision.confirm_ticket import get_ticket_book
+
+        ticket = get_ticket_book().latest()
+        constraint = maybe_constraint_from_license(lic, ticket=ticket)
+        if constraint is None:
+            return
+        envp = os.environ.get("QORESENCE_LEARNING_CONSTRAINTS_PATH", "").strip()
+        append_constraint(constraint, path=envp or DEFAULT_CONSTRAINT_LOG)
+    except Exception:
+        pass

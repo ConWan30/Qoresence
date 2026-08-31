@@ -583,3 +583,114 @@ def test_vlm_schedule_skips_tick_when_gate_refuses(monkeypatch):
     frame = np.zeros((32, 32, 3), dtype=np.uint8)
     ref.schedule(frame, game_state="gameplay", game_profile="cfb_27", reason="tick")
     assert called == []
+
+
+# ── P8 apply licenses to next look / splitter ──────────────────────────────
+
+
+def test_civif_tick_is_peek_not_confirm_and_writes_no_jsonl(monkeypatch, tmp_path):
+    from qoresence.core.civif_tick import build_coupled_tick
+    from qoresence.graphs.look_gate import permit_confirm_look
+    from qoresence.graphs.scale_stack import licensed_scale
+
+    _on(monkeypatch)
+    path = tmp_path / "look.jsonl"
+    monkeypatch.setenv("QORESENCE_LOOK_LICENSES_PATH", str(path))
+    rec = build_coupled_tick(coupling={"video_clock_ns": 1, "frame_seq": 3})
+    assert rec.frame_seq == 3
+    assert licensed_scale() == "tick"
+    assert permit_confirm_look(reason="tick") is False
+    if path.exists():
+        assert "tick_peek" not in path.read_text(encoding="utf-8")
+
+
+def test_drive_open_escalates_confirm_look(monkeypatch):
+    from qoresence.agents.session_timeline import reset_session_timeline
+    from qoresence.graphs.look_gate import permit_confirm_look
+    from qoresence.graphs.scale_stack import licensed_scale
+
+    _on(monkeypatch)
+    tl = reset_session_timeline()
+    try:
+        tl.append(kind="arm", path="fast", open_drive=True, clock_ns=10, frame_seq=4)
+        assert licensed_scale() == "drive"
+        assert permit_confirm_look(reason="tick") is True
+        tl.append(kind="resolve", path="confirm", close_drive=True, clock_ns=20)
+        assert licensed_scale() == "tick"
+        assert permit_confirm_look(reason="tick") is False
+    finally:
+        reset_session_timeline()
+
+
+def test_quota_skip_refuses_vlm_and_drops_confirm_chapters(monkeypatch):
+    from qoresence.agents.learning_edge import split_chapter_units
+    from qoresence.graphs.look_gate import permit_confirm_look
+
+    _on(monkeypatch)
+    apply_refuse("vlm_quota")
+    monkeypatch.setattr("qoresence.graphs.look_gate._active_drive", lambda: True)
+    assert permit_confirm_look(reason="tick") is False
+    assert permit_confirm_look(reason="score_changed") is False
+    t0 = 0
+    events = [
+        {
+            "clock_ns": t0,
+            "kind": "fast_chat",
+            "path": "fast",
+            "message": "Live-board 0-0",
+            "coupling": 0.9,
+            "factual": False,
+        },
+        {
+            "clock_ns": t0 + int(20e9),
+            "kind": "confirm_score",
+            "path": "confirm",
+            "message": "touchdown 7-0",
+            "factual": True,
+        },
+    ]
+    g = DriveGraph.from_events("td", events)
+    kept, lite = split_chapter_units(g, k=8)
+    assert all(n.kind not in {"confirm", "confirm_score"} for n in kept)
+    assert lite.receipts == ()
+
+
+def test_dual_flag_refuse_writes_existing_constraint_kind(monkeypatch, tmp_path):
+    from qoresence.agents.learning_constraint import load_constraints
+
+    _on(monkeypatch)
+    monkeypatch.setenv("QORESENCE_LEARNING_EDGE", "1")
+    dest = tmp_path / "c.jsonl"
+    monkeypatch.setenv("QORESENCE_LEARNING_CONSTRAINTS_PATH", str(dest))
+    t = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1,
+        home_score=7,
+        away_score=0,
+        source="deepseek",
+    )
+    get_ticket_book().put(t)
+    apply_refuse("vlm_quota")
+    cons = load_constraints(dest)
+    assert cons
+    assert cons[-1].kind == "schedule_skip"
+    assert cons[-1].source_ticket_id == t.ticket_id
+
+
+def test_look_graphs_off_splitter_still_keeps_confirm():
+    from qoresence.agents.learning_edge import split_chapter_units
+
+    t0 = 0
+    events = [
+        {
+            "clock_ns": t0 + int(20e9),
+            "kind": "confirm_score",
+            "path": "confirm",
+            "message": "touchdown 7-0",
+            "factual": True,
+        },
+    ]
+    g = DriveGraph.from_events("td", events)
+    nodes = g.ranked_chapter_nodes(k=8)
+    kept, _ = split_chapter_units(g, k=8)
+    assert [n.node_id for n in kept] == [n.node_id for n in nodes]

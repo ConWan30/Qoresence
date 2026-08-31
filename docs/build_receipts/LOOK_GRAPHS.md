@@ -34,6 +34,9 @@ Product: observatory engine with look-license graphs. Not a self-improving agent
 | `qoresence/graphs/scale_stack.py` | Tick/phrase/drive/session escalate |
 | `qoresence/graphs/negative_evidence.py` | Emptiness licenses skip |
 | `qoresence/graphs/look_gate.py` | Enforce permits on VLM / OCR / mint |
+| `qoresence/core/civif_tick.py` | Tick peek note (no JSONL) |
+| `qoresence/agents/session_timeline.py` | Drive-open escalate after lock release |
+| `qoresence/agents/learning_edge.py` | Look-graph schedule_skip on splitter |
 | `qoresence/core/unified_config.py` | `look_graphs: bool = False` + env |
 | `qoresence/cli.py` | `--look-graphs`; not set by `--play` |
 | `qoresence/vision/confirm_ticket.py` | Provenance after mint; identity_stale after lock release |

@@ -154,3 +154,37 @@ def last_license() -> LookLicense | None:
 def licensed_scale() -> str:
     with _lock:
         return _licensed_scale
+
+
+def note_tick_peek(*, session_id: str = "", frame_seq: int | None = None) -> None:
+    """CIVIF tick is peek only. No JSONL. Does not upgrade a live phrase/drive."""
+    global _licensed_scale
+    if not graph_enabled("scale_stack"):
+        return
+    with _lock:
+        if _licensed_scale in {"phrase", "drive", "session"}:
+            return
+        _licensed_scale = "tick"
+
+
+def note_drive(*, session_id: str = "", frame_seq: int | None = None) -> LookLicense | None:
+    """Drive opened — confirm look is now in scale. Call after timeline lock release."""
+    if not graph_enabled("scale_stack"):
+        return None
+    return license_scale(
+        "drive",
+        look="confirm",
+        lower_licensed=True,
+        session_id=session_id,
+        frame_seq=frame_seq,
+    )
+
+
+def note_drive_closed() -> None:
+    """Drive closed — drop back to tick. No JSONL."""
+    global _licensed_scale
+    if not graph_enabled("scale_stack"):
+        return
+    with _lock:
+        if _licensed_scale == "drive":
+            _licensed_scale = "tick"

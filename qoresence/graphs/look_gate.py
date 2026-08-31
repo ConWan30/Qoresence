@@ -35,6 +35,14 @@ def permit_confirm_look(
                 return False
         except Exception:
             pass
+    if graph_enabled("refuse_chain"):
+        try:
+            from qoresence.graphs.refuse_chain import schedule_skip_unit
+
+            if schedule_skip_unit() == "confirm":
+                return False
+        except Exception:
+            pass
     if graph_enabled("scale_stack"):
         try:
             from qoresence.graphs.scale_stack import may_confirm
