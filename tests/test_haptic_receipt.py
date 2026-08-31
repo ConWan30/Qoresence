@@ -193,7 +193,7 @@ def test_live_clock_hot_path_does_not_block_when_worker_stalled():
     clock = HapticReceiptClock(persist=False, queue_size=8, stall_worker=True)
     try:
         start = time.perf_counter()
-        for i in range(2000):
+        for _i in range(2000):
             clock.note_tick(_tick())
         elapsed = time.perf_counter() - start
         assert elapsed < 0.75, f"hot path blocked ({elapsed:.3f}s)"

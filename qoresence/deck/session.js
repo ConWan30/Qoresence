@@ -110,19 +110,39 @@
     };
   }
 
-  function lockedValue(confirmed) {
-    if (!confirmed || !confirmed.available) {
-      return '<p class="UnavailableValue">Awaiting confirmed board state</p>';
+  function boardWhySpeech(why) {
+    const map = {
+      unlocked: "Board not licensed yet",
+      no_ticket: "Board not licensed yet",
+      menu: "Menu — board not licensed",
+      loading: "Loading — board not licensed",
+      vlm_none: "Board unread",
+      vlm_ungrounded: "Board unread",
+      vlm_quota: "Board unread (quota)",
+      vlm_auth: "Board unread (auth)",
+      vlm_no_key: "Board unread (no key)",
+      refuse_zero_zero: "Board not licensed yet",
+      refuse_identity_swap: "Board not licensed yet",
+      refuse_suspicious: "Board not licensed yet",
+    };
+    const token = String(why || "").trim();
+    if (token && map[token]) return map[token];
+    return "Board not licensed yet";
+  }
+
+  function lockedValue(confirmed, boardWhy) {
+    if (confirmed && confirmed.available) {
+      const bits = [];
+      const s = confirmed.score;
+      if (s && s.home != null && s.away != null) {
+        bits.push('<span class="LockedValue" data-kind="score">' + Number(s.home) + "–" + Number(s.away) + "</span>");
+      }
+      if (confirmed.yard_line != null) {
+        bits.push('<span class="LockedValue" data-kind="yard">Yard ' + Number(confirmed.yard_line) + "</span>");
+      }
+      if (bits.length) return bits.join("");
     }
-    const bits = [];
-    const s = confirmed.score;
-    if (s && s.home != null && s.away != null) {
-      bits.push('<span class="LockedValue" data-kind="score">' + Number(s.home) + "–" + Number(s.away) + "</span>");
-    }
-    if (confirmed.yard_line != null) {
-      bits.push('<span class="LockedValue" data-kind="yard">Yard ' + Number(confirmed.yard_line) + "</span>");
-    }
-    return bits.join("") || '<p class="UnavailableValue">Awaiting confirmed board state</p>';
+    return '<p class="UnavailableValue">' + escapeHtml(boardWhySpeech(boardWhy)) + "</p>";
   }
 
   function escapeHtml(s) {
@@ -221,7 +241,7 @@
       const pct = Number.isFinite(age) ? Math.max(8, Math.min(100, 100 - age / 80)) : 36;
       prism.style.width = pct + "%";
     }
-    document.getElementById("confirmed").innerHTML = lockedValue(view.confirmed);
+    document.getElementById("confirmed").innerHTML = lockedValue(view.confirmed, view.board_why);
     const moment = document.getElementById("moment");
     if (view.current_moment) {
       moment.innerHTML =

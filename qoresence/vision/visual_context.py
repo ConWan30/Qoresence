@@ -101,6 +101,8 @@ class VisualContext:
     # corrected to 20-0). See engineering invariants #4/#5.
     score_vlm_locked: bool = False
     confirm_ticket_id: str = ""
+    # Canonical seeing-path speech (enum). Empty until the extractor stamps it.
+    board_why: str = ""
 
     # HDMI HUD control callout (fail-closed). Null unless a named DualSense
     # prompt is visible on this frame. Never inferred from visual_phase.
@@ -206,6 +208,7 @@ class VisualContext:
         d["details"] = self.details
         d["score_vlm_locked"] = self.score_vlm_locked
         d["confirm_ticket_id"] = self.confirm_ticket_id
+        d["board_why"] = self.board_why or ""
         if self.visible_control is not None:
             d["visible_control"] = self.visible_control
 
@@ -365,6 +368,10 @@ class VisualContext:
         ctx.details = raw.get("details") or {}
         ctx.score_vlm_locked = bool(raw.get("score_vlm_locked", False))
         ctx.confirm_ticket_id = str(raw.get("confirm_ticket_id") or "")
+        why = raw.get("board_why")
+        if why in (None, "") and isinstance(ctx.details, dict):
+            why = ctx.details.get("board_why")
+        ctx.board_why = str(why or "")
 
         vc = raw.get("visible_control")
         if vc is None and isinstance(fb, dict):

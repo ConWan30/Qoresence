@@ -427,12 +427,14 @@ def test_live_scoreboard_lock_fills_confirmed_without_narrative(monkeypatch):
     env = sv.build_session_response(
         session_id="live23",
         live_situation={
-            "scoreboard_locked": True,
+            "score_vlm_locked": True,
+            "confirm_ticket_id": "ticket-live23",
             "home_score": 23,
             "away_score": 22,
         },
     )
     assert env["view"]["board_locked"] is True
+    assert env["view"]["board_why"] == "confirm_ticket"
     assert env["view"]["confirmed"]["available"] is True
     assert env["view"]["confirmed"]["score"] == {"home": 23, "away": 22}
     assert env["view"]["confirmed"]["yard_line"] is None
@@ -461,8 +463,23 @@ def test_live_unlocked_does_not_leak_stuffed_score(monkeypatch):
         },
     )
     assert env["view"]["board_locked"] is False
+    assert env["view"]["confirmed"]["available"] is False
     assert env["view"]["confirmed"]["score"] is None
     assert env["view"]["confirmed"]["yard_line"] is None
+    assert env["view"]["board_why"] in {
+        "unlocked",
+        "no_ticket",
+        "menu",
+        "loading",
+        "vlm_none",
+        "vlm_ungrounded",
+        "vlm_quota",
+        "vlm_auth",
+        "vlm_no_key",
+        "refuse_zero_zero",
+        "refuse_identity_swap",
+        "refuse_suspicious",
+    }
     blob = json.dumps(env["view"])
     assert '"home": 99' not in blob
     assert '"away": 1' not in blob
@@ -478,12 +495,14 @@ def test_live_lock_does_not_invent_yards(monkeypatch):
         session_id="live-yard",
         live_situation={
             "score_vlm_locked": True,
+            "confirm_ticket_id": "ticket-yard",
             "home_score": 7,
             "away_score": 3,
         },
     )
     assert env["view"]["confirmed"]["score"] == {"home": 7, "away": 3}
     assert env["view"]["confirmed"]["yard_line"] is None
+    assert env["view"]["board_why"] == "confirm_ticket"
 
 
 def test_fixture_view_ignores_live_situation(monkeypatch):
@@ -515,7 +534,66 @@ def test_live_view_does_not_call_generate_narrative(monkeypatch):
     monkeypatch.setattr(ne, "generate_narrative", boom)
     env = sv.build_session_response(
         session_id="no-regen",
-        live_situation={"scoreboard_locked": True, "home_score": 23, "away_score": 22},
+        live_situation={
+            "score_vlm_locked": True,
+            "confirm_ticket_id": "ticket-no-regen",
+            "home_score": 23,
+            "away_score": 22,
+        },
     )
     assert env["view"]["confirmed"]["score"] == {"home": 23, "away": 22}
+
+
+def test_flag_only_lock_does_not_paint_digits(monkeypatch):
+    from qoresence.foundry import session_view as sv
+
+    sv._last_envelope.clear()
+    monkeypatch.setattr(sv, "_load_live_pack", lambda _sid: (None, False))
+    env = sv.build_session_response(
+        session_id="flag-only",
+        live_situation={
+            "score_vlm_locked": True,
+            "scoreboard_locked": True,
+            "confirm_ticket_id": "",
+            "home_score": 23,
+            "away_score": 22,
+            "board_why": "no_ticket",
+        },
+    )
+    assert env["view"]["confirmed"]["available"] is False
+    assert env["view"]["confirmed"]["score"] is None
+    assert env["view"]["board_why"] == "no_ticket"
+    blob = str(env["view"])
+    assert "23" not in blob
+    assert "22" not in blob
+
+
+def test_unlocked_live_sit_exposes_board_why_enum(monkeypatch):
+    from qoresence.foundry import session_view as sv
+
+    sv._last_envelope.clear()
+    monkeypatch.setattr(sv, "_load_live_pack", lambda _sid: (None, False))
+    env = sv.build_session_response(
+        session_id="quota-why",
+        live_situation={
+            "score_vlm_locked": False,
+            "home_score": 99,
+            "away_score": 1,
+            "game_state": "gameplay",
+            "board_why": "vlm_quota",
+        },
+    )
+    assert env["view"]["confirmed"]["available"] is False
+    assert env["view"]["board_why"] == "vlm_quota"
+
+
+def test_session_js_board_why_speech_not_only_awaiting():
+    js = SESSION_JS.read_text(encoding="utf-8")
+    assert "board_why" in js
+    assert "Board unread (quota)" in js
+    assert "Menu — board not licensed" in js
+    assert "Board not licensed yet" in js
+    assert "function boardWhySpeech" in js
+    assert js.count("setInterval") == 1
+    assert "civif_session_view" not in js
 

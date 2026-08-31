@@ -38,6 +38,8 @@ class SituationState:
     # True when Gemini scoreboard VLM force-locked the board (confirm path).
     score_vlm_locked: bool = False
     confirm_ticket_id: str = ""
+    # Canonical seeing-path speech. Observation only; never a last-good score.
+    board_why: str = ""
     title_hysteresis: str | None = None
     title_claim: bool | None = None
 
@@ -170,13 +172,22 @@ class SituationModel:
                 ctx.game_profile = "madden_27"
         # Fail-closed: never adopt score_vlm_locked without a ConfirmTicket id.
         tid = str(getattr(ctx, "confirm_ticket_id", "") or "")
+        why = str(getattr(ctx, "board_why", "") or "").strip()
+        if why:
+            self._state.board_why = why
+        elif isinstance(getattr(ctx, "details", None), dict):
+            detail_why = str(ctx.details.get("board_why") or "").strip()
+            if detail_why:
+                self._state.board_why = detail_why
         if tid:
             self._state.confirm_ticket_id = tid
         if ctx.score_vlm_locked and tid:
             self._state.score_vlm_locked = True
+            self._state.board_why = "confirm_ticket"
         elif ctx.score_vlm_locked and not tid:
             # Unlicensed lock claim — ignore.
-            pass
+            if not self._state.board_why:
+                self._state.board_why = "no_ticket"
         try:
             from qoresence.profiles.cfb27_product import effective_game_state
             from qoresence.sync.play_phrase import note_game_state
@@ -405,6 +416,8 @@ class SituationModel:
             "score_vlm_locked": bool(s.score_vlm_locked),
             "scoreboard_locked": bool(s.score_vlm_locked),
             "confirm_ticket_id": s.confirm_ticket_id or "",
+            "has_confirm_ticket": bool(s.confirm_ticket_id),
+            "board_why": s.board_why or "",
             "title_hysteresis": s.title_hysteresis,
             "title_claim": s.title_claim,
             "home_score": s.home_score,

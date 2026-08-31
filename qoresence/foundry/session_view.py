@@ -475,15 +475,31 @@ def _read_live_situation() -> dict[str, Any]:
 
 
 def _live_board_licensed(sit: dict[str, Any] | None) -> bool:
+    """Ticket-clock law: flag-only lock must not paint digits."""
     if not isinstance(sit, dict):
         return False
-    return bool(sit.get("score_vlm_locked") or sit.get("scoreboard_locked"))
+    ticket = str(sit.get("confirm_ticket_id") or "").strip()
+    return bool(sit.get("score_vlm_locked")) and bool(ticket)
 
 
 def overlay_live_board(view: dict[str, Any], sit: dict[str, Any] | None) -> dict[str, Any]:
     """License confirmed digits from live situation lock. Does not invent events or yards."""
-    if not isinstance(view, dict) or not _live_board_licensed(sit):
+    if not isinstance(view, dict):
         return view
+    from qoresence.vision.board_why import normalize_board_why
+
+    if not _live_board_licensed(sit):
+        why = "unlocked"
+        if isinstance(sit, dict):
+            flagged = bool(sit.get("score_vlm_locked") or sit.get("scoreboard_locked"))
+            ticket = str(sit.get("confirm_ticket_id") or "").strip()
+            if flagged and not ticket:
+                why = "no_ticket"
+            elif sit.get("board_why"):
+                why = str(sit.get("board_why"))
+        view["board_why"] = normalize_board_why(why)
+        return view
+    view["board_why"] = "confirm_ticket"
     view["board_locked"] = True
     home = _int_or_none(sit.get("home_score") if sit else None)
     away = _int_or_none(sit.get("away_score") if sit else None)
@@ -556,6 +572,13 @@ def build_session_response(
     if not fixture and not invalid:
         sit = live_situation if live_situation is not None else _read_live_situation()
         overlay_live_board(view, sit)
+        if view.get("confirmed") and view["confirmed"].get("available"):
+            view["board_why"] = "confirm_ticket"
+        elif not view.get("board_why"):
+            from qoresence.vision.board_why import normalize_board_why
+
+            why = sit.get("board_why") if isinstance(sit, dict) else ""
+            view["board_why"] = normalize_board_why(why or "unlocked")
     status = derive_status(view, invalid=invalid, unavailable=unavailable)
     _apply_status_reason(view, status)
     last_event_at = _iso_z(generated) if view.get("events") else None
@@ -680,3 +703,11 @@ def build_session_recap(
             session_id=session_id, fixture=fixture, now=now, live_situation=live_situation
         )
     )
+
+
+try:
+    from qoresence.deck.seeing_health import install_health_patch
+
+    install_health_patch()
+except Exception:
+    pass
