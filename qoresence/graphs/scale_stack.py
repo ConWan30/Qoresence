@@ -120,9 +120,28 @@ def confirm_from_tick_alone() -> bool:
     return False
 
 
+def may_confirm(*, scale: str, lower_licensed: bool = False) -> bool:
+    """Query-only: may this scale request a confirm look? No JSONL. Flag off → True."""
+    if not graph_enabled("scale_stack"):
+        return True
+    sc = str(scale or "").strip()
+    if sc not in SCALE_INDEX:
+        return False
+    if sc == "tick" or sc == "phrase":
+        return False
+    if sc == "drive":
+        return True
+    if sc == "session":
+        return bool(lower_licensed)
+    return False
+
+
 def confirm_allowed(*, scale: str, lower_licensed: bool = False) -> bool:
     if not graph_enabled("scale_stack"):
         return True
+    if not may_confirm(scale=scale, lower_licensed=lower_licensed):
+        license_scale(scale, look="confirm", lower_licensed=lower_licensed)
+        return False
     lic = license_scale(scale, look="confirm", lower_licensed=lower_licensed)
     return bool(lic is not None and lic.kind == "drive_confirm")
 

@@ -468,6 +468,14 @@ class FootballScoreboardExtractor:
             "true",
             "yes",
         }
+        if _ocr_on:
+            try:
+                from qoresence.graphs.look_gate import permit_ocr_look
+
+                if not permit_ocr_look():
+                    _ocr_on = False
+            except Exception:
+                pass
         # Heavy OCR (Paddle/EasyOCR) is opt-in. Running it on this tick blocks
         # the streamer subscriber path — LIVE freezes, age_s climbs, rebind loop.
         # Engine warmup is kicked once from __init__, never from this hot path.
@@ -722,6 +730,7 @@ class FootballScoreboardExtractor:
                         except Exception:
                             pass
                     else:
+                        last_before = book.latest()
                         ticket = mint_confirm_ticket(
                             session_id=resolve_session_id(
                                 str(getattr(ctx, "session_id", "") or "")
@@ -739,39 +748,53 @@ class FootballScoreboardExtractor:
                             away_team=away_team_now,
                             book=book,
                         )
-                        book.put(ticket, home_team=home_team_now, away_team=away_team_now)
+                        reused = (
+                            last_before is not None
+                            and ticket.ticket_id == last_before.ticket_id
+                        )
                         try:
-                            from qoresence.graphs.crop_evidence import record_lock
-                            from qoresence.vision.scorebug_crops import (
-                                primary_scorebug_crop,
-                                scorebug_crops_for_profile,
-                            )
+                            from qoresence.graphs.look_gate import permit_confirm_mint
 
-                            prof = str(getattr(ctx, "game_profile", "") or "")
-                            bands = scorebug_crops_for_profile(prof)
-                            record_lock(
-                                prof,
-                                crop=list(primary_scorebug_crop(prof)),
-                                bands=bands,
-                                ticket_id=ticket.ticket_id,
-                                clock_ns=int(ticket.clock_ns),
-                                session_id=str(ticket.session_id or ""),
-                                crop_hash=str(ticket.crop_hash or ""),
-                                frame_seq=ticket.frame_seq,
-                            )
+                            if not permit_confirm_mint(reuse=reused):
+                                ctx.score_vlm_locked = False
+                                locked_ok = False
+                                ticket = None  # type: ignore[assignment]
                         except Exception:
                             pass
-                        ctx.confirm_ticket_id = ticket.ticket_id
-                        if isinstance(ctx.details, dict):
-                            ctx.details["confirm_ticket"] = ticket.to_dict()
-                        ctx.score_vlm_locked = True
-                        locked_ok = True
-                        log.info(
-                            "scoreboard VLM lock %s-%s ticket=%s",
-                            sh,
-                            sa,
-                            ticket.ticket_id,
-                        )
+                        if ticket is not None:
+                            book.put(ticket, home_team=home_team_now, away_team=away_team_now)
+                            try:
+                                from qoresence.graphs.crop_evidence import record_lock
+                                from qoresence.vision.scorebug_crops import (
+                                    primary_scorebug_crop,
+                                    scorebug_crops_for_profile,
+                                )
+
+                                prof = str(getattr(ctx, "game_profile", "") or "")
+                                bands = scorebug_crops_for_profile(prof)
+                                record_lock(
+                                    prof,
+                                    crop=list(primary_scorebug_crop(prof)),
+                                    bands=bands,
+                                    ticket_id=ticket.ticket_id,
+                                    clock_ns=int(ticket.clock_ns),
+                                    session_id=str(ticket.session_id or ""),
+                                    crop_hash=str(ticket.crop_hash or ""),
+                                    frame_seq=ticket.frame_seq,
+                                )
+                            except Exception:
+                                pass
+                            ctx.confirm_ticket_id = ticket.ticket_id
+                            if isinstance(ctx.details, dict):
+                                ctx.details["confirm_ticket"] = ticket.to_dict()
+                            ctx.score_vlm_locked = True
+                            locked_ok = True
+                            log.info(
+                                "scoreboard VLM lock %s-%s ticket=%s",
+                                sh,
+                                sa,
+                                ticket.ticket_id,
+                            )
                 except Exception as e:
                     log.warning("confirm ticket mint failed — refuse score_vlm_locked: %s", e)
                     ctx.score_vlm_locked = False

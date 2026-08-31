@@ -88,7 +88,16 @@ def mint_coupling_ticket(
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     ticket_id = hashlib.sha256(raw).hexdigest()[:16]
     fields = {k: v for k, v in payload.items() if k != "v"}
-    return CouplingTicket(ticket_id=ticket_id, **fields)
+    ticket = CouplingTicket(ticket_id=ticket_id, **fields)
+    try:
+        from qoresence.graphs.flags import graph_enabled
+        from qoresence.graphs.scale_stack import license_scale
+
+        if graph_enabled("scale_stack"):
+            license_scale("phrase", look="coupling", lower_licensed=True)
+    except Exception:
+        pass
+    return ticket
 
 
 def heat_speech(text: str) -> bool:

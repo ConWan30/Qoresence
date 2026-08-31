@@ -492,3 +492,94 @@ def test_per_graph_env_can_dark_ship(monkeypatch):
     assert graph_enabled("crop_evidence") is False
     assert record_lock("ncaa_football_27", crop_index=0, bands=CFB_SCOREBUG_CROPS) is None
     assert scorebug_crops_for_profile(None) is CFB_SCOREBUG_CROPS
+
+
+# ── P7 look gate (enforce licenses) ────────────────────────────────────────
+
+
+def test_gate_off_permits_everything():
+    from qoresence.graphs.look_gate import (
+        permit_confirm_look,
+        permit_confirm_mint,
+        permit_ocr_look,
+    )
+
+    assert permit_confirm_look(reason="tick") is True
+    assert permit_ocr_look() is True
+    assert permit_confirm_mint(reuse=True) is True
+    assert permit_confirm_mint(reuse=False) is True
+
+
+def test_gate_tick_alone_refuses_confirm_vlm(monkeypatch):
+    from qoresence.graphs.look_gate import permit_confirm_look
+
+    _on(monkeypatch)
+    assert permit_confirm_look(reason="tick") is False
+    assert permit_confirm_look(reason="tick", has_frame=False) is False
+    assert permit_confirm_look(reason="tick", blank=True) is False
+    assert permit_confirm_look(reason="score_changed") is True
+    assert permit_confirm_look(reason="tick", force=True) is True
+
+
+def test_gate_tick_with_open_drive_allows_confirm(monkeypatch):
+    from qoresence.graphs.look_gate import permit_confirm_look
+
+    _on(monkeypatch)
+
+    class _Drive:
+        drive_id = "d1"
+
+    class _Tl:
+        def active_drive(self):
+            return _Drive()
+
+    monkeypatch.setattr(
+        "qoresence.graphs.look_gate._active_drive",
+        lambda: True,
+    )
+    assert permit_confirm_look(reason="tick") is True
+
+
+def test_gate_seq_skew_refuses_vlm_and_ocr(monkeypatch):
+    from qoresence.graphs.look_gate import permit_confirm_look, permit_ocr_look
+
+    _on(monkeypatch)
+    classify_join(live_seq=100, widget_seq=1)
+    monkeypatch.setattr("qoresence.graphs.look_gate._active_drive", lambda: True)
+    assert permit_confirm_look(reason="score_changed") is False
+    assert permit_ocr_look() is False
+
+
+def test_gate_blocks_stale_reuse_allows_remint(monkeypatch):
+    from qoresence.graphs.look_gate import permit_confirm_mint
+
+    _on(monkeypatch)
+    apply_refuse("identity_swap")
+    assert permit_confirm_mint(reuse=True) is False
+    assert permit_confirm_mint(reuse=False) is True
+
+
+def test_may_confirm_does_not_write_jsonl(monkeypatch, tmp_path):
+    from qoresence.graphs.scale_stack import may_confirm
+
+    _on(monkeypatch)
+    path = tmp_path / "look.jsonl"
+    monkeypatch.setenv("QORESENCE_LOOK_LICENSES_PATH", str(path))
+    assert may_confirm(scale="tick") is False
+    assert may_confirm(scale="drive") is True
+    assert not path.exists() or path.read_text(encoding="utf-8") == ""
+
+
+def test_vlm_schedule_skips_tick_when_gate_refuses(monkeypatch):
+    import numpy as np
+
+    from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee
+
+    _on(monkeypatch)
+    ref = ScoreboardVlmReferee.__new__(ScoreboardVlmReferee)
+    ref.enabled = True
+    called = []
+    monkeypatch.setattr(ref, "_crop", lambda *a, **k: called.append("crop") or np.zeros((8, 8, 3)))
+    frame = np.zeros((32, 32, 3), dtype=np.uint8)
+    ref.schedule(frame, game_state="gameplay", game_profile="cfb_27", reason="tick")
+    assert called == []

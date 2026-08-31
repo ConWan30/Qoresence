@@ -40,9 +40,21 @@ JSONL: `logs/pilot/look_licenses.jsonl` (override `QORESENCE_LOOK_LICENSES_PATH`
 
 When `--learning-edge` is also on, a LookLicense may mint an existing constraint kind (`crop_band` | `schedule_skip` | `freeze_weight` | `hysteresis`). No new constraint kinds.
 
+## Look gate (enforce)
+
+`qoresence/graphs/look_gate.py` is the live seeing-path latch. Flag off → every permit is True.
+
+| Permit | Refuses when the matching graph is on |
+|---|---|
+| `permit_confirm_look` | tick without an open drive; Same-Seq `seq_skew` / `plane_dim`; blank / no_frame |
+| `permit_ocr_look` | Same-Seq `seq_skew` / `plane_dim` |
+| `permit_confirm_mint(reuse=True)` | identity stale / refuse-chain mint block |
+
+`score_changed` / `menu_exit` / `first_lock` / `force` still license a drive-scale confirm look. The gate is query-only on the hot path — it does not append JSONL.
+
 ## Lock rule
 
-Record after `ConfirmTicketBook` / lobe locks release. Never `emit_raw` from a graph. Never acquire a lobe lock in a subscribe callback.
+Record after `ConfirmTicketBook` / lobe locks release. Never `emit_raw` from a graph. Never acquire a lobe lock in a subscribe callback. The look gate does not take a lobe lock.
 
 ## Operator
 
