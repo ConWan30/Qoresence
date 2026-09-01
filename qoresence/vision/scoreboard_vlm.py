@@ -2,7 +2,7 @@
 
 Classical EasyOCR misreads stylized CFB digits (20-0 → 20-20). When the
 ClutchBot Quicksilver key is present, we crop the scorebug / pause plate
-and ask deepseek-v4-flash for a strict JSON board read.
+and ask qwen3.7-flash for a strict JSON board read.
 
 Sparse + non-blocking: never call from the streamer grab thread.
 """
@@ -157,8 +157,11 @@ class ScoreboardVlmReferee:
 
     def is_held(self) -> bool:
         """True after a terminal HTTP HOLD. Observation only — no bus emit."""
-        with self._lock:
-            return bool(self._held)
+        lock = getattr(self, "_lock", None)
+        if lock is None:
+            return bool(getattr(self, "_held", False))
+        with lock:
+            return bool(getattr(self, "_held", False))
 
     def vlm_status(self) -> str:
         """Classify the last VLM outcome. Observation only — no bus emit, no bodies."""

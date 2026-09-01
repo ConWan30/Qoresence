@@ -166,7 +166,7 @@ def test_situation_model_maps_cfb_title_to_cfb_profile():
 
 
 def test_vlm_defaults_quicksilver_vision(monkeypatch):
-    """Default confirm VLM is deepseek-v4-flash on ClutchBot's Quicksilver API."""
+    """Default confirm VLM is qwen3.7-flash on ClutchBot's Quicksilver API."""
     monkeypatch.delenv("QORESENCE_SCOREBOARD_VLM_MODEL", raising=False)
     monkeypatch.delenv("QORESENCE_SCOREBOARD_VLM_BASE_URL", raising=False)
     monkeypatch.delenv("QORESENCE_CLUTCHBOT_LLM_BASE_URL", raising=False)
@@ -174,12 +174,13 @@ def test_vlm_defaults_quicksilver_vision(monkeypatch):
     assert cfg.provider == "quicksilver"
     assert cfg.base_url.rstrip("/") == DEFAULT_BASE_URL.rstrip("/")
     assert "quicksilverpro.io" in cfg.base_url
-    assert cfg.model == "deepseek-v4-flash"
+    assert cfg.model == "qwen3.7-flash"
     assert cfg.model == DEFAULT_VISION_MODEL
     assert cfg.model != "gemini-3.5-flash-lite"
+    assert cfg.model != "deepseek-v4-flash"
     assert cfg.model != "deepseek-v4-flash-vision-exp"
     ref = ScoreboardVlmReferee()
-    assert ref.model == "deepseek-v4-flash"
+    assert ref.model == "qwen3.7-flash"
     assert ref.model == DEFAULT_VISION_MODEL
     assert ref.base_url.rstrip("/") == DEFAULT_BASE_URL.rstrip("/")
     assert "quicksilverpro.io" in ref.base_url
@@ -248,7 +249,7 @@ def test_http_401_fail_closed():
 
 
 def test_call_vlm_posts_to_quicksilver_base_url(monkeypatch):
-    """Referee POST goes to ClutchBot's Quicksilver /v1, with deepseek-v4-flash + JPEG."""
+    """Referee POST goes to ClutchBot's Quicksilver /v1, with qwen3.7-flash + JPEG."""
     from unittest.mock import patch
 
     ref = ScoreboardVlmReferee()
@@ -288,9 +289,10 @@ def test_call_vlm_posts_to_quicksilver_base_url(monkeypatch):
     assert captured["url"] == f"{DEFAULT_BASE_URL.rstrip('/')}/chat/completions"
     assert "quicksilverpro.io" in captured["url"]
     assert "api.deepseek.com" not in captured["url"]
-    assert captured["json"]["model"] == "deepseek-v4-flash"
+    assert captured["json"]["model"] == "qwen3.7-flash"
     assert captured["json"]["model"] == DEFAULT_VISION_MODEL
-    assert captured["json"]["thinking"] == {"type": "disabled"}
+    assert "thinking" not in captured["json"]
+    assert captured["json"]["model"] != "gemini-3.5-flash-lite"
     content = captured["json"]["messages"][0]["content"]
     assert any(p.get("type") == "image_url" for p in content)
     assert out is not None
@@ -300,6 +302,7 @@ def test_call_vlm_posts_to_quicksilver_base_url(monkeypatch):
 
 def test_infer_vlm_source_gemini_on_quicksilver():
     assert infer_vlm_source("gemini-3.5-flash-lite", DEFAULT_BASE_URL) == "gemini"
+    assert infer_vlm_source("qwen3.7-flash", DEFAULT_BASE_URL) == "quicksilver"
     assert infer_vlm_source("deepseek-v4-flash", DEFAULT_BASE_URL) == "quicksilver"
     assert infer_vlm_source("deepseek-v4-flash-vision-exp", "https://api.deepseek.com") == "deepseek"
 
