@@ -195,16 +195,13 @@ code { font-family: var(--font-mono); font-size: 0.86em; color: var(--live); }
   flex-shrink: 0;
 }
 .holo-mark {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--r-md);
-  background: var(--primary);
-  color: var(--primary-fg);
-  font: 800 14px/1 var(--font-display);
-  box-shadow: var(--shadow-border);
-  letter-spacing: 0;
+  display: block;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  object-fit: contain;
+  background: transparent;
 }
 .mark,
 .brand-mark {
