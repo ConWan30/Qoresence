@@ -1,3 +1,4 @@
+import { copyFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
@@ -9,6 +10,15 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [
+    {
+      name: "aperture-ident-logo",
+      buildStart() {
+        const from = path.join(root, "../docs/assets/qoresence-logo.png");
+        const dir = path.join(root, "public");
+        mkdirSync(dir, { recursive: true });
+        copyFileSync(from, path.join(dir, "qoresence-logo.png"));
+      },
+    },
     TanStackRouterVite({ routesDirectory: path.join(root, "src/routes") }),
     react(),
     tailwindcss(),
