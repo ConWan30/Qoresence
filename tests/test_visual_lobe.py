@@ -293,8 +293,8 @@ class TestVisualConfigDefaults:
     def test_defaults(self):
         config = VisualConfig()
         assert config.enabled is False
-        assert config.model_endpoint == "https://api.deepseek.com"
-        assert config.model_name == "deepseek-v4-flash-vision-exp"
+        assert config.model_endpoint == "https://api.quicksilverpro.io/v1"
+        assert config.model_name == "gemini-3.5-flash-lite"
         assert config.api_key is None
         assert config.frame_sample_rate == 30
         assert config.max_frame_dim == 640
