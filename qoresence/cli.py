@@ -1349,6 +1349,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             set_config_enabled(True)
         except Exception:
             pass
+    if getattr(args, "look_graphs", False) or getattr(config, "look_graphs", False):
+        config.look_graphs = True
+        try:
+            from qoresence.graphs.flags import set_config_enabled as _look_on
+
+            _look_on(True)
+        except Exception:
+            pass
     if getattr(args, "haptic_probe", False):
         config.haptic_probe = replace(config.haptic_probe, enabled=True)
     if args.controller:
@@ -1556,6 +1564,12 @@ def main():
         help="Apply accepted-confirm constraints to the next splitter "
         "(crop band / rank / try_open). Default OFF. Also QORESENCE_LEARNING_EDGE=1. "
         "--play does not enable this.",
+    )
+    parser.add_argument(
+        "--look-graphs",
+        action="store_true",
+        help="License the next look from ticket / crop / Same-Seq graphs. "
+        "Default OFF. Also QORESENCE_LOOK_GRAPHS=1. --play does not enable this.",
     )
     parser.add_argument(
         "--otel-endpoint",

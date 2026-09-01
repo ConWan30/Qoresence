@@ -120,8 +120,11 @@ class SessionTimeline:
     ) -> TimelineEvent:
         """Append one causal event. Optionally open/close a drive segment."""
         now = int(clock_ns) if clock_ns is not None else time.monotonic_ns()
+        opened = False
+        closed = False
         with self._lock:
             if open_drive and self._active is None:
+                opened = True
                 self._drive_seq += 1
                 did = f"drive_{self._drive_seq}"
                 self._active = DriveSegment(
@@ -151,6 +154,7 @@ class SessionTimeline:
                 self._active.event_indices.append(idx)
 
             if close_drive and self._active is not None:
+                closed = True
                 self._active.ended_ns = now
                 self._active = None
 
@@ -160,7 +164,8 @@ class SessionTimeline:
                         f.write(json.dumps(ev.to_dict(), ensure_ascii=False) + "\n")
                 except Exception:
                     pass
-            return ev
+        _note_look_scale(opened=opened, closed=closed, frame_seq=ev.frame_seq)
+        return ev
 
     def recent(self, n: int = 20) -> list[TimelineEvent]:
         with self._lock:
@@ -277,6 +282,21 @@ class SessionTimeline:
             self._drives.clear()
             self._active = None
             self._drive_seq = 0
+
+
+def _note_look_scale(*, opened: bool, closed: bool, frame_seq: int | None) -> None:
+    """After the timeline lock. Never emits bus events."""
+    try:
+        if opened:
+            from qoresence.graphs.scale_stack import note_drive
+
+            note_drive(frame_seq=frame_seq)
+        if closed:
+            from qoresence.graphs.scale_stack import note_drive_closed
+
+            note_drive_closed()
+    except Exception:
+        pass
 
 
 _timeline: SessionTimeline | None = None

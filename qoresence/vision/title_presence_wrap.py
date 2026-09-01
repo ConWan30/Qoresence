@@ -72,6 +72,12 @@ def wrap_observation_for_plane(
     if not dest or dest == PLANE:
         return WrapRefuse(reason="dest_invalid")
     if dest_denied(dest):
+        try:
+            from qoresence.graphs.negative_evidence import record_absence
+
+            record_absence("dest_denied")
+        except Exception:
+            pass
         return WrapRefuse(reason="dest_denied")
     if dest not in allowed:
         return WrapRefuse(reason="dest_not_allowlisted")

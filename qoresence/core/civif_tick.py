@@ -310,7 +310,7 @@ def build_coupled_tick(
     sit_raw = current_situation()
     locked, snap = situation_snapshot_from_live(sit_raw)
     ticks = input_ticks_from_events(events or [], bodied=bodied)
-    return CoupledTickRecord(
+    rec = CoupledTickRecord(
         session_id=session_id or "",
         clock_ns=int(coup.get("video_clock_ns") or 0),
         frame_seq=int(coup.get("frame_seq") or 0),
@@ -321,3 +321,10 @@ def build_coupled_tick(
         coupling=coup,
         body_reason=reason,
     )
+    try:
+        from qoresence.graphs.scale_stack import note_tick_peek
+
+        note_tick_peek(session_id=rec.session_id, frame_seq=rec.frame_seq)
+    except Exception:
+        pass
+    return rec

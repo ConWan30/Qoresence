@@ -184,6 +184,13 @@ class ScoreboardVlmReferee:
         """
         if not self.enabled or frame is None or getattr(frame, "size", 0) == 0:
             return
+        try:
+            from qoresence.graphs.look_gate import permit_confirm_look
+
+            if not permit_confirm_look(reason=reason, force=force, has_frame=True):
+                return
+        except Exception:
+            pass
         gst = (game_state or "").lower()
         is_gameplay = gst in {"gameplay", "playing", "in_game", ""}
         profile_lower = str(game_profile or "").lower()

@@ -44,13 +44,22 @@ def scorebug_crops_for_profile(
 ) -> tuple[tuple[float, float, float, float], ...]:
     """Return the OCR crop list. Missing/unknown profile → CFB bands.
 
-    When ``--learning-edge`` / ``QORESENCE_LEARNING_EDGE`` is on, an accepted
-    crop_band constraint may overlay the primary band. Flag off is a no-op.
+    When ``--look-graphs`` crop evidence is on, existing bands may be reordered.
+    When ``--learning-edge`` is on, an accepted crop_band constraint may overlay
+    the primary band. Both flags off is a no-op (returns the same tuple object).
     """
     if is_madden_profile(profile):
         base = MADDEN_SCOREBUG_CROPS
     else:
         base = CFB_SCOREBUG_CROPS
+    try:
+        from qoresence.graphs.crop_evidence import licensed_crops
+
+        licensed = licensed_crops(profile, base)
+        if licensed is not None:
+            return licensed
+    except Exception:
+        pass
     try:
         from qoresence.agents.learning_edge import overlay_crops
 

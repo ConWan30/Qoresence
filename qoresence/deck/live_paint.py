@@ -149,17 +149,46 @@ def decide_live_paint(
         away_score=away_score,
     )
     if not has_frame:
-        return LivePaint(False, live_seq, wseq, False, True, "no_frame", False)
+        paint = LivePaint(False, live_seq, wseq, False, True, "no_frame", False)
+        _note_same_seq(paint)
+        _note_absence("no_frame")
+        return paint
     if blank is None:
         blank = is_blank_bgr(frame) if frame is not None else False
     if blank:
-        return LivePaint(False, live_seq, wseq, False, True, "blank", True)
+        paint = LivePaint(False, live_seq, wseq, False, True, "blank", True)
+        _note_same_seq(paint)
+        _note_absence("blank")
+        return paint
     if plane_dim:
-        return LivePaint(False, live_seq, wseq, False, True, "not_play", True)
+        paint = LivePaint(False, live_seq, wseq, False, True, "not_play", True)
+        _note_same_seq(paint)
+        return paint
     same = live_seq > 0 and (wseq == live_seq or abs(live_seq - wseq) <= SAME_SEQ_SLACK)
     if not same:
-        return LivePaint(True, live_seq, wseq, False, False, "seq_skew", True)
-    return LivePaint(True, live_seq, wseq, True, False, "ok", True)
+        paint = LivePaint(True, live_seq, wseq, False, False, "seq_skew", True)
+    else:
+        paint = LivePaint(True, live_seq, wseq, True, False, "ok", True)
+    _note_same_seq(paint)
+    return paint
+
+
+def _note_same_seq(paint: LivePaint) -> None:
+    try:
+        from qoresence.graphs.same_seq_join import record_live_paint
+
+        record_live_paint(paint)
+    except Exception:
+        pass
+
+
+def _note_absence(kind: str) -> None:
+    try:
+        from qoresence.graphs.negative_evidence import record_absence
+
+        record_absence(kind)
+    except Exception:
+        pass
 
 
 def snapshot_live_paint(situation: dict[str, Any] | None = None) -> LivePaint:

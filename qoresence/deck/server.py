@@ -926,6 +926,13 @@ def create_app():  # type: ignore[no-untyped-def]
     if not _HAS_FASTAPI:
         return None
 
+    try:
+        from qoresence.deck.seeing_health import install_health_patch
+
+        install_health_patch()
+    except Exception:
+        pass
+
     from fastapi.responses import StreamingResponse
 
     app = FastAPI(title="Retina Deck", version="0.1.0")
@@ -2862,6 +2869,12 @@ def start_deck(
     _deck_config = config
     _deck_bind_host = str(host or DECK_HOST)
     _deck_bind_port = int(port or DECK_PORT)
+    try:
+        from qoresence.deck.seeing_health import install_health_patch
+
+        install_health_patch()
+    except Exception:
+        pass
     if config is not None and getattr(config, "studio", None) and config.studio.enabled:
         try:
             from qoresence.studio.api import boot_studio

@@ -219,12 +219,16 @@ def split_chapter_units(
 ) -> tuple[list[Any], CorrectionOutcomeLite]:
     """Splitter: rank chapters, optionally skip/correct. Flag off = ranked_chapter_nodes."""
     nodes = list(graph.ranked_chapter_nodes(k=k))
+    look_skip = _look_schedule_skip()
     if not enabled(config):
+        if look_skip:
+            nodes = [n for n in nodes if n.kind not in look_skip]
         return nodes, CorrectionOutcomeLite(kept_ids=tuple(n.node_id for n in nodes), receipts=())
     cons = constraints if constraints is not None else load_applicable(config=config)
     dummy = apply_constraints(SplitterInputs(), cons, config=config)
-    if dummy.schedule_skip:
-        nodes = [n for n in nodes if n.kind not in dummy.schedule_skip]
+    skip = set(dummy.schedule_skip) | look_skip
+    if skip:
+        nodes = [n for n in nodes if n.kind not in skip]
     units = units_from_chapter_nodes(nodes)
     outcome = correct_units(units)
     kept_ids = {u.unit_id for u in outcome.kept}
@@ -279,6 +283,24 @@ def maybe_record_on_resolve(
         return None
     append_constraint(constraint, path=_constraint_path(path))
     return constraint
+
+
+def _look_schedule_skip() -> set[str]:
+    """Look-graph refuse skip, when --look-graphs is on. Empty when off."""
+    try:
+        from qoresence.graphs.flags import graph_enabled
+        from qoresence.graphs.refuse_chain import schedule_skip_unit
+
+        if not graph_enabled("refuse_chain"):
+            return set()
+        raw = str(schedule_skip_unit() or "").strip()
+        if raw == "confirm":
+            return {"confirm", "confirm_score"}
+        if raw:
+            return {raw}
+    except Exception:
+        return set()
+    return set()
 
 
 def _profile_ok(constraint: LearningConstraint, live_profile: str) -> bool:

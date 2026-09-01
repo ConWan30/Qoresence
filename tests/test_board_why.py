@@ -229,6 +229,10 @@ def test_health_snapshot_has_confirm_boolean_not_ticket_id():
     assert snap["has_confirm_ticket"] is True
     assert "secret-ticket-id" not in str(snap.get("has_confirm_ticket"))
     assert snap.get("confirm_ticket_id") is None
+    assert "look_scale" not in snap
+    assert "look_join" not in snap
+    assert "look_permit_confirm" not in snap
+    assert "look_refuse" not in snap
 
 
 def test_session_js_maps_board_why():
