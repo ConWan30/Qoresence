@@ -1,9 +1,8 @@
-"""Gaming scoreboard referee via Quicksilver vision (same API as ClutchBot).
+"""Gaming scoreboard referee via Quicksilver (same API as ClutchBot).
 
 Classical EasyOCR misreads stylized CFB digits (20-0 → 20-20). When the
 ClutchBot Quicksilver key is present, we crop the scorebug / pause plate
-and ask a Quicksilver *vision* slug (not text-only deepseek-v4-flash) for
-a strict JSON board read.
+and ask deepseek-v4-flash for a strict JSON board read.
 
 Sparse + non-blocking: never call from the streamer grab thread.
 """
@@ -386,9 +385,8 @@ class ScoreboardVlmReferee:
                 }
             ],
         }
-        # DeepSeek-v4-vision thinking is ON by default and can empty content.
-        # Gemini Flash-Lite on Quicksilver has no thinking by default — omit.
-        if "deepseek" in str(self.model).lower() and "vision" in str(self.model).lower():
+        # DeepSeek thinking is ON by default and can empty content (HTTP 200).
+        if "deepseek" in str(self.model).lower():
             body["thinking"] = {"type": "disabled"}
         # Prefer requests (urllib got 403 on Quicksilver vision for some envs)
         try:
