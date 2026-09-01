@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getCaptureVideo } from "@/lib/coupling/hardware";
 import { deckLiveJpgUrl, deckLiveWsUrl, HDMI_LIVE_FEED } from "@/lib/coupling/qoresence-deck";
+import { apertureIdentOn } from "@/lib/coupling/aperture-ident";
 import {
   HDMI_JPEG_KEEP,
   HDMI_JPEG_OVERLAP,
@@ -15,6 +16,7 @@ import { clipHref } from "@/lib/coupling/clip";
 import { clutchPulse } from "@/lib/coupling/clutch-pulse";
 import { scoreLiveHealth } from "@/lib/coupling/live-health";
 import { useTheater } from "@/lib/coupling/store";
+import { ApertureIdent } from "./aperture-ident";
 import { GhostStickOverlay } from "./ghost-stick";
 import { LensOverlay } from "./lens-overlay";
 import { LiveHealthGlyph } from "./live-health-glyph";
@@ -245,6 +247,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
   const goLive = useTheater((s) => s.goLive);
   const replaySrc = stageMode === "replay" ? clipHref(lastClipUrl) : "";
   const showLive = hdmiPictureVisible(jpgOk) && !replaySrc;
+  const identOn = apertureIdentOn(jpgOk, Boolean(replaySrc));
   const climbed = videoFrames > prevRef.current.frames || videoPushes > prevRef.current.pushes;
   if (climbed) {
     prevRef.current = { frames: videoFrames, pushes: videoPushes, climbedAt: performance.now() };
@@ -301,7 +304,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
       >
         <div
           ref={videoHostRef}
-          className={cn("absolute inset-0 z-0", jpgOk || replaySrc ? "opacity-0" : "")}
+          className={cn("absolute inset-0 z-0", jpgOk || replaySrc || identOn ? "opacity-0" : "")}
         />
         <canvas
           ref={canvasRef}
@@ -309,7 +312,10 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
           data-hdmi-feed={HDMI_LIVE_FEED}
           data-hdmi-paint={HDMI_LIVE_PAINT}
           data-hdmi-picture={showLive ? "on" : "off"}
-          className="hdmi-picture pointer-events-none absolute inset-0 z-0 h-full w-full bg-bg object-contain"
+          className={cn(
+            "hdmi-picture pointer-events-none absolute inset-0 z-0 h-full w-full bg-bg object-contain",
+            identOn ? "opacity-0" : "",
+          )}
         />
         {replaySrc ? (
           <video
@@ -338,12 +344,13 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
           </button>
         ) : variant === "deck" || variant === "observatory" ? (
           <span className="pointer-events-none absolute top-3 left-3 z-20 rounded-sm bg-bg/75 px-2 py-1 font-mono text-[10px] tracking-[0.2em] text-photon uppercase backdrop-blur-sm">
-            PGM
+            {identOn ? "HOLD" : "PGM"}
           </span>
         ) : null}
-        {!replaySrc ? <LiveHealthGlyph health={health} /> : null}
-        {!replaySrc ? <GhostStickOverlay /> : null}
-        {!replaySrc && variant !== "observatory" ? <LensOverlay variant={variant} /> : null}
+        {identOn ? <ApertureIdent /> : null}
+        {!replaySrc && !identOn ? <LiveHealthGlyph health={health} /> : null}
+        {!replaySrc && !identOn ? <GhostStickOverlay /> : null}
+        {!replaySrc && !identOn && variant !== "observatory" ? <LensOverlay variant={variant} /> : null}
       </div>
       {variant === "deck" || variant === "observatory" ? <SignalPrism ageS={videoAgeS} tone={health.tone} /> : null}
       {variant === "deck" || variant === "observatory" ? <StageClipDock /> : null}

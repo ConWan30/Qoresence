@@ -1,4 +1,10 @@
-/* Pages next: PGM is the one-clock banner; Ghost Stick spans the plate row. */
+/* Pages next: ident is fail-closed PGM; Ghost Stick spans the plate row. */
+.holo-plinth-well img.pgm-ident {
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  object-position: center;
+  background: #05060a;
+}
 .holo-plinth-well img.pgm-banner {
   aspect-ratio: 2 / 1;
   object-fit: cover;
