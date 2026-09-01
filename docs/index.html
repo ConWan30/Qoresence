@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#05060a">
-  <meta name="description" content="Qoresence is a Gaming Streaming Observatory Engine. One HDMI capture, one DualSense clock, many glasses — Deck, Lens, Mobile Glass, Foundry Ghost Cut, AgentGlass. Nothing leaves the box unless you ask.">
+  <meta name="description" content="Qoresence is a local-first observatory for gamers. One capture card, one clock. It licenses a score once and stays silent when it cannot.">
   <meta name="color-scheme" content="dark">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -12,18 +12,15 @@
   <link rel="canonical" href="https://conwan30.github.io/Qoresence/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Qoresence">
-  <meta property="og:title" content="Qoresence — Gaming Streaming Observatory Engine">
-  <meta property="og:description" content="Local-first. One capture card. One monotonic clock. Many glasses. Observation plane only — no humanity, eligibility, or on-chain claims.">
+  <meta property="og:title" content="Qoresence — see the session as it actually happened">
+  <meta property="og:description" content="Local-first. One capture card. One clock. Silence over invention. Observation plane only.">
   <meta property="og:url" content="https://conwan30.github.io/Qoresence/">
   <meta property="og:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@Qoresence">
-  <meta name="twitter:title" content="Qoresence — Gaming Streaming Observatory Engine">
-  <meta name="twitter:description" content="See the session as it actually happened. HDMI + DualSense on one clock. Observation plane only.">
+  <meta name="twitter:title" content="Qoresence — see the session as it actually happened">
+  <meta name="twitter:description" content="One clock. Card opens once. The board stays blank until a ConfirmTicket licenses digits.">
   <meta name="twitter:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./aperture.css">
 </head>
 <body>
@@ -31,470 +28,109 @@
   <header class="holo-header">
     <div class="command">
       <div class="command-row">
-        <a class="wordmark" href="#top">
+        <a class="wordmark" href="./index.html">
           <span class="holo-mark" aria-hidden="true">Q</span>
-          <span><b>Retina Deck</b><small>local switcher</small></span>
+          <span><b>Qoresence</b><small>pages · hold</small></span>
         </a>
-        <div class="holo-tally holo-tally-standby" data-tally="standby"><span class="holo-tally-lamp" aria-hidden="true"></span>Standby</div>
-        <span class="pgm-chip">PGM site</span>
-        <time class="bcast-clock" data-clock datetime="">--:--:--</time>
-        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="site-nav">MENU</button>
-        <nav id="site-nav" class="glass-nav" data-nav aria-label="Glasses">
-          <a href="#watch">Theater</a>
-          <a href="#otel">Trace</a>
-          <a href="#glasses">Glasses</a>
-          <a href="#proof">Proof</a>
+        <div class="holo-tally holo-tally-hold"><span class="holo-tally-lamp" aria-hidden="true"></span>Site · Hold</div>
+        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="site-nav">Menu</button>
+        <nav id="site-nav" class="glass-nav" data-nav aria-label="Site">
+          <a href="./index.html" aria-current="page">Home</a>
+          <a href="./watch.html">Watch</a>
           <a href="./install.html">Install</a>
-          <a href="https://github.com/ConWan30/Qoresence">GitHub</a>
+          <a href="./limits.html">Limits</a>
         </nav>
-        <div class="mode-bar" data-mode-bar="site">
-          <a class="stream-key stream-key-live" href="https://github.com/ConWan30/Qoresence/releases/latest"><span>01</span>Download</a>
-          <a class="stream-key" href="#watch"><span>02</span>Replay</a>
-          <a class="stream-key stream-key-clip" href="./install.html"><span>03</span>Install</a>
-        </div>
       </div>
-      <div class="command-status">
-        <div class="status-line">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span>PLL open · couple none</span>
-          <span class="lockbug" data-lockbug="unlocked">□–□ · — &amp; —</span>
-        </div>
-        <div class="status-meta">
-          <em>PAD unbound</em>
-          <span>HDMI wait</span>
-          <span>MONITOR WAIT</span>
-          <span>SYNC UNBOUND</span>
-          <span>site · not a live session</span>
-        </div>
+      <div class="site-hold">
+        <span>this page is HOLD — not a live session</span>
+        <span class="board-why">Board not licensed — this is a page</span>
       </div>
     </div>
-    <div class="progress" data-progress aria-hidden="true"></div>
   </header>
 
   <main id="top">
-    <section class="wrap mast">
-      <div class="kicker"><i></i> Gaming Streaming Observatory Engine</div>
-      <h1>See the session<br><em>as it actually <wbr>happened.</em></h1>
-      <p class="lede">Qoresence is a local-first observatory engine for gamers. HDMI video and DualSense HID share one monotonic clock. Deck, Session Theater, Lens, Stem Program, Mobile Glass, Ghost Cut, and MCP hang off that clock. The capture card opens once. Nothing else is allowed to open it.</p>
-      <p class="hero-note">Local-first · one clock · many glasses · observation plane only — no humanity, eligibility, or on-chain claims</p>
-      <div class="chips" aria-label="Invariants">
-        <span class="chip">127.0.0.1 default</span>
-        <span class="chip">no second capture</span>
-        <span class="chip">local-only clips</span>
-        <span class="chip">Stem not OBS</span>
-        <span class="chip">observation only</span>
+    <section class="wrap hallway" id="watch">
+      <div class="kicker"><i></i> Local observatory</div>
+      <h1>See the session as it actually happened.</h1>
+      <p class="lede">One capture card. HDMI and DualSense share one clock. The board stays blank until a ConfirmTicket licenses digits.</p>
+      <div class="hallway-stage">
+        <div class="holo-plinth" data-holo-tone="iron" data-shutter>
+          <div class="holo-plinth-well">
+            <span class="shutter-leaf" aria-hidden="true"></span>
+            <video
+              class="hdmi-picture"
+              controls
+              playsinline
+              preload="metadata"
+              poster="./assets/deck-live-demo.jpg"
+              src="./assets/deck-live-demo.mp4">
+              Your browser cannot play this MP4.
+            </video>
+          </div>
+          <div class="signal-prism" aria-hidden="true"><div class="signal-prism-fill is-hold"></div></div>
+          <div class="demo-chrome">
+            <span><strong>NCAA 27</strong> · window-capture · not a second open of the card</span>
+            <span>HOLD · this is tape</span>
+          </div>
+        </div>
+        <p class="board-speech"><b>Board not licensed — this is a page.</b> Empty glyphs stay empty. A live Now pair waits on the laptop with the card.</p>
+        <p class="demo-cap">6m45s of a local NCAA 27 hour · USB DualSense Edge · SMU–Louisville Q1 · <a href="./watch.html">Open the watch room</a></p>
       </div>
       <div class="actions">
         <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Get Windows package</a>
-        <a class="button" href="#watch">Watch a session</a>
-        <a class="button" href="https://github.com/ConWan30/Qoresence">View source</a>
+        <a class="button" href="./watch.html">Watch this session</a>
+        <a class="button" href="https://github.com/ConWan30/Qoresence">Source</a>
       </div>
-      <p class="hero-note">Windows-first pilot · lobes default OFF · this page is HOLD, never a fake live feed</p>
-    </section>
-
-    <section class="theater" id="watch">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Proof / Watch</div><h2>Retina Deck<br>while a match is on.</h2></div>
-          <p>Window-capture of the operator glass. HDMI and DualSense on one clock. Not a second open of the card.</p>
-        </div>
-        <div class="theater-grid">
-          <div>
-            <div class="holo-plinth" data-holo-tone="iron">
-              <div class="holo-plinth-well">
-                <video
-                  class="hdmi-picture"
-                  controls
-                  playsinline
-                  preload="metadata"
-                  poster="./assets/deck-live-demo.jpg"
-                  src="./assets/deck-live-demo.mp4">
-                  Your browser cannot play this MP4.
-                </video>
-              </div>
-              <div class="signal-prism" aria-hidden="true"><div class="signal-prism-fill is-hold"></div></div>
-              <div class="demo-chrome">
-                <span><strong>NCAA 27</strong> · DualSense Edge · one clock</span>
-                <span>Deck / LIVE · FrameHub</span>
-              </div>
-            </div>
-            <p class="demo-cap">6m45s window-capture of a local NCAA 27 session · USB DualSense Edge · SMU–Louisville Q1 · not a second open of the card · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
-          </div>
-          <aside class="intel" aria-label="Situation and clutch feed">
-            <section class="holo-plate">
-              <div class="plate-head">
-                <h2>Situation</h2>
-                <span class="plate-meta">scorebug</span>
-              </div>
-              <p class="situation-line">□–□ · — &amp; —</p>
-              <p class="situation-sub">title-presence from HDMI · unlocked glyphs stay empty</p>
-            </section>
-            <section class="holo-plate">
-              <div class="plate-head">
-                <h2>Clutch feed</h2>
-                <span class="plate-meta">03 · WATCHING · 0.00</span>
-              </div>
-              <div class="heat" aria-hidden="true"><i></i></div>
-              <div class="clutch-note">
-                <p>The <em>capture card</em> is the brain.</p>
-                <span>everything else is a glass</span>
-              </div>
-              <article class="clutch-row">
-                <span class="idx">01</span>
-                <div><b>HDMI</b><span>capture card · FrameHub</span></div>
-              </article>
-              <article class="clutch-row">
-                <span class="idx">02</span>
-                <div><b>HID</b><span>DualSense · InputRing</span></div>
-              </article>
-              <article class="clutch-row">
-                <span class="idx">03</span>
-                <div><b>IVC</b><span>couple video to press</span></div>
-              </article>
-            </section>
-          </aside>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="otel">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Proof / Trace</div><h2>One clip, three sidecars.</h2></div>
-          <p>OTel causal bus traces, DualSense button events, and IVC coupling history — all stamped on the same monotonic clock.</p>
-        </div>
-        <div class="demo-stack">
-          <div>
-            <div class="holo-plinth">
-              <div class="holo-plinth-well">
-                <video
-                  class="hdmi-picture"
-                  controls
-                  playsinline
-                  preload="metadata"
-                  poster="./assets/otel-controller-demo.jpg"
-                  src="./assets/otel-controller-demo.mp4">
-                  Your browser cannot play this MP4.
-                </video>
-              </div>
-              <div class="signal-prism" aria-hidden="true"><div class="signal-prism-fill is-hold"></div></div>
-              <div class="demo-chrome">
-                <span><strong>Madden 27</strong> · DualSense Edge · OTel causal traces</span>
-                <span>clip + .coupling.json + .buttons.json + .otel.json</span>
-              </div>
-            </div>
-            <p class="demo-cap">30s clip with controller input · sidecars: <a href="https://github.com/ConWan30/Qoresence/blob/main/docs/assets/otel-controller-demo.mp4">MP4</a> · press <code>square</code> + <code>L2</code> captured in <code>.buttons.json</code> · 56 coupling ticks in <code>.coupling.json</code> · 100% sampled OTel trace IDs in <code>.otel.json</code> · open any trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
-          </div>
-          <div id="trace-viewer">
-            <div class="section-head">
-              <div><div class="kicker">Proof / Why</div><h2>Trace why a clip fired.</h2></div>
-              <p>The Qoresence Trace Viewer reads the same OTel causal trace that ships in every <code>.otel.json</code> sidecar. No account, no cloud dashboard, no jumping between tools.</p>
-            </div>
-            <div class="holo-plinth">
-              <div class="holo-plinth-well">
-                <img class="hdmi-picture" src="./assets/trace-viewer-screenshot.png" alt="Qoresence Trace Viewer showing a causal session trace with streamer, controller, IVC, visual, clip export, and deck health spans on a shared monotonic clock." loading="lazy">
-              </div>
-              <div class="demo-chrome">
-                <span><strong>Qoresence Trace Viewer</strong> · Jaeger trace · local</span>
-                <span>summary · timeline · spans</span>
-              </div>
-            </div>
-            <p class="demo-cap">One session trace shows the causal chain: <code>streamer.grab</code> → <code>controller.poll</code> → <code>ivc.coupling</code> → <code>clip.export</code> · each span is tagged with <code>clock_ns</code>, source lobe, and event type · open any <code>.otel.json</code> trace in the <a href="./trace.html">Qoresence Trace Viewer</a> · <a href="./trace.html?demo=1">View demo trace</a></p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="plane">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">The inversion</div><h2>Not a dashboard.<br>A causal plane.</h2></div>
-          <p>Most tools overlay stats on a stream. Qoresence keeps one session memory and hangs glasses off it.</p>
-        </div>
-        <div class="thesis">
-          <div class="thesis-copy">
-            <p>A gamer’s session is video plus hands plus game state. Those three signals usually live in different programs, on different clocks. Qoresence binds them locally: the streamer lobe owns the USB capture card, the controller lobe writes the InputRing, IVC stamps both with the same nanoseconds.</p>
-            <p>From that coupling the rest follows. Scoreboard OCR can confirm a call. FastMoment can mark clutch energy. Foundry writes an MP4 plus <code>.chapters.json</code> and <code>.buttons.json</code>. Ghost Cut later slices that same file and burns the why-strip onto it — no generative model, no extra camera.</p>
-            <p>The product promise is narrow on purpose: you can show why a clip fired, from evidence that never left the machine. Co-occurrence and coupling — not “proof you are legit.”</p>
-          </div>
-          <div class="principle">
-            <blockquote>The capture card is the <em>brain</em>. Everything else is a glass.</blockquote>
-            <footer>Hard rule · no dual-open DShow · FrameHub is the only live frame source</footer>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="spine">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Clock spine</div><h2>HDMI → HID → IVC<br>→ Bus → glasses.</h2></div>
-          <p>One aperture. Subscribers never become owners.</p>
-        </div>
-        <div class="flow" aria-label="Signal path">
-          <article><span class="idx">01</span><h3>HDMI</h3><p>Physical capture card opens once. Frames land in FrameHub.</p></article>
-          <article><span class="idx">02</span><h3>HID</h3><p>DualSense USB/BT map. Edges write the InputRing.</p></article>
-          <article><span class="idx">03</span><h3>IVC</h3><p>Press and frame share <code>clock_ns</code>. Coupling is observation.</p></article>
-          <article><span class="idx">04</span><h3>Bus</h3><p>Situation, title-presence, moments. Fail-closed speech.</p></article>
-          <article><span class="idx">05</span><h3>Glasses</h3><p>Deck, Lens, Mobile, Ghost Cut, MCP. Views only.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="orchestrate">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Orchestration</div><h2>Capture once.<br>Subscribe everywhere.</h2></div>
-          <p>Each step is a lobe or a glass. None of them re-open the hardware.</p>
-        </div>
-        <div class="orch">
-          <div class="step"><span class="num">01</span><div><h3>Own the card</h3><p>StreamerRuntime opens DirectShow index 0 (or the device you name). Frames land in FrameHub. OBS, if you use it, consumes the Lens URL — never the physical device a second time.</p></div><span class="tag">INPUT</span></div>
-          <div class="step"><span class="num">02</span><div><h3>Couple the hands</h3><p>HID is parsed on the DualSense USB/BT map. An IMU jolt 5–80&nbsp;ms before a press is a precursor — the body moved, then the bit flipped. IVC joins that edge to the FrameHub sequence. Score changes bind back to the nearest trigger.</p></div><span class="tag">COUPLE</span></div>
-          <div class="step"><span class="num">03</span><div><h3>Name the situation</h3><p>Visual + OCR read the scorebug. Title-presence locks NCAA vs Madden vs CoD without inventing digits. Blank frames do not invent 0–0. Confirm tickets license score speech.</p></div><span class="tag">SITUATION</span></div>
-          <div class="step"><span class="num">04</span><div><h3>Fan out on the bus</h3><p>RetinaEventBus carries situation and moment events. Subscribers must not emit while holding their own lock — that rule is tested. The live feed must never freeze because a glass was slow.</p></div><span class="tag">CAUSAL</span></div>
-          <div class="step"><span class="num">05</span><div><h3>Hang the glasses</h3><p>Lens (OBS), Deck (operator), Session Theater (Now + Story + Recap), Mobile Glass (phone view), Foundry Ghost Cut (after the clip), AgentGlass and MCP (read-only agents). All of them are views. None of them capture.</p></div><span class="tag">VIEW</span></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="glasses">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Glasses</div><h2>Six eyepieces.<br>One aperture.</h2></div>
-          <p>Each glass is a different eyepiece on the same clock spine. None of them is a second product, and none of them re-opens the capture card.</p>
-        </div>
-        <div class="glasses">
-          <article class="glass"><span class="idx">GLASS / LENS</span><h3>Clutch Lens</h3><p>OBS Browser Source at <code>http://127.0.0.1:8765/overlay.html</code>. A thin ribbon and a score pill. Opacity follows tension. It sits on the game; it does not cover the ball.</p></article>
-          <article class="glass"><span class="idx">GLASS / DECK</span><h3>Retina Deck</h3><p>Local theater at <code>/deck.html</code>. LIVE from FrameHub (WebRTC, MJPEG fallback). REPLAY from your HDMI clips. Situation, DualSense rail, clutch strip — the operator stays in the session.</p></article>
-          <article class="glass"><span class="idx">GLASS / SESSION</span><h3>Session Theater</h3><p>Narrative glass at <code>/session.html</code>. Now, Story, Open clip, Recap. Live <code>/api/session/view</code> and <code>/api/session/recap</code> only. Score digits when locked. Button names when the pad is bodied here. Not an overlay.</p></article>
-          <article class="glass"><span class="idx">GLASS / PHONE</span><h3>Mobile Glass</h3><p>Same FrameHub on the phone at <code>/mobile.html</code>. WebRTC first, MJPEG fallback. Localhost by default. Same Wi‑Fi needs <code>--deck-bind 0.0.0.0</code> and the Theater QR. The phone is a view, never a capture.</p></article>
-          <article class="glass"><span class="idx">GLASS / BAY</span><h3>Foundry · Ghost Cut</h3><p>Post-session. Pick a chaptered clip. Cut a local highlight with the why-strip and timed DualSense ghosts burned in. Your players stay your players. Output lives beside the clip as MP4 + receipt.</p></article>
-          <article class="glass"><span class="idx">GLASS / AGENT</span><h3>AgentGlass + MCP</h3><p>Read-only spectator APIs and 12 MCP tools. Snapshot, health, clips, situation, search, graph, diagnose, <code>get_observation</code> witness pack, grant-gated <code>wrap_observation</code> onto <code>qoresence-research</code> only. Localhost. No hidden write path. No second capture.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="caps">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Capabilities</div><h2>What the plane<br>already does.</h2></div>
-          <p>Shipped on main. Optional lobes stay OFF until you ask.</p>
-        </div>
-        <div class="caps">
-          <article class="cap"><h3>Title-presence</h3><p>Optical title lock with a hard <code>plane: qoresence-observation</code> tag. On with <code>--play</code>. Menu and pause fail closed. Never yanks an explicit <code>--game-profile</code>.</p></article>
-          <article class="cap"><h3>Score + tickets</h3><p>Scorebug OCR is the referee. Confirm tickets license digits. Fast path cannot invent a score or heat-speech without a coupling ticket.</p></article>
-          <article class="cap"><h3>Coupling / ghosts</h3><p>IVC joins DualSense hold and edges to FrameHub. Ghost Cut lights the pad on the real HDMI clip. IMU precursors show BODY −XXms.</p></article>
-          <article class="cap"><h3>DriveGraph</h3><p>Why-strip over a drive. Named 48-node safety cap (floor 8, ceiling 96) so <code>/health</code> cannot O(n²)-freeze.</p></article>
-          <article class="cap"><h3>Session Theater</h3><p>Fail-closed normalized pack. Live view + recap APIs. Open clip only for validated <code>hdmi_clip_*</code> stems in the same session. Streamer overlay on hold.</p></article>
-          <article class="cap"><h3>Foundry clips</h3><p>True capture-ring MP4s plus chapter and button sidecars. Searchable later on Deck. Local HDMI only.</p></article>
-          <article class="cap"><h3>Mobile Glass</h3><p>WebRTC primary, MJPEG fallback. Default bind <code>127.0.0.1</code>. LAN is opt-in. No STUN/TURN, no CDN.</p></article>
-          <article class="cap"><h3>MCP witness pack</h3><p>Agents call <code>get_observation</code> before they speak. Unlocked scores and localhost URLs stay silent.</p></article>
-          <article class="cap"><h3>Pilot closeout</h3><p>Stranger-auditable JSON/MD: lock timeline, ranked climax, FREEZE kinds. Trust is a health check.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="profiles">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Profiles</div><h2>The plane is the product.<br>The title is a lens.</h2></div>
-          <p>Football and shooter first. Community YAML can add more.</p>
-        </div>
-        <div class="profiles">
-          <article class="profile lead"><span class="idx">FIRST-CLASS</span><h3>NCAA Football 27</h3><p>Snap, score, TD, FG. Scorebug band measured on live stills. Primary pilot corpus.</p></article>
-          <article class="profile"><span class="idx">FIRST-CLASS</span><h3>Madden NFL 27</h3><p>Own HUD crop. Local NFL roster. Ambiguous last names stay empty + flagged.</p></article>
-          <article class="profile"><span class="idx">FIRST-CLASS</span><h3>Call of Duty</h3><p>Shooter family. Situation follows the same bus; profile is the crop and vocab.</p></article>
-          <article class="profile"><span class="idx">SECONDARY</span><h3>Community</h3><p>Valorant, Apex, Fortnite YAML. Same clock. Same fail-closed speech rules.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="contrast">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Contrast</div><h2>Same HDMI.<br>Different job.</h2></div>
-          <p>No trash talk. Different tools optimize for different truths.</p>
-        </div>
-        <table class="contrast">
-          <thead>
-            <tr><th></th><th>Typical overlay / clipper</th><th>Qoresence</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Aperture</td><td>OBS often owns the card; extras reopen it or ingest a VCam.</td><td>One physical DShow owner. Glasses subscribe to FrameHub.</td></tr>
-            <tr><td>Clock</td><td>Video clock, chat clock, and pad clock rarely meet.</td><td>HDMI + DualSense share monotonic <code>clock_ns</code>.</td></tr>
-            <tr><td>Speech</td><td>Cloud VLMs guess scores after a delay.</td><td>OCR confirm + tickets. Silence over invention.</td></tr>
-            <tr><td>Clips</td><td>Cloud highlight model, or a stream platform's clip API.</td><td>Local capture-ring MP4 + Ghost Cut on the real file.</td></tr>
-            <tr><td>Phone</td><td>Second encoder or a CDN.</td><td>Same FrameHub view. LAN bind opt-in.</td></tr>
-            <tr><td>Agents</td><td>Often write-capable and cloud-hosted.</td><td>Read-only MCP. Witness pack. Research wrap only with a grant.</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <p class="hero-note">Windows-first pilot · lobes default OFF · never a fake live feed</p>
     </section>
 
     <section class="section" id="proof">
       <div class="wrap">
         <div class="section-head">
-          <div><div class="kicker">Pilot gates</div><h2>Trust is a health check.</h2></div>
-          <p>Run these before you treat a session as real. If <code>age_s</code> climbs and frames stop, it is almost never the card — it is a lock.</p>
+          <div><div class="kicker">Same HDMI</div><h2>Different job.</h2></div>
+          <p>Most tools overlay a stream. Qoresence keeps one session memory and hangs glasses off it.</p>
         </div>
-        <div class="gates">
-          <div class="gate"><strong>Capture</strong><span><code>age_s &lt; 1</code><br>frames and pushes climb</span></div>
-          <div class="gate"><strong>Deck</strong><span><code>/health</code> ok<br>LIVE picture moves</span></div>
-          <div class="gate"><strong>Cut</strong><span>chaptered clip →<br>local <code>reel_*.mp4</code></span></div>
-          <div class="gate"><strong>Agent</strong><span>12 MCP tools<br>localhost only</span></div>
-        </div>
-        <div class="actions" style="margin-top:28px">
-          <a class="button" href="https://github.com/ConWan30/Qoresence/blob/main/docs/PILOT_CHECKLIST.md">Pilot checklist</a>
-          <a class="button" href="https://github.com/ConWan30/Qoresence/wiki/What-is-Qoresence">What is Qoresence</a>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="privacy">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Privacy &amp; claim ceiling</div><h2>Local by default.<br>Silent when unsure.</h2></div>
-          <p>If copy ever sounds like anti-cheat or a humanity proof, it is wrong.</p>
-        </div>
-        <div class="limits">
-          <article class="limit ok">
-            <h3>What it is</h3>
-            <ul>
-              <li>Local observation of HDMI + DualSense</li>
-              <li>Co-occurrence, coupling, presence evidence</li>
-              <li>Fail-closed speech licensing</li>
-              <li>Optional wrap onto <code>qoresence-research</code> with an operator grant</li>
-            </ul>
+        <div class="contrast-pair">
+          <article>
+            <span class="idx">Card</span>
+            <h3>Opens once</h3>
+            <p>One physical DShow owner. Glasses subscribe to FrameHub. Nothing else is allowed to open the device.</p>
           </article>
-          <article class="limit no">
-            <h3>What it is not</h3>
-            <ul>
-              <li>No humanity, eligibility, or anti-cheat claims</li>
-              <li>No live path into QorTroller / PoAC / <code>*-truth</code></li>
-              <li>No second capture, no personal webcam</li>
-              <li>No cloud biometrics; LAN stays opt-in; no off-box chat</li>
-            </ul>
+          <article>
+            <span class="idx">Clock</span>
+            <h3>One monotonic spine</h3>
+            <p>HDMI frames and DualSense edges share <code>clock_ns</code>. Video clock, pad clock, and chat clock do not live in three programs.</p>
+          </article>
+          <article>
+            <span class="idx">Speech</span>
+            <h3>Tickets, not guesses</h3>
+            <p>Score digits need <code>score_vlm_locked</code> and a ConfirmTicket. Flag-only lock stays dark. Quota, menu, and no key become one sentence.</p>
+          </article>
+          <article>
+            <span class="idx">Clips</span>
+            <h3>Local MP4 + sidecars</h3>
+            <p>Capture-ring files stay on the box. Coupling, buttons, and OTel traces ride the same clock. No clip API as the product.</p>
           </article>
         </div>
-      </div>
-    </section>
-
-    <section class="section" id="install">
-      <div class="wrap">
-        <div class="download">
-          <div>
-            <div class="kicker">Install the plane</div>
-            <h2>Windows package.<br>Local venv. No account.</h2>
-            <p>Capture hardware is optional for setup and required for live frames. Ghost Cut runs on clips you already have. Pattern B: Qoresence owns the card. Pattern A: OBS Virtual Cam remains a legacy path.</p>
-          </div>
-          <div class="actions">
-            <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Windows package</a>
-            <a class="button" href="./install.html">Install guide</a>
-            <a class="button" href="https://github.com/ConWan30/Qoresence/releases">Releases</a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="community">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">Community</div><h2>Source, wiki,<br>and the operator desk.</h2></div>
-          <p>No Discord is claimed here. GitHub is the public room. <a href="https://x.com/Qoresence">@Qoresence</a> posts receipts from real play.</p>
-        </div>
-        <div class="community">
-          <a href="https://x.com/Qoresence"><b>X @Qoresence</b><span>Public face. Receipts from real play.</span></a>
-          <a href="https://github.com/ConWan30/Qoresence"><b>GitHub</b><span>Source, issues, releases.</span></a>
-          <a href="https://github.com/ConWan30/Qoresence/wiki"><b>Wiki</b><span>Operator glass and runbooks.</span></a>
-          <a href="https://github.com/ConWan30/Qoresence/discussions"><b>Discussions</b><span>Session cuts and questions.</span></a>
-          <a href="https://github.com/ConWan30/QorTroller"><b>QorTroller</b><span>Sibling truth plane. Do not merge claims.</span></a>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="faq">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="kicker">FAQ</div><h2>Short answers.</h2></div>
-        </div>
-        <div class="faq">
-          <details>
-            <summary>Is this anti-cheat?</summary>
-            <p>No. Qoresence observes HDMI and DualSense on one clock. It does not score humanity, eligibility, or tournament-grade presence.</p>
-          </details>
-          <details>
-            <summary>Does it replace OBS?</summary>
-            <p>No. For the lowest-lag path, Qoresence owns the physical card and OBS consumes Lens as a Browser Source. The legacy path is OBS owning the card and publishing a Virtual Cam.</p>
-          </details>
-          <details>
-            <summary>Will it work on my phone?</summary>
-            <p>As a view. Open <code>/mobile.html</code>. Default is localhost. Same-Wi‑Fi needs <code>--deck-bind 0.0.0.0</code> and the Theater QR. Video only in v1. No remote/cellular STUN.</p>
-          </details>
-          <details>
-            <summary>Does --play write to QorTroller?</summary>
-            <p>No. Title-presence is observation-plane only. A research wrap needs <code>QORESENCE_WRAP_GRANT_ID</code> and dest <code>qoresence-research</code>. Truth-plane dests are denied.</p>
-          </details>
-          <details>
-            <summary>Linux / macOS?</summary>
-            <p>The public pilot is Windows-first (DirectShow capture card). Other hosts are not claimed as ready.</p>
-          </details>
-        </div>
+        <p class="hero-note">The capture card is the brain. Everything else is a glass.</p>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="wrap footer-row">
-      <div>Qoresence / gaming streaming observatory engine / local-first pilot<br>The capture card is the brain. Everything else is a glass.</div>
+      <div>Qoresence / local-first observatory / observation plane only<br>The capture card is the brain. Everything else is a glass.</div>
       <div>
+        <a href="./watch.html">Watch</a> ·
         <a href="./install.html">Install</a> ·
-        <a href="https://x.com/Qoresence">X @Qoresence</a> ·
-        <a href="https://github.com/ConWan30/Qoresence">GitHub</a> ·
-        <a href="https://github.com/ConWan30/Qoresence/wiki">Wiki</a> ·
-        <a href="https://github.com/ConWan30/Qoresence/releases">Releases</a> ·
-        <a href="https://github.com/ConWan30/QorTroller">QorTroller</a>
+        <a href="./limits.html">Limits</a> ·
+        <a href="./trace.html">Trace</a> ·
+        <a href="./dark.html">Dark</a> ·
+        <a href="https://x.com/Qoresence">@Qoresence</a> ·
+        <a href="https://github.com/ConWan30/Qoresence">Source</a>
       </div>
     </div>
   </footer>
-  <script>
-    const menu = document.querySelector('[data-menu]');
-    const nav = document.querySelector('[data-nav]');
-    const bar = document.querySelector('[data-progress]');
-    const clock = document.querySelector('[data-clock]');
-    const pad = (n) => String(n).padStart(2, '0');
-    const tick = () => {
-      if (!clock) return;
-      const d = new Date();
-      const t = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-      clock.textContent = t;
-      clock.setAttribute('datetime', t);
-    };
-    tick();
-    setInterval(tick, 1000);
-    if (menu && nav) {
-      menu.addEventListener('click', () => {
-        const open = nav.classList.toggle('open');
-        menu.setAttribute('aria-expanded', String(open));
-      });
-      nav.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => {
-        nav.classList.remove('open');
-        menu.setAttribute('aria-expanded', 'false');
-      }));
-    }
-    const sections = [...document.querySelectorAll('main section[id]')];
-    const links = [...document.querySelectorAll('.glass-nav a[href^="#"]')];
-    const mark = () => {
-      const y = window.scrollY + 96;
-      let current = '';
-      for (const s of sections) if (s.offsetTop <= y) current = s.id;
-      links.forEach((a) => a.classList.toggle('is-active', a.getAttribute('href') === '#' + current));
-      if (bar) {
-        const max = document.documentElement.scrollHeight - window.innerHeight;
-        bar.style.width = (max > 0 ? (window.scrollY / max) * 100 : 0) + '%';
-      }
-    };
-    mark();
-    window.addEventListener('scroll', mark, {passive: true});
-  </script>
+  <script src="./site.js" defer></script>
 </body>
 </html>
