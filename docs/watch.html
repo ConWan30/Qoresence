@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#05060a">
+  <meta name="description" content="Watch a Qoresence session on tape. HDMI, DualSense, and IVC on one clock. Sidecars sit beside the MP4.">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <title>Watch — Qoresence</title>
+  <link rel="canonical" href="https://conwan30.github.io/Qoresence/watch.html">
+  <meta property="og:title" content="Watch — Qoresence">
+  <meta property="og:description" content="Window-capture of a local hour. Not a second open of the card. Not a live feed.">
+  <meta property="og:url" content="https://conwan30.github.io/Qoresence/watch.html">
+  <meta property="og:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@Qoresence">
+  <link rel="stylesheet" href="./aperture.css">
+</head>
+<body>
+  <a class="skip" href="#watch-top">Skip to content</a>
+  <header class="holo-header">
+    <div class="command">
+      <div class="command-row">
+        <a class="wordmark" href="./index.html">
+          <span class="holo-mark" aria-hidden="true">Q</span>
+          <span><b>Qoresence</b><small>pages · hold</small></span>
+        </a>
+        <div class="holo-tally holo-tally-hold"><span class="holo-tally-lamp" aria-hidden="true"></span>Site · Hold</div>
+        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="watch-nav">Menu</button>
+        <nav id="watch-nav" class="glass-nav" data-nav aria-label="Site">
+          <a href="./index.html">Home</a>
+          <a href="./watch.html" aria-current="page">Watch</a>
+          <a href="./install.html">Install</a>
+          <a href="./limits.html">Limits</a>
+        </nav>
+      </div>
+      <div class="site-hold">
+        <span>this page is HOLD — not a live session</span>
+        <span class="board-why">Board not licensed — this is a page</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="watch-top">
+    <section class="wrap hallway">
+      <div class="kicker"><i></i> Watch room</div>
+      <h1>The tape, not a live iris.</h1>
+      <p class="lede">Window-capture of the operator glass. HDMI and DualSense on one clock. This is a file. It is not a second open of the card.</p>
+      <div class="hallway-stage">
+        <div class="holo-plinth" data-holo-tone="iron" data-shutter>
+          <div class="holo-plinth-well">
+            <span class="shutter-leaf" aria-hidden="true"></span>
+            <video
+              class="hdmi-picture"
+              controls
+              playsinline
+              preload="metadata"
+              poster="./assets/deck-live-demo.jpg"
+              src="./assets/deck-live-demo.mp4">
+              Your browser cannot play this MP4.
+            </video>
+          </div>
+          <div class="signal-prism" aria-hidden="true"><div class="signal-prism-fill is-hold"></div></div>
+          <div class="demo-chrome">
+            <span><strong>NCAA 27</strong> · DualSense Edge · SMU–Louisville Q1</span>
+            <span>6m45s · HOLD</span>
+          </div>
+        </div>
+        <div class="chapters" aria-label="Captions on the tape">
+          <span class="chapter"><b>HDMI</b> · capture card · FrameHub</span>
+          <span class="chapter"><b>HID</b> · DualSense · InputRing</span>
+          <span class="chapter"><b>IVC</b> · press and frame share clock_ns</span>
+        </div>
+        <p class="demo-cap">Not a second open of the card · <a href="https://github.com/ConWan30/Qoresence/discussions/14">Discuss on GitHub</a></p>
+      </div>
+    </section>
+
+    <section class="section" id="sidecars">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Sidecars</div><h2>One clip, three files.</h2></div>
+          <p>OTel traces, DualSense edges, and IVC coupling — stamped on the same clock as the MP4.</p>
+        </div>
+        <div class="holo-plinth">
+          <div class="holo-plinth-well">
+            <video
+              class="hdmi-picture"
+              controls
+              playsinline
+              preload="metadata"
+              poster="./assets/otel-controller-demo.jpg"
+              src="./assets/otel-controller-demo.mp4">
+              Your browser cannot play this MP4.
+            </video>
+          </div>
+          <div class="signal-prism" aria-hidden="true"><div class="signal-prism-fill is-hold"></div></div>
+          <div class="demo-chrome">
+            <span><strong>Madden 27</strong> · DualSense Edge · 30s</span>
+            <span>MP4 + coupling + buttons + otel</span>
+          </div>
+        </div>
+        <div class="sidecar-row">
+          <article class="sidecar">
+            <b>.buttons.json</b>
+            <span>Press <code>square</code> and <code>L2</code> on the same clock as the picture.</span>
+          </article>
+          <article class="sidecar">
+            <b>.coupling.json</b>
+            <span>56 coupling ticks. HID joined to FrameHub sequence.</span>
+          </article>
+          <article class="sidecar">
+            <b>.otel.json</b>
+            <span>100% sampled trace IDs. Open the why in the Trace Viewer.</span>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="why">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Why</div><h2>Trace why a clip fired.</h2></div>
+          <p>The Trace Viewer reads the same OTel sidecar. No account. No cloud dashboard.</p>
+        </div>
+        <div class="holo-plinth">
+          <div class="holo-plinth-well">
+            <img class="hdmi-picture" src="./assets/trace-viewer-screenshot.png" alt="Qoresence Trace Viewer showing a causal session trace with streamer, controller, IVC, and clip export spans." loading="lazy">
+          </div>
+          <div class="demo-chrome">
+            <span><strong>Trace Viewer</strong> · local Jaeger</span>
+            <span>summary · timeline · spans</span>
+          </div>
+        </div>
+        <p class="demo-cap"><code>streamer.grab</code> → <code>controller.poll</code> → <code>ivc.coupling</code> → <code>clip.export</code> · <a href="./trace.html">Open the Trace Viewer</a> · <a href="./trace.html?demo=1">Demo trace</a></p>
+        <div class="actions">
+          <a class="button primary" href="./trace.html">Open the why</a>
+          <a class="button" href="./install.html">Install on Windows</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-row">
+      <div>Qoresence / local-first observatory / observation plane only<br>The capture card is the brain. Everything else is a glass.</div>
+      <div>
+        <a href="./index.html">Home</a> ·
+        <a href="./install.html">Install</a> ·
+        <a href="./limits.html">Limits</a> ·
+        <a href="./trace.html">Trace</a> ·
+        <a href="./dark.html">Dark</a> ·
+        <a href="https://github.com/ConWan30/Qoresence">Source</a>
+      </div>
+    </div>
+  </footer>
+  <script src="./site.js" defer></script>
+</body>
+</html>
