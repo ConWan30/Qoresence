@@ -58,6 +58,7 @@ def test_vlm_status_maps_to_board_why():
     assert vlm_status_to_board_why("http_429") == "vlm_quota"
     assert vlm_status_to_board_why("http_402") == "vlm_quota"
     assert vlm_status_to_board_why("http_401") == "vlm_auth"
+    assert vlm_status_to_board_why("http_400") == "vlm_none"
     assert vlm_status_to_board_why("no_key") == "vlm_no_key"
     assert vlm_status_to_board_why("ungrounded") == "vlm_ungrounded"
     assert vlm_status_to_board_why("none") == "vlm_none"
@@ -69,6 +70,11 @@ def test_classify_fake_429_is_http_429():
         classify_vlm_status(has_key=True, http_status=429, last=None) == "http_429"
     )
     assert vlm_status_to_board_why("http_429") == "vlm_quota"
+
+
+def test_classify_http_400_is_hold_not_a_score():
+    assert classify_vlm_status(has_key=True, http_status=400, last=None) == "http_400"
+    assert vlm_status_to_board_why("http_400") == "vlm_none"
 
 
 def test_garbage_lock_reason_still_refuses_loading():

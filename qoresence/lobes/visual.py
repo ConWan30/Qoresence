@@ -37,6 +37,16 @@ from qoresence.vision.visual_context import (
 log = logging.getLogger(__name__)
 
 
+def _scoreboard_vlm_held() -> bool:
+    """Confirm-path HOLD is process-wide. Do not POST after it."""
+    try:
+        from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+
+        return bool(get_scoreboard_vlm().is_held())
+    except Exception:
+        return False
+
+
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # DATA STRUCTURES
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -120,6 +130,9 @@ class VLMClient:
         Extra kwargs (e.g. game_profile from VisionStack) are ignored by this
         transport — they only inform the prompt the caller already built.
         """
+        if _scoreboard_vlm_held():
+            log.info("visual VLM skip: scoreboard_vlm HOLD")
+            return None
         try:
             # Resize frame
             h, w = frame.shape[:2]
@@ -287,6 +300,9 @@ class VLMClient:
         start = time.perf_counter()
 
         try:
+            if _scoreboard_vlm_held():
+                log.info("visual VLM skip: scoreboard_vlm HOLD")
+                return None
             # Build prompt with other modality context
             modality_summary = "\n".join([f"- {k}: {v}" for k, v in other_modalities.items()])
 

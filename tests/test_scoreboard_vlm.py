@@ -244,6 +244,7 @@ def test_http_401_fail_closed():
             assert result is None
             assert ref.get_last() is None
             assert ref._last_http_status == 401
+            assert ref.is_held() is True
 
 
 def test_call_vlm_posts_to_quicksilver_base_url(monkeypatch):
@@ -301,3 +302,75 @@ def test_infer_vlm_source_gemini_on_quicksilver():
     assert infer_vlm_source("gemini-3.5-flash-lite", DEFAULT_BASE_URL) == "gemini"
     assert infer_vlm_source("deepseek-v4-flash", DEFAULT_BASE_URL) == "quicksilver"
     assert infer_vlm_source("deepseek-v4-flash-vision-exp", "https://api.deepseek.com") == "deepseek"
+
+
+def test_http_400_holds_without_urllib_retry_and_redacts_body(caplog):
+    """HTTP 400 HOLDs last_confirm, does not urllib-retry, logs body without secrets."""
+    import logging
+    from unittest.mock import patch
+
+    import numpy as np
+
+    from qoresence.vision.scoreboard_vlm import _safe_http_body
+
+    leaked = (
+        "model not found sk-secretTOKEN123 Bearer abc.def "
+        "api_key=sk-other data:image/jpeg;base64,/9j/xxxx"
+    )
+    assert "sk-secretTOKEN123" not in _safe_http_body(leaked)
+    assert "Bearer abc.def" not in _safe_http_body(leaked)
+    assert "/9j/xxxx" not in _safe_http_body(leaked)
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    posts = {"n": 0}
+
+    class _Resp:
+        status_code = 400
+        text = leaked
+
+    def _post(*_a, **_k):
+        posts["n"] += 1
+        return _Resp()
+
+    crop = np.zeros((96, 200, 3), dtype=np.uint8)
+    with caplog.at_level(logging.WARNING):
+        with patch("requests.post", side_effect=_post):
+            with patch("urllib.request.urlopen") as urlopen:
+                out = ref._call_vlm(crop)
+                urlopen.assert_not_called()
+    assert out is None
+    assert posts["n"] == 1
+    assert ref.is_held() is True
+    assert ref.get_last() is None
+    assert ref._last_http_status == 400
+    assert "sk-secretTOKEN123" not in caplog.text
+    assert "Bearer abc.def" not in caplog.text
+    assert "HOLD seeing-path" in caplog.text
+
+    with patch.object(ref, "_call_vlm") as call:
+        frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+        frame[int(720 * 0.78) : int(720 * 0.93), :, 1] = 255
+        ref.schedule(frame, force=True, reason="score_changed")
+        call.assert_not_called()
+
+
+def test_visual_lobe_skips_post_after_scoreboard_hold(monkeypatch):
+    from unittest.mock import MagicMock
+
+    import numpy as np
+
+    from qoresence.core import VisualConfig
+    from qoresence.lobes.visual import VLMClient
+
+    held = MagicMock()
+    held.is_held.return_value = True
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: held
+    )
+    client = VLMClient(VisualConfig(api_key="test_key"))
+    client._session = MagicMock()
+    out = client.analyze_frame_raw(np.zeros((64, 64, 3), dtype=np.uint8), "prompt")
+    assert out is None
+    client._session.post.assert_not_called()
