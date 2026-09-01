@@ -1,0 +1,10 @@
+/* Pages next: PGM is the one-clock banner; Ghost Stick spans the plate row. */
+.holo-plinth-well img.pgm-banner {
+  aspect-ratio: 2 / 1;
+  object-fit: cover;
+  object-position: center;
+}
+.hallway-stage .holo-plinth + .holo-plinth { margin-top: 14px; }
+.contrast-pair article.ghost-plate {
+  grid-column: 1 / -1;
+}
