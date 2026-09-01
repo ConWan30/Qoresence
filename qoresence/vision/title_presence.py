@@ -121,6 +121,12 @@ def no_claim_record(
     provenance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     why = reason if reason in NO_CLAIM_REASONS else "not_locked"
+    try:
+        from qoresence.graphs.negative_evidence import record_absence
+
+        record_absence(why, session_id=session_id, clock_ns=int(clock_ns))
+    except Exception:
+        pass
     return {
         "plane": PLANE,
         "session_id": session_id,

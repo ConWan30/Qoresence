@@ -154,6 +154,22 @@ def summarize(
             out["learning_constraints_applied"] = applied
     except Exception:
         pass
+    try:
+        from qoresence.graphs.flags import closeout_applied as look_closeout
+
+        look_ids = look_closeout()
+        if look_ids is not None:
+            out["look_licenses_applied"] = look_ids
+    except Exception:
+        pass
+    try:
+        from qoresence.graphs.look_gate import snapshot as look_snapshot
+
+        look = look_snapshot()
+        if look is not None:
+            out["look_gate"] = look
+    except Exception:
+        pass
     out["summary_metrics"] = {
         k: out[k]
         for k in (
@@ -536,6 +552,12 @@ def write_closeout(
 ) -> tuple[Path, Path, dict[str, Any]]:
     samples = _load_jsonl(jsonl_path)
     events = _load_jsonl(events_path) if events_path else []
+    try:
+        from qoresence.graphs.scale_stack import note_session_wrap
+
+        note_session_wrap()
+    except Exception:
+        pass
     summary = summarize(samples, events=events)
     stamp = jsonl_path.stem.replace("session_", "")
     out_dir = jsonl_path.parent

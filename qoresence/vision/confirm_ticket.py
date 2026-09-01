@@ -152,6 +152,12 @@ def mint_confirm_ticket(
     # Normalize and validate source: ONLY seeing-path sources allowed
     normalized_source = normalize_source(source)
     if not is_seeing_source(normalized_source):
+        try:
+            from qoresence.graphs.ticket_provenance import record_refuse
+
+            record_refuse("vlm_none", session_id=resolve_session_id(session_id))
+        except Exception:
+            pass
         raise ConfirmTicketSourceError(
             f"Cannot mint ConfirmTicket with source={source!r}. "
             f"Only seeing-path sources {SEEING_PATH_SOURCES} are allowed."
@@ -177,6 +183,7 @@ def mint_confirm_ticket(
         if not at and last_at:
             at = last_at
 
+    prior_id = last_ticket.ticket_id if last_ticket is not None else ""
     if (
         last_ticket is not None
         and hs is not None
@@ -185,7 +192,7 @@ def mint_confirm_ticket(
         and aws == last_aws
         and board_sides_same(last_ht, last_at, ht, at)
     ):
-        return ConfirmTicket(
+        reused = ConfirmTicket(
             ticket_id=last_ticket.ticket_id,
             session_id=sid,
             clock_ns=int(clock_ns or 0),
@@ -198,6 +205,8 @@ def mint_confirm_ticket(
             quarter=q,
             down=_norm_int(down),
         )
+        _note_provenance(reused, prior_id)
+        return reused
 
     payload = {
         "v": DOMAIN,
@@ -215,7 +224,19 @@ def mint_confirm_ticket(
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     ticket_id = hashlib.sha256(raw).hexdigest()[:16]
     fields = {k: v for k, v in payload.items() if k != "v"}
-    return ConfirmTicket(ticket_id=ticket_id, **fields)
+    minted = ConfirmTicket(ticket_id=ticket_id, **fields)
+    _note_provenance(minted, prior_id)
+    return minted
+
+
+def _note_provenance(ticket: ConfirmTicket, prior_ticket_id: str) -> None:
+    """Record after book reads. Never holds the ticket-book lock. Never emits."""
+    try:
+        from qoresence.graphs.ticket_provenance import record_mint
+
+        record_mint(ticket, prior_ticket_id=prior_ticket_id)
+    except Exception:
+        pass
 
 
 def license_score_text(
@@ -308,6 +329,12 @@ class ConfirmTicketBook:
         """Loading/cutscene: prior matchup must not license the next board."""
         with self._lock:
             self._identity_stale = True
+        try:
+            from qoresence.graphs.ticket_provenance import note_identity_stale
+
+            note_identity_stale()
+        except Exception:
+            pass
 
     def identity_stale(self) -> bool:
         with self._lock:

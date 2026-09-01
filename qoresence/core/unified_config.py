@@ -747,6 +747,9 @@ class RetinaUnifiedConfig:
     # Learning edge: next-run splitter constraints. Default OFF. --play does not enable.
     learning_edge: bool = False
 
+    # Look-license graphs: next crop / frame / mint. Default OFF. --play does not enable.
+    look_graphs: bool = False
+
     # ── Private haptic probe (default OFF; observation only) ────────────────
     haptic_probe: HapticProbeConfig = field(default_factory=HapticProbeConfig)
 
@@ -1080,6 +1083,7 @@ class RetinaUnifiedConfig:
                 queue_size=_int("QORESENCE_HAPTIC_PROBE_QUEUE", 1024) or 1024,
             ),
             learning_edge=_bool("QORESENCE_LEARNING_EDGE"),
+            look_graphs=_bool("QORESENCE_LOOK_GRAPHS"),
         )
 
     # ─────────────────────────────────────────────────────────────────────────

@@ -81,17 +81,28 @@ def stamp_ctx(ctx: VisualContext | None) -> VisualContext | None:
         vlm = get_scoreboard_vlm().get_last()
     except Exception:
         vlm = None
-    _stamp_board_why(
-        ctx,
-        infer_board_why(
-            minted=False,
-            confirm_ticket_id=tid,
-            score_vlm_locked=bool(getattr(ctx, "score_vlm_locked", False)),
-            refuse=_refuse_from_last(ctx, vlm),
-            vlm_status=_read_vlm_status(),
-            game_state=_game_state_token(ctx),
-        ),
+    why = infer_board_why(
+        minted=False,
+        confirm_ticket_id=tid,
+        score_vlm_locked=bool(getattr(ctx, "score_vlm_locked", False)),
+        refuse=_refuse_from_last(ctx, vlm),
+        vlm_status=_read_vlm_status(),
+        game_state=_game_state_token(ctx),
     )
+    _stamp_board_why(ctx, why)
+    try:
+        from qoresence.graphs.refuse_chain import apply_refuse
+        from qoresence.graphs.ticket_provenance import record_refuse
+
+        sid = str(getattr(ctx, "session_id", "") or "")
+        record_refuse(why, session_id=sid)
+        apply_refuse(why, session_id=sid)
+        if why == "vlm_none":
+            from qoresence.graphs.crop_evidence import record_ticker_null
+
+            record_ticker_null(getattr(ctx, "game_profile", None), session_id=sid)
+    except Exception:
+        pass
     return ctx
 
 

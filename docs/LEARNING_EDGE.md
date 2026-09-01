@@ -25,6 +25,8 @@ A verdict that does not change what runs next is only a report. Do not add repor
 
 The learning edge does **not** carry prose and does **not** rewrite worker prompts. It lands on the splitter: crop band, hysteresis window, rank weight, `try_open`, schedule skip, freeze weight.
 
+When `--look-graphs` is also on, a LookLicense may feed those same existing constraint kinds. See `docs/LOOK_GRAPHS.md`. Graphs do not add new kinds.
+
 ## Constraint record
 
 `LearningConstraint`: `id`, `created_clock_ns`, `session_id`, `drive_id`, `source_ticket_id` (required seeing-path mint), `kind`, `target`, `payload`, `evidence`, `frozen=false`, `plane=qoresence-observation`.
