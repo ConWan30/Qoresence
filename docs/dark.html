@@ -16,9 +16,6 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
   <meta name="twitter:site" content="@Qoresence">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./aperture.css">
 </head>
 <body>
@@ -28,31 +25,20 @@
       <div class="command-row">
         <a class="wordmark" href="./index.html">
           <span class="holo-mark" aria-hidden="true">Q</span>
-          <span><b>Retina Deck</b><small>local switcher</small></span>
+          <span><b>Qoresence</b><small>pages · hold</small></span>
         </a>
-        <div class="holo-tally holo-tally-standby" data-tally="standby"><span class="holo-tally-lamp" aria-hidden="true"></span>Standby</div>
-        <span class="pgm-chip">PGM essay</span>
-        <time class="bcast-clock" data-clock datetime="">--:--:--</time>
-        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="dark-nav">MENU</button>
-        <nav id="dark-nav" class="glass-nav" data-nav aria-label="Essay navigation">
-          <a href="./install.html">Install</a>
+        <div class="holo-tally holo-tally-hold"><span class="holo-tally-lamp" aria-hidden="true"></span>Site · Hold</div>
+        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="dark-nav">Menu</button>
+        <nav id="dark-nav" class="glass-nav" data-nav aria-label="Site">
           <a href="./index.html">Home</a>
+          <a href="./watch.html">Watch</a>
+          <a href="./install.html">Install</a>
+          <a href="./limits.html">Limits</a>
         </nav>
-        <div class="mode-bar">
-          <a class="stream-key stream-key-live" href="https://github.com/ConWan30/Qoresence/releases/latest"><span>01</span>Download</a>
-          <a class="stream-key stream-key-clip" href="./index.html"><span>02</span>Home</a>
-        </div>
       </div>
-      <div class="command-status">
-        <div class="status-line">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span>PLL open · couple none</span>
-          <span class="lockbug">□–□ · — &amp; —</span>
-        </div>
-        <div class="status-meta">
-          <span>essay · Dark Theater</span>
-          <span>site · not a live session</span>
-        </div>
+      <div class="site-hold">
+        <span>essay · Dark Theater</span>
+        <span class="board-why">Board not licensed — this is a page</span>
       </div>
     </div>
   </header>
@@ -83,27 +69,18 @@
       <p>To show Dark Theater, Ghost Stick on the HDMI frame, and Foundry clips that carry the clock. Not to run a second brain in the cloud.</p>
     </article>
   </main>
-  <footer class="footer"><div class="wrap">Qoresence / observation plane / local-first<br>The capture card is the brain. Everything else is a glass.<br><a href="./index.html">Home</a> · <a href="./install.html">Install</a> · <a href="https://x.com/Qoresence">X</a> · <a href="https://github.com/ConWan30/Qoresence">Source</a></div></footer>
-  <script>
-    const menu = document.querySelector('[data-menu]');
-    const nav = document.querySelector('[data-nav]');
-    const clock = document.querySelector('[data-clock]');
-    const pad = (n) => String(n).padStart(2, '0');
-    const tick = () => {
-      if (!clock) return;
-      const d = new Date();
-      const t = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-      clock.textContent = t;
-      clock.setAttribute('datetime', t);
-    };
-    tick();
-    setInterval(tick, 1000);
-    if (menu && nav) {
-      menu.addEventListener('click', () => {
-        const open = nav.classList.toggle('open');
-        menu.setAttribute('aria-expanded', String(open));
-      });
-    }
-  </script>
+  <footer class="site-footer">
+    <div class="wrap footer-row">
+      <div>Qoresence / local-first observatory / observation plane only<br>The capture card is the brain. Everything else is a glass.</div>
+      <div>
+        <a href="./index.html">Home</a> ·
+        <a href="./watch.html">Watch</a> ·
+        <a href="./install.html">Install</a> ·
+        <a href="./limits.html">Limits</a> ·
+        <a href="https://github.com/ConWan30/Qoresence">Source</a>
+      </div>
+    </div>
+  </footer>
+  <script src="./site.js" defer></script>
 </body>
 </html>
