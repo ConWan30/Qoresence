@@ -35,6 +35,7 @@ VLM_STATUSES = frozenset(
     {
         "ok",
         "ungrounded",
+        "http_400",
         "http_401",
         "http_402",
         "http_429",
@@ -120,6 +121,8 @@ def classify_vlm_status(
     """Classify a VLM outcome. Never includes response bodies."""
     if not has_key:
         return "no_key"
+    if http_status == 400:
+        return "http_400"
     if http_status == 401:
         return "http_401"
     if http_status == 402:
@@ -143,6 +146,8 @@ def vlm_status_to_board_why(status: Any) -> str:
     st = normalize_vlm_status(status)
     if st in {"http_401"}:
         return "vlm_auth"
+    if st in {"http_400"}:
+        return "vlm_none"
     if st in {"http_402", "http_429"}:
         return "vlm_quota"
     if st == "no_key":

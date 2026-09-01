@@ -457,7 +457,7 @@ class VisualConfig:
     enabled: bool = False
     # Cloud VLM via Quicksilver (same API + slug as ClutchBot chat).
     model_endpoint: str = "https://api.quicksilverpro.io/v1"
-    model_name: str = "deepseek-v4-flash"
+    model_name: str = "qwen3.7-flash"
     api_key: str | None = None
     frame_sample_rate: int = 30  # analyze every N frames
     max_frame_dim: int = 640

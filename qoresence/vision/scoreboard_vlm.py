@@ -2,7 +2,7 @@
 
 Classical EasyOCR misreads stylized CFB digits (20-0 → 20-20). When the
 ClutchBot Quicksilver key is present, we crop the scorebug / pause plate
-and ask deepseek-v4-flash for a strict JSON board read.
+and ask qwen3.7-flash for a strict JSON board read.
 
 Sparse + non-blocking: never call from the streamer grab thread.
 """
@@ -42,6 +42,8 @@ SCOREBOARD_MODEL = os.environ.get("QORESENCE_SCOREBOARD_VLM_MODEL", DEFAULT_VISI
 # - force on score/menu transitions from caller
 _GAMEPLAY_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_INTERVAL", "1.5"))
 _MENU_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_MENU_INTERVAL", "8.0"))
+# Terminal seeing-path HTTP — HOLD, do not urllib-retry, do not POST again this process.
+_HOLD_HTTP = frozenset({400, 401, 402, 429})
 # 26px 360p HUD strips look like tickers to the VLM. Upscale height only.
 _MIN_CROP_H = 96
 
@@ -51,6 +53,16 @@ TICKER_CUT_Y = 0.93
 # (x1, x2, y1, y2) fractions — CFB default; Madden overrides via primary_scorebug_crop.
 _SCOREBUG_FRAC = CFB_PRIMARY_SCOREBUG
 _PAUSE_FRAC = (0.22, 0.78, 0.12, 0.52)
+
+def _safe_http_body(text: str, *, limit: int = 400) -> str:
+    """Log a provider body without keys, bearer tokens, or JPEG payloads."""
+    raw = " ".join(str(text or "").split())
+    raw = re.sub(r"(?i)bearer\s+[A-Za-z0-9._\-]+", "Bearer [redacted]", raw)
+    raw = re.sub(r"sk-[A-Za-z0-9_\-]+", "sk-[redacted]", raw)
+    raw = re.sub(r"(?i)(api[_-]?key[\"']?\s*[:=]\s*[\"']?)[^\"'\s]+", r"\1[redacted]", raw)
+    raw = re.sub(r"data:image/[^;]+;base64,[A-Za-z0-9+/=]+", "data:image/[redacted]", raw)
+    return raw[:limit]
+
 
 _PROMPT = """You are a football scoreboard identity engine for EA College Football 27 or Madden NFL 27.
 Look at THIS match's primary in-game scorebug or pause score plate only.
@@ -118,6 +130,7 @@ class ScoreboardVlmReferee:
         self._last_result_ts: float = 0.0
         self._calls = 0
         self._last_crop_wh: tuple[int, int] | None = None
+        self._held = False
 
     def stats(self) -> dict[str, Any]:
         raw = self._last_raw or ""
@@ -133,6 +146,7 @@ class ScoreboardVlmReferee:
             "last_raw_preview": raw[:200].replace("\n", " ") if raw else "",
             "last_crop_wh": list(self._last_crop_wh) if self._last_crop_wh else None,
             "calls": self._calls,
+            "held": self._held,
             "gameplay_interval_s": _GAMEPLAY_INTERVAL_S,
             "menu_interval_s": _MENU_INTERVAL_S,
         }
@@ -140,6 +154,14 @@ class ScoreboardVlmReferee:
     def get_last(self) -> dict[str, Any] | None:
         with self._lock:
             return dict(self._last) if self._last else None
+
+    def is_held(self) -> bool:
+        """True after a terminal HTTP HOLD. Observation only — no bus emit."""
+        lock = getattr(self, "_lock", None)
+        if lock is None:
+            return bool(getattr(self, "_held", False))
+        with lock:
+            return bool(getattr(self, "_held", False))
 
     def vlm_status(self) -> str:
         """Classify the last VLM outcome. Observation only — no bus emit, no bodies."""
@@ -160,18 +182,26 @@ class ScoreboardVlmReferee:
             grounded=grounded,
         )
 
-    def _hold_on_http(self, code: int) -> None:
-        """Fail-closed on auth/quota — clear last so we never mint a last-good board."""
+    def _hold_on_http(self, code: int, body: str = "") -> None:
+        """Fail-closed on bad request / auth / quota. Never emit. Never mint last-good."""
         with self._lock:
+            self._held = True
             self._last_http_status = int(code)
             self._last = None
             self._last_result_ts = 0.0
-        if code == 402:
+        if code == 400:
+            log.warning(
+                "scoreboard VLM HTTP 400 — HOLD seeing-path (bad request) body=%s",
+                _safe_http_body(body),
+            )
+        elif code == 402:
             log.warning("scoreboard VLM HTTP 402 — HOLD seeing-path (no credit)")
         elif code == 429:
             log.warning("scoreboard VLM HTTP 429 — HOLD seeing-path (quota)")
         elif code == 401:
             log.warning("scoreboard VLM HTTP 401 — HOLD seeing-path (auth)")
+        else:
+            log.warning("scoreboard VLM HTTP %s — HOLD seeing-path", code)
 
     def schedule(
         self,
@@ -191,6 +221,8 @@ class ScoreboardVlmReferee:
           - menu/hub → ~8s
         """
         if not self.enabled or frame is None or getattr(frame, "size", 0) == 0:
+            return
+        if self.is_held():
             return
         try:
             from qoresence.graphs.look_gate import permit_confirm_look
@@ -394,16 +426,23 @@ class ScoreboardVlmReferee:
 
             r = requests.post(url, headers=headers, json=body, timeout=14)
             log.info("scoreboard VLM HTTP %d", r.status_code)
-            if r.status_code in {401, 402, 429}:
-                self._hold_on_http(r.status_code)
+            if r.status_code in _HOLD_HTTP:
+                err_body = ""
+                if r.status_code == 400:
+                    try:
+                        err_body = r.text
+                    except Exception:
+                        err_body = ""
+                self._hold_on_http(r.status_code, body=err_body)
                 return None
             with self._lock:
                 self._last_http_status = r.status_code
             if r.status_code != 200:
-                raise RuntimeError(f"HTTP {r.status_code}")
+                # Known HTTP from requests — do not urllib-retry (that was the storm).
+                return None
             data = r.json()
         except Exception as e:
-            # stdlib fallback
+            # stdlib fallback only when requests is missing or the socket failed
             import urllib.error
             import urllib.request
 
@@ -417,7 +456,7 @@ class ScoreboardVlmReferee:
                 with urllib.request.urlopen(req, timeout=14) as resp:
                     code = resp.getcode()
                     log.info("scoreboard VLM HTTP %d", code)
-                    if code in {401, 402, 429}:
+                    if code in _HOLD_HTTP:
                         self._hold_on_http(code)
                         return None
                     with self._lock:
@@ -426,8 +465,14 @@ class ScoreboardVlmReferee:
                 data = json.loads(raw)
             except urllib.error.HTTPError as http_err:
                 log.info("scoreboard VLM HTTP %d (error)", http_err.code)
-                if http_err.code in {401, 402, 429}:
-                    self._hold_on_http(http_err.code)
+                err_body = ""
+                if http_err.code == 400:
+                    try:
+                        err_body = http_err.read().decode("utf-8", errors="replace")
+                    except Exception:
+                        err_body = ""
+                if http_err.code in _HOLD_HTTP:
+                    self._hold_on_http(http_err.code, body=err_body)
                     return None
                 with self._lock:
                     self._last_http_status = http_err.code
