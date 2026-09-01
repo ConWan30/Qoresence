@@ -3,9 +3,9 @@ Qoresence Visual Lobe
 
 VLM integration for game-state classification and cross-modal verification.
 
-Cloud path: DeepSeek vision (default deepseek-v4-flash-vision-exp).
+Cloud path: Quicksilver vision (default gemini-3.5-flash-lite).
 That is the confirm-path referee: board + scene. LocalVLM only when
-prefer_local=True or no DeepSeek key is present.
+prefer_local=True or no Quicksilver key is present.
 """
 
 from __future__ import annotations
@@ -67,24 +67,26 @@ class VLMClient:
         self.endpoint = config.model_endpoint.rstrip("/")
         self.model_name = config.model_name
         self.api_key = config.api_key
-        # Resolve DeepSeek key if not set on config
+        # Resolve Quicksilver key if not set on config (same clutchbot file as chat)
         if not self.api_key:
             try:
                 import pathlib
 
-                from qoresence.agents.llm_client import _resolve_api_key
+                from qoresence.agents.llm_client import _resolve_api_key, default_quicksilver_key_file
 
-                key_file = None
-                for p in (
-                    ".secrets/deepseek.key",
-                    ".secrets/quicksilver_clutchbot.key",
-                    ".secrets/quicksilver_vlm.key",
-                ):
-                    if pathlib.Path(p).exists():
-                        key_file = p
-                        break
+                key_file = default_quicksilver_key_file()
+                if not key_file:
+                    for p in (
+                        ".secrets/quicksilver_clutchbot.key",
+                        ".secrets/quicksilver_vlm.key",
+                    ):
+                        if pathlib.Path(p).exists():
+                            key_file = p
+                            break
                 self.api_key = _resolve_api_key(
-                    os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("QORESENCE_DEEPSEEK_API_KEY"),
+                    os.environ.get("QORESENCE_CLUTCHBOT_LLM_API_KEY")
+                    or os.environ.get("QORESENCE_VISUAL_API_KEY")
+                    or os.environ.get("QUICKSILVER_API_KEY"),
                     key_file,
                 )
             except Exception:
@@ -387,8 +389,8 @@ class VisualRuntime:
         self._frame_provider = frame_provider
         self._modality_provider = modality_provider
 
-        # DeepSeek is the vision/confirm client. Local ONNX only if asked, or if
-        # there is no DeepSeek key (offline play still has to start).
+        # Quicksilver is the vision/confirm client. Local ONNX only if asked, or if
+        # there is no Quicksilver key (offline play still has to start).
         self._client_kind = "cloud:deepseek"
         _prefer = bool(getattr(config, "prefer_local", False))
         _local_path = getattr(config, "local_model_path", None)
@@ -408,7 +410,7 @@ class VisualRuntime:
                     self._client_kind = (
                         "local:onnx" if _local.is_available() else "local:heuristic"
                     )
-                    why = "prefer_local" if _prefer else "no DeepSeek key"
+                    why = "prefer_local" if _prefer else "no Quicksilver key"
                     log.info(
                         "VisualRuntime using %s (%s, path=%s)",
                         self._client_kind,
@@ -427,7 +429,7 @@ class VisualRuntime:
             self._client_kind = "cloud:deepseek"
             log.info(
                 "VisualRuntime using DeepSeek confirm (%s)",
-                getattr(config, "model_name", "deepseek-v4-flash-vision-exp"),
+                getattr(config, "model_name", "gemini-3.5-flash-lite"),
             )
 
         # Prompts
@@ -655,8 +657,12 @@ class VisualRuntime:
         try:
             from qoresence.vision.picture_hid_ticket import try_mint_picture_hid_from_context
 
-            model = str(getattr(self.config, "model_name", "") or "deepseek-v4-flash-vision-exp")
-            source = "deepseek"
+            model = str(getattr(self.config, "model_name", "") or "gemini-3.5-flash-lite")
+            from qoresence.vision.scoreboard_vlm import infer_vlm_source
+
+            source = infer_vlm_source(
+                model, str(getattr(self.config, "model_endpoint", "") or "")
+            )
             try_mint_picture_hid_from_context(
                 context,
                 frame_seq=frame_seq,

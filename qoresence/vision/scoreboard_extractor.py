@@ -547,13 +547,18 @@ class FootballScoreboardExtractor:
             try:
                 from qoresence.monitor.frame_hub import get_latest_stamp
                 from qoresence.vision.picture_hid_ticket import try_mint_picture_hid_from_context
-                from qoresence.vision.scoreboard_vlm import SCOREBOARD_MODEL
+                from qoresence.vision.scoreboard_vlm import (
+                    SCOREBOARD_MODEL,
+                    infer_vlm_source,
+                )
 
                 stamp = get_latest_stamp() or {}
                 try:
                     _gst = getattr(ctx.game_state, "value", None) or str(ctx.game_state or "")
                 except Exception:
                     _gst = ""
+                _vlm_ref = get_scoreboard_vlm()
+                _hid_model = str(getattr(_vlm_ref, "model", "") or SCOREBOARD_MODEL)
                 try_mint_picture_hid_from_context(
                     {
                         "game_state": _gst,
@@ -562,8 +567,10 @@ class FootballScoreboardExtractor:
                     },
                     frame_seq=stamp.get("seq"),
                     clock_ns=int(stamp.get("clock_ns") or 0),
-                    source="deepseek",
-                    model=SCOREBOARD_MODEL,
+                    source=infer_vlm_source(
+                        _hid_model, str(getattr(_vlm_ref, "base_url", "") or "")
+                    ),
+                    model=_hid_model,
                 )
             except Exception:
                 pass
@@ -671,24 +678,25 @@ class FootballScoreboardExtractor:
                             return None
 
                     # Resolve model and source from VLM referee or context
+                    from qoresence.vision.scoreboard_vlm import (
+                        get_scoreboard_vlm,
+                        infer_vlm_source,
+                    )
+
                     vlm_model = None
-                    if vlm:
-                        try:
-                            from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
-                            vlm_model = get_scoreboard_vlm().model
-                        except Exception:
-                            pass
+                    vlm_base = ""
+                    try:
+                        _ref = get_scoreboard_vlm()
+                        vlm_model = _ref.model
+                        vlm_base = str(_ref.base_url or "")
+                    except Exception:
+                        pass
                     model_str = str(
                         vlm_model
                         or getattr(ctx, "model", "")
-                        or "deepseek-v4-flash-vision-exp"
+                        or "gemini-3.5-flash-lite"
                     )
-                    # Infer source from model string
-                    source_str = "deepseek"
-                    if "gemini" in model_str.lower():
-                        source_str = "gemini"
-                    elif "quicksilver" in model_str.lower():
-                        source_str = "quicksilver"
+                    source_str = infer_vlm_source(model_str, vlm_base)
 
                     # Apply team identity early so home_team/away_team are available for ticket
                     try:

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from qoresence.agents.llm_client import DEFAULT_BASE_URL, DEFAULT_VISION_MODEL, LLMConfig
 from qoresence.vision.scoreboard_extractor import FootballScoreboardExtractor, _Token
-from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee
+from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee, infer_vlm_source
 
 
 def test_vlm_parse_json_20_0():
@@ -162,3 +163,137 @@ def test_situation_model_maps_cfb_title_to_cfb_profile():
     # The published state should have cfb_27, not madden_27
     assert model.state.game_profile == "cfb_27", "CFB title must map to cfb_27 profile"
     assert model.state.game_title == "EA SPORTS College Football 27"
+
+
+def test_vlm_defaults_quicksilver_vision(monkeypatch):
+    """Default confirm VLM is Quicksilver vision — not DeepSeek 402 URL or text-only flash."""
+    monkeypatch.delenv("QORESENCE_SCOREBOARD_VLM_MODEL", raising=False)
+    monkeypatch.delenv("QORESENCE_SCOREBOARD_VLM_BASE_URL", raising=False)
+    monkeypatch.delenv("QORESENCE_CLUTCHBOT_LLM_BASE_URL", raising=False)
+    cfg = LLMConfig.from_scoreboard_vlm()
+    assert cfg.provider == "quicksilver"
+    assert cfg.base_url.rstrip("/") == DEFAULT_BASE_URL.rstrip("/")
+    assert "quicksilverpro.io" in cfg.base_url
+    assert cfg.model == DEFAULT_VISION_MODEL
+    assert cfg.model != "deepseek-v4-flash"
+    assert cfg.model != "deepseek-v4-flash-vision-exp"
+    ref = ScoreboardVlmReferee()
+    assert ref.model == DEFAULT_VISION_MODEL
+    assert ref.base_url.rstrip("/") == DEFAULT_BASE_URL.rstrip("/")
+    assert "api.deepseek.com" not in ref.base_url
+
+
+def test_vlm_model_flag_override(monkeypatch):
+    monkeypatch.setenv("QORESENCE_SCOREBOARD_VLM_MODEL", "gemini-3.6-flash")
+    cfg = LLMConfig.from_scoreboard_vlm()
+    assert cfg.model == "gemini-3.6-flash"
+    ref = ScoreboardVlmReferee()
+    assert ref.model == "gemini-3.6-flash"
+    assert ref.base_url.rstrip("/") == DEFAULT_BASE_URL.rstrip("/")
+
+
+def test_vlm_missing_key_fail_closed(monkeypatch, tmp_path):
+    """No clutchbot / Quicksilver key → VLM disabled, no invented board."""
+    monkeypatch.chdir(tmp_path)
+    for k in (
+        "QORESENCE_SCOREBOARD_VLM_API_KEY",
+        "QORESENCE_CLUTCHBOT_LLM_API_KEY",
+        "QORESENCE_CLUTCHBOT_LLM_API_KEY_FILE",
+        "QORESENCE_SCOREBOARD_VLM_KEY_FILE",
+        "QUICKSILVER_API_KEY",
+        "QUICKSILVERPRO_API_KEY",
+        "QUICKSILVER_API_KEY_FILE",
+        "DEEPSEEK_API_KEY",
+        "OPENAI_API_KEY",
+        "QORESENCE_DEEPSEEK_API_KEY",
+        "QORESENCE_VISUAL_API_KEY",
+    ):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("QORESENCE_SCOREBOARD_VLM", "1")
+    ref = ScoreboardVlmReferee()
+    assert ref.enabled is False
+    assert ref.get_last() is None
+    assert ref._api_key is None
+
+
+def test_http_401_fail_closed():
+    """HTTP 401 → HOLD seeing-path, no last-good board."""
+    import urllib.error
+    from unittest.mock import patch
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+
+    with patch("requests.post") as mock_requests:
+        mock_requests.side_effect = Exception("requests unavailable")
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_urlopen.side_effect = urllib.error.HTTPError(
+                url="http://test.com",
+                code=401,
+                msg="Unauthorized",
+                hdrs={},
+                fp=None,
+            )
+            import numpy as np
+
+            result = ref._call_vlm(np.zeros((96, 200, 3), dtype=np.uint8))
+            assert result is None
+            assert ref.get_last() is None
+            assert ref._last_http_status == 401
+
+
+def test_call_vlm_posts_to_quicksilver_base_url(monkeypatch):
+    """Referee POST goes to ClutchBot's Quicksilver /v1, with a vision slug + JPEG."""
+    from unittest.mock import patch
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    ref.base_url = DEFAULT_BASE_URL.rstrip("/")
+    ref.model = DEFAULT_VISION_MODEL
+    captured: dict = {}
+
+    class _Resp:
+        status_code = 200
+
+        def json(self):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                '{"home_score": 7, "away_score": 0, '
+                                '"paused": false, "quarter": 1}'
+                            )
+                        },
+                        "finish_reason": "stop",
+                    }
+                ]
+            }
+
+    def _post(url, headers=None, json=None, timeout=None):
+        captured["url"] = url
+        captured["json"] = json
+        return _Resp()
+
+    with patch("requests.post", side_effect=_post):
+        import numpy as np
+
+        out = ref._call_vlm(np.zeros((96, 200, 3), dtype=np.uint8))
+    assert captured["url"] == f"{DEFAULT_BASE_URL.rstrip('/')}/chat/completions"
+    assert "quicksilverpro.io" in captured["url"]
+    assert "api.deepseek.com" not in captured["url"]
+    assert captured["json"]["model"] == DEFAULT_VISION_MODEL
+    assert captured["json"]["model"] != "deepseek-v4-flash"
+    content = captured["json"]["messages"][0]["content"]
+    assert any(p.get("type") == "image_url" for p in content)
+    assert out is not None
+    assert out["home_score"] == 7
+    assert out["away_score"] == 0
+
+
+def test_infer_vlm_source_gemini_on_quicksilver():
+    assert infer_vlm_source("gemini-3.5-flash-lite", DEFAULT_BASE_URL) == "gemini"
+    assert infer_vlm_source("deepseek-v4-flash", DEFAULT_BASE_URL) == "quicksilver"
+    assert infer_vlm_source("deepseek-v4-flash-vision-exp", "https://api.deepseek.com") == "deepseek"

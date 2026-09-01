@@ -1,8 +1,9 @@
-"""Gaming scoreboard referee via DeepSeek vision.
+"""Gaming scoreboard referee via Quicksilver vision (same API as ClutchBot).
 
-Classical EasyOCR misreads stylized CFB digits (20-0 → 20-20). When a
-DeepSeek key is present, we crop the scorebug / pause plate and ask
-deepseek-v4-flash-vision-exp for a strict JSON board read.
+Classical EasyOCR misreads stylized CFB digits (20-0 → 20-20). When the
+ClutchBot Quicksilver key is present, we crop the scorebug / pause plate
+and ask a Quicksilver *vision* slug (not text-only deepseek-v4-flash) for
+a strict JSON board read.
 
 Sparse + non-blocking: never call from the streamer grab thread.
 """
@@ -21,7 +22,12 @@ from typing import Any
 import cv2
 import numpy as np
 
-from qoresence.agents.llm_client import DEFAULT_BASE_URL, _resolve_api_key
+from qoresence.agents.llm_client import (
+    DEFAULT_BASE_URL,
+    DEFAULT_VISION_MODEL,
+    LLMConfig,
+    _resolve_api_key,
+)
 from qoresence.vision.scorebug_crops import (
     CFB_PRIMARY_SCOREBUG,
     is_madden_profile,
@@ -30,7 +36,7 @@ from qoresence.vision.scorebug_crops import (
 
 log = logging.getLogger(__name__)
 
-SCOREBOARD_MODEL = os.environ.get("QORESENCE_SCOREBOARD_VLM_MODEL", "deepseek-v4-flash-vision-exp")
+SCOREBOARD_MODEL = os.environ.get("QORESENCE_SCOREBOARD_VLM_MODEL", DEFAULT_VISION_MODEL)
 # Smarter DeepSeek cadence (not every frame):
 # - gameplay: ~1.5–2 Hz board (default 0.6s min is too hot; use 1.5s)
 # - menu/hub: sparse
@@ -76,29 +82,31 @@ Rules:
 """
 
 
+def infer_vlm_source(model: str | None = None, base_url: str | None = None) -> str:
+    """Map model / endpoint to a seeing-path ConfirmTicket source."""
+    m = str(model or "").lower()
+    b = str(base_url or "").lower()
+    if "gemini" in m:
+        return "gemini"
+    if "quicksilver" in m or "quicksilverpro" in b:
+        return "quicksilver"
+    if "deepseek" in m or "deepseek.com" in b:
+        return "deepseek"
+    return "quicksilver"
+
+
 class ScoreboardVlmReferee:
-    """Sparse DeepSeek scoreboard reads → last JSON result."""
+    """Sparse Quicksilver scoreboard reads → last JSON result."""
 
     def __init__(self) -> None:
         env = os.environ.get("QORESENCE_SCOREBOARD_VLM", "1").strip().lower()
         self.enabled = env in {"1", "true", "yes", "on"}
-        self.model = SCOREBOARD_MODEL
-        self.base_url = (
-            os.environ.get("DEEPSEEK_BASE_URL")
-            or os.environ.get("QORESENCE_DEEPSEEK_BASE_URL")
-            or "https://api.deepseek.com"
-        ).rstrip("/")
-        key_file = os.environ.get("DEEPSEEK_API_KEY_FILE") or (
-            ".secrets/deepseek.key"
-            if __import__("pathlib").Path(".secrets/deepseek.key").exists()
-            else None
-        )
-        self._api_key = _resolve_api_key(
-            os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("QORESENCE_DEEPSEEK_API_KEY"),
-            key_file,
-        )
+        cfg = LLMConfig.from_scoreboard_vlm()
+        self.model = os.environ.get("QORESENCE_SCOREBOARD_VLM_MODEL") or cfg.model
+        self.base_url = str(cfg.base_url or DEFAULT_BASE_URL).rstrip("/")
+        self._api_key = _resolve_api_key(cfg.api_key, cfg.api_key_file)
         if self.enabled and not self._api_key:
-            log.info("Scoreboard VLM disabled — no DeepSeek API key")
+            log.info("Scoreboard VLM disabled — no Quicksilver API key")
             self.enabled = False
         self._lock = threading.Lock()
         self._inflight = False
@@ -117,6 +125,7 @@ class ScoreboardVlmReferee:
         return {
             "enabled": self.enabled,
             "model": self.model,
+            "base_url": self.base_url,
             "has_result": self._last is not None,
             "last": self._last,
             "last_reason": self._last_reason,
@@ -363,10 +372,6 @@ class ScoreboardVlmReferee:
             "model": self.model,
             "temperature": 0.0,
             "max_tokens": 400,
-            # V4-flash-vision thinking is ON by default and eats the token budget
-            # (HTTP 200, finish=length, empty content). JSON lives in content only
-            # when thinking is disabled.
-            "thinking": {"type": "disabled"},
             "response_format": {"type": "json_object"},
             "messages": [
                 {
@@ -381,6 +386,10 @@ class ScoreboardVlmReferee:
                 }
             ],
         }
+        # DeepSeek-v4-vision thinking is ON by default and can empty content.
+        # Gemini Flash-Lite on Quicksilver has no thinking by default — omit.
+        if "deepseek" in str(self.model).lower() and "vision" in str(self.model).lower():
+            body["thinking"] = {"type": "disabled"}
         # Prefer requests (urllib got 403 on Quicksilver vision for some envs)
         try:
             import requests

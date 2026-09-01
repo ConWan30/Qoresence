@@ -29,8 +29,14 @@ except ImportError:
 
 DEFAULT_BASE_URL = "https://api.quicksilverpro.io/v1"
 DEFAULT_MODEL = "deepseek-v4-flash"
+# Quicksilver vision slug for JPEG→JSON. deepseek-v4-flash is text-only on QSP.
+# Catalog (2026-09): multimodal default gemini-3.6-flash; high-volume extraction
+# gemini-3.5-flash-lite. Scorebug is high-volume JSON — use flash-lite.
+DEFAULT_VISION_MODEL = "gemini-3.5-flash-lite"
 FALLBACK_MODEL = "gpt-4o-mini"
 CLUTCHBOT_KEY_FILE = ".secrets/quicksilver_clutchbot.key"
+# Already-documented optional vision key. Do not invent a new filename.
+VLM_KEY_FILE = ".secrets/quicksilver_vlm.key"
 
 
 def default_quicksilver_key_file() -> str | None:
@@ -116,6 +122,47 @@ class LLMConfig:
             api_key_file=key_file,
             timeout_s=8.0,
             max_tokens=180,
+        )
+
+    @classmethod
+    def from_scoreboard_vlm(cls) -> LLMConfig:
+        """Confirm-path VLM: same Quicksilver API + clutchbot key as ClutchBot.
+
+        Model is a Quicksilver *vision* slug (image+JSON), never the text-only
+        ClutchBot chat slug. Key file is clutchbot first; existing
+        ``quicksilver_vlm.key`` is a fallback only.
+        """
+        import os
+
+        model = os.environ.get("QORESENCE_SCOREBOARD_VLM_MODEL") or DEFAULT_VISION_MODEL
+        base = (
+            os.environ.get("QORESENCE_SCOREBOARD_VLM_BASE_URL")
+            or os.environ.get("QORESENCE_CLUTCHBOT_LLM_BASE_URL")
+            or DEFAULT_BASE_URL
+        )
+        key_file = (
+            os.environ.get("QORESENCE_SCOREBOARD_VLM_KEY_FILE")
+            or os.environ.get("QORESENCE_CLUTCHBOT_LLM_API_KEY_FILE")
+            or os.environ.get("QUICKSILVER_API_KEY_FILE")
+            or default_quicksilver_key_file()
+        )
+        if not key_file:
+            vlm_key = pathlib.Path(VLM_KEY_FILE)
+            if vlm_key.exists():
+                key_file = str(vlm_key)
+        return cls(
+            enabled=True,
+            provider="quicksilver",
+            model=str(model or DEFAULT_VISION_MODEL),
+            base_url=str(base or DEFAULT_BASE_URL),
+            api_key=(
+                os.environ.get("QORESENCE_SCOREBOARD_VLM_API_KEY")
+                or os.environ.get("QORESENCE_CLUTCHBOT_LLM_API_KEY")
+                or None
+            ),
+            api_key_file=key_file,
+            timeout_s=14.0,
+            max_tokens=400,
         )
 
 

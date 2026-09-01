@@ -20,6 +20,7 @@ def test_mint_is_deterministic_for_same_board():
         home_score=21,
         away_score=14,
         model="deepseek-v4-flash-vision-exp",
+        source="deepseek",
         frame_seq=9,
         crop_hash="abc",
     )
@@ -29,6 +30,7 @@ def test_mint_is_deterministic_for_same_board():
         home_score=21,
         away_score=14,
         model="deepseek-v4-flash-vision-exp",
+        source="deepseek",
         frame_seq=9,
         crop_hash="abc",
     )
