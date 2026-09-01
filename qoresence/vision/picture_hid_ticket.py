@@ -119,7 +119,7 @@ class PictureHidTicket:
     frame_seq: int
     hid_button: str
     source: str = "deepseek"
-    model: str = "gemini-3.5-flash-lite"
+    model: str = "deepseek-v4-flash"
     prompt_text: str | None = None
     visual_phase: str | None = None
     game_profile: str | None = None
@@ -138,7 +138,7 @@ def mint_picture_hid_ticket(
     frame_seq: int,
     hid_button: str | None,
     source: str = "deepseek",
-    model: str = "gemini-3.5-flash-lite",
+    model: str = "deepseek-v4-flash",
     prompt_text: str | None = None,
     visual_phase: str | None = None,
     game_profile: str | None = None,
@@ -176,7 +176,7 @@ def mint_picture_hid_ticket(
         "frame_seq": seq,
         "hid_button": button,
         "source": normalized_source,
-        "model": str(model or "gemini-3.5-flash-lite"),
+        "model": str(model or "deepseek-v4-flash"),
         "prompt_text": (str(prompt_text).strip() or None) if prompt_text else None,
         "visual_phase": (str(visual_phase).strip() or None) if visual_phase else None,
         "game_profile": (str(game_profile).strip() or None) if game_profile else None,
@@ -244,7 +244,7 @@ def try_mint_picture_hid_from_context(
     frame_seq: int | None,
     clock_ns: int,
     source: str = "deepseek",
-    model: str = "gemini-3.5-flash-lite",
+    model: str = "deepseek-v4-flash",
     session_id: str = "",
 ) -> PictureHidTicket | None:
     """Mint+store from VisualContext visible_control. None if unlabeled."""

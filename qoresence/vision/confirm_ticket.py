@@ -61,8 +61,8 @@ class ConfirmTicket:
     clock_ns: int
     home_score: int | None
     away_score: int | None
-    model: str = "gemini-3.5-flash-lite"
-    source: str = "gemini"
+    model: str = "deepseek-v4-flash"
+    source: str = "quicksilver"
     frame_seq: int | None = None
     crop_hash: str = ""
     quarter: int | None = None
@@ -139,8 +139,8 @@ def mint_confirm_ticket(
     clock_ns: int,
     home_score: int | None,
     away_score: int | None,
-    model: str = "gemini-3.5-flash-lite",
-    source: str = "gemini",
+    model: str = "deepseek-v4-flash",
+    source: str = "quicksilver",
     frame_seq: int | None = None,
     crop_hash: str = "",
     quarter: int | None = None,
@@ -198,7 +198,7 @@ def mint_confirm_ticket(
             clock_ns=int(clock_ns or 0),
             home_score=hs,
             away_score=aws,
-            model=str(model or "gemini-3.5-flash-lite"),
+            model=str(model or "deepseek-v4-flash"),
             source=normalized_source,
             frame_seq=_norm_int(frame_seq),
             crop_hash=str(crop_hash or ""),
@@ -214,7 +214,7 @@ def mint_confirm_ticket(
         "clock_ns": int(clock_ns or 0),
         "home_score": hs,
         "away_score": aws,
-        "model": str(model or "gemini-3.5-flash-lite"),
+        "model": str(model or "deepseek-v4-flash"),
         "source": normalized_source,
         "frame_seq": _norm_int(frame_seq),
         "crop_hash": str(crop_hash or ""),

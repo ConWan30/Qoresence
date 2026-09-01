@@ -386,6 +386,8 @@ class TestLobeConfigs:
     def test_visual_config_defaults(self):
         cfg = VisualConfig()
         assert cfg.enabled is False
+        assert cfg.model_name == "deepseek-v4-flash"
+        assert "quicksilverpro.io" in cfg.model_endpoint
         assert cfg.frame_sample_rate == 30
         assert cfg.game_category == "football"
 

@@ -694,7 +694,7 @@ class FootballScoreboardExtractor:
                     model_str = str(
                         vlm_model
                         or getattr(ctx, "model", "")
-                        or "gemini-3.5-flash-lite"
+                        or "deepseek-v4-flash"
                     )
                     source_str = infer_vlm_source(model_str, vlm_base)
 

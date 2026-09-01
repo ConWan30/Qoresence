@@ -29,10 +29,10 @@ except ImportError:
 
 DEFAULT_BASE_URL = "https://api.quicksilverpro.io/v1"
 DEFAULT_MODEL = "deepseek-v4-flash"
-# Quicksilver vision slug for JPEG→JSON. deepseek-v4-flash is text-only on QSP.
-# Catalog (2026-09): multimodal default gemini-3.6-flash; high-volume extraction
-# gemini-3.5-flash-lite. Scorebug is high-volume JSON — use flash-lite.
-DEFAULT_VISION_MODEL = "gemini-3.5-flash-lite"
+# Confirm-path VLM: same ClutchBot slug on Quicksilver (JPEG crop → JSON).
+# Operator pin: do not default to Gemini. Stay on api.quicksilverpro.io
+# (api.deepseek.com / deepseek-v4-flash-vision-exp 402'd live).
+DEFAULT_VISION_MODEL = "deepseek-v4-flash"
 FALLBACK_MODEL = "gpt-4o-mini"
 CLUTCHBOT_KEY_FILE = ".secrets/quicksilver_clutchbot.key"
 # Already-documented optional vision key. Do not invent a new filename.
@@ -128,8 +128,8 @@ class LLMConfig:
     def from_scoreboard_vlm(cls) -> LLMConfig:
         """Confirm-path VLM: same Quicksilver API + clutchbot key as ClutchBot.
 
-        Model is a Quicksilver *vision* slug (image+JSON), never the text-only
-        ClutchBot chat slug. Key file is clutchbot first; existing
+        Model default is the ClutchBot chat slug (deepseek-v4-flash) with JPEG
+        in / JSON out. Key file is clutchbot first; existing
         ``quicksilver_vlm.key`` is a fallback only.
         """
         import os

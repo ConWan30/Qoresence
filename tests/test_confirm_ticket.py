@@ -40,6 +40,13 @@ def test_mint_is_deterministic_for_same_board():
     assert a.source == "deepseek"
 
 
+def test_mint_defaults_to_deepseek_v4_flash_on_quicksilver():
+    t = mint_confirm_ticket(session_id="s", clock_ns=1, home_score=7, away_score=0)
+    assert t.model == "deepseek-v4-flash"
+    assert t.model != "gemini-3.5-flash-lite"
+    assert t.source == "quicksilver"
+
+
 def test_different_scores_make_different_tickets():
     a = mint_confirm_ticket(session_id="s", clock_ns=1, home_score=21, away_score=14)
     b = mint_confirm_ticket(session_id="s", clock_ns=1, home_score=21, away_score=17)

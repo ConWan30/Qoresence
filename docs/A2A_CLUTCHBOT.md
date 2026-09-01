@@ -3,7 +3,7 @@
 Optional **agent-to-agent** bus that enhances ClutchBot chat under **local policy**.
 
 Does **not** replace LocalVLM, scoreboard OCR/VLM referee, fast path, or DriveGraph.  
-**OCR + scoreboard Gemini referee** remain the score source of truth.
+**OCR + scoreboard VLM referee** remain the score source of truth.
 
 ---
 
@@ -15,7 +15,7 @@ Does **not** replace LocalVLM, scoreboard OCR/VLM referee, fast path, or DriveGr
 | **Chat / reason** (A2A DeepSeek slot) | Rewrite → Deck / clutch feed line | `nemotron-3.5-lightning` | same |
 | **Policy** (local) | Veto invented scores; cooldown; near-dupe | — | in-process |
 
-**Scoreboard VLM** (separate referee via Quicksilver vision, same API + clutchbot key as ClutchBot) uses `gemini-3.5-flash-lite` at `https://api.quicksilverpro.io/v1`. JPEG crop in, JSON scorebug out. Not the text-only `deepseek-v4-flash` chat slug. Runs at ~1.5s on gameplay (not 60 fps), faster on score/menu transitions. See `qoresence/vision/scoreboard_vlm.py`.
+**Scoreboard VLM** (separate referee via the same Quicksilver API + clutchbot key as ClutchBot) uses `deepseek-v4-flash` at `https://api.quicksilverpro.io/v1`. JPEG crop in, JSON scorebug out. Not Gemini. Not `api.deepseek.com` / `deepseek-v4-flash-vision-exp` (402). Runs at ~1.5s on gameplay (not 60 fps), faster on score/menu transitions. See `qoresence/vision/scoreboard_vlm.py`.
 
 ---
 

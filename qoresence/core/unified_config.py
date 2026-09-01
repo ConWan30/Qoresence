@@ -455,9 +455,9 @@ class VisualConfig:
     """Visual lobe (VLM) configuration."""
 
     enabled: bool = False
-    # Cloud VLM via Quicksilver (same API as ClutchBot). Vision slug, not text-only flash.
+    # Cloud VLM via Quicksilver (same API + slug as ClutchBot chat).
     model_endpoint: str = "https://api.quicksilverpro.io/v1"
-    model_name: str = "gemini-3.5-flash-lite"
+    model_name: str = "deepseek-v4-flash"
     api_key: str | None = None
     frame_sample_rate: int = 30  # analyze every N frames
     max_frame_dim: int = 640
