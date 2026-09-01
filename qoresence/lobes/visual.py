@@ -72,7 +72,10 @@ class VLMClient:
             try:
                 import pathlib
 
-                from qoresence.agents.llm_client import _resolve_api_key, default_quicksilver_key_file
+                from qoresence.agents.llm_client import (
+                    _resolve_api_key,
+                    default_quicksilver_key_file,
+                )
 
                 key_file = default_quicksilver_key_file()
                 if not key_file:
