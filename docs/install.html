@@ -6,11 +6,9 @@
   <meta name="theme-color" content="#05060a">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <meta name="description" content="Install Qoresence on Windows and connect a capture card when you are ready for a live session.">
-  <title>Install Qoresence — Windows starter package</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta name="description" content="Install Qoresence on Windows. Local venv. No account. Capture card required only when you want live frames.">
+  <title>Install — Qoresence</title>
+  <link rel="canonical" href="https://conwan30.github.io/Qoresence/install.html">
   <link rel="stylesheet" href="./aperture.css">
 </head>
 <body>
@@ -20,72 +18,146 @@
       <div class="command-row">
         <a class="wordmark" href="./index.html">
           <span class="holo-mark" aria-hidden="true">Q</span>
-          <span><b>Retina Deck</b><small>local switcher</small></span>
+          <span><b>Qoresence</b><small>pages · hold</small></span>
         </a>
-        <div class="holo-tally holo-tally-standby" data-tally="standby"><span class="holo-tally-lamp" aria-hidden="true"></span>Standby</div>
-        <span class="pgm-chip">PGM site</span>
-        <time class="bcast-clock" data-clock datetime="">--:--:--</time>
-        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="install-nav">MENU</button>
-        <nav id="install-nav" class="glass-nav" data-nav aria-label="Install navigation">
-          <a href="./index.html#glasses">Glasses</a>
-          <a href="./index.html#proof">Pilot gates</a>
-          <a href="./index.html#privacy">Limits</a>
+        <div class="holo-tally holo-tally-hold"><span class="holo-tally-lamp" aria-hidden="true"></span>Site · Hold</div>
+        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="install-nav">Menu</button>
+        <nav id="install-nav" class="glass-nav" data-nav aria-label="Site">
           <a href="./index.html">Home</a>
+          <a href="./watch.html">Watch</a>
+          <a href="./install.html" aria-current="page">Install</a>
+          <a href="./limits.html">Limits</a>
         </nav>
-        <div class="mode-bar">
-          <a class="stream-key stream-key-live" href="https://github.com/ConWan30/Qoresence/releases/latest"><span>01</span>Download</a>
-          <a class="stream-key stream-key-clip" href="./index.html"><span>02</span>Home</a>
-        </div>
       </div>
-      <div class="command-status">
-        <div class="status-line">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span>PLL open · couple none</span>
-          <span class="lockbug">□–□ · — &amp; —</span>
-        </div>
-        <div class="status-meta">
-          <em>PAD unbound</em>
-          <span>HDMI wait</span>
-          <span>install · not a live session</span>
-        </div>
+      <div class="site-hold">
+        <span>this page is HOLD — not a live session</span>
+        <span class="board-why">Board not licensed — this is a page</span>
       </div>
     </div>
   </header>
+
   <main id="install-top">
-    <section class="wrap hero hero--single"><div class="eyebrow">Windows starter package / local-first</div><h1>From download<br>to <em>live plane.</em></h1><p class="lede">Qoresence ships as a transparent Windows package: source included, dependencies installed into a local virtual environment, and no cloud account required for the core pilot.</p><div class="hero-strip"><span class="tag">Windows 10 / 11</span><span class="tag">Python 3.11+</span><span class="tag">Capture card optional at setup</span></div></section>
-    <section class="section"><div class="wrap"><div class="kicker"><i></i> Choose your lane</div><h2>Choose your lane.</h2><p class="section-intro">The starter package is the fastest path for a Windows pilot. Developers can clone the repository instead. Both paths run the same code and the same health checks.</p><div class="choices"><article class="choice featured"><div class="label">Recommended / Windows</div><h3>Download the starter package</h3><p>A versioned ZIP with the Qoresence source, installer, launcher, pilot docs and MCP adapter. The installer creates <code>.venv</code> inside the package and keeps the environment local to it.</p><div class="actions"><a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Download Qoresence-Windows.zip</a><a class="button" href="https://github.com/ConWan30/Qoresence/releases">View releases</a></div></article><article class="choice"><div class="label">Developer / source</div><h3>Clone from GitHub</h3><p>Use this path when you want to contribute, inspect the architecture or run the full test suite.</p><div class="actions"><a class="button" href="https://github.com/ConWan30/Qoresence">Open repository</a></div></article></div></div></section>
-    <section class="section"><div class="wrap"><div class="kicker"><i></i> Three steps</div><h2>Three steps to ready.</h2><p class="section-intro">The installer is intentionally boring. It does not hide the Python environment or silently turn on cloud integrations.</p><div class="steps"><article class="step"><div class="number">STEP / 01</div><h3>Unzip</h3><p>Extract the package to a folder you own, for example <code>C:\Qoresence</code>. Avoid a protected system directory.</p></article><article class="step"><div class="number">STEP / 02</div><h3>Install</h3><p>Right-click <code>Install-Qoresence.ps1</code> and run with PowerShell, or use the command below from the package folder.</p><div class="code" data-code="powershell -ExecutionPolicy Bypass -File .\Install-Qoresence.ps1">powershell -ExecutionPolicy Bypass -File .\Install-Qoresence.ps1<button class="copy" type="button" data-copy>copy</button></div></article><article class="step"><div class="number">STEP / 03</div><h3>Launch</h3><p>Connect the capture card when you are ready, then start the local Deck and AgentGlass surface.</p><div class="code" data-code=".\Start-Qoresence.bat">.\Start-Qoresence.bat<button class="copy" type="button" data-copy>copy</button></div></article></div></div></section>
-    <section class="section"><div class="wrap"><div class="kicker"><i></i> Package contents</div><h2>What the package contains.</h2><div class="package"><div class="package-panel"><h3>Included</h3><ul><li>Qoresence source and command-line launcher</li><li>Deck, Monitor, AgentGlass and MCP adapter</li><li>Windows installer and pilot launcher</li><li>Profiles, examples and operational docs</li><li>Streamer, controller, visual and MCP dependencies</li></ul></div><div class="package-panel"><h3>Not bundled</h3><ul><li>Capture-card drivers or vendor firmware</li><li>API keys or other secrets</li><li>Large game models and optional OCR stacks</li><li>OBS itself — use Browser Source when Qoresence owns the card</li><li>A signed native EXE; this release is transparent Python packaging</li></ul></div></div><div class="notice"><strong>Hardware rule:</strong> one physical HDMI/DShow device gets one owner. For the lowest-lag path, close OBS's physical capture source before starting Qoresence. OBS can consume <code>http://127.0.0.1:8765/overlay.html</code> as a Browser Source. Phone glass is <code>/mobile.html</code> (LAN: <code>--deck-bind 0.0.0.0</code> + Theater QR).</div></div></section>
-    <section class="section"><div class="wrap"><div class="kicker"><i></i> First health check</div><h2>First health check.</h2><p class="section-intro">You can verify the software and AgentGlass without a capture card. Live video becomes healthy only after the card is enumerated and frames begin flowing.</p><div class="code" data-code="curl http://127.0.0.1:8765/health\ncurl http://127.0.0.1:8765/api/agent/health\ncurl http://127.0.0.1:8765/api/agent/diagnose">curl http://127.0.0.1:8765/health
-curl http://127.0.0.1:8765/api/agent/health
-curl http://127.0.0.1:8765/api/agent/diagnose<button class="copy" type="button" data-copy>copy</button></div><div class="checks" style="margin-top:14px"><div class="check"><strong>Software green</strong><span>Deck responds, AgentGlass says <code>running: true</code>, and the sequence advances.</span></div><div class="check"><strong>Live green</strong><span><code>video.age_s &lt; 1</code>, frames and pushes climb, and diagnose returns <code>HEALTHY</code>.</span></div></div></div></section>
-    <section class="section"><div class="wrap"><div class="kicker"><i></i> Keep the boundary local</div><h2>Keep the boundary local.</h2><p class="section-intro">AgentGlass is default-off and read-only. MCP can inspect the session without opening the capture card. A2A and research integrations remain opt-in. Leftover Twitch IRC is default-OFF and not a product route.</p><div class="actions"><a class="button primary" href="https://github.com/ConWan30/Qoresence/wiki/MCP-Glass">Read MCP Glass</a><a class="button" href="https://github.com/ConWan30/Qoresence/blob/main/docs/CAPTURE_OWNERSHIP.md">Read capture ownership</a><a class="button" href="https://github.com/ConWan30/Qoresence/blob/main/SECURITY.md">Read security notes</a></div></div></section>
+    <section class="wrap hallway">
+      <div class="kicker"><i></i> Windows starter</div>
+      <h1>Package. Local venv. No account.</h1>
+      <p class="lede">Source included. Dependencies stay in a virtual environment next to the tree. Capture hardware is optional for setup and required for live frames.</p>
+      <div class="hero-strip">
+        <span class="tag">Windows 10 / 11</span>
+        <span class="tag">Python 3.11+</span>
+        <span class="tag">Card optional at setup</span>
+      </div>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Download Qoresence-Windows.zip</a>
+        <a class="button" href="https://github.com/ConWan30/Qoresence">Clone the repository</a>
+      </div>
+    </section>
+
+    <section class="section" id="play">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">One match</div><h2>Laptop proof command.</h2></div>
+          <p>Pad may stay on the PS5. Empty HID is success. If <code>age_s</code> climbs, stop — do not turn on EasyOCR to save a dying grab.</p>
+        </div>
+        <div class="code" data-code="python -m qoresence.cli --play --deck --streamer-device 0 --streamer-fps 30 --game-profile madden_27">python -m qoresence.cli --play --deck --streamer-device 0 --streamer-fps 30 --game-profile madden_27<button class="copy" type="button" data-copy>copy</button></div>
+        <ol class="checklist">
+          <li>
+            <span class="n">01 · Health</span>
+            <b>age_s &lt; 1 and frames climbing</b>
+            Glass at <code>http://127.0.0.1:8765/session.html</code>. If the grab path dies, stop.
+          </li>
+          <li>
+            <span class="n">02 · License</span>
+            <b>One Now pair that matches the TV</b>
+            <code>board_why=confirm_ticket</code>. Flag-only lock stays dark.
+          </li>
+          <li>
+            <span class="n">03 · Honest blank</span>
+            <b>When dark, the sentence matches the room</b>
+            Menu, quota, or no key — never a last-good score.
+          </li>
+        </ol>
+        <div class="code" data-code="curl http://127.0.0.1:8765/health
+curl http://127.0.0.1:8765/api/session/view">curl http://127.0.0.1:8765/health
+curl http://127.0.0.1:8765/api/session/view<button class="copy" type="button" data-copy>copy</button></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Three steps</div><h2>Unzip. Install. Launch.</h2></div>
+          <p>The installer does not hide the Python environment or silently turn on cloud integrations.</p>
+        </div>
+        <div class="steps">
+          <article class="step">
+            <div class="number">Step / 01</div>
+            <h3>Unzip</h3>
+            <p>Extract to a folder you own, for example <code>C:\Qoresence</code>. Avoid a protected system directory.</p>
+          </article>
+          <article class="step">
+            <div class="number">Step / 02</div>
+            <h3>Install</h3>
+            <p>Run from the package folder.</p>
+            <div class="code" data-code="powershell -ExecutionPolicy Bypass -File .\Install-Qoresence.ps1">powershell -ExecutionPolicy Bypass -File .\Install-Qoresence.ps1<button class="copy" type="button" data-copy>copy</button></div>
+          </article>
+          <article class="step">
+            <div class="number">Step / 03</div>
+            <h3>Launch</h3>
+            <p>Connect the card when you are ready, then start the local Deck.</p>
+            <div class="code" data-code=".\Start-Qoresence.bat">.\Start-Qoresence.bat<button class="copy" type="button" data-copy>copy</button></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Package</div><h2>What ships. What does not.</h2></div>
+        </div>
+        <div class="package">
+          <div class="package-panel">
+            <h3>Included</h3>
+            <ul>
+              <li>Qoresence source and command-line launcher</li>
+              <li>Deck, Session Theater, Monitor, AgentGlass, MCP adapter</li>
+              <li>Windows installer and pilot launcher</li>
+              <li>Profiles, examples, and operational docs</li>
+            </ul>
+          </div>
+          <div class="package-panel">
+            <h3>Not bundled</h3>
+            <ul>
+              <li>Capture-card drivers or vendor firmware</li>
+              <li>API keys or other secrets</li>
+              <li>Optional OCR stacks</li>
+              <li>OBS itself — Lens is a Browser Source if you use it</li>
+              <li>A signed native EXE; this release is transparent Python</li>
+            </ul>
+          </div>
+        </div>
+        <div class="notice"><strong>Hardware rule:</strong> one physical HDMI/DShow device gets one owner. Close OBS on the physical card before <code>--play</code>. Phone glass is <code>/mobile.html</code> on localhost. Same-Wi-Fi bind is opt-in, not the default.</div>
+        <div class="actions">
+          <a class="button" href="https://github.com/ConWan30/Qoresence/blob/main/docs/CAPTURE_OWNERSHIP.md">Capture ownership</a>
+          <a class="button" href="https://github.com/ConWan30/Qoresence/blob/main/docs/SESSION_THEATER.md">Session Theater checklist</a>
+          <a class="button" href="./limits.html">Limits</a>
+        </div>
+      </div>
+    </section>
   </main>
-  <footer class="footer"><div class="wrap">Qoresence / observation plane / local-first pilot<br>The capture card is the brain. Everything else is a glass.<br><a href="./index.html">Home</a> · <a href="https://github.com/ConWan30/Qoresence/wiki">Wiki</a> · <a href="https://github.com/ConWan30/Qoresence/releases">Releases</a> · <a href="https://x.com/Qoresence">X @Qoresence</a> · <a href="https://github.com/ConWan30/Qoresence">Source</a></div></footer>
-  <script>
-    document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => {
-      const code = button.parentElement.dataset.code || button.parentElement.textContent.replace(/copy$/, '').trim();
-      try { await navigator.clipboard.writeText(code); button.textContent = 'copied'; setTimeout(() => { button.textContent = 'copy'; }, 1400); } catch (_) { button.textContent = 'select'; }
-    }));
-    const clock = document.querySelector('[data-clock]');
-    const pad = (n) => String(n).padStart(2, '0');
-    const tick = () => {
-      if (!clock) return;
-      const d = new Date();
-      const t = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-      clock.textContent = t;
-      clock.setAttribute('datetime', t);
-    };
-    tick();
-    setInterval(tick, 1000);
-    const menu = document.querySelector('[data-menu]');
-    const nav = document.querySelector('[data-nav]');
-    if (menu && nav) {
-      menu.addEventListener('click', () => {
-        const open = nav.classList.toggle('open');
-        menu.setAttribute('aria-expanded', String(open));
-      });
-    }
-  </script>
+
+  <footer class="site-footer">
+    <div class="wrap footer-row">
+      <div>Qoresence / local-first observatory / observation plane only<br>The capture card is the brain. Everything else is a glass.</div>
+      <div>
+        <a href="./index.html">Home</a> ·
+        <a href="./watch.html">Watch</a> ·
+        <a href="./limits.html">Limits</a> ·
+        <a href="https://github.com/ConWan30/Qoresence/releases">Releases</a> ·
+        <a href="https://github.com/ConWan30/Qoresence">Source</a>
+      </div>
+    </div>
+  </footer>
+  <script src="./site.js" defer></script>
 </body>
 </html>

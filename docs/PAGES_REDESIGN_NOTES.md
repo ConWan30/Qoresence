@@ -1,7 +1,38 @@
 # Pages redesign notes — 2026 instrument site
 
-Branch: `feat/pages-redesign-2026`  
-Live today: https://conwan30.github.io/Qoresence/ (still the previous long-scroll until this lands on `main`).
+Live today: https://conwan30.github.io/Qoresence/
+
+## Hallway (2026-09-01)
+
+The public site is no longer a 12-section Deck parody. GitHub Pages is the
+**door in front of the instrument** — HOLD chrome, one theater, honest blank.
+
+| Route | Job |
+|---|---|
+| `docs/index.html` | One viewport. One sentence. One NCAA tape. Three actions. Four-row contrast. |
+| `docs/watch.html` | Tape room: NCAA hour, HDMI/HID/IVC captions, Madden sidecars, Trace Viewer. |
+| `docs/install.html` | Windows package + laptop proof command (`madden_27`, `age_s`, ConfirmTicket). |
+| `docs/limits.html` | Claim ceiling, four glasses, FAQ, operator desk. |
+
+Shared chrome: **Qoresence** wordmark (not “Retina Deck / local switcher”),
+`SITE · HOLD` tally, “Board not licensed — this is a page.” No decorative PLL,
+no wall clock, no fake LIVE. Fonts are self-hosted `docs/fonts/` (OFL, same
+binaries as `glass/src/fonts`). Motion is one shutter open on the home/watch
+plinth (`prefers-reduced-motion` skips it).
+
+Old hashes (`#otel`, `#glasses`, `#privacy`, `#faq`, `#download`, …) redirect
+from `site.js`. `#watch` and `#proof` stay on home.
+
+`trace.html` and `dark.html` keep their bodies; chrome matches the hallway.
+
+Do not promote overlay, Streamr, Twitch, or a launcher as the product face.
+
+## Aperture Glass migration (2026-08-30)
+
+The public site now mirrors the Retina Deck's **Aperture Glass** token system
+(`glass/src/styles.css`) instead of the earlier "night field-ops / phosphor
+broadcast" palette. One aesthetic for every surface — the operator Deck and the
+GitHub Pages site share the same machined iron chrome.
 
 ## Aperture Glass migration (2026-08-30)
 

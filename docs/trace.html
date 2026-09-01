@@ -9,9 +9,6 @@
   <title>Qoresence Trace Viewer</title>
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./aperture.css">
 </head>
 <body>
@@ -19,35 +16,22 @@
   <header class="holo-header">
     <div class="command">
       <div class="command-row">
-        <a class="wordmark" href="./">
+        <a class="wordmark" href="./index.html">
           <span class="holo-mark" aria-hidden="true">Q</span>
-          <span><b>Retina Deck</b><small>local switcher</small></span>
+          <span><b>Qoresence</b><small>pages · hold</small></span>
         </a>
-        <div class="holo-tally holo-tally-standby" data-tally="standby"><span class="holo-tally-lamp" aria-hidden="true"></span>Standby</div>
-        <span class="pgm-chip">PGM trace</span>
-        <time class="bcast-clock" data-clock datetime="">--:--:--</time>
-        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="trace-nav">MENU</button>
-        <nav id="trace-nav" class="glass-nav" data-nav aria-label="Trace navigation">
-          <a href="./">Home</a>
+        <div class="holo-tally holo-tally-hold"><span class="holo-tally-lamp" aria-hidden="true"></span>Site · Hold</div>
+        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="trace-nav">Menu</button>
+        <nav id="trace-nav" class="glass-nav" data-nav aria-label="Site">
+          <a href="./index.html">Home</a>
+          <a href="./watch.html">Watch</a>
           <a href="./install.html">Install</a>
-          <a href="./trace.html" aria-current="page">Trace</a>
+          <a href="./limits.html">Limits</a>
         </nav>
-        <div class="mode-bar">
-          <a class="stream-key stream-key-live" href="https://github.com/ConWan30/Qoresence/releases/latest"><span>01</span>Download</a>
-          <a class="stream-key" href="./index.html#watch"><span>02</span>Replay</a>
-          <a class="stream-key stream-key-clip" href="./install.html"><span>03</span>Install</a>
-        </div>
       </div>
-      <div class="command-status">
-        <div class="status-line">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span>PLL open · couple none</span>
-          <span class="lockbug">□–□ · — &amp; —</span>
-        </div>
-        <div class="status-meta">
-          <span>trace viewer · local Jaeger</span>
-          <span>site · not a live session</span>
-        </div>
+      <div class="site-hold">
+        <span>trace viewer · local Jaeger</span>
+        <span class="board-why">Board not licensed — this is a page</span>
       </div>
     </div>
   </header>
@@ -116,29 +100,20 @@
       </section>
     </div>
   </main>
+  <footer class="site-footer">
+    <div class="wrap footer-row">
+      <div>Qoresence / local-first observatory / observation plane only</div>
+      <div>
+        <a href="./index.html">Home</a> ·
+        <a href="./watch.html">Watch</a> ·
+        <a href="./install.html">Install</a> ·
+        <a href="./limits.html">Limits</a>
+      </div>
+    </div>
+  </footer>
 
+  <script src="./site.js" defer></script>
   <script>
-    (function () {
-      const menu = document.querySelector('[data-menu]');
-      const nav = document.querySelector('[data-nav]');
-      const clock = document.querySelector('[data-clock]');
-      const pad = (n) => String(n).padStart(2, '0');
-      const tick = () => {
-        if (!clock) return;
-        const d = new Date();
-        const t = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-        clock.textContent = t;
-        clock.setAttribute('datetime', t);
-      };
-      tick();
-      setInterval(tick, 1000);
-      if (menu && nav) {
-        menu.addEventListener('click', () => {
-          const open = nav.classList.toggle('open');
-          menu.setAttribute('aria-expanded', String(open));
-        });
-      }
-    })();
     const $ = (id) => document.getElementById(id);
     const isDeck = /^(127\.0\.0\.1|localhost):8765$/.test(window.location.host);
     if (isDeck) {

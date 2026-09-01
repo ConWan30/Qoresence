@@ -11,6 +11,47 @@
  * paint fake LIVE telemetry.
  * ========================================================================= */
 
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/instrument-sans-latin-400-normal.woff2") format("woff2"),
+       url("https://cdn.jsdelivr.net/gh/ConWan30/Qoresence@main/glass/src/fonts/instrument-sans-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/instrument-sans-latin-500-normal.woff2") format("woff2"),
+       url("https://cdn.jsdelivr.net/gh/ConWan30/Qoresence@main/glass/src/fonts/instrument-sans-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/instrument-sans-latin-600-normal.woff2") format("woff2"),
+       url("https://cdn.jsdelivr.net/gh/ConWan30/Qoresence@main/glass/src/fonts/instrument-sans-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2"),
+       url("https://cdn.jsdelivr.net/gh/ConWan30/Qoresence@main/glass/src/fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2"),
+       url("https://cdn.jsdelivr.net/gh/ConWan30/Qoresence@main/glass/src/fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2");
+}
+
 :root {
   /* Surfaces — void well, machined plates. */
   --bg: #05060a;          /* void */
@@ -241,6 +282,29 @@ code { font-family: var(--font-mono); font-size: 0.86em; color: var(--live); }
 .holo-tally-stall {
   color: var(--veto);
   background: color-mix(in oklab, var(--veto) 10%, transparent);
+}
+.holo-tally-hold {
+  color: var(--muted);
+  background: color-mix(in oklab, var(--muted) 8%, transparent);
+}
+
+.site-hold {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px 18px;
+  flex-wrap: wrap;
+  padding: 2px 0 0;
+  color: var(--dim);
+  font: 500 10px/1.4 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.site-hold .board-why {
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Glass-nav — wrap tray, never a scroll strip. */
@@ -876,6 +940,7 @@ h2 {
 
 /* Glasses — 6 eyepieces. */
 .glasses { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.glasses-quad { grid-template-columns: repeat(4, 1fr); }
 .glass {
   grid-column: span 3;
   padding: 24px;
@@ -1218,7 +1283,7 @@ table.spans tr:hover td { background: color-mix(in oklab, var(--live) 6%, transp
   .intel { flex-direction: row; }
   .intel > * { flex: 1; }
   .hero, .thesis, .download, .profiles { grid-template-columns: 1fr; }
-  .glasses, .caps, .gates, .community, .limits, .flow, .choices, .steps, .package, .checks { grid-template-columns: 1fr 1fr; }
+  .glasses, .glasses-quad, .caps, .gates, .community, .limits, .flow, .choices, .steps, .package, .checks { grid-template-columns: 1fr 1fr; }
   .glass, .glass:last-child { grid-column: span 1; }
   .orch .step { grid-template-columns: 64px 1fr; }
   .orch .step .tag { display: none; }
@@ -1231,7 +1296,7 @@ table.spans tr:hover td { background: color-mix(in oklab, var(--live) 6%, transp
   .nav-links {
     display: none;
     position: absolute;
-    top: 72px;
+    top: calc(100% - 2px);
     left: 14px;
     right: 14px;
     padding: 10px;
@@ -1259,4 +1324,160 @@ table.spans tr:hover td { background: color-mix(in oklab, var(--live) 6%, transp
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---------------------------------------------------------------------------
+ * Hallway — public Pages composition. The Deck is the instrument.
+ * This site is the door: HOLD chrome, one theater, honest blank.
+ * ------------------------------------------------------------------------- */
+.hallway {
+  padding: clamp(28px, 4vw, 52px) 0 36px;
+}
+.hallway h1 {
+  margin: 14px 0 12px;
+  max-width: 16ch;
+  font: 600 clamp(2.15rem, 6.2vw, 4.35rem)/0.94 var(--font-display);
+  letter-spacing: -0.04em;
+}
+.hallway .lede {
+  max-width: 34rem;
+  font-size: 1.04rem;
+}
+.hallway-stage { margin-top: 28px; }
+.board-speech {
+  margin-top: 12px;
+  color: var(--muted);
+  font: 500 13px/1.45 var(--font-mono);
+}
+.board-speech b { color: var(--fg); font-weight: 600; }
+
+.holo-plinth[data-shutter] { overflow: hidden; }
+.holo-plinth[data-shutter] .shutter-leaf {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: var(--bg);
+  transform-origin: top center;
+  transform: scaleY(1);
+  transition: transform var(--motion-slow) var(--ease-out);
+}
+.holo-plinth[data-shutter].is-open .shutter-leaf { transform: scaleY(0); }
+
+.contrast-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin-top: 8px;
+  background: var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-border);
+}
+.contrast-pair article {
+  background: var(--surface);
+  padding: 22px 22px 24px;
+}
+.contrast-pair .idx {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--live);
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.contrast-pair h3 {
+  margin: 0 0 8px;
+  font: 600 1.12rem/1.15 var(--font-display);
+}
+.contrast-pair p { color: var(--muted); font-size: 0.94rem; }
+
+.sidecar-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+.sidecar {
+  padding: 16px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-border);
+}
+.sidecar b {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--live);
+  font: 600 12px/1.2 var(--font-mono);
+}
+.sidecar span { color: var(--muted); font-size: 0.88rem; }
+
+.chapters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.chapter {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font: 500 11px/1.3 var(--font-mono);
+}
+.chapter b { color: var(--fg); }
+
+.checklist {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+.checklist li {
+  list-style: none;
+  padding: 16px 18px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-border);
+  color: var(--muted);
+}
+.checklist b {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--fg);
+  font: 600 1.02rem/1.2 var(--font-display);
+}
+.checklist .n {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--live);
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.split-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.split-two ul { margin: 0 0 0 1.1rem; color: var(--muted); }
+.split-two li { margin: 0.4rem 0; }
+.split-two h3 { margin: 0 0 10px; font: 600 1.1rem/1.15 var(--font-display); }
+.split-panel {
+  padding: 22px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-border);
+}
+
+@media (max-width: 1100px) {
+  .contrast-pair,
+  .sidecar-row,
+  .split-two { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 680px) {
+  .hallway h1 { font-size: clamp(1.9rem, 9vw, 2.5rem); max-width: none; }
+  .contrast-pair,
+  .sidecar-row,
+  .split-two { grid-template-columns: 1fr; }
 }
