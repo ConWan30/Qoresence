@@ -562,7 +562,7 @@ function paintVideo(video){
     const port=(c.transport||'').toUpperCase();
     const body=c.imu_bodied?' · BODY':'';
     const wait=c.waiting&&!c.connected?' · WAITING':'';
-    hud.innerHTML='FRAMEHUB / NO SECOND CAPTURE'+(port?' · <strong>'+port+'</strong>':'')+body+wait;
+    hud.innerHTML='FRAMEHUB / NO SECOND CAPTURE'+(port?' · <strong>'+esc(port)+'</strong>':'')+body+wait;
   }
 }
 function paintController(ctrl, sit){

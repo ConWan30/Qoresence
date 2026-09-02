@@ -516,6 +516,15 @@ def test_deck_html_fmt_gates_unlocked_digits():
     assert "locked&&s.home_score!=null" in html.replace(" ", "")
 
 
+def test_deck_html_stage_hud_escapes_transport():
+    from pathlib import Path
+
+    html = (Path(__file__).resolve().parents[1] / "qoresence" / "deck" / "deck.html").read_text(
+        encoding="utf-8"
+    )
+    assert "+esc(port)+" in html.replace(" ", "")
+
+
 def test_identity_hysteresis_adopt_on_new_licensed_lock():
     """New licensed lock with incompatible identity adopts incoming identity.
     
