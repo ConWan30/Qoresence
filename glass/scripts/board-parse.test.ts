@@ -237,14 +237,45 @@ test("situation strip matches original Deck scorebug line", () => {
   assert.equal(ing.homeTeam, "KC");
   assert.equal(ing.awayTeam, "PHI");
   assert.equal(ing.homeLeft, false);
-  // Madden scorebug is AWAY left, HOME right — paint HDMI order, not home-first.
+  // Missing left_score+right_score → fail-closed unlabeled home–away. No silent homeLeft remap.
+  assert.equal(
+    situationLine(ing),
+    "14-7 · Q3 3:12 · 2nd & 6 @ PHI34 · WP 58%",
+  );
+});
+
+test("HDMI LTR overlay paints named Madden sides without homeLeft remap", () => {
+  const ing = parseDeckMessage({
+    type: "situation",
+    payload: {
+      game_state: "gameplay",
+      game_title: "Madden NFL 27",
+      home_team: "KC",
+      away_team: "PHI",
+      home_score: 14,
+      away_score: 7,
+      home_left: false,
+      left_team: "PHI",
+      right_team: "KC",
+      left_score: 7,
+      right_score: 14,
+      quarter: 3,
+      down: 2,
+      yards_to_go: 6,
+      field_position: "PHI34",
+      game_clock_seconds: 192,
+      score_vlm_locked: true,
+      win_prob: 0.58,
+    },
+  });
+  assert.ok(ing);
   assert.equal(
     situationLine(ing),
     "PHI 7 - KC 14 · Q3 3:12 · 2nd & 6 @ PHI34 · WP 58%",
   );
 });
 
-test("home_left true keeps home on the left of the scorebug", () => {
+test("home_left true does not remap named digits without left_score", () => {
   const ing = parseDeckMessage({
     type: "situation",
     payload: {
@@ -259,9 +290,45 @@ test("home_left true keeps home on the left of the scorebug", () => {
   });
   assert.ok(ing);
   assert.equal(ing.homeLeft, true);
-  assert.equal(situationLine(ing), "KC 14 - PHI 7");
+  assert.equal(situationLine(ing), "14-7");
   assert.equal(
     scorebugPair({ homeScore: 14, awayScore: 7, homeTeam: "KC", awayTeam: "PHI", homeLeft: true, dash: "–" }),
+    "14–7",
+  );
+});
+
+test("home_left true with HDMI LTR overlay paints left→right as cropped", () => {
+  const ing = parseDeckMessage({
+    type: "situation",
+    payload: {
+      game_state: "gameplay",
+      home_team: "KC",
+      away_team: "PHI",
+      home_score: 14,
+      away_score: 7,
+      home_left: true,
+      left_team: "KC",
+      right_team: "PHI",
+      left_score: 14,
+      right_score: 7,
+      score_vlm_locked: true,
+    },
+  });
+  assert.ok(ing);
+  assert.equal(situationLine(ing), "KC 14 - PHI 7");
+  assert.equal(
+    scorebugPair({
+      homeScore: 14,
+      awayScore: 7,
+      homeTeam: "KC",
+      awayTeam: "PHI",
+      homeLeft: true,
+      leftTeam: "KC",
+      rightTeam: "PHI",
+      leftScore: 14,
+      rightScore: 7,
+      dash: "–",
+    }),
     "KC 14–7 PHI",
   );
 });
@@ -290,7 +357,104 @@ test("situation identity beats swapped visual_context", () => {
   assert.equal(ing.homeTeam, "KC");
   assert.equal(ing.awayTeam, "PHI");
   assert.equal(ing.homeLeft, false);
-  assert.equal(situationLine(ing), "PHI 7 - KC 14");
+  // Identity may stay; named digit placement still fail-closed without left_*.
+  assert.equal(situationLine(ing), "14-7");
+});
+
+test("HDMI crop left NO 21 / right DET 6 paints NO 21 DET 6 not NO 6 DET 21", () => {
+  // Fixture: Madden HDMI crop (tests/fixtures/vlm_crop_no21_det6.jpg).
+  // last_confirm home=21 away=6 home_left=false left_team=NO right_team=DET.
+  // Identity: home is DET (right). Ticket digits stay 21-6. Paint must be HDMI LTR.
+  const lastConfirm = {
+    ticket_id: "fixture-no21-det6",
+    home_score: 21,
+    away_score: 6,
+    home_left: false,
+    left_team: "NO",
+    right_team: "DET",
+    left_score: 21,
+    right_score: 6,
+  };
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    schema_version: "qoresence-deck-v0",
+    situation: {
+      game_state: "gameplay",
+      game_title: "Madden NFL 27",
+      home_score: 21,
+      away_score: 6,
+      home_left: false,
+      home_team: "DET",
+      away_team: "NO",
+      left_team: "NO",
+      right_team: "DET",
+      left_score: 21,
+      right_score: 6,
+      score_vlm_locked: true,
+      confirm_ticket_id: "fixture-no21-det6",
+    },
+    confirm: { last_confirm: lastConfirm },
+  });
+  assert.ok(ing);
+  assert.equal(ing.homeScore, 21);
+  assert.equal(ing.awayScore, 6);
+  assert.equal(ing.homeLeft, false);
+  assert.equal(ing.leftTeam, "NO");
+  assert.equal(ing.rightTeam, "DET");
+  assert.equal(ing.leftScore, 21);
+  assert.equal(ing.rightScore, 6);
+  const pair = scorebugPair(ing);
+  assert.equal(pair, "NO 21 - DET 6");
+  assert.doesNotMatch(pair, /NO 6/);
+  assert.doesNotMatch(pair, /DET 21/);
+  assert.equal(
+    scorebugPair({
+      homeScore: 21,
+      awayScore: 6,
+      homeTeam: "DET",
+      awayTeam: "NO",
+      homeLeft: false,
+      leftTeam: "NO",
+      rightTeam: "DET",
+      leftScore: 21,
+      rightScore: 6,
+      dash: "–",
+    }),
+    "NO 21–6 DET",
+  );
+  assert.equal(situationLine(ing), "NO 21 - DET 6");
+});
+
+test("missing left_score fails closed: no silent homeLeft remap on named Madden board", () => {
+  const pair = scorebugPair({
+    homeScore: 21,
+    awayScore: 6,
+    homeTeam: "DET",
+    awayTeam: "NO",
+    homeLeft: false,
+  });
+  assert.equal(pair, "21-6");
+  assert.doesNotMatch(pair, /NO 6/);
+  assert.doesNotMatch(pair, /DET 21/);
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    situation: {
+      game_state: "gameplay",
+      game_title: "Madden NFL 27",
+      home_score: 21,
+      away_score: 6,
+      home_left: false,
+      home_team: "DET",
+      away_team: "NO",
+      left_team: "NO",
+      right_team: "DET",
+      score_vlm_locked: true,
+    },
+  });
+  assert.ok(ing);
+  assert.equal(situationLine(ing), "21-6");
+  assert.doesNotMatch(situationLine(ing), /NO 6/);
+  assert.doesNotMatch(situationLine(ing), /DET 21/);
 });
 
 test("ghost stick paints on same-seq LIVE and vanishes on seq skew", () => {
