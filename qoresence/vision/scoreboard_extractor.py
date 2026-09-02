@@ -196,9 +196,12 @@ def confirm_mint_refuse(
     game_state: str = "",
     book: Any = None,
     vlm_ref: Any = None,
+    crop: Any = None,
 ) -> str | None:
     """Extractor mint gate: garbage pair first, then player-CU / missed-bug crop.
 
+    ``crop`` is this tick's confirm slice when the caller has the frame.
+    Sticky ``last_crop_refuse`` on the VLM singleton is only a fallback.
     Pass an isolated ``book`` in tests so a prior suite identity cannot mask
     the crop refuse. Bind never mints digits.
     """
@@ -212,6 +215,16 @@ def confirm_mint_refuse(
     )
     if refuse:
         return refuse
+    if crop is not None:
+        try:
+            from qoresence.vision.scorebug_crops import crop_misses_scorebug
+
+            miss = crop_misses_scorebug(crop)
+            if miss:
+                return miss
+        except Exception:
+            pass
+        return None
     return confirm_crop_refuse(vlm_ref)
 
 
@@ -769,6 +782,18 @@ class FootballScoreboardExtractor:
                     book = get_ticket_book()
                     home_team_now = str(getattr(ctx, "home_team", "") or "").strip()
                     away_team_now = str(getattr(ctx, "away_team", "") or "").strip()
+                    confirm_crop = None
+                    try:
+                        from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee
+
+                        confirm_crop = ScoreboardVlmReferee._crop(
+                            frame,
+                            game_state=_game_state_token(ctx),
+                            game_profile=str(getattr(ctx, "game_profile", "") or ""),
+                            game_title=str(getattr(ctx, "game_title", "") or ""),
+                        )
+                    except Exception:
+                        confirm_crop = None
                     refuse = confirm_mint_refuse(
                         home=int(sh),
                         away=int(sa),
@@ -776,6 +801,7 @@ class FootballScoreboardExtractor:
                         away_team=away_team_now,
                         game_state=_game_state_token(ctx),
                         book=book,
+                        crop=confirm_crop,
                     )
                     if refuse:
                         log.info(
