@@ -78,6 +78,7 @@ def test_cloud_analyze_merges_gemini_board_and_mints_ticket(monkeypatch):
             game_state=GameState.GAMEPLAY,
             confidence=0.9,
             game_profile="ncaa_football_27",
+            frame_hash="visual-merge-crop",
         )
         rt._client = Mock()
         rt._client.analyze_frame.return_value = classified

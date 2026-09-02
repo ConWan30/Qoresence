@@ -109,6 +109,26 @@ def _may_mint_lock(ctx: VisualContext | None, vlm: dict[str, Any] | None = None)
     return any(k in profile or k in title for k in ("madden", "cfb", "football", "ncaa"))
 
 
+def _ensure_frame_hash(ctx: VisualContext, frame: np.ndarray) -> str:
+    """Fill ctx.frame_hash from the HDMI frame when missing. Never invents scores."""
+    existing = str(getattr(ctx, "frame_hash", "") or "").strip()
+    if existing:
+        return existing
+    try:
+        import hashlib
+
+        small = cv2.resize(frame, (160, 90))
+        if len(small.shape) == 3 and small.shape[2] >= 3:
+            gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = small
+        digest = hashlib.sha256(gray.tobytes()).hexdigest()[:16]
+        ctx.frame_hash = digest
+        return digest
+    except Exception:
+        return ""
+
+
 def garbage_lock_reason(
     *,
     home: int,
@@ -507,6 +527,10 @@ class FootballScoreboardExtractor:
                 return ctx
         except Exception:
             pass
+
+        # Ground crop_hash on this HDMI frame so a future VLM JSON can mint.
+        # Empty crop_hash is never a licensed lock. Never invents scores.
+        _ensure_frame_hash(ctx, frame)
 
         # Smarter DeepSeek board cadence (does not block) — not every frame
         try:

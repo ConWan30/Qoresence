@@ -46,6 +46,7 @@ def _gameplay() -> VisualContext:
         game_category=GameCategory.FOOTBALL,
         game_state=GameState.GAMEPLAY,
         game_profile="madden_27",
+        frame_hash="scoreboard-lock-crop",
     )
 
 
@@ -71,6 +72,28 @@ def _patch_empty_hud(monkeypatch) -> None:
         "qoresence.vision.local_hud_digits.read_score_pair",
         lambda *a, **k: None,
     )
+
+
+def test_extract_fills_empty_frame_hash_from_hdmi(monkeypatch):
+    """Live extract must ground crop_hash on the frame so a future VLM can mint."""
+    _reset()
+    _patch_empty_hud(monkeypatch)
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm",
+        lambda: _FakeVlm(_grounded_board(24, 22)),
+    )
+    ext = FootballScoreboardExtractor()
+    ctx = VisualContext(
+        game_category=GameCategory.FOOTBALL,
+        game_state=GameState.GAMEPLAY,
+        game_profile="madden_27",
+        frame_hash="",
+    )
+    out = ext.extract(_noise_frame(), ctx)
+    assert out.frame_hash
+    assert (out.home_score, out.away_score) == (24, 22)
+    assert out.score_vlm_locked is True
+    assert out.confirm_ticket_id
 
 
 def test_invented_3_2_without_local_board_does_not_lock(monkeypatch):
@@ -210,6 +233,7 @@ def test_menu_grounded_vlm_mints_football_hud(monkeypatch):
         game_category=GameCategory.FOOTBALL,
         game_state=GameState.MENU,
         game_profile="madden_27",
+        frame_hash="scoreboard-lock-crop",
     )
     ext = FootballScoreboardExtractor()
     ctx = ext.extract(_scorebug_frame(), ctx)
