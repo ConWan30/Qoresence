@@ -11,7 +11,7 @@ import hashlib
 import json
 import re
 import threading
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 DOMAIN = "QORESENCE-CONFIRM-TICKET-v0"
@@ -67,6 +67,11 @@ class ConfirmTicket:
     crop_hash: str = ""
     quarter: int | None = None
     down: int | None = None
+    # HDMI left→right paint overlay. Never hashed. Never remints ticket_id.
+    left_team: str | None = None
+    right_team: str | None = None
+    left_score: int | None = None
+    right_score: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -227,6 +232,26 @@ def mint_confirm_ticket(
     minted = ConfirmTicket(ticket_id=ticket_id, **fields)
     _note_provenance(minted, prior_id)
     return minted
+
+
+def overlay_hdmi_ltr(
+    ticket: ConfirmTicket,
+    *,
+    left_team: str | None = None,
+    right_team: str | None = None,
+    left_score: int | None = None,
+    right_score: int | None = None,
+) -> ConfirmTicket:
+    """Attach HDMI left→right paint fields. Does not remint. Does not change ticket_id."""
+    lt = str(left_team).strip() if left_team not in (None, "") else None
+    rt = str(right_team).strip() if right_team not in (None, "") else None
+    return replace(
+        ticket,
+        left_team=lt if lt else ticket.left_team,
+        right_team=rt if rt else ticket.right_team,
+        left_score=_norm_int(left_score) if left_score is not None else ticket.left_score,
+        right_score=_norm_int(right_score) if right_score is not None else ticket.right_score,
+    )
 
 
 def _note_provenance(ticket: ConfirmTicket, prior_ticket_id: str) -> None:

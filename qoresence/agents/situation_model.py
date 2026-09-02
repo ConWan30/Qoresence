@@ -59,6 +59,11 @@ class SituationState:
     away_team_name: str | None = None
     # Madden / NFL / CFB scorebug: AWAY left, HOME right unless true.
     home_left: bool | None = None
+    # HDMI left→right paint overlay. Not identity. Not ConfirmTicket hash.
+    left_team: str | None = None
+    right_team: str | None = None
+    left_score: int | None = None
+    right_score: int | None = None
     home_color: str | None = None
     away_color: str | None = None
     home_logo: str | None = None
@@ -299,6 +304,11 @@ class SituationModel:
                 sides_ok or not (self._state.home_team or self._state.away_team)
             ):
                 ident["home_left"] = bool(incoming_home_left)
+            if hs is not None or aws is not None:
+                ident["left_team"] = getattr(ctx, "left_team", None)
+                ident["right_team"] = getattr(ctx, "right_team", None)
+                ident["left_score"] = getattr(ctx, "left_score", None)
+                ident["right_score"] = getattr(ctx, "right_score", None)
             self._apply_if_set(
                 home_score=hs,
                 away_score=aws,
@@ -432,6 +442,10 @@ class SituationModel:
             "home_team": s.home_team,
             "away_team": s.away_team,
             "home_left": s.home_left,
+            "left_team": s.left_team,
+            "right_team": s.right_team,
+            "left_score": s.left_score,
+            "right_score": s.right_score,
             "home_team_name": s.home_team_name,
             "away_team_name": s.away_team_name,
             "home_color": s.home_color,

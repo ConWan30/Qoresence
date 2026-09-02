@@ -533,7 +533,16 @@ class ScoreboardVlmReferee:
         except Exception:
             return None
         out: dict[str, Any] = {}
-        for k in ("home_score", "away_score", "quarter", "down", "yards_to_go", "play_clock"):
+        for k in (
+            "home_score",
+            "away_score",
+            "quarter",
+            "down",
+            "yards_to_go",
+            "play_clock",
+            "left_score",
+            "right_score",
+        ):
             v = obj.get(k)
             if v is None or v == "":
                 out[k] = None
@@ -597,6 +606,11 @@ class ScoreboardVlmReferee:
             out["home_score"] = None
         if aws is not None and not (0 <= aws <= 99):
             out["away_score"] = None
+        ls, rs = out.get("left_score"), out.get("right_score")
+        if ls is not None and not (0 <= ls <= 99):
+            out["left_score"] = None
+        if rs is not None and not (0 <= rs <= 99):
+            out["right_score"] = None
         return out
 
 

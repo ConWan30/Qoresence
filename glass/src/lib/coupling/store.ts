@@ -91,6 +91,10 @@ export type TheaterState = {
   homeTeam: string;
   awayTeam: string;
   homeLeft: boolean;
+  leftTeam: string;
+  rightTeam: string;
+  leftScore: number | null;
+  rightScore: number | null;
   down: number | null;
   distance: number | null;
   boardLocked: boolean;
@@ -285,6 +289,10 @@ export const useTheater = create<TheaterState>((set, get) => ({
   homeTeam: "",
   awayTeam: "",
   homeLeft: false,
+  leftTeam: "",
+  rightTeam: "",
+  leftScore: null,
+  rightScore: null,
   down: null,
   distance: null,
   boardLocked: false,
@@ -468,6 +476,10 @@ export const useTheater = create<TheaterState>((set, get) => ({
       homeTeam: ing.homeTeam,
       awayTeam: ing.awayTeam,
       homeLeft: ing.homeLeft,
+      leftTeam: ing.leftTeam,
+      rightTeam: ing.rightTeam,
+      leftScore: ing.leftScore,
+      rightScore: ing.rightScore,
       fieldPos: ing.fieldPos,
       winProb: ing.winProb,
       gameTitle: ing.gameTitle,
@@ -588,6 +600,10 @@ export const useTheater = create<TheaterState>((set, get) => ({
       homeTeam: widgetsOk || ing.boardLocked ? ing.homeTeam : s.homeTeam,
       awayTeam: widgetsOk || ing.boardLocked ? ing.awayTeam : s.awayTeam,
       homeLeft: widgetsOk || ing.boardLocked ? Boolean(ing.homeLeft) : s.homeLeft,
+      leftTeam: widgetsOk || ing.boardLocked ? (ing.leftTeam || "") : s.leftTeam,
+      rightTeam: widgetsOk || ing.boardLocked ? (ing.rightTeam || "") : s.rightTeam,
+      leftScore: widgetsOk ? (ing.leftScore ?? null) : ing.boardLocked ? (ing.leftScore ?? null) : s.leftScore,
+      rightScore: widgetsOk ? (ing.rightScore ?? null) : ing.boardLocked ? (ing.rightScore ?? null) : s.rightScore,
       down: widgetsOk ? ing.down : ing.boardLocked ? ing.down : s.down,
       distance: widgetsOk ? ing.distance : ing.boardLocked ? ing.distance : s.distance,
       boardLocked: widgetsOk ? Boolean(ing.boardLocked) : Boolean(ing.boardLocked) || s.boardLocked,
