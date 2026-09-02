@@ -1,4 +1,4 @@
-"""Match-observer agent — Quicksilver DeepSeek v4 wiring. Observation only."""
+"""Match-observer agent — Quicksilver glm-5.3-flash wiring. Observation only."""
 
 from __future__ import annotations
 
@@ -17,8 +17,17 @@ def test_llm_config_from_quicksilver_env_matches_clutchbot_path():
     cfg = LLMConfig.from_quicksilver_env(enabled=False)
     assert cfg.provider == "quicksilver"
     assert cfg.model == DEFAULT_MODEL
+    assert cfg.model == "glm-5.3-flash"
     assert cfg.base_url == DEFAULT_BASE_URL
     assert cfg.enabled is False
+
+
+def test_clutchbot_chat_and_confirm_vision_use_different_default_slugs():
+    from qoresence.agents.llm_client import DEFAULT_VISION_MODEL
+
+    assert DEFAULT_MODEL == "glm-5.3-flash"
+    assert DEFAULT_VISION_MODEL == "qwen3.7-flash"
+    assert LLMConfig.from_scoreboard_vlm().model == "qwen3.7-flash"
 
 
 def test_evidence_no_scores_without_confirm():

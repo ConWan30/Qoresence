@@ -179,6 +179,7 @@ def test_vlm_defaults_quicksilver_vision(monkeypatch):
     assert cfg.model != "gemini-3.5-flash-lite"
     assert cfg.model != "deepseek-v4-flash"
     assert cfg.model != "deepseek-v4-flash-vision-exp"
+    assert cfg.model != "glm-5.3-flash"
     ref = ScoreboardVlmReferee()
     assert ref.model == "qwen3.7-flash"
     assert ref.model == DEFAULT_VISION_MODEL
