@@ -187,6 +187,34 @@ def confirm_crop_refuse(vlm_ref: Any = None) -> str | None:
         return None
 
 
+def confirm_mint_refuse(
+    *,
+    home: int,
+    away: int,
+    home_team: str = "",
+    away_team: str = "",
+    game_state: str = "",
+    book: Any = None,
+    vlm_ref: Any = None,
+) -> str | None:
+    """Extractor mint gate: garbage pair first, then player-CU / missed-bug crop.
+
+    Pass an isolated ``book`` in tests so a prior suite identity cannot mask
+    the crop refuse. Bind never mints digits.
+    """
+    refuse = garbage_lock_reason(
+        home=home,
+        away=away,
+        home_team=home_team,
+        away_team=away_team,
+        game_state=game_state,
+        book=book,
+    )
+    if refuse:
+        return refuse
+    return confirm_crop_refuse(vlm_ref)
+
+
 def _vlm_board_grounded(vlm: dict[str, Any] | None) -> bool:
     """True when DeepSeek reported this match's scorebug, not a lone invented pair.
 
@@ -741,7 +769,7 @@ class FootballScoreboardExtractor:
                     book = get_ticket_book()
                     home_team_now = str(getattr(ctx, "home_team", "") or "").strip()
                     away_team_now = str(getattr(ctx, "away_team", "") or "").strip()
-                    refuse = garbage_lock_reason(
+                    refuse = confirm_mint_refuse(
                         home=int(sh),
                         away=int(sa),
                         home_team=home_team_now,
@@ -749,8 +777,6 @@ class FootballScoreboardExtractor:
                         game_state=_game_state_token(ctx),
                         book=book,
                     )
-                    if not refuse:
-                        refuse = confirm_crop_refuse()
                     if refuse:
                         log.info(
                             "scoreboard refuse lock %s-%s (%s) %s-%s",

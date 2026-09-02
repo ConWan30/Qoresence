@@ -19,6 +19,7 @@ from qoresence.vision.confirm_ticket import (
 )
 from qoresence.vision.scoreboard_extractor import (
     confirm_crop_refuse,
+    confirm_mint_refuse,
     garbage_lock_reason,
 )
 from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee
@@ -111,11 +112,43 @@ def test_player_cu_must_not_mint_last_confirm():
             return refuse
 
     assert confirm_crop_refuse(_Ref()) == "player_cu_crop"
-    # Digits matching the live postgame (40-6) still must not mint from this crop.
-    assert garbage_lock_reason(home=40, away=6, home_team="DET", away_team="NO") is None
+    # Isolated book: 40-6 DET/NO is not garbage. The process-global book is
+    # leftover from other tests in CI and would return identity_swap.
     book = ConfirmTicketBook()
-    # Operator gate: crop refuse is checked before mint in the extractor.
-    assert confirm_crop_refuse(_Ref()) is not None
+    assert (
+        garbage_lock_reason(
+            home=40, away=6, home_team="DET", away_team="NO", book=book
+        )
+        is None
+    )
+    dirty = ConfirmTicketBook()
+    prior = mint_confirm_ticket(
+        session_id="sess-cu-prior",
+        clock_ns=1,
+        home_score=14,
+        away_score=7,
+        home_team="KC",
+        away_team="PHI",
+        book=dirty,
+    )
+    dirty.put(prior, home_team="KC", away_team="PHI")
+    assert (
+        garbage_lock_reason(
+            home=40, away=6, home_team="DET", away_team="NO", book=dirty
+        )
+        == "identity_swap"
+    )
+    assert (
+        confirm_mint_refuse(
+            home=40,
+            away=6,
+            home_team="DET",
+            away_team="NO",
+            book=book,
+            vlm_ref=_Ref(),
+        )
+        == "player_cu_crop"
+    )
 
 
 def test_scorebug_no40_det6_crop_includes_bug_not_just_players():
