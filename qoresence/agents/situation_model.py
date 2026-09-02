@@ -417,21 +417,36 @@ class SituationModel:
     def to_dict(self) -> dict[str, Any]:
         """Serialize for the viewer panel and debug."""
         s = self._state
+        locked = bool(s.score_vlm_locked)
+        tid = s.confirm_ticket_id or ""
+        home_score = s.home_score
+        away_score = s.away_score
+        try:
+            from qoresence.vision.confirm_ticket import confirm_glass_must_blank
+
+            if confirm_glass_must_blank():
+                # HOLD / stuck 0-0 / empty crop_hash: fail-closed empty. Never last-good.
+                locked = False
+                tid = ""
+                home_score = None
+                away_score = None
+        except Exception:
+            pass
         return {
             "game_profile": s.game_profile,
             "game_state": s.game_state,
             "game_category": s.game_category,
             "game_title": s.game_title,
             "visual_confidence": s.visual_confidence,
-            "score_vlm_locked": bool(s.score_vlm_locked),
-            "scoreboard_locked": bool(s.score_vlm_locked),
-            "confirm_ticket_id": s.confirm_ticket_id or "",
-            "has_confirm_ticket": bool(s.confirm_ticket_id),
+            "score_vlm_locked": locked,
+            "scoreboard_locked": locked,
+            "confirm_ticket_id": tid,
+            "has_confirm_ticket": bool(tid),
             "board_why": s.board_why or "",
             "title_hysteresis": s.title_hysteresis,
             "title_claim": s.title_claim,
-            "home_score": s.home_score,
-            "away_score": s.away_score,
+            "home_score": home_score,
+            "away_score": away_score,
             "quarter": s.quarter,
             "down": s.down,
             "yards_to_go": s.yards_to_go,

@@ -6,9 +6,12 @@ from qoresence.agents.society.policy import SocietyPolicy
 from qoresence.agents.society.types import AgentPacket, AgentReceipt
 from qoresence.vision.confirm_ticket import (
     ConfirmTicketBook,
+    confirm_glass_must_blank,
     license_score_text,
+    licensed_last_confirm,
     mint_confirm_ticket,
     mismatch_snapshot,
+    ticket_is_licensed_lock,
     why_strip,
 )
 
@@ -111,3 +114,66 @@ def test_mismatch_snapshot_pairs_fast_and_confirm():
     assert snap["last_confirm"]["ticket_id"] == t.ticket_id
     assert snap["last_fast"]["kind"] == "fast_clip"
     assert snap["lag_ns"] == 40
+
+
+def test_zero_zero_and_empty_hash_are_not_licensed_last_confirm():
+    book = ConfirmTicketBook()
+    zero = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1,
+        home_score=0,
+        away_score=0,
+        crop_hash="abc",
+        book=book,
+    )
+    book.put(zero)
+    assert ticket_is_licensed_lock(zero) is False
+    assert licensed_last_confirm(book) is None
+    assert book.mismatch()["last_confirm"] is None
+    assert confirm_glass_must_blank(book) is True
+
+    book.drop_last_confirm()
+    hashed = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=2,
+        home_score=7,
+        away_score=0,
+        crop_hash="",
+        book=book,
+    )
+    book.put(hashed)
+    assert ticket_is_licensed_lock(hashed) is False
+    assert licensed_last_confirm(book) is None
+    assert book.mismatch()["last_confirm"] is None
+
+    book.drop_last_confirm()
+    live = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=3,
+        home_score=7,
+        away_score=0,
+        crop_hash="crop-ok",
+        book=book,
+    )
+    book.put(live)
+    assert ticket_is_licensed_lock(live) is True
+    assert licensed_last_confirm(book) is live
+    assert book.mismatch()["last_confirm"]["ticket_id"] == live.ticket_id
+    assert confirm_glass_must_blank(book) is False
+
+
+def test_drop_last_confirm_forgets_stuck_ticket():
+    book = ConfirmTicketBook()
+    t = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1,
+        home_score=0,
+        away_score=0,
+        crop_hash="",
+        book=book,
+    )
+    book.put(t, home_team="NO", away_team="DET")
+    assert book.latest() is t
+    book.drop_if_unlicensed_last_confirm()
+    assert book.latest() is None
+    assert book.mismatch()["last_confirm"] is None

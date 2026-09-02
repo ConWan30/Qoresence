@@ -378,3 +378,94 @@ def test_visual_lobe_skips_post_after_scoreboard_hold(monkeypatch):
     out = client.analyze_frame_raw(np.zeros((64, 64, 3), dtype=np.uint8), "prompt")
     assert out is None
     client._session.post.assert_not_called()
+
+
+def test_hold_402_drops_last_confirm_and_blanks_glass():
+    """Seeing-path HOLD drops last_confirm / score_vlm_locked. Fail-closed empty."""
+    from qoresence.agents.situation_model import SituationModel
+    from qoresence.vision.confirm_ticket import get_ticket_book, mint_confirm_ticket
+
+    book = get_ticket_book()
+    book.clear()
+    ticket = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1,
+        home_score=7,
+        away_score=0,
+        crop_hash="crop-ok",
+        book=book,
+    )
+    book.put(ticket, home_team="DAL", away_team="NO")
+    assert book.latest() is ticket
+    assert book.mismatch()["last_confirm"]["ticket_id"] == ticket.ticket_id
+
+    sm = SituationModel()
+    sm._state.score_vlm_locked = True
+    sm._state.confirm_ticket_id = ticket.ticket_id
+    sm._state.home_score = 7
+    sm._state.away_score = 0
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._hold_on_http(402)
+    assert ref.is_held() is True
+    assert book.latest() is None
+    assert book.mismatch()["last_confirm"] is None
+
+    singleton = None
+    try:
+        from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+
+        singleton = get_scoreboard_vlm()
+        singleton._held = True
+        snap = sm.to_dict()
+        assert snap["score_vlm_locked"] is False
+        assert snap["confirm_ticket_id"] == ""
+        assert snap["home_score"] is None
+        assert snap["away_score"] is None
+    finally:
+        if singleton is not None:
+            singleton._held = False
+        book.clear()
+
+
+def test_stuck_zero_zero_last_confirm_does_not_paint():
+    """A 0-0 last_confirm with empty crop_hash must not keep the glass at 0-0."""
+    from qoresence.agents.situation_model import SituationModel
+    from qoresence.deck.seeing_health import attach_board_health
+    from qoresence.vision.confirm_ticket import get_ticket_book, mint_confirm_ticket
+
+    book = get_ticket_book()
+    book.clear()
+    stuck = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1,
+        home_score=0,
+        away_score=0,
+        crop_hash="",
+        book=book,
+    )
+    book.put(stuck, home_team="NO", away_team="DET")
+    sm = SituationModel()
+    sm._state.score_vlm_locked = True
+    sm._state.confirm_ticket_id = stuck.ticket_id
+    sm._state.home_score = 0
+    sm._state.away_score = 0
+    try:
+        snap = sm.to_dict()
+        assert snap["score_vlm_locked"] is False
+        assert snap["home_score"] is None
+        assert snap["away_score"] is None
+        assert book.mismatch()["last_confirm"] is None
+        health = attach_board_health(
+            {},
+            {
+                "score_vlm_locked": True,
+                "confirm_ticket_id": stuck.ticket_id,
+                "board_why": "confirm_ticket",
+            },
+        )
+        assert health["score_vlm_locked"] is False
+        assert health["has_confirm_ticket"] is False
+    finally:
+        book.clear()

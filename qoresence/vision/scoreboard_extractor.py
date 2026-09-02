@@ -117,17 +117,21 @@ def garbage_lock_reason(
     away_team: str = "",
     game_state: str = "",
     book: Any = None,
+    crop_hash: str | None = None,
 ) -> str | None:
     """Why this pair must not mint. None = lock may proceed.
 
-    Receipt 1.1: refuse 0-0 after identity swap (not every 0-0), refuse 82-86-class
-    first locks, refuse a live-identity ticker swap (9-47 DAL-DET over IND-DET).
+    Receipt 1.1: refuse every 0-0 as a licensed lock (kickoff included), refuse
+    empty crop_hash, refuse 82-86-class first locks, refuse a live-identity
+    ticker swap (9-47 DAL-DET over IND-DET).
     """
     gst = str(game_state or "").lower()
     if gst in _LOADING_STATES:
         return "game_state"
     if _ScoreStabilizer._looks_suspicious_pair((home, away)):
         return "suspicious_pair"
+    if crop_hash is not None and not str(crop_hash).strip():
+        return "empty_crop_hash"
 
     if book is None:
         try:
@@ -161,8 +165,10 @@ def garbage_lock_reason(
         if teams_changed and not stale:
             return "identity_swap"
 
-    if home == 0 and away == 0 and gst in _MENU_STATES:
-        return "zero_zero_menu"
+    if home == 0 and away == 0:
+        if gst in _MENU_STATES:
+            return "zero_zero_menu"
+        return "zero_zero_kickoff"
     return None
 
 
@@ -197,6 +203,7 @@ def confirm_mint_refuse(
     book: Any = None,
     vlm_ref: Any = None,
     crop: Any = None,
+    crop_hash: str | None = None,
 ) -> str | None:
     """Extractor mint gate: garbage pair first, then player-CU / missed-bug crop.
 
@@ -212,6 +219,7 @@ def confirm_mint_refuse(
         away_team=away_team,
         game_state=game_state,
         book=book,
+        crop_hash=crop_hash,
     )
     if refuse:
         return refuse
@@ -802,6 +810,7 @@ class FootballScoreboardExtractor:
                         game_state=_game_state_token(ctx),
                         book=book,
                         crop=confirm_crop,
+                        crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
                     )
                     if refuse:
                         log.info(
@@ -813,6 +822,10 @@ class FootballScoreboardExtractor:
                             away_team_now,
                         )
                         ctx.score_vlm_locked = False
+                        try:
+                            book.drop_if_unlicensed_last_confirm()
+                        except Exception:
+                            pass
                         try:
                             from qoresence.graphs.refuse_chain import apply_refuse
                             from qoresence.graphs.ticket_provenance import record_refuse

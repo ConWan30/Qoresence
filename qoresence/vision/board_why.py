@@ -50,6 +50,8 @@ _REFUSE_TO_WHY = {
     "suspicious_pair": "refuse_suspicious",
     "zero_zero_after_identity_swap": "refuse_zero_zero",
     "zero_zero_after_nonzero": "refuse_zero_zero",
+    "zero_zero_kickoff": "refuse_zero_zero",
+    "empty_crop_hash": "vlm_ungrounded",
     "identity_swap": "refuse_identity_swap",
     "zero_zero_menu": "menu",
     "player_cu_crop": "vlm_ungrounded",

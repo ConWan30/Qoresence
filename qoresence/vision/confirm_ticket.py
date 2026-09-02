@@ -77,6 +77,58 @@ class ConfirmTicket:
         return asdict(self)
 
 
+def ticket_is_licensed_lock(ticket: ConfirmTicket | None) -> bool:
+    """True when a ticket may paint last_confirm / score_vlm_locked.
+
+    Kickoff or garbage 0-0, and an empty crop_hash, are never a licensed lock.
+    """
+    if ticket is None:
+        return False
+    if ticket.home_score == 0 and ticket.away_score == 0:
+        return False
+    if not str(ticket.crop_hash or "").strip():
+        return False
+    return True
+
+
+def licensed_last_confirm(book: ConfirmTicketBook | None = None) -> ConfirmTicket | None:
+    """last_confirm only when the ticket is a licensed lock. Never emits."""
+    live = book if book is not None else get_ticket_book()
+    last = live.latest()
+    return last if ticket_is_licensed_lock(last) else None
+
+
+def seeing_confirm_is_live(book: ConfirmTicketBook | None = None) -> ConfirmTicket | None:
+    """Licensed last_confirm, or None on HOLD / 0-0 / empty crop_hash."""
+    try:
+        from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+
+        if get_scoreboard_vlm().is_held():
+            return None
+    except Exception:
+        pass
+    return licensed_last_confirm(book)
+
+
+def confirm_glass_must_blank(book: ConfirmTicketBook | None = None) -> bool:
+    """True when HOLD or an unlicensed last_confirm must not paint.
+
+    An empty book is not a veto — only a dead claimed lock or HOLD blanks the glass.
+    """
+    try:
+        from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+
+        if get_scoreboard_vlm().is_held():
+            return True
+    except Exception:
+        pass
+    live = book if book is not None else get_ticket_book()
+    last = live.latest()
+    if last is None:
+        return False
+    return not ticket_is_licensed_lock(last)
+
+
 def _norm_int(v: Any) -> int | None:
     if v is None or v == "":
         return None
@@ -373,6 +425,22 @@ class ConfirmTicketBook:
             self._last_board_identity = None
             self._identity_stale = False
 
+    def drop_last_confirm(self) -> None:
+        """Forget last_confirm. Never emit. Callers must not hold a lobe lock."""
+        with self._lock:
+            last = self._latest
+            self._latest = None
+            if last is not None:
+                self._by_id.pop(last.ticket_id, None)
+
+    def drop_if_unlicensed_last_confirm(self) -> None:
+        """0-0 or empty crop_hash must not remain last_confirm. Never emit."""
+        last = self.latest()
+        if last is None:
+            return
+        if not ticket_is_licensed_lock(last):
+            self.drop_last_confirm()
+
     def get(self, ticket_id: str | None) -> ConfirmTicket | None:
         if not ticket_id:
             return None
@@ -390,7 +458,9 @@ class ConfirmTicketBook:
             return dict(self._last_fast) if self._last_fast else None
 
     def mismatch(self) -> dict[str, Any]:
-        return mismatch_snapshot(last_fast=self.last_fast(), last_confirm=self.latest())
+        return mismatch_snapshot(
+            last_fast=self.last_fast(), last_confirm=licensed_last_confirm(self)
+        )
 
 
 _BOOK = ConfirmTicketBook()
