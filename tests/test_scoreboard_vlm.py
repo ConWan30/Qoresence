@@ -116,6 +116,20 @@ def test_vlm_parse_json_chatty_preamble_car_bal_ltr():
     assert out["away_score"] == 0
 
 
+def test_vlm_parse_json_wrapped_reply_sure_here_is_json():
+    text = (
+        'Sure, here is the JSON:\n'
+        '{"home_score": 21, "away_score": 14, "home_left": true, "quarter": 4}\n'
+        "hope that helps"
+    )
+    out = ScoreboardVlmReferee._parse_json(text)
+    assert out is not None
+    assert out["home_score"] == 21
+    assert out["away_score"] == 14
+    assert out["home_left"] is True
+    assert out["quarter"] == 4
+
+
 def test_vlm_choice_text_prefers_field_with_first_brace():
     choice = {
         "finish_reason": "stop",
