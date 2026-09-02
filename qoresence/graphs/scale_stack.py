@@ -1,7 +1,8 @@
 """Multi-scale stack — which timescale may request the next look.
 
 Escalate only: tick peek → phrase coupling → drive confirm → session wrap.
-Confirm-path VLM is not licensed from tick scale alone.
+Confirm-path VLM HTTP is not skipped at tick scale (see look_gate.permit_confirm_look).
+Reuse mint/speech may HOLD at tick scale via permit_confirm_mint.
 """
 
 from __future__ import annotations

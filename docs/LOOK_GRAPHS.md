@@ -46,11 +46,11 @@ When `--learning-edge` is also on, a LookLicense may mint an existing constraint
 
 | Permit | Refuses when the matching graph is on |
 |---|---|
-| `permit_confirm_look` | tick without an open drive; Same-Seq `seq_skew` / `plane_dim`; blank / no_frame |
+| `permit_confirm_look` | Same-Seq `seq_skew` / `plane_dim`; blank / no_frame; refuse-chain `schedule_skip` |
 | `permit_ocr_look` | Same-Seq `seq_skew` / `plane_dim` |
-| `permit_confirm_mint(reuse=True)` | identity stale / refuse-chain mint block |
+| `permit_confirm_mint(reuse=True)` | identity stale / refuse-chain mint block; scale_tick / no active drive |
 
-`score_changed` / `menu_exit` / `first_lock` / `force` still license a drive-scale confirm look unless refuse-chain `schedule_skip` names confirm (quota / auth / suspicious). The gate is query-only on the hot path — it does not append JSONL.
+`score_changed` / `menu_exit` / `first_lock` / `force` still run confirm VLM HTTP. Tick HTTP also runs whenever `has_frame` and not blank — graphs must not skip the seeing-path. `scale_tick` / no active drive HOLDs reuse mint/speech via `permit_confirm_mint`, never `schedule()`. Refuse-chain `schedule_skip` naming confirm (quota / auth / suspicious) still refuses HTTP. The gate is query-only on the hot path — it does not append JSONL.
 
 CIVIF ticks call `note_tick_peek` (no JSONL). Opening a drive on `SessionTimeline` escalates to drive-scale confirm (after the timeline lock). Closing the drive drops back to tick. `split_chapter_units` drops skipped chapter kinds when `--look-graphs` is on, even if `--learning-edge` is off.
 
@@ -98,9 +98,9 @@ python -m qoresence.cli --play --deck --look-graphs --learning-edge
 | Signal | Healthy live | Treat as refuse |
 |---|---|---|
 | `look_join` | `join_ok` or `slack_hold` | `seq_skew`, `plane_dim` |
-| `look_scale` | `phrase` or `drive` during a live snap/drive | stuck `tick` while you expect a confirm VLM |
-| `look_permit_confirm` | `true` only with an open drive (or session wrap) | `false` + `scale_tick` — tick peek must not schedule confirm VLM |
-| `look_refuse` | empty | `schedule_skip`, `seq_skew`, `plane_dim`, `scale_tick` |
+| `look_scale` | `tick` / `phrase` / `drive` (tick is legal for VLM HTTP) | not a seeing-path skip; reuse mint HOLD is `permit_confirm_mint` |
+| `look_permit_confirm` | `true` when seeing-path VLM HTTP is allowed (frame present, not blank, join ok) | `false` + `seq_skew` / `plane_dim` / `schedule_skip` |
+| `look_refuse` | empty | `schedule_skip`, `seq_skew`, `plane_dim` |
 | `state.video.age_s` | &lt; 1s | climbing while `frames` flat — lock/cascade, not the crop graph |
 | JSONL kinds | `join_ok`, `phrase_coupling`, `drive_confirm`, `reuse` | sudden `session_wrap` mid-drive (closeout should be the only wrap) |
 

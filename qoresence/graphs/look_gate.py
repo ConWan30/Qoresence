@@ -10,8 +10,6 @@ from typing import Any
 
 from qoresence.graphs.flags import enabled, graph_enabled
 
-_FORCE_REASONS = frozenset({"score_changed", "menu_exit", "first_lock", "confirm", "drive"})
-
 
 def permit_confirm_look(
     *,
@@ -20,10 +18,13 @@ def permit_confirm_look(
     has_frame: bool = True,
     blank: bool = False,
 ) -> bool:
-    """May confirm-path VLM run? Flag off → True.
+    """May confirm-path VLM HTTP run? Flag off → True.
 
-    Tick scale without an open drive is refused when the scale graph is on.
-    Same-Seq seq_skew / plane_dim refuse. Blank / no_frame refuse.
+    Tick HTTP is allowed whenever has_frame and not blank — same as flag-off
+    for the seeing-path. scale_tick / no active_drive HOLDs mint/speech via
+    permit_confirm_mint, never skips Quicksilver. Same-Seq seq_skew /
+    plane_dim, refuse-chain schedule_skip, blank, and no_frame still refuse.
+    ``reason`` / ``force`` are kept for callers; they do not gate HTTP.
     """
     if not enabled():
         return True
@@ -45,18 +46,6 @@ def permit_confirm_look(
                 return False
         except Exception:
             pass
-    if graph_enabled("scale_stack"):
-        try:
-            from qoresence.graphs.scale_stack import may_confirm
-
-            reason_l = str(reason or "tick").strip().lower()
-            if force or reason_l in _FORCE_REASONS:
-                return may_confirm(scale="drive", lower_licensed=_phrase_or_drive_open())
-            if _active_drive():
-                return may_confirm(scale="drive", lower_licensed=True)
-            return False
-        except Exception:
-            return False
     return True
 
 
@@ -80,6 +69,8 @@ def permit_confirm_mint(*, reuse: bool) -> bool:
 
     Reuse of the last identity is refused while provenance/refuse-chain
     mark identity stale. A remint (new scores or sides) is allowed.
+    scale_tick / no active_drive never skip VLM HTTP (see permit_confirm_look);
+    they may still HOLD reuse mint/speech through refuse-chain / identity.
     """
     if not enabled():
         return True
@@ -101,7 +92,40 @@ def permit_confirm_mint(*, reuse: bool) -> bool:
                 return False
         except Exception:
             pass
+    if graph_enabled("scale_stack"):
+        try:
+            if not _active_drive():
+                return False
+        except Exception:
+            pass
     return True
+
+
+def mint_hold_drops_lock() -> bool:
+    """True when a mint HOLD must drop score_vlm_locked.
+
+    Identity / refuse-chain HOLD unlicenses. scale_tick HOLD keeps a
+    previously licensed ticket so digits do not starve after the first mint.
+    """
+    if not enabled():
+        return False
+    if graph_enabled("ticket_provenance"):
+        try:
+            from qoresence.graphs.ticket_provenance import identity_blocked
+
+            if identity_blocked():
+                return True
+        except Exception:
+            pass
+    if graph_enabled("refuse_chain"):
+        try:
+            from qoresence.graphs.refuse_chain import mint_blocked
+
+            if mint_blocked():
+                return True
+        except Exception:
+            pass
+    return False
 
 
 def _active_drive() -> bool:
@@ -109,17 +133,6 @@ def _active_drive() -> bool:
         from qoresence.agents.session_timeline import get_session_timeline
 
         return get_session_timeline().active_drive() is not None
-    except Exception:
-        return False
-
-
-def _phrase_or_drive_open() -> bool:
-    if _active_drive():
-        return True
-    try:
-        from qoresence.sync.coupling_ticket import get_coupling_book
-
-        return get_coupling_book().latest() is not None
     except Exception:
         return False
 
@@ -156,8 +169,7 @@ def snapshot() -> dict[str, Any] | None:
         reasons.append("schedule_skip")
     if join in {"seq_skew", "plane_dim"}:
         reasons.append(join)
-    if graph_enabled("scale_stack") and not _active_drive() and scale not in {"drive", "session"}:
-        reasons.append("scale_tick")
+    # scale_tick is mint/speech HOLD, not a seeing-path HTTP skip.
     return {
         "scale": scale or "tick",
         "join": join,
