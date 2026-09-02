@@ -27,6 +27,7 @@ from qoresence.agents.llm_client import (
     LLMConfig,
     _resolve_api_key,
 )
+from qoresence.security.redact import safe_http_body as _safe_http_body
 from qoresence.vision.scorebug_crops import (
     CFB_PRIMARY_SCOREBUG,
     is_madden_profile,
@@ -53,16 +54,6 @@ TICKER_CUT_Y = 0.93
 # (x1, x2, y1, y2) fractions — CFB default; Madden overrides via primary_scorebug_crop.
 _SCOREBUG_FRAC = CFB_PRIMARY_SCOREBUG
 _PAUSE_FRAC = (0.22, 0.78, 0.12, 0.52)
-
-def _safe_http_body(text: str, *, limit: int = 400) -> str:
-    """Log a provider body without keys, bearer tokens, or JPEG payloads."""
-    raw = " ".join(str(text or "").split())
-    raw = re.sub(r"(?i)bearer\s+[A-Za-z0-9._\-]+", "Bearer [redacted]", raw)
-    raw = re.sub(r"sk-[A-Za-z0-9_\-]+", "sk-[redacted]", raw)
-    raw = re.sub(r"(?i)(api[_-]?key[\"']?\s*[:=]\s*[\"']?)[^\"'\s]+", r"\1[redacted]", raw)
-    raw = re.sub(r"data:image/[^;]+;base64,[A-Za-z0-9+/=]+", "data:image/[redacted]", raw)
-    return raw[:limit]
-
 
 _PROMPT = """You are a football scoreboard identity engine for EA College Football 27 or Madden NFL 27.
 Look at THIS match's primary in-game scorebug or pause score plate only.

@@ -17,6 +17,8 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from qoresence.security.redact import safe_http_body
+
 log = logging.getLogger(__name__)
 
 try:
@@ -247,7 +249,7 @@ class QuicksilverLLMClient:
                 elapsed = time.time() - start
                 if resp.status_code != 200:
                     log.warning(
-                        f"Quicksilver LLM {mdl} HTTP {resp.status_code}: {resp.text[:400]} ({elapsed:.2f}s)"
+                        f"Quicksilver LLM {mdl} HTTP {resp.status_code}: {safe_http_body(resp.text)} ({elapsed:.2f}s)"
                     )
                     # fallback once on 404/429 for model
                     if resp.status_code in (404, 429) and mdl != self.config.fallback_model:
@@ -278,7 +280,7 @@ class QuicksilverLLMClient:
                 elapsed = time.time() - start
                 if resp2.status != 200:
                     log.warning(
-                        f"Quicksilver LLM {mdl} HTTP {resp2.status}: {raw[:400]} ({elapsed:.2f}s)"
+                        f"Quicksilver LLM {mdl} HTTP {resp2.status}: {safe_http_body(raw)} ({elapsed:.2f}s)"
                     )
                     if resp2.status in (404, 429) and mdl != self.config.fallback_model:
                         return self._post_chat(messages, model=self.config.fallback_model)
@@ -293,7 +295,7 @@ class QuicksilverLLMClient:
                     log.debug(f"LLM {mdl} ok {elapsed:.2f}s: {content[:120]}")
                     return content
             except Exception as e:
-                log.warning(f"LLM parse failed: {e} data={str(data)[:500]}")
+                log.warning(f"LLM parse failed: {e} data={safe_http_body(str(data))}")
                 return None
             return None
         except Exception as e:

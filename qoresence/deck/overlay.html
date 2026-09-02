@@ -55,6 +55,9 @@ function fmtClock(s){
   const sec=Number(s.game_clock_seconds)|0;
   return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
 }
+function esc(s){
+  return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 function setRibbon(wp,clip){const pct=Math.round((wp||0)*100);ribbon.style.background='linear-gradient(90deg,#0B0D14 0%,#9BE7FF '+pct+'%,#E8EAF2 100%)';ribbon.style.opacity=(0.08+(clip||0)*0.6).toFixed(2)}
 function setPill(t,show){pill.textContent=t;pill.className=show?'show':'hide'}
 function setSpark(w,icon){spark.textContent=(icon||'⚡')+' '+(w||'');spark.className='show';setTimeout(()=>spark.className='',2600)}
@@ -89,11 +92,11 @@ function handle(m){
       const down=s.down, dist=s.distance||s.yards_to_go, clock=fmtClock(s), wp=s.win_prob, cl=s.clip_worthiness||0;
       const parts=[]; if(sc!==''&&sc!=='null-null') parts.push(sc); if(q) parts.push(q+(clock?' '+clock:'')); if(down!=null) parts.push(down+' & '+(dist!=null?dist:'')); if(wp!=null) parts.push('WP '+Math.round(wp*100)+'%');
       setRibbon(wp||0,cl); setPill(parts.join(' · ')||'LIVE',true);
-      setEye('● <strong>live</strong> '+cat+(lat!=null?(' '+(Number(lat).toFixed(1))+'ms'):'')+conf);
+      setEye('● <strong>live</strong> '+esc(cat)+(lat!=null?(' '+esc(Number(lat).toFixed(1))+'ms'):'')+esc(conf));
     } else {
       // Classified football/gameplay but scorebug still null — hide center wait + hide pill.
       setRibbon(0,0); setPill('',false);
-      setEye('● <strong>live</strong> '+cat+' · no scorebug'+conf+(wsOk?'':' · http'));
+      setEye('● <strong>live</strong> '+esc(cat)+' · no scorebug'+esc(conf)+(wsOk?'':' · http'));
     }
   } else {
     setRibbon(0,0); setPill('',false);
@@ -152,7 +155,7 @@ function connect(){
     ws.onopen=()=>{
       wsOk=true;
       // Do not force the yellow "waiting for HDMI" over a live classified snapshot.
-      if(isLive(lastSit)){ hideWait(); setEye('● <strong>live</strong> '+(lastSit.game_category||lastSit.game_state||'')+' · ws'); }
+      if(isLive(lastSit)){ hideWait(); setEye('● <strong>live</strong> '+esc(lastSit.game_category||lastSit.game_state||'')+' · ws'); }
       else { showWait('Retina connected — waiting for HDMI / classifier…', false); setEye('● <strong>connected</strong> :8765'); }
     };
     ws.onclose=()=>{

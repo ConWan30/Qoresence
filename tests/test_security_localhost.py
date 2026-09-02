@@ -44,3 +44,59 @@ def test_no_wildcard_bind_in_deck_module_source():
             continue
         if "DECK_HOST" in stripped and "0.0.0.0" in stripped:
             pytest.fail(f"DECK_HOST must not be 0.0.0.0: {stripped}")
+
+
+@pytest.fixture
+def deck_app():
+    from qoresence.deck.server import create_app
+
+    app = create_app()
+    if app is None:
+        pytest.skip("fastapi not installed")
+    return app
+
+
+def test_mutating_clip_route_rejects_non_loopback_client(deck_app, monkeypatch):
+    try:
+        from fastapi.testclient import TestClient
+    except Exception:
+        pytest.skip("httpx/starlette TestClient not installed")
+
+    monkeypatch.setattr(
+        "qoresence.security.redact.client_is_loopback",
+        lambda _request: False,
+    )
+    client = TestClient(deck_app)
+    resp = client.post("/api/clip", json={"seconds": 10})
+    assert resp.status_code == 403
+    body = resp.json()
+    assert body["ok"] is False
+    assert body["error"] == "local_client_required"
+
+
+def test_mutating_clip_route_allows_loopback_client(deck_app, monkeypatch):
+    try:
+        from fastapi.testclient import TestClient
+    except Exception:
+        pytest.skip("httpx/starlette TestClient not installed")
+
+    class _Clip:
+        path = "clips/hdmi_clip_test.mp4"
+        duration_s = 10.0
+        frames = 300
+        width = 1280
+        height = 720
+        fps = 30.0
+        size_bytes = 1234
+        source = "test"
+
+    monkeypatch.setattr(
+        "qoresence.security.redact.client_is_loopback",
+        lambda _request: True,
+    )
+    monkeypatch.setattr("qoresence.vision.clip_buffer.export_clip", lambda seconds=None: _Clip())
+
+    client = TestClient(deck_app)
+    resp = client.post("/api/clip", json={"seconds": 10})
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True

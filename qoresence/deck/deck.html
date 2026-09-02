@@ -546,7 +546,7 @@ function fmtNum(v, d){
   return Number.isNaN(n)?'—':n.toFixed(d==null?2:d);
 }
 function kv(label, value, cls){
-  return '<div class="kv'+(cls?' '+cls:'')+'"><i>'+label+'</i><b>'+value+'</b></div>';
+  return '<div class="kv'+(cls?' '+cls:'')+'"><i>'+esc(label)+'</i><b>'+esc(value)+'</b></div>';
 }
 function paintVideo(video){
   if(video) lastVideo=video;
@@ -605,7 +605,7 @@ function paintController(ctrl, sit){
   const bindBits=[];
   if(c.last_bind_kind) bindBits.push(c.last_bind_kind+(c.last_bind_hid?('←'+c.last_bind_hid):''));
   if(c.last_bind_ms!=null) bindBits.push(Number(c.last_bind_ms).toFixed(0)+'ms');
-  ctrlDetail.innerHTML='<span>APM <b>'+apm.toFixed(0)+'</b></span><span>Trig/5s <b>'+trig+'</b></span><span>Stick <b>'+Number(stick).toFixed(1)+'</b></span>'+(bindBits.length?'<span>BIND <b>'+bindBits.join(' ')+'</b></span>':'');
+  ctrlDetail.innerHTML='<span>APM <b>'+apm.toFixed(0)+'</b></span><span>Trig/5s <b>'+trig+'</b></span><span>Stick <b>'+Number(stick).toFixed(1)+'</b></span>'+(bindBits.length?'<span>BIND <b>'+esc(bindBits.join(' '))+'</b></span>':'');
   const lag=Array.isArray(c.lag_band_ms)&&c.lag_band_ms.length===2
     ? (Number(c.lag_band_ms[0]).toFixed(0)+'–'+Number(c.lag_band_ms[1]).toFixed(0)+'ms')
     : '—';
@@ -794,9 +794,9 @@ function renderEvidence(data){
       const drive=p.drive_phase||'—';
       const coup=p.coupling_score!=null?(p.coupling_score).toFixed(2):'—';
       html+='<div style="border-left:2px solid #9be7ff;padding-left:6px;margin-bottom:6px;">';
-      html+='<div>['+(i+1)+'] <b>'+reason+'</b> · conf '+conf+' · drive '+drive+' · coup '+coup+'</div>';
-      if(events.length) html+='<div style="color:#aaa;">events: '+events.join(', ')+'</div>';
-      if(fields.length) html+='<div style="color:#888;font-size:10px;">fields: '+fields.join(' · ')+'</div>';
+      html+='<div>['+(i+1)+'] <b>'+esc(reason)+'</b> · conf '+conf+' · drive '+esc(drive)+' · coup '+esc(coup)+'</div>';
+      if(events.length) html+='<div style="color:#aaa;">events: '+esc(events.join(', '))+'</div>';
+      if(fields.length) html+='<div style="color:#888;font-size:10px;">fields: '+esc(fields.join(' · '))+'</div>';
       html+='</div>';
     });
   }
@@ -810,8 +810,8 @@ function renderEvidence(data){
       const p=r.payload||{};
       const icon=p.fired?'✓':'✗';
       const color=p.fired?'#9be7ff':'#666';
-      const mf=p.must_fire_hit?' <span style="color:#9be7ff;">['+p.must_fire_hit+']</span>':'';
-      html+='<div style="color:'+color+';font-size:10px;">'+icon+' '+p.reason+mf+'</div>';
+      const mf=p.must_fire_hit?' <span style="color:#9be7ff;">['+esc(p.must_fire_hit)+']</span>':'';
+      html+='<div style="color:'+color+';font-size:10px;">'+icon+' '+esc(p.reason)+mf+'</div>';
     });
     html+='</div>';
   }
