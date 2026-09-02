@@ -522,34 +522,36 @@ def test_gate_off_permits_everything():
     assert permit_confirm_mint(reuse=False) is True
 
 
-def test_gate_tick_alone_refuses_confirm_vlm(monkeypatch):
-    from qoresence.graphs.look_gate import permit_confirm_look
+def test_gate_tick_allows_confirm_vlm_http_without_drive(monkeypatch):
+    from qoresence.graphs.look_gate import (
+        mint_hold_drops_lock,
+        permit_confirm_look,
+        permit_confirm_mint,
+    )
 
     _on(monkeypatch)
-    assert permit_confirm_look(reason="tick") is False
+    monkeypatch.setattr("qoresence.graphs.look_gate._active_drive", lambda: False)
+    assert permit_confirm_look(reason="tick") is True
+    assert permit_confirm_look(reason="tick", has_frame=True, blank=False) is True
     assert permit_confirm_look(reason="tick", has_frame=False) is False
     assert permit_confirm_look(reason="tick", blank=True) is False
     assert permit_confirm_look(reason="score_changed") is True
-    assert permit_confirm_look(reason="tick", force=True) is True
+    assert permit_confirm_mint(reuse=True) is False
+    assert permit_confirm_mint(reuse=False) is True
+    assert mint_hold_drops_lock() is False
 
 
 def test_gate_tick_with_open_drive_allows_confirm(monkeypatch):
-    from qoresence.graphs.look_gate import permit_confirm_look
+    from qoresence.graphs.look_gate import permit_confirm_look, permit_confirm_mint
 
     _on(monkeypatch)
-
-    class _Drive:
-        drive_id = "d1"
-
-    class _Tl:
-        def active_drive(self):
-            return _Drive()
-
     monkeypatch.setattr(
         "qoresence.graphs.look_gate._active_drive",
         lambda: True,
     )
     assert permit_confirm_look(reason="tick") is True
+    assert permit_confirm_mint(reuse=True) is True
+    assert permit_confirm_mint(reuse=False) is True
 
 
 def test_gate_seq_skew_refuses_vlm_and_ocr(monkeypatch):
@@ -563,12 +565,13 @@ def test_gate_seq_skew_refuses_vlm_and_ocr(monkeypatch):
 
 
 def test_gate_blocks_stale_reuse_allows_remint(monkeypatch):
-    from qoresence.graphs.look_gate import permit_confirm_mint
+    from qoresence.graphs.look_gate import mint_hold_drops_lock, permit_confirm_mint
 
     _on(monkeypatch)
     apply_refuse("identity_swap")
     assert permit_confirm_mint(reuse=True) is False
     assert permit_confirm_mint(reuse=False) is True
+    assert mint_hold_drops_lock() is True
 
 
 def test_may_confirm_does_not_write_jsonl(monkeypatch, tmp_path):
@@ -582,19 +585,35 @@ def test_may_confirm_does_not_write_jsonl(monkeypatch, tmp_path):
     assert not path.exists() or path.read_text(encoding="utf-8") == ""
 
 
-def test_vlm_schedule_skips_tick_when_gate_refuses(monkeypatch):
+def test_vlm_schedule_tick_kicks_when_look_graphs_on_without_drive(monkeypatch):
+    import threading
+
     import numpy as np
 
+    from qoresence.graphs.look_gate import permit_confirm_look
     from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee
 
     _on(monkeypatch)
+    monkeypatch.setattr("qoresence.graphs.look_gate._active_drive", lambda: False)
+    assert permit_confirm_look(reason="tick") is True
     ref = ScoreboardVlmReferee.__new__(ScoreboardVlmReferee)
     ref.enabled = True
+    ref._held = False
+    ref._lock = threading.Lock()
+    ref._inflight = False
+    ref._inflight_since = 0.0
+    ref._last_call = 0.0
+    ref._last_reason = ""
+    ref._last = None
+    ref._calls = 0
     called = []
-    monkeypatch.setattr(ref, "_crop", lambda *a, **k: called.append("crop") or np.zeros((8, 8, 3)))
+    monkeypatch.setattr(
+        ref, "_crop", lambda *a, **k: called.append("crop") or np.zeros((8, 8, 3), dtype=np.uint8)
+    )
+    monkeypatch.setattr(ref, "_call_vlm", lambda crop: None)
     frame = np.zeros((32, 32, 3), dtype=np.uint8)
-    ref.schedule(frame, game_state="gameplay", game_profile="cfb_27", reason="tick")
-    assert called == []
+    ref.schedule(frame, game_state="gameplay", game_profile="madden_27", reason="tick")
+    assert called == ["crop"]
 
 
 # ── P8 apply licenses to next look / splitter ──────────────────────────────
@@ -611,7 +630,7 @@ def test_civif_tick_is_peek_not_confirm_and_writes_no_jsonl(monkeypatch, tmp_pat
     rec = build_coupled_tick(coupling={"video_clock_ns": 1, "frame_seq": 3})
     assert rec.frame_seq == 3
     assert licensed_scale() == "tick"
-    assert permit_confirm_look(reason="tick") is False
+    assert permit_confirm_look(reason="tick") is True
     if path.exists():
         assert "tick_peek" not in path.read_text(encoding="utf-8")
 
@@ -629,7 +648,7 @@ def test_drive_open_escalates_confirm_look(monkeypatch):
         assert permit_confirm_look(reason="tick") is True
         tl.append(kind="resolve", path="confirm", close_drive=True, clock_ns=20)
         assert licensed_scale() == "tick"
-        assert permit_confirm_look(reason="tick") is False
+        assert permit_confirm_look(reason="tick") is True
     finally:
         reset_session_timeline()
 
@@ -741,8 +760,8 @@ def test_look_gate_snapshot_on_health_has_no_ticket_or_score(monkeypatch):
     assert set(snap) == {"scale", "join", "permit_confirm", "refuse"}
     assert snap["join"] == "join_ok"
     assert snap["scale"] == "tick"
-    assert snap["permit_confirm"] is False
-    assert "scale_tick" in str(snap["refuse"])
+    assert snap["permit_confirm"] is True
+    assert "scale_tick" not in str(snap["refuse"])
     blob = json.dumps(snap)
     assert "ticket" not in blob.lower()
     assert "score" not in blob.lower()
@@ -754,8 +773,8 @@ def test_look_gate_snapshot_on_health_has_no_ticket_or_score(monkeypatch):
     )
     assert out["look_join"] == "join_ok"
     assert out["look_scale"] == "tick"
-    assert out["look_permit_confirm"] is False
-    assert "scale_tick" in out["look_refuse"]
+    assert out["look_permit_confirm"] is True
+    assert "scale_tick" not in out["look_refuse"]
     look_blob = json.dumps({k: out[k] for k in out if str(k).startswith("look_")})
     assert "secret-ticket-id" not in look_blob
     assert "21" not in look_blob

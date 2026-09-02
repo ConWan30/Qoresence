@@ -761,12 +761,24 @@ class FootballScoreboardExtractor:
                             and ticket.ticket_id == last_before.ticket_id
                         )
                         try:
-                            from qoresence.graphs.look_gate import permit_confirm_mint
+                            from qoresence.graphs.look_gate import (
+                                mint_hold_drops_lock,
+                                permit_confirm_mint,
+                            )
 
                             if not permit_confirm_mint(reuse=reused):
-                                ctx.score_vlm_locked = False
-                                locked_ok = False
-                                ticket = None  # type: ignore[assignment]
+                                if mint_hold_drops_lock() or not reused:
+                                    ctx.score_vlm_locked = False
+                                    locked_ok = False
+                                    ticket = None  # type: ignore[assignment]
+                                else:
+                                    last = book.latest()
+                                    if last is None:
+                                        ctx.score_vlm_locked = False
+                                        locked_ok = False
+                                        ticket = None  # type: ignore[assignment]
+                                    else:
+                                        ticket = last
                         except Exception:
                             pass
                         if ticket is not None:
