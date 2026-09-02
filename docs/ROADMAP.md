@@ -9,7 +9,7 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 
 ### Capture ownership & Deck glass ✓
 - [x] Pattern B (recommended): Qoresence owns physical card; Pattern A VCam legacy (`docs/OBS_OWNS_CARD.md`)
-- [x] Retina Deck: Lens `/overlay.html`, Theater `/deck.html`, LIVE `/video`, Mobile Glass `/mobile.html`
+- [x] Sight Glass: Lens `/overlay.html`, Theater `/deck.html`, LIVE `/video`, Mobile Glass `/mobile.html`
 - [x] Async MJPEG + latency-oriented LIVE path
 - [x] Local HDMI clip buffer (Foundry) + browser-safe H.264 remux
 - [x] Streamer console UX (clip dock, top bar)

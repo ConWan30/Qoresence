@@ -1,4 +1,4 @@
-# RETINA DECK — Novel Overlay / Dashboard for Qoresence
+# SIGHT GLASS — Novel Overlay / Dashboard for Qoresence
 > 2026-08-06 21:25 — historical design note (Twitch wording is leftover).
 > Product path is local Deck / Lens / Foundry clips — not Twitch chat or Helix.
 > One brain, many glasses. Invisible when boring, exquisite when clutch.
@@ -6,7 +6,7 @@
 ## Thesis: Clutch Glass, Not Chrome
 
 Standard overlays **cover** gameplay. Standard dashboards make you **alt-tab away**.
-**Retina Deck** is perceptual UI: **opacity = tension**. Stream stays full-bleed 92-100%. Qoresence lives in the periphery — like a fighter-jet HUD.
+**Sight Glass** is perceptual UI: **opacity = tension**. Stream stays full-bleed 92-100%. Qoresence lives in the periphery — like a fighter-jet HUD.
 
 18% width max. Spring motion 0.8s. Frosted glass over Field #1A3A2A. You play. Deck whispers only when it matters.
 
@@ -84,7 +84,7 @@ After UNKNOWN->FOOTBALL transition (play end), Deck shows 3s scrub bar with reti
 
 ## Why Novel vs Existing
 
-| Existing | Retina Deck |
+| Existing | Sight Glass |
 |---|---|
 | StreamElements = 12 stats, covers game, alt-tab | 4 cards, 18% width, 88% visible, hotkey |
 | OBS overlay = always-on chrome spam | Perceptual — opacity = tension, 3 elements max |
@@ -105,6 +105,6 @@ After UNKNOWN->FOOTBALL transition (play end), Deck shows 3s scrub bar with reti
 3. **Week 3 Extension:** Publish Twitch Extension Panel+Overlay mirroring ws via EBS.
 4. **Week 4 Ghost+Review:** Scrub + eval histogram.
 
-> Positioning: "Trio for Entertainment Operations — Retina Deck is the first perceptual overlay that proves what it shows." Demo with CLEAN eval 14038 1.0 p50 1.12ms + video of Lens pulsing on 3rd down.
+> Positioning: "Trio for Entertainment Operations — Sight Glass is the first perceptual overlay that proves what it shows." Demo with CLEAN eval 14038 1.0 p50 1.12ms + video of Lens pulsing on 3rd down.
 
 *Hold for "build deck" — no code until approved.*
