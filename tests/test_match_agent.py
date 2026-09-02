@@ -22,12 +22,19 @@ def test_llm_config_from_quicksilver_env_matches_clutchbot_path():
     assert cfg.enabled is False
 
 
-def test_clutchbot_chat_and_confirm_vision_use_different_default_slugs():
+def test_clutchbot_chat_and_confirm_vision_use_separate_config_paths():
+    """Chat and confirm may share glm-5.3-flash but must use distinct config factories."""
     from qoresence.agents.llm_client import DEFAULT_VISION_MODEL
 
-    assert DEFAULT_MODEL == "glm-5.3-flash"
-    assert DEFAULT_VISION_MODEL == "qwen3.7-flash"
-    assert LLMConfig.from_scoreboard_vlm().model == "qwen3.7-flash"
+    chat_cfg = LLMConfig.from_quicksilver_env(enabled=False)
+    vision_cfg = LLMConfig.from_scoreboard_vlm()
+    assert chat_cfg.model == DEFAULT_MODEL == "glm-5.3-flash"
+    assert vision_cfg.model == DEFAULT_VISION_MODEL == "glm-5.3-flash"
+    assert chat_cfg is not vision_cfg
+    assert vision_cfg.max_tokens == 400
+    assert chat_cfg.max_tokens == 180
+    assert vision_cfg.timeout_s == 14.0
+    assert chat_cfg.timeout_s == 8.0
 
 
 def test_evidence_no_scores_without_confirm():

@@ -2,7 +2,7 @@
 
 Classical EasyOCR misreads stylized CFB digits (20-0 → 20-20). When the
 ClutchBot Quicksilver key is present, we crop the scorebug / pause plate
-and ask qwen3.7-flash for a strict JSON board read.
+and ask glm-5.3-flash for a strict JSON board read.
 
 Sparse + non-blocking: never call from the streamer grab thread.
 """
@@ -57,32 +57,36 @@ TICKER_CUT_Y = 0.93
 _SCOREBUG_FRAC = CFB_PRIMARY_SCOREBUG
 _PAUSE_FRAC = (0.22, 0.78, 0.12, 0.52)
 
-_PROMPT = """You are a football scoreboard identity engine for EA College Football 27 or Madden NFL 27.
+_PROMPT = """You are a football scoreboard identity engine for EA College Football or Madden NFL.
 Look at THIS match's primary in-game scorebug or pause score plate only.
 Return STRICT JSON, no markdown:
 {"home_score": <int|null>, "away_score": <int|null>, "home_left": <bool|null>,
- "left_team": "<wordmark or null>", "left_color": "<jersey/bug color>", "left_logo": "<mascot/logo>",
- "right_team": "<wordmark or null>", "right_color": "<jersey/bug color>", "right_logo": "<mascot/logo>",
+ "left_team": "<wordmark or null>", "left_score": <int|null>,
+ "left_color": "<jersey/bug color>", "left_logo": "<mascot/logo>",
+ "right_team": "<wordmark or null>", "right_score": <int|null>,
+ "right_color": "<jersey/bug color>", "right_logo": "<mascot/logo>",
  "quarter": <1-4|null>, "clock": "<m:ss>"|null, "down": <1-4|null>,
  "yards_to_go": <int|null>, "play_clock": <int|null>, "paused": <bool>,
  "visible_control": {"button": "<Cross|Circle|Square|Triangle|L1|R1|L2|R2|null>",
   "glyph": "<mark or null>", "prompt": "<on-screen verb or null>"}}
 Rules:
+- Read ONLY the two LARGE score digits next to the two team marks on THIS crop. Ignore everything else.
+- SPATIAL LAW (never violate): left_team / left_score are on the LEFT side of this image; right_team / right_score are on the RIGHT side. Never swap sides.
+- Example: CAR · 7 on the left and NO · 0 on the right → left_team=CAR, left_score=7, right_team=NO, right_score=0. Painting 7 onto NO or swapping scores is WRONG.
+- Do NOT remap via home/away if that would invert left↔right. left_* stays left, right_* stays right.
+- home_score / away_score are HOME vs AWAY (not left vs right). Set home_left true only if the HOME team wordmark is on the LEFT; still keep left_* = left side of image.
 - IGNORE the bottom ticker / crawl / "scores around the country" strip. Those are OTHER games. Never copy a ticker pair.
 - If you see many small scores in a row, that is a ticker — set scores null rather than using it.
-- Madden NFL 27: the compact lower-center HUD (two team marks + TWO large scores + down/distance + play clock) IS this match's scorebug. It is not a ticker. Read it.
+- Madden NFL: the compact lower-center HUD (two team marks + TWO large scores + down/distance + play clock) IS this match's scorebug. It is not a ticker. Read it.
 - A ticker is a ROW OF MANY small scores. Two scores next to two team logos is the match.
-- Read ONLY the primary scorebug for the match on this screen (the two LARGE scores next to the two team wordmarks, with down & distance).
 - visible_control: if a DualSense callout is on this crop (Cross/Circle/Square/Triangle/L1/R1/L2/R2 plus an on-screen verb like Preplay/Snap), fill it. Else nulls.
 - Bind EACH SIDE: the name, jersey/scorebug color, and logo on that side stay with THAT side's score. Never swap a mustang onto a cardinal, or blue onto a red bug.
-- left_* is the LEFT scorebug (usually away). right_* is the RIGHT scorebug (usually home).
 - left_color / right_color: dominant jersey or bug color (blue, red, crimson, orange, gold, purple, green, black, white, maroon, navy).
 - left_logo / right_logo: mascot/mark (eagle, horse, star, fleur-de-lis, mustang, cardinal, …) not a URL.
-- Madden: use NFL abbreviations when readable (KC, PHI, DAL, SF, …). NCAA: school wordmarks (OU, LOU, …).
-- home_score / away_score are HOME vs AWAY, not left vs right.
-- Convention: AWAY left, HOME right. If HOME is on the LEFT, set home_left true.
+- Madden: use NFL abbreviations when readable (KC, PHI, CAR, NO, DAL, SF, …). NCAA: school wordmarks (OU, LOU, …).
 - Read the BIG score digits only (not records, TOTAL, play clock, ticker).
-- 0 is valid. Prefer 20-0 over inventing 20-20. Unsure → null.
+- 0 is valid when clearly shown. If either large score is unreadable, return null for ALL score fields (home_score, away_score, left_score, right_score). Never invent 0-0 to fill gaps. Fail closed.
+- Game year: read only what the wordmark shows (e.g. Madden NFL 26). Do not guess Madden NFL 27. Null/unset is better than a wrong year.
 """
 
 

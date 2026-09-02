@@ -20,7 +20,7 @@ from tests.scorebug_fixtures import gray_noise_frame, licensed_scorebug_frame
 class _FakeVlm:
     def __init__(self, last: dict):
         self._last = last
-        self.model = "qwen3.7-flash"
+        self.model = "glm-5.3-flash"
         self.base_url = ""
 
     def schedule(self, *a, **k):

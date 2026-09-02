@@ -14,6 +14,8 @@ import threading
 from dataclasses import asdict, dataclass, replace
 from typing import Any
 
+from qoresence.agents.llm_client import DEFAULT_VISION_MODEL
+
 DOMAIN = "QORESENCE-CONFIRM-TICKET-v0"
 SCORE_PAIR = re.compile(r"\b(\d{1,2})\s*[-–—]\s*(\d{1,2})\b")
 
@@ -61,7 +63,7 @@ class ConfirmTicket:
     clock_ns: int
     home_score: int | None
     away_score: int | None
-    model: str = "qwen3.7-flash"
+    model: str = DEFAULT_VISION_MODEL
     source: str = "quicksilver"
     frame_seq: int | None = None
     crop_hash: str = ""
@@ -196,7 +198,7 @@ def mint_confirm_ticket(
     clock_ns: int,
     home_score: int | None,
     away_score: int | None,
-    model: str = "qwen3.7-flash",
+    model: str = DEFAULT_VISION_MODEL,
     source: str = "quicksilver",
     frame_seq: int | None = None,
     crop_hash: str = "",
@@ -255,7 +257,7 @@ def mint_confirm_ticket(
             clock_ns=int(clock_ns or 0),
             home_score=hs,
             away_score=aws,
-            model=str(model or "qwen3.7-flash"),
+            model=str(model or DEFAULT_VISION_MODEL),
             source=normalized_source,
             frame_seq=_norm_int(frame_seq),
             crop_hash=str(crop_hash or ""),
@@ -271,7 +273,7 @@ def mint_confirm_ticket(
         "clock_ns": int(clock_ns or 0),
         "home_score": hs,
         "away_score": aws,
-        "model": str(model or "qwen3.7-flash"),
+        "model": str(model or DEFAULT_VISION_MODEL),
         "source": normalized_source,
         "frame_seq": _norm_int(frame_seq),
         "crop_hash": str(crop_hash or ""),

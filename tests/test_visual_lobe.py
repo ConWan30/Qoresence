@@ -294,7 +294,7 @@ class TestVisualConfigDefaults:
         config = VisualConfig()
         assert config.enabled is False
         assert config.model_endpoint == "https://api.quicksilverpro.io/v1"
-        assert config.model_name == "qwen3.7-flash"
+        assert config.model_name == "glm-5.3-flash"
         assert config.api_key is None
         assert config.frame_sample_rate == 30
         assert config.max_frame_dim == 640

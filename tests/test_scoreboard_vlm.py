@@ -59,6 +59,21 @@ def test_vlm_prompt_forbids_ticker():
     assert "OTHER games" in _PROMPT
 
 
+def test_vlm_prompt_ltr_spatial_contract():
+    """LTR: left_* = left side of crop; never swap CAR 7 · NO 0."""
+    from qoresence.vision.scoreboard_vlm import _PROMPT
+
+    lower = _PROMPT.lower()
+    assert "left_team / left_score" in lower or "left_team / left_score are" in lower
+    assert "right_team / right_score" in lower or "right_team / right_score are" in lower
+    assert "never swap" in lower
+    assert "car" in lower and "no" in lower
+    assert "never invent 0-0" in lower or "never invent 0-0 to fill" in lower
+    assert "madden nfl 26" in lower
+    assert "left_score" in _PROMPT
+    assert "right_score" in _PROMPT
+
+
 def test_vlm_parse_home_left_false():
     text = '{"home_score": 7, "away_score": 0, "home_left": false, "quarter": 1}'
     out = ScoreboardVlmReferee._parse_json(text)
@@ -166,7 +181,7 @@ def test_situation_model_maps_cfb_title_to_cfb_profile():
 
 
 def test_vlm_defaults_quicksilver_vision(monkeypatch):
-    """Default confirm VLM is qwen3.7-flash on ClutchBot's Quicksilver API."""
+    """Default confirm VLM is glm-5.3-flash on ClutchBot's Quicksilver API."""
     monkeypatch.delenv("QORESENCE_SCOREBOARD_VLM_MODEL", raising=False)
     monkeypatch.delenv("QORESENCE_SCOREBOARD_VLM_BASE_URL", raising=False)
     monkeypatch.delenv("QORESENCE_CLUTCHBOT_LLM_BASE_URL", raising=False)
@@ -174,14 +189,14 @@ def test_vlm_defaults_quicksilver_vision(monkeypatch):
     assert cfg.provider == "quicksilver"
     assert cfg.base_url.rstrip("/") == DEFAULT_BASE_URL.rstrip("/")
     assert "quicksilverpro.io" in cfg.base_url
-    assert cfg.model == "qwen3.7-flash"
+    assert cfg.model == "glm-5.3-flash"
     assert cfg.model == DEFAULT_VISION_MODEL
     assert cfg.model != "gemini-3.5-flash-lite"
     assert cfg.model != "deepseek-v4-flash"
     assert cfg.model != "deepseek-v4-flash-vision-exp"
-    assert cfg.model != "glm-5.3-flash"
+    assert cfg.model != "qwen3.7-flash"
     ref = ScoreboardVlmReferee()
-    assert ref.model == "qwen3.7-flash"
+    assert ref.model == "glm-5.3-flash"
     assert ref.model == DEFAULT_VISION_MODEL
     assert ref.base_url.rstrip("/") == DEFAULT_BASE_URL.rstrip("/")
     assert "quicksilverpro.io" in ref.base_url
@@ -250,7 +265,7 @@ def test_http_401_fail_closed():
 
 
 def test_call_vlm_posts_to_quicksilver_base_url(monkeypatch):
-    """Referee POST goes to ClutchBot's Quicksilver /v1, with qwen3.7-flash + JPEG."""
+    """Referee POST goes to ClutchBot's Quicksilver /v1, with glm-5.3-flash + JPEG."""
     from unittest.mock import patch
 
     ref = ScoreboardVlmReferee()
@@ -290,7 +305,7 @@ def test_call_vlm_posts_to_quicksilver_base_url(monkeypatch):
     assert captured["url"] == f"{DEFAULT_BASE_URL.rstrip('/')}/chat/completions"
     assert "quicksilverpro.io" in captured["url"]
     assert "api.deepseek.com" not in captured["url"]
-    assert captured["json"]["model"] == "qwen3.7-flash"
+    assert captured["json"]["model"] == "glm-5.3-flash"
     assert captured["json"]["model"] == DEFAULT_VISION_MODEL
     assert "thinking" not in captured["json"]
     assert captured["json"]["model"] != "gemini-3.5-flash-lite"

@@ -18,6 +18,7 @@ from typing import Any
 import cv2
 import numpy as np
 
+from qoresence.agents.llm_client import DEFAULT_VISION_MODEL
 from qoresence.vision.visual_context import GameCategory, VisualContext
 
 log = logging.getLogger(__name__)
@@ -800,7 +801,7 @@ class FootballScoreboardExtractor:
                     model_str = str(
                         vlm_model
                         or getattr(ctx, "model", "")
-                        or "qwen3.7-flash"
+                        or DEFAULT_VISION_MODEL
                     )
                     source_str = infer_vlm_source(model_str, vlm_base)
 
