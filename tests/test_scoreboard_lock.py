@@ -89,7 +89,7 @@ def test_extract_fills_empty_frame_hash_from_hdmi(monkeypatch):
         game_profile="madden_27",
         frame_hash="",
     )
-    out = ext.extract(_noise_frame(), ctx)
+    out = ext.extract(_scorebug_frame(), ctx)
     assert out.frame_hash
     assert (out.home_score, out.away_score) == (24, 22)
     assert out.score_vlm_locked is True
