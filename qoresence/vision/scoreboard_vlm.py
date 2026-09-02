@@ -57,7 +57,8 @@ TICKER_CUT_Y = 0.93
 _SCOREBUG_FRAC = CFB_PRIMARY_SCOREBUG
 _PAUSE_FRAC = (0.22, 0.78, 0.12, 0.52)
 
-_PROMPT = """You are a football scoreboard identity engine for EA College Football or Madden NFL.
+_PROMPT = """Output ONE JSON object as the first characters. No preamble.
+You are a football scoreboard identity engine for EA College Football or Madden NFL.
 Look at THIS match's primary in-game scorebug or pause score plate only.
 Return STRICT JSON, no markdown:
 {"home_score": <int|null>, "away_score": <int|null>, "home_left": <bool|null>,
@@ -422,7 +423,8 @@ class ScoreboardVlmReferee:
         body = {
             "model": self.model,
             "temperature": 0.0,
-            "max_tokens": 400,
+            "max_tokens": 2048,
+            # glm-5.3-flash on Quicksilver accepts json_object; keeps shape strict.
             "response_format": {"type": "json_object"},
             "messages": [
                 {
@@ -514,6 +516,11 @@ class ScoreboardVlmReferee:
                 list(msg.keys()) if isinstance(msg, dict) else [],
             )
             return None
+        if finish == "length":
+            log.info(
+                "scoreboard VLM HTTP 200 finish=length — HOLD parse (truncated reply)"
+            )
+            return None
         parsed = self._parse_json(str(text))
         if parsed is None:
             log.info(
@@ -525,16 +532,18 @@ class ScoreboardVlmReferee:
 
     @staticmethod
     def _choice_text(choice: dict[str, Any]) -> tuple[str, str]:
-        """DeepSeek-v4 vision often fills reasoning_content and leaves content empty."""
+        """Pick content vs reasoning by whichever field exposes the first `{`."""
         msg = choice.get("message") if isinstance(choice, dict) else None
         if not isinstance(msg, dict):
             msg = {}
         content = str(msg.get("content") or "").strip()
         reasoning = str(msg.get("reasoning_content") or "").strip()
         finish = str((choice or {}).get("finish_reason") or "")
-        if "{" in content:
+        c_idx = content.find("{")
+        r_idx = reasoning.find("{")
+        if c_idx >= 0 and (r_idx < 0 or c_idx <= r_idx):
             return content, finish
-        if "{" in reasoning:
+        if r_idx >= 0:
             return reasoning, finish
         return content or reasoning, finish
 
