@@ -89,6 +89,65 @@ def test_vlm_parse_rejects_out_of_range():
     assert out["away_score"] == 0
 
 
+def test_vlm_parse_json_chatty_english_then_object():
+    text = (
+        "Based on the scorebug, the home team leads. "
+        '{"home_score": 14, "away_score": 0, "home_left": true, "quarter": 1}'
+    )
+    out = ScoreboardVlmReferee._parse_json(text)
+    assert out is not None
+    assert out["home_score"] == 14
+    assert out["away_score"] == 0
+
+
+def test_vlm_parse_json_markdown_fence():
+    text = '```json\n{"home_score": 7, "away_score": 3, "quarter": 2}\n```'
+    out = ScoreboardVlmReferee._parse_json(text)
+    assert out is not None
+    assert out["home_score"] == 7
+    assert out["away_score"] == 3
+    assert out["quarter"] == 2
+
+
+def test_vlm_parse_json_english_only_returns_none():
+    assert ScoreboardVlmReferee._parse_json("No scorebug visible on this frame.") is None
+
+
+def test_vlm_parse_json_truncated_object_returns_none():
+    assert ScoreboardVlmReferee._parse_json('Here is the board {"home_score": 14') is None
+
+
+def test_vlm_parse_json_skips_invalid_brace_in_prose():
+    text = 'The {team} marker shows {"home_score": 3, "away_score": 7, "quarter": 1}'
+    out = ScoreboardVlmReferee._parse_json(text)
+    assert out is not None
+    assert out["home_score"] == 3
+    assert out["away_score"] == 7
+
+
+def test_vlm_zero_zero_object_still_not_licensed_lock():
+    from qoresence.vision.confirm_ticket import (
+        ConfirmTicketBook,
+        mint_confirm_ticket,
+        ticket_is_licensed_lock,
+    )
+
+    out = ScoreboardVlmReferee._parse_json('{"home_score": 0, "away_score": 0, "quarter": 1}')
+    assert out is not None
+    assert out["home_score"] == 0
+    assert out["away_score"] == 0
+    book = ConfirmTicketBook()
+    ticket = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1,
+        home_score=0,
+        away_score=0,
+        crop_hash="abc",
+        book=book,
+    )
+    assert ticket_is_licensed_lock(ticket) is False
+
+
 def test_large_score_pair_prefers_zero_over_badge_double():
     # Giant away 20 left, giant home 0 right, tiny badge 20 far right (classic CFB pause glitch)
     tokens = [

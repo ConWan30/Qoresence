@@ -539,18 +539,34 @@ class ScoreboardVlmReferee:
         return content or reasoning, finish
 
     @staticmethod
-    def _parse_json(text: str) -> dict[str, Any] | None:
-        text = text.strip()
-        # strip fences
-        text = re.sub(r"^```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-        # find first {…}
-        m = re.search(r"\{[\s\S]*\}", text)
-        if not m:
+    def first_json_object(text: str) -> dict[str, Any] | None:
+        """Extract the first decodable JSON object from chatty VLM text."""
+        s = str(text or "").strip()
+        if not s:
             return None
-        try:
-            obj = json.loads(m.group(0))
-        except Exception:
+        if s.startswith("```"):
+            s = re.sub(r"^```(?:json)?\s*", "", s, flags=re.I)
+            s = re.sub(r"\s*```\s*$", "", s).strip()
+        decoder = json.JSONDecoder()
+        idx = 0
+        while idx < len(s):
+            start = s.find("{", idx)
+            if start < 0:
+                return None
+            try:
+                obj, _end = decoder.raw_decode(s, start)
+            except json.JSONDecodeError:
+                idx = start + 1
+                continue
+            if isinstance(obj, dict):
+                return obj
+            idx = start + 1
+        return None
+
+    @staticmethod
+    def _parse_json(text: str) -> dict[str, Any] | None:
+        obj = ScoreboardVlmReferee.first_json_object(text)
+        if obj is None:
             return None
         out: dict[str, Any] = {}
         for k in (

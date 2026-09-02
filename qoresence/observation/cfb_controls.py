@@ -116,7 +116,7 @@ class CfbControlLookup:
         game_profile = visual_context.get("game_profile", "")
 
         # Only apply to CFB 27 / college / NCAA
-        game_profile_lower = game_profile.lower()
+        game_profile_lower = str(game_profile or "").lower()
         if not any(x in game_profile_lower for x in ["cfb", "college", "ncaa"]):
             return None
 
