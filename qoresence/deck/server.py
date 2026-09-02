@@ -472,6 +472,15 @@ _agent_eps: dict[str, list[float]] = {}
 _agent_lock = threading.Lock()
 
 
+def _local_client_required_response(request: Any) -> Any | None:
+    """Fail closed for state-changing routes when the client is not loopback."""
+    from qoresence.security.redact import client_is_loopback
+
+    if client_is_loopback(request):
+        return None
+    return JSONResponse({"ok": False, "error": "local_client_required"}, status_code=403)
+
+
 def _agent_check_token(request: Any) -> bool:
     try:
         from qoresence.agents.agent_glass import get_agent_glass
@@ -965,6 +974,9 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.post("/api/operator/bus")
     async def api_operator_bus_post(request: Request):  # type: ignore[no-untyped-def]
         """Enqueue one RCP envelope into inbox. Never emit_raw."""
+        denied = _local_client_required_response(request)
+        if denied is not None:
+            return denied
         try:
             body = await request.json()
         except Exception:
@@ -1593,6 +1605,9 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.post("/api/agent/clip")
     async def api_agent_clip(request: Request):  # type: ignore[no-untyped-def]
+        denied = _local_client_required_response(request)
+        if denied is not None:
+            return denied
         if not _agent_check_token(request):
             return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
         try:
@@ -1737,6 +1752,9 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.post("/api/stem/hold")
     async def api_stem_hold(request: Request):  # type: ignore[no-untyped-def]
         """Operator HOLD — silence auto-clip. Conductor observes; does not cut."""
+        denied = _local_client_required_response(request)
+        if denied is not None:
+            return denied
         hold_ms = 60_000.0
         try:
             body = await request.json()
@@ -1759,7 +1777,10 @@ def create_app():  # type: ignore[no-untyped-def]
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
     @app.post("/api/stem/kill")
-    async def api_stem_kill():  # type: ignore[no-untyped-def]
+    async def api_stem_kill(request: Request):  # type: ignore[no-untyped-def]
+        denied = _local_client_required_response(request)
+        if denied is not None:
+            return denied
         try:
             from qoresence.stem import get_stem_runtime
 
@@ -1784,6 +1805,9 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.post("/api/clip")
     async def api_clip(request: Request):  # type: ignore[no-untyped-def]
         """Export last N seconds of true HDMI capture to local MP4 (not Twitch Helix)."""
+        denied = _local_client_required_response(request)
+        if denied is not None:
+            return denied
         try:
             from qoresence.vision.clip_buffer import export_clip
 
@@ -2052,6 +2076,9 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.post("/api/foundry/render")
     async def api_foundry_render(request: Request):  # type: ignore[no-untyped-def]
         """Queue one or more local Ghost Cuts."""
+        denied = _local_client_required_response(request)
+        if denied is not None:
+            return denied
         try:
             from qoresence.studio.api import queue_renders
 
@@ -2796,6 +2823,14 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
             return super().do_GET()
 
         def do_POST(self):  # type: ignore[no-untyped-def]
+            from qoresence.security.redact import client_host_is_loopback
+
+            if not client_host_is_loopback(self.client_address[0]):
+                self.send_response(403)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"ok": false, "error": "local_client_required"}')
+                return
             if self.path.startswith("/api/agent/clip"):
                 length = int(self.headers.get("Content-Length", 0) or 0)
                 body_raw = self.rfile.read(length) if length else b"{}"
