@@ -1,13 +1,27 @@
 /** Aperture Ident — fail-closed picture.
 
-When Theater has no honest HDMI (no JPEG), paint the HDMI Q on void.
+HOLD ident on blank / seq-skew / non-play, or when JPEG has not arrived.
 Never a last-good-frame freeze. Never digits. Never DualSense glyphs.
-JPEG arriving wins — same law as hdmiPictureVisible.
+Fresh LIVE JPEG still wins: jpgOk + hdmi live + sameSeq + !planeDim.
+livePaint flicker is widget-only — not an ident latch.
 Replay owns the stage; ident stays off.
 */
 export const APERTURE_IDENT = "apertureIdent";
 export const APERTURE_IDENT_SRC = "/qoresence-logo.png";
 
-export function apertureIdentOn(jpgOk: boolean, replay = false): boolean {
-  return !replay && !Boolean(jpgOk);
+export type IdentLatch = {
+  jpgOk: boolean;
+  replay?: boolean;
+  hdmi?: "live" | "menu" | "stale";
+  sameSeq?: boolean;
+  planeDim?: boolean;
+};
+
+export function apertureIdentOn(latch: IdentLatch): boolean {
+  if (latch.replay) return false;
+  if (!latch.jpgOk) return true;
+  if (latch.hdmi === "menu" || latch.hdmi === "stale") return true;
+  if (latch.sameSeq === false) return true;
+  if (latch.planeDim === true) return true;
+  return false;
 }

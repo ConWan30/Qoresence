@@ -93,7 +93,9 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
           try {
             await paintBlob(next);
           } catch {
-            /* decode miss — keep last good still */
+            /* decode miss — ident, not last still */
+            jpgOkRef.current = false;
+            setJpgOk(false);
           }
         }
         painting = false;
@@ -247,7 +249,16 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
   const goLive = useTheater((s) => s.goLive);
   const replaySrc = stageMode === "replay" ? clipHref(lastClipUrl) : "";
   const showLive = hdmiPictureVisible(jpgOk) && !replaySrc;
-  const identOn = apertureIdentOn(jpgOk, Boolean(replaySrc));
+  const hdmi = useTheater((s) => s.hdmi);
+  const sameSeq = useTheater((s) => s.sameSeq);
+  const planeDim = useTheater((s) => s.planeDim);
+  const identOn = apertureIdentOn({
+    jpgOk,
+    replay: Boolean(replaySrc),
+    hdmi,
+    sameSeq,
+    planeDim,
+  });
   const climbed = videoFrames > prevRef.current.frames || videoPushes > prevRef.current.pushes;
   if (climbed) {
     prevRef.current = { frames: videoFrames, pushes: videoPushes, climbedAt: performance.now() };
@@ -311,7 +322,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
           data-hdmi-keep={HDMI_JPEG_KEEP}
           data-hdmi-feed={HDMI_LIVE_FEED}
           data-hdmi-paint={HDMI_LIVE_PAINT}
-          data-hdmi-picture={showLive ? "on" : "off"}
+          data-hdmi-picture={showLive && !identOn ? "on" : "off"}
           className={cn(
             "hdmi-picture pointer-events-none absolute inset-0 z-0 h-full w-full bg-bg object-contain",
             identOn ? "opacity-0" : "",
