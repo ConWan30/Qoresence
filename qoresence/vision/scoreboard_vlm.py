@@ -191,6 +191,13 @@ class ScoreboardVlmReferee:
             self._last_http_status = int(code)
             self._last = None
             self._last_result_ts = 0.0
+        # Drop last_confirm outside the referee lock. Never emit. Human HOLD beats PASS.
+        try:
+            from qoresence.vision.confirm_ticket import get_ticket_book
+
+            get_ticket_book().drop_last_confirm()
+        except Exception:
+            pass
         if code == 400:
             log.warning(
                 "scoreboard VLM HTTP 400 — HOLD seeing-path (bad request) body=%s",

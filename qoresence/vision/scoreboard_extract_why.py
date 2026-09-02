@@ -61,6 +61,7 @@ def _refuse_from_last(ctx: VisualContext, vlm: dict[str, Any] | None) -> str | N
             home_team=str(getattr(ctx, "home_team", "") or ""),
             away_team=str(getattr(ctx, "away_team", "") or ""),
             game_state=_game_state_token(ctx),
+            crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
         )
     except Exception:
         return None

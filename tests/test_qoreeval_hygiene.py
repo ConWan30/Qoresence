@@ -223,8 +223,8 @@ def test_confirm_ticket_remint_reduces_churn():
     assert len(set(ids)) == 1
 
 
-def test_kickoff_zero_zero_is_not_suspicious():
-    """Real kickoff 0-0 must be allowed. Blanket 0-0 refuse is the wrong residual."""
+def test_kickoff_zero_zero_is_not_a_licensed_lock():
+    """Kickoff / garbage 0-0 must not mint. last_confirm must not stick on 0-0."""
     assert _ScoreStabilizer._looks_suspicious_pair((0, 0)) is False
     book = ConfirmTicketBook()
     assert (
@@ -235,6 +235,47 @@ def test_kickoff_zero_zero_is_not_suspicious():
             away_team="NO",
             game_state="gameplay",
             book=book,
+        )
+        == "zero_zero_kickoff"
+    )
+    assert (
+        garbage_lock_reason(
+            home=0,
+            away=0,
+            home_team="NO",
+            away_team="DET",
+            game_state="gameplay",
+            book=book,
+            crop_hash="",
+        )
+        == "empty_crop_hash"
+    )
+
+
+def test_empty_crop_hash_refuses_nonzero_pair():
+    """Empty crop_hash is not a licensed lock, even for a real-looking pair."""
+    book = ConfirmTicketBook()
+    assert (
+        garbage_lock_reason(
+            home=7,
+            away=0,
+            home_team="DAL",
+            away_team="NO",
+            game_state="gameplay",
+            book=book,
+            crop_hash="",
+        )
+        == "empty_crop_hash"
+    )
+    assert (
+        garbage_lock_reason(
+            home=7,
+            away=0,
+            home_team="DAL",
+            away_team="NO",
+            game_state="gameplay",
+            book=book,
+            crop_hash="abc123def456",
         )
         is None
     )

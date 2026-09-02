@@ -50,6 +50,8 @@ def test_refuse_mapping_matches_garbage_tokens():
     assert refuse_to_board_why("zero_zero_menu") == "menu"
     assert refuse_to_board_why("zero_zero_after_identity_swap") == "refuse_zero_zero"
     assert refuse_to_board_why("zero_zero_after_nonzero") == "refuse_zero_zero"
+    assert refuse_to_board_why("zero_zero_kickoff") == "refuse_zero_zero"
+    assert refuse_to_board_why("empty_crop_hash") == "vlm_ungrounded"
     assert refuse_to_board_why("identity_swap") == "refuse_identity_swap"
     assert refuse_to_board_why("suspicious_pair") == "refuse_suspicious"
 

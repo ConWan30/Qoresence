@@ -269,6 +269,7 @@ def test_http_402_unlocked(monkeypatch):
             assert vlm.get_last() is None
             assert vlm._last_http_status == 402
             assert result is None
+            assert vlm.is_held() is True
 
 
 def test_kickoff_0_0_stays_unlocked_without_seeing_path(monkeypatch):

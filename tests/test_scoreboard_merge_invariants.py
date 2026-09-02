@@ -87,6 +87,7 @@ def _football_ctx() -> VisualContext:
     return VisualContext(
         game_category=GameCategory.FOOTBALL,
         game_state=GameState.GAMEPLAY,
+        frame_hash="merge-invariant-crop",
     )
 
 
