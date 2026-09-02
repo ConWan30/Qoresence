@@ -11,7 +11,10 @@ import numpy as np
 from qoresence.core import RetinaEventBus, SessionAuthority, VisualConfig
 from qoresence.lobes.visual import VisualRuntime
 from qoresence.vision.scoreboard_extractor import FootballScoreboardExtractor, _ScoreStabilizer
+from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee
+from qoresence.vision.scorebug_crops import crop_misses_scorebug
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
+from tests.scorebug_fixtures import gray_noise_frame, licensed_scorebug_frame
 
 
 class _FakeVlm:
@@ -30,23 +33,9 @@ class _FakeVlm:
         return None
 
 
-def _scorebug_frame() -> np.ndarray:
-    """Confirm crop must contain wordmarks + digits. Gray noise is a player-CU refuse."""
-    import cv2
-
-    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
-    frame[:, :] = (16, 20, 14)
-    y1, y2 = int(720 * 0.78), int(720 * 0.93)
-    frame[y1:y2, :] = (8, 8, 8)
-    cv2.putText(
-        frame, "SMU 10", (int(1280 * 0.08), int(720 * 0.88)),
-        cv2.FONT_HERSHEY_SIMPLEX, 1.6, (255, 255, 255), 4, cv2.LINE_AA,
-    )
-    cv2.putText(
-        frame, "LOU 14", (int(1280 * 0.62), int(720 * 0.88)),
-        cv2.FONT_HERSHEY_SIMPLEX, 1.6, (255, 255, 255), 4, cv2.LINE_AA,
-    )
-    return frame
+def _frame() -> np.ndarray:
+    """Licensed CFB confirm strip (wordmarks + digits). Gray noise refuses mint."""
+    return licensed_scorebug_frame()
 
 
 def test_cloud_analyze_merges_gemini_board_and_mints_ticket(monkeypatch):
@@ -92,7 +81,12 @@ def test_cloud_analyze_merges_gemini_board_and_mints_ticket(monkeypatch):
         )
         rt._client = Mock()
         rt._client.analyze_frame.return_value = classified
-        rt._analyze_frame(_scorebug_frame())
+        frame = _frame()
+        confirm = ScoreboardVlmReferee._crop(
+            frame, game_state="gameplay", game_profile="ncaa_football_27"
+        )
+        assert crop_misses_scorebug(confirm) is None
+        rt._analyze_frame(frame)
         from qoresence.vision.scoreboard_lock import (
             apply_scoreboard_lock,
             wait_scoreboard_lock,
@@ -135,16 +129,14 @@ def test_injected_vlm_on_noise_frame_does_not_mint(monkeypatch):
         "qoresence.vision.local_hud_digits.read_score_pair",
         lambda *a, **k: (14, 10),
     )
-    rng = np.random.default_rng(1)
-    frame = np.full((720, 1280, 3), 80, dtype=np.uint8)
-    frame = np.clip(frame.astype(np.int16) + rng.integers(-6, 7, size=frame.shape), 0, 255)
+    frame = gray_noise_frame()
     ctx = VisualContext(
         game_category=GameCategory.FOOTBALL,
         game_state=GameState.GAMEPLAY,
         confidence=0.9,
         game_profile="ncaa_football_27",
     )
-    result = FootballScoreboardExtractor().extract(frame.astype(np.uint8), ctx, allow_ocr=False)
+    result = FootballScoreboardExtractor().extract(frame, ctx, allow_ocr=False)
     assert result.score_vlm_locked is False
     assert not (result.confirm_ticket_id or "")
 

@@ -11,6 +11,7 @@ from qoresence.vision.scoreboard_extractor import (
     _ScoreStabilizer,
 )
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
+from tests.scorebug_fixtures import licensed_scorebug_frame
 
 
 class _FakeVlm:
@@ -33,6 +34,11 @@ def _noise_frame() -> np.ndarray:
     frame = np.full((720, 1280, 3), 40, dtype=np.uint8)
     frame = np.clip(frame.astype(np.int16) + rng.integers(-10, 11, size=frame.shape), 0, 255)
     return frame.astype(np.uint8)
+
+
+def _scorebug_frame() -> np.ndarray:
+    """Grounded-VLM lock tests need a licensed confirm crop, not gray noise."""
+    return licensed_scorebug_frame(left="KC 22", right="PHI 24")
 
 
 def _gameplay() -> VisualContext:
@@ -96,7 +102,7 @@ def test_grounded_vlm_locks_without_local_hud(monkeypatch):
         lambda: _FakeVlm(_grounded_board(24, 22)),
     )
     ext = FootballScoreboardExtractor()
-    ctx = ext.extract(_noise_frame(), _gameplay())
+    ctx = ext.extract(_scorebug_frame(), _gameplay())
     assert (ctx.home_score, ctx.away_score) == (24, 22)
     assert ctx.score_vlm_locked is True
     assert ctx.confirm_ticket_id
@@ -112,7 +118,7 @@ def test_grounded_vlm_updates_held_pair_without_hud(monkeypatch):
         lambda: vlm,
     )
     ext = FootballScoreboardExtractor()
-    frame = _noise_frame()
+    frame = _scorebug_frame()
     ctx = ext.extract(frame, _gameplay())
     assert (ctx.home_score, ctx.away_score) == (23, 22)
     assert ctx.score_vlm_locked is True
@@ -141,7 +147,7 @@ def test_clock_grounded_vlm_locks_without_team_wordmarks(monkeypatch):
         ),
     )
     ext = FootballScoreboardExtractor()
-    ctx = ext.extract(_noise_frame(), _gameplay())
+    ctx = ext.extract(_scorebug_frame(), _gameplay())
     assert (ctx.home_score, ctx.away_score) == (17, 14)
     assert ctx.score_vlm_locked is True
     assert ctx.confirm_ticket_id
@@ -206,7 +212,7 @@ def test_menu_grounded_vlm_mints_football_hud(monkeypatch):
         game_profile="madden_27",
     )
     ext = FootballScoreboardExtractor()
-    ctx = ext.extract(_noise_frame(), ctx)
+    ctx = ext.extract(_scorebug_frame(), ctx)
     assert ctx.score_vlm_locked is True
     assert ctx.confirm_ticket_id
     assert (ctx.home_score, ctx.away_score) == (10, 0)

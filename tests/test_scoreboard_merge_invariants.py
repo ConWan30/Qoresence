@@ -22,6 +22,7 @@ from qoresence.vision.scoreboard_extractor import (
 )
 from qoresence.vision.scoreboard_ocr_engine import OcrBox
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
+from tests.scorebug_fixtures import licensed_scorebug_frame
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -68,13 +69,18 @@ def _blank_frame() -> np.ndarray:
     The extractor's blank-frame guard rejects all-black images (std≈0).
     These tests need a frame that bypasses the guard so the VLM/OCR merge
     path can be exercised in isolation. A little noise + a gray field does
-    the job without containing any OCR text.
+    the job without containing any OCR text. Confirm mint refuses this crop.
     """
     rng = np.random.default_rng(42)
     frame = np.full((720, 1280, 3), 128, dtype=np.uint8)
     frame = frame.astype(np.int16) + rng.integers(-8, 9, size=frame.shape)
     frame = np.clip(frame, 0, 255).astype(np.uint8)
     return frame
+
+
+def _scorebug_frame() -> np.ndarray:
+    """Lock-expecting merge tests need a licensed confirm crop, not gray noise."""
+    return licensed_scorebug_frame(left="HOME 20", right="AWAY 0")
 
 
 def _football_ctx() -> VisualContext:
@@ -130,7 +136,7 @@ def test_vlm_20_0_overrides_ocr_20_20(monkeypatch):
         lambda: _FakeVlm({"home_score": 20, "away_score": 0, "quarter": 3}),
     )
     ext = FootballScoreboardExtractor()
-    ctx = ext.extract(_blank_frame(), _football_ctx())
+    ctx = ext.extract(_scorebug_frame(), _football_ctx())
     assert ctx.home_score == 20
     assert ctx.away_score == 0  # VLM 0, not OCR 20
     assert ctx.score_vlm_locked is True
@@ -149,11 +155,11 @@ def test_vlm_lock_persists_when_ocr_keeps_misreading(monkeypatch):
     monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     ext = FootballScoreboardExtractor()
     # VLM locks 20-0
-    ctx = ext.extract(_blank_frame(), _football_ctx())
+    ctx = ext.extract(_scorebug_frame(), _football_ctx())
     assert (ctx.home_score, ctx.away_score) == (20, 0)
     # VLM goes stale (same last result); OCR still says 20-20 — must hold 20-0
     for _ in range(5):
-        ctx = ext.extract(_blank_frame(), _football_ctx())
+        ctx = ext.extract(_scorebug_frame(), _football_ctx())
         assert (ctx.home_score, ctx.away_score) == (20, 0)
 
 
@@ -171,7 +177,7 @@ def test_null_vlm_holds_prior_lock(monkeypatch):
     vlm = _FakeVlm({"home_score": 20, "away_score": 0, "quarter": 3})
     monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     ext = FootballScoreboardExtractor()
-    ctx = ext.extract(_blank_frame(), _football_ctx())
+    ctx = ext.extract(_scorebug_frame(), _football_ctx())
     assert (ctx.home_score, ctx.away_score) == (20, 0)
 
     # VLM disappears (transition / blur / no key) — get_last returns None
@@ -198,7 +204,7 @@ def test_partial_vlm_does_not_wipe_lock(monkeypatch):
     vlm = _FakeVlm({"home_score": 20, "away_score": 0, "quarter": 3})
     monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     ext = FootballScoreboardExtractor()
-    ctx = ext.extract(_blank_frame(), _football_ctx())
+    ctx = ext.extract(_scorebug_frame(), _football_ctx())
     assert (ctx.home_score, ctx.away_score) == (20, 0)
 
     # VLM partial: away is None → vlm_has_board False → scores not merged
