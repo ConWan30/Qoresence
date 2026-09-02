@@ -233,7 +233,7 @@ def test_mobile_html_skips_pairing_when_served_from_deck():
     if 'id="root"' in html or "id='root'" in html:
         assets = _DECK / "glass_spa" / "assets"
         js = "\n".join(q.read_text(encoding="utf-8", errors="ignore") for q in assets.glob("*.js"))
-        assert "servedFromDeck" in js or "pair" in js.lower() or "Retina Deck" in html
+        assert "servedFromDeck" in js or "pair" in js.lower() or "Sight Glass" in html
         return
     assert "servedFromDeck" in html
     assert "location.protocol" in html

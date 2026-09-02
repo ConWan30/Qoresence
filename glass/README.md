@@ -1,4 +1,4 @@
-# Retina Deck glass (Grok Build)
+# Sight Glass glass (Grok Build)
 
 Drop-in UI for Qoresence Deck URLs.
 

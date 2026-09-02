@@ -169,7 +169,7 @@ export function CommandBar() {
             </span>
             <div>
               <p className="font-display text-[18px] font-extrabold leading-none tracking-tight text-fg">
-                Retina Deck
+                Sight Glass
               </p>
               <p className="mt-1 font-mono text-[10px] tracking-[0.2em] text-subtle-foreground uppercase">
                 local switcher

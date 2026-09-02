@@ -944,7 +944,7 @@ def create_app():  # type: ignore[no-untyped-def]
 
     from fastapi.responses import StreamingResponse
 
-    app = FastAPI(title="Retina Deck", version="0.1.0")
+    app = FastAPI(title="Sight Glass", version="0.1.0")
     _gassets = _glass_dist() / "assets"
     if _gassets.is_dir():
         from fastapi.staticfiles import StaticFiles
@@ -2311,9 +2311,9 @@ def create_app():  # type: ignore[no-untyped-def]
                 _html("index.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
             )
         return HTMLResponse(
-            "<!doctype html><meta charset=utf-8><title>Retina Deck</title>"
+            "<!doctype html><meta charset=utf-8><title>Sight Glass</title>"
             "<body style='font:14px/1.5 system-ui;background:#0a0e14;color:#e8edf0;padding:24px'>"
-            "<h1 style='color:#f5c542'>Retina Deck</h1>"
+            "<h1 style='color:#f5c542'>Sight Glass</h1>"
             "<p><a href='/overlay.html' style='color:#f5c542'>Lens</a> · "
             "<a href='/deck.html' style='color:#f5c542'>Rail</a> · "
             "<a href='/studio.html' style='color:#f5c542'>Foundry Bay</a> · "
@@ -2885,7 +2885,7 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
     # health/situation still respond under load (sync generator + sleep).
     with socketserver.ThreadingTCPServer((host, port), H) as httpd:
         httpd.daemon_threads = True
-        log.info("Retina Deck (stdlib ThreadingTCPServer) http://%s:%s", host, port)
+        log.info("Sight Glass (stdlib ThreadingTCPServer) http://%s:%s", host, port)
         httpd.serve_forever()
 
 
@@ -2951,7 +2951,7 @@ def start_deck(
 
         t = threading.Thread(target=_run, name="retina-deck", daemon=daemon)
         t.start()
-        log.info("Retina Deck http://%s:%s  ws://%s:%s%s", host, port, host, port, WS_PATH)
+        log.info("Sight Glass http://%s:%s  ws://%s:%s%s", host, port, host, port, WS_PATH)
         log.info("Theater glass %s clip-dock on", _glass_js_name())
         log.info(
             "Lens /overlay.html  Theater /deck.html  Foundry /studio.html  "

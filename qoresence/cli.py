@@ -767,7 +767,7 @@ class QoresenceApp:
                 _dh = getattr(self.config, "deck_host", _DECK_HOST)
                 _dp = getattr(self.config, "deck_port", _DECK_PORT)
                 log.info(
-                    "Retina Deck http://%s:%s  Lens /overlay.html  Rail /deck.html",
+                    "Sight Glass http://%s:%s  Lens /overlay.html  Rail /deck.html",
                     _dh,
                     _dp,
                 )
@@ -1832,7 +1832,7 @@ def main():
         help="Exquisite play mode: streamer+visual+fusion+clutchbot+deck (while playing)",
     )
     parser.add_argument(
-        "--deck", action="store_true", help="Enable Retina Deck ws://127.0.0.1:8765 (Lens+Rail)"
+        "--deck", action="store_true", help="Enable Sight Glass ws://127.0.0.1:8765 (Lens+Rail)"
     )
     parser.add_argument("--deck-host", default="127.0.0.1", help="Deck listen host (default 127.0.0.1)")
     parser.add_argument(
