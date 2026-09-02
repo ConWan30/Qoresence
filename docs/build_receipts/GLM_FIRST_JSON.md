@@ -2,7 +2,7 @@
 
 **Task**: Extract the first JSON object from chatty glm-5.3-flash scoreboard replies so `last_confirm` can lock.
 
-**Status**: Landed on `feat/glm-first-json` PR #150 (`HEAD` after push).
+**Status**: Landed on `feat/glm-first-json` PR #150 (RECEIPT_SHA).
 
 **Sources**:
 - `qoresence/vision/scoreboard_vlm.py` — `first_json_object`, `_parse_json`, `_choice_text`
