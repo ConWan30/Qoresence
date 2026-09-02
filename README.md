@@ -7,7 +7,7 @@
 
 **Gaming Streaming Observatory Engine** — local-first, one clock, many glasses.
 
-Qoresence turns HDMI video, DualSense HID, and game situation into a **single causal event bus**, then surfaces it through **Retina Deck** (Aperture Glass), native Retina Monitor, local HDMI clips, and **AgentGlass / MCP**. Chat, heat, and score digits are licensed by the **shared clock plus tickets** — not by coworker personas. The capture card is the brain; everything else is a glass. Twitch is not a product route.
+Qoresence turns HDMI video, DualSense HID, and game situation into a **single causal event bus**, then surfaces it through **Sight Glass** (Aperture Glass), native Retina Monitor, local HDMI clips, and **AgentGlass / MCP**. Chat, heat, and score digits are licensed by the **shared clock plus tickets** — not by coworker personas. The capture card is the brain; everything else is a glass. Twitch is not a product route.
 
 | What it is | What it is not |
 |------------|----------------|
@@ -45,9 +45,9 @@ Every lobe is **OFF** until you opt in.
 
 | Idea | Why it matters |
 |------|----------------|
-| **One brain → N glasses** | Situation + events once; Lens (OBS), Retina Deck, **Session Theater**, **Mobile Glass**, Monitor, Stem are *views* |
+| **One brain → N glasses** | Situation + events once; Lens (OBS), Sight Glass, **Session Theater**, **Mobile Glass**, Monitor, Stem are *views* |
 | **Ticket-clock** | Coupling ticket licenses heat / pad–picture join. Confirm ticket + `score_vlm_locked` licenses digits. Actuators: Aperture / Bind / License / Arm — not Agent Society coworkers |
-| **Aperture Glass** | One visual system: Retina Deck SPA + public GitHub Pages. Flat void, machined iron, HOLD glyphs. Never fake LIVE on the site |
+| **Aperture Glass** | One visual system: Sight Glass SPA + public GitHub Pages. Flat void, machined iron, HOLD glyphs. Never fake LIVE on the site |
 | **Fail-closed speech** | Unlocked scores stay empty. DualSense on the PS5 (no laptop HID) is success, not PAD WAIT. Same-Seq: widgets match the LIVE frame or they go dark |
 | **Session Theater** | `/session.html` — Now + Story + Recap over a fail-closed normalized pack; live `GET /api/session/view` and `/api/session/recap`; Open clip only for validated existing MP4s |
 | **CIVIF** | Coupled Input–Video Intelligence Framework. Live ticks + clip records; `/civif.html` and `GET /api/civif/live`. Session Theater is a query over that pack — not a second capture |
@@ -190,7 +190,7 @@ python -m qoresence.cli --play --deck --monitor --streamer-fps 60
 
 | URL | Glass |
 |-----|--------|
-| http://127.0.0.1:8765/deck.html | Retina Deck — Aperture Glass Theater (LIVE) |
+| http://127.0.0.1:8765/deck.html | Sight Glass — Aperture Glass Theater (LIVE) |
 | http://127.0.0.1:8765/session.html | Session Theater (Now + Story + Recap) |
 | http://127.0.0.1:8765/civif.html | CIVIF live ticks / highlights (JSON ~1 Hz) |
 | http://127.0.0.1:8765/api/session/view | Normalized live session envelope |
@@ -266,7 +266,7 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | `qoresence/monitor/` | **FrameHub**, OpenCV Retina Monitor |
 | `qoresence/vision/clip_buffer.py` | HDMI ring + Foundry export + buttons sidecar |
 | `qoresence/deck/` | FastAPI Deck, overlay, LIVE, clip API (serves Aperture Glass SPA) |
-| `glass/` | Retina Deck / Session Theater SPA source (Aperture Glass) |
+| `glass/` | Sight Glass / Session Theater SPA source (Aperture Glass) |
 | `qoresence/agents/` | SituationModel, MomentScorer, ClutchBot, MatchAgent, **AgentGlass**, **MCP** |
 | `qoresence/observability/` | OTel exporter (enqueue-only on the bus thread) |
 | `qoresence/fusion/` | Presence fusion (optional) |
@@ -282,7 +282,7 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | `--game-detect` | on with `--play`/`--stream` | Incumbent `GameAutoDetector` (`--no-game-detect` to opt out) |
 | `--title-presence` | on with `--play`/`--stream` | Optical title hysteresis + `plane` tag (`--no-title-presence` to opt out) |
 | `--game-profile` | `ncaa_football_27` | `madden_27` (Madden NFL 27 + local NFL roster), `ncaa_football_27`, CoD / Valorant / Apex / Fortnite |
-| `--deck` | off | Retina Deck HTTP/WS on `:8765` |
+| `--deck` | off | Sight Glass HTTP/WS on `:8765` |
 | `--deck-bind` | unset (host `127.0.0.1`) | Opt-in LAN listen (`0.0.0.0`) for `/mobile.html` phone glass |
 | `--monitor` | off | Native FrameHub window |
 | `--stem-program` | off | Stem Program-out (implies `--monitor`; replaces OBS Preview) |
