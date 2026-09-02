@@ -29,6 +29,8 @@ from qoresence.agents.llm_client import (
 )
 from qoresence.vision.scorebug_crops import (
     CFB_PRIMARY_SCOREBUG,
+    confirm_scorebug_bands,
+    crop_misses_scorebug,
     is_madden_profile,
     primary_scorebug_crop,
 )
@@ -130,6 +132,8 @@ class ScoreboardVlmReferee:
         self._last_result_ts: float = 0.0
         self._calls = 0
         self._last_crop_wh: tuple[int, int] | None = None
+        self._last_crop_refuse: str | None = None
+        self._last_crop_kind: str = ""
         self._held = False
 
     def stats(self) -> dict[str, Any]:
@@ -145,6 +149,8 @@ class ScoreboardVlmReferee:
             "vlm_status": self.vlm_status(),
             "last_raw_preview": raw[:200].replace("\n", " ") if raw else "",
             "last_crop_wh": list(self._last_crop_wh) if self._last_crop_wh else None,
+            "last_crop_kind": self._last_crop_kind or None,
+            "last_crop_refuse": self._last_crop_refuse,
             "calls": self._calls,
             "held": self._held,
             "gameplay_interval_s": _GAMEPLAY_INTERVAL_S,
@@ -154,6 +160,11 @@ class ScoreboardVlmReferee:
     def get_last(self) -> dict[str, Any] | None:
         with self._lock:
             return dict(self._last) if self._last else None
+
+    def last_crop_refuse(self) -> str | None:
+        """Why the last confirm crop is not a scorebug. None = may mint."""
+        with self._lock:
+            return self._last_crop_refuse
 
     def is_held(self) -> bool:
         """True after a terminal HTTP HOLD. Observation only — no bus emit."""
@@ -305,6 +316,24 @@ class ScoreboardVlmReferee:
         return crop
 
     @staticmethod
+    def _prepare_crop(src: np.ndarray) -> np.ndarray:
+        """Upscale a thin HUD strip. Never crush height."""
+        out = src
+        mh, mw = out.shape[:2]
+        if mw > 960 and mh >= _MIN_CROP_H:
+            sc = 960 / mw
+            out = cv2.resize(out, (960, max(8, int(mh * sc))))
+            mh, mw = out.shape[:2]
+        if mh < _MIN_CROP_H and mh > 0:
+            sc = _MIN_CROP_H / float(mh)
+            out = cv2.resize(
+                out,
+                (max(8, int(round(mw * sc))), _MIN_CROP_H),
+                interpolation=cv2.INTER_CUBIC,
+            )
+        return out
+
+    @staticmethod
     def _is_cfb_context(game_profile: str | None = None, game_title: str | None = None) -> bool:
         """Detect CFB/college/NCAA from profile or title."""
         profile_lower = str(game_profile or "").lower()
@@ -325,61 +354,50 @@ class ScoreboardVlmReferee:
             return None
         gst = (game_state or "").lower()
         menu = gst in {"menu", "lobby", "hub", "paused", "pause"}
-        # Gameplay: profile-aware scorebug. Menu: pause plate only.
-        # Never stitch pause+bottom — that used to feed Gemini the other-games crawl.
-        # EXCEPTION: Madden HUD always first, even if game_state is wrongly 'menu'.
-        # EXCEPTION: CFB scorebug always first, even if game_state is wrongly 'menu' (#108 pattern).
-        
-        # Determine effective profile from title+profile for crop selection
+        # Gameplay: profile-aware scorebug. Never stitch pause+bottom.
+        # Madden/CFB confirm: scorebug bands only — never the mid-frame pause
+        # plate (player CU). Prefer the first band that looks like a scorebug.
+
         is_madden = is_madden_profile(game_profile)
         is_cfb = cls._is_cfb_context(game_profile, game_title)
-        
-        # Resolve which profile to use for the crop: title-based CFB detection overrides madden profile
+
         effective_profile = game_profile
         if is_cfb and not is_madden:
-            # Pure CFB detection from title - use cfb_27
             effective_profile = "cfb_27"
         elif is_cfb and is_madden:
-            # Both markers present (e.g. title="College Football", profile="madden_27")
-            # Title wins - use CFB crop
             effective_profile = "cfb_27"
-        
-        scorebug = primary_scorebug_crop(effective_profile)
-        
-        # Madden: HUD first (even on menu), pause fallback.
-        # CFB: scorebug first (even on menu), pause fallback.
-        # Others: menu → pause first.
+
         if is_madden or is_cfb:
-            src = cls._slice(frame, scorebug)
-            if src is None:
-                src = cls._slice(frame, _PAUSE_FRAC)
-        else:
-            src = cls._slice(frame, _PAUSE_FRAC if menu else scorebug)
-            if src is None:
-                src = cls._slice(frame, scorebug if menu else _PAUSE_FRAC)
+            fallback: np.ndarray | None = None
+            for frac in confirm_scorebug_bands(effective_profile):
+                raw = cls._slice(frame, frac)
+                if raw is None:
+                    continue
+                out = cls._prepare_crop(raw)
+                if crop_misses_scorebug(out) is None:
+                    return out
+                if fallback is None:
+                    fallback = out
+            return fallback
+
+        scorebug = primary_scorebug_crop(effective_profile)
+        src = cls._slice(frame, _PAUSE_FRAC if menu else scorebug)
+        if src is None:
+            src = cls._slice(frame, scorebug if menu else _PAUSE_FRAC)
         if src is None:
             return None
-        out = src
-        mh, mw = out.shape[:2]
-        # Never crush HUD height. Width-cap only when the strip is already tall enough.
-        if mw > 960 and mh >= _MIN_CROP_H:
-            sc = 960 / mw
-            out = cv2.resize(out, (960, max(8, int(mh * sc))))
-            mh, mw = out.shape[:2]
-        if mh < _MIN_CROP_H and mh > 0:
-            sc = _MIN_CROP_H / float(mh)
-            out = cv2.resize(
-                out,
-                (max(8, int(round(mw * sc))), _MIN_CROP_H),
-                interpolation=cv2.INTER_CUBIC,
-            )
-        return out
+        return cls._prepare_crop(src)
 
     def _call_vlm(self, crop_bgr: np.ndarray) -> dict[str, Any] | None:
+        refuse = crop_misses_scorebug(crop_bgr)
+        kind = "scorebug" if refuse is None else str(refuse)
         try:
             self._last_crop_wh = (int(crop_bgr.shape[1]), int(crop_bgr.shape[0]))
         except Exception:
             self._last_crop_wh = None
+        with self._lock:
+            self._last_crop_refuse = refuse
+            self._last_crop_kind = kind
         try:
             import pathlib
 
@@ -533,7 +551,16 @@ class ScoreboardVlmReferee:
         except Exception:
             return None
         out: dict[str, Any] = {}
-        for k in ("home_score", "away_score", "quarter", "down", "yards_to_go", "play_clock"):
+        for k in (
+            "home_score",
+            "away_score",
+            "quarter",
+            "down",
+            "yards_to_go",
+            "play_clock",
+            "left_score",
+            "right_score",
+        ):
             v = obj.get(k)
             if v is None or v == "":
                 out[k] = None
@@ -597,6 +624,11 @@ class ScoreboardVlmReferee:
             out["home_score"] = None
         if aws is not None and not (0 <= aws <= 99):
             out["away_score"] = None
+        ls, rs = out.get("left_score"), out.get("right_score")
+        if ls is not None and not (0 <= ls <= 99):
+            out["left_score"] = None
+        if rs is not None and not (0 <= rs <= 99):
+            out["right_score"] = None
         return out
 
 

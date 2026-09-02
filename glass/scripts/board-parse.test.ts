@@ -266,6 +266,67 @@ test("home_left true keeps home on the left of the scorebug", () => {
   );
 });
 
+test("HDMI crop left NO 21 / right DET 6 paints NO 21 DET 6 not NO 6 DET 21", () => {
+  const lastConfirm = {
+    ticket_id: "fixture-no21-det6",
+    home_score: 21,
+    away_score: 6,
+    home_left: false,
+    left_team: "NO",
+    right_team: "DET",
+    left_score: 21,
+    right_score: 6,
+  };
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    schema_version: "qoresence-deck-v0",
+    situation: {
+      game_state: "gameplay",
+      game_title: "Madden NFL 27",
+      home_score: 21,
+      away_score: 6,
+      home_left: false,
+      home_team: "DET",
+      away_team: "NO",
+      left_team: "NO",
+      right_team: "DET",
+      left_score: 21,
+      right_score: 6,
+      score_vlm_locked: true,
+      confirm_ticket_id: "fixture-no21-det6",
+    },
+    confirm: { last_confirm: lastConfirm },
+  });
+  assert.ok(ing);
+  assert.equal(ing.homeScore, 21);
+  assert.equal(ing.awayScore, 6);
+  assert.equal(ing.homeLeft, false);
+  assert.equal(ing.leftTeam, "NO");
+  assert.equal(ing.rightTeam, "DET");
+  assert.equal(ing.leftScore, 21);
+  assert.equal(ing.rightScore, 6);
+  const pair = scorebugPair(ing);
+  assert.equal(pair, "NO 21 - DET 6");
+  assert.doesNotMatch(pair, /NO 6/);
+  assert.doesNotMatch(pair, /DET 21/);
+  assert.equal(
+    scorebugPair({
+      homeScore: 21,
+      awayScore: 6,
+      homeTeam: "DET",
+      awayTeam: "NO",
+      homeLeft: false,
+      leftTeam: "NO",
+      rightTeam: "DET",
+      leftScore: 21,
+      rightScore: 6,
+      dash: "–",
+    }),
+    "NO 21–6 DET",
+  );
+  assert.equal(situationLine(ing), "NO 21 - DET 6");
+});
+
 test("situation identity beats swapped visual_context", () => {
   const ing = parseDeckMessage({
     type: "snapshot",

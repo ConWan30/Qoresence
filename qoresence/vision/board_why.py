@@ -52,6 +52,10 @@ _REFUSE_TO_WHY = {
     "zero_zero_after_nonzero": "refuse_zero_zero",
     "identity_swap": "refuse_identity_swap",
     "zero_zero_menu": "menu",
+    "player_cu_crop": "vlm_ungrounded",
+    "no_scorebug_sides": "vlm_ungrounded",
+    "empty_crop": "vlm_ungrounded",
+    "tiny_crop": "vlm_ungrounded",
 }
 
 _LOADING_STATES = frozenset({"loading", "cutscene", "intro", "replay"})

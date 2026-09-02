@@ -40,6 +40,8 @@ def test_madden_uses_evidence_bands():
     # Compact HUD + white-strip centroid are inside Madden primary, outside CFB.
     assert crop_contains(MADDEN_PRIMARY_SCOREBUG, x=0.50, y=0.97)
     assert crop_contains(MADDEN_PRIMARY_SCOREBUG, x=0.50, y=0.88)
+    # HUD that sat above the player huddle (2026-09-01 sit) is now inside primary.
+    assert crop_contains(MADDEN_PRIMARY_SCOREBUG, x=0.50, y=0.72)
     assert not crop_contains(CFB_PRIMARY_SCOREBUG, x=0.50, y=0.97)
     # CFB scorebug centroid stays in CFB primary.
     assert crop_contains(CFB_PRIMARY_SCOREBUG, x=0.50, y=0.85)
@@ -50,7 +52,11 @@ def test_madden_uses_evidence_bands():
 def test_madden_primary_is_full_width_readable_hud():
     x1, x2, y1, y2 = MADDEN_PRIMARY_SCOREBUG
     assert x1 == 0.0 and x2 == 1.0
-    assert y1 == 0.82 and y2 == 1.0
+    assert y1 == 0.68 and y2 == 1.0
+    # Pause / player-CU plates must not be Madden confirm bands.
+    for band in MADDEN_SCOREBUG_CROPS:
+        assert float(band[2]) < 0.60 or float(band[2]) >= 0.68
+        assert not (0.12 <= float(band[2]) <= 0.55 and 0.18 <= float(band[3]) <= 0.55)
 
 
 def test_vlm_default_crop_still_excludes_ticker():

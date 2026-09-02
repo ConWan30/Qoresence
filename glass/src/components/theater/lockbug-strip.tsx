@@ -42,6 +42,10 @@ export function LockbugStrip({ className, pulse = false }: { className?: string;
   const homeTeam = useTheater((s) => s.homeTeam);
   const awayTeam = useTheater((s) => s.awayTeam);
   const homeLeft = useTheater((s) => s.homeLeft);
+  const leftTeam = useTheater((s) => s.leftTeam);
+  const rightTeam = useTheater((s) => s.rightTeam);
+  const leftScore = useTheater((s) => s.leftScore);
+  const rightScore = useTheater((s) => s.rightScore);
   const down = useTheater((s) => s.down);
   const distance = useTheater((s) => s.distance);
   const confirm = useTheater((s) => s.confirm);
@@ -61,6 +65,10 @@ export function LockbugStrip({ className, pulse = false }: { className?: string;
         homeTeam,
         awayTeam,
         homeLeft,
+        leftTeam,
+        rightTeam,
+        leftScore,
+        rightScore,
         dash: "–",
       }) || "□–□"
     : "□–□";
