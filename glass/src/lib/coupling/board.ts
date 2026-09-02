@@ -59,8 +59,13 @@ export type DeckIngest = {
   gameTitle: string;
   homeTeam: string;
   awayTeam: string;
-  /** True when HOME is the left scorebug. Madden/NFL/CFB default is away-left. */
+  /** True when HOME is the left scorebug. Madden/NFL/CFB default is away-left. Identity only — must not drive digit placement when left_* are present. */
   homeLeft: boolean;
+  /** HDMI left→right paint overlay. When both scores present, scorebugPair paints these, never homeLeft swap. */
+  leftTeam?: string;
+  rightTeam?: string;
+  leftScore?: number | null;
+  rightScore?: number | null;
   fieldPos: string;
   why: string;
   liveSeq: number;
@@ -356,6 +361,41 @@ function pickIdentity(m: Record<string, unknown>, snap: Record<string, unknown>,
   return { title, homeTeam, awayTeam, homeLeft: homeLeft === true, fieldPos };
 }
 
+function pickHdmiLtr(
+  m: Record<string, unknown>,
+  snap: Record<string, unknown>,
+  sit: Record<string, unknown>,
+): {
+  leftTeam: string;
+  rightTeam: string;
+  leftScore: number | null;
+  rightScore: number | null;
+} {
+  let leftTeam = "";
+  let rightTeam = "";
+  let leftScore: number | null = null;
+  let rightScore: number | null = null;
+  const bags = [
+    rec(rec(snap.confirm).last_confirm),
+    rec(rec(m.confirm).last_confirm),
+    sit,
+    rec(m.payload),
+    rec(snap.situation),
+    rec(m.situation),
+    rec(rec(sit).football),
+    rec(rec(m.visual_context).football),
+    rec(m.visual_context),
+  ];
+  for (const o of bags) {
+    if (!o || !Object.keys(o).length) continue;
+    if (!leftTeam) leftTeam = firstStr(o, ["left_team", "leftTeam"]);
+    if (!rightTeam) rightTeam = firstStr(o, ["right_team", "rightTeam"]);
+    if (leftScore == null) leftScore = firstNum(o, ["left_score", "leftScore"]);
+    if (rightScore == null) rightScore = firstNum(o, ["right_score", "rightScore"]);
+  }
+  return { leftTeam, rightTeam, leftScore, rightScore };
+}
+
 function situationOf(m: Record<string, unknown>): Record<string, unknown> {
   const snap =
     m.type === "snapshot"
@@ -429,6 +469,7 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
   const board = pickBoard(m, snap, sit, rec(m.confirm), rec(snap.confirm));
   const clutch = pickClutch(m, snap, sit, coup);
   const ident = pickIdentity(m, snap, sit);
+  const ltr = pickHdmiLtr(m, snap, sit);
   const phrase = asPhrase(ctrl.phrase || coup.phrase);
   const liveSeq = num(video.live_seq ?? video.hub_seq ?? video.seq ?? ctrl.frame_seq, 0);
   const widgetSeq = num(sit.frame_seq ?? ctrl.frame_seq ?? coup.frame_seq, 0);
@@ -534,6 +575,10 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     homeTeam: ident.homeTeam,
     awayTeam: ident.awayTeam,
     homeLeft: ident.homeLeft,
+    leftTeam: ltr.leftTeam,
+    rightTeam: ltr.rightTeam,
+    leftScore: ltr.leftScore,
+    rightScore: ltr.rightScore,
     fieldPos: ident.fieldPos,
     why: whyBits.join(" · ") || "deck snapshot",
     liveSeq,
@@ -602,17 +647,33 @@ export function downDistanceLabel(down: number | null, distance: number | null):
   return `${ord} & ${dist}`;
 }
 
-/** Named sides paint left→right as HDMI (away left unless homeLeft). Bare digits stay home–away. */
+/** Named HDMI paint: left_score+right_score → left→right as cropped. Never homeLeft-swap named digits. Missing left_* keeps prior homeLeft remap (complementary to #140 fail-closed). */
 export function scorebugPair(ing: {
   homeScore: number | null;
   awayScore: number | null;
   homeTeam?: string;
   awayTeam?: string;
   homeLeft?: boolean | null;
+  leftTeam?: string;
+  rightTeam?: string;
+  leftScore?: number | null;
+  rightScore?: number | null;
   dash?: string;
 }): string {
   if (ing.homeScore == null || ing.awayScore == null) return "";
   const dash = ing.dash ?? "-";
+  const ltrOk = ing.leftScore != null && ing.rightScore != null;
+  if (ltrOk) {
+    const leftTeam = (ing.leftTeam || "").trim();
+    const rightTeam = (ing.rightTeam || "").trim();
+    const named = Boolean(leftTeam && rightTeam);
+    if (named) {
+      return dash === "–"
+        ? `${leftTeam} ${ing.leftScore}–${ing.rightScore} ${rightTeam}`
+        : `${leftTeam} ${ing.leftScore} - ${rightTeam} ${ing.rightScore}`;
+    }
+    return dash === "–" ? `${ing.leftScore}–${ing.rightScore}` : `${ing.leftScore}-${ing.rightScore}`;
+  }
   const leftTeam = ing.homeLeft === true ? ing.homeTeam || "" : ing.awayTeam || "";
   const rightTeam = ing.homeLeft === true ? ing.awayTeam || "" : ing.homeTeam || "";
   const named = Boolean(leftTeam && rightTeam);
@@ -644,6 +705,10 @@ export function situationLine(ing: {
   homeTeam?: string;
   awayTeam?: string;
   homeLeft?: boolean | null;
+  leftTeam?: string;
+  rightTeam?: string;
+  leftScore?: number | null;
+  rightScore?: number | null;
   fieldPos?: string;
   winProb?: number | null;
   gameTitle?: string;

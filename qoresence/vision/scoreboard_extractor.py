@@ -166,6 +166,68 @@ def garbage_lock_reason(
     return None
 
 
+_CROP_REFUSE_TOKENS = frozenset(
+    {"player_cu_crop", "no_scorebug_sides", "empty_crop", "tiny_crop"}
+)
+
+
+def confirm_crop_refuse(vlm_ref: Any = None) -> str | None:
+    """Player-CU / missed-bug crop must not mint. Bind never mints digits."""
+    try:
+        if vlm_ref is None:
+            from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+
+            vlm_ref = get_scoreboard_vlm()
+        refuse = vlm_ref.last_crop_refuse()
+        if not isinstance(refuse, str):
+            return None
+        token = refuse.strip()
+        return token if token in _CROP_REFUSE_TOKENS else None
+    except Exception:
+        return None
+
+
+def confirm_mint_refuse(
+    *,
+    home: int,
+    away: int,
+    home_team: str = "",
+    away_team: str = "",
+    game_state: str = "",
+    book: Any = None,
+    vlm_ref: Any = None,
+    crop: Any = None,
+) -> str | None:
+    """Extractor mint gate: garbage pair first, then player-CU / missed-bug crop.
+
+    ``crop`` is this tick's confirm slice when the caller has the frame.
+    Sticky ``last_crop_refuse`` on the VLM singleton is only a fallback.
+    Pass an isolated ``book`` in tests so a prior suite identity cannot mask
+    the crop refuse. Bind never mints digits.
+    """
+    refuse = garbage_lock_reason(
+        home=home,
+        away=away,
+        home_team=home_team,
+        away_team=away_team,
+        game_state=game_state,
+        book=book,
+    )
+    if refuse:
+        return refuse
+    if crop is not None:
+        try:
+            from qoresence.vision.scorebug_crops import crop_misses_scorebug
+
+            miss = crop_misses_scorebug(crop)
+            if miss:
+                return miss
+        except Exception:
+            pass
+        return None
+    return confirm_crop_refuse(vlm_ref)
+
+
 def _vlm_board_grounded(vlm: dict[str, Any] | None) -> bool:
     """True when DeepSeek reported this match's scorebug, not a lone invented pair.
 
@@ -592,11 +654,21 @@ class FootballScoreboardExtractor:
                 "yards_to_go",
                 "play_clock",
                 "clock_seconds",
+                "left_team",
+                "right_team",
+                "left_score",
+                "right_score",
             ):
                 if vlm.get(k) is None:
                     continue
                 if k in ("home_score", "away_score"):
                     if vlm_has_board:
+                        parsed[k] = vlm[k]
+                elif k in ("left_score", "right_score"):
+                    if vlm_has_board:
+                        parsed[k] = vlm[k]
+                elif k in ("left_team", "right_team"):
+                    if vlm[k] not in (None, ""):
                         parsed[k] = vlm[k]
                 elif parsed.get(k) is None:
                     parsed[k] = vlm[k]
@@ -662,8 +734,10 @@ class FootballScoreboardExtractor:
                     from qoresence.vision.confirm_ticket import (
                         get_ticket_book,
                         mint_confirm_ticket,
+                        overlay_hdmi_ltr,
                         resolve_session_id,
                     )
+                    from qoresence.vision.visual_context import stamp_hdmi_ltr
 
                     stamp = {}
                     try:
@@ -708,13 +782,26 @@ class FootballScoreboardExtractor:
                     book = get_ticket_book()
                     home_team_now = str(getattr(ctx, "home_team", "") or "").strip()
                     away_team_now = str(getattr(ctx, "away_team", "") or "").strip()
-                    refuse = garbage_lock_reason(
+                    confirm_crop = None
+                    try:
+                        from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee
+
+                        confirm_crop = ScoreboardVlmReferee._crop(
+                            frame,
+                            game_state=_game_state_token(ctx),
+                            game_profile=str(getattr(ctx, "game_profile", "") or ""),
+                            game_title=str(getattr(ctx, "game_title", "") or ""),
+                        )
+                    except Exception:
+                        confirm_crop = None
+                    refuse = confirm_mint_refuse(
                         home=int(sh),
                         away=int(sa),
                         home_team=home_team_now,
                         away_team=away_team_now,
                         game_state=_game_state_token(ctx),
                         book=book,
+                        crop=confirm_crop,
                     )
                     if refuse:
                         log.info(
@@ -782,6 +869,14 @@ class FootballScoreboardExtractor:
                         except Exception:
                             pass
                         if ticket is not None:
+                            stamp_hdmi_ltr(ctx, parsed=parsed, vlm=vlm)
+                            ticket = overlay_hdmi_ltr(
+                                ticket,
+                                left_team=ctx.left_team,
+                                right_team=ctx.right_team,
+                                left_score=ctx.left_score,
+                                right_score=ctx.right_score,
+                            )
                             book.put(ticket, home_team=home_team_now, away_team=away_team_now)
                             try:
                                 from qoresence.graphs.crop_evidence import record_lock
@@ -908,6 +1003,10 @@ class FootballScoreboardExtractor:
             apply_roster_to_context(ctx, parsed)
         except Exception:
             pass
+        if seeing_path_minted_this_frame:
+            from qoresence.vision.visual_context import stamp_hdmi_ltr
+
+            stamp_hdmi_ltr(ctx, parsed=parsed, vlm=vlm)
         return ctx
 
     @staticmethod

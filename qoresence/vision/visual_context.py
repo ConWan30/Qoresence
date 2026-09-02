@@ -63,6 +63,11 @@ class VisualContext:
     away_team: str | None = None
     home_team_name: str | None = None
     away_team_name: str | None = None
+    # HDMI left→right paint overlay. Not identity. Not hashed into ConfirmTicket.
+    left_team: str | None = None
+    right_team: str | None = None
+    left_score: int | None = None
+    right_score: int | None = None
     home_color: str | None = None
     away_color: str | None = None
     home_logo: str | None = None
@@ -168,6 +173,10 @@ class VisualContext:
                 "away_team": self.away_team,
                 "home_team_name": self.home_team_name,
                 "away_team_name": self.away_team_name,
+                "left_team": self.left_team,
+                "right_team": self.right_team,
+                "left_score": self.left_score,
+                "right_score": self.right_score,
                 "home_color": self.home_color,
                 "away_color": self.away_color,
                 "home_logo": self.home_logo,
@@ -290,6 +299,14 @@ class VisualContext:
         ctx.away_team = _to_str(fb.get("away_team"))
         ctx.home_team_name = _to_str(fb.get("home_team_name"))
         ctx.away_team_name = _to_str(fb.get("away_team_name"))
+        ctx.left_team = _to_str(fb.get("left_team") or raw.get("left_team"))
+        ctx.right_team = _to_str(fb.get("right_team") or raw.get("right_team"))
+        ctx.left_score = _to_int(
+            fb.get("left_score") if fb.get("left_score") is not None else raw.get("left_score")
+        )
+        ctx.right_score = _to_int(
+            fb.get("right_score") if fb.get("right_score") is not None else raw.get("right_score")
+        )
         ctx.home_color = _to_str(fb.get("home_color"))
         ctx.away_color = _to_str(fb.get("away_color"))
         ctx.home_logo = _to_str(fb.get("home_logo"))
@@ -317,6 +334,8 @@ class VisualContext:
                 )
         except Exception:
             pass
+
+        stamp_hdmi_ltr(ctx, parsed=fb if isinstance(fb, dict) else None, vlm=raw)
 
         # Shooter fields: support nested "shooter" block or flat top-level keys
         sh = raw.get("shooter")
@@ -435,6 +454,48 @@ def _to_str(v: Any) -> str | None:
         return None
     s = str(v).strip()
     return s if s else None
+
+
+def stamp_hdmi_ltr(
+    ctx: VisualContext,
+    parsed: dict[str, Any] | None = None,
+    vlm: dict[str, Any] | None = None,
+) -> VisualContext:
+    """Stamp HDMI left→right paint overlay onto ctx.
+
+    Paint, not identity. Does not remint ConfirmTicket. Does not invert by
+    ``home_left``. When VLM names HDMI sides and left/right scores are absent,
+    copy ``home_score``→left and ``away_score``→right (crop-order stuffing).
+    """
+    src: dict[str, Any] = {}
+    if isinstance(vlm, dict):
+        src.update(vlm)
+    if isinstance(parsed, dict):
+        src.update(parsed)
+    left_team = _to_str(src.get("left_team")) or ctx.left_team
+    right_team = _to_str(src.get("right_team")) or ctx.right_team
+    left_score = _to_int(src.get("left_score"))
+    if left_score is None:
+        left_score = ctx.left_score
+    right_score = _to_int(src.get("right_score"))
+    if right_score is None:
+        right_score = ctx.right_score
+    if left_score is None and right_score is None and left_team and right_team:
+        left_score = _to_int(src.get("home_score"))
+        if left_score is None:
+            left_score = ctx.home_score
+        right_score = _to_int(src.get("away_score"))
+        if right_score is None:
+            right_score = ctx.away_score
+    if left_team:
+        ctx.left_team = left_team
+    if right_team:
+        ctx.right_team = right_team
+    if left_score is not None:
+        ctx.left_score = left_score
+    if right_score is not None:
+        ctx.right_score = right_score
+    return ctx
 
 
 def build_football_prompt() -> str:
