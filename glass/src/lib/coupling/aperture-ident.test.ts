@@ -8,7 +8,6 @@ const live = {
   replay: false,
   hdmi: "live" as const,
   sameSeq: true,
-  planeDim: false,
 };
 
 test("ident is the ship token", () => {
@@ -34,8 +33,9 @@ test("ident latches on seq-skew even when JPEG is current", () => {
   assert.equal(apertureIdentOn({ ...live, sameSeq: false }), true);
 });
 
-test("ident latches on plane dim even when JPEG is current", () => {
-  assert.equal(apertureIdentOn({ ...live, planeDim: true }), true);
+test("planeDim is not an ident field — picture stays", () => {
+  assert.equal(apertureIdentOn(live), false);
+  assert.equal(hdmiPictureVisible(true), true);
 });
 
 test("livePaint is not an ident field — picture stays", () => {

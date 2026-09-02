@@ -251,13 +251,11 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
   const showLive = hdmiPictureVisible(jpgOk) && !replaySrc;
   const hdmi = useTheater((s) => s.hdmi);
   const sameSeq = useTheater((s) => s.sameSeq);
-  const planeDim = useTheater((s) => s.planeDim);
   const identOn = apertureIdentOn({
     jpgOk,
     replay: Boolean(replaySrc),
     hdmi,
     sameSeq,
-    planeDim,
   });
   const climbed = videoFrames > prevRef.current.frames || videoPushes > prevRef.current.pushes;
   if (climbed) {
