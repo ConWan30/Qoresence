@@ -1,7 +1,7 @@
 """ClutchBot LLM client — Quicksilver Pro (OpenAI-compatible).
 
 Dedicated API for ClutchBot via https://api.quicksilverpro.io/v1
-Default model: deepseek-v4-flash (Quicksilver Pro). Falls back to gpt-4o-mini.
+Default model: glm-5.3-flash (Quicksilver Pro). Falls back to gpt-4o-mini.
 
 No new deps — uses requests if available, stdlib http otherwise.
 Key is resolved from ClutchBotConfig.llm_api_key or llm_api_key_file
@@ -28,10 +28,10 @@ except ImportError:
     HAS_REQUESTS = False
 
 DEFAULT_BASE_URL = "https://api.quicksilverpro.io/v1"
-DEFAULT_MODEL = "deepseek-v4-flash"
+DEFAULT_MODEL = "glm-5.3-flash"
 # Confirm-path VLM: Quicksilver vision slug (JPEG crop → JSON).
-# Operator pin 2026-09-01: qwen3.7-flash. deepseek-v4-flash chat is 200;
-# the same slug with a JPEG crop is 400 model_not_found. Not Gemini.
+# Operator pin 2026-09-01: qwen3.7-flash. glm-5.3-flash chat is text-only;
+# JPEG crop on the chat slug is 400 model_not_found. Not Gemini.
 DEFAULT_VISION_MODEL = "qwen3.7-flash"
 FALLBACK_MODEL = "gpt-4o-mini"
 CLUTCHBOT_KEY_FILE = ".secrets/quicksilver_clutchbot.key"
@@ -101,7 +101,7 @@ class LLMConfig:
 
     @classmethod
     def from_quicksilver_env(cls, *, enabled: bool = False) -> LLMConfig:
-        """Match-observer / A2A path: DeepSeek v4 on Quicksilver, ClutchBot key file."""
+        """Match-observer path: ClutchBot chat slug on Quicksilver, ClutchBot key file."""
         import os
 
         model = os.environ.get("QORESENCE_MATCH_AGENT_MODEL") or os.environ.get(

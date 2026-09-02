@@ -576,7 +576,7 @@ class QoresenceApp:
                 enabled=True,
                 poll_s=float(getattr(match_cfg, "poll_s", 1.0) or 1.0),
             )
-            log.info("MatchAgent initialized (Quicksilver DeepSeek v4)")
+            log.info("MatchAgent initialized (Quicksilver glm-5.3-flash)")
 
         stem_cfg = getattr(self.config, "stem", None)
         if stem_cfg is not None and (
@@ -1774,7 +1774,7 @@ def main():
     parser.add_argument(
         "--match-agent",
         action="store_true",
-        help="Match-observer agent (DeepSeek v4 via Quicksilver, same key as ClutchBot). "
+        help="Match-observer agent (glm-5.3-flash via Quicksilver, same key as ClutchBot). "
         "Default OFF. Also QORESENCE_MATCH_AGENT=1. Observation only; DualSense stays on the PS5.",
     )
     parser.add_argument(
