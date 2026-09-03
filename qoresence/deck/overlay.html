@@ -51,11 +51,12 @@ function digitsLicensed(s, snap){
   const vlm=s.score_vlm_locked===true||lc.score_vlm_locked===true;
   if(!tid||!vlm) return false;
   const ticketCrop=String(lc.crop_hash||'').trim();
-  const liveCrop=String(s.crop_hash||s.frame_hash||'').trim();
+  const video=(snap&&snap.video)||{};
+  // FrameHub snap.video.crop_hash first (pickBoard takeLive(video)), then situation.
+  const liveCrop=String(video.crop_hash||s.crop_hash||s.frame_hash||'').trim();
   const crop=ticketCrop||liveCrop;
   if(!crop) return false;
   if(ticketCrop&&liveCrop&&ticketCrop!==liveCrop) return false;
-  const video=(snap&&snap.video)||{};
   if(video.same_seq===false) return false;
   return true;
 }
