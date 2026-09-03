@@ -1,6 +1,7 @@
 # Qoresence Roadmap
 
 Local **capture → situation → operator glass → optional social** pipeline.  
+Optional social is **X**: the timeline is the public glass of record. Live session is OBS → X Live Studio RTMP, not a Qoresence encoder.  
 Research modules (fusion, trio-retina) stay off the critical path unless opted in.
 
 ---
@@ -170,10 +171,20 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 
 ---
 
+## Optional social — X observatory glass
+
+- [x] Public face named: [X @Qoresence](https://x.com/Qoresence) (README)
+- [x] Live recipe: OBS Custom RTMP → X Live Studio + Lens `overlay.html` (`docs/X_LIVE_STUDIO.md`)
+- [ ] X Glass publish lobe (native timeline VOD from Foundry clips) — not this PR; opt-in, fail-closed, default OFF
+- [ ] Session header / Foundry reel posts
+
+Twitch leftover stays OFF. This slot is X.
+
 ## Non-goals
 
 - Second `VideoCapture` opened “for sync”
 - Rebuilding OBS (scenes, RTMP, Virtual Cam, Browser Source host)
+- X Live / RTMP ingest inside Qoresence (OBS owns audience RTMP)
 - Twitch-delay as master clock
 - Truth-plane / anti-cheat product claims
 - Cloud storage of raw biometrics by default
