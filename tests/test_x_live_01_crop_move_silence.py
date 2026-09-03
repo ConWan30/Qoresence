@@ -14,7 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LAB = ROOT / "lab" / "x_live_01_crop_move"
 FIXTURE_PATH = LAB / "FIXTURE.json"
-HARNESS = LAB / "harness.py"
+HARNESS = LAB / "harness.mjs"
+PY_HARNESS = LAB / "harness.py"
 BOARD_TS = ROOT / "glass" / "src" / "lib" / "coupling" / "board.ts"
 OVERLAY = ROOT / "qoresence" / "deck" / "overlay.html"
 DOCS = ROOT / "docs" / "X_LIVE_STUDIO.md"
@@ -111,17 +112,18 @@ def test_overlay_observation_framehub_video_only_reads_situation_crop():
 
 
 def test_harness_does_not_import_board_ts():
-    assert HARNESS.suffix == ".py"
-    assert HARNESS.name == "harness.py"
     body = HARNESS.read_text(encoding="utf-8")
-    assert "from pickboard_gate import" in body
-    assert "from overlay_gate import" in body
+    assert HARNESS.suffix == ".mjs"
+    assert not any(line.strip().startswith("import") and "board.ts" in line for line in body.splitlines())
+    assert "--experimental-strip-types" not in body
+    assert "function pickBoard(" in body
+    assert "function ticketFresh(" in body
 
 
 def test_harness_exits_zero():
-    """CI Node 20 cannot strip TypeScript — run the Python harness."""
+    """CI Node 20 — plain JS harness, no TypeScript strip-types."""
     r = subprocess.run(
-        [sys.executable, str(HARNESS)],
+        ["node", str(HARNESS)],
         cwd=str(ROOT),
         check=False,
         capture_output=True,
@@ -140,3 +142,18 @@ def test_harness_exits_zero():
     assert framehub["pickBoard"]["locked"] is False
     assert framehub["pickBoard"]["home"] is None
     assert framehub["overlay_score"] == "0-1"
+
+
+def test_python_harness_exits_zero():
+    r = subprocess.run(
+        [sys.executable, str(PY_HARNESS)],
+        cwd=str(ROOT),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    receipt = json.loads(r.stdout)
+    silence = {row["id"]: row for row in receipt["cases"]}["stuck_01_crop_moved_silence"]
+    assert silence["pickBoard"] == {"home": None, "away": None, "locked": False}
+    assert silence["overlay_score"] == ""
