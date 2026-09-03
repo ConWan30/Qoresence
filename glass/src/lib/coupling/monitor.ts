@@ -10,7 +10,7 @@ import { getDeckOrigin, probeDeck } from "./qoresence-deck";
 import { useTheater } from "./store";
 
 export type { DeckIngest } from "./board";
-export { boardLine, parseDeckMessage, pickBoard, situationLine } from "./board";
+export { boardLine, digitsLicensed, parseDeckMessage, pickBoard, situationLine, ticketFresh } from "./board";
 export type { FeedMoment } from "./clutch";
 
 /** While WS is fresh, poll must not own paint/sameSeq/planeDim or wipe the board. */

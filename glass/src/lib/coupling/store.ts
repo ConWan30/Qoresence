@@ -500,18 +500,11 @@ export const useTheater = create<TheaterState>((set, get) => ({
       planeDim = s.planeDim && planeDim;
     }
     const widgetsOk = paint && sameSeq && !planeDim;
-    // Video-less situation: keep last board. Optics demote: still keep locked scores.
-    // Never wipe a VLM-locked board for plane_dim alone.
-    // Poll under sticky TTL: never wipe board on momentary paint:false.
-    const board = widgetsOk
-      ? sit || (ing.boardLocked ? boardLine(ing) : s.boardLine)
-      : via === "poll" && opticsFresh
-        ? sit || s.boardLine
-        : ing.boardLocked
-          ? sit || boardLine(ing) || s.boardLine
-          : ing.videoOptics
-            ? ""
-            : s.boardLine;
+    // Digits come from pickBoard only. Blank beats hold — never keep-last a pair
+    // after ConfirmTicket / VLM lock / crop_hash freshness fails.
+    const board = ing.boardLocked
+      ? sit || boardLine(ing)
+      : sit || "";
     // Spine sole mint: adopt confirm.last_confirm.ticket_id + clock_ns (no FNV remint).
     if (ing.confirmTicketId && ing.homeScore != null && ing.awayScore != null) {
       if (
@@ -593,29 +586,23 @@ export const useTheater = create<TheaterState>((set, get) => ({
       heatVetoed,
       scoreLine,
       boardLine: board,
-      // Keep-last raw digits across !widgetsOk (UI Lockbug/DownPill still gate paint).
-      // Prefer fresh locked board; otherwise retain prior store values — never invent.
-      homeScore: widgetsOk ? ing.homeScore : ing.boardLocked ? ing.homeScore : s.homeScore,
-      awayScore: widgetsOk ? ing.awayScore : ing.boardLocked ? ing.awayScore : s.awayScore,
+      homeScore: ing.homeScore,
+      awayScore: ing.awayScore,
       homeTeam: widgetsOk || ing.boardLocked ? ing.homeTeam : s.homeTeam,
       awayTeam: widgetsOk || ing.boardLocked ? ing.awayTeam : s.awayTeam,
       homeLeft: widgetsOk || ing.boardLocked ? Boolean(ing.homeLeft) : s.homeLeft,
       leftTeam: widgetsOk || ing.boardLocked ? (ing.leftTeam || "") : s.leftTeam,
       rightTeam: widgetsOk || ing.boardLocked ? (ing.rightTeam || "") : s.rightTeam,
-      leftScore: widgetsOk ? (ing.leftScore ?? null) : ing.boardLocked ? (ing.leftScore ?? null) : s.leftScore,
-      rightScore: widgetsOk ? (ing.rightScore ?? null) : ing.boardLocked ? (ing.rightScore ?? null) : s.rightScore,
+      leftScore: ing.leftScore ?? null,
+      rightScore: ing.rightScore ?? null,
       down: widgetsOk ? ing.down : ing.boardLocked ? ing.down : s.down,
       distance: widgetsOk ? ing.distance : ing.boardLocked ? ing.distance : s.distance,
-      boardLocked: widgetsOk ? Boolean(ing.boardLocked) : Boolean(ing.boardLocked) || s.boardLocked,
-      situation: widgetsOk
+      boardLocked: Boolean(ing.boardLocked),
+      situation: widgetsOk || (via === "poll" && opticsFresh) || ing.boardLocked
         ? sit || s.situation
-        : via === "poll" && opticsFresh
-          ? sit || s.situation
-          : ing.boardLocked
-            ? sit || s.situation
-            : ing.videoOptics
-              ? ""
-              : s.situation,
+        : ing.videoOptics
+          ? ""
+          : sit || s.situation,
       gameTitle: ing.gameTitle || s.gameTitle,
       clutch,
       clutchPulseSeq: licensedClutchStart ? s.clutchPulseSeq + 1 : s.clutchPulseSeq,

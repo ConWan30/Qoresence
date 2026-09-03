@@ -206,6 +206,61 @@ function fmtClock(o: Record<string, unknown>): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** Public-glass confirm look window. Coupling heat is 400ms; digits use this clock age. */
+export const CONFIRM_DIGIT_MAX_AGE_NS = 8_000_000_000;
+
+function cropOf(o: Record<string, unknown>): string {
+  return firstStr(o, ["crop_hash", "cropHash", "frame_hash", "frameHash"]);
+}
+
+function confirmIdOf(o: Record<string, unknown>): string {
+  return firstStr(o, ["ticket_id", "ticketId", "confirm_ticket_id", "confirmTicketId"]);
+}
+
+function scorePairOf(o: Record<string, unknown>): [number, number] | null {
+  const h = firstNum(o, ["home_score", "score_home", "homeScore"]);
+  const a = firstNum(o, ["away_score", "score_away", "awayScore"]);
+  if (h != null && a != null) return [h, a];
+  return parsePair(o.score ?? o.scoreline ?? o.board);
+}
+
+/** Ticket-fresh: non-empty crop, crop_hash match, Same-Seq, clock age. Blank beats hold. */
+export function ticketFresh(args: {
+  ticketCropHash: string;
+  liveCropHash?: string;
+  sameSeq?: boolean | null;
+  ticketClockNs?: number;
+  liveClockNs?: number;
+  maxAgeNs?: number;
+}): boolean {
+  const ticketCrop = String(args.ticketCropHash || "").trim();
+  if (!ticketCrop) return false;
+  const liveCrop = String(args.liveCropHash || "").trim();
+  if (liveCrop && liveCrop !== ticketCrop) return false;
+  if (args.sameSeq === false) return false;
+  const tClock = Number(args.ticketClockNs) || 0;
+  const lClock = Number(args.liveClockNs) || 0;
+  if (tClock > 0 && lClock > 0 && lClock - tClock > (args.maxAgeNs ?? CONFIRM_DIGIT_MAX_AGE_NS)) {
+    return false;
+  }
+  return true;
+}
+
+/** X LIVE claim ceiling — ConfirmTicket + score_vlm_locked + ticket-fresh. */
+export function digitsLicensed(args: {
+  confirmTicketId: string;
+  scoreVlmLocked: boolean;
+  ticketCropHash: string;
+  liveCropHash?: string;
+  sameSeq?: boolean | null;
+  ticketClockNs?: number;
+  liveClockNs?: number;
+}): boolean {
+  if (!String(args.confirmTicketId || "").trim()) return false;
+  if (!args.scoreVlmLocked) return false;
+  return ticketFresh(args);
+}
+
 export function pickBoard(...bags: Record<string, unknown>[]): {
   home: number | null;
   away: number | null;
@@ -215,51 +270,100 @@ export function pickBoard(...bags: Record<string, unknown>[]): {
   clock: string;
   locked: boolean;
 } {
-  let home: number | null = null;
-  let away: number | null = null;
+  let candHome: number | null = null;
+  let candAway: number | null = null;
   let quarter: number | null = null;
   let down: number | null = null;
   let distance: number | null = null;
   let clock = "";
-  let locked = false;
+  let confirmTicketId = "";
+  let scoreVlmLocked = false;
+  let ticketCrop = "";
+  let liveCrop = "";
+  let sameSeq: boolean | null = null;
+  let ticketClockNs = 0;
+  let liveClockNs = 0;
 
-  const walk = (o: Record<string, unknown>, forceLocked = false) => {
-    if (!o || !Object.keys(o).length) return;
-    const h = firstNum(o, ["home_score", "score_home", "homeScore"]);
-    const a = firstNum(o, ["away_score", "score_away", "awayScore"]);
-    const pair = h != null && a != null ? ([h, a] as const) : parsePair(o.score ?? o.scoreline ?? o.board);
-    const thisLocked = forceLocked || Boolean(o.score_vlm_locked || o.scoreboard_locked || o.confirm_ticket_id);
-    if (pair) {
-      if (thisLocked) {
-        home = pair[0];
-        away = pair[1];
-        locked = true;
-      } else if (!locked && home == null) {
-        home = pair[0];
-        away = pair[1];
-      }
-    }
-    if (thisLocked) locked = true;
+  const takeMeta = (o: Record<string, unknown>) => {
     if (quarter == null) quarter = firstNum(o, ["quarter", "period"]);
     if (down == null) down = firstNum(o, ["down"]);
     if (distance == null) distance = firstNum(o, ["yards_to_go", "distance", "togo", "to_go"]);
     if (!clock) clock = fmtClock(o);
   };
 
+  const takeCandidate = (o: Record<string, unknown>, prefer = false) => {
+    const pair = scorePairOf(o);
+    if (!pair) return;
+    if (prefer || candHome == null) {
+      candHome = pair[0];
+      candAway = pair[1];
+    }
+  };
+
+  const takeTicket = (o: Record<string, unknown>) => {
+    if (!o || !Object.keys(o).length) return;
+    const tid = confirmIdOf(o);
+    if (tid && !confirmTicketId) confirmTicketId = tid;
+    const crop = cropOf(o);
+    if (crop && !ticketCrop) ticketCrop = crop;
+    const clk = num(o.clock_ns ?? o.clockNs, 0);
+    if (clk && !ticketClockNs) ticketClockNs = clk;
+    if (firstBool(o, ["score_vlm_locked", "scoreVlmLocked"]) === true) scoreVlmLocked = true;
+    takeCandidate(o, true);
+    takeMeta(o);
+  };
+
+  const takeLive = (o: Record<string, unknown>) => {
+    if (!o || !Object.keys(o).length) return;
+    if (firstBool(o, ["score_vlm_locked", "scoreVlmLocked"]) === true) scoreVlmLocked = true;
+    const tid = firstStr(o, ["confirm_ticket_id", "confirmTicketId"]);
+    if (tid && !confirmTicketId) confirmTicketId = tid;
+    const crop = cropOf(o);
+    if (crop) liveCrop = crop;
+    if (o.same_seq != null || o.sameSeq != null) {
+      sameSeq = Boolean(o.same_seq ?? o.sameSeq);
+    }
+    const clk = num(o.clock_ns ?? o.clockNs ?? o.updated_ns ?? o.updatedNs, 0);
+    if (clk) liveClockNs = clk;
+    takeCandidate(o, false);
+    takeMeta(o);
+  };
+
   for (const bag of bags) {
     const confirm = rec(bag.confirm);
-    walk(rec(confirm.last_confirm), true);
-    walk(rec(bag.last_confirm), true);
-    walk(bag);
-    walk(rec(bag.situation));
-    walk(rec(bag.payload));
-    walk(rec(bag.visual_context));
-    walk(rec(bag.scoreboard));
-    walk(rec(confirm.last_fast));
-    walk(rec(bag.last_fast));
+    takeTicket(rec(confirm.last_confirm));
+    takeTicket(rec(bag.last_confirm));
+    takeLive(bag);
+    takeLive(rec(bag.situation));
+    takeLive(rec(bag.payload));
+    takeLive(rec(bag.visual_context));
+    takeLive(rec(bag.scoreboard));
+    takeLive(rec(bag.video));
+    takeLive(rec(confirm.last_fast));
+    takeLive(rec(bag.last_fast));
   }
 
-  return { home, away, quarter, down, distance, clock, locked };
+  if (confirmTicketId && !ticketCrop && liveCrop) ticketCrop = liveCrop;
+
+  const locked = digitsLicensed({
+    confirmTicketId,
+    scoreVlmLocked,
+    ticketCropHash: ticketCrop,
+    liveCropHash: liveCrop,
+    sameSeq,
+    ticketClockNs,
+    liveClockNs,
+  });
+
+  return {
+    home: locked ? candHome : null,
+    away: locked ? candAway : null,
+    quarter,
+    down,
+    distance,
+    clock,
+    locked,
+  };
 }
 
 function pickClutch(...bags: Record<string, unknown>[]): {
@@ -466,7 +570,7 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
   else if (hasFrame && age > 0.35) hdmi = "stale";
   else if (!hasFrame && video.age_s != null) hdmi = "stale";
 
-  const board = pickBoard(m, snap, sit, rec(m.confirm), rec(snap.confirm));
+  const board = pickBoard(m, snap, sit, rec(m.confirm), rec(snap.confirm), rec(snap.video), rec(m.video));
   const clutch = pickClutch(m, snap, sit, coup);
   const ident = pickIdentity(m, snap, sit);
   const ltr = pickHdmiLtr(m, snap, sit);
@@ -557,10 +661,10 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     videoAgeS: age,
     videoFrames: num(video.frames ?? video.hub_seq ?? video.live_seq, 0),
     videoPushes: num(video.pushes ?? video.hub_seq ?? video.frames, 0),
-    // Locked digits only from spine last_confirm / score_vlm_locked (pickBoard).
-    // Unlocked OCR never surfaces when widgets are dark.
-    homeScore: board.locked || widgetsOk ? board.home : null,
-    awayScore: board.locked || widgetsOk ? board.away : null,
+    // pickBoard is the sole digit gate. widgetsOk / board_locked / scoreboard_locked
+    // are not permission. Blank beats hold.
+    homeScore: board.home,
+    awayScore: board.away,
     quarter: board.quarter,
     down: board.down,
     distance: board.distance,
@@ -577,8 +681,8 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     homeLeft: ident.homeLeft,
     leftTeam: ltr.leftTeam,
     rightTeam: ltr.rightTeam,
-    leftScore: ltr.leftScore,
-    rightScore: ltr.rightScore,
+    leftScore: board.locked ? ltr.leftScore : null,
+    rightScore: board.locked ? ltr.rightScore : null,
     fieldPos: ident.fieldPos,
     why: whyBits.join(" · ") || "deck snapshot",
     liveSeq,

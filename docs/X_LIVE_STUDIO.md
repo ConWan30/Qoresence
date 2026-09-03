@@ -60,4 +60,4 @@ WHIP is **not** offered in Live Studio help. Do not add a Qoresence ingest path,
 - Not anti-cheat, humanity, or eligibility claims. Language stays co-occurrence / coupling / presence evidence
 - Not a Madden / EA safe harbor. X may drop sources on copyright enforcement. Observation of your own play session is not blessed by X text; a rights holder can still DMCA
 
-Digits on any public glass serialize only with ConfirmTicket + `score_vlm_locked`. Else silence. `board_locked` alone is not a confirm. This recipe does not invent scores.
+Digits on any public glass serialize only with ConfirmTicket + `score_vlm_locked` **and** a fresh ticket (`crop_hash` match, Same-Seq / clock age). Else blank beats hold. `scoreboard_locked` / `board_locked` / `widgetsOk` are not digit permission. Shared gate: `glass/src/lib/coupling/board.ts` `pickBoard` — the overlay.html paint path consumes that ingest; do not darken the lens alone. This recipe does not invent scores.

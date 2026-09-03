@@ -1,6 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { boardLine, parseDeckMessage, pickBoard, scorebugPair, situationLine } from "../src/lib/coupling/board.ts";
+import {
+  boardLine,
+  digitsLicensed,
+  parseDeckMessage,
+  pickBoard,
+  scorebugPair,
+  situationLine,
+  ticketFresh,
+} from "../src/lib/coupling/board.ts";
+
+const CROP = "crop-ok";
+const TICKET = "fixture-confirm";
+
+function license(extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    score_vlm_locked: true,
+    confirm_ticket_id: TICKET,
+    crop_hash: CROP,
+    ...extra,
+  };
+}
+
+function lastConfirm(extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ticket_id: TICKET,
+    crop_hash: CROP,
+    clock_ns: 1_000_000_000,
+    ...extra,
+  };
+}
 
 test("snapshot video frames and pushes land on ingest", () => {
   const ing = parseDeckMessage({
@@ -55,7 +84,7 @@ test("WS situation payload carries Madden board", () => {
       down: 2,
       yards_to_go: 6,
       game_clock_seconds: 192,
-      score_vlm_locked: true,
+      ...license(),
     },
   });
   assert.ok(ing);
@@ -82,7 +111,7 @@ test("boolean game_title does not paint as true on the sit strip", () => {
       down: 1,
       yards_to_go: 10,
       game_clock_seconds: 152,
-      score_vlm_locked: true,
+      ...license(),
     },
   });
   assert.ok(ing);
@@ -93,7 +122,7 @@ test("boolean game_title does not paint as true on the sit strip", () => {
 test("snapshot.situation + score_home aliases", () => {
   const ing = parseDeckMessage({
     type: "snapshot",
-    situation: { score_home: 7, score_away: 0, game_state: "gameplay", score_vlm_locked: true },
+    situation: { score_home: 7, score_away: 0, game_state: "gameplay", ...license() },
   });
   assert.ok(ing);
   assert.equal(ing.homeScore, 7);
@@ -104,9 +133,9 @@ test("snapshot.situation + score_home aliases", () => {
 test("confirm last_confirm fills board when situation scores are null", () => {
   const ing = parseDeckMessage({
     type: "snapshot",
-    situation: { game_state: "gameplay", home_score: null, away_score: null },
+    situation: { game_state: "gameplay", home_score: null, away_score: null, ...license() },
     confirm: {
-      last_confirm: { home_score: 28, away_score: 17, quarter: 4 },
+      last_confirm: lastConfirm({ home_score: 28, away_score: 17, quarter: 4, score_vlm_locked: true }),
     },
   });
   assert.ok(ing);
@@ -118,7 +147,7 @@ test("confirm last_confirm fills board when situation scores are null", () => {
 
 test("pickBoard reads visual_context", () => {
   const b = pickBoard({
-    visual_context: { home_score: 3, away_score: 10, clock: "0:24", score_vlm_locked: true },
+    visual_context: { home_score: 3, away_score: 10, clock: "0:24", ...license() },
   });
   assert.equal(b.home, 3);
   assert.equal(b.away, 10);
@@ -134,8 +163,10 @@ test("Gemini last_confirm beats unlocked OCR 20-20", () => {
       home_score: 20,
       away_score: 20,
       score_vlm_locked: false,
+      confirm_ticket_id: TICKET,
+      crop_hash: CROP,
     },
-    confirm: { last_confirm: { home_score: 20, away_score: 0, quarter: 2 } },
+    confirm: { last_confirm: lastConfirm({ home_score: 20, away_score: 0, quarter: 2, score_vlm_locked: true }) },
   });
   assert.ok(ing);
   assert.equal(ing.homeScore, 20);
@@ -150,11 +181,11 @@ test("score_vlm_locked situation is an honest board", () => {
       game_state: "gameplay",
       home_score: 14,
       away_score: 7,
-      score_vlm_locked: true,
       quarter: 3,
       down: 1,
       yards_to_go: 10,
       game_clock_seconds: 90,
+      ...license(),
     },
   });
   assert.ok(ing);
@@ -164,25 +195,25 @@ test("score_vlm_locked situation is an honest board", () => {
   assert.equal(boardLine(ing), "14-7 · Q3 1:30 · 1st & 10");
 });
 
-test("seq-skew dims paint but locked digits stay for keep-last (UI gates paint)", () => {
+test("seq-skew is not ticket-fresh — blank beats hold", () => {
   const ing = parseDeckMessage({
     type: "snapshot",
     situation: {
       game_state: "gameplay",
       home_score: 21,
       away_score: 14,
-      score_vlm_locked: true,
+      ...license(),
       frame_seq: 7,
     },
+    confirm: { last_confirm: lastConfirm({ home_score: 21, away_score: 14, score_vlm_locked: true }) },
     video: { has_frame: true, live_seq: 10, widget_seq: 7, same_seq: false, paint: false, plane_dim: false },
   });
   assert.ok(ing);
   assert.equal(ing.paint, false);
   assert.equal(ing.sameSeq, false);
-  // Locked board survives parse for store keep-last; Lockbug/DownPill still fail-closed on !widgetsOk.
-  assert.equal(ing.boardLocked, true);
-  assert.equal(ing.homeScore, 21);
-  assert.equal(ing.awayScore, 14);
+  assert.equal(ing.boardLocked, false);
+  assert.equal(ing.homeScore, null);
+  assert.equal(ing.awayScore, null);
 });
 
 test("plane dim on menu keeps locked digits; UI sleeps paint", () => {
@@ -192,7 +223,7 @@ test("plane dim on menu keeps locked digits; UI sleeps paint", () => {
       game_state: "menu",
       home_score: 14,
       away_score: 7,
-      score_vlm_locked: true,
+      ...license(),
     },
     video: { has_frame: true, paint: false, plane_dim: true, live_seq: 3, same_seq: true },
   });
@@ -208,8 +239,8 @@ test("unlocked OCR pair is not a VLM lock", () => {
     situation: { game_state: "gameplay", home_score: 21, away_score: 14 },
   });
   assert.ok(ing);
-  assert.equal(ing.homeScore, 21);
-  assert.equal(ing.awayScore, 14);
+  assert.equal(ing.homeScore, null);
+  assert.equal(ing.awayScore, null);
   assert.equal(ing.boardLocked, false);
 });
 
@@ -228,7 +259,7 @@ test("situation strip matches original Deck scorebug line", () => {
       yards_to_go: 6,
       field_position: "PHI34",
       game_clock_seconds: 192,
-      score_vlm_locked: true,
+      ...license(),
       win_prob: 0.58,
     },
   });
@@ -254,7 +285,7 @@ test("home_left true keeps home on the left of the scorebug", () => {
       home_score: 14,
       away_score: 7,
       home_left: true,
-      score_vlm_locked: true,
+      ...license(),
     },
   });
   assert.ok(ing);
@@ -267,7 +298,7 @@ test("home_left true keeps home on the left of the scorebug", () => {
 });
 
 test("HDMI crop left NO 21 / right DET 6 paints NO 21 DET 6 not NO 6 DET 21", () => {
-  const lastConfirm = {
+  const lastConfirmLtr = lastConfirm({
     ticket_id: "fixture-no21-det6",
     home_score: 21,
     away_score: 6,
@@ -276,7 +307,8 @@ test("HDMI crop left NO 21 / right DET 6 paints NO 21 DET 6 not NO 6 DET 21", ()
     right_team: "DET",
     left_score: 21,
     right_score: 6,
-  };
+    score_vlm_locked: true,
+  });
   const ing = parseDeckMessage({
     type: "snapshot",
     schema_version: "qoresence-deck-v0",
@@ -292,10 +324,9 @@ test("HDMI crop left NO 21 / right DET 6 paints NO 21 DET 6 not NO 6 DET 21", ()
       right_team: "DET",
       left_score: 21,
       right_score: 6,
-      score_vlm_locked: true,
-      confirm_ticket_id: "fixture-no21-det6",
+      ...license({ confirm_ticket_id: "fixture-no21-det6" }),
     },
-    confirm: { last_confirm: lastConfirm },
+    confirm: { last_confirm: lastConfirmLtr },
   });
   assert.ok(ing);
   assert.equal(ing.homeScore, 21);
@@ -337,7 +368,7 @@ test("situation identity beats swapped visual_context", () => {
       home_score: 14,
       away_score: 7,
       home_left: false,
-      score_vlm_locked: true,
+      ...license(),
     },
     visual_context: {
       home_team: "PHI",
@@ -383,7 +414,7 @@ test("video-less situation does not demote board after snapshot optics", () => {
       home_score: 28,
       away_score: 21,
       quarter: 3,
-      score_vlm_locked: true,
+      ...license(),
       frame_seq: 40,
     },
     video: {
@@ -409,7 +440,7 @@ test("video-less situation does not demote board after snapshot optics", () => {
       quarter: 3,
       down: 2,
       yards_to_go: 7,
-      score_vlm_locked: true,
+      ...license(),
       latency_ms: 12,
       updated_ns: 123,
     },
@@ -431,7 +462,7 @@ test("snapshot with plane_dim keeps locked digits; paint stays gated", () => {
       game_state: "gameplay",
       home_score: 10,
       away_score: 3,
-      score_vlm_locked: true,
+      ...license(),
       frame_seq: 9,
     },
     video: {
@@ -486,4 +517,141 @@ test("observation hid_source picture lands on ingest", () => {
   assert.equal(ing.observation.hidButton, "Cross");
   assert.equal(ing.observation.verb, "Snap Ball");
   assert.equal(ing.observation.hidSource, "picture");
+});
+
+test("unlocked OCR silence — widgetsOk / scoreboard_locked are not digit permission", () => {
+  const unlocked = pickBoard({
+    game_state: "gameplay",
+    home_score: 21,
+    away_score: 14,
+    scoreboard_locked: true,
+    board_locked: true,
+  });
+  assert.equal(unlocked.home, null);
+  assert.equal(unlocked.away, null);
+  assert.equal(unlocked.locked, false);
+
+  const widgets = parseDeckMessage({
+    type: "snapshot",
+    situation: { game_state: "gameplay", home_score: 21, away_score: 14, scoreboard_locked: true },
+    video: { has_frame: true, live_seq: 10, same_seq: true, paint: true, plane_dim: false },
+  });
+  assert.ok(widgets);
+  assert.equal(widgets.paint, true);
+  assert.equal(widgets.sameSeq, true);
+  assert.equal(widgets.homeScore, null);
+  assert.equal(widgets.awayScore, null);
+  assert.equal(widgets.boardLocked, false);
+});
+
+test("ConfirmTicket without VLM lock silence", () => {
+  const b = pickBoard({
+    home_score: 14,
+    away_score: 7,
+    confirm_ticket_id: TICKET,
+    crop_hash: CROP,
+    score_vlm_locked: false,
+    last_confirm: lastConfirm({ home_score: 14, away_score: 7 }),
+  });
+  assert.equal(b.home, null);
+  assert.equal(b.away, null);
+  assert.equal(b.locked, false);
+
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    situation: {
+      game_state: "gameplay",
+      home_score: 14,
+      away_score: 7,
+      confirm_ticket_id: TICKET,
+      crop_hash: CROP,
+      score_vlm_locked: false,
+    },
+    confirm: { last_confirm: lastConfirm({ home_score: 14, away_score: 7 }) },
+    video: { has_frame: true, same_seq: true, paint: true },
+  });
+  assert.ok(ing);
+  assert.equal(ing.homeScore, null);
+  assert.equal(ing.awayScore, null);
+  assert.equal(ing.boardLocked, false);
+});
+
+test("ConfirmTicket + lock paints", () => {
+  assert.equal(
+    digitsLicensed({
+      confirmTicketId: TICKET,
+      scoreVlmLocked: true,
+      ticketCropHash: CROP,
+      liveCropHash: CROP,
+      sameSeq: true,
+    }),
+    true,
+  );
+  const b = pickBoard({
+    home_score: 21,
+    away_score: 17,
+    ...license(),
+    last_confirm: lastConfirm({ home_score: 21, away_score: 17, score_vlm_locked: true }),
+  });
+  assert.equal(b.home, 21);
+  assert.equal(b.away, 17);
+  assert.equal(b.locked, true);
+
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    situation: { game_state: "gameplay", home_score: 21, away_score: 17, ...license() },
+    confirm: { last_confirm: lastConfirm({ home_score: 21, away_score: 17, score_vlm_locked: true }) },
+    video: { has_frame: true, live_seq: 8, same_seq: true, paint: true, plane_dim: false },
+  });
+  assert.ok(ing);
+  assert.equal(ing.homeScore, 21);
+  assert.equal(ing.awayScore, 17);
+  assert.equal(ing.boardLocked, true);
+  assert.ok(boardLine(ing).includes("21-17"));
+});
+
+test("stale ticket empties when crop_hash moves", () => {
+  assert.equal(ticketFresh({ ticketCropHash: "aaa", liveCropHash: "bbb" }), false);
+  const b = pickBoard({
+    home_score: 21,
+    away_score: 14,
+    score_vlm_locked: true,
+    confirm_ticket_id: TICKET,
+    crop_hash: "crop-now",
+    last_confirm: lastConfirm({
+      home_score: 21,
+      away_score: 14,
+      crop_hash: "crop-was",
+      score_vlm_locked: true,
+    }),
+  });
+  assert.equal(b.home, null);
+  assert.equal(b.away, null);
+  assert.equal(b.locked, false);
+
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    situation: {
+      game_state: "gameplay",
+      home_score: 21,
+      away_score: 14,
+      score_vlm_locked: true,
+      confirm_ticket_id: TICKET,
+      crop_hash: "crop-now",
+    },
+    confirm: {
+      last_confirm: lastConfirm({
+        home_score: 21,
+        away_score: 14,
+        crop_hash: "crop-was",
+        score_vlm_locked: true,
+      }),
+    },
+    video: { has_frame: true, same_seq: true, paint: true, crop_hash: "crop-now" },
+  });
+  assert.ok(ing);
+  assert.equal(ing.homeScore, null);
+  assert.equal(ing.awayScore, null);
+  assert.equal(ing.boardLocked, false);
+  assert.equal(scorebugPair(ing), "");
 });

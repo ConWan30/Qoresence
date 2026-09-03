@@ -523,6 +523,20 @@ def test_deck_html_fmt_gates_unlocked_digits():
     assert "locked&&s.home_score!=null" in html.replace(" ", "")
 
 
+def test_overlay_html_uses_shared_digit_gate():
+    """Fallback overlay.html must not paint scores without ConfirmTicket + VLM lock."""
+    from pathlib import Path
+
+    html = (Path(__file__).resolve().parents[1] / "qoresence" / "deck" / "overlay.html").read_text(
+        encoding="utf-8"
+    )
+    assert "function digitsLicensed(" in html
+    assert "score_vlm_locked" in html
+    assert "crop_hash" in html
+    assert "digitsLicensed(s,snap)" in html.replace(" ", "")
+    assert "scoreboard_locked" not in html.split("function digitsLicensed")[1].split("function handle")[0]
+
+
 def test_deck_html_stage_hud_escapes_transport():
     from pathlib import Path
 
