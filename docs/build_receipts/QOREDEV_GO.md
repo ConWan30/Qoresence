@@ -30,9 +30,11 @@ Operator + Qoredev GO. Query-only receipt of
 ## Falsify
 
 ```
-python -m pytest tests/test_qoredev.py tests/test_operator_bus.py tests/test_deadlock_regression.py -q
+python -m pytest tests/test_qoredev.py tests/test_operator_bus.py tests/test_deadlock_regression.py tests/test_security_localhost.py -q
 ```
+
+**Cloud agent (this GO):** 39 passed (`test_qoredev` + `test_operator_bus` + deadlock + localhost security).
 
 Empty story + licensed physical/clock/lock/glass → `next=hold`.
 Score digits on a live snapshot must not appear in the receipt.
-`qoredev.py` must not contain `emit_raw`, DualSense, `--play`, WHIP, RTMP.
+`qoredev.py` must not contain `emit_raw(`, `A2ABus(`, DualSense, `--play`, WHIP, RTMP.

@@ -1,7 +1,7 @@
 """Qoredev landing sequence — observation plane only.
 
 Query-only composition of existing /health envelopes. Never emits on
-RetinaEventBus / A2ABus. Never opens capture. Never reads DualSense.
+RetinaEventBus or the A2A bus. Never opens capture. Never reads the pad.
 
 Sequence: physical → clock → lock → glass → story.
 

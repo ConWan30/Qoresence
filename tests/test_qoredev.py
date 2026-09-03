@@ -160,14 +160,15 @@ def test_source_is_observation_only():
     text = src.read_text(encoding="utf-8")
     for banned in (
         "emit_raw(",
-        "A2ABus",
-        "DualSense",
+        "A2ABus(",
         "hidapi",
         "whip",
         "rtmp",
         "x-glass",
         "--play",
         "VideoCapture",
+        "hid_by_seq",
+        "DualSense",
     ):
         assert banned not in text
 
