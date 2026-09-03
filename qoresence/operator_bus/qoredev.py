@@ -256,7 +256,6 @@ def _text(steps: dict[str, dict[str, Any]], nxt: str) -> str:
     phys = steps["physical"]
     clock = steps["clock"]
     lock = steps["lock"]
-    glass = steps["glass"]
     story = steps["story"]
     if nxt == "physical":
         if phys["kind"] == "freeze":
