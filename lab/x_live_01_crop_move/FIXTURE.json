@@ -1,0 +1,122 @@
+{
+  "label": "FIXTURE",
+  "kind": "NON-CLAIM",
+  "name": "x-live-01-crop-hash-move-silence",
+  "plane": "qoresence-observation",
+  "after": {
+    "pr_152_pickBoard": "374e940",
+    "pr_153_docs": "7a7393f"
+  },
+  "law": "ConfirmTicket + score_vlm_locked + ticket-fresh. Blank beats hold. Never paint last-good.",
+  "refs": [
+    "glass/src/lib/coupling/board.ts",
+    "docs/X_LIVE_STUDIO.md",
+    "qoresence/deck/overlay.html"
+  ],
+  "out_of_scope": ["--play", "DualSense", "--x-glass", "encoder", "WHIP", "RTMP", "merge"],
+  "ticket": "fixture-x-live-01",
+  "crop_was": "crop-was",
+  "crop_now": "crop-now",
+  "cases": [
+    {
+      "id": "control_fresh_01_paints",
+      "note": "0-1 is a licensed lock when crop matches. Not the 0-0 refuse.",
+      "expect": { "home": 0, "away": 1, "locked": true, "scorebug": "0-1", "overlay_score": "0-1" },
+      "snapshot": {
+        "type": "snapshot",
+        "schema_version": "qoresence-deck-v0",
+        "situation": {
+          "game_state": "gameplay",
+          "home_score": 0,
+          "away_score": 1,
+          "score_vlm_locked": true,
+          "confirm_ticket_id": "fixture-x-live-01",
+          "crop_hash": "crop-was"
+        },
+        "confirm": {
+          "last_confirm": {
+            "ticket_id": "fixture-x-live-01",
+            "home_score": 0,
+            "away_score": 1,
+            "crop_hash": "crop-was",
+            "clock_ns": 1000000000,
+            "score_vlm_locked": true
+          }
+        },
+        "video": {
+          "has_frame": true,
+          "same_seq": true,
+          "paint": true,
+          "crop_hash": "crop-was"
+        }
+      }
+    },
+    {
+      "id": "stuck_01_crop_moved_silence",
+      "note": "last_confirm stays 0-1 on crop-was. FrameHub + situation crop_hash move to crop-now. Digits EMPTY.",
+      "expect": { "home": null, "away": null, "locked": false, "scorebug": "", "overlay_score": "" },
+      "snapshot": {
+        "type": "snapshot",
+        "schema_version": "qoresence-deck-v0",
+        "situation": {
+          "game_state": "gameplay",
+          "home_score": 0,
+          "away_score": 1,
+          "score_vlm_locked": true,
+          "confirm_ticket_id": "fixture-x-live-01",
+          "crop_hash": "crop-now"
+        },
+        "confirm": {
+          "last_confirm": {
+            "ticket_id": "fixture-x-live-01",
+            "home_score": 0,
+            "away_score": 1,
+            "crop_hash": "crop-was",
+            "clock_ns": 1000000000,
+            "score_vlm_locked": true
+          }
+        },
+        "video": {
+          "has_frame": true,
+          "same_seq": true,
+          "paint": true,
+          "crop_hash": "crop-now"
+        }
+      }
+    },
+    {
+      "id": "stuck_01_framehub_video_only_pickboard",
+      "note": "Situation still carries last-good 0-1 / crop-was. FrameHub video.crop_hash alone moves. pickBoard EMPTY. overlay.html liveCrop is situation.crop_hash only — recorded, not a product claim.",
+      "observe_overlay_last_good": true,
+      "expect": { "home": null, "away": null, "locked": false, "scorebug": "", "overlay_score": "0-1" },
+      "snapshot": {
+        "type": "snapshot",
+        "schema_version": "qoresence-deck-v0",
+        "situation": {
+          "game_state": "gameplay",
+          "home_score": 0,
+          "away_score": 1,
+          "score_vlm_locked": true,
+          "confirm_ticket_id": "fixture-x-live-01",
+          "crop_hash": "crop-was"
+        },
+        "confirm": {
+          "last_confirm": {
+            "ticket_id": "fixture-x-live-01",
+            "home_score": 0,
+            "away_score": 1,
+            "crop_hash": "crop-was",
+            "clock_ns": 1000000000,
+            "score_vlm_locked": true
+          }
+        },
+        "video": {
+          "has_frame": true,
+          "same_seq": true,
+          "paint": true,
+          "crop_hash": "crop-now"
+        }
+      }
+    }
+  ]
+}
