@@ -25,7 +25,8 @@ FrameHub-only bag (`stuck_01_framehub_video_only_pickboard`): `video.crop_hash` 
 ## Run
 
 ```powershell
-node --experimental-strip-types lab/x_live_01_crop_move/harness.mjs
+python lab/x_live_01_crop_move/harness.py
 python -m pytest tests/test_x_live_01_crop_move_silence.py -v
-cd glass && npm test -- --test-name-pattern "x-live-01"
 ```
+
+CI Node is 20 — do not import `board.ts` via `--experimental-strip-types` from pytest. Glass `pickBoard` stays covered by `glass/scripts/x-live-01-crop-move.test.ts` (Node 22+ local).

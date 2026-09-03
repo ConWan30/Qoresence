@@ -14,12 +14,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LAB = ROOT / "lab" / "x_live_01_crop_move"
 FIXTURE_PATH = LAB / "FIXTURE.json"
-HARNESS = LAB / "harness.mjs"
+HARNESS = LAB / "harness.py"
+BOARD_TS = ROOT / "glass" / "src" / "lib" / "coupling" / "board.ts"
 OVERLAY = ROOT / "qoresence" / "deck" / "overlay.html"
 DOCS = ROOT / "docs" / "X_LIVE_STUDIO.md"
 
 sys.path.insert(0, str(LAB))
 from overlay_gate import overlay_score_text  # noqa: E402
+from pickboard_gate import pick_board, scorebug_pair, ticket_fresh  # noqa: E402
 
 
 def _fixture() -> dict:
@@ -53,6 +55,25 @@ def test_docs_x_live_studio_still_blank_beats_hold():
     assert "crop_hash" in text
     assert "pickBoard" in text
     assert "score_vlm_locked" in text
+
+
+def test_board_ts_still_has_ticket_fresh_crop_gate():
+    """Python harness ports pickBoard; board.ts remains the shared glass gate."""
+    src = BOARD_TS.read_text(encoding="utf-8")
+    assert "export function ticketFresh(" in src
+    assert "export function pickBoard(" in src
+    assert "liveCrop && liveCrop !== ticketCrop" in src
+    assert "Blank beats hold" in src
+
+
+def test_pickboard_gate_stuck_01_crop_move_is_silent():
+    snap = _case("stuck_01_crop_moved_silence")["snapshot"]
+    lc = snap["confirm"]["last_confirm"]
+    assert (lc["home_score"], lc["away_score"]) == (0, 1)
+    assert ticket_fresh(ticket_crop_hash=lc["crop_hash"], live_crop_hash=snap["video"]["crop_hash"]) is False
+    board = pick_board(snap, snap["situation"], snap["confirm"], snap["video"])
+    assert board == {"home": None, "away": None, "locked": False}
+    assert scorebug_pair(board["home"], board["away"]) == ""
 
 
 def test_overlay_html_still_has_crop_mismatch_gate():
@@ -89,9 +110,18 @@ def test_overlay_observation_framehub_video_only_reads_situation_crop():
     assert overlay_score_text(snap["situation"], snap) == "0-1"
 
 
+def test_harness_does_not_import_board_ts():
+    assert HARNESS.suffix == ".py"
+    assert HARNESS.name == "harness.py"
+    body = HARNESS.read_text(encoding="utf-8")
+    assert "from pickboard_gate import" in body
+    assert "from overlay_gate import" in body
+
+
 def test_harness_exits_zero():
+    """CI Node 20 cannot strip TypeScript — run the Python harness."""
     r = subprocess.run(
-        ["node", "--experimental-strip-types", str(HARNESS)],
+        [sys.executable, str(HARNESS)],
         cwd=str(ROOT),
         check=False,
         capture_output=True,
