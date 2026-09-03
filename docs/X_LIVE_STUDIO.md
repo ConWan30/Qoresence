@@ -60,4 +60,4 @@ WHIP is **not** offered in Live Studio help. Do not add a Qoresence ingest path,
 - Not anti-cheat, humanity, or eligibility claims. Language stays co-occurrence / coupling / presence evidence
 - Not a Madden / EA safe harbor. X may drop sources on copyright enforcement. Observation of your own play session is not blessed by X text; a rights holder can still DMCA
 
-Digits on any public glass still require confirm / `board_locked`. This recipe does not invent scores.
+Digits on any public glass serialize only with ConfirmTicket + `score_vlm_locked`. Else silence. `board_locked` alone is not a confirm. This recipe does not invent scores.
