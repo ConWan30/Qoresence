@@ -47,7 +47,7 @@ PS5 HDMI
 1. **Remove or disable** any **Video Capture Device** source that points at the same physical card.  
 2. **Do not** Start Virtual Camera *from that card* if Qoresence already owns it.  
 3. Add **Browser Source** → `http://127.0.0.1:8765/overlay.html` for the Lens HUD.  
-4. Capture the stream with **Game Capture / Display Capture / Window Capture** of the PS5/TV path as you prefer — not dual-open of the card.
+4. Capture the stream with **Game Capture / Display Capture / Window Capture** of the PS5/TV path as you prefer — not dual-open of the card. Audience live to **X**: OBS Custom Streaming Server → X Live Studio ([X_LIVE_STUDIO.md](X_LIVE_STUDIO.md)).
 
 ---
 
@@ -124,4 +124,5 @@ pip install "paddlepaddle>=2.6" "paddleocr>=2.7"
 
 - [RETINA_MONITOR.md](RETINA_MONITOR.md) — native glass on FrameHub  
 - [CONTROLLER_VIDEO_SYNC.md](CONTROLLER_VIDEO_SYNC.md) — IVC lag (physical can use default 120 ms)  
-- [tools/obs/README.md](../tools/obs/README.md) — Lens Browser Source only under Pattern B  
+- [tools/obs/README.md](../tools/obs/README.md) — Lens Browser Source only under Pattern B
+- [X_LIVE_STUDIO.md](X_LIVE_STUDIO.md) — audience live to X via OBS Custom RTMP (not a Qoresence encoder)

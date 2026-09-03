@@ -17,7 +17,7 @@ python -m qoresence.cli --streamer-list
 python -m qoresence.cli --play --deck --monitor --streamer-device 0 --streamer-fps 60
 ```
 
-Low-lag eye: **Retina Monitor** (`--monitor`) or Deck LIVE. Audience RTMP: OBS **Display/Game Capture**, not dual-open of the card.
+Low-lag eye: **Retina Monitor** (`--monitor`) or Deck LIVE. Audience RTMP: OBS **Display/Game Capture**, not dual-open of the card. Audience live to X: OBS Custom Streaming Server → X Live Studio. Recipe: **[docs/X_LIVE_STUDIO.md](../../docs/X_LIVE_STUDIO.md)**. Qoresence does not ingest or restream HDMI.
 
 ---
 
