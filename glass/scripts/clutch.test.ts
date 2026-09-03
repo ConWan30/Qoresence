@@ -45,7 +45,15 @@ test("Q4 two-minute close board is a clutch window", () => {
 test("DriveGraph climax_score on coupling is harvested", () => {
   const ing = parseDeckMessage({
     type: "snapshot",
-    situation: { game_state: "gameplay", score_vlm_locked: true, home_score: 14, away_score: 14, quarter: 4 },
+    situation: {
+      game_state: "gameplay",
+      score_vlm_locked: true,
+      confirm_ticket_id: "fixture-confirm",
+      crop_hash: "crop-ok",
+      home_score: 14,
+      away_score: 14,
+      quarter: 4,
+    },
     coupling: { climax_score: 0.81, coupling: 0.4, phrase: "SPRINT" },
     timeline: { drive_graph: { phase: "armed", climax: { score: 0.7 } } },
   });

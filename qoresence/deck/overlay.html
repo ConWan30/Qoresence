@@ -43,6 +43,22 @@ function hasBoard(s){
     ||s.quarter!=null||s.down!=null||s.clock!=null||s.game_clock_seconds!=null
     ||s.kills!=null||s.health!=null||s.win_prob!=null;
 }
+// Same claim ceiling as glass pickBoard — ConfirmTicket + score_vlm_locked + ticket-fresh.
+function digitsLicensed(s, snap){
+  if(!s||typeof s!=='object') return false;
+  const lc=(snap&&snap.confirm&&snap.confirm.last_confirm)||s.last_confirm||{};
+  const tid=String(lc.ticket_id||s.confirm_ticket_id||'').trim();
+  const vlm=s.score_vlm_locked===true||lc.score_vlm_locked===true;
+  if(!tid||!vlm) return false;
+  const ticketCrop=String(lc.crop_hash||'').trim();
+  const liveCrop=String(s.crop_hash||s.frame_hash||'').trim();
+  const crop=ticketCrop||liveCrop;
+  if(!crop) return false;
+  if(ticketCrop&&liveCrop&&ticketCrop!==liveCrop) return false;
+  const video=(snap&&snap.video)||{};
+  if(video.same_seq===false) return false;
+  return true;
+}
 // Classifier sees a game (may still have null scores).
 function isClassified(s){
   if(!s||typeof s!=='object') return false;
@@ -87,7 +103,7 @@ function handle(m){
     const cat=s.game_category||s.game_state||'live';
     const conf=s.visual_confidence!=null?(' · '+(Number(s.visual_confidence)*100|0)+'%'):'';
     if(hasBoard(s)){
-      const sc=s.score_home!=null? (s.score_home+'-'+s.score_away) : (s.home_score!=null? (s.home_score+'-'+s.away_score) : (s.score!=null?String(s.score):''));
+      const sc=digitsLicensed(s,snap)? (s.score_home!=null? (s.score_home+'-'+s.score_away) : (s.home_score!=null? (s.home_score+'-'+s.away_score) : (s.score!=null?String(s.score):''))) : '';
       const q=s.quarter!=null?('Q'+s.quarter):'';
       const down=s.down, dist=s.distance||s.yards_to_go, clock=fmtClock(s), wp=s.win_prob, cl=s.clip_worthiness||0;
       const parts=[]; if(sc!==''&&sc!=='null-null') parts.push(sc); if(q) parts.push(q+(clock?' '+clock:'')); if(down!=null) parts.push(down+' & '+(dist!=null?dist:'')); if(wp!=null) parts.push('WP '+Math.round(wp*100)+'%');
