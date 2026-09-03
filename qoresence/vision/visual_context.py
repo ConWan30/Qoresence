@@ -125,8 +125,10 @@ class VisualContext:
     def __post_init__(self) -> None:
         """Normalize string/enum inputs."""
         raw_state = ""
-        if isinstance(self.game_state, str):
-            raw_state = self.game_state.lower().strip()
+        if self.game_state is None:
+            self.game_state = GameState.UNKNOWN
+        elif isinstance(self.game_state, str):
+            raw_state = str(self.game_state or "").lower().strip()
             if raw_state in {"football", "shooter"}:
                 try:
                     self.game_category = GameCategory(raw_state)
@@ -140,7 +142,7 @@ class VisualContext:
                     self.game_state = GameState.UNKNOWN
         if isinstance(self.game_category, str):
             try:
-                self.game_category = GameCategory(self.game_category.lower().strip())
+                self.game_category = GameCategory(str(self.game_category or "").lower().strip())
             except ValueError:
                 self.game_category = GameCategory.UNKNOWN
 

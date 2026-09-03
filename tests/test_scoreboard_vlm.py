@@ -89,6 +89,159 @@ def test_vlm_parse_rejects_out_of_range():
     assert out["away_score"] == 0
 
 
+def test_vlm_parse_json_chatty_english_then_object():
+    text = (
+        "Based on the scorebug, the home team leads. "
+        '{"home_score": 14, "away_score": 0, "home_left": true, "quarter": 1}'
+    )
+    out = ScoreboardVlmReferee._parse_json(text)
+    assert out is not None
+    assert out["home_score"] == 14
+    assert out["away_score"] == 0
+
+
+def test_vlm_parse_json_chatty_preamble_car_bal_ltr():
+    text = (
+        "The scorebug shows Carolina on the left and Baltimore on the right. "
+        '{"left_team": "CAR", "left_score": 14, "right_team": "BAL", "right_score": 0, '
+        '"home_score": 14, "away_score": 0, "home_left": true, "quarter": 1}'
+    )
+    out = ScoreboardVlmReferee._parse_json(text)
+    assert out is not None
+    assert out["left_team"] == "CAR"
+    assert out["left_score"] == 14
+    assert out["right_team"] == "BAL"
+    assert out["right_score"] == 0
+    assert out["home_score"] == 14
+    assert out["away_score"] == 0
+
+
+def test_vlm_parse_json_wrapped_reply_sure_here_is_json():
+    text = (
+        'Sure, here is the JSON:\n'
+        '{"home_score": 21, "away_score": 14, "home_left": true, "quarter": 4}\n'
+        "hope that helps"
+    )
+    out = ScoreboardVlmReferee._parse_json(text)
+    assert out is not None
+    assert out["home_score"] == 21
+    assert out["away_score"] == 14
+    assert out["home_left"] is True
+    assert out["quarter"] == 4
+
+
+def test_vlm_choice_text_prefers_field_with_first_brace():
+    choice = {
+        "finish_reason": "stop",
+        "message": {
+            "content": 'Analysis mentions {noise} before the board.',
+            "reasoning_content": (
+                '{"left_team": "CAR", "left_score": 14, "right_team": "BAL", "right_score": 0}'
+            ),
+        },
+    }
+    text, finish = ScoreboardVlmReferee._choice_text(choice)
+    assert finish == "stop"
+    assert text.startswith("{")
+    assert "CAR" in text
+
+
+def test_vlm_choice_text_uses_content_when_brace_is_earlier():
+    choice = {
+        "finish_reason": "stop",
+        "message": {
+            "content": (
+                'Preamble then {"home_score": 3, "away_score": 7, "quarter": 2}'
+            ),
+            "reasoning_content": "Later reasoning without json",
+        },
+    }
+    text, _finish = ScoreboardVlmReferee._choice_text(choice)
+    assert '"home_score": 3' in text
+
+
+def test_vlm_call_vlm_finish_length_holds_without_parse(monkeypatch):
+    import numpy as np
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+
+    class _Resp:
+        status_code = 200
+
+        def json(self):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                'Chatty preamble {"home_score": 14, "away_score": 0'
+                            )
+                        },
+                        "finish_reason": "length",
+                    }
+                ]
+            }
+
+    monkeypatch.setattr("requests.post", lambda *a, **k: _Resp())
+    assert ref._call_vlm(np.zeros((96, 200, 3), dtype=np.uint8)) is None
+
+
+def test_default_vision_model_remains_glm_flash():
+    assert DEFAULT_VISION_MODEL == "glm-5.3-flash"
+    cfg = LLMConfig.from_scoreboard_vlm()
+    assert cfg.model == "glm-5.3-flash"
+
+
+def test_vlm_parse_json_markdown_fence():
+    text = '```json\n{"home_score": 7, "away_score": 3, "quarter": 2}\n```'
+    out = ScoreboardVlmReferee._parse_json(text)
+    assert out is not None
+    assert out["home_score"] == 7
+    assert out["away_score"] == 3
+    assert out["quarter"] == 2
+
+
+def test_vlm_parse_json_english_only_returns_none():
+    assert ScoreboardVlmReferee._parse_json("No scorebug visible on this frame.") is None
+
+
+def test_vlm_parse_json_truncated_object_returns_none():
+    assert ScoreboardVlmReferee._parse_json('Here is the board {"home_score": 14') is None
+
+
+def test_vlm_parse_json_skips_invalid_brace_in_prose():
+    text = 'The {team} marker shows {"home_score": 3, "away_score": 7, "quarter": 1}'
+    out = ScoreboardVlmReferee._parse_json(text)
+    assert out is not None
+    assert out["home_score"] == 3
+    assert out["away_score"] == 7
+
+
+def test_vlm_zero_zero_object_still_not_licensed_lock():
+    from qoresence.vision.confirm_ticket import (
+        ConfirmTicketBook,
+        mint_confirm_ticket,
+        ticket_is_licensed_lock,
+    )
+
+    out = ScoreboardVlmReferee._parse_json('{"home_score": 0, "away_score": 0, "quarter": 1}')
+    assert out is not None
+    assert out["home_score"] == 0
+    assert out["away_score"] == 0
+    book = ConfirmTicketBook()
+    ticket = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1,
+        home_score=0,
+        away_score=0,
+        crop_hash="abc",
+        book=book,
+    )
+    assert ticket_is_licensed_lock(ticket) is False
+
+
 def test_large_score_pair_prefers_zero_over_badge_double():
     # Giant away 20 left, giant home 0 right, tiny badge 20 far right (classic CFB pause glitch)
     tokens = [
@@ -307,6 +460,8 @@ def test_call_vlm_posts_to_quicksilver_base_url(monkeypatch):
     assert "api.deepseek.com" not in captured["url"]
     assert captured["json"]["model"] == "glm-5.3-flash"
     assert captured["json"]["model"] == DEFAULT_VISION_MODEL
+    assert captured["json"]["max_tokens"] == 2048
+    assert captured["json"]["response_format"] == {"type": "json_object"}
     assert "thinking" not in captured["json"]
     assert captured["json"]["model"] != "gemini-3.5-flash-lite"
     content = captured["json"]["messages"][0]["content"]
