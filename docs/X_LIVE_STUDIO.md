@@ -19,6 +19,8 @@ Twitch is not a product route. Leftover Twitch clients stay default-OFF.
 
 **One physical DirectShow device has one owner.** Recommended: **Qoresence** holds `USB3.0 Video`. OBS must **not** add a Video Capture Device for the same card.
 
+This X Live recipe assumes **Pattern B**. Pattern A (OBS owns the card) is a different path — do not mix it with this RTMP recipe.
+
 Full split: [OBS_OWNS_CARD.md](OBS_OWNS_CARD.md) · [tools/obs/README.md](../tools/obs/README.md)
 
 ---
@@ -26,16 +28,23 @@ Full split: [OBS_OWNS_CARD.md](OBS_OWNS_CARD.md) · [tools/obs/README.md](../too
 ## Live to X (Pattern B)
 
 1. Start Qoresence on the **physical** card. Deck health `ok`.
-2. In OBS: **Browser Source** → `http://127.0.0.1:8765/overlay.html` (1920×1080). Do **not** use `file:///`.
+2. In OBS: **Browser Source** → `http://127.0.0.1:8765/overlay.html` (1920×1080). Do **not** use `file:///`. That Browser Source rides the Live Studio RTMP. It is already public glass. Digits serialize only with ConfirmTicket + `score_vlm_locked`. Else empty glyphs / silence. `board_locked` alone is not a confirm.
 3. Open [X Live Studio](https://x.com/i/live-studio) (also `https://studio.x.com/live`). Create a **Source**. Copy the **RTMP URL** and **stream key**. Treat the stream key as a password.
 4. OBS → Settings → Stream → **Custom** / Custom Streaming Server. Paste the Live Studio URL + key. Do not paste them into Qoresence, chat, git, or `.env` files that get committed.
 5. Encoder (from X Live Studio help, 2026-09-03):
    - Video: **H.264**, recommended **1920×1080 @ 60**, ~**12 Mbps** (max 3840×2160 @ 60 / 40 Mbps)
    - Audio: **AAC 128 kbps**
    - **Keyframe interval: every 3 seconds** (72/90/150/180 frames at 24/30/50/60 fps). Official Live Studio help mentions OBS only for this keyframe note.
-6. Scene video is **Game / Display / Window Capture** of the play path — **not** the capture card Qoresence already owns.
+6. Scene video is **Game / Display / Window Capture** of the TV or Retina Monitor path — **not** the capture card Qoresence owns, and **not** the Deck browser tab / MJPEG.
 7. Start streaming in OBS. Creating the livestream in Live Studio does **not** auto-post. Click **Post livestream on X** when you want it public.
 8. One livestream per RTMP source. Max **24 hours**. A timed-out stream cannot be restarted; create a new source. Protected accounts cannot go live.
+
+### Verify before Post livestream
+
+- `/health`: `video.age_s` low, `frames` climbing
+- OBS: no Video Capture Device on `USB3.0 Video`
+- Overlay: unlocked board shows empty glyphs, not invented digits
+- Then click **Post livestream on X**
 
 Simulcast: you cannot reuse a YouTube/Twitch stream directly. X names Restream / Castr for splitting one encoder output.
 
