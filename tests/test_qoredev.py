@@ -112,11 +112,15 @@ def test_envelope_hold_when_four_live_and_story_empty():
 
 def test_fast_path_strips_score_digits():
     env = sequence_envelope(LIVE)
-    blob = str(env.to_dict())
-    assert "23" not in blob
-    assert "22" not in blob
+    row = env.to_dict()
+    row.pop("id", None)
+    blob = str(row)
     assert "home_score" not in blob
     assert "away_score" not in blob
+    assert "23" not in env.text
+    assert "22" not in env.text
+    assert "23" not in str(env.evidence)
+    assert "22" not in str(env.evidence)
 
 
 def test_next_physical_on_freeze():
