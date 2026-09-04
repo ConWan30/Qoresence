@@ -32,7 +32,7 @@ Full split: [OBS_OWNS_CARD.md](OBS_OWNS_CARD.md) · [tools/obs/README.md](../too
 2. In OBS scene **LIVE**, stack two Browser Sources (1920×1080). Do **not** use `file:///`, raw `/video`, or a Video Capture Device on `USB3.0 Video`:
    | Layer | URL | Role |
    |-------|-----|------|
-   | **Pixels (bottom)** | `http://127.0.0.1:8765/obs-live.html` | Deck HDMI glass. Embeds `/video?fps=60`. Always paints **QORESENCE / HDMI PORT · USB3.0 VIDEO · PATTERN B** so a dark CEF feed is never empty black. |
+   | **Pixels (bottom)** | `http://127.0.0.1:8765/obs-live.html` | Deck HDMI glass. Embeds `/video?fps=30` with `object-fit: cover` (full-bleed for X; brand only when dark). Paints **QORESENCE / HDMI PORT · USB3.0 VIDEO · PATTERN B** only when the feed is dark so X is not letterboxed under a permanent slate. |
    | **Lens (top)** | `http://127.0.0.1:8765/overlay.html` | Clutch Lens HUD. Digits serialize only with ConfirmTicket + `score_vlm_locked` **and** a fresh ticket (`crop_hash` match, Same-Seq / clock age). Else empty glyphs / silence. `board_locked` alone is not a confirm. |
 3. Open [X Live Studio](https://x.com/i/live-studio) (also `https://studio.x.com/live`). Create a **Source**. Copy the **RTMP URL** and **stream key**. Treat the stream key as a password.
 4. OBS → Settings → Stream → **Custom** / Custom Streaming Server. Paste the Live Studio URL + key. Do not paste them into Qoresence, chat, git, or `.env` files that get committed.
