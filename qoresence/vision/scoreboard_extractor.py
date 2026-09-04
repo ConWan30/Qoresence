@@ -111,20 +111,16 @@ def _may_mint_lock(ctx: VisualContext | None, vlm: dict[str, Any] | None = None)
 
 
 def _ensure_frame_hash(ctx: VisualContext, frame: np.ndarray) -> str:
-    """Fill ctx.frame_hash from the HDMI frame when missing. Never invents scores."""
+    """Fill ctx.frame_hash from the scorebug crop when missing. Never invents scores."""
     existing = str(getattr(ctx, "frame_hash", "") or "").strip()
     if existing:
         return existing
     try:
-        import hashlib
+        from qoresence.vision.scorebug_crops import scorebug_crop_hash
 
-        small = cv2.resize(frame, (160, 90))
-        if len(small.shape) == 3 and small.shape[2] >= 3:
-            gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = small
-        digest = hashlib.sha256(gray.tobytes()).hexdigest()[:16]
-        ctx.frame_hash = digest
+        digest = str(scorebug_crop_hash(frame) or "")
+        if digest:
+            ctx.frame_hash = digest
         return digest
     except Exception:
         return ""

@@ -35,6 +35,7 @@ class FrameHub:
         self._publishes: int = 0
         self._luma: deque[dict[str, Any]] = deque(maxlen=_LUMA_RING)
         self._prev_thumb: np.ndarray | None = None
+        self._crop_hash: str = ""
 
     def publish(
         self,
@@ -56,6 +57,7 @@ class FrameHub:
             snap = np.ascontiguousarray(frame_bgr.copy())
             ts_ns = int(clock_ns) if clock_ns is not None else time.monotonic_ns()
             thumb, energy = self._thumb_and_energy(snap)
+            crop_hash = self._crop_hash_of(snap)
             with self._lock:
                 self._frame = snap
                 if seq is not None:
@@ -65,6 +67,7 @@ class FrameHub:
                 self._ts = time.monotonic()
                 self._clock_ns = ts_ns
                 self._publishes += 1
+                self._crop_hash = crop_hash
                 self._luma.append(
                     {
                         "seq": self._seq,
@@ -115,6 +118,7 @@ class FrameHub:
                     "seq": 0,
                     "clock_ns": 0,
                     "age_s": None,
+                    "crop_hash": "",
                 }
             age = time.monotonic() - self._ts if self._ts else 0.0
             return {
@@ -122,6 +126,7 @@ class FrameHub:
                 "seq": self._seq,
                 "clock_ns": self._clock_ns,
                 "age_s": round(float(age), 3),
+                "crop_hash": self._crop_hash,
             }
 
     def stats(self) -> dict[str, Any]:
@@ -137,12 +142,22 @@ class FrameHub:
                 "width": w,
                 "height": h,
                 "age_s": None if age is None else round(float(age), 3),
+                "crop_hash": self._crop_hash if self._frame is not None else "",
             }
 
     def luma_ring(self) -> list[dict[str, Any]]:
         """Copy of recent tiny luma-energy stamps (no frame pixels)."""
         with self._lock:
             return [dict(x) for x in self._luma]
+
+    def _crop_hash_of(self, snap: np.ndarray) -> str:
+        """Scorebug-band identity for overlay liveCrop. Never raises."""
+        try:
+            from qoresence.vision.scorebug_crops import scorebug_crop_hash
+
+            return str(scorebug_crop_hash(snap) or "")
+        except Exception:
+            return ""
 
     def _thumb_and_energy(self, snap: np.ndarray) -> tuple[np.ndarray | None, float]:
         """Downscale to 80×45 gray; mean abs-diff vs previous thumb."""
@@ -170,6 +185,7 @@ class FrameHub:
             self._clock_ns = 0
             self._luma.clear()
             self._prev_thumb = None
+            self._crop_hash = ""
 
 
 # Process-wide hub (streamer + monitor + IVC share this process)

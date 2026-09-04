@@ -206,3 +206,72 @@ def crop_misses_scorebug(crop: Any) -> str | None:
 
 def looks_like_scorebug(crop: Any) -> bool:
     return crop_misses_scorebug(crop) is None
+
+
+def slice_scorebug_crop(
+    frame: Any,
+    crop: tuple[float, float, float, float] | None = None,
+) -> Any:
+    """Slice a normalized (x1, x2, y1, y2) band. Default CFB primary.
+
+    Uses the static CFB primary band (not ``primary_scorebug_crop``) so the
+    FrameHub grab thread never takes crop-evidence / learning-edge locks.
+    """
+    import numpy as np
+
+    try:
+        arr = np.asarray(frame)
+    except Exception:
+        return None
+    if arr.ndim < 2:
+        return None
+    h, w = int(arr.shape[0]), int(arr.shape[1])
+    if h < 8 or w < 16:
+        return None
+    x1, x2, y1, y2 = crop or CFB_PRIMARY_SCOREBUG
+    y_a, y_b = int(h * float(y1)), int(h * float(y2))
+    x_a, x_b = int(w * float(x1)), int(w * float(x2))
+    if y_b <= y_a or x_b <= x_a:
+        return None
+    out = arr[y_a:y_b, x_a:x_b]
+    if out.size == 0 or out.shape[0] < 2 or out.shape[1] < 2:
+        return None
+    return out
+
+
+def scorebug_crop_hash(
+    frame: Any,
+    crop: tuple[float, float, float, float] | None = None,
+) -> str:
+    """16-hex identity of the scorebug crop. Empty if the slice cannot be hashed.
+
+    Same digest as ``_ensure_frame_hash`` (160×90 gray sha256[:16]) applied to
+    the scorebug band so FrameHub ``snap.video.crop_hash`` matches ticket mint.
+    """
+    try:
+        import hashlib
+
+        import numpy as np
+
+        band = slice_scorebug_crop(frame, crop)
+        if band is None:
+            return ""
+        try:
+            import cv2
+
+            small = cv2.resize(band, (160, 90))
+            if len(small.shape) == 3 and small.shape[2] >= 3:
+                gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = small
+        except Exception:
+            gray = band
+            if gray.ndim == 3:
+                gray = (
+                    0.114 * gray[:, :, 0].astype(np.float32)
+                    + 0.587 * gray[:, :, 1].astype(np.float32)
+                    + 0.299 * gray[:, :, 2].astype(np.float32)
+                ).astype(np.uint8)
+        return hashlib.sha256(np.ascontiguousarray(gray).tobytes()).hexdigest()[:16]
+    except Exception:
+        return ""
