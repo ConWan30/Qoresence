@@ -155,10 +155,10 @@ def test_football_profile_uses_gameplay_interval_on_menu(monkeypatch):
     monkeypatch.setattr(ref, "_call_vlm", lambda crop: None)
     frame = np.zeros((360, 640, 3), dtype=np.uint8)
     frame[:, :] = 12
-    ref._last_call = __import__("time").time() - 2.0
+    ref._last_call = __import__("time").time() - 7.0
     before = ref._last_call
     ref.schedule(frame, game_state="menu", game_profile="madden_27", reason="tick")
-    # 2s ago is past 1.5s gameplay, still inside 8s menu — must schedule.
+    # 7s ago is past 6s gameplay, still inside 8s menu — must schedule.
     assert ref._last_call > before
 
 
