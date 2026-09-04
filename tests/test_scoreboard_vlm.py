@@ -596,6 +596,7 @@ def test_hold_402_drops_last_confirm_and_blanks_glass():
     finally:
         if singleton is not None:
             singleton._held = False
+            singleton._backoff_until = 0.0
         book.clear()
 
 
@@ -639,3 +640,82 @@ def test_stuck_zero_zero_last_confirm_does_not_paint():
         assert health["has_confirm_ticket"] is False
     finally:
         book.clear()
+
+
+def test_default_gameplay_interval_is_six_seconds():
+    import os
+
+    from qoresence.vision.scoreboard_vlm import _GAMEPLAY_INTERVAL_S, _HOLD_HTTP
+
+    assert _GAMEPLAY_INTERVAL_S == float(
+        os.environ.get("QORESENCE_SCOREBOARD_VLM_INTERVAL", "6.0")
+    )
+    assert 429 not in _HOLD_HTTP
+    assert {400, 401, 402} <= set(_HOLD_HTTP)
+
+
+def test_http_429_soft_backoff_not_permanent_hold(monkeypatch, caplog):
+    """HTTP 429 cools down; is_held stays false so ConfirmTicket can mint after wait."""
+    import logging
+    from unittest.mock import patch
+
+    import numpy as np
+
+    from qoresence.vision import scoreboard_vlm
+
+    times = {"t": 1_000.0}
+    monkeypatch.setattr(scoreboard_vlm, "_QUOTA_BACKOFF_S", 60.0)
+    monkeypatch.setattr(scoreboard_vlm.time, "time", lambda: times["t"])
+
+    ref = scoreboard_vlm.ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+
+    class _Resp:
+        status_code = 429
+        text = ""
+
+    crop = np.zeros((96, 200, 3), dtype=np.uint8)
+    with caplog.at_level(logging.WARNING):
+        with patch("requests.post", return_value=_Resp()):
+            with patch("urllib.request.urlopen") as urlopen:
+                out = ref._call_vlm(crop)
+                urlopen.assert_not_called()
+    assert out is None
+    assert ref.is_held() is False
+    assert ref.get_last() is None
+    assert ref._last_http_status == 429
+    assert ref.vlm_status() == "http_429"
+    assert ref._backoff_until == 1_060.0
+    assert ref._in_backoff() is True
+    assert "quota backoff" in caplog.text
+    assert "HOLD seeing-path" not in caplog.text
+
+    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+    frame[int(720 * 0.78) : int(720 * 0.93), :, 1] = 255
+    with patch.object(ref, "_crop") as crop_fn:
+        ref.schedule(frame, force=True, reason="score_changed")
+        crop_fn.assert_not_called()
+
+    with patch("requests.post") as post:
+        assert ref._call_vlm(crop) is None
+        post.assert_not_called()
+
+    times["t"] = 1_060.1
+    assert ref._in_backoff() is False
+    assert ref.is_held() is False
+    called = []
+    monkeypatch.setattr(ref, "_crop", lambda *a, **k: called.append("crop") or crop)
+    monkeypatch.setattr(ref, "_call_vlm", lambda _c: None)
+    ref.schedule(frame, force=True, reason="score_changed")
+    assert called == ["crop"]
+    assert ref.is_held() is False
+
+
+def test_hold_on_http_429_does_not_latch_hold():
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._hold_on_http(429)
+    assert ref.is_held() is False
+    assert ref._last_http_status == 429
+    assert ref._in_backoff() is True

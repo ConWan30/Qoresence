@@ -117,6 +117,8 @@ def test_vlm_429_status_and_no_last(monkeypatch):
     assert vlm.get_last() is None
     assert vlm._last_http_status == 429
     assert vlm.vlm_status() == "http_429"
+    assert vlm.is_held() is False
+    assert vlm._in_backoff() is True
     assert infer_board_why(vlm_status="http_429", game_state="gameplay") == "vlm_quota"
 
 

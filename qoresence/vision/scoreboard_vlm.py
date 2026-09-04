@@ -39,14 +39,16 @@ from qoresence.vision.scorebug_crops import (
 log = logging.getLogger(__name__)
 
 SCOREBOARD_MODEL = os.environ.get("QORESENCE_SCOREBOARD_VLM_MODEL", DEFAULT_VISION_MODEL)
-# Smarter DeepSeek cadence (not every frame):
-# - gameplay: ~1.5–2 Hz board (default 0.6s min is too hot; use 1.5s)
+# Sparse cadence (not every frame):
+# - gameplay: default 6.0s (env QORESENCE_SCOREBOARD_VLM_INTERVAL still wins)
 # - menu/hub: sparse
 # - force on score/menu transitions from caller
-_GAMEPLAY_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_INTERVAL", "1.5"))
+_GAMEPLAY_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_INTERVAL", "6.0"))
 _MENU_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_MENU_INTERVAL", "8.0"))
 # Terminal seeing-path HTTP — HOLD, do not urllib-retry, do not POST again this process.
-_HOLD_HTTP = frozenset({400, 401, 402, 429})
+# HTTP 429 is quota: soft cooldown, not a permanent process HOLD.
+_HOLD_HTTP = frozenset({400, 401, 402})
+_QUOTA_BACKOFF_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_429_COOLDOWN", "60.0"))
 # 26px 360p HUD strips look like tickers to the VLM. Upscale height only.
 _MIN_CROP_H = 96
 
@@ -131,6 +133,7 @@ class ScoreboardVlmReferee:
         self._last_crop_refuse: str | None = None
         self._last_crop_kind: str = ""
         self._held = False
+        self._backoff_until = 0.0
 
     def stats(self) -> dict[str, Any]:
         raw = self._last_raw or ""
@@ -149,6 +152,9 @@ class ScoreboardVlmReferee:
             "last_crop_refuse": self._last_crop_refuse,
             "calls": self._calls,
             "held": self._held,
+            "quota_backoff_s": max(
+                0.0, float(getattr(self, "_backoff_until", 0.0) or 0.0) - time.time()
+            ),
             "gameplay_interval_s": _GAMEPLAY_INTERVAL_S,
             "menu_interval_s": _MENU_INTERVAL_S,
         }
@@ -170,6 +176,25 @@ class ScoreboardVlmReferee:
         with lock:
             return bool(getattr(self, "_held", False))
 
+    def _in_backoff(self, now: float | None = None) -> bool:
+        """True while a 429 cooldown is active. Clears itself after wait."""
+        t = time.time() if now is None else now
+        lock = getattr(self, "_lock", None)
+
+        def _check() -> bool:
+            until = float(getattr(self, "_backoff_until", 0.0) or 0.0)
+            if until <= 0.0:
+                return False
+            if t >= until:
+                self._backoff_until = 0.0
+                return False
+            return True
+
+        if lock is None:
+            return _check()
+        with lock:
+            return _check()
+
     def vlm_status(self) -> str:
         """Classify the last VLM outcome. Observation only — no bus emit, no bodies."""
         from qoresence.vision.board_why import classify_vlm_status, vlm_last_grounded
@@ -190,7 +215,13 @@ class ScoreboardVlmReferee:
         )
 
     def _hold_on_http(self, code: int, body: str = "") -> None:
-        """Fail-closed on bad request / auth / quota. Never emit. Never mint last-good."""
+        """Fail-closed on bad request / auth / no-credit. Never emit. Never mint last-good.
+
+        HTTP 429 is not a HOLD — it routes to a soft quota cooldown.
+        """
+        if int(code) == 429:
+            self._backoff_on_429()
+            return
         with self._lock:
             self._held = True
             self._last_http_status = int(code)
@@ -210,12 +241,40 @@ class ScoreboardVlmReferee:
             )
         elif code == 402:
             log.warning("scoreboard VLM HTTP 402 — HOLD seeing-path (no credit)")
-        elif code == 429:
-            log.warning("scoreboard VLM HTTP 429 — HOLD seeing-path (quota)")
         elif code == 401:
             log.warning("scoreboard VLM HTTP 401 — HOLD seeing-path (auth)")
         else:
             log.warning("scoreboard VLM HTTP %s — HOLD seeing-path", code)
+
+    def _backoff_on_429(self) -> None:
+        """HTTP 429: skip schedule/calls for a cooldown. Do not latch process HOLD."""
+        now = time.time()
+        with self._lock:
+            self._last_http_status = 429
+            self._last = None
+            self._last_result_ts = 0.0
+            self._backoff_until = now + _QUOTA_BACKOFF_S
+        try:
+            from qoresence.vision.confirm_ticket import get_ticket_book
+
+            get_ticket_book().drop_last_confirm()
+        except Exception:
+            pass
+        log.warning(
+            "scoreboard VLM HTTP 429 — quota backoff %.1fs (not HOLD)",
+            _QUOTA_BACKOFF_S,
+        )
+
+    def _on_terminal_http(self, code: int, body: str = "") -> bool:
+        """HOLD (400/401/402) or 429 backoff. True → caller returns None. Never emits."""
+        c = int(code)
+        if c == 429:
+            self._backoff_on_429()
+            return True
+        if c in _HOLD_HTTP:
+            self._hold_on_http(c, body=body)
+            return True
+        return False
 
     def schedule(
         self,
@@ -231,12 +290,15 @@ class ScoreboardVlmReferee:
 
         Cadence:
           - force / score_changed / menu_exit → immediate (if not inflight)
-          - gameplay → ~1.5s (≈0.7 Hz board reads; not 60 fps)
+          - gameplay → default 6.0s (env override wins; not 60 fps)
           - menu/hub → ~8s
+          - HTTP 429 cooldown → skip until backoff expires (not process HOLD)
         """
         if not self.enabled or frame is None or getattr(frame, "size", 0) == 0:
             return
         if self.is_held():
+            return
+        if self._in_backoff():
             return
         try:
             from qoresence.graphs.look_gate import permit_confirm_look
@@ -392,6 +454,8 @@ class ScoreboardVlmReferee:
         return cls._prepare_crop(src)
 
     def _call_vlm(self, crop_bgr: np.ndarray) -> dict[str, Any] | None:
+        if self._in_backoff():
+            return None
         refuse = crop_misses_scorebug(crop_bgr)
         kind = "scorebug" if refuse is None else str(refuse)
         try:
@@ -448,15 +512,15 @@ class ScoreboardVlmReferee:
 
             r = requests.post(url, headers=headers, json=body, timeout=14)
             log.info("scoreboard VLM HTTP %d", r.status_code)
-            if r.status_code in _HOLD_HTTP:
+            if r.status_code == 429 or r.status_code in _HOLD_HTTP:
                 err_body = ""
                 if r.status_code == 400:
                     try:
                         err_body = r.text
                     except Exception:
                         err_body = ""
-                self._hold_on_http(r.status_code, body=err_body)
-                return None
+                if self._on_terminal_http(r.status_code, body=err_body):
+                    return None
             with self._lock:
                 self._last_http_status = r.status_code
             if r.status_code != 200:
@@ -478,8 +542,7 @@ class ScoreboardVlmReferee:
                 with urllib.request.urlopen(req, timeout=14) as resp:
                     code = resp.getcode()
                     log.info("scoreboard VLM HTTP %d", code)
-                    if code in _HOLD_HTTP:
-                        self._hold_on_http(code)
+                    if self._on_terminal_http(code):
                         return None
                     with self._lock:
                         self._last_http_status = code
@@ -493,8 +556,7 @@ class ScoreboardVlmReferee:
                         err_body = http_err.read().decode("utf-8", errors="replace")
                     except Exception:
                         err_body = ""
-                if http_err.code in _HOLD_HTTP:
-                    self._hold_on_http(http_err.code, body=err_body)
+                if self._on_terminal_http(http_err.code, body=err_body):
                     return None
                 with self._lock:
                     self._last_http_status = http_err.code
