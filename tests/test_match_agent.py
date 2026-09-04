@@ -23,13 +23,14 @@ def test_llm_config_from_quicksilver_env_matches_clutchbot_path():
 
 
 def test_clutchbot_chat_and_confirm_vision_use_separate_config_paths():
-    """Chat and confirm may share glm-5.3-flash but must use distinct config factories."""
+    """Chat stays glm-5.3-flash; confirm VLM is gemini-3.8-flash; distinct factories."""
     from qoresence.agents.llm_client import DEFAULT_VISION_MODEL
 
     chat_cfg = LLMConfig.from_quicksilver_env(enabled=False)
     vision_cfg = LLMConfig.from_scoreboard_vlm()
     assert chat_cfg.model == DEFAULT_MODEL == "glm-5.3-flash"
-    assert vision_cfg.model == DEFAULT_VISION_MODEL == "glm-5.3-flash"
+    assert vision_cfg.model == DEFAULT_VISION_MODEL == "gemini-3.8-flash"
+    assert chat_cfg.model != vision_cfg.model
     assert chat_cfg is not vision_cfg
     assert vision_cfg.max_tokens == 400
     assert chat_cfg.max_tokens == 180

@@ -386,7 +386,7 @@ class TestLobeConfigs:
     def test_visual_config_defaults(self):
         cfg = VisualConfig()
         assert cfg.enabled is False
-        assert cfg.model_name == "glm-5.3-flash"
+        assert cfg.model_name == "gemini-3.8-flash"
         assert "quicksilverpro.io" in cfg.model_endpoint
         assert cfg.frame_sample_rate == 30
         assert cfg.game_category == "football"

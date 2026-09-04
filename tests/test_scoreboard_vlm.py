@@ -188,10 +188,10 @@ def test_vlm_call_vlm_finish_length_holds_without_parse(monkeypatch):
     assert ref._call_vlm(np.zeros((96, 200, 3), dtype=np.uint8)) is None
 
 
-def test_default_vision_model_remains_glm_flash():
-    assert DEFAULT_VISION_MODEL == "glm-5.3-flash"
+def test_default_vision_model_is_gemini_38_flash():
+    assert DEFAULT_VISION_MODEL == "gemini-3.8-flash"
     cfg = LLMConfig.from_scoreboard_vlm()
-    assert cfg.model == "glm-5.3-flash"
+    assert cfg.model == "gemini-3.8-flash"
 
 
 def test_vlm_parse_json_markdown_fence():
@@ -334,7 +334,7 @@ def test_situation_model_maps_cfb_title_to_cfb_profile():
 
 
 def test_vlm_defaults_quicksilver_vision(monkeypatch):
-    """Default confirm VLM is glm-5.3-flash on ClutchBot's Quicksilver API."""
+    """Default confirm VLM is gemini-3.8-flash on ClutchBot's Quicksilver API."""
     monkeypatch.delenv("QORESENCE_SCOREBOARD_VLM_MODEL", raising=False)
     monkeypatch.delenv("QORESENCE_SCOREBOARD_VLM_BASE_URL", raising=False)
     monkeypatch.delenv("QORESENCE_CLUTCHBOT_LLM_BASE_URL", raising=False)
@@ -342,14 +342,15 @@ def test_vlm_defaults_quicksilver_vision(monkeypatch):
     assert cfg.provider == "quicksilver"
     assert cfg.base_url.rstrip("/") == DEFAULT_BASE_URL.rstrip("/")
     assert "quicksilverpro.io" in cfg.base_url
-    assert cfg.model == "glm-5.3-flash"
+    assert cfg.model == "gemini-3.8-flash"
     assert cfg.model == DEFAULT_VISION_MODEL
+    assert cfg.model != "glm-5.3-flash"
     assert cfg.model != "gemini-3.5-flash-lite"
     assert cfg.model != "deepseek-v4-flash"
     assert cfg.model != "deepseek-v4-flash-vision-exp"
     assert cfg.model != "qwen3.7-flash"
     ref = ScoreboardVlmReferee()
-    assert ref.model == "glm-5.3-flash"
+    assert ref.model == "gemini-3.8-flash"
     assert ref.model == DEFAULT_VISION_MODEL
     assert ref.base_url.rstrip("/") == DEFAULT_BASE_URL.rstrip("/")
     assert "quicksilverpro.io" in ref.base_url
@@ -418,7 +419,7 @@ def test_http_401_fail_closed():
 
 
 def test_call_vlm_posts_to_quicksilver_base_url(monkeypatch):
-    """Referee POST goes to ClutchBot's Quicksilver /v1, with glm-5.3-flash + JPEG."""
+    """Referee POST goes to ClutchBot's Quicksilver /v1, with gemini-3.8-flash + JPEG."""
     from unittest.mock import patch
 
     ref = ScoreboardVlmReferee()
@@ -458,7 +459,7 @@ def test_call_vlm_posts_to_quicksilver_base_url(monkeypatch):
     assert captured["url"] == f"{DEFAULT_BASE_URL.rstrip('/')}/chat/completions"
     assert "quicksilverpro.io" in captured["url"]
     assert "api.deepseek.com" not in captured["url"]
-    assert captured["json"]["model"] == "glm-5.3-flash"
+    assert captured["json"]["model"] == "gemini-3.8-flash"
     assert captured["json"]["model"] == DEFAULT_VISION_MODEL
     assert captured["json"]["max_tokens"] == 2048
     assert captured["json"]["response_format"] == {"type": "json_object"}
@@ -472,6 +473,7 @@ def test_call_vlm_posts_to_quicksilver_base_url(monkeypatch):
 
 
 def test_infer_vlm_source_gemini_on_quicksilver():
+    assert infer_vlm_source("gemini-3.8-flash", DEFAULT_BASE_URL) == "gemini"
     assert infer_vlm_source("gemini-3.5-flash-lite", DEFAULT_BASE_URL) == "gemini"
     assert infer_vlm_source("qwen3.7-flash", DEFAULT_BASE_URL) == "quicksilver"
     assert infer_vlm_source("deepseek-v4-flash", DEFAULT_BASE_URL) == "quicksilver"

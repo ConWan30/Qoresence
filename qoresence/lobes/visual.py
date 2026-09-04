@@ -3,7 +3,7 @@ Qoresence Visual Lobe
 
 VLM integration for game-state classification and cross-modal verification.
 
-Cloud path: Quicksilver vision (default glm-5.3-flash).
+Cloud path: Quicksilver vision (default gemini-3.8-flash).
 That is the confirm-path referee: board + scene. LocalVLM only when
 prefer_local=True or no Quicksilver key is present.
 """
@@ -448,7 +448,7 @@ class VisualRuntime:
             self._client_kind = "cloud:deepseek"
             log.info(
                 "VisualRuntime using DeepSeek confirm (%s)",
-                getattr(config, "model_name", "glm-5.3-flash"),
+                getattr(config, "model_name", "gemini-3.8-flash"),
             )
 
         # Prompts
@@ -682,7 +682,7 @@ class VisualRuntime:
         try:
             from qoresence.vision.picture_hid_ticket import try_mint_picture_hid_from_context
 
-            model = str(getattr(self.config, "model_name", "") or "glm-5.3-flash")
+            model = str(getattr(self.config, "model_name", "") or "gemini-3.8-flash")
             from qoresence.vision.scoreboard_vlm import infer_vlm_source
 
             source = infer_vlm_source(
