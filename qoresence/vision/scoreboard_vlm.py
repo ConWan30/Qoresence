@@ -2,7 +2,7 @@
 
 Classical EasyOCR misreads stylized CFB digits (20-0 → 20-20). When the
 ClutchBot Quicksilver key is present, we crop the scorebug / pause plate
-and ask glm-5.3-flash for a strict JSON board read.
+and ask gemini-3.8-flash for a strict JSON board read.
 
 Sparse + non-blocking: never call from the streamer grab thread.
 """
@@ -488,7 +488,7 @@ class ScoreboardVlmReferee:
             "model": self.model,
             "temperature": 0.0,
             "max_tokens": 2048,
-            # glm-5.3-flash on Quicksilver accepts json_object; keeps shape strict.
+            # gemini-3.8-flash on Quicksilver accepts json_object; keeps shape strict.
             "response_format": {"type": "json_object"},
             "messages": [
                 {

@@ -229,7 +229,7 @@ def test_home_left_false_21_6_paints_no_21_det_6_not_swapped():
         clock_ns=100,
         home_score=21,
         away_score=6,
-        model="glm-5.3-flash",
+        model="gemini-3.8-flash",
         source="quicksilver",
         frame_seq=9,
         crop_hash="no21det6",

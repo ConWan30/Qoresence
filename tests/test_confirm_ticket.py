@@ -43,9 +43,10 @@ def test_mint_is_deterministic_for_same_board():
     assert a.source == "deepseek"
 
 
-def test_mint_defaults_to_glm_flash_on_quicksilver():
+def test_mint_defaults_to_gemini_38_flash_on_quicksilver():
     t = mint_confirm_ticket(session_id="s", clock_ns=1, home_score=7, away_score=0)
-    assert t.model == "glm-5.3-flash"
+    assert t.model == "gemini-3.8-flash"
+    assert t.model != "glm-5.3-flash"
     assert t.model != "gemini-3.5-flash-lite"
     assert t.model != "deepseek-v4-flash"
     assert t.model != "qwen3.7-flash"
