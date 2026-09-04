@@ -15,6 +15,7 @@ def test_empty_hub_returns_none():
     assert seq == 0
     st = hub.stats()
     assert st["has_frame"] is False
+    assert st.get("crop_hash", "") == ""
 
 
 def test_publish_then_get_latest():
@@ -72,6 +73,56 @@ def test_publish_clock_ns_and_stamp():
     assert st["seq"] == 1
     assert st["clock_ns"] == t
     assert hub.stats()["clock_ns"] == t
+
+
+def test_stats_exposes_crop_hash_after_push():
+    """Overlay liveCrop reads snap.video.crop_hash from FrameHub stats."""
+    from qoresence.vision.scorebug_crops import CFB_PRIMARY_SCOREBUG, scorebug_crop_hash
+
+    hub = FrameHub()
+    h, w = 100, 200
+    f = np.zeros((h, w, 3), dtype=np.uint8)
+    hub.publish(f)
+    st = hub.stats()
+    assert st["has_frame"] is True
+    ch = st["crop_hash"]
+    assert isinstance(ch, str) and len(ch) == 16
+    assert ch == scorebug_crop_hash(f)
+
+    # Field motion outside the scorebug band must not move crop_hash.
+    f_field = f.copy()
+    f_field[: int(h * 0.50), :, :] = 180
+    hub.publish(f_field)
+    assert hub.stats()["crop_hash"] == ch
+
+    # Scorebug-band paint is the liveCrop identity.
+    x1, x2, y1, y2 = CFB_PRIMARY_SCOREBUG
+    f_bug = f.copy()
+    f_bug[int(h * y1) : int(h * y2), int(w * x1) : int(w * x2), :] = 255
+    hub.publish(f_bug)
+    bug = hub.stats()["crop_hash"]
+    assert bug != ch
+    assert len(bug) == 16
+    assert bug == scorebug_crop_hash(f_bug)
+
+
+def test_deck_snapshot_video_copies_hub_crop_hash():
+    """snap.video.crop_hash is the FrameHub stamp overlay / pickBoard read."""
+    from qoresence.deck.server import DeckState
+    from qoresence.monitor.frame_hub import get_frame_hub
+
+    hub = get_frame_hub()
+    hub.clear()
+    f = np.zeros((100, 200, 3), dtype=np.uint8)
+    f[78:93, 24:176, :] = 90
+    hub.publish(f)
+    try:
+        want = hub.stats()["crop_hash"]
+        assert want
+        video = DeckState()._snapshot_fresh()["video"]
+        assert video.get("crop_hash") == want
+    finally:
+        hub.clear()
 
 
 def test_sync_frame_hub_shim_meta():

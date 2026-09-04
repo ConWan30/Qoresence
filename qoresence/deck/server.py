@@ -122,6 +122,10 @@ class DeckState:
             video["hub_age_s"] = hub.get("age_s")
             video["hub_seq"] = hub.get("seq")
             video["hub_has_frame"] = bool(hub.get("has_frame"))
+            if hub.get("has_frame"):
+                ch = str(hub.get("crop_hash") or "")
+                if ch:
+                    video["crop_hash"] = ch
             if hub.get("has_frame") and hub.get("age_s") is not None:
                 if video.get("age_s") is None or float(hub["age_s"]) < float(video["age_s"] or 9e9):
                     video["age_s"] = hub["age_s"]
@@ -394,6 +398,14 @@ def update_situation(situation: dict[str, Any], latency_ms: float | None = None)
             "paint_reason": lp.reason,
             "has_frame": bool(lp.has_frame),
         }
+        try:
+            from qoresence.monitor.frame_hub import get_frame_hub
+
+            ch = str(get_frame_hub().stats().get("crop_hash") or "")
+            if ch:
+                video["crop_hash"] = ch
+        except Exception:
+            pass
     except Exception:
         pass
     msg: dict[str, Any] = {
