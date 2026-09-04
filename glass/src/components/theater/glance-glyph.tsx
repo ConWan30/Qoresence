@@ -10,7 +10,6 @@ export function GlanceGlyph({ compact }: { compact?: boolean }) {
   const deckLive = useTheater((s) => s.deckLive);
   const ticketLive = useTheater((s) => s.ticketLive);
   const boardLocked = useTheater((s) => s.boardLocked);
-  const confirm = useTheater((s) => s.confirm);
   const syncLagMs = useTheater((s) => s.syncLagMs);
   const pllLock = useTheater((s) => s.pllLock);
   const videoAgeS = useTheater((s) => s.videoAgeS);
@@ -19,7 +18,7 @@ export function GlanceGlyph({ compact }: { compact?: boolean }) {
   // Fail-closed: when Dark Theater / Same-Seq / paint dark, all glyphs off.
   const frameOn = planeOk && deckLive;
   const coupleOn = planeOk && ticketLive;
-  const lockOn = planeOk && (boardLocked || Boolean(confirm));
+  const lockOn = planeOk && boardLocked;
   const planeOn = planeOk;
 
   const bits = compact

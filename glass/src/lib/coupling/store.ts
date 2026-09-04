@@ -506,7 +506,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
       ? sit || boardLine(ing)
       : sit || "";
     // Spine sole mint: adopt confirm.last_confirm.ticket_id + clock_ns (no FNV remint).
-    if (ing.confirmTicketId && ing.homeScore != null && ing.awayScore != null) {
+    // pickBoard empty (crop_hash move / VLM drop / Same-Seq) clears last-good.
+    if (ing.boardLocked && ing.confirmTicketId && ing.homeScore != null && ing.awayScore != null) {
       if (
         !confirm ||
         confirm.ticketId !== ing.confirmTicketId ||
@@ -523,8 +524,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
         log = pushLog(log, "score", board || `${ing.homeScore}-${ing.awayScore}`);
         log = pushLog(log, "confirm", `spine ${ing.confirmTicketId}`);
       }
-    } else if (!ing.boardLocked && !ing.confirmTicketId) {
-      // Do not invent confirm digits without spine lock.
+    } else if (!ing.boardLocked) {
+      confirm = null;
     }
     const scoreLine = confirm ? whyStripConfirm(confirm) : licenseScoreText(SOFT.scoreLine, confirm);
     const why = ing.why || `${whyStripConfirm(confirm)} · ${whyStripCoupling(liveTicket)} · phrase=${phrase.phrase}`;

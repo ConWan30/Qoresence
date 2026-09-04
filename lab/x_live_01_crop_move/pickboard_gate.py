@@ -84,6 +84,27 @@ def _crop_of(o: dict[str, Any]) -> str:
     return _first_str(o, ["crop_hash", "cropHash", "frame_hash", "frameHash"])
 
 
+def _video_crop_of(o: dict[str, Any]) -> str:
+    return _first_str(o, ["crop_hash", "cropHash"])
+
+
+def _video_optics_of(o: dict[str, Any]) -> bool:
+    return any(
+        o.get(k) is not None
+        for k in (
+            "has_frame",
+            "hub_has_frame",
+            "live_seq",
+            "hub_seq",
+            "paint",
+            "same_seq",
+            "sameSeq",
+            "plane_dim",
+            "planeDim",
+        )
+    )
+
+
 def _confirm_id_of(o: dict[str, Any]) -> str:
     return _first_str(o, ["ticket_id", "ticketId", "confirm_ticket_id", "confirmTicketId"])
 
@@ -149,7 +170,8 @@ def pick_board(*bags: dict[str, Any]) -> dict[str, Any]:
     confirm_ticket_id = ""
     score_vlm_locked = False
     ticket_crop = ""
-    live_crop = ""
+    video_crop = ""
+    sit_crop = ""
     same_seq: bool | None = None
     ticket_clock_ns = 0.0
     live_clock_ns = 0.0
@@ -179,8 +201,8 @@ def pick_board(*bags: dict[str, Any]) -> dict[str, Any]:
             score_vlm_locked = True
         take_candidate(o, True)
 
-    def take_live(o: dict[str, Any]) -> None:
-        nonlocal score_vlm_locked, confirm_ticket_id, live_crop, same_seq, live_clock_ns
+    def take_live(o: dict[str, Any], crop_mode: str = "auto") -> None:
+        nonlocal score_vlm_locked, confirm_ticket_id, video_crop, sit_crop, same_seq, live_clock_ns
         if not o:
             return
         if _first_bool(o, ["score_vlm_locked", "scoreVlmLocked"]) is True:
@@ -188,9 +210,15 @@ def pick_board(*bags: dict[str, Any]) -> dict[str, Any]:
         tid = _first_str(o, ["confirm_ticket_id", "confirmTicketId"])
         if tid and not confirm_ticket_id:
             confirm_ticket_id = tid
-        crop = _crop_of(o)
-        if crop:
-            live_crop = crop
+        if crop_mode != "none":
+            if crop_mode == "video" or _video_optics_of(o):
+                vc = _video_crop_of(o)
+                if vc:
+                    video_crop = vc
+            else:
+                crop = _crop_of(o)
+                if crop:
+                    sit_crop = crop
         if o.get("same_seq") is not None or o.get("sameSeq") is not None:
             same_seq = bool(o.get("same_seq", o.get("sameSeq")))
         clk = _num(o.get("clock_ns", o.get("clockNs", o.get("updated_ns", o.get("updatedNs")))), 0)
@@ -207,10 +235,11 @@ def pick_board(*bags: dict[str, Any]) -> dict[str, Any]:
         take_live(_rec(bag.get("payload")))
         take_live(_rec(bag.get("visual_context")))
         take_live(_rec(bag.get("scoreboard")))
-        take_live(_rec(bag.get("video")))
-        take_live(_rec(confirm.get("last_fast")))
-        take_live(_rec(bag.get("last_fast")))
+        take_live(_rec(bag.get("video")), "video")
+        take_live(_rec(confirm.get("last_fast")), "none")
+        take_live(_rec(bag.get("last_fast")), "none")
 
+    live_crop = video_crop or sit_crop
     if confirm_ticket_id and not ticket_crop and live_crop:
         ticket_crop = live_crop
 
