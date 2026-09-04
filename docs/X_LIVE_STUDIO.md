@@ -7,7 +7,8 @@ Two surfaces, one clock:
 | Surface | Owner | What it is |
 |---------|--------|------------|
 | Observatory | Qoresence | USB3.0 Video + DualSense + tickets + Foundry clips |
-| On-stream HUD | OBS Browser Source | `http://127.0.0.1:8765/overlay.html` (Clutch Lens) |
+| Pattern B pixels | OBS Browser Source | `http://127.0.0.1:8765/obs-live.html` (Deck HDMI glass; brand when dark) |
+| On-stream HUD | OBS Browser Source | `http://127.0.0.1:8765/overlay.html` (Clutch Lens, on top) |
 | Audience live to X | OBS Custom RTMP | X Live Studio source (RTMP / RTMPS) |
 | Timeline VOD | *not implemented* | Future opt-in X Glass lobe. This doc does not ship it |
 
@@ -27,22 +28,27 @@ Full split: [OBS_OWNS_CARD.md](OBS_OWNS_CARD.md) · [tools/obs/README.md](../too
 
 ## Live to X (Pattern B)
 
-1. Start Qoresence on the **physical** card. Deck health `ok`.
-2. In OBS: **Browser Source** → `http://127.0.0.1:8765/overlay.html` (1920×1080). Do **not** use `file:///`. That Browser Source rides the Live Studio RTMP. It is already public glass. Digits serialize only with ConfirmTicket + `score_vlm_locked` **and** a fresh ticket (`crop_hash` match, Same-Seq / clock age). Else empty glyphs / silence. `board_locked` alone is not a confirm.
+1. Start Qoresence on the **physical** card. Deck health `ok`. DualSense stays on the PS5. Observation plane only.
+2. In OBS scene **LIVE**, stack two Browser Sources (1920×1080). Do **not** use `file:///`, raw `/video`, or a Video Capture Device on `USB3.0 Video`:
+   | Layer | URL | Role |
+   |-------|-----|------|
+   | **Pixels (bottom)** | `http://127.0.0.1:8765/obs-live.html` | Deck HDMI glass. Embeds `/video?fps=60`. Always paints **QORESENCE / HDMI PORT · USB3.0 VIDEO · PATTERN B** so a dark CEF feed is never empty black. |
+   | **Lens (top)** | `http://127.0.0.1:8765/overlay.html` | Clutch Lens HUD. Digits serialize only with ConfirmTicket + `score_vlm_locked` **and** a fresh ticket (`crop_hash` match, Same-Seq / clock age). Else empty glyphs / silence. `board_locked` alone is not a confirm. |
 3. Open [X Live Studio](https://x.com/i/live-studio) (also `https://studio.x.com/live`). Create a **Source**. Copy the **RTMP URL** and **stream key**. Treat the stream key as a password.
 4. OBS → Settings → Stream → **Custom** / Custom Streaming Server. Paste the Live Studio URL + key. Do not paste them into Qoresence, chat, git, or `.env` files that get committed.
 5. Encoder (from X Live Studio help, 2026-09-03):
    - Video: **H.264**, recommended **1920×1080 @ 60**, ~**12 Mbps** (max 3840×2160 @ 60 / 40 Mbps)
    - Audio: **AAC 128 kbps**
    - **Keyframe interval: every 3 seconds** (72/90/150/180 frames at 24/30/50/60 fps). Official Live Studio help mentions OBS only for this keyframe note.
-6. Scene video is **Game / Display / Window Capture** of the TV or Retina Monitor path — **not** the capture card Qoresence owns, and **not** the Deck browser tab / MJPEG.
-7. Start streaming in OBS. Creating the livestream in Live Studio does **not** auto-post. Click **Post livestream on X** when you want it public.
-8. One livestream per RTMP source. Max **24 hours**. A timed-out stream cannot be restarted; create a new source. Protected accounts cannot go live.
+6. Pattern B pixels are **only** the `obs-live.html` Browser Source — **not** raw `http://127.0.0.1:8765/video?fps=60` (CEF often stays black), **not** `file://`, and **not** a second open of `USB3.0 Video` / dshow. Optional Display/Game Capture of a TV is fine when it is not the card Qoresence owns.
+7. Clear OBS Safe Mode before `--startstreaming` (Safe Mode after a crash blocks RTMP). Helper: `tools/obs/pattern_b_x_live.ps1`. Then start streaming in OBS. Creating the livestream in Live Studio does **not** auto-post. Click **Post livestream on X** when you want it public.
+8. One livestream per RTMP source. Max **24 hours**. A timed-out stream cannot be restarted; create a new source. Protected accounts cannot go live. No `--x-glass`. No stream keys in git.
 
 ### Verify before Post livestream
 
 - `/health`: `video.age_s` low, `frames` climbing
 - OBS: no Video Capture Device on `USB3.0 Video`
+- Pixels Browser Source URL is `/obs-live.html` (brand visible when feed is dark)
 - Overlay: unlocked board shows empty glyphs, not invented digits
 - Then click **Post livestream on X**
 

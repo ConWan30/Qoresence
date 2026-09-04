@@ -2,6 +2,7 @@
 
 One brain (RetinaEventBus / SituationModel) -> three glasses:
   A) Clutch Lens  http://localhost:8765/overlay.html  (OBS Browser Source, transparent)
+  A2) Pattern B HDMI pixels  http://localhost:8765/obs-live.html  (OBS Browser Source; not raw /video)
   B) Retina Rail  http://localhost:8765/deck.html      (local drawer + hotkey)
   C) Ghost Replay via same ws feed
 
@@ -2166,6 +2167,13 @@ def create_app():  # type: ignore[no-untyped-def]
             _html("overlay.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
+    @app.get("/obs-live.html")
+    async def obs_live():  # type: ignore[no-untyped-def]
+        # Pattern B HDMI pixels for OBS CEF — not glass SPA, not raw /video.
+        return HTMLResponse(
+            _html("obs-live.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
+        )
+
     @app.get("/clip-dock.js")
     async def clip_dock_js():  # type: ignore[no-untyped-def]
         p = pathlib.Path(__file__).with_name(_CLIP_DOCK_JS)
@@ -2599,6 +2607,13 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 self.end_headers()
                 self.wfile.write(_html("studio.html").encode("utf-8"))
                 return
+            if self.path == "/obs-live.html" or self.path.startswith("/obs-live.html?"):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Cache-Control", "no-cache, must-revalidate")
+                self.end_headers()
+                self.wfile.write(_html("obs-live.html").encode("utf-8"))
+                return
             if self.path in ("/mobile.html", "/glass"):
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -2966,7 +2981,7 @@ def start_deck(
         log.info("Sight Glass http://%s:%s  ws://%s:%s%s", host, port, host, port, WS_PATH)
         log.info("Theater glass %s clip-dock on", _glass_js_name())
         log.info(
-            "Lens /overlay.html  Theater /deck.html  Foundry /studio.html  "
+            "Lens /overlay.html  HDMI /obs-live.html  Theater /deck.html  Foundry /studio.html  "
             "CIVIF /civif.html  Session /session.html  Mobile /mobile.html  LIVE /video default %.0ffps "
             "(PS5 60 Hz full-rate LIVE default; override ?fps= for lighter)",
             DEFAULT_LIVE_FPS,
