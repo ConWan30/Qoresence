@@ -1,5 +1,6 @@
 /** ClutchBot + Agent Society — live from Deck /health and /api/agent. */
 
+import { pickBoard } from "./board";
 import { getDeckOrigin, probeDeck } from "./qoresence-deck";
 
 export type SocietyNote = {
@@ -105,14 +106,11 @@ export function parseAgentPlane(parts: {
 
   const sit = rec(snap.situation);
   const confirm = rec(snap.confirm);
-  const lastConfirm = rec(confirm.last_confirm);
-  const vlmLocked = Boolean(
-    sit.score_vlm_locked || sit.scoreboard_locked || sit.confirm_ticket_id || lastConfirm.home_score != null,
-  );
-  const vlmHome = lastConfirm.home_score ?? sit.home_score ?? sit.score_home;
-  const vlmAway = lastConfirm.away_score ?? sit.away_score ?? sit.score_away;
+  const board = pickBoard(snap, sit, confirm, rec(snap.video), rec(sit.video));
+  // pickBoard is the sole digit gate. leftover OCR / ticket-id bits are not permission.
+  const vlmLocked = board.locked;
   const vlmBoard =
-    vlmLocked && vlmHome != null && vlmAway != null ? `${vlmHome}-${vlmAway}` : "";
+    board.locked && board.home != null && board.away != null ? `${board.home}-${board.away}` : "";
 
   return {
     clutchbot: clutch,

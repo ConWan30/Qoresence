@@ -213,6 +213,25 @@ function cropOf(o: Record<string, unknown>): string {
   return firstStr(o, ["crop_hash", "cropHash", "frame_hash", "frameHash"]);
 }
 
+/** FrameHub video.crop_hash only — overlay liveCrop does not read video.frame_hash. */
+function videoCropOf(o: Record<string, unknown>): string {
+  return firstStr(o, ["crop_hash", "cropHash"]);
+}
+
+function videoOpticsOf(o: Record<string, unknown>): boolean {
+  return (
+    o.has_frame != null ||
+    o.hub_has_frame != null ||
+    o.live_seq != null ||
+    o.hub_seq != null ||
+    o.paint != null ||
+    o.same_seq != null ||
+    o.sameSeq != null ||
+    o.plane_dim != null ||
+    o.planeDim != null
+  );
+}
+
 function confirmIdOf(o: Record<string, unknown>): string {
   return firstStr(o, ["ticket_id", "ticketId", "confirm_ticket_id", "confirmTicketId"]);
 }
@@ -279,7 +298,8 @@ export function pickBoard(...bags: Record<string, unknown>[]): {
   let confirmTicketId = "";
   let scoreVlmLocked = false;
   let ticketCrop = "";
-  let liveCrop = "";
+  let videoCrop = "";
+  let sitCrop = "";
   let sameSeq: boolean | null = null;
   let ticketClockNs = 0;
   let liveClockNs = 0;
@@ -313,13 +333,22 @@ export function pickBoard(...bags: Record<string, unknown>[]): {
     takeMeta(o);
   };
 
-  const takeLive = (o: Record<string, unknown>) => {
+  const takeLive = (o: Record<string, unknown>, cropMode: "auto" | "video" | "none" = "auto") => {
     if (!o || !Object.keys(o).length) return;
     if (firstBool(o, ["score_vlm_locked", "scoreVlmLocked"]) === true) scoreVlmLocked = true;
     const tid = firstStr(o, ["confirm_ticket_id", "confirmTicketId"]);
     if (tid && !confirmTicketId) confirmTicketId = tid;
-    const crop = cropOf(o);
-    if (crop) liveCrop = crop;
+    // Overlay liveCrop: video.crop_hash first, then situation crop_hash/frame_hash.
+    // last_fast is not liveCrop — last-writer here used to paint last-good.
+    if (cropMode !== "none") {
+      if (cropMode === "video" || videoOpticsOf(o)) {
+        const vc = videoCropOf(o);
+        if (vc) videoCrop = vc;
+      } else {
+        const crop = cropOf(o);
+        if (crop) sitCrop = crop;
+      }
+    }
     if (o.same_seq != null || o.sameSeq != null) {
       sameSeq = Boolean(o.same_seq ?? o.sameSeq);
     }
@@ -338,11 +367,12 @@ export function pickBoard(...bags: Record<string, unknown>[]): {
     takeLive(rec(bag.payload));
     takeLive(rec(bag.visual_context));
     takeLive(rec(bag.scoreboard));
-    takeLive(rec(bag.video));
-    takeLive(rec(confirm.last_fast));
-    takeLive(rec(bag.last_fast));
+    takeLive(rec(bag.video), "video");
+    takeLive(rec(confirm.last_fast), "none");
+    takeLive(rec(bag.last_fast), "none");
   }
 
+  const liveCrop = videoCrop || sitCrop;
   if (confirmTicketId && !ticketCrop && liveCrop) ticketCrop = liveCrop;
 
   const locked = digitsLicensed({

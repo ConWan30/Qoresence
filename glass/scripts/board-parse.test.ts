@@ -610,6 +610,105 @@ test("ConfirmTicket + lock paints", () => {
   assert.ok(boardLine(ing).includes("21-17"));
 });
 
+test("pickBoard liveCrop prefers FrameHub video.crop_hash over last_fast", () => {
+  const b = pickBoard({
+    type: "snapshot",
+    situation: {
+      game_state: "gameplay",
+      home_score: 0,
+      away_score: 1,
+      score_vlm_locked: true,
+      confirm_ticket_id: TICKET,
+      crop_hash: "crop-was",
+    },
+    confirm: {
+      last_confirm: lastConfirm({
+        home_score: 0,
+        away_score: 1,
+        crop_hash: "crop-was",
+        score_vlm_locked: true,
+      }),
+      last_fast: { crop_hash: "crop-was", kind: "fast_chat" },
+    },
+    video: { has_frame: true, same_seq: true, paint: true, crop_hash: "crop-now" },
+  });
+  assert.equal(b.home, null);
+  assert.equal(b.away, null);
+  assert.equal(b.locked, false);
+
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    schema_version: "qoresence-deck-v0",
+    situation: {
+      game_state: "gameplay",
+      home_score: 0,
+      away_score: 1,
+      score_vlm_locked: true,
+      confirm_ticket_id: TICKET,
+      crop_hash: "crop-was",
+    },
+    confirm: {
+      last_confirm: lastConfirm({
+        home_score: 0,
+        away_score: 1,
+        crop_hash: "crop-was",
+        score_vlm_locked: true,
+      }),
+      last_fast: { crop_hash: "crop-was", kind: "fast_chat" },
+    },
+    video: { has_frame: true, same_seq: true, paint: true, crop_hash: "crop-now" },
+  });
+  assert.ok(ing);
+  assert.equal(ing.homeScore, null);
+  assert.equal(ing.awayScore, null);
+  assert.equal(ing.boardLocked, false);
+  assert.equal(scorebugPair(ing), "");
+});
+
+test("pickBoard liveCrop falls back to situation when FrameHub crop is absent", () => {
+  const fresh = pickBoard({
+    home_score: 21,
+    away_score: 17,
+    ...license(),
+    last_confirm: lastConfirm({ home_score: 21, away_score: 17, score_vlm_locked: true }),
+  });
+  assert.equal(fresh.locked, true);
+  assert.equal(fresh.home, 21);
+  const staleSit = pickBoard({
+    home_score: 21,
+    away_score: 17,
+    score_vlm_locked: true,
+    confirm_ticket_id: TICKET,
+    crop_hash: "crop-now",
+    last_confirm: lastConfirm({ home_score: 21, away_score: 17, crop_hash: "crop-was", score_vlm_locked: true }),
+  });
+  assert.equal(staleSit.locked, false);
+  assert.equal(staleSit.home, null);
+});
+
+test("Same-Seq skew empties pickBoard even with a fresh ticket crop", () => {
+  const b = pickBoard({
+    home_score: 21,
+    away_score: 14,
+    ...license(),
+    last_confirm: lastConfirm({ home_score: 21, away_score: 14, score_vlm_locked: true }),
+    video: { has_frame: true, same_seq: false, paint: false, crop_hash: CROP },
+  });
+  assert.equal(b.locked, false);
+  assert.equal(b.home, null);
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    situation: { game_state: "gameplay", home_score: 21, away_score: 14, ...license() },
+    confirm: { last_confirm: lastConfirm({ home_score: 21, away_score: 14, score_vlm_locked: true }) },
+    video: { has_frame: true, live_seq: 10, widget_seq: 7, same_seq: false, paint: false, crop_hash: CROP },
+  });
+  assert.ok(ing);
+  assert.equal(ing.sameSeq, false);
+  assert.equal(ing.paint, false);
+  assert.equal(ing.boardLocked, false);
+  assert.equal(ing.homeScore, null);
+});
+
 test("stale ticket empties when crop_hash moves", () => {
   assert.equal(ticketFresh({ ticketCropHash: "aaa", liveCropHash: "bbb" }), false);
   const b = pickBoard({

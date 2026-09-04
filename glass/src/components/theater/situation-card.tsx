@@ -6,7 +6,6 @@ export function SituationCard() {
   const situation = useTheater((s) => s.situation);
   const gameTitle = useTheater((s) => s.gameTitle);
   const boardLine = useTheater((s) => s.boardLine);
-  const vlm = useTheater((s) => s.agentPlane.vlmLocked);
   const hdmi = useTheater((s) => s.hdmi);
   const planeDim = useTheater((s) => s.planeDim);
   const sameSeq = useTheater((s) => s.sameSeq);
@@ -37,7 +36,7 @@ export function SituationCard() {
           Situation
         </h2>
         <span className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
-          {vlm ? "scorebug lock" : hdmi === "menu" ? "menu" : "scorebug"}
+          {boardLocked ? "scorebug lock" : hdmi === "menu" ? "menu" : "scorebug"}
         </span>
       </div>
       <p
