@@ -116,6 +116,8 @@ These bots keep the trust spine load-bearing while intelligence density grows.
 
 **Job:** Sequence: physical → clock → lock → glass → story. Split working trees before multi-phase landings. Refuse mixing CI debt ([#65](https://github.com/ConWan30/Qoresence/issues/65)) into product PRs.
 
+**Against `main`:** query-only receipt `qoredev-sequence-1` on `/health.qoredev` and `GET /api/operator/qoredev` (`qoresence/operator_bus/qoredev.py`). Empty story is HOLD density, not a new event type. DualSense / `--play` / `--x-glass` stay out of this bot.
+
 **Novel purpose:** Evaluation + density, not more schemas. No overlay until Qoreeval has signal; no new narrative types until Qoretrust signs the license.
 
 ### Qoretrace

@@ -1005,9 +1005,19 @@ def create_app():  # type: ignore[no-untyped-def]
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
     @app.get("/api/operator/bus/prompt")
-    def api_operator_bus_prompt():  # type: ignore[no-untyped-def]
-        from qoresence.operator_bus.prompt import QOECTOR_BUS_PROMPT
+    def api_operator_bus_prompt(bot: str = "qorector"):  # type: ignore[no-untyped-def]
+        from qoresence.operator_bus.prompt import QOECTOR_BUS_PROMPT, QOREDEV_BUS_PROMPT
 
+        name = str(bot or "qorector").strip().lower()
+        if name == "qoredev":
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "from": "grok-build",
+                    "to": "qoredev",
+                    "prompt": QOREDEV_BUS_PROMPT,
+                }
+            )
         return JSONResponse(
             {
                 "ok": True,
@@ -1016,6 +1026,36 @@ def create_app():  # type: ignore[no-untyped-def]
                 "prompt": QOECTOR_BUS_PROMPT,
             }
         )
+
+    @app.get("/api/operator/qoredev")
+    def api_operator_qoredev():  # type: ignore[no-untyped-def]
+        """Qoredev landing sequence. Query-only. Never emit_raw."""
+        try:
+            from qoresence.operator_bus.prompt import QOREDEV_BUS_PROMPT
+            from qoresence.operator_bus.qoredev import qoredev_health
+
+            gi = _glass_index_path()
+            snap = _state.snapshot()
+            bag = {
+                **(snap if isinstance(snap, dict) else {}),
+                "clients": len(_ws_clients),
+                "glass": {
+                    "js": _glass_js_name(),
+                    "path": str(gi) if gi is not None else "",
+                },
+            }
+            seq = qoredev_health(bag)
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "schema": seq.get("schema"),
+                    "plane": "qoresence-observation",
+                    "sequence": seq,
+                    "prompt": QOREDEV_BUS_PROMPT,
+                }
+            )
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
     @app.get("/health")
     def health():  # type: ignore[no-untyped-def]
@@ -1112,6 +1152,12 @@ def create_app():  # type: ignore[no-untyped-def]
             body["actuators"] = actuators_health(body)
         except Exception:
             body["actuators"] = {"registry": [], "receipts": []}
+        try:
+            from qoresence.operator_bus.qoredev import qoredev_health
+
+            body["qoredev"] = qoredev_health(body)
+        except Exception:
+            body["qoredev"] = {"schema": "qoredev-sequence-1", "next": "physical", "steps": []}
         try:
             from qoresence.agents.match_agent import surface_last_note
 
@@ -2749,6 +2795,16 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     health["match_agent"] = surface_last_note()
                 except Exception:
                     health["match_agent"] = {}
+                try:
+                    from qoresence.operator_bus.qoredev import qoredev_health
+
+                    health["qoredev"] = qoredev_health(health)
+                except Exception:
+                    health["qoredev"] = {
+                        "schema": "qoredev-sequence-1",
+                        "next": "physical",
+                        "steps": [],
+                    }
                 self.wfile.write(json.dumps(health).encode())
                 return
             if self.path == "/api/situation":

@@ -374,6 +374,7 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | [docs/CIVIF.md](docs/CIVIF.md) | Coupled Input–Video Intelligence Framework |
 | [docs/DARK_THEATER_SAME_SEQ.md](docs/DARK_THEATER_SAME_SEQ.md) | Widgets match the LIVE frame or they go dark |
 | [docs/OPERATOR_BUS.md](docs/OPERATOR_BUS.md) | Local Grok-bot mailbox (enqueue-only; not a lobe) |
+| [docs/QOREDEV.md](docs/QOREDEV.md) | Qoredev landing sequence (physical → clock → lock → glass → story) |
 | [docs/PLAY_PHRASE_COUPLING_TICKET.md](docs/PLAY_PHRASE_COUPLING_TICKET.md) | SNAP/SPRINT/CUT/RELEASE → coupling ticket |
 | [docs/RETINA_DECK_UIUX.md](docs/RETINA_DECK_UIUX.md) | Lens / Rail / Theater |
 | [docs/clutchbot_setup.md](docs/clutchbot_setup.md) | Leftover Twitch IRC/Helix (not the local route) |
