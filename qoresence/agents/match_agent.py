@@ -1,4 +1,4 @@
-"""Match-observer agent — glm-5.3-flash via Quicksilver, same path as ClutchBot.
+"""Match-observer agent — muse-spark-1.3 via Quicksilver, same path as ClutchBot.
 
 Observation plane only. Default OFF. DualSense stays on the PS5.
 Sees confirm-locked board + picture-HID labels + CIVIF clock.
@@ -98,7 +98,7 @@ def _system_prompt() -> str:
 
 
 class MatchAgent:
-    """Polls CIVIF + ticket books at ~1 Hz. Quicksilver glm-5.3-flash like ClutchBot."""
+    """Polls CIVIF + ticket books at ~1 Hz. Quicksilver muse-spark-1.3 like ClutchBot."""
 
     def __init__(
         self,
@@ -247,7 +247,7 @@ class MatchAgent:
         self._thread = threading.Thread(target=self._run, name="match-agent", daemon=True)
         self._thread.start()
         log.info(
-            "MatchAgent started live=%s model=%s (Quicksilver glm-5.3-flash, ClutchBot key)",
+            "MatchAgent started live=%s model=%s (Quicksilver muse-spark-1.3, ClutchBot key)",
             self.live,
             self._llm.config.model,
         )
