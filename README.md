@@ -19,7 +19,7 @@ Qoresence turns HDMI video, DualSense HID, and game situation into a **single ca
 
 Docs: [GitHub Pages](https://conwan30.github.io/Qoresence/) · [Install guide](https://conwan30.github.io/Qoresence/install.html) · [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Download](https://github.com/ConWan30/Qoresence/releases/latest)
 
-Public face: **[X @Qoresence](https://x.com/Qoresence)** — the timeline is the public glass of record. Live pixels stay in OBS ([X Live Studio recipe](docs/X_LIVE_STUDIO.md)). The observatory stays on your machine. An X publish lobe is **not** shipping yet.
+**Qoresence Live 0.9.0** — local observatory for X. Public face: **[X @Qoresence](https://x.com/Qoresence)**. Brain stays on your machine. **Live pixels:** OBS → X Live Studio ([recipe](docs/X_LIVE_STUDIO.md)). **VOD / Timeline receipts:** future X API via default-off **X Glass** — **not shipped** ([docs/X_GLASS.md](docs/X_GLASS.md)). Do not claim `--x-glass` ships.
 
 Every lobe is **OFF** until you opt in.
 
@@ -93,7 +93,7 @@ Every lobe is **OFF** until you opt in.
     OBS (optional stream): Browser Source ONLY
     http://127.0.0.1:8765/overlay.html  — do NOT open the same physical card
     Audience live to X (optional): OBS Custom RTMP → X Live Studio
-      — not a Qoresence encoder; see docs/X_LIVE_STUDIO.md
+      — not a Qoresence encoder; see docs/X_LIVE_STUDIO.md · product face docs/X_GLASS.md
     Deck:     http://127.0.0.1:8765/deck.html
     Session:  http://127.0.0.1:8765/session.html  (Now + Story + Recap; not HDMI)
     CIVIF:    http://127.0.0.1:8765/civif.html
@@ -110,7 +110,7 @@ Every lobe is **OFF** until you opt in.
 | Clutch (local) | `--play` | Deck feed + local HDMI clips (Twitch leftover, default-OFF) |
 | Stem | conductor on `--play` | Situation-directed program; `--stem-program` / `--stem-audio` / `--stem-record` default OFF |
 | Spectator | `--agent-glass` | HTTP/WS API + MCP for AI agents |
-| Optional social | Off | X is the named public glass. Live: OBS → X Live Studio. Timeline VOD glass is **not implemented**. Twitch leftover stays OFF |
+| Optional social | Off | X is the named public glass. Live: OBS → X Live Studio. Timeline VOD = **default-off X Glass (not shipped)** — future X API receipts ([docs/X_GLASS.md](docs/X_GLASS.md)). Twitch leftover stays OFF |
 | Society | `--agent-society` | **Leftover stub.** Default OFF. `--play` does not enable. Actuators, not coworkers |
 | Research | Off | Fusion, trio-retina / WASM, Streamr plugin |
 
@@ -138,7 +138,7 @@ Every lobe is **OFF** until you opt in.
 | **MCP universal glass** | 12 tools including fail-closed `get_observation` and grant-gated `wrap_observation` (`qoresence-research` only) |
 | **Foundry RAG** | `search_clips` / `get_drive_graph` searchable session memory — software-only, no capture card |
 
-Docs for each: [SESSION_THEATER](docs/SESSION_THEATER.md) · [CIVIF](docs/CIVIF.md) · [GHOST_STICK](docs/GHOST_STICK.md) · [TWO_SPEED_CLUTCHBOT](docs/TWO_SPEED_CLUTCHBOT.md) · [PLAY_PHRASE_COUPLING_TICKET](docs/PLAY_PHRASE_COUPLING_TICKET.md) · [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [X_LIVE_STUDIO](docs/X_LIVE_STUDIO.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [OTEL](docs/OTEL.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md)
+Docs for each: [SESSION_THEATER](docs/SESSION_THEATER.md) · [CIVIF](docs/CIVIF.md) · [GHOST_STICK](docs/GHOST_STICK.md) · [TWO_SPEED_CLUTCHBOT](docs/TWO_SPEED_CLUTCHBOT.md) · [PLAY_PHRASE_COUPLING_TICKET](docs/PLAY_PHRASE_COUPLING_TICKET.md) · [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [X_LIVE_STUDIO](docs/X_LIVE_STUDIO.md) · [X_GLASS](docs/X_GLASS.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [OTEL](docs/OTEL.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md)
 
 ---
 
@@ -189,7 +189,7 @@ python -m qoresence.cli --play --deck --monitor --streamer-fps 60
 # MatchAgent via QORESENCE_MATCH_AGENT=1 on this launcher only — --play itself does not enable it)
 
 # OBS (optional stream): Browser Source only → http://127.0.0.1:8765/overlay.html
-# Audience to X: OBS Custom RTMP → X Live Studio (docs/X_LIVE_STUDIO.md). Do not add the capture card in OBS.
+# Audience to X: OBS Custom RTMP → X Live Studio (docs/X_LIVE_STUDIO.md). VOD receipts: future X Glass (docs/X_GLASS.md) — not shipped. Do not add the capture card in OBS.
 ```
 
 | URL | Glass |
@@ -354,6 +354,7 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | [docs/CAPTURE_OWNERSHIP.md](docs/CAPTURE_OWNERSHIP.md) | Pattern A (OBS) vs B (Qoresence owns card) |
 | [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Extended capture operator detail |
 | [docs/X_LIVE_STUDIO.md](docs/X_LIVE_STUDIO.md) | Audience live to X via OBS Custom RTMP (not a Qoresence encoder) |
+| [docs/X_GLASS.md](docs/X_GLASS.md) | Live 0.9.0 product face — default-off X Glass (not shipped); VOD receipts = future X API |
 | [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md) | CFB pilot runbook + notes |
 | [docs/PILOT_MONITOR.md](docs/PILOT_MONITOR.md) | P0 evidence recorder while you play |
 | [docs/NFL_ROSTER.md](docs/NFL_ROSTER.md) | Madden 27 local NFL team/player names (nflverse) |

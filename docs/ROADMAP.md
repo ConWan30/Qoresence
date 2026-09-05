@@ -1,7 +1,7 @@
 # Qoresence Roadmap
 
 Local **capture → situation → operator glass → optional social** pipeline.  
-Optional social is **X**: the timeline is the public glass of record. Live session is OBS → X Live Studio RTMP, not a Qoresence encoder.  
+Optional social is **X**: the timeline is the public glass of record. Live session is OBS → X Live Studio RTMP, not a Qoresence encoder. Timeline VOD receipts are future X API / default-off X Glass ([X_GLASS.md](X_GLASS.md)) — not shipped.  
 Research modules (fusion, trio-retina) stay off the critical path unless opted in.
 
 ---
@@ -166,16 +166,19 @@ Research modules (fusion, trio-retina) stay off the critical path unless opted i
 | **0.5.0** | **Deck LIVE + Qoresence owns card + FrameHub monitor + IVC** |
 | 0.6.0 | Profile expansion + Edge HID polish + operator glass (Phase 4/6 done) |
 | **0.7.0** | **OpenTelemetry causal tracing + per-frame coupling sidecars + re-entrancy smoke alarm** |
-| **0.8.0** | **Session Theater: live view + clip links + recap** (`fef4d3c` docs tip) ← current `main` |
+| **0.8.0** | **Session Theater: live view + clip links + recap** (`fef4d3c` docs tip) |
+| **0.9.0** | **Qoresence Live product face** — brain local; X Live Studio = pixels; X API = future receipts ([docs/X_GLASS.md](X_GLASS.md)). Runtime `--x-glass` **not** shipped ← docs tip |
 | 1.0.0 | Stable local ClutchBot (Deck + HDMI clips) + operator glass release |
 
 ---
 
 ## Optional social — X observatory glass
 
+Live **0.9.0** product face: [docs/X_GLASS.md](X_GLASS.md). Phase order for X Glass: **0 → 5** (Phase 0 done; 1–5 unchecked). No chat scraper. Phase 6 only if X publishes live+chat APIs.
+
 - [x] Public face named: [X @Qoresence](https://x.com/Qoresence) (README)
-- [x] Live recipe: OBS Custom RTMP → X Live Studio + Lens `overlay.html` (`docs/X_LIVE_STUDIO.md`)
-- [ ] X Glass publish lobe (native timeline VOD from Foundry clips) — not this PR; opt-in, fail-closed, default OFF
+- [x] Live recipe: OBS Custom RTMP → X Live Studio + Lens `overlay.html` (`docs/X_LIVE_STUDIO.md`) — Phase 0
+- [ ] X Glass publish lobe (native Timeline VOD / receipt Posts from Foundry) — opt-in, fail-closed, default OFF (`--x-glass` documented only; not implemented)
 - [ ] Session header / Foundry reel posts
 
 Twitch leftover stays OFF. This slot is X.

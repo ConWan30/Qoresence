@@ -1,5 +1,7 @@
 # X Live Studio — audience live (OBS owns RTMP)
 
+**Qoresence Live onboarding — step 2 (pixels).** Product face for Live 0.9.0 (brain / pixels / future receipts): [X_GLASS.md](X_GLASS.md).
+
 Qoresence is the **local observatory**. X is the **public glass**. Live pixels stay in **OBS**. Qoresence never opens a second capture path and never becomes an X encoder.
 
 Two surfaces, one clock:
@@ -10,7 +12,7 @@ Two surfaces, one clock:
 | Pattern B pixels | OBS Browser Source | `http://127.0.0.1:8765/obs-live.html` (Deck HDMI glass; brand when dark) |
 | On-stream HUD | OBS Browser Source | `http://127.0.0.1:8765/overlay.html` (Clutch Lens, on top) |
 | Audience live to X | OBS Custom RTMP | X Live Studio source (RTMP / RTMPS) |
-| Timeline VOD | *not implemented* | Future opt-in X Glass lobe. This doc does not ship it |
+| Timeline VOD | *not implemented* | Default-off X Glass / future X API receipts — see [X_GLASS.md](X_GLASS.md). This doc does not ship it |
 
 Twitch is not a product route. Leftover Twitch clients stay default-OFF.
 
@@ -65,6 +67,11 @@ WHIP is **not** offered in Live Studio help. Do not add a Qoresence ingest path,
 - Media Studio (the older producer) is documented as Premium / Premium+, not Basic.
 
 ---
+
+
+### Live Studio keys ≠ Observatory Keys
+
+The Live Studio **stream key** is only for OBS Custom RTMP. It is **not** an API key from the Qoresence Observatory developer console (app **33393205**). Console Keys do not provision RTMPS ingest. For the brand coupler (Observatory vs Live Studio vs ConWanZo app 33392974), see [X_GLASS.md](X_GLASS.md) **Console coupler**.
 
 ## What this is not
 
