@@ -313,10 +313,10 @@ function Ensure-LiveScene([string]$AppData, [string]$Collection, [string]$SceneN
         Write-Info "Lens browser URL → $LensUrl"
     }
 
-    # Refuse to leave dshow dual-open hints uncommented in operator output; warn only.
     foreach ($src in $doc.sources) {
-        if ([string]$src.id -match 'dshow|wasapi' -or [string]$src.name -match '(?i)USB3\.0\s*Video') {
-            Write-Info "WARN: source '$($src.name)' id=$($src.id) looks like capture-card dual-open — disable it for Pattern B"
+        if ([string]$src.id -match 'dshow_input|dshow' -or [string]$src.name -match '(?i)USB3\.0\s*Video') {
+            Write-Host "DUAL_OPEN"
+            throw "DUAL_OPEN: source '$($src.name)' id=$($src.id) is a second open of the capture card. Pattern B: Qoresence owns USB3.0 Video; OBS Browser Source /obs-live.html only."
         }
     }
 

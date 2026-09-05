@@ -40,6 +40,7 @@ def test_spout_glass_publishes_from_framehub_stub() -> None:
         assert h["published"] == 1
         assert h["last_frame_seq"] == 1
         assert h["last_clock_ns"] == 111
+        assert h["subscribers"] == [{"id": "TestPGM", "kind": "spout"}]
         glass._tick()
         assert stub.sends == 1
         hub.publish(frame, clock_ns=222, seq=2)
@@ -55,6 +56,7 @@ def test_spout_health_off_when_unset() -> None:
     set_spout_glass(None)
     h = spout_health()
     assert h["enabled"] is False
+    assert h.get("subscribers") == []
 
 
 def test_cli_help_lists_spout_glass() -> None:

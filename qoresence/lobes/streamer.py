@@ -301,6 +301,7 @@ class StreamerRuntime:
         self._grab_ts: float = 0.0
         self._grab_alive = False
         self._last_consumed_grab_ts: float = 0.0
+        self._capture_lease = None
 
         # Metrics state
         self._prev_gray: np.ndarray | None = None
@@ -355,6 +356,18 @@ class StreamerRuntime:
             return True
 
         # Open capture device — tolerate missing card (wait for replug)
+        try:
+            from qoresence.capture.lease import acquire_capture_lease
+
+            device = str(getattr(self.config, "device_name", None) or "USB3.0 Video")
+            self._capture_lease = acquire_capture_lease(device)
+        except Exception as e:
+            from qoresence.capture.lease import CaptureLeaseError
+
+            if isinstance(e, CaptureLeaseError):
+                log.error("Capture lease refused (dual-open): %s", e)
+                return False
+            log.debug("Capture lease skipped: %s", e)
         opened = self._open_capture()
         if not opened:
             is_network = self.config.source_kind == "network" and self.config.url
@@ -406,6 +419,13 @@ class StreamerRuntime:
             except Exception:
                 pass
             self._cap = None
+        try:
+            from qoresence.capture.lease import release_capture_lease
+
+            release_capture_lease(getattr(self, "_capture_lease", None))
+            self._capture_lease = None
+        except Exception:
+            pass
         log.info("Streamer lobe stopped")
 
     def is_running(self) -> bool:

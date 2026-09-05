@@ -183,6 +183,16 @@ Live **0.9.0** product face: [docs/X_GLASS.md](X_GLASS.md). Phase order for X Gl
 
 Twitch leftover stays OFF. This slot is X.
 
+## Observatory novelty slice (2026-09-05)
+
+Canon: [docs/NOVELTY_OBSERVATORY.md](NOVELTY_OBSERVATORY.md). Inverse of Scoreboard OCR last-good. Digits blank unless ConfirmTicket + `score_vlm_locked` + ticket-fresh.
+
+- [x] Null Digit Glass + Ticket Freshness Strip (PR A) — Lens/Deck last-good holes closed; lockbug `data-freshness`
+- [ ] Single-Open Lease + Subscribe-Only Spout (PR B)
+- [ ] Deck Integrity Board + Skew Alarm (PR C) — operator Theater only
+- [ ] Coupling Meter Glass (PR D) — co-occurrence histogram, not eligibility
+- [ ] Presence Lattice / Bookmarks / Receipt Drawer — default OFF, later; vocabulary `presence.*` / `coupling.*` / `digit.state` / `lease.*`
+
 ## Non-goals
 
 - Second `VideoCapture` opened “for sync”

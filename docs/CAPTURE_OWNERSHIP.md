@@ -1,7 +1,7 @@
 # Capture ownership — Pattern A vs B
 
 **Hard rule:** one physical DirectShow HDMI/capture device has **one owner**.  
-Never open the same USB card in OBS **and** Qoresence at the same time (black frames, thrash, failed open).
+Never open the same USB card in OBS **and** Qoresence at the same time (black frames, thrash, failed open). Streamer takes a **capture lease** (`qoresence/capture/lease.py`); a second Qoresence/DShow open fails closed. Pattern B helper exits `DUAL_OPEN` if Untitled still has a Video Capture Device on `USB3.0 Video`. `/health.lease` reports `{ok, owner, pid, device}`.
 
 List devices:
 

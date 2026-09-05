@@ -1100,7 +1100,13 @@ def create_app():  # type: ignore[no-untyped-def]
 
             body["spout"] = spout_health()
         except Exception:
-            body["spout"] = {"enabled": False}
+            body["spout"] = {"enabled": False, "subscribers": []}
+        try:
+            from qoresence.capture.lease import lease_health
+
+            body["lease"] = lease_health()
+        except Exception:
+            body["lease"] = {"ok": False, "owner": "", "device": "", "pid": 0}
         try:
             from qoresence.sync.ivc import get_last_coupling
 

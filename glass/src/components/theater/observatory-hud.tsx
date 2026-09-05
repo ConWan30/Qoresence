@@ -1,6 +1,9 @@
 import { pictureLagMs, syncChipText } from "@/lib/coupling/pad-sync";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
+import { CouplingMeter } from "./coupling-meter";
+import { IntegrityBoard } from "./integrity-board";
+import { LeaseBadge } from "./lease-badge";
 import { LockbugStrip } from "./lockbug-strip";
 import { ObservatoryInstrument } from "./observatory-instrument";
 
@@ -48,6 +51,8 @@ export function ObservatoryHUD() {
             {stale ? `AGE ${videoAgeS.toFixed(1)}s` : licensed ? "LIVE" : "HOLD"}
           </span>
           <LockbugStrip pulse />
+          <LeaseBadge ok={deckLive && !stale} />
+          <IntegrityBoard />
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <span
@@ -72,6 +77,7 @@ export function ObservatoryHUD() {
         <span className="rounded-sm bg-bg/75 px-2 py-1 font-mono text-[10px] tracking-[0.16em] text-photon uppercase backdrop-blur-sm">
           PGM
         </span>
+        <CouplingMeter />
       </div>
     </div>
   );

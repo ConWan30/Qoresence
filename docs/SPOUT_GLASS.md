@@ -25,7 +25,7 @@ Product face / API mouth: [X_GLASS.md](X_GLASS.md). Spout is a **local pixel pip
 2. Subscribe only — **no** DShow open in this module.
 3. `--spout-glass` default **OFF**; **not** implied by `--play`.
 4. Never hold the streamer / grab lock; latest-frame copy; **drop under load**.
-5. Align `frame_seq` / `clock_ns` from FrameHub where possible (`/health` → `spout`).
+5. Align `frame_seq` / `clock_ns` from FrameHub where possible (`/health` → `spout`). Health includes `subscribers: [{id, kind: "spout"|"browser"|"monitor"}]` — glasses subscribe; they do not open DShow.
 6. Overlay digits unchanged: ConfirmTicket + `score_vlm_locked` + ticket-fresh.
 7. No RTMP / WHIP / Twitch / `--x-glass` in this spike.
 

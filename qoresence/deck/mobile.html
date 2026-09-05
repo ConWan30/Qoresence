@@ -106,7 +106,7 @@ function paintStrip(snap){
   hasf.textContent=hf?'yes':'—';
   const prof=s.game_profile||s.game_title||'';
   titleEl.textContent=prof?String(prof):'—';
-  const locked=!!(s.score_vlm_locked||s.scoreboard_locked||s.title_claim);
+  const locked=s.score_vlm_locked===true&&String(s.confirm_ticket_id||'').trim()!=='';
   lockEl.textContent=locked?'locked':'—';
   const hs=s.home_score, as=s.away_score;
   if(hs!=null&&as!=null&&locked){

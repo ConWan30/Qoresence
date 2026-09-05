@@ -312,7 +312,7 @@ function isLiveSit(s){
 function fmt(s){
   if(!isLiveSit(s)) return null;
   // Fail-closed: never paint unlocked OCR digits on legacy Rail.
-  const locked=!!(s.score_vlm_locked||s.scoreboard_locked||s.confirm_ticket_id);
+  const locked=s.score_vlm_locked===true&&String(s.confirm_ticket_id||'').trim()!=='';
   const sc=locked&&s.home_score!=null?(s.home_score+'-'+s.away_score):'';
   const q=s.quarter!=null?('Q'+s.quarter):'';
   const clock=s.game_clock_seconds!=null?(Math.floor(s.game_clock_seconds/60)+':'+String(s.game_clock_seconds%60).padStart(2,'0')):'';

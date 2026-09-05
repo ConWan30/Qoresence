@@ -1,7 +1,7 @@
 /** ClutchBot + Agent Society — live from Deck /health and /api/agent. */
 
-import { pickBoard } from "./board";
-import { getDeckOrigin, probeDeck } from "./qoresence-deck";
+import { pickBoard } from "./board.ts";
+import { getDeckOrigin, probeDeck } from "./qoresence-deck.ts";
 
 export type SocietyNote = {
   role: string;

@@ -88,6 +88,11 @@ class SpoutGlass:
             "last_clock_ns": int(self._last_clock_ns),
             "last_send_age_s": age,
             "thread_alive": bool(self._thread is not None and self._thread.is_alive()),
+            "subscribers": (
+                [{"id": self._name, "kind": "spout"}]
+                if (self._enabled or self._sender is not None)
+                else []
+            ),
         }
 
     def _run(self) -> None:
@@ -150,5 +155,6 @@ def spout_health() -> dict[str, Any]:
             "backend": "off",
             "published": 0,
             "drops": 0,
+            "subscribers": [],
         }
     return g.health()

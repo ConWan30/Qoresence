@@ -26,6 +26,27 @@ def attach_board_health(out: dict[str, Any], situation: Any) -> dict[str, Any]:
     out["score_vlm_locked"] = locked
     out["has_confirm_ticket"] = has_ticket
     try:
+        from qoresence.sync.digit_integrity import digit_void_reason, freshness_band
+
+        reason = digit_void_reason(
+            confirm_ticket_id=str(sit_bag.get("confirm_ticket_id") or ""),
+            score_vlm_locked=locked,
+            path=str(sit_bag.get("path") or ""),
+            ticket_crop_hash=str(sit_bag.get("ticket_crop_hash") or sit_bag.get("crop_hash") or ""),
+            live_crop_hash=str(sit_bag.get("crop_hash") or ""),
+            same_seq=sit_bag.get("same_seq"),
+            ticket_clock_ns=int(sit_bag.get("confirm_clock_ns") or 0),
+            live_clock_ns=int(sit_bag.get("updated_ns") or sit_bag.get("clock_ns") or 0),
+            vlm_abstain=str(sit_bag.get("vlm_status") or "").startswith("http_")
+            or str(sit_bag.get("last_reason") or "") == "abstain",
+        )
+        t_clock = int(sit_bag.get("confirm_clock_ns") or 0)
+        l_clock = int(sit_bag.get("updated_ns") or sit_bag.get("clock_ns") or 0)
+        age = max(0, l_clock - t_clock) if t_clock and l_clock else 0
+        out["digit_integrity"] = {"reason": reason, "band": freshness_band(age)}
+    except Exception:
+        pass
+    try:
         from qoresence.graphs.look_gate import snapshot as look_snapshot
 
         look = look_snapshot()

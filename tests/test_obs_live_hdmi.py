@@ -76,3 +76,4 @@ def test_pattern_b_helper_script_exists():
     assert "service.json" in text  # mentioned only as a forbidden print surface
     assert "sk_live" not in text
     assert "stream_key=" not in text.replace(" ", "")
+    assert "DUAL_OPEN" in text

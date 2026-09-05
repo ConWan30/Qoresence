@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { downDistanceLabel, scorebugPair } from "@/lib/coupling/board";
+import { freshnessBand } from "@/lib/coupling/digit-integrity";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,8 @@ export function LockbugStrip({ className, pulse = false }: { className?: string;
   const down = useTheater((s) => s.down);
   const distance = useTheater((s) => s.distance);
   const confirm = useTheater((s) => s.confirm);
+  const ticket = useTheater((s) => s.ticket);
+  const path = useTheater((s) => s.clutchPulsePath);
 
   const widgetsOk = livePaint && sameSeq && !planeDim;
   const licensed =
@@ -57,6 +60,12 @@ export function LockbugStrip({ className, pulse = false }: { className?: string;
     homeScore != null &&
     awayScore != null &&
     (confirm != null || boardLocked);
+  const ageNs =
+    confirm && ticket
+      ? Math.max(0, Number(ticket.clockNs || 0) - Number(confirm.clockNs || 0))
+      : 0;
+  const band = licensed ? freshnessBand(ageNs) : "ident";
+  const voidReason = licensed ? "licensed" : path === "fast" ? "path_fast" : confirm ? "vlm_unlocked" : "no_ticket";
 
   const score = licensed
     ? scorebugPair({
@@ -83,12 +92,18 @@ export function LockbugStrip({ className, pulse = false }: { className?: string;
     <p
       data-lockbug={licensed ? "locked" : "unlocked"}
       data-situation={licensed ? "live" : "dark"}
+      data-freshness={band}
+      data-void-reason={voidReason}
       data-land={licensed ? (land ?? undefined) : undefined}
       className={cn(
-        "lockbug-lock font-mono text-[11px] tracking-wide tabular-nums",
+        "lockbug-lock font-mono text-[11px] tracking-wide tabular-nums border-b-[3px] border-solid",
         licensed ? "text-fg" : "text-subtle-foreground/70",
         className,
       )}
+      style={{
+        borderBottomColor:
+          band === "ok" ? "#9BE7FF" : band === "amber" ? "#D7B36A" : "#E07A7A",
+      }}
     >
       {text}
     </p>

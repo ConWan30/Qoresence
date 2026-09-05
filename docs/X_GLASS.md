@@ -1,6 +1,6 @@
 # Qoresence Live 0.9.0 — X Glass
 
-**Status: product face only.** This document names the Live 0.9.0 pivot. It does **not** ship a runtime lobe. There is no `--x-glass` flag on `main`. There is no `qoresence/x/` package. DualSense stays on the PS5.
+**Status: product face + default-off runtime.** `--x-glass` exists on CLI (`qoresence/x/`). Receipts and publish stay **default OFF** and require a second explicit click. DualSense stays on the PS5. Public X is pixels only.
 
 ## Pivot
 
@@ -8,7 +8,7 @@
 |-------|------|--------|
 | Local causal plane | Brain — capture card, tickets, Foundry, Sight Glass | Shipped |
 | X Live Studio | Pixel glass — audience video via OBS Custom RTMP | Shipped recipe ([X_LIVE_STUDIO.md](X_LIVE_STUDIO.md)) |
-| X API | Future memory / receipt glass — conversation + Timeline VOD receipts | **Default OFF. Not implemented.** |
+| X API | Memory / receipt glass — conversation + Timeline VOD receipts | **Default OFF.** Opt-in `--x-glass`; publish is a second click. |
 
 Qoresence remains a **local observatory for X**. Live pixels never leave OBS. Timeline VOD / Posts never invent digits.
 
@@ -22,7 +22,7 @@ A **default-off** future lobe that:
 - **Never** pushes RTMP (OBS owns audience RTMP)
 - **Never** holds the streamer lock
 
-Until that lobe exists, treat every `--x-glass` / `--x-listen` mention below as **documentation of intent**, not CLI that works today.
+`--x-glass` is CLI-real and **default OFF**. Receipts do not auto-post. Public livestream stays OBS → X Live Studio pixels.
 
 ## Two pipes
 
