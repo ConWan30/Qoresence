@@ -32,10 +32,10 @@ except ImportError:
 DEFAULT_BASE_URL = "https://api.quicksilverpro.io/v1"
 DEFAULT_MODEL = "muse-spark-1.3"
 # Confirm-path VLM: Quicksilver slug (JPEG crop → JSON).
-# Operator pin 2026-09-04: gemini-3.8-flash (same clutchbot key as chat).
+# Operator pin 2026-09-05: gemini-3.5-flash-lite (same clutchbot key as chat).
 # Prior pin glm-5.3-flash. gemini-* slugs already work as overrides on this API.
 # Chat default is muse-spark-1.3. QORESENCE_SCOREBOARD_VLM_MODEL still overrides.
-DEFAULT_VISION_MODEL = "gemini-3.8-flash"
+DEFAULT_VISION_MODEL = "gemini-3.5-flash-lite"
 FALLBACK_MODEL = "gpt-4o-mini"
 CLUTCHBOT_KEY_FILE = ".secrets/quicksilver_clutchbot.key"
 # Already-documented optional vision key. Do not invent a new filename.
@@ -131,7 +131,7 @@ class LLMConfig:
     def from_scoreboard_vlm(cls) -> LLMConfig:
         """Confirm-path VLM: same Quicksilver API + clutchbot key as ClutchBot.
 
-        Model default is ``gemini-3.8-flash`` (JPEG in / JSON out) on the same
+        Model default is ``gemini-3.5-flash-lite`` (JPEG in / JSON out) on the same
         Quicksilver API + clutchbot key as ClutchBot.
         ``QORESENCE_SCOREBOARD_VLM_MODEL`` overrides. ``quicksilver_vlm.key`` fallback only.
         """
