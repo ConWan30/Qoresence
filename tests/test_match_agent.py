@@ -1,4 +1,4 @@
-"""Match-observer agent — Quicksilver glm-5.3-flash wiring. Observation only."""
+"""Match-observer agent — Quicksilver muse-spark-1.3 wiring. Observation only."""
 
 from __future__ import annotations
 
@@ -17,18 +17,18 @@ def test_llm_config_from_quicksilver_env_matches_clutchbot_path():
     cfg = LLMConfig.from_quicksilver_env(enabled=False)
     assert cfg.provider == "quicksilver"
     assert cfg.model == DEFAULT_MODEL
-    assert cfg.model == "glm-5.3-flash"
+    assert cfg.model == "muse-spark-1.3"
     assert cfg.base_url == DEFAULT_BASE_URL
     assert cfg.enabled is False
 
 
 def test_clutchbot_chat_and_confirm_vision_use_separate_config_paths():
-    """Chat stays glm-5.3-flash; confirm VLM is gemini-3.8-flash; distinct factories."""
+    """Chat stays muse-spark-1.3; confirm VLM is gemini-3.8-flash; distinct factories."""
     from qoresence.agents.llm_client import DEFAULT_VISION_MODEL
 
     chat_cfg = LLMConfig.from_quicksilver_env(enabled=False)
     vision_cfg = LLMConfig.from_scoreboard_vlm()
-    assert chat_cfg.model == DEFAULT_MODEL == "glm-5.3-flash"
+    assert chat_cfg.model == DEFAULT_MODEL == "muse-spark-1.3"
     assert vision_cfg.model == DEFAULT_VISION_MODEL == "gemini-3.8-flash"
     assert chat_cfg.model != vision_cfg.model
     assert chat_cfg is not vision_cfg
