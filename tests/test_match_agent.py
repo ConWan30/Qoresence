@@ -1,4 +1,4 @@
-"""Match-observer agent — Quicksilver glm-5.3-flash wiring. Observation only."""
+"""Match-observer agent — Quicksilver muse-spark-1.3 wiring. Observation only."""
 
 from __future__ import annotations
 
@@ -8,27 +8,34 @@ from qoresence.agents.match_agent import (
     build_match_evidence,
     evidence_ticket_id,
 )
+from qoresence.core.unified_config import ClutchBotConfig
 from qoresence.sync.hid_domain import HidDomain
 from qoresence.vision.confirm_ticket import mint_confirm_ticket
 from qoresence.vision.picture_hid_ticket import mint_picture_hid_ticket
 
 
-def test_llm_config_from_quicksilver_env_matches_clutchbot_path():
+def test_llm_config_from_quicksilver_env_matches_clutchbot_path(monkeypatch):
+    monkeypatch.delenv("QORESENCE_MATCH_AGENT_MODEL", raising=False)
+    monkeypatch.delenv("QORESENCE_CLUTCHBOT_LLM_MODEL", raising=False)
     cfg = LLMConfig.from_quicksilver_env(enabled=False)
     assert cfg.provider == "quicksilver"
     assert cfg.model == DEFAULT_MODEL
-    assert cfg.model == "glm-5.3-flash"
+    assert cfg.model == "muse-spark-1.3"
     assert cfg.base_url == DEFAULT_BASE_URL
     assert cfg.enabled is False
+    assert ClutchBotConfig().llm_model == DEFAULT_MODEL == "muse-spark-1.3"
 
 
-def test_clutchbot_chat_and_confirm_vision_use_separate_config_paths():
-    """Chat stays glm-5.3-flash; confirm VLM is gemini-3.8-flash; distinct factories."""
+def test_clutchbot_chat_and_confirm_vision_use_separate_config_paths(monkeypatch):
+    """Chat default is muse-spark-1.3; confirm VLM is gemini-3.8-flash; distinct factories."""
     from qoresence.agents.llm_client import DEFAULT_VISION_MODEL
 
+    monkeypatch.delenv("QORESENCE_MATCH_AGENT_MODEL", raising=False)
+    monkeypatch.delenv("QORESENCE_CLUTCHBOT_LLM_MODEL", raising=False)
+    monkeypatch.delenv("QORESENCE_SCOREBOARD_VLM_MODEL", raising=False)
     chat_cfg = LLMConfig.from_quicksilver_env(enabled=False)
     vision_cfg = LLMConfig.from_scoreboard_vlm()
-    assert chat_cfg.model == DEFAULT_MODEL == "glm-5.3-flash"
+    assert chat_cfg.model == DEFAULT_MODEL == "muse-spark-1.3"
     assert vision_cfg.model == DEFAULT_VISION_MODEL == "gemini-3.8-flash"
     assert chat_cfg.model != vision_cfg.model
     assert chat_cfg is not vision_cfg
@@ -36,6 +43,36 @@ def test_clutchbot_chat_and_confirm_vision_use_separate_config_paths():
     assert chat_cfg.max_tokens == 180
     assert vision_cfg.timeout_s == 14.0
     assert chat_cfg.timeout_s == 8.0
+
+
+def test_clutchbot_llm_model_env_overrides_chat_default(monkeypatch):
+    monkeypatch.delenv("QORESENCE_MATCH_AGENT_MODEL", raising=False)
+    monkeypatch.setenv("QORESENCE_CLUTCHBOT_LLM_MODEL", "override-clutch")
+    cfg = LLMConfig.from_quicksilver_env(enabled=False)
+    assert cfg.model == "override-clutch"
+    assert cfg.model != DEFAULT_MODEL
+
+
+def test_match_agent_model_env_overrides_chat_default(monkeypatch):
+    monkeypatch.setenv("QORESENCE_MATCH_AGENT_MODEL", "override-match")
+    monkeypatch.setenv("QORESENCE_CLUTCHBOT_LLM_MODEL", "override-clutch")
+    cfg = LLMConfig.from_quicksilver_env(enabled=False)
+    assert cfg.model == "override-match"
+    assert cfg.model != DEFAULT_MODEL
+    assert cfg.model != "override-clutch"
+
+
+def test_from_env_clutchbot_llm_model_default_and_override(monkeypatch):
+    from qoresence.core.unified_config import RetinaUnifiedConfig
+
+    monkeypatch.delenv("QORESENCE_CLUTCHBOT_LLM_MODEL", raising=False)
+    default_cfg = RetinaUnifiedConfig.from_env()
+    assert default_cfg.clutchbot.llm_model == DEFAULT_MODEL == "muse-spark-1.3"
+
+    monkeypatch.setenv("QORESENCE_CLUTCHBOT_LLM_MODEL", "override-clutch")
+    cfg = RetinaUnifiedConfig.from_env()
+    assert cfg.clutchbot.llm_model == "override-clutch"
+    assert cfg.clutchbot.llm_model != DEFAULT_MODEL
 
 
 def test_evidence_no_scores_without_confirm():
@@ -204,7 +241,7 @@ def test_surface_last_note_licensed():
 
 
 def test_situation_payload_carries_match_agent():
-    """_situation_payload()["match_agent"] is empty when agent is off."""
+    """_situation_payload()[\"match_agent\"] is empty when agent is off."""
     from unittest.mock import patch
 
     from qoresence.deck.server import _situation_payload
