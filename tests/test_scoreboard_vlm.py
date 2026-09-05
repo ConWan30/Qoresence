@@ -1,1 +1,1 @@
-PLACEHOLDER
+@/tmp/scoreboard_only_content.py
