@@ -1,7 +1,7 @@
 """ClutchBot LLM client — Quicksilver Pro (OpenAI-compatible).
 
 Dedicated API for ClutchBot via https://api.quicksilverpro.io/v1
-Default model: glm-5.3-flash (Quicksilver Pro). Falls back to gpt-4o-mini.
+Default model: muse-spark-1.3 (Quicksilver Pro). Falls back to gpt-4o-mini.
 
 No new deps — uses requests if available, stdlib http otherwise.
 Key is resolved from ClutchBotConfig.llm_api_key or llm_api_key_file
@@ -30,11 +30,11 @@ except ImportError:
     HAS_REQUESTS = False
 
 DEFAULT_BASE_URL = "https://api.quicksilverpro.io/v1"
-DEFAULT_MODEL = "glm-5.3-flash"
+DEFAULT_MODEL = "muse-spark-1.3"
 # Confirm-path VLM: Quicksilver slug (JPEG crop → JSON).
 # Operator pin 2026-09-04: gemini-3.8-flash (same clutchbot key as chat).
-# Prior pin glm-5.3-flash. gemini-* slugs already work as overrides on this API.
-# Chat stays glm-5.3-flash. QORESENCE_SCOREBOARD_VLM_MODEL still overrides.
+# Prior chat pin glm-5.3-flash → muse-spark-1.3. gemini-* slugs work as vision overrides.
+# Chat stays muse-spark-1.3. QORESENCE_SCOREBOARD_VLM_MODEL still overrides.
 DEFAULT_VISION_MODEL = "gemini-3.8-flash"
 FALLBACK_MODEL = "gpt-4o-mini"
 CLUTCHBOT_KEY_FILE = ".secrets/quicksilver_clutchbot.key"
