@@ -27,7 +27,7 @@ def test_llm_config_from_quicksilver_env_matches_clutchbot_path(monkeypatch):
 
 
 def test_clutchbot_chat_and_confirm_vision_use_separate_config_paths(monkeypatch):
-    """Chat default is muse-spark-1.3; confirm VLM is gemini-3.8-flash; distinct factories."""
+    """Chat default is muse-spark-1.3; confirm VLM is gemini-3.5-flash-lite; distinct factories."""
     from qoresence.agents.llm_client import DEFAULT_VISION_MODEL
 
     monkeypatch.delenv("QORESENCE_MATCH_AGENT_MODEL", raising=False)
@@ -36,7 +36,7 @@ def test_clutchbot_chat_and_confirm_vision_use_separate_config_paths(monkeypatch
     chat_cfg = LLMConfig.from_quicksilver_env(enabled=False)
     vision_cfg = LLMConfig.from_scoreboard_vlm()
     assert chat_cfg.model == DEFAULT_MODEL == "muse-spark-1.3"
-    assert vision_cfg.model == DEFAULT_VISION_MODEL == "gemini-3.8-flash"
+    assert vision_cfg.model == DEFAULT_VISION_MODEL == "gemini-3.5-flash-lite"
     assert chat_cfg.model != vision_cfg.model
     assert chat_cfg is not vision_cfg
     assert vision_cfg.max_tokens == 400
