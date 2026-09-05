@@ -1,1 +1,1 @@
-@/tmp/scoreboard_only_content.py
+__FROM_FILE__/workspace/RESTORE_sb.py
