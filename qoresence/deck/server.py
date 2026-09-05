@@ -1094,6 +1094,13 @@ def create_app():  # type: ignore[no-untyped-def]
             body["webrtc"] = webrtc_stats()
         except Exception:
             body["webrtc"] = {"available": False}
+
+        try:
+            from qoresence.spout import spout_health
+
+            body["spout"] = spout_health()
+        except Exception:
+            body["spout"] = {"enabled": False}
         try:
             from qoresence.sync.ivc import get_last_coupling
 

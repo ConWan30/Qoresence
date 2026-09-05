@@ -2,6 +2,8 @@
 
 **Qoresence Live onboarding — step 2 (pixels).** Product face for Live 0.9.0 (brain / pixels / future receipts): [X_GLASS.md](X_GLASS.md).
 
+**PGM without CEF tax (spike):** FrameHub → Spout2 via `--spout-glass` (default OFF) — [SPOUT_GLASS.md](SPOUT_GLASS.md). Overlay stays Browser Source `overlay.html`.
+
 Qoresence is the **local observatory**. X is the **public glass**. Live pixels stay in **OBS**. Qoresence never opens a second capture path and never becomes an X encoder.
 
 Two surfaces, one clock:

@@ -106,6 +106,8 @@ Live Studio keys ≠ Observatory Keys. Pixel path stays [X_LIVE_STUDIO.md](X_LIV
 
 ## Related docs
 
+- [SPOUT_GLASS.md](SPOUT_GLASS.md) — FrameHub → Spout2 PGM for OBS (spike; default OFF; not X API)
+
 - [X_LIVE_STUDIO.md](X_LIVE_STUDIO.md) — pixel onboarding (Live step 2)
 - [OBS_OWNS_CARD.md](OBS_OWNS_CARD.md) — Pattern A vs B
 - [ROADMAP.md](ROADMAP.md) — versioning + optional social checklist

@@ -1860,6 +1860,22 @@ def main():
         default="full",
         help="Retina Monitor HUD layout preset (default full). Cycle live with 'p' key.",
     )
+
+    parser.add_argument(
+        "--spout-glass",
+        action="store_true",
+        help=(
+            "Spout Glass: publish FrameHub PGM to Spout2 (name QoresencePGM) for OBS Spout Capture. "
+            "Default OFF. Not implied by --play. Subscribe only — no second DShow. Windows SpoutGL."
+        ),
+    )
+    parser.add_argument(
+        "--spout-name",
+        type=str,
+        default="QoresencePGM",
+        help="Spout2 sender name when --spout-glass is on (default QoresencePGM).",
+    )
+
     parser.add_argument(
         "--stem-program",
         action="store_true",
@@ -2595,6 +2611,31 @@ def main():
                 "Retina Monitor failed to start: %s. "
                 "Install opencv (pip install 'qoresence[monitor]'). "
                 "Play/Deck continue without the window.",
+                e,
+            )
+
+    # Optional Spout Glass (FrameHub → Spout2; default OFF; NOT implied by --play)
+    _spout_stop = None
+    if getattr(args, "spout_glass", False):
+        try:
+            from qoresence.spout.glass import SpoutGlass, set_spout_glass
+
+            _sg = SpoutGlass(
+                sender_name=str(getattr(args, "spout_name", "QoresencePGM") or "QoresencePGM"),
+                target_hz=60.0,
+            )
+            set_spout_glass(_sg)
+            _spout_t = _sg.start()
+            _spout_stop = _sg.stop
+            log.info(
+                "Spout Glass on (FrameHub → Spout2 name=%s; no second capture) thread=%s",
+                getattr(args, "spout_name", "QoresencePGM"),
+                _spout_t.name,
+            )
+        except Exception as e:
+            log.error(
+                "Spout Glass failed to start: %s. Play/Deck continue without Spout. "
+                "On Windows install SpoutGL for OBS Spout Capture.",
                 e,
             )
 
