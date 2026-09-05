@@ -1,7 +1,7 @@
 """DeepSeek chat agent via Quicksilver Pro for A2A.
 
 Default: stub. Live when QORESENCE_A2A_DEEPSEEK=1 and API key set.
-Reuses ClutchBot LLM path (glm-5.3-flash @ quicksilverpro).
+Reuses ClutchBot LLM path (muse-spark-1.3 @ quicksilverpro).
 
 Supports Trio P3 bidirectional tool calls: the agent can invoke
 query-memory during chat proposal to reference recent events.

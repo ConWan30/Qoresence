@@ -455,9 +455,9 @@ class VisualConfig:
     """Visual lobe (VLM) configuration."""
 
     enabled: bool = False
-    # Cloud VLM via Quicksilver (confirm-path default gemini-3.8-flash).
+    # Cloud VLM via Quicksilver (confirm-path default gemini-3.5-flash-lite).
     model_endpoint: str = "https://api.quicksilverpro.io/v1"
-    model_name: str = "gemini-3.8-flash"
+    model_name: str = "gemini-3.5-flash-lite"
     api_key: str | None = None
     frame_sample_rate: int = 30  # analyze every N frames
     max_frame_dim: int = 640
@@ -537,7 +537,7 @@ class ClutchBotConfig:
     # -- LLM via Quicksilver Pro (OpenAI-compatible https://api.quicksilverpro.io/v1)
     llm_enabled: bool = False
     llm_provider: str = "quicksilver"  # quicksilver | openai | anthropic | ollama
-    llm_model: str = "glm-5.3-flash"  # chat/reason agent via Quicksilver Pro
+    llm_model: str = "muse-spark-1.3"  # chat/reason agent via Quicksilver Pro
     llm_base_url: str = "https://api.quicksilverpro.io/v1"
     llm_api_key: str | None = None
     llm_api_key_file: str | None = None  # file containing key (never commit)
@@ -550,7 +550,7 @@ class ClutchBotConfig:
 
 @dataclass(frozen=True)
 class MatchAgentConfig:
-    """Match-observer agent. Default OFF. Quicksilver glm-5.3-flash like ClutchBot."""
+    """Match-observer agent. Default OFF. Quicksilver muse-spark-1.3 like ClutchBot."""
 
     enabled: bool = False
     poll_s: float = 1.0
@@ -1028,7 +1028,7 @@ class RetinaUnifiedConfig:
                 learning_log_path=_str("QORESENCE_CLUTCHBOT_LEARNING_PATH") or None,
                 llm_enabled=_bool("QORESENCE_CLUTCHBOT_LLM_ENABLED", False),
                 llm_provider=_str("QORESENCE_CLUTCHBOT_LLM_PROVIDER", "quicksilver"),
-                llm_model=_str("QORESENCE_CLUTCHBOT_LLM_MODEL", "glm-5.3-flash"),
+                llm_model=_str("QORESENCE_CLUTCHBOT_LLM_MODEL", "muse-spark-1.3"),
                 llm_base_url=_str(
                     "QORESENCE_CLUTCHBOT_LLM_BASE_URL", "https://api.quicksilverpro.io/v1"
                 ),

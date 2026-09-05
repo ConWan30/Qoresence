@@ -122,7 +122,7 @@ Every lobe is **OFF** until you opt in.
 |-------|-------------|
 | **Aperture Glass + Pages** | One chrome for Deck SPA and GitHub Pages. HOLD command bar, theater Watch, 6m45s NCAA 27 demo. Never fake LIVE on the public site ([#125](https://github.com/ConWan30/Qoresence/pull/125)). Public face: [X @Qoresence](https://x.com/Qoresence) |
 | **Ticket-clock + confirm remint** | Coupling ticket licenses heat; confirm ticket + `score_vlm_locked` licenses digits. Same `ticket_id` reused across DAL/Dallas/empty flicker (#116) |
-| **Quicksilver confirm path** | Scoreboard / observation vision is `qwen3.7-flash` on the same Quicksilver API + clutchbot key as ClutchBot chat. Not Gemini. `glm-5.3-flash` is chat-only (JPEG crop is 400 `model_not_found`). JPEG crop in, JSON scorebug out |
+| **Quicksilver confirm path** | Scoreboard / observation vision is `qwen3.7-flash` on the same Quicksilver API + clutchbot key as ClutchBot chat. Not Gemini. `muse-spark-1.3` is chat-only (JPEG crop is 400 `model_not_found`). JPEG crop in, JSON scorebug out |
 | **Ghost Stick** | Default ON under `--play`. DualSense locus on the HDMI frame it belongs to. Same-Seq veto (`docs/GHOST_STICK.md`) |
 | **Empty HID is success** | DualSense stays on the PS5. No laptop HID is not PAD WAIT (TCBS). Bind owns DualSense↔HDMI join |
 | **MatchAgent** | Opt-in observer (`--match-agent` / `QORESENCE_MATCH_AGENT=1` on operator launchers). Fail-closed `last_note` on Clutch Feed. DualSense stays on the PS5 |
@@ -294,7 +294,7 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | `--stem-record` | off | Session mux to `clips/stem_*.mp4` (disk; not a 1.0 gate) |
 | `--controller` | off | DualSense HID + InputRing + IVC. DualSense-on-PS5 emptiness is valid |
 | `--ghost-stick` | on with `--play` | Pad locus on Same-Seq LIVE. `--no-ghost-stick` / `QORESENCE_GHOST_STICK=0` to opt out |
-| `--match-agent` | off | Match observer via Quicksilver glm-5.3-flash. Also `QORESENCE_MATCH_AGENT=1` on `qoresence.bat` |
+| `--match-agent` | off | Match observer via Quicksilver muse-spark-1.3. Also `QORESENCE_MATCH_AGENT=1` on `qoresence.bat` |
 | `--tray` | off | System tray score / sync chip. On by default when you double-click `qoresence.bat` |
 | `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |
 | `--clutchbot` / leftover Twitch flags | off | Deck feed is already on with `--play`. Channel/token flags are leftover IRC/Helix — not the local route |
