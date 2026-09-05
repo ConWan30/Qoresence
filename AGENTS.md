@@ -119,6 +119,9 @@ a lock-ordering / event-cascade deadlock, not the capture card.
 
 ## Product Focus (NON-NEGOTIABLE)
 
+X is the **named public glass** (Live Studio pixels now; Timeline VOD receipts
+future / default-off — see `docs/X_GLASS.md`). Do not claim `--x-glass` ships.
+
 Qoresence is a local-first ops console for gamers. Do not promote Streamr,
 blockchain, DePIN, Twitch, or other off-box distribution as part of the core
 product story. Twitch IRC/Helix in `qoresence/agents/` is a **leftover,
