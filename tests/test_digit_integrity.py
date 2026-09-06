@@ -8,16 +8,16 @@ from qoresence.sync.digit_integrity import (
     freshness_band,
 )
 
-LICENSED = dict(
-    confirm_ticket_id="c-1",
-    score_vlm_locked=True,
-    path="confirm",
-    ticket_crop_hash="crop-a",
-    live_crop_hash="crop-a",
-    same_seq=True,
-    ticket_clock_ns=1_000,
-    live_clock_ns=2_000,
-)
+LICENSED = {
+    "confirm_ticket_id": "c-1",
+    "score_vlm_locked": True,
+    "path": "confirm",
+    "ticket_crop_hash": "crop-a",
+    "live_crop_hash": "crop-a",
+    "same_seq": True,
+    "ticket_clock_ns": 1_000,
+    "live_clock_ns": 2_000,
+}
 
 
 def test_no_ticket_ignores_last_good_scores():
