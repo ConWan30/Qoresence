@@ -1,4 +1,4 @@
-"""Named capture lease. Second open of the same DShow device fails closed."""
+﻿"""Named capture lease. Second open of the same DShow device fails closed."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def acquire_capture_lease(
         if stale_pid and _pid_alive(stale_pid):
             raise CaptureLeaseError(
                 f"capture lease held by pid={stale_pid} owner={existing.get('owner')} device={device}"
-            )
+            ) from None
         _rm_lease_dir(d)
         try:
             d.mkdir()
