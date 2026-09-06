@@ -188,6 +188,7 @@ Twitch leftover stays OFF. This slot is X.
 Canon: [docs/NOVELTY_OBSERVATORY.md](NOVELTY_OBSERVATORY.md). Inverse of Scoreboard OCR last-good. Digits blank unless ConfirmTicket + `score_vlm_locked` + ticket-fresh.
 
 - [x] Null Digit Glass + Ticket Freshness Strip (PR A) — Lens/Deck last-good holes closed; lockbug `data-freshness`
+- [x] SEQGATE v0 frame-license (`docs/SEQGATE.md`) — Same frame or silence; AgentGlass / MCP / overlay fallback
 - [ ] Single-Open Lease + Subscribe-Only Spout (PR B)
 - [ ] Deck Integrity Board + Skew Alarm (PR C) — operator Theater only
 - [ ] Coupling Meter Glass (PR D) — co-occurrence histogram, not eligibility

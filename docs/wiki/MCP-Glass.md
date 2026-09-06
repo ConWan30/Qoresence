@@ -46,7 +46,7 @@ MCP never writes MP4/sidecars. Clip export stays on licensed `POST /api/agent/cl
 | `get_health` | fast liveness (`running`, `seq`, `video{age_s,frames}`, `coupling`) | — |
 | `get_frame` | latest JPEG as `data:image/jpeg;base64,...` from `ClipBuffer` | **10 fps/client** → `429 frame_throttled` |
 | `get_situation` | merged `situation + coupling + last visual_context` | — |
-| `get_observation` | **Witness pack** — plane-tagged title/score/phrase/glass the agent *may* say; unlocked digits and localhost phone URLs stay silent | — |
+| `get_observation` | **Witness pack** — SEQGATE-licensed title/score/phrase/glass the agent *may* say; unlicensed digits are `□–□` / silent; localhost phone URLs stay silent | — |
 | `wrap_observation` | **Research wrap** — last `title_presence` → `qoresence-research`. Grant env required. Refuses `qortroller-truth`. | — |
 | `search_clips` | Foundry RAG: keyword search over `clips/*.coupling.json` (civif-v0) + chapters + buttons + graph + timeline fallback (`query`, `limit` 1..20, `kinds` csv, `coupling_min`, `drive_id`). Pad tokens only if `input.bodied`. | — |
 | `coach_clip` | CIVIF observation coach for a clip stem / `*.coupling.json`. Timing and pattern withheld unless DualSense is bodied on this host. Score digits withheld unless `board_locked`. Read-only. | — |

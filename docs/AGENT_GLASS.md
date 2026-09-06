@@ -88,7 +88,7 @@ Glass D is reused as **N glasses** via `qoresence/mcp` — 11 observation-only t
 | `get_health` | fast liveness (`running`, `seq`, `video{age_s,frames}`, `coupling`) | — |
 | `get_frame` | latest JPEG as `data:image/jpeg;base64,...` from `ClipBuffer` | **10 fps/client** (`429 frame_throttled`) |
 | `get_situation` | merged `situation + coupling + last visual_context` | — |
-| `get_observation` | **Witness pack**: plane-tagged title/score/phrase/glass the agent *may* say; unlocked digits and localhost phone URLs stay silent | — |
+| `get_observation` | **Witness pack**: SEQGATE-licensed title/score/phrase/glass the agent *may* say; unlicensed digits are `□–□` / silent; localhost phone URLs stay silent | — |
 | `wrap_observation` | **Research wrap**: last `title_presence` → `qoresence-research` envelope. Needs `QORESENCE_WRAP_GRANT_ID`. Refuses `qortroller-truth`. | — |
 | `search_clips` | **Foundry RAG**: keyword search over `clips/*.chapters.json` + `*.buttons.json` + DriveGraph summary + `SessionTimeline` fallback; filters `kinds`, `coupling_min`, `drive_id` | — |
 | `get_drive_graph` | **DriveGraph**: `active` or `drive_id` → `phase/climax/match_rate/nodes/why_line` via `DriveGraph.from_events` / `from_timeline_drive` | — |

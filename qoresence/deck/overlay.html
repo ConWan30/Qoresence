@@ -43,7 +43,9 @@ function hasBoard(s){
     ||s.quarter!=null||s.down!=null||s.clock!=null||s.game_clock_seconds!=null
     ||s.kills!=null||s.health!=null||s.win_prob!=null;
 }
-// Same claim ceiling as glass pickBoard — ConfirmTicket + score_vlm_locked + ticket-fresh.
+// SEQGATE v0 — Same frame or silence. ConfirmTicket + score_vlm_locked + ticket-fresh.
+// Unlicensed → □–□. Never last-good freeze.
+const SEQGATE_NULL='□–□';
 function digitsLicensed(s, snap){
   if(!s||typeof s!=='object') return false;
   const lc=(snap&&snap.confirm&&snap.confirm.last_confirm)||s.last_confirm||{};
@@ -114,7 +116,7 @@ function handle(m){
     const conf=s.visual_confidence!=null?(' · '+(Number(s.visual_confidence)*100|0)+'%'):'';
     if(hasBoard(s)){
       const licensed=digitsLicensed(s,snap);
-      const sc=licensed? (s.score_home!=null? (s.score_home+'-'+s.score_away) : (s.home_score!=null? (s.home_score+'-'+s.away_score) : (s.score!=null?String(s.score):''))) : '';
+      const sc=licensed? (s.score_home!=null? (s.score_home+'-'+s.score_away) : (s.home_score!=null? (s.home_score+'-'+s.away_score) : (s.score!=null?String(s.score):SEQGATE_NULL))) : SEQGATE_NULL;
       const q=s.quarter!=null?('Q'+s.quarter):'';
       const down=s.down, dist=s.distance||s.yards_to_go, clock=fmtClock(s), wp=s.win_prob, cl=s.clip_worthiness||0;
       const parts=[]; if(sc!==''&&sc!=='null-null') parts.push(sc); if(q) parts.push(q+(clock?' '+clock:'')); if(down!=null) parts.push(down+' & '+(dist!=null?dist:'')); if(wp!=null) parts.push('WP '+Math.round(wp*100)+'%');
