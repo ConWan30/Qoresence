@@ -1,4 +1,4 @@
-"""Invariant tests for the scoreboard VLM ↔ OCR merge path.
+﻿"""Invariant tests for the scoreboard VLM â†” OCR merge path.
 
 Covers engineering invariants #4 and #5 from the Qoresence briefing:
 
@@ -24,7 +24,7 @@ from qoresence.vision.scoreboard_ocr_engine import OcrBox
 from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
 from tests.scorebug_fixtures import licensed_scorebug_frame
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+# â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def _reset_stabilizer() -> None:
@@ -66,7 +66,7 @@ class _FakeVlm:
 def _blank_frame() -> np.ndarray:
     """Synthetic frame with non-zero variance but no real scoreboard.
 
-    The extractor's blank-frame guard rejects all-black images (std≈0).
+    The extractor's blank-frame guard rejects all-black images (stdâ‰ˆ0).
     These tests need a frame that bypasses the guard so the VLM/OCR merge
     path can be exercised in isolation. A little noise + a gray field does
     the job without containing any OCR text. Confirm mint refuses this crop.
@@ -121,7 +121,7 @@ def _visual_context_event(payload: dict) -> BaseEvent:
     )
 
 
-# ── invariant #4: VLM lock wins over conflicting OCR ─────────────────────────
+# â”€â”€ invariant #4: VLM lock wins over conflicting OCR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def test_vlm_20_0_overrides_ocr_20_20(monkeypatch):
@@ -158,13 +158,13 @@ def test_vlm_lock_persists_when_ocr_keeps_misreading(monkeypatch):
     # VLM locks 20-0
     ctx = ext.extract(_scorebug_frame(), _football_ctx())
     assert (ctx.home_score, ctx.away_score) == (20, 0)
-    # VLM goes stale (same last result); OCR still says 20-20 — must hold 20-0
+    # VLM goes stale (same last result); OCR still says 20-20 â€” must hold 20-0
     for _ in range(5):
         ctx = ext.extract(_scorebug_frame(), _football_ctx())
         assert (ctx.home_score, ctx.away_score) == (20, 0)
 
 
-# ── invariant #5: null VLM does not wipe a good lock ──────────────────────────
+# â”€â”€ invariant #5: null VLM does not wipe a good lock â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def test_null_vlm_holds_prior_lock(monkeypatch):
@@ -181,7 +181,7 @@ def test_null_vlm_holds_prior_lock(monkeypatch):
     ctx = ext.extract(_scorebug_frame(), _football_ctx())
     assert (ctx.home_score, ctx.away_score) == (20, 0)
 
-    # VLM disappears (transition / blur / no key) — get_last returns None
+    # VLM disappears (transition / blur / no key) â€” get_last returns None
     vlm = _FakeVlm(None)
     monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     # OCR also goes flaky (reads nothing useful)
@@ -208,7 +208,7 @@ def test_partial_vlm_does_not_wipe_lock(monkeypatch):
     ctx = ext.extract(_scorebug_frame(), _football_ctx())
     assert (ctx.home_score, ctx.away_score) == (20, 0)
 
-    # VLM partial: away is None → vlm_has_board False → scores not merged
+    # VLM partial: away is None â†’ vlm_has_board False â†’ scores not merged
     vlm = _FakeVlm({"home_score": 20, "away_score": None, "quarter": 3})
     monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     monkeypatch.setattr(
@@ -220,11 +220,11 @@ def test_partial_vlm_does_not_wipe_lock(monkeypatch):
     assert ctx.score_vlm_locked is False
 
 
-# ── SituationModel downstream gate ────────────────────────────────────────────
+# â”€â”€ SituationModel downstream gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def test_situation_model_accepts_vlm_correction():
-    """VLM corrects 20-20 → 20-0; SituationModel must accept (invariant #4)."""
+    """VLM corrects 20-20 â†’ 20-0; SituationModel must accept (invariant #4)."""
     sm = SituationModel()
     # Bad OCR lock: 20-20 accepted on first sight (prev=None)
     sm.update(
@@ -262,7 +262,7 @@ def test_situation_model_accepts_vlm_correction():
 
 
 def test_situation_model_still_rejects_ocr_drop_without_vlm():
-    """Without VLM flag, a flaky OCR drop 17-17 → 17-2 must still be rejected."""
+    """Without VLM flag, a flaky OCR drop 17-17 â†’ 17-2 must still be rejected."""
     sm = SituationModel()
     sm.update(
         _visual_context_event(
@@ -276,7 +276,7 @@ def test_situation_model_still_rejects_ocr_drop_without_vlm():
     )
     assert (sm.state.home_score, sm.state.away_score) == (17, 17)
 
-    # Flaky OCR: away drops 17 → 2 (no VLM flag) — must be rejected
+    # Flaky OCR: away drops 17 â†’ 2 (no VLM flag) â€” must be rejected
     sm.update(
         _visual_context_event(
             {
@@ -290,11 +290,11 @@ def test_situation_model_still_rejects_ocr_drop_without_vlm():
     assert sm.state.away_score == 17  # held, not wiped to 2
 
 
-# ── to_dict / from_dict round-trip (production bus path) ──────────────────────
+# â”€â”€ to_dict / from_dict round-trip (production bus path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def test_score_vlm_locked_round_trips_through_dict():
-    """The flag must survive to_dict → from_dict (bus serialization path)."""
+    """The flag must survive to_dict â†’ from_dict (bus serialization path)."""
     ctx = VisualContext(
         game_category=GameCategory.FOOTBALL,
         game_state=GameState.GAMEPLAY,
@@ -324,7 +324,7 @@ def test_score_vlm_locked_defaults_false_in_round_trip():
     assert rt.score_vlm_locked is False
 
 
-# ── VLM-only path (no OCR — the default production config) ────────────────────
+# â”€â”€ VLM-only path (no OCR â€” the default production config) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def test_vlm_only_merge_without_ocr(monkeypatch):
@@ -345,13 +345,13 @@ def test_vlm_only_merge_without_ocr(monkeypatch):
     monkeypatch.setattr("qoresence.vision.scoreboard_vlm.get_scoreboard_vlm", lambda: vlm)
     ext = FootballScoreboardExtractor()
     ctx = ext.extract(_blank_frame(), _football_ctx())
-    # VLM-only on an empty HUD invented 3-2 this morning. No local board → no lock.
+    # VLM-only on an empty HUD invented 3-2 this morning. No local board â†’ no lock.
     assert ctx.score_vlm_locked is False
     assert ctx.home_score is None
     assert ctx.away_score is None
 
 
-# ── Orientation: home team on the left ────────────────────────────────────────
+# â”€â”€ Orientation: home team on the left â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def test_ocr_home_left_override(monkeypatch):
@@ -411,7 +411,7 @@ def test_ready_paddle_does_not_run_on_live_tick(monkeypatch):
 
 
 def test_ready_paddle_reads_madden_mnp_when_ocr_opted_in(monkeypatch):
-    """NO 21 / CLE 7 — heavy OCR only when explicitly opted in."""
+    """NO 21 / CLE 7 â€” heavy OCR only when explicitly opted in."""
     _reset_stabilizer()
     monkeypatch.setenv("QORESENCE_EASY_OCR", "1")
     boxes = [
@@ -444,7 +444,7 @@ def test_ready_paddle_reads_madden_mnp_when_ocr_opted_in(monkeypatch):
     assert out.score_vlm_locked is False
 
 
-# ── fail-closed: lock requires ConfirmTicket ──────────────────────────────────
+# â”€â”€ fail-closed: lock requires ConfirmTicket â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def test_situation_model_refuses_lock_without_confirm_ticket():
@@ -519,7 +519,9 @@ def test_deck_html_fmt_gates_unlocked_digits():
     html = (Path(__file__).resolve().parents[1] / "qoresence" / "deck" / "deck.html").read_text(
         encoding="utf-8"
     )
-    assert "score_vlm_locked||s.scoreboard_locked||s.confirm_ticket_id" in html
+    assert "score_vlm_locked===true" in html
+    assert "confirm_ticket_id" in html
+    # Fail-closed AND gate (VLM lock + confirm ticket), not legacy OR.
     assert "locked&&s.home_score!=null" in html.replace(" ", "")
 
 
@@ -556,7 +558,7 @@ def test_identity_hysteresis_adopt_on_new_licensed_lock():
     a new confirm_ticket_id and incompatible team identity, the SituationModel
     must adopt the new identity instead of retaining the old one.
     
-    Scenario: MEM/COLO 21-17 locked → incoming IND/DET 0-0 Q1 with new ticket
+    Scenario: MEM/COLO 21-17 locked â†’ incoming IND/DET 0-0 Q1 with new ticket
     Expected: situation wordmarks become IND/DET, not leftover MEM/COLO.
     """
     sm = SituationModel()

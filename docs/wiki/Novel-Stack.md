@@ -46,7 +46,7 @@ True ring-buffer MP4 from capture path + optional `*.buttons.json` with `frame_s
 
 ## 5b. SEQGATE — Same frame or silence
 
-Named fail-closed frame-license (`docs/SEQGATE.md`). Agent mouths and Lens digits speak only under Bind + ConfirmTicket + lock + fresh + Same-Seq. Else HOLD / `□–□`. Not Ident Latch (#145).
+Named fail-closed frame-license (`docs/SEQGATE.md`). Agent mouths and Lens digits speak only under Bind + ConfirmTicket + lock + fresh + Same-Seq. Else HOLD / `□–□`. Not Ident Latch (#145). Memory is a third glass on the same clock (`docs/SEQGATE-Memory-Wiring.md`): unstamped writes refuse; stale memory cannot license digits.
 
 ## 6. Causal bus contract
 

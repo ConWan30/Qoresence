@@ -234,3 +234,154 @@ def gate_from_situation(situation: dict[str, Any] | None = None) -> dict[str, An
         home_score=sit.get("home_score", sit.get("score_home")),
         away_score=sit.get("away_score", sit.get("score_away")),
     )
+
+
+SEQGATE_STATES = frozenset({"licensed", "hold"})
+
+
+def _refuse_write(reason: str) -> dict[str, Any]:
+    return {"accepted": False, "refuse": reason, "stamp": None, "entry": None}
+
+
+def _stamp_int(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def accept_memory_write(entry: dict[str, Any] | None) -> dict[str, Any]:
+    """Refuse unstamped session-brain / Qoremem writes. Fail closed.
+
+    Required: clock_ns, frame_seq, crop_hash (key present; empty string allowed),
+    path=fast|confirm, seqgate=licensed|hold, reason. ticket_id when licensed.
+    """
+    if not isinstance(entry, dict):
+        return _refuse_write("unstamped")
+    src = entry["stamp"] if isinstance(entry.get("stamp"), dict) else entry
+    if "clock_ns" not in src or src.get("clock_ns") is None:
+        return _refuse_write("unstamped")
+    if "frame_seq" not in src or src.get("frame_seq") is None:
+        return _refuse_write("unstamped")
+    if "crop_hash" not in src or src.get("crop_hash") is None:
+        return _refuse_write("unstamped")
+    path = str(src.get("path") or "").lower()
+    if path not in PATHS:
+        return _refuse_write("unstamped")
+    state = str(src.get("seqgate") or "").lower()
+    if state not in SEQGATE_STATES:
+        return _refuse_write("unstamped")
+    reason = str(src.get("reason") or "").strip()
+    if not reason:
+        return _refuse_write("unstamped")
+    clock_ns = _stamp_int(src.get("clock_ns"))
+    frame_seq = _stamp_int(src.get("frame_seq"))
+    if clock_ns is None or frame_seq is None:
+        return _refuse_write("unstamped")
+    if path == "fast" and state == "licensed":
+        return _refuse_write("path_fast")
+    ticket_id = str(src.get("ticket_id") or src.get("confirm_ticket_id") or "").strip()
+    if state == "licensed" and not ticket_id:
+        return _refuse_write("missing_ticket")
+    stamp: dict[str, Any] = {
+        "clock_ns": clock_ns,
+        "frame_seq": frame_seq,
+        "crop_hash": str(src.get("crop_hash")),
+        "path": path,
+        "seqgate": state,
+        "reason": reason,
+        "plane": PLANE,
+    }
+    if ticket_id:
+        stamp["ticket_id"] = ticket_id
+    out = dict(entry)
+    out.update(stamp)
+    return {"accepted": True, "refuse": None, "stamp": stamp, "entry": out}
+
+
+def license_memory_speech(
+    entry: dict[str, Any] | None,
+    *,
+    live_clock_ns: int = 0,
+    live_frame_seq: int | None = None,
+    live_crop_hash: str = "",
+    score_vlm_locked: bool = False,
+    home_score: Any = None,
+    away_score: Any = None,
+) -> dict[str, Any]:
+    """Hard claims from memory only if SEQGATE still licenses that frame_seq.
+
+    Never treats a historical seqgate=licensed as live speech. Stale → □–□.
+    """
+    try:
+        live_seq = int(live_frame_seq) if live_frame_seq is not None else None
+    except (TypeError, ValueError):
+        live_seq = None
+    checked = accept_memory_write(entry)
+    if not checked["accepted"]:
+        refuse = str(checked.get("refuse") or "unstamped")
+        return {
+            "licensed": False,
+            "reason": refuse,
+            "speech": NULL_DIGIT,
+            "layer": "ticket" if refuse == "path_fast" else "abstain",
+            "bind": bind(
+                clock_ns=int(live_clock_ns or 0),
+                frame_seq=live_seq,
+                path="confirm",
+                kind="veto" if refuse == "path_fast" else "hold",
+            ),
+        }
+    stamp = checked["stamp"] or {}
+    src = entry if isinstance(entry, dict) else {}
+    path = str(stamp.get("path") or "confirm")
+    hs = src.get("home_score") if home_score is None else home_score
+    aws = src.get("away_score") if away_score is None else away_score
+    if stamp.get("seqgate") == "hold" or path == "fast":
+        reason = str(stamp.get("reason") or ("path_fast" if path == "fast" else "hold"))
+        return {
+            "licensed": False,
+            "reason": reason,
+            "speech": NULL_DIGIT,
+            "layer": _REASON_LAYER.get(reason, "abstain"),
+            "bind": bind(
+                clock_ns=int(live_clock_ns or 0),
+                frame_seq=live_seq,
+                path=path,
+                kind="veto" if path == "fast" or reason == "path_fast" else "hold",
+            ),
+        }
+    mem_seq = stamp.get("frame_seq")
+    same = False
+    try:
+        if mem_seq is not None and live_seq is not None:
+            same = int(mem_seq) == int(live_seq)
+    except (TypeError, ValueError):
+        same = False
+    locked = bool(score_vlm_locked) or bool(src.get("score_vlm_locked"))
+    return license_digits(
+        confirm_ticket_id=str(stamp.get("ticket_id") or ""),
+        score_vlm_locked=locked,
+        path=path,
+        ticket_crop_hash=str(stamp.get("crop_hash") or ""),
+        live_crop_hash=str(live_crop_hash or ""),
+        same_seq=same,
+        ticket_clock_ns=int(stamp.get("clock_ns") or 0),
+        live_clock_ns=int(live_clock_ns or 0),
+        frame_seq=live_seq,
+        home_score=hs,
+        away_score=aws,
+    )
+
+
+def memory_same_seq(entry: dict[str, Any] | None, live_frame_seq: Any) -> bool:
+    """True only when memory.frame_seq equals the live FrameHub seq."""
+    if not isinstance(entry, dict) or live_frame_seq is None:
+        return False
+    mem_seq = entry.get("frame_seq")
+    try:
+        return mem_seq is not None and int(mem_seq) == int(live_frame_seq)
+    except (TypeError, ValueError):
+        return False

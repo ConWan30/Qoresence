@@ -197,7 +197,6 @@ class TestMomentScorer:
         )
         assert any(m.action == "clip" for m in moments)
 
-
     def test_q2_score_delta_clips_even_when_not_clutch_weight(self):
         scorer = MomentScorer()
         state = SituationState(
@@ -222,7 +221,6 @@ class TestMomentScorer:
             features={"chat", "clip"},
         )
         assert any(m.triggered and m.action == "clip" for m in moments)
-
 
     def test_first_lock_0_0_does_not_clip(self):
         scorer = MomentScorer()
@@ -315,12 +313,23 @@ class TestSessionMemory:
                 reason="test",
                 cooldown_key="test",
             )
-            memory.record(moment, model, [{"backend": "mock", "success": True}])
+            stamp = {
+                "clock_ns": 2_000,
+                "frame_seq": 42,
+                "crop_hash": "crop-a",
+                "path": "confirm",
+                "seqgate": "licensed",
+                "reason": "licensed",
+                "ticket_id": "c-1",
+            }
+            memory.record(moment, model, [{"backend": "mock", "success": True}], stamp=stamp)
 
             lines = path.read_text(encoding="utf-8").strip().splitlines()
             assert len(lines) == 1
             entry = json.loads(lines[0])
             assert entry["moment"]["message"] == "hello"
+            assert entry["seqgate"] == "licensed"
+            assert entry["frame_seq"] == 42
 
 
 class TestClutchBotAgent:

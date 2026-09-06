@@ -51,6 +51,7 @@ seqgate:
     agent_glass: snapshot.seqgate + stripped unlicensed scores
     overlay: qoresence/deck/overlay.html SEQGATE_NULL
     mcp: get_observation / build_observation seqgate receipt
+    memory: SessionMemory / Qoremem stamp; third glass — docs/SEQGATE-Memory-Wiring.md
   operator_meter:
     health: /health seqgate + digit_integrity
     integrity_board: HOLD — empty tiles; do not invent UI chrome this PR
@@ -92,5 +93,5 @@ Unlicensed scores are stripped from AgentGlass `situation` so a raw snapshot can
 ## Verify
 
 ```powershell
-python -m pytest tests/test_seqgate.py tests/test_digit_integrity.py tests/test_overlay_digit_gate.py tests/test_mcp.py tests/test_agent_glass.py tests/test_capture_lease.py -q
+python -m pytest tests/test_seqgate.py tests/test_seqgate_memory.py tests/test_digit_integrity.py tests/test_overlay_digit_gate.py tests/test_mcp.py tests/test_agent_glass.py tests/test_capture_lease.py -q
 ```

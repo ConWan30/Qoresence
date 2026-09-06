@@ -7,7 +7,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from qoresence.sync.seqgate import gate_from_situation, public_receipt, vocab_veto
+from qoresence.sync.seqgate import (
+    gate_from_situation,
+    license_memory_speech,
+    memory_same_seq,
+    public_receipt,
+    vocab_veto,
+)
 
 PLANE = "qoresence-observation"
 
@@ -54,6 +60,7 @@ def build_observation(
     clock_ns: int | None = None,
     seq: int | None = None,
     control: dict[str, Any] | None = None,
+    memory: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     sit = situation if isinstance(situation, dict) else {}
     vid = video if isinstance(video, dict) else {}
@@ -87,7 +94,25 @@ def build_observation(
         sit_gate["frame_seq"] = coup.get("frame_seq") or vid.get("seq") or seq
     if not sit_gate.get("clock_ns") and clock_ns is not None:
         sit_gate["clock_ns"] = clock_ns
+    if memory is None and isinstance(sit.get("memory"), dict):
+        memory = sit.get("memory")
     gate = gate_from_situation(sit_gate)
+    memory_receipt: dict[str, Any] | None = None
+    if memory is not None:
+        mem_gate = license_memory_speech(
+            memory,
+            live_clock_ns=int(sit_gate.get("clock_ns") or clock_ns or 0),
+            live_frame_seq=sit_gate.get("frame_seq"),
+            live_crop_hash=str(sit_gate.get("crop_hash") or ""),
+            score_vlm_locked=bool(sit_gate.get("score_vlm_locked")),
+            home_score=hs,
+            away_score=aws,
+        )
+        memory_receipt = public_receipt(mem_gate)
+        if not mem_gate.get("licensed") and not memory_same_seq(memory, sit_gate.get("frame_seq")):
+            sit_gate["same_seq"] = False
+            gate = gate_from_situation(sit_gate)
+            hs, aws = None, None
     seqgate = public_receipt(gate)
     if gate.get("licensed") and hs is not None and aws is not None:
         score = {"claim": True, "home": hs, "away": aws}
@@ -169,9 +194,7 @@ def build_observation(
             "labeled": bool(verb),
         }
         if verb and mode:
-            allowed.append(
-                f"pad label {hid_button} = {verb} (sheet {mode})"
-            )
+            allowed.append(f"pad label {hid_button} = {verb} (sheet {mode})")
         else:
             silence.append("control_unlabeled")
     else:
@@ -188,7 +211,7 @@ def build_observation(
         silence.append("no_control_edge")
 
     allowed = [line for line in allowed if vocab_veto(line) is None]
-    return {
+    out: dict[str, Any] = {
         "ok": True,
         "plane": PLANE,
         "claim_ceiling": "observation_only",
@@ -208,3 +231,6 @@ def build_observation(
         "may_say": allowed,
         "must_not_invent": silence,
     }
+    if memory_receipt is not None:
+        out["memory"] = memory_receipt
+    return out

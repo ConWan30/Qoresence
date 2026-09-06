@@ -220,7 +220,7 @@ Never open capture. Never block.
 
 **Job:** One localhost query surface over Theater recap, DriveGraph / SessionTimeline, Foundry, CIVIF, pilot closeout. Read-only. No invented persist. No second identity scheme. Prefer existing envelopes. MCP expansion forbidden until operator GO after Qoreeval signal.
 
-**Against `main`:** Surfaces exist separately (`/api/session/view`, `/api/session/recap`, `/api/timeline`, Foundry search). Unifier is **not** shipped as one API.
+**Against `main`:** Surfaces exist separately (`/api/session/view`, `/api/session/recap`, `/api/timeline`, Foundry search). Unifier is **not** shipped as one API. SEQGATE × Memory v0 stamps session-brain writes and refuses stale-as-live speech (`docs/SEQGATE-Memory-Wiring.md`). SKU stubs are export shapes only.
 
 **Novel purpose:** Licensed recall: “what just happened, show me, what can we say?”
 
