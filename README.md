@@ -138,7 +138,7 @@ Every lobe is **OFF** until you opt in.
 | **MCP universal glass** | 12 tools including fail-closed `get_observation` and grant-gated `wrap_observation` (`qoresence-research` only) |
 | **Foundry RAG** | `search_clips` / `get_drive_graph` searchable session memory — software-only, no capture card |
 
-Docs for each: [SESSION_THEATER](docs/SESSION_THEATER.md) · [CIVIF](docs/CIVIF.md) · [GHOST_STICK](docs/GHOST_STICK.md) · [TWO_SPEED_CLUTCHBOT](docs/TWO_SPEED_CLUTCHBOT.md) · [PLAY_PHRASE_COUPLING_TICKET](docs/PLAY_PHRASE_COUPLING_TICKET.md) · [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [X_LIVE_STUDIO](docs/X_LIVE_STUDIO.md) · [X_GLASS](docs/X_GLASS.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [OTEL](docs/OTEL.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md)
+Docs for each: [SESSION_THEATER](docs/SESSION_THEATER.md) · [CIVIF](docs/CIVIF.md) · [GHOST_STICK](docs/GHOST_STICK.md) · [TWO_SPEED_CLUTCHBOT](docs/TWO_SPEED_CLUTCHBOT.md) · [PLAY_PHRASE_COUPLING_TICKET](docs/PLAY_PHRASE_COUPLING_TICKET.md) · [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [X_LIVE_STUDIO](docs/X_LIVE_STUDIO.md) · [X_GLASS](docs/X_GLASS.md) · [SEQGATE](docs/SEQGATE.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [OTEL](docs/OTEL.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md)
 
 ---
 
@@ -355,6 +355,7 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Extended capture operator detail |
 | [docs/X_LIVE_STUDIO.md](docs/X_LIVE_STUDIO.md) | Audience live to X via OBS Custom RTMP (not a Qoresence encoder) |
 | [docs/X_GLASS.md](docs/X_GLASS.md) | Live 0.9.0 product face — default-off X Glass (not shipped); VOD receipts = future X API |
+| [docs/SEQGATE.md](docs/SEQGATE.md) | Frame-license: Same frame or silence. ConfirmTicket + lock + fresh or `□–□` |
 | [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md) | CFB pilot runbook + notes |
 | [docs/PILOT_MONITOR.md](docs/PILOT_MONITOR.md) | P0 evidence recorder while you play |
 | [docs/NFL_ROSTER.md](docs/NFL_ROSTER.md) | Madden 27 local NFL team/player names (nflverse) |

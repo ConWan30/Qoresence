@@ -169,9 +169,7 @@ def build_observation(
             "labeled": bool(verb),
         }
         if verb and mode:
-            allowed.append(
-                f"pad label {hid_button} = {verb} (sheet {mode})"
-            )
+            allowed.append(f"pad label {hid_button} = {verb} (sheet {mode})")
         else:
             silence.append("control_unlabeled")
     else:
