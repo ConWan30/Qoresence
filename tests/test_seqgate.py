@@ -4,19 +4,19 @@ from __future__ import annotations
 
 from qoresence.sync.digit_integrity import CONFIRM_DIGIT_MAX_AGE_NS
 
-LICENSED = dict(
-    confirm_ticket_id="c-1",
-    score_vlm_locked=True,
-    path="confirm",
-    ticket_crop_hash="crop-a",
-    live_crop_hash="crop-a",
-    same_seq=True,
-    ticket_clock_ns=1_000,
-    live_clock_ns=2_000,
-    frame_seq=42,
-    home_score=14,
-    away_score=10,
-)
+LICENSED = {
+    "confirm_ticket_id": "c-1",
+    "score_vlm_locked": True,
+    "path": "confirm",
+    "ticket_crop_hash": "crop-a",
+    "live_crop_hash": "crop-a",
+    "same_seq": True,
+    "ticket_clock_ns": 1_000,
+    "live_clock_ns": 2_000,
+    "frame_seq": 42,
+    "home_score": 14,
+    "away_score": 10,
+}
 
 
 def test_lock_pass_speaks_digits():

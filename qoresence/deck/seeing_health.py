@@ -32,9 +32,10 @@ def attach_board_health(out: dict[str, Any], situation: Any) -> dict[str, Any]:
     live_crop = str(sit_bag.get("crop_hash") or "")
     path = str(sit_bag.get("path") or "")
     same = sit_bag.get("same_seq")
-    abstain = str(sit_bag.get("vlm_status") or "").startswith("http_") or str(
-        sit_bag.get("last_reason") or ""
-    ) == "abstain"
+    abstain = (
+        str(sit_bag.get("vlm_status") or "").startswith("http_")
+        or str(sit_bag.get("last_reason") or "") == "abstain"
+    )
     try:
         from qoresence.sync.digit_integrity import digit_void_reason, freshness_band
 
