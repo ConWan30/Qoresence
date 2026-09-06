@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from qoresence.sync.seqgate import gate_from_situation, public_receipt, vocab_veto
+
 PLANE = "qoresence-observation"
 
 
@@ -77,13 +79,24 @@ def build_observation(
         elif not title_locked:
             silence.append("title_not_locked")
 
-    score_locked = bool(sit.get("score_vlm_locked") or sit.get("scoreboard_locked"))
     hs, aws = _num(sit.get("home_score")), _num(sit.get("away_score"))
-    if score_locked and hs is not None and aws is not None:
+    sit_gate = dict(sit)
+    if not sit_gate.get("crop_hash") and vid.get("crop_hash"):
+        sit_gate["crop_hash"] = vid.get("crop_hash")
+    if sit_gate.get("frame_seq") is None:
+        sit_gate["frame_seq"] = coup.get("frame_seq") or vid.get("seq") or seq
+    if not sit_gate.get("clock_ns") and clock_ns is not None:
+        sit_gate["clock_ns"] = clock_ns
+    gate = gate_from_situation(sit_gate)
+    seqgate = public_receipt(gate)
+    if gate.get("licensed") and hs is not None and aws is not None:
         score = {"claim": True, "home": hs, "away": aws}
     else:
         score = {"claim": False, "home": None, "away": None}
         silence.append("score_not_locked")
+        reason = str(gate.get("reason") or "")
+        if reason and reason not in {"licensed", "score_not_locked"}:
+            silence.append(reason)
 
     phrase = coup.get("phrase") or sit.get("phrase")
     coupling_v = coup.get("coupling")
@@ -174,6 +187,7 @@ def build_observation(
         }
         silence.append("no_control_edge")
 
+    allowed = [line for line in allowed if vocab_veto(line) is None]
     return {
         "ok": True,
         "plane": PLANE,
@@ -190,6 +204,7 @@ def build_observation(
         "glass": glass_out,
         "clock_ns": clock_ns,
         "seq": seq,
+        "seqgate": seqgate,
         "may_say": allowed,
         "must_not_invent": silence,
     }

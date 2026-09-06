@@ -809,8 +809,8 @@ TOOL_DEFS = [
     {
         "name": "get_observation",
         "description": (
-            "Fail-closed witness pack: plane-tagged title/score/phrase/glass the agent MAY say. "
-            "Unlocked scores and localhost glass URLs are silenced. Call this before speaking."
+            "Fail-closed SEQGATE witness pack: plane-tagged title/score/phrase/glass the agent MAY say. "
+            "Unlicensed scores are □–□ / silent. Localhost glass URLs are silenced. Call this before speaking."
         ),
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },

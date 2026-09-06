@@ -25,25 +25,53 @@ def attach_board_health(out: dict[str, Any], situation: Any) -> dict[str, Any]:
         pass
     out["score_vlm_locked"] = locked
     out["has_confirm_ticket"] = has_ticket
+    t_clock = int(sit_bag.get("confirm_clock_ns") or 0)
+    l_clock = int(sit_bag.get("updated_ns") or sit_bag.get("clock_ns") or 0)
+    ticket_id = str(sit_bag.get("confirm_ticket_id") or "") if has_ticket else ""
+    ticket_crop = str(sit_bag.get("ticket_crop_hash") or sit_bag.get("crop_hash") or "")
+    live_crop = str(sit_bag.get("crop_hash") or "")
+    path = str(sit_bag.get("path") or "")
+    same = sit_bag.get("same_seq")
+    abstain = str(sit_bag.get("vlm_status") or "").startswith("http_") or str(
+        sit_bag.get("last_reason") or ""
+    ) == "abstain"
     try:
         from qoresence.sync.digit_integrity import digit_void_reason, freshness_band
 
         reason = digit_void_reason(
             confirm_ticket_id=str(sit_bag.get("confirm_ticket_id") or ""),
             score_vlm_locked=locked,
-            path=str(sit_bag.get("path") or ""),
-            ticket_crop_hash=str(sit_bag.get("ticket_crop_hash") or sit_bag.get("crop_hash") or ""),
-            live_crop_hash=str(sit_bag.get("crop_hash") or ""),
-            same_seq=sit_bag.get("same_seq"),
-            ticket_clock_ns=int(sit_bag.get("confirm_clock_ns") or 0),
-            live_clock_ns=int(sit_bag.get("updated_ns") or sit_bag.get("clock_ns") or 0),
-            vlm_abstain=str(sit_bag.get("vlm_status") or "").startswith("http_")
-            or str(sit_bag.get("last_reason") or "") == "abstain",
+            path=path,
+            ticket_crop_hash=ticket_crop,
+            live_crop_hash=live_crop,
+            same_seq=same,
+            ticket_clock_ns=t_clock,
+            live_clock_ns=l_clock,
+            vlm_abstain=abstain,
         )
-        t_clock = int(sit_bag.get("confirm_clock_ns") or 0)
-        l_clock = int(sit_bag.get("updated_ns") or sit_bag.get("clock_ns") or 0)
         age = max(0, l_clock - t_clock) if t_clock and l_clock else 0
         out["digit_integrity"] = {"reason": reason, "band": freshness_band(age)}
+    except Exception:
+        pass
+    try:
+        from qoresence.sync.seqgate import license_digits, public_receipt
+
+        out["seqgate"] = public_receipt(
+            license_digits(
+                confirm_ticket_id=ticket_id,
+                score_vlm_locked=locked,
+                path=path,
+                ticket_crop_hash=ticket_crop,
+                live_crop_hash=live_crop,
+                same_seq=same if isinstance(same, bool) or same is None else bool(same),
+                ticket_clock_ns=t_clock,
+                live_clock_ns=l_clock,
+                vlm_abstain=abstain,
+                frame_seq=sit_bag.get("frame_seq"),
+                home_score=sit_bag.get("home_score"),
+                away_score=sit_bag.get("away_score"),
+            )
+        )
     except Exception:
         pass
     try:

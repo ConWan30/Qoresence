@@ -111,9 +111,30 @@ class AgentGlass:
         situation: dict[str, Any] = {}
         if self._situation_provider:
             try:
-                situation = self._situation_provider() or {}
+                raw = self._situation_provider() or {}
+                situation = dict(raw) if isinstance(raw, dict) else {}
             except Exception:
                 situation = {}
+        seqgate: dict[str, Any] | None = None
+        try:
+            from qoresence.sync.seqgate import (
+                apply_to_situation,
+                gate_from_situation,
+                public_receipt,
+            )
+
+            sit_gate = dict(situation)
+            if not sit_gate.get("crop_hash") and video.get("crop_hash"):
+                sit_gate["crop_hash"] = video.get("crop_hash")
+            if sit_gate.get("frame_seq") is None:
+                sit_gate["frame_seq"] = coupling.get("frame_seq") or video.get("seq")
+            if not sit_gate.get("clock_ns"):
+                sit_gate["clock_ns"] = time.monotonic_ns()
+            gate = gate_from_situation(sit_gate)
+            situation = apply_to_situation(situation, gate)
+            seqgate = public_receipt(gate)
+        except Exception:
+            seqgate = None
         bus_stats: dict[str, Any] = {}
         if self.bus is not None and hasattr(self.bus, "stats"):
             try:
@@ -129,7 +150,7 @@ class AgentGlass:
         elif self.bus is not None:
             session = {"session_id": getattr(self.bus, "session_id", "")}
         uptime_s = (time.monotonic_ns() - self._start_ns) / 1e9 if self._start_ns else 0.0
-        return {
+        out: dict[str, Any] = {
             "ok": True,
             "enabled": True,
             "session": session,
@@ -143,6 +164,9 @@ class AgentGlass:
             "uptime_s": round(uptime_s, 1),
             "clock_ns": time.monotonic_ns(),
         }
+        if seqgate is not None:
+            out["seqgate"] = seqgate
+        return out
 
     def get_events(
         self, *, since: int = 0, types: list[str] | None = None, limit: int = 100

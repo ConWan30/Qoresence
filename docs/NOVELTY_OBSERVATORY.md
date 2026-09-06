@@ -233,6 +233,7 @@ Ranking axes (higher = better fit): **(1) lag/freeze↓ (2) honest scorebug (3) 
 
 ## Suggested first shipping slice (concrete, not vapor)
 
+0. **SEQGATE v0** — named frame-license harness over Null Digit + ticket-fresh + capture lease. See [SEQGATE.md](SEQGATE.md). Ident Latch (#145) stays HOLD. Integrity Board tiles stay empty (HOLD note).
 1. **Null Digit Glass + Ticket Freshness Strip** (honest scorebug law visible on program)  
 2. **Single-Open Lease + Subscribe-Only Spout Contract** (lag/freeze↓ + dual-open death)  
 3. **Deck Integrity Board + Skew Alarm** (operator delight without score bumping)  

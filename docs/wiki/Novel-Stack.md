@@ -44,6 +44,10 @@ Default lag 20–120 ms; legacy Pattern A VCam often needs ~200 ms hi (`QORESENC
 
 True ring-buffer MP4 from capture path + optional `*.buttons.json` with `frame_seq` on edges. Deck plays clips locally.
 
+## 5b. SEQGATE — Same frame or silence
+
+Named fail-closed frame-license (`docs/SEQGATE.md`). Agent mouths and Lens digits speak only under Bind + ConfirmTicket + lock + fresh + Same-Seq. Else HOLD / `□–□`. Not Ident Latch (#145).
+
 ## 6. Causal bus contract
 
 Every event: `session_id`, `clock_ns` (monotonic), `source_lobe`, typed payload.  

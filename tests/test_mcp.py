@@ -308,10 +308,20 @@ def test_observation_pack_licenses_locked_board_and_lan_glass():
             "home_score": 14,
             "away_score": 10,
             "score_vlm_locked": True,
+            "confirm_ticket_id": "c-1",
+            "path": "confirm",
+            "ticket_crop_hash": "crop-a",
+            "crop_hash": "crop-a",
+            "same_seq": True,
+            "confirm_clock_ns": 1_000,
+            "clock_ns": 2_000,
+            "frame_seq": 12,
         },
         video={"has_frame": True},
         coupling={"phrase": "SNAP", "coupling": 0.6, "frame_seq": 12},
         glass_link={"url": "http://192.168.1.9:8765/mobile.html", "lan": True},
+        clock_ns=2_000,
+        seq=12,
     )
     assert pack["score"] == {"claim": True, "home": 14, "away": 10}
     assert pack["title"]["profile"] == "madden_27"
