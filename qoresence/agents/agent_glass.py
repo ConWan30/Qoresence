@@ -89,7 +89,7 @@ class AgentGlass:
         except Exception as e:
             log.debug("AgentGlass _on_event error: %s", e)
 
-    def snapshot(self) -> dict[str, Any]:
+    def snapshot(self, memory_entry: dict[str, Any] | None = None) -> dict[str, Any]:
         with self._lock:
             seq = self._seq
             events_count = len(self._events)
@@ -116,10 +116,13 @@ class AgentGlass:
             except Exception:
                 situation = {}
         seqgate: dict[str, Any] | None = None
+        memory_receipt: dict[str, Any] | None = None
         try:
             from qoresence.sync.seqgate import (
                 apply_to_situation,
                 gate_from_situation,
+                license_memory_speech,
+                memory_same_seq,
                 public_receipt,
             )
 
@@ -130,11 +133,30 @@ class AgentGlass:
                 sit_gate["frame_seq"] = coupling.get("frame_seq") or video.get("seq")
             if not sit_gate.get("clock_ns"):
                 sit_gate["clock_ns"] = time.monotonic_ns()
+            if memory_entry is None and isinstance(situation.get("memory"), dict):
+                memory_entry = situation.get("memory")
             gate = gate_from_situation(sit_gate)
+            if memory_entry is not None:
+                mem_gate = license_memory_speech(
+                    memory_entry,
+                    live_clock_ns=int(sit_gate.get("clock_ns") or 0),
+                    live_frame_seq=sit_gate.get("frame_seq"),
+                    live_crop_hash=str(sit_gate.get("crop_hash") or ""),
+                    score_vlm_locked=bool(sit_gate.get("score_vlm_locked")),
+                    home_score=situation.get("home_score"),
+                    away_score=situation.get("away_score"),
+                )
+                memory_receipt = public_receipt(mem_gate)
+                if not mem_gate.get("licensed") and not memory_same_seq(
+                    memory_entry, sit_gate.get("frame_seq")
+                ):
+                    sit_gate["same_seq"] = False
+                    gate = gate_from_situation(sit_gate)
             situation = apply_to_situation(situation, gate)
             seqgate = public_receipt(gate)
         except Exception:
             seqgate = None
+            memory_receipt = None
         bus_stats: dict[str, Any] = {}
         if self.bus is not None and hasattr(self.bus, "stats"):
             try:
@@ -166,6 +188,8 @@ class AgentGlass:
         }
         if seqgate is not None:
             out["seqgate"] = seqgate
+        if memory_receipt is not None:
+            out["memory"] = memory_receipt
         return out
 
     def get_events(

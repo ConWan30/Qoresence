@@ -251,7 +251,9 @@ class ClutchBotAgent:
         try:
             cval = float((coupling or {}).get("coupling") or 0.0)
             self._pred_life.tick(
-                coupling=cval, still_pressure_context=self._still_pressure_context(), clock_ns=event.clock_ns
+                coupling=cval,
+                still_pressure_context=self._still_pressure_context(),
+                clock_ns=event.clock_ns,
             )
             if event.type != EventType.PRESENCE_REPORT:
                 if (
@@ -474,9 +476,7 @@ class ClutchBotAgent:
                             or sit.get("score_changed")
                             or sit.get("locked_score_delta")
                         ),
-                        operator_post=bool(
-                            pl.get("operator_post") or pl.get("operator_clip")
-                        ),
+                        operator_post=bool(pl.get("operator_post") or pl.get("operator_clip")),
                     ):
                         continue
                 except Exception:
@@ -598,9 +598,52 @@ class ClutchBotAgent:
                     }
                     for r in results
                 ],
+                stamp=self._memory_stamp(event, path_label),
             )
 
             self._last_action_time[moment.action] = time.time()
+
+    def _memory_stamp(self, event: BaseEvent, path_label: str) -> dict[str, Any]:
+        """FrameHub stamp for session-brain writes. Missing seq → unstamped refuse."""
+        sit = self._situation.to_dict()
+        payload = event.payload if isinstance(getattr(event, "payload", None), dict) else {}
+        frame_seq = payload.get("frame_seq")
+        if frame_seq is None:
+            try:
+                from qoresence.sync.ivc import get_last_coupling
+
+                frame_seq = get_last_coupling().get("frame_seq")
+            except Exception:
+                frame_seq = None
+        crop = sit.get("crop_hash")
+        if crop is None:
+            crop = ""
+        path = path_label if path_label in {"fast", "confirm"} else "confirm"
+        sit_gate = dict(sit)
+        sit_gate["path"] = path
+        sit_gate["clock_ns"] = int(getattr(event, "clock_ns", 0) or 0)
+        if frame_seq is not None:
+            sit_gate["frame_seq"] = frame_seq
+        try:
+            from qoresence.sync.seqgate import gate_from_situation
+
+            gate = gate_from_situation(sit_gate)
+            state = "licensed" if gate.get("licensed") else "hold"
+            reason = str(gate.get("reason") or "hold")
+        except Exception:
+            state, reason = "hold", "hold"
+        stamp: dict[str, Any] = {
+            "clock_ns": int(getattr(event, "clock_ns", 0) or 0),
+            "frame_seq": frame_seq,
+            "crop_hash": crop,
+            "path": path,
+            "seqgate": state,
+            "reason": reason,
+        }
+        tid = str(sit.get("confirm_ticket_id") or "")
+        if tid:
+            stamp["ticket_id"] = tid
+        return stamp
 
     def _still_pressure_context(self) -> bool:
         """True if situation still looks like a clutch window (red zone / close / late)."""
@@ -754,7 +797,8 @@ class ClutchBotAgent:
                             force=True,
                             reason=reason,
                             game_state=gst,
-                            game_profile=sit.get("game_profile") or getattr(st, "game_profile", None),
+                            game_profile=sit.get("game_profile")
+                            or getattr(st, "game_profile", None),
                         )
                 except Exception:
                     pass

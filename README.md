@@ -136,9 +136,10 @@ Every lobe is **OFF** until you opt in.
 | **Deadlock hardening** | Re-entrancy guard in A2A + presence; OTel subscribe may only enqueue; `tests/test_deadlock_regression.py` |
 | **OpenTelemetry** | `--otel` causal bus traces + coupling metrics; `.otel.json` / `.coupling.json` clip sidecars; Jaeger on localhost |
 | **MCP universal glass** | 12 tools including fail-closed `get_observation` and grant-gated `wrap_observation` (`qoresence-research` only) |
+| **SEQGATE + memory** | Same frame or silence (`docs/SEQGATE.md`). Session-brain writes need a FrameHub stamp; stale memory cannot license digits (`docs/SEQGATE-Memory-Wiring.md`) |
 | **Foundry RAG** | `search_clips` / `get_drive_graph` searchable session memory — software-only, no capture card |
 
-Docs for each: [SESSION_THEATER](docs/SESSION_THEATER.md) · [CIVIF](docs/CIVIF.md) · [GHOST_STICK](docs/GHOST_STICK.md) · [TWO_SPEED_CLUTCHBOT](docs/TWO_SPEED_CLUTCHBOT.md) · [PLAY_PHRASE_COUPLING_TICKET](docs/PLAY_PHRASE_COUPLING_TICKET.md) · [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [X_LIVE_STUDIO](docs/X_LIVE_STUDIO.md) · [X_GLASS](docs/X_GLASS.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [OTEL](docs/OTEL.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md)
+Docs for each: [SESSION_THEATER](docs/SESSION_THEATER.md) · [CIVIF](docs/CIVIF.md) · [GHOST_STICK](docs/GHOST_STICK.md) · [TWO_SPEED_CLUTCHBOT](docs/TWO_SPEED_CLUTCHBOT.md) · [PLAY_PHRASE_COUPLING_TICKET](docs/PLAY_PHRASE_COUPLING_TICKET.md) · [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [X_LIVE_STUDIO](docs/X_LIVE_STUDIO.md) · [X_GLASS](docs/X_GLASS.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [OTEL](docs/OTEL.md) · [SEQGATE](docs/SEQGATE.md) · [SEQGATE-Memory-Wiring](docs/SEQGATE-Memory-Wiring.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md)
 
 ---
 
