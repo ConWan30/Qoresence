@@ -51,6 +51,51 @@ def save_last_profile(profile_id: str | object | None) -> None:
         return
 
 
+def persist_operator_pin(profile_id: str | object | None, *, pinned: bool) -> None:
+    """Write ``last_game_profile`` only for an actual pin (CLI / env / last).
+
+    Unpinned first-run NCAA fallback must not create the file — otherwise the
+    next resolve (and the switch-callback last-file safety net) treats NCAA
+    as pinned and optics cannot lock the live title.
+    """
+    if not pinned:
+        return
+    save_last_profile(profile_id)
+
+
+def _canonical_profile_id(profile_id: str | object | None) -> str | None:
+    if profile_id is None:
+        return None
+    try:
+        return normalize_game_profile(profile_id).value
+    except ValueError:
+        raw = getattr(profile_id, "value", None)
+        text = str(raw if raw is not None else profile_id).strip()
+        return text or None
+
+
+def operator_pin_blocks_switch(
+    operator_profile: str | object | None,
+    optical_profile: str | object | None,
+    *,
+    pinned: bool,
+) -> bool:
+    """True when optics must not overwrite the operator profile.
+
+    Last-session file is a pin only when it matches the resolved operator
+    id (belt if ``game_profile_pinned`` was not copied onto config). An
+    unpinned NCAA fallback is not persisted, so it cannot self-pin.
+    """
+    want = _canonical_profile_id(operator_profile)
+    got = _canonical_profile_id(optical_profile)
+    if want is None or got is None:
+        return bool(pinned)
+    if not pinned:
+        last = load_last_profile()
+        pinned = bool(last) and last == want
+    return bool(pinned) and want != got
+
+
 def resolve_operator_profile(cli_value: str | None = None) -> tuple[str, bool]:
     """Return ``(canonical_id, pinned)``.
 
