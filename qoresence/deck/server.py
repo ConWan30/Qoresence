@@ -1,1 +1,1 @@
-@/workspace/qa-pr173-server-pathb.py
+{{FILE:/workspace/qa-pr173-server-pathb.py}}
