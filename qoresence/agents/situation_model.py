@@ -1,1 +1,1 @@
-@/workspace/qoregraph-artifacts/land/sit_content_only.py
+PLACEHOLDER_LOAD_FROM_DISK
