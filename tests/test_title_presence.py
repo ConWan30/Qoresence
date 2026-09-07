@@ -398,3 +398,97 @@ def test_title_flip_requests_lock_verify():
     det._maybe_emit_and_switch(_result(GameProfileId.MADDEN_27))
     det._maybe_emit_and_switch(_result(GameProfileId.NCAA_FOOTBALL_27))
     assert det._sampling_mode == "lock_verify"
+
+
+def test_optical_lock_observes_but_does_not_yank_pinned_profile():
+    """Locked optics emit game_detected; a pinned operator profile must hold."""
+    from qoresence.agents.situation_model import SituationModel
+    from qoresence.core.operator_profile import operator_pin_blocks_switch
+    from qoresence.core.types import BaseEvent, EventType, SourceLobe
+
+    sit = SituationModel()
+    sit.seed_profile("madden_27", pinned=True)
+    switched: list[str] = []
+
+    def switch_profile(profile_id):
+        if operator_pin_blocks_switch("madden_27", profile_id, pinned=True):
+            return
+        switched.append(str(getattr(profile_id, "value", profile_id)))
+
+    bus = _Bus()
+    det = GameAutoDetector(
+        bus, 0, vlm_client=None, use_vision_stack=False, title_presence=True, stability_count=2
+    )
+    det.set_profile_switch_callback(switch_profile)
+    ncaa = _result(GameProfileId.NCAA_FOOTBALL_27)
+    det._maybe_emit_and_switch(ncaa)
+    det._maybe_emit_and_switch(ncaa)
+    for e in bus.events:
+        et = str(getattr(e["event_type"], "value", e["event_type"]))
+        if et == "game_detected":
+            sit.update(
+                BaseEvent(
+                    session_id="s",
+                    clock_ns=2,
+                    source_lobe=SourceLobe.FUSION,
+                    type=EventType.GAME_DETECTED,
+                    payload=e["payload"],
+                )
+            )
+        elif et == "title_presence":
+            sit.update(
+                BaseEvent(
+                    session_id="s",
+                    clock_ns=2,
+                    source_lobe=SourceLobe.FUSION,
+                    type=EventType.TITLE_PRESENCE,
+                    payload=e["payload"],
+                )
+            )
+    gd = [
+        e
+        for e in bus.events
+        if str(getattr(e["event_type"], "value", e["event_type"])) == "game_detected"
+    ]
+    assert gd
+    assert gd[-1]["payload"]["plane"] == PLANE
+    assert gd[-1]["payload"]["profile_id"] == "ncaa_football_27"
+    assert gd[-1]["payload"]["title_presence"]["claim"] is True
+    assert sit.state.game_profile == "madden_27"
+    assert switched == []
+
+
+def test_title_presence_frames_from_framehub_first(monkeypatch):
+    import numpy as np
+
+    hub_frame = np.full((4, 4, 3), 3, dtype=np.uint8)
+    provider_frame = np.full((4, 4, 3), 7, dtype=np.uint8)
+    monkeypatch.setattr(
+        "qoresence.monitor.frame_hub.get_latest_stamp",
+        lambda: {"has_frame": True, "seq": 11, "clock_ns": 22},
+    )
+    monkeypatch.setattr("qoresence.monitor.frame_hub.get_latest", lambda: hub_frame)
+    bus = _Bus()
+    det = GameAutoDetector(
+        bus, 0, vlm_client=None, use_vision_stack=False, title_presence=True
+    )
+    det.set_frame_provider(lambda: provider_frame)
+    got = det._get_frame()
+    assert got is not None
+    assert int(got[0, 0, 0]) == 3
+    assert det._frame_source == "framehub"
+
+
+def test_title_presence_does_not_open_capture():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    for rel in (
+        "qoresence/game_detection.py",
+        "qoresence/vision/title_presence.py",
+        "qoresence/core/operator_profile.py",
+        "qoresence/agents/situation_model.py",
+    ):
+        text = (root / rel).read_text(encoding="utf-8")
+        assert "VideoCapture" not in text
+        assert "cv2.VideoCapture" not in text
