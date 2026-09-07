@@ -69,6 +69,25 @@ def test_latest_live_expires():
     assert get_coupling_book().latest_live() is None
 
 
+def test_throw_phrase_does_not_mint():
+    from qoresence.sync.play_phrase import LIVE_PHRASES, PHRASES
+
+    assert "THROW" not in PHRASES
+    assert "THROW" not in LIVE_PHRASES
+    assert (
+        mint_coupling_ticket(
+            clock_ns=1,
+            frame_seq=1,
+            phrase="THROW",
+            coupling=0.9,
+            hold_energy=1.0,
+            pll_lock=True,
+            video_fresh=True,
+        )
+        is None
+    )
+
+
 def test_sprint_without_pll_does_not_mint():
     assert (
         mint_coupling_ticket(
