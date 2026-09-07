@@ -140,12 +140,17 @@ class DeckState:
             rt = get_controller_runtime()
             if rt is not None:
                 stats = rt.get_stats()
+                connected = bool(stats.get("connected"))
                 controller.update(
                     {
-                        "connected": bool(stats.get("connected")),
+                        "connected": connected,
                         "waiting": bool(stats.get("waiting")),
-                        "reason": stats.get("reason"),
-                        "error": stats.get("error"),
+                        "reason": (
+                            "pad_not_on_this_host"
+                            if not connected
+                            else (stats.get("reason") or stats.get("transport") or "hid")
+                        ),
+                        "controller_bodied": False,
                         "device": stats.get("device"),
                         "transport": stats.get("transport"),
                         "reports": stats.get("reports", 0),
@@ -192,6 +197,15 @@ class DeckState:
                         "bind_conf": coup.get("bind_conf"),
                     }
                 )
+                if controller.get("connected"):
+                    controller["controller_bodied"] = bool(coup.get("imu_bodied"))
+                    if not controller.get("reason"):
+                        controller["reason"] = "imu_bodied" if coup.get("imu_bodied") else (
+                            controller.get("transport") or "hid"
+                        )
+                else:
+                    controller["controller_bodied"] = False
+                    controller["reason"] = "pad_not_on_this_host"
         except Exception:
             pass
         out: dict[str, Any] = {
