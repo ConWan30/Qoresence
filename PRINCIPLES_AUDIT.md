@@ -101,3 +101,32 @@ Glass SPA `SessionNow` still calls `useTheaterLoop` (`ensureCapture`). `_GLASS_H
 ## Must remain empty
 
 No second HDMI grab. No new clip IDs. No last-good overlay digits. No operator `confirm: none` on the Now HUD. No MCP `civif_*` session-view / export tools. No `/civif.html` rewrite.
+
+---
+
+# Principles audit — `a2a-reentrancy-default-off`
+
+Loop: `docs/QORGRAPH_A2A_REENTRANCY.md`  
+DShow verifier: `docs/QORGRAPH_DSHOW_VERIFIER.md`  
+Date: 2026-09-07  
+Branch: `qorgraph-5-a2a-reentrancy`
+
+## A2A / Society stay default OFF
+
+| Gate | Evidence | Result |
+|---|---|---|
+| `play_does_not_enable_a2a` | `--a2a` is `store_true`; `ClutchBotConfig.a2a_enabled` defaults False; `--play` wiring uses `args.a2a or config.clutchbot.a2a_enabled` only. `from_env` maps `QORESENCE_A2A` as explicit opt-in. Tests: `test_play_does_not_enable_a2a`, `test_clutchbot_a2a_default_off`, `test_from_env_a2a_opt_in`. | pass |
+| `play_does_not_enable_society` | Existing `test_play_leaves_society_off`; Society config default `enabled=False`. | pass |
+| `in_trigger_guard_present` | `A2AOrchestrator` keeps `self._tls.in_trigger`. Test: `test_in_trigger_guard_present`. | pass |
+| `emit_outside_lock` | Deadlock suite: `test_suppressed_trigger_emits_outside_lock`, `test_presence_lock_released_during_report_fanout`. | pass |
+| `deadlock_tests_not_deleted` | Required names still defined. Test: `test_deadlock_regression_tests_not_deleted`. | pass |
+| `one_card_owner` | No new DShow open in this loop. | pass |
+| `otel_enqueue_only` | Unchanged; OTel path not modified. | pass |
+
+**Config honesty:** `RetinaUnifiedConfig.from_env` now sets `clutchbot.a2a_enabled` from `QORESENCE_A2A` so CLI `args.a2a or config.clutchbot.a2a_enabled` matches the env opt-in documented on `--a2a`.
+
+`qoresence.bat` may still pass `--a2a` as a *launcher* default — that is not a Python `--play` default and is left alone.
+
+## Must remain empty
+
+No `--play` implies `--a2a`. No Society personality roles. No emit while holding lobe `_lock`. No Presence Fusion as product path. No dual-open. No scorelines on path=fast from A2A.

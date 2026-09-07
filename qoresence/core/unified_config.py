@@ -1045,6 +1045,7 @@ class RetinaUnifiedConfig:
                 deck_host=_str("QORESENCE_DECK_HOST", "127.0.0.1"),
                 deck_port=_int("QORESENCE_DECK_PORT", 8765),
                 llm_max_tokens=_int("QORESENCE_CLUTCHBOT_LLM_MAX_TOKENS", 256),
+                a2a_enabled=_bool("QORESENCE_A2A"),
                 twitch=_twitch(),
             ),
             match_agent=MatchAgentConfig(
