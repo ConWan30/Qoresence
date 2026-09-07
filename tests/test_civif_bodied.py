@@ -34,6 +34,7 @@ def test_tick_unbodied_wipes_input_ticks():
     assert d["controller_bodied"] is False
     assert d["input_ticks"] == []
     assert d["input"]["events"] == []
+    assert d["input"]["reason"] == "pad_not_on_this_host"
 
 
 def test_tick_bodied_keeps_mapped_edges():
