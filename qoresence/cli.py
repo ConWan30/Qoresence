@@ -1829,7 +1829,7 @@ def main():
     parser.add_argument(
         "--play",
         action="store_true",
-        help="Exquisite play mode: streamer+visual+fusion+clutchbot+deck (while playing)",
+        help="Exquisite play mode: streamer+visual+fusion+clutchbot+deck (while playing). A2A/Society stay OFF unless --a2a / --agent-society.",
     )
     parser.add_argument(
         "--deck", action="store_true", help="Enable Sight Glass ws://127.0.0.1:8765 (Lens+Rail)"
