@@ -41,6 +41,23 @@ def test_empty_pad_is_valid():
     assert validate_coupling(data) == []
 
 
+def test_live_tick_empty_hid_is_pad_not_on_this_host():
+    from qoresence.core.civif_tick import build_coupled_tick
+
+    rec = build_coupled_tick(
+        coupling={"video_clock_ns": 11, "frame_seq": 3, "imu_bodied": False},
+        events=[],
+        session_id="path-b",
+    )
+    d = rec.to_dict()
+    assert d["controller_bodied"] is False
+    assert d["input"]["reason"] == "pad_not_on_this_host"
+    assert d["input_ticks"] == []
+    blob = json.dumps(d)
+    assert "PAD WAIT" not in blob
+    assert "THROW" not in blob
+
+
 def test_legacy_keys_preserved():
     data = _sidecar(coupling={"coupling": 0.4, "pll_lock": True})
     assert "clip.clock_ns.start" in data

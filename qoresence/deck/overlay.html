@@ -153,10 +153,9 @@ function paintPad(ctrl){
     }
   }
   if(padChip){
-    if(ctrl.waiting && !ctrl.connected){
-      padChip.textContent='PAD WAIT';
-      padChip.classList.add('show');
-    }else if(ctrl.connected || ctrl.transport){
+    // Path B: DualSense on the PS5. Empty laptop HID is success.
+    // Chip is invisible unless this host has HID.
+    if(ctrl.connected || ctrl.transport){
       padChip.textContent='PAD '+(ctrl.transport||'hid').toUpperCase()+(ctrl.reports!=null?(' · '+ctrl.reports):'');
       padChip.classList.add('show');
     }else{

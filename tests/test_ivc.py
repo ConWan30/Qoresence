@@ -81,6 +81,39 @@ def test_ivc_empty_inputs_zero_coupling(monkeypatch):
     assert payload["input_events"] == 0
     assert payload["imu_bodied"] is False
     assert payload["binds"] == 0
+    # Path B: empty HID is an honest sample, not PAD WAIT / error.
+    assert payload.get("error") in (None, "", False)
+    blob = str(payload)
+    assert "PAD WAIT" not in blob
+    assert "THROW" not in blob
+
+
+def test_ivc_press_and_frame_share_clock_ns(monkeypatch):
+    """HID edge and joined FrameHub stamp share the same monotonic nanoseconds."""
+    hub = FrameHub()
+    ring = InputRing()
+    t_video = time.monotonic_ns()
+    ring.push(
+        InputEvent(
+            clock_ns=t_video,
+            kind="press",
+            name="cross",
+            value=1.0,
+            frame_seq=1,
+        )
+    )
+    hub.publish(np.zeros((8, 8, 3), dtype=np.uint8), clock_ns=t_video)
+    monkeypatch.setattr("qoresence.monitor.frame_hub.get_frame_hub", lambda: hub)
+    monkeypatch.setattr("qoresence.sync.input_ring.get_input_ring", lambda: ring)
+    ivc = InputVideoCoupler(bus=None, lag_lo_ms=0.0, lag_hi_ms=120.0, lead_ms=24.0)
+    payload = ivc.tick_once()
+    assert payload is not None
+    assert payload["video_clock_ns"] == t_video
+    assert payload["frame_seq"] == 1
+    joined = ring.in_window(t_video - int(120 * 1e6), t_video + int(24 * 1e6))
+    assert joined
+    assert joined[0].clock_ns == t_video
+    assert joined[0].frame_seq == payload["frame_seq"]
 
 
 def test_ivc_imu_bodied_names_precursor(monkeypatch):

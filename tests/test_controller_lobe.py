@@ -474,9 +474,34 @@ class TestHotPlugAndFixture:
             stats = runtime.get_stats()
             assert stats["connected"] is False
             assert stats["waiting"] is True
+            # Path B: empty laptop HID is honest success, not PAD WAIT failure.
+            assert stats["reason"] == "pad_not_on_this_host"
+            assert stats.get("error") in (None, "", False)
             runtime.stop()
 
             bus.close()
+
+    def test_empty_hid_health_is_success_not_pad_wait(self):
+        """/health connected=false + pad_not_on_this_host is Path B success."""
+        with tempfile.TemporaryDirectory() as td:
+            jsonl_path = Path(td) / "events.jsonl"
+            bus = RetinaEventBus(session_id="path_b", jsonl_path=jsonl_path, enable_ws=False)
+            identity = SessionAuthority.mint(session_id="path_b")
+            runtime = ControllerRuntime(
+                config=ControllerConfig(enabled=True),
+                bus=bus,
+                session_head_ns=identity.session_head_ns,
+            )
+            try:
+                stats = runtime.get_stats()
+                assert stats["connected"] is False
+                assert stats["reason"] == "pad_not_on_this_host"
+                health = {"ok": True, "state": {"controller": stats}}
+                assert health["ok"] is True
+                assert health["state"]["controller"]["connected"] is False
+                assert health["state"]["controller"]["reason"] == "pad_not_on_this_host"
+            finally:
+                bus.close()
 
     def test_fixture_bodied_r2_binds_score(self):
         from qoresence.sync.dualsense_fixture import feed_bodied_r2
@@ -591,6 +616,39 @@ class TestHidStaleReconnect:
                 assert runtime.get_stats()["hid_stale"] is True
             finally:
                 bus.close()
+
+
+class TestPathBEmptyHidUi:
+    """Fallback Lens/Deck must not treat DualSense-on-PS5 as PAD WAIT failure."""
+
+    def test_overlay_and_deck_do_not_say_pad_wait(self):
+        root = Path(__file__).resolve().parents[1] / "qoresence" / "deck"
+        overlay = (root / "overlay.html").read_text(encoding="utf-8")
+        deck = (root / "deck.html").read_text(encoding="utf-8")
+        for src, name in ((overlay, "overlay.html"), (deck, "deck.html")):
+            assert "PAD WAIT" not in src, f"{name} treats empty HID as PAD WAIT failure"
+            assert "WAITING FOR DUALSENSE" not in src, f"{name} coaches USB plug-in"
+        assert "pad_not_on_this_host" in deck
+        assert "DUALSENSE ON PS5" in deck
+
+    def test_haptic_probe_does_not_body_empty_hid(self):
+        from qoresence.core.civif_tick import CoupledTickRecord
+        from qoresence.sync.haptic_schema import empty_record
+
+        pulse = empty_record(session_id="no-body", clock_ns=1)
+        assert "controller_bodied" not in pulse
+        rec = CoupledTickRecord(
+            session_id="no-body",
+            clock_ns=1,
+            frame_seq=1,
+            input_ticks=[],
+            situation=None,
+            board_locked=False,
+            controller_bodied=False,
+            body_reason="pad_not_on_this_host",
+        ).to_dict()
+        assert rec["controller_bodied"] is False
+        assert rec["input"]["reason"] == "pad_not_on_this_host"
 
 
 if __name__ == "__main__":

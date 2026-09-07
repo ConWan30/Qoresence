@@ -272,9 +272,14 @@ class ControllerRuntime:
 
     def get_stats(self) -> dict:
         """Get controller statistics for health / Deck (no bus emit)."""
+        connected = bool(self._connected)
+        # Path B: DualSense on PS5 → empty laptop HID is success, not PAD WAIT.
+        reason = None if connected else "pad_not_on_this_host"
         return {
-            "connected": bool(self._connected),
-            "waiting": bool(self._running and not self._connected),
+            "connected": connected,
+            "waiting": bool(self._running and not connected),
+            "reason": reason,
+            "error": None,
             "device": self._device_path,
             "transport": self._last_transport,
             "reports": int(self._reports_read),

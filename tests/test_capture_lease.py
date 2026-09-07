@@ -48,3 +48,19 @@ def test_pattern_b_helper_hard_fails_dshow_dual_open():
     assert "throw" in text.lower() or "Write-Error" in text or "exit 2" in text
     # Warn-only is not the contract.
     assert "WARN: source" not in text or "DUAL_OPEN" in text
+
+
+def test_ivc_and_ghost_do_not_open_capture():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "qoresence"
+    for rel in (
+        "sync/ivc.py",
+        "sync/ghost_stick.py",
+        "sync/input_ring.py",
+        "sync/haptic_probe.py",
+        "core/civif_tick.py",
+        "core/coupled_event.py",
+    ):
+        text = (root / rel).read_text(encoding="utf-8")
+        assert "VideoCapture" not in text, f"{rel} must subscribe, not dual-open the card"

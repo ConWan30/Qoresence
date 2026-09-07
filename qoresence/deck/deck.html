@@ -582,8 +582,9 @@ function paintController(ctrl, sit){
   const syncOk=!!s.presence_sync_ok || (c.coupling||0)>0 || !!(c.buttons&&c.buttons.length) || !!c.imu_bodied || !!c.connected;
   const apm=s.controller_apm||0, trig=s.controller_triggers_5s||0, stick=s.controller_stick_motion_5s||0;
   ctrlStrip.classList.remove('wait','sync-ok','sync-bad');
-  if(c.waiting && !c.connected){
-    ctrlStrip.textContent='WAITING FOR DUALSENSE';
+  // Path B: empty laptop HID is DualSense-on-PS5 success (pad_not_on_this_host).
+  if((c.waiting && !c.connected) || c.reason==='pad_not_on_this_host'){
+    ctrlStrip.textContent='DUALSENSE ON PS5';
     ctrlStrip.classList.add('wait');
   } else if(c.imu_bodied){
     const ms=c.imu_precursor_ms!=null?Math.round(Number(c.imu_precursor_ms)):'';
