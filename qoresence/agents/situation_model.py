@@ -1,1 +1,1 @@
-file:///workspace/qoregraph-artifacts/land/contents_rest/qoresence__agents__situation_model.py
+@/workspace/qoregraph-artifacts/land/sit_content_only.py
