@@ -319,12 +319,18 @@ def test_api_session_view_overlays_deck_situation(monkeypatch):
     sv._last_envelope.clear()
     monkeypatch.setattr(sv, "_load_live_pack", lambda _sid: (None, False))
     prev = dict(_state.situation)
-    _state.situation = {"scoreboard_locked": True, "home_score": 23, "away_score": 22}
+    _state.situation = {
+        "score_vlm_locked": True,
+        "confirm_ticket_id": "ticket-overlay",
+        "home_score": 23,
+        "away_score": 22,
+    }
     try:
         env = TestClient(create_app()).get("/api/session/view").json()
     finally:
         _state.situation = prev
     assert env["view"]["board_locked"] is True
+    assert env["view"]["board_why"] == "confirm_ticket"
     assert env["view"]["confirmed"]["score"] == {"home": 23, "away": 22}
     assert env["view"]["confirmed"]["yard_line"] is None
 
@@ -596,4 +602,94 @@ def test_session_js_board_why_speech_not_only_awaiting():
     assert "function boardWhySpeech" in js
     assert js.count("setInterval") == 1
     assert "civif_session_view" not in js
+
+
+def test_unlicensed_live_clears_pack_last_good_digits(monkeypatch):
+    """Now HUD is live-licensed. Pack scores must not last-good onto Confirmed."""
+    from qoresence.foundry import session_view as sv
+
+    sv._last_envelope.clear()
+    pack = {
+        "session_id": "last-good",
+        "board_locked": True,
+        "controller_bodied": True,
+        "persisted": True,
+        "events": [
+            {
+                "event_id": "e1",
+                "event_type": "situation_shift",
+                "t_start_ns": 1_000_000,
+                "situation_summary": {"home_score": 21, "away_score": 14, "yard_line": 5},
+            }
+        ],
+    }
+    monkeypatch.setattr(sv, "_load_live_pack", lambda _sid: (pack, False))
+    env = sv.build_session_response(
+        session_id="last-good",
+        live_situation={
+            "score_vlm_locked": False,
+            "confirm_ticket_id": "",
+            "home_score": 21,
+            "away_score": 14,
+            "board_why": "vlm_quota",
+        },
+    )
+    assert env["view"]["confirmed"]["available"] is False
+    assert env["view"]["confirmed"]["score"] is None
+    assert env["view"]["confirmed"]["yard_line"] is None
+    assert env["view"]["board_why"] == "vlm_quota"
+    blob = str(env["view"]["confirmed"])
+    assert "21" not in blob
+    assert "14" not in blob
+    # Story events keep pack scores; Now HUD does not.
+    assert env["view"]["events"][0]["score"] == {"home": 21, "away": 14}
+
+
+def test_flag_only_http_sit_does_not_paint_pack_or_sit_digits(monkeypatch):
+    from qoresence.foundry import session_view as sv
+
+    sv._last_envelope.clear()
+    pack = {
+        "session_id": "flag-pack",
+        "board_locked": True,
+        "controller_bodied": True,
+        "persisted": True,
+        "events": [
+            {
+                "event_id": "e1",
+                "event_type": "situation_shift",
+                "t_start_ns": 1,
+                "situation_summary": {"home_score": 9, "away_score": 8},
+            }
+        ],
+    }
+    monkeypatch.setattr(sv, "_load_live_pack", lambda _sid: (pack, False))
+    env = sv.build_session_response(
+        session_id="flag-pack",
+        live_situation={
+            "scoreboard_locked": True,
+            "score_vlm_locked": True,
+            "confirm_ticket_id": "",
+            "home_score": 23,
+            "away_score": 22,
+        },
+    )
+    assert env["view"]["confirmed"]["available"] is False
+    assert env["view"]["confirmed"]["score"] is None
+    assert env["view"]["board_why"] == "no_ticket"
+    assert "23" not in str(env["view"]["confirmed"])
+
+
+def test_session_and_civif_html_are_not_glass_spa():
+    from qoresence.deck.server import _GLASS_HTML_NAMES
+
+    assert "session.html" not in _GLASS_HTML_NAMES
+    assert "civif.html" not in _GLASS_HTML_NAMES
+    js = SESSION_JS.read_text(encoding="utf-8")
+    html = SESSION_HTML.read_text(encoding="utf-8")
+    civif = CIVIF_HTML.read_text(encoding="utf-8")
+    for blob in (js, html, civif):
+        assert "VideoCapture" not in blob
+        assert "getUserMedia" not in blob
+        assert "confirm: none" not in blob.lower()
 

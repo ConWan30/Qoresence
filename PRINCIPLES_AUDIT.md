@@ -69,3 +69,35 @@ USB/BT on this host remains Path A lab (`ingest_report` / `feed_bodied_r2`). Hea
 ## Must remain empty
 
 No PAD WAIT as failure. No invented 0-0. No THROW. No heat without a coupling ticket. No digits without a confirm ticket. No haptic bodying. No second DShow open.
+
+---
+
+# Principles audit — `theater-query-not-capture`
+
+Loop: `docs/QORGRAPH_SESSION_THEATER.md`  
+DShow verifier: `docs/QORGRAPH_DSHOW_VERIFIER.md`  
+Date: 2026-09-07  
+Branch: `qorgraph-4-theater`
+
+## Recap is a query over the fail-closed pack
+
+| Gate | Evidence | Result |
+|---|---|---|
+| `no_second_capture` | Theater/Recap/CIVIF files contain no `VideoCapture` / `getUserMedia`. Served `/session.html` and `/civif.html` are fallback query pages (`session.html` / `civif.html` not in `_GLASS_HTML_NAMES`). Recap is `recap_from_envelope(build_session_response(...))`. Tests: `test_theater_recap_civif_do_not_open_capture`, `test_session_and_civif_html_are_not_glass_spa`, `test_live_view_does_not_call_generate_narrative`. | pass |
+| `no_new_clip_ids` | Stem remains `hdmi_clip_<token>`. Aliases (`hdmi_a`), paths, `%`, NUL, missing files, cross-session, int/empty sidecar session → `{available: false}`. Tests: `test_permitted_stem_rejects_paths_and_aliases`, `test_missing_file_and_cross_session_are_withheld`, `test_fixture_hdmi_aliases_do_not_leak`. | pass |
+| `digits_need_confirm_and_vlm_lock` | `_live_board_licensed` requires `score_vlm_locked` and a non-empty `confirm_ticket_id`. Flag-only lock stays dark. Tests: `test_overlay_flag_only_is_dark_no_ticket`, `test_flag_only_lock_does_not_paint_digits`, `test_flag_only_http_sit_does_not_paint_pack_or_sit_digits`, `test_overlay_ticket_and_lock_paints_digits`. | pass |
+| `missing_fields_empty_glyphs` | Unlicensed overlay writes `confirmed = {available: false, score: None, yard_line: None}` and does not stamp `board_why=confirm_ticket` from pack last-good. Tests: `test_unlicensed_live_clears_pack_last_good_digits`, `test_unlocked_strips_stuffed_score_and_yard`, `test_live_unlocked_does_not_leak_stuffed_score`. | pass (gap fixed) |
+| `open_clip_existing_mp4_only` | `resolve_event_clip` requires existing `hdmi_clip_*.mp4` plus `.coupling.json` `session_id` string equal to the view session. Recap does not re-resolve. Tests: `test_linked_clip_when_file_and_session_match`, `test_recap_from_envelope_does_not_reresolve_clips`. | pass |
+| `one_card_owner` | Lease second acquire still raises. Pattern B helper still `DUAL_OPEN`. No new DShow open in this loop. Tests: `test_second_acquire_raises`, `test_pattern_b_helper_hard_fails_dshow_dual_open`, `test_theater_recap_civif_do_not_open_capture`. | pass |
+
+**Gap found:** Live Now HUD kept narrative-pack scores when the current sit was unlicensed (quota / flag-only / no ticket), then `build_session_response` stamped `board_why=confirm_ticket` because `confirmed.available` was still true. That is last-good overlay digits. Fix: `overlay_live_board` clears `confirmed` unless `score_vlm_locked` and a non-empty ConfirmTicket; do not infer confirm from pack last-good.
+
+MCP `civif_narrative` / `civif_session_view` / `export_clip` stay off `tools/list`. `/civif.html` is not rewritten. Clip-dock stays off `/session.html`. One `tickAll` timer.
+
+## Residual (not served)
+
+Glass SPA `SessionNow` still calls `useTheaterLoop` (`ensureCapture`). `_GLASS_HTML_NAMES` does not include `session.html` or `civif.html`, so the operator glass is the fallback query pages. Do not add those names without removing the theater-loop grab from Session Now.
+
+## Must remain empty
+
+No second HDMI grab. No new clip IDs. No last-good overlay digits. No operator `confirm: none` on the Now HUD. No MCP `civif_*` session-view / export tools. No `/civif.html` rewrite.
