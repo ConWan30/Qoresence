@@ -1,1 +1,1 @@
-__LOAD_FROM__:/workspace/qa-pr173-server-pathb.py
+PLACEHOLDER_WILL_REPLACE
