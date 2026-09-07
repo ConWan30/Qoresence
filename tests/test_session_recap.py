@@ -206,6 +206,33 @@ def test_recap_does_not_persist(tmp_path: Path, monkeypatch) -> None:
     assert not list(tmp_path.glob("**/narrative_*.json"))
 
 
+def test_recap_from_envelope_does_not_reresolve_clips(monkeypatch) -> None:
+    from qoresence.foundry import session_view as sv
+
+    def boom(*_a, **_k):
+        raise AssertionError("recap must not re-resolve clips")
+
+    monkeypatch.setattr(sv, "resolve_event_clip", boom)
+    view = {
+        "schema_version": "session-view-1",
+        "session_id": "s",
+        "persisted": True,
+        "events": [
+            {
+                "event_id": "e1",
+                "event_type": "situation_shift",
+                "t_start_ns": 1_000_000,
+                "t_end_ns": 2_000_000,
+                "qualification": "confirmed",
+                "clip": {"available": True, "clip_id": "hdmi_clip_keep"},
+            }
+        ],
+    }
+    recap = recap_from_envelope(_env(view))
+    assert recap["linked_clip_count"] == 1
+    assert recap["events"][0]["clip"] == {"available": True, "clip_id": "hdmi_clip_keep"}
+
+
 def test_recap_http_and_boundaries() -> None:
     from qoresence.deck.server import create_app
 

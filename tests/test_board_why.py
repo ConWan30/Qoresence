@@ -155,8 +155,8 @@ def test_overlay_flag_only_is_dark_no_ticket():
     from qoresence.foundry.session_view import overlay_live_board
 
     view = {
-        "confirmed": {"available": False, "score": None, "yard_line": None},
-        "board_locked": False,
+        "confirmed": {"available": True, "score": {"home": 21, "away": 14}, "yard_line": 5},
+        "board_locked": True,
         "events": [],
     }
     out = overlay_live_board(
@@ -170,6 +170,7 @@ def test_overlay_flag_only_is_dark_no_ticket():
     )
     assert out["confirmed"]["available"] is False
     assert out["confirmed"]["score"] is None
+    assert out["confirmed"]["yard_line"] is None
     assert out["board_why"] == "no_ticket"
 
 

@@ -483,11 +483,12 @@ def _live_board_licensed(sit: dict[str, Any] | None) -> bool:
 
 
 def overlay_live_board(view: dict[str, Any], sit: dict[str, Any] | None) -> dict[str, Any]:
-    """License confirmed digits from live situation lock. Does not invent events or yards."""
+    """License Now HUD digits from live sit. Unlicensed → empty glyphs, not pack last-good."""
     if not isinstance(view, dict):
         return view
     from qoresence.vision.board_why import normalize_board_why
 
+    empty = {"available": False, "score": None, "yard_line": None}
     if not _live_board_licensed(sit):
         why = "unlocked"
         if isinstance(sit, dict):
@@ -498,6 +499,7 @@ def overlay_live_board(view: dict[str, Any], sit: dict[str, Any] | None) -> dict
             elif sit.get("board_why"):
                 why = str(sit.get("board_why"))
         view["board_why"] = normalize_board_why(why)
+        view["confirmed"] = empty
         return view
     view["board_why"] = "confirm_ticket"
     view["board_locked"] = True
@@ -505,7 +507,7 @@ def overlay_live_board(view: dict[str, Any], sit: dict[str, Any] | None) -> dict
     away = _int_or_none(sit.get("away_score") if sit else None)
     yard = _int_or_none(sit.get("yard_line") if sit else None)
     score = {"home": home, "away": away} if home is not None and away is not None else None
-    confirmed = {"available": False, "score": None, "yard_line": None}
+    confirmed = dict(empty)
     if score is not None:
         confirmed["score"] = score
         confirmed["available"] = True
@@ -572,9 +574,7 @@ def build_session_response(
     if not fixture and not invalid:
         sit = live_situation if live_situation is not None else _read_live_situation()
         overlay_live_board(view, sit)
-        if view.get("confirmed") and view["confirmed"].get("available"):
-            view["board_why"] = "confirm_ticket"
-        elif not view.get("board_why"):
+        if not view.get("board_why"):
             from qoresence.vision.board_why import normalize_board_why
 
             why = sit.get("board_why") if isinstance(sit, dict) else ""

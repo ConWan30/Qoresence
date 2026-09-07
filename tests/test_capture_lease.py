@@ -64,3 +64,24 @@ def test_ivc_and_ghost_do_not_open_capture():
     ):
         text = (root / rel).read_text(encoding="utf-8")
         assert "VideoCapture" not in text, f"{rel} must subscribe, not dual-open the card"
+
+
+def test_theater_recap_civif_do_not_open_capture():
+    """Session Theater / Recap / CIVIF query the pack. They must not grab HDMI."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "qoresence"
+    for rel in (
+        "foundry/session_view.py",
+        "foundry/narrative_engine.py",
+        "foundry/civif_summary.py",
+        "agents/session_view.py",
+        "agents/civif_summary.py",
+        "deck/session.js",
+        "deck/session.html",
+        "deck/civif.html",
+    ):
+        text = (root / rel).read_text(encoding="utf-8")
+        assert "VideoCapture" not in text, f"{rel} must not dual-open the card"
+        assert "getUserMedia" not in text, f"{rel} must not grab HDMI"
+        assert "cv2.VideoCapture" not in text, f"{rel} must not dual-open the card"
