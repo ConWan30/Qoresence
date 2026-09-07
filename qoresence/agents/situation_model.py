@@ -164,8 +164,8 @@ class SituationModel:
                 ctx.game_state.value if hasattr(ctx.game_state, "value") else str(ctx.game_state)
             )
 
-        # Map title → canonical profile (same logic as visual.py _merge_scoreboard)
-        # Ensures published situation has cfb_27 when title is CFB, even if config was madden_27
+        # Map title → canonical profile (same logic as visual.py _merge_scoreboard).
+        # A pinned operator profile still wins via _maybe_apply_profile.
         ctx_profile = getattr(ctx, "game_profile", None)
         ctx_title = getattr(ctx, "game_title", None)
         if ctx_profile or ctx_title:
