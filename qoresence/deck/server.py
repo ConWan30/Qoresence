@@ -144,6 +144,8 @@ class DeckState:
                     {
                         "connected": bool(stats.get("connected")),
                         "waiting": bool(stats.get("waiting")),
+                        "reason": stats.get("reason"),
+                        "error": stats.get("error"),
                         "device": stats.get("device"),
                         "transport": stats.get("transport"),
                         "reports": stats.get("reports", 0),
