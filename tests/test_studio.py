@@ -380,7 +380,10 @@ def test_foundry_bay_routes_registered():
     assert "Cut highlight" in html
     deck = _html("deck.html")
     assert 'id="ctrlPlane"' in deck
-    assert "WAITING FOR DUALSENSE" in deck
+    assert "WAITING FOR DUALSENSE" not in deck
+    assert "PAD WAIT" not in deck
+    assert "DUALSENSE ON PS5" in deck
+    assert "pad_not_on_this_host" in deck
     assert 'id="feedDock"' in deck
     assert deck.find('id="feedDock"') < deck.find('id="rail"')
     lens = _html("overlay.html")
