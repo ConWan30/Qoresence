@@ -799,6 +799,8 @@ class ClutchBotAgent:
                             game_state=gst,
                             game_profile=sit.get("game_profile")
                             or getattr(st, "game_profile", None),
+                            game_title=sit.get("game_title")
+                            or getattr(st, "game_title", None),
                         )
                 except Exception:
                     pass

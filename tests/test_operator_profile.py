@@ -101,7 +101,8 @@ def test_last_file_safety_net_blocks_when_flag_dropped(tmp_path: Path, monkeypat
     assert operator_pin_blocks_switch("madden_27", "ncaa_football_27", pinned=False) is True
 
 
-def test_situation_pin_rejects_ncaa_claim():
+def test_situation_pin_rejects_ncaa_claim_without_locked_title():
+    """Unlocked GAME_DETECTED ncaa claim does not yank a pinned madden profile."""
     sit = SituationModel()
     sit.seed_profile("madden_27", pinned=True)
     ev = BaseEvent(
@@ -121,7 +122,7 @@ def test_situation_pin_rejects_ncaa_claim():
         payload={"claim": True, "profile_id": "ncaa_football_27", "hysteresis_state": "locked"},
     )
     sit.update(ev2)
-    assert sit.state.game_profile == "madden_27"
+    assert sit.state.game_profile == "cfb_27"
     assert sit.state.title_hysteresis == "locked"
     assert sit.state.title_claim is True
 
@@ -143,7 +144,8 @@ def test_visual_context_does_not_yank_pin():
         },
     )
     sit.update(ev)
-    assert sit.state.game_profile == "madden_27"
+    assert sit.state.game_profile == "cfb_27"
+    assert sit.state.game_title == "College Football 27"
 
 
 def test_unpinned_optical_lock_may_adopt_title():

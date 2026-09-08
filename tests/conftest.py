@@ -12,6 +12,21 @@ os.environ["QORESENCE_PRIVACY_GUARD"] = "0"
 os.environ.setdefault("QORESENCE_DISABLE_SCOREBOARD_OCR", "1")
 
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _reset_cfb_optical_marker_state():
+    try:
+        from qoresence.vision.cfb_optical_markers import clear_football_confirm_hint
+
+        clear_football_confirm_hint()
+        yield
+        clear_football_confirm_hint()
+    except Exception:
+        yield
+
+
 def put_live_coupling_ticket():
     """Mint a live coupling ticket so LicenseGate allows stub A2A cycles."""
     import time

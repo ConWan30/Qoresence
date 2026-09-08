@@ -636,11 +636,45 @@ class VisualRuntime:
         # Map title/profile to canonical profile_id
         title_lower = str(getattr(context, "game_title", "") or "").lower() if context else ""
         config_lower = profile_lower
+        optical_cfb = False
+        hint_title: str | None = None
+        try:
+            from qoresence.core.unified_config import GameProfileId, profile_from_title
+            from qoresence.vision.cfb_optical_markers import (
+                cfb_markers_in_profile_or_title,
+                football_confirm_hint,
+                frame_has_cfb_optical_markers,
+                set_football_confirm_hint,
+                stamp_confirm_context,
+            )
 
-        if "college" in title_lower or "college" in config_lower or "ncaa" in title_lower or "ncaa" in config_lower or "cfb" in title_lower or "cfb" in config_lower:
-            profile = "cfb_27"
-        elif "madden" in title_lower or "madden" in config_lower:
-            profile = "madden_27"
+            hint_profile, hint_title = football_confirm_hint()
+            if not title_lower and hint_title:
+                title_lower = str(hint_title).lower()
+            ctx_title = getattr(context, "game_title", None) if context else None
+            optical_cfb = frame_has_cfb_optical_markers(
+                frame,
+                game_profile=profile,
+                game_title=ctx_title,
+            )
+            if ctx_title:
+                mapped = profile_from_title(ctx_title)
+                if mapped == GameProfileId.CFB_27:
+                    profile = "cfb_27"
+                elif mapped == GameProfileId.MADDEN_27:
+                    profile = "madden_27"
+            elif optical_cfb or cfb_markers_in_profile_or_title(profile, title_lower):
+                profile = "cfb_27"
+            elif "madden" in title_lower or "madden" in config_lower:
+                profile = "madden_27"
+            if optical_cfb:
+                profile = "cfb_27"
+                set_football_confirm_hint("cfb_27", hint_title or ctx_title)
+        except Exception:
+            if "college" in title_lower or "college" in config_lower or "ncaa" in title_lower or "ncaa" in config_lower or "cfb" in title_lower or "cfb" in config_lower:
+                profile = "cfb_27"
+            elif "madden" in title_lower or "madden" in config_lower:
+                profile = "madden_27"
 
         if context is None:
             if not football:
@@ -656,6 +690,17 @@ class VisualRuntime:
         else:
             # Update context.game_profile based on merged title + config
             context.game_profile = profile
+            if optical_cfb and not getattr(context, "game_title", None):
+                context.game_title = hint_title or "College Football 27"
+            if not getattr(context, "game_title", None):
+                try:
+                    from qoresence.vision.cfb_optical_markers import stamp_confirm_context
+
+                    stamp_confirm_context(context, frame)
+                    profile = str(getattr(context, "game_profile", None) or profile)
+                    context.game_profile = profile
+                except Exception:
+                    pass
         try:
             cat = getattr(context.game_category, "value", context.game_category)
             if not football and str(cat) != "football":

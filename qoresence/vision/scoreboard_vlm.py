@@ -398,13 +398,21 @@ class ScoreboardVlmReferee:
             )
         return out
 
-    @staticmethod
-    def _is_cfb_context(game_profile: str | None = None, game_title: str | None = None) -> bool:
-        """Detect CFB/college/NCAA from profile or title."""
-        profile_lower = str(game_profile or "").lower()
-        title_lower = str(game_title or "").lower()
-        cfb_markers = ("cfb", "college", "ncaa", "college football")
-        return any(m in profile_lower or m in title_lower for m in cfb_markers)
+    @classmethod
+    def _is_cfb_context(
+        cls,
+        game_profile: str | None = None,
+        game_title: str | None = None,
+        frame: np.ndarray | None = None,
+    ) -> bool:
+        """Detect CFB/college/NCAA from profile, title, or ticker/logo OCR."""
+        from qoresence.vision.cfb_optical_markers import frame_has_cfb_optical_markers
+
+        return frame_has_cfb_optical_markers(
+            frame,
+            game_profile=game_profile,
+            game_title=game_title,
+        )
 
     @classmethod
     def _crop(
@@ -424,7 +432,14 @@ class ScoreboardVlmReferee:
         # plate (player CU). Prefer the first band that looks like a scorebug.
 
         is_madden = is_madden_profile(game_profile)
-        is_cfb = cls._is_cfb_context(game_profile, game_title)
+        is_cfb = cls._is_cfb_context(game_profile, game_title, frame)
+        if is_cfb:
+            try:
+                from qoresence.vision.cfb_optical_markers import set_football_confirm_hint
+
+                set_football_confirm_hint("cfb_27", game_title)
+            except Exception:
+                pass
 
         effective_profile = game_profile
         if is_cfb and not is_madden:
