@@ -67,6 +67,20 @@ def slice_ticker_strip(frame: np.ndarray) -> np.ndarray | None:
 
 def read_ticker_strip_text(frame: np.ndarray) -> str:
     """OCR the bottom-left ticker/logo strip. Empty when engine is not ready."""
+    import os
+
+    if os.environ.get("QORESENCE_DISABLE_SCOREBOARD_OCR", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }:
+        return ""
+    if os.environ.get("QORESENCE_EASY_OCR", "0").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+    }:
+        return ""
     crop = slice_ticker_strip(frame)
     if crop is None:
         return ""
