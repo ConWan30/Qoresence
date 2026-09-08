@@ -529,6 +529,13 @@ class FootballScoreboardExtractor:
         # Empty crop_hash is never a licensed lock. Never invents scores.
         _ensure_frame_hash(ctx, frame)
 
+        try:
+            from qoresence.vision.cfb_optical_markers import stamp_confirm_context
+
+            stamp_confirm_context(ctx, frame)
+        except Exception:
+            pass
+
         # Smarter DeepSeek board cadence (does not block) — not every frame
         try:
             from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm

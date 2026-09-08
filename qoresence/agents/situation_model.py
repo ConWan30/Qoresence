@@ -12,7 +12,14 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from qoresence.core import BaseEvent, EventType
+from qoresence.core import BaseEvent, EventType, profile_from_title
+from qoresence.core.unified_config import GameProfileId
+from qoresence.vision.cfb_optical_markers import (
+    cfb_markers_in_text,
+    is_cfb_profile_id,
+    set_football_confirm_hint,
+    stash_locked_optical_title,
+)
 from qoresence.vision.visual_context import VisualContext
 
 
@@ -130,13 +137,47 @@ class SituationModel:
             if pinned:
                 self._operator_pin = str(profile_id)
 
-    def _maybe_apply_profile(self, profile_id: Any) -> None:
+    def _maybe_apply_profile(
+        self,
+        profile_id: Any,
+        *,
+        title: str | None = None,
+        optical_cfb: bool = False,
+    ) -> None:
         if not profile_id:
             return
         got = str(profile_id)
-        if self._operator_pin and got != self._operator_pin:
-            return
+        target = "cfb_27" if is_cfb_profile_id(got) else got
+        if self._operator_pin and target != self._operator_pin:
+            if not self._soft_pin_yields(target, title=title, optical_cfb=optical_cfb):
+                return
+        if is_cfb_profile_id(got):
+            got = "cfb_27"
         self._state.game_profile = got
+        if title:
+            self._state.game_title = title
+        if got == "cfb_27":
+            set_football_confirm_hint("cfb_27", title or self._state.game_title)
+
+    def _soft_pin_yields(
+        self,
+        profile_id: str,
+        *,
+        title: str | None = None,
+        optical_cfb: bool = False,
+    ) -> bool:
+        """Madden pin yields to locked CFB optics (title claim or ticker markers)."""
+        if not is_cfb_profile_id(profile_id):
+            return False
+        if optical_cfb or cfb_markers_in_text(title):
+            return True
+        if (
+            self._state.title_hysteresis == "locked"
+            and self._state.title_claim
+            and is_cfb_profile_id(profile_id)
+        ):
+            return True
+        return False
 
     def _handle_game_detected(self, payload: dict[str, Any]) -> None:
         self._maybe_apply_profile(payload.get("profile_id"))
@@ -150,7 +191,19 @@ class SituationModel:
         if "claim" in payload:
             self._state.title_claim = bool(payload.get("claim"))
         if payload.get("claim") and payload.get("profile_id"):
-            self._maybe_apply_profile(payload.get("profile_id"))
+            pid = payload.get("profile_id")
+            display = payload.get("display_name") or payload.get("game_title")
+            locked = str(payload.get("hysteresis_state") or self._state.title_hysteresis or "") == "locked"
+            if locked:
+                stash_locked_optical_title(
+                    str(display) if display else None,
+                    "cfb_27" if is_cfb_profile_id(pid) else str(pid),
+                )
+            self._maybe_apply_profile(
+                pid,
+                title=str(display) if display else None,
+                optical_cfb=locked and is_cfb_profile_id(pid),
+            )
 
     def _handle_visual_context(self, event: BaseEvent) -> None:
         try:
@@ -169,12 +222,14 @@ class SituationModel:
         ctx_profile = getattr(ctx, "game_profile", None)
         ctx_title = getattr(ctx, "game_title", None)
         if ctx_profile or ctx_title:
-            title_lower = str(ctx_title or "").lower()
-            profile_lower = str(ctx_profile or "").lower()
-            if "college" in title_lower or "ncaa" in title_lower or "cfb" in title_lower or "college football" in title_lower:
+            if ctx_title:
+                mapped = profile_from_title(ctx_title)
+                if mapped == GameProfileId.CFB_27:
+                    ctx.game_profile = "cfb_27"
+                elif mapped == GameProfileId.MADDEN_27:
+                    ctx.game_profile = "madden_27"
+            elif ctx_profile and is_cfb_profile_id(ctx_profile):
                 ctx.game_profile = "cfb_27"
-            elif "madden" in title_lower or "madden" in profile_lower:
-                ctx.game_profile = "madden_27"
         # Fail-closed: never adopt score_vlm_locked without a ConfirmTicket id.
         tid = str(getattr(ctx, "confirm_ticket_id", "") or "")
         why = str(getattr(ctx, "board_why", "") or "").strip()
@@ -217,9 +272,23 @@ class SituationModel:
                 else str(ctx.game_category)
             )
         if ctx.game_profile:
-            rejected = bool(self._operator_pin and str(ctx.game_profile) != self._operator_pin)
-            self._maybe_apply_profile(ctx.game_profile)
-            if ctx.game_title and not rejected:
+            pin_blocks = bool(
+                self._operator_pin and str(ctx.game_profile) != self._operator_pin
+            )
+            optical_cfb = pin_blocks and is_cfb_profile_id(ctx.game_profile) and (
+                cfb_markers_in_text(ctx_title)
+                or str(ctx.game_profile).lower() == "cfb_27"
+            )
+            self._maybe_apply_profile(
+                ctx.game_profile,
+                title=ctx_title,
+                optical_cfb=optical_cfb,
+            )
+            if ctx.game_title and (
+                cfb_markers_in_text(ctx.game_title)
+                or not self._operator_pin
+                or self._state.game_profile == str(ctx.game_profile)
+            ):
                 self._state.game_title = ctx.game_title
         elif ctx.game_title:
             self._state.game_title = ctx.game_title

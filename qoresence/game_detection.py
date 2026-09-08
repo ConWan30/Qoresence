@@ -144,6 +144,12 @@ NCAA_VOCABULARY = GameVocabulary(
     },
 )
 
+CFB_VOCABULARY = GameVocabulary(
+    profile_id=GameProfileId.CFB_27,
+    display_name="EA SPORTS College Football 27",
+    keywords=dict(NCAA_VOCABULARY.keywords),
+)
+
 COD_VOCABULARY = GameVocabulary(
     profile_id=GameProfileId.CALL_OF_DUTY,
     display_name="Call of Duty",
@@ -343,11 +349,16 @@ class GameAutoDetector:
         self._profile_switch_callback: Callable[[GameProfileId], None] | None = None
 
         self._vocabularies: dict[GameProfileId, GameVocabulary] = {
+            GameProfileId.CFB_27: CFB_VOCABULARY,
             GameProfileId.NCAA_FOOTBALL_27: NCAA_VOCABULARY,
             GameProfileId.MADDEN_27: MADDEN_VOCABULARY,
             GameProfileId.CALL_OF_DUTY: COD_VOCABULARY,
         }
-        self._all_profiles = tuple(self._vocabularies.keys())
+        self._all_profiles = (
+            GameProfileId.CFB_27,
+            GameProfileId.MADDEN_27,
+            GameProfileId.CALL_OF_DUTY,
+        )
 
         self._evidence: deque[DetectionEvidence] = deque()
         self._current_result: GameDetectionResult | None = None
@@ -542,7 +553,9 @@ class GameAutoDetector:
                     vision.visual_context.game_category,
                 )
                 if str(cat) == "football" or self._game_profile in (
-                    GameProfileId.NCAA_FOOTBALL_27, GameProfileId.MADDEN_27,
+                    GameProfileId.NCAA_FOOTBALL_27,
+                    GameProfileId.CFB_27,
+                    GameProfileId.MADDEN_27,
                 ):
                     from qoresence.vision.scoreboard_extractor import (
                         extract_football_scoreboard,
@@ -882,12 +895,21 @@ class GameAutoDetector:
         while self._evidence and self._evidence[0].timestamp_ns < cutoff:
             self._evidence.popleft()
 
+    @staticmethod
+    def _canonical_fuse_profile(profile_id: GameProfileId | None) -> GameProfileId | None:
+        """CFB_27 and NCAA_FOOTBALL_27 share one fuse bucket."""
+        if profile_id is None:
+            return None
+        if profile_id in (GameProfileId.CFB_27, GameProfileId.NCAA_FOOTBALL_27):
+            return GameProfileId.CFB_27
+        return profile_id
+
     def _fuse_evidence(self, now_ns: int) -> GameDetectionResult:
         """Combine VLM, OCR and motion evidence into a single detection result."""
         if not self._evidence:
             return GameDetectionResult(
-                profile_id=GameProfileId.NCAA_FOOTBALL_27,
-                display_name=self._vocabularies[GameProfileId.NCAA_FOOTBALL_27].display_name,
+                profile_id=GameProfileId.CFB_27,
+                display_name=self._vocabularies[GameProfileId.CFB_27].display_name,
                 confidence=0.0,
                 evidence_count=0,
                 vlm_confidence=0.0,
@@ -904,17 +926,18 @@ class GameAutoDetector:
         motion_total = 0.0
 
         for ev in self._evidence:
-            if ev.profile_id in scores:
+            fuse_id = self._canonical_fuse_profile(ev.profile_id)
+            if fuse_id in scores:
                 if ev.source == "vlm":
-                    scores[ev.profile_id] += ev.confidence * self._vlm_weight
+                    scores[fuse_id] += ev.confidence * self._vlm_weight
                     vlm_total += ev.confidence
                     counts["vlm"] += 1
                 elif ev.source == "ocr":
-                    scores[ev.profile_id] += ev.confidence * self._ocr_weight
+                    scores[fuse_id] += ev.confidence * self._ocr_weight
                     ocr_total += ev.confidence
                     counts["ocr"] += 1
                 elif ev.source == "motion":
-                    scores[ev.profile_id] += ev.confidence * self._motion_weight
+                    scores[fuse_id] += ev.confidence * self._motion_weight
                     motion_total += ev.confidence
                     counts["motion"] += 1
 

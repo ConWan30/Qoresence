@@ -400,8 +400,8 @@ def test_title_flip_requests_lock_verify():
     assert det._sampling_mode == "lock_verify"
 
 
-def test_optical_lock_observes_but_does_not_yank_pinned_profile():
-    """Locked optics emit game_detected; a pinned operator profile must hold."""
+def test_optical_lock_observes_but_soft_pin_yields_locked_cfb():
+    """Locked CFB optics emit game_detected; soft pin yields situation to cfb_27."""
     from qoresence.agents.situation_model import SituationModel
     from qoresence.core.operator_profile import operator_pin_blocks_switch
     from qoresence.core.types import BaseEvent, EventType, SourceLobe
@@ -454,7 +454,7 @@ def test_optical_lock_observes_but_does_not_yank_pinned_profile():
     assert gd[-1]["payload"]["plane"] == PLANE
     assert gd[-1]["payload"]["profile_id"] == "ncaa_football_27"
     assert gd[-1]["payload"]["title_presence"]["claim"] is True
-    assert sit.state.game_profile == "madden_27"
+    assert sit.state.game_profile == "cfb_27"
     assert switched == []
 
 
