@@ -750,6 +750,9 @@ class RetinaUnifiedConfig:
     # Look-license graphs: next crop / frame / mint. Default OFF. --play does not enable.
     look_graphs: bool = False
 
+    # DeckLeaseLamp: Sight Glass subscribe-not-own chrome. Default OFF. --play does not enable.
+    deck_lease_lamp: bool = False
+
     # ── Private haptic probe (default OFF; observation only) ────────────────
     haptic_probe: HapticProbeConfig = field(default_factory=HapticProbeConfig)
 
@@ -1085,6 +1088,7 @@ class RetinaUnifiedConfig:
             ),
             learning_edge=_bool("QORESENCE_LEARNING_EDGE"),
             look_graphs=_bool("QORESENCE_LOOK_GRAPHS"),
+            deck_lease_lamp=_bool("QORESENCE_DECK_LEASE_LAMP"),
         )
 
     # ─────────────────────────────────────────────────────────────────────────

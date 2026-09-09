@@ -1357,6 +1357,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             _look_on(True)
         except Exception:
             pass
+    if getattr(args, "deck_lease_lamp", False) or getattr(config, "deck_lease_lamp", False):
+        config.deck_lease_lamp = True
+        try:
+            from qoresence.deck.lease_lamp import set_config_enabled as _lamp_on
+
+            _lamp_on(True)
+        except Exception:
+            pass
     if getattr(args, "haptic_probe", False):
         config.haptic_probe = replace(config.haptic_probe, enabled=True)
     if args.controller:
@@ -1570,6 +1578,12 @@ def main():
         action="store_true",
         help="License the next look from ticket / crop / Same-Seq graphs. "
         "Default OFF. Also QORESENCE_LOOK_GRAPHS=1. --play does not enable this.",
+    )
+    parser.add_argument(
+        "--deck-lease-lamp",
+        action="store_true",
+        help="Sight Glass / Deck lease lamp (subscribe-not-own chrome on FrameHub). "
+        "Default OFF. Also QORESENCE_DECK_LEASE_LAMP=1. --play does not enable this.",
     )
     parser.add_argument(
         "--otel-endpoint",
@@ -1829,7 +1843,7 @@ def main():
     parser.add_argument(
         "--play",
         action="store_true",
-        help="Exquisite play mode: streamer+visual+fusion+clutchbot+deck (while playing). A2A/Society stay OFF unless --a2a / --agent-society.",
+        help="Exquisite play mode: streamer+visual+fusion+clutchbot+deck (while playing). A2A/Society stay OFF unless --a2a / --agent-society. DeckLeaseLamp stays OFF unless --deck-lease-lamp.",
     )
     parser.add_argument(
         "--deck", action="store_true", help="Enable Sight Glass ws://127.0.0.1:8765 (Lens+Rail)"
