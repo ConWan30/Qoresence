@@ -272,11 +272,12 @@ def test_large_score_pair_home_on_left():
 
 
 def test_vlm_watchdog_clears_stale_inflight():
-    """Inflight watchdog clears _inflight if VLM thread is stale (>16s).
-    
+    """Inflight watchdog clears _inflight if VLM thread is stale (>http_timeout+2s).
+
     Regression test for 2026-08-29: if a VLM thread hangs or _inflight sticks,
-    the next tick should be able to run after the HTTP timeout (~14s) + 2s buffer.
+    the next tick should be able to run after the HTTP timeout + 2s buffer.
     """
+    from qoresence.vision.scoreboard_vlm import _INFLIGHT_WATCHDOG_S
     import numpy as np
     import time
 
@@ -291,7 +292,7 @@ def test_vlm_watchdog_clears_stale_inflight():
     # Manually set inflight + old timestamp
     with ref._lock:
         ref._inflight = True
-        ref._inflight_since = time.time() - 20.0  # 20s ago (stale)
+        ref._inflight_since = time.time() - (_INFLIGHT_WATCHDOG_S + 5.0)
     
     # schedule should clear stale inflight and allow a new call
     ref.schedule(frame, force=True, game_state="gameplay", game_profile="cfb_27")
