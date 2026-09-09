@@ -747,7 +747,7 @@ def _lease_lamp_on() -> bool:
 def _lease_lamp_snippet() -> str:
     if not _lease_lamp_on():
         return ""
-    return f'<script src="/lease-lamp.js?v=0.1" defer></script>'
+    return '<script src="/lease-lamp.js?v=0.1" defer></script>'
 
 
 def _with_lease_lamp(html: str) -> str:
