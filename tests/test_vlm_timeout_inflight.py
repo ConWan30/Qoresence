@@ -106,6 +106,29 @@ def test_menu_with_scorebug_crop_uses_gameplay_interval_not_menu_starved(monkeyp
         assert ref._skip_interval_count == 0
 
 
+def test_cfb_optical_markers_use_gameplay_interval_on_menu(monkeypatch):
+    """CFB optical context must not use menu interval even when game_state=menu."""
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    called = threading.Event()
+
+    monkeypatch.setattr(ref, "_call_vlm", lambda _c: called.set())
+    monkeypatch.setattr(ref, "_is_cfb_context", lambda **k: True)
+    frame = licensed_scorebug_frame()
+    ref._last_call = time.time() - 7.0
+
+    ref.schedule(
+        frame,
+        game_state="menu",
+        game_profile="generic_arcade",
+        game_title="",
+        reason="tick",
+    )
+    assert called.wait(timeout=2.0)
+    _wait_inflight_clear(ref)
+
+
 def test_menu_without_scorebug_still_uses_menu_interval(monkeypatch):
     """Plain menu hub with no scorebug keeps the sparse menu cadence."""
     ref = ScoreboardVlmReferee()
@@ -125,6 +148,29 @@ def test_menu_without_scorebug_still_uses_menu_interval(monkeypatch):
         assert ref._inflight is False
         assert called == []
         assert ref._skip_interval_count == 1
+
+
+def test_read_timeout_skips_urllib_fallback(monkeypatch):
+    """requests Read timeout must not fall through to urllib (double POST storm)."""
+    from unittest.mock import patch
+
+    import requests
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+
+    monkeypatch.setattr(
+        "requests.post",
+        lambda *_a, **_k: (_ for _ in ()).throw(requests.exceptions.ReadTimeout()),
+    )
+    crop = np.zeros((96, 200, 3), dtype=np.uint8)
+    crop[:, :60] = 255
+    crop[:, 140:] = 255
+
+    with patch("urllib.request.urlopen") as urlopen:
+        assert ref._call_vlm(crop) is None
+        urlopen.assert_not_called()
 
 
 def test_timeout_null_does_not_mint_zero_zero(monkeypatch):
