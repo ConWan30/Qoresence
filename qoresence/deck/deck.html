@@ -120,7 +120,9 @@ body.dark-theater #strip,body.dark-theater #ctrlStrip,body.dark-theater #ctrlPla
     <button type="button" class="modeBtn" id="btnReplay">REPLAY</button>
   </div>
   <div id="cmdStatus"><span class="dot warn" id="statusDot">●</span> <span id="statusText">connecting…</span></div>
+  <!-- deck-lease-lamp -->
   <div id="deckLeaseLamp" hidden data-plane="qoresence-observation" data-lamp="off" data-flag="deck_lease_lamp" aria-label="Deck lease lamp"><span class="dll-dot" aria-hidden="true"></span><span class="dll-text" id="deckLeaseLampText">LEASE OFF</span></div>
+  <!-- /deck-lease-lamp -->
   <nav class="glass-nav" aria-label="Glasses">
     <a href="/">Home</a>
     <a href="/deck.html" aria-current="page">Theater</a>
@@ -711,34 +713,6 @@ setInterval(()=>{fetch('/health').then(r=>r.json()).then(h=>{
   if(coup.buttons) merged.buttons=coup.buttons;
   paintController(merged, st.situation);
   paintVideo(st.video||{});
-  const lamp=document.getElementById('deckLeaseLamp');
-  const lampText=document.getElementById('deckLeaseLampText');
-  const bag=h.deck_lease_lamp;
-  if(lamp){
-    lamp.setAttribute('data-plane','qoresence-observation');
-    lamp.setAttribute('data-flag','deck_lease_lamp');
-    if(!bag||!bag.enabled){
-      lamp.hidden=true;
-      lamp.setAttribute('data-lamp','off');
-      lamp.setAttribute('data-lease-ok','false');
-      lamp.setAttribute('data-subscribed','false');
-      if(lampText) lampText.textContent='LEASE OFF';
-    }else{
-      const state=bag.lamp==='on'?'on':'dark';
-      lamp.hidden=false;
-      lamp.setAttribute('data-lamp',state);
-      lamp.setAttribute('data-lease-ok',bag.lease_ok?'true':'false');
-      lamp.setAttribute('data-subscribed',bag.subscribed?'true':'false');
-      const bits=[state==='on'?'LEASE ON':'LEASE DARK'];
-      if(bag.owner) bits.push(String(bag.owner));
-      if(bag.pid) bits.push('pid '+bag.pid);
-      if(bag.device) bits.push(String(bag.device));
-      bits.push(bag.subscribed?'subscribed':'subscribe missing');
-      if(bag.age_s!=null) bits.push('age '+bag.age_s+'s');
-      if(bag.frames!=null) bits.push('frames '+bag.frames);
-      if(lampText) lampText.textContent=bits.join(' · ');
-    }
-  }
 }).catch(()=>{});},1500);
 
 function doClip(){
@@ -855,4 +829,5 @@ function renderEvidence(data){
 }
 setInterval(()=>{fetch('/api/evidence').then(r=>r.json()).then(j=>renderEvidence(j)).catch(()=>{});},3000);
 </script>
+<script src="/lease-lamp.js?v=0.1" defer></script>
 </body></html>

@@ -24,7 +24,7 @@ LAMP_JS = ROOT / "qoresence" / "deck" / "lease_lamp.js"
 DECK_HTML = ROOT / "qoresence" / "deck" / "deck.html"
 CLI = ROOT / "qoresence" / "cli.py"
 
-_LAMP_SOURCES = (LAMP_PY, LAMP_JS, DECK_HTML)
+_LAMP_SOURCES = (LAMP_PY, LAMP_JS)
 
 
 @pytest.fixture(autouse=True)
@@ -136,6 +136,13 @@ def test_lamp_source_has_no_digit_paint():
         assert "cv2.VideoCapture" not in text
         assert "getUserMedia" not in text
         assert "VideoCapture(" not in text
+    html = DECK_HTML.read_text(encoding="utf-8")
+    start = html.find("<!-- deck-lease-lamp -->")
+    end = html.find("<!-- /deck-lease-lamp -->")
+    assert start != -1 and end != -1
+    stub = html[start:end]
+    for tok in forbidden:
+        assert tok not in stub, f"deck.html lamp stub must not paint {tok}"
     py = LAMP_PY.read_text(encoding="utf-8")
     assert "VideoCapture" not in py
     snap = snapshot(
