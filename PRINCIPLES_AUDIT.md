@@ -138,7 +138,7 @@ No `--play` implies `--a2a`. No Society personality roles. No emit while holding
 Loop: `docs/QORGRAPH_DECK_LEASE_LAMP.md`  
 DShow verifier: `docs/QORGRAPH_DSHOW_VERIFIER.md`  
 Date: 2026-09-09  
-Branch: `cursor/deck-lease-lamp-0.1-2ae5`
+Branch: `feat/deck-lease-lamp-0.1`
 
 ## DECK_LEASE_LAMP — Sight Glass is a glass on FrameHub
 
