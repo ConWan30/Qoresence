@@ -49,6 +49,11 @@ _MENU_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_MENU_INTERVAL"
 # HTTP 429 is quota: soft cooldown, not a permanent process HOLD.
 _HOLD_HTTP = frozenset({400, 401, 402})
 _QUOTA_BACKOFF_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_429_COOLDOWN", "60.0"))
+# Quicksilver Read timeout — shorter than prior 14s; env override wins.
+_HTTP_TIMEOUT_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_HTTP_TIMEOUT", "10"))
+_INFLIGHT_WATCHDOG_S = _HTTP_TIMEOUT_S + 2.0
+_TIMEOUT_BACKOFF_BASE_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF", "5"))
+_TIMEOUT_BACKOFF_MAX_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF_MAX", "60"))
 # 26px 360p HUD strips look like tickers to the VLM. Upscale height only.
 _MIN_CROP_H = 96
 
@@ -134,9 +139,25 @@ class ScoreboardVlmReferee:
         self._last_crop_kind: str = ""
         self._held = False
         self._backoff_until = 0.0
+        self._timeout_backoff_until = 0.0
+        self._timeout_count = 0
+        self._consecutive_timeouts = 0
+        self._skip_inflight_count = 0
+        self._skip_interval_count = 0
+        self._last_timeout_ts = 0.0
 
     def stats(self) -> dict[str, Any]:
         raw = self._last_raw or ""
+        now = time.time()
+        with self._lock:
+            inflight = bool(self._inflight)
+            inflight_since = float(self._inflight_since or 0.0)
+            timeout_count = int(self._timeout_count)
+            skip_inflight = int(self._skip_inflight_count)
+            skip_interval = int(self._skip_interval_count)
+            timeout_backoff = max(0.0, float(self._timeout_backoff_until or 0.0) - now)
+            quota_backoff = max(0.0, float(self._backoff_until or 0.0) - now)
+        inflight_age_s = (now - inflight_since) if inflight and inflight_since else None
         return {
             "enabled": self.enabled,
             "model": self.model,
@@ -152,9 +173,15 @@ class ScoreboardVlmReferee:
             "last_crop_refuse": self._last_crop_refuse,
             "calls": self._calls,
             "held": self._held,
-            "quota_backoff_s": max(
-                0.0, float(getattr(self, "_backoff_until", 0.0) or 0.0) - time.time()
-            ),
+            "inflight": inflight,
+            "inflight_age_s": inflight_age_s,
+            "timeout_count": timeout_count,
+            "skip_inflight_count": skip_inflight,
+            "skip_interval_count": skip_interval,
+            "http_timeout_s": _HTTP_TIMEOUT_S,
+            "inflight_watchdog_s": _INFLIGHT_WATCHDOG_S,
+            "timeout_backoff_s": timeout_backoff,
+            "quota_backoff_s": quota_backoff,
             "gameplay_interval_s": _GAMEPLAY_INTERVAL_S,
             "menu_interval_s": _MENU_INTERVAL_S,
         }
@@ -177,23 +204,70 @@ class ScoreboardVlmReferee:
             return bool(getattr(self, "_held", False))
 
     def _in_backoff(self, now: float | None = None) -> bool:
-        """True while a 429 cooldown is active. Clears itself after wait."""
+        """True while a 429 or read-timeout cooldown is active."""
         t = time.time() if now is None else now
         lock = getattr(self, "_lock", None)
 
         def _check() -> bool:
             until = float(getattr(self, "_backoff_until", 0.0) or 0.0)
-            if until <= 0.0:
+            tout = float(getattr(self, "_timeout_backoff_until", 0.0) or 0.0)
+            if until <= 0.0 and tout <= 0.0:
                 return False
-            if t >= until:
+            if until > 0.0 and t < until:
+                return True
+            if tout > 0.0 and t < tout:
+                return True
+            if until > 0.0 and t >= until:
                 self._backoff_until = 0.0
-                return False
-            return True
+            if tout > 0.0 and t >= tout:
+                self._timeout_backoff_until = 0.0
+            return False
 
         if lock is None:
             return _check()
         with lock:
             return _check()
+
+    @staticmethod
+    def _is_read_timeout(exc: BaseException) -> bool:
+        try:
+            import requests
+
+            if isinstance(
+                exc,
+                (
+                    requests.exceptions.Timeout,
+                    requests.exceptions.ReadTimeout,
+                    requests.exceptions.ConnectTimeout,
+                ),
+            ):
+                return True
+        except Exception:
+            pass
+        if isinstance(exc, TimeoutError):
+            return True
+        msg = str(exc).lower()
+        return "timed out" in msg or "read timeout" in msg
+
+    def _on_read_timeout(self) -> None:
+        """Read timed out — backoff and allow next tick (inflight cleared in _run finally)."""
+        now = time.time()
+        with self._lock:
+            self._timeout_count += 1
+            self._consecutive_timeouts += 1
+            self._last_timeout_ts = now
+            self._last = None
+            self._last_result_ts = 0.0
+            exp = min(
+                _TIMEOUT_BACKOFF_BASE_S * (2 ** max(0, self._consecutive_timeouts - 1)),
+                _TIMEOUT_BACKOFF_MAX_S,
+            )
+            self._timeout_backoff_until = now + exp
+        log.warning(
+            "scoreboard VLM Read timed out (%.1fs) — backoff %.1fs",
+            _HTTP_TIMEOUT_S,
+            exp,
+        )
 
     def vlm_status(self) -> str:
         """Classify the last VLM outcome. Observation only — no bus emit, no bodies."""
@@ -308,7 +382,14 @@ class ScoreboardVlmReferee:
         except Exception:
             pass
         gst = (game_state or "").lower()
+        crop = self._crop(
+            frame, game_state=gst, game_profile=game_profile, game_title=game_title
+        )
+        has_scorebug = crop is not None and crop_misses_scorebug(crop) is None
         is_gameplay = gst in {"gameplay", "playing", "in_game", ""}
+        if has_scorebug:
+            # Misclassified menu with a live scorebug — use gameplay cadence, not menu-starved.
+            is_gameplay = True
         profile_lower = str(game_profile or "").lower()
         title_lower = str(game_title or "").lower()
         is_football = any(
@@ -324,22 +405,29 @@ class ScoreboardVlmReferee:
 
         now = time.time()
         with self._lock:
-            # Watchdog: clear stale inflight if thread is older than HTTP timeout (14s + 2s buffer)
-            if self._inflight and (now - self._inflight_since) > 16.0:
-                log.info("scoreboard VLM watchdog: clearing stale inflight (%.1fs)", now - self._inflight_since)
+            if self._inflight and (now - self._inflight_since) > _INFLIGHT_WATCHDOG_S:
+                log.info(
+                    "scoreboard VLM watchdog: clearing stale inflight (%.1fs)",
+                    now - self._inflight_since,
+                )
                 self._inflight = False
-            
+
             if self._inflight:
+                self._skip_inflight_count += 1
                 log.info("scoreboard VLM skip: inflight")
                 return
             if not force and (now - self._last_call) < interval:
-                log.info("scoreboard VLM skip: interval (%.1fs < %.1fs)", now - self._last_call, interval)
+                self._skip_interval_count += 1
+                log.info(
+                    "scoreboard VLM skip: interval (%.1fs < %.1fs)",
+                    now - self._last_call,
+                    interval,
+                )
                 return
             self._inflight = True
             self._inflight_since = now
             self._last_call = now
             self._last_reason = reason
-        crop = self._crop(frame, game_state=gst, game_profile=game_profile, game_title=game_title)
         if crop is None:
             with self._lock:
                 self._inflight = False
@@ -353,6 +441,7 @@ class ScoreboardVlmReferee:
                         self._last = parsed
                         self._last_result_ts = time.time()
                         self._calls += 1
+                        self._consecutive_timeouts = 0
                     log.info(
                         "scoreboard VLM → %s-%s q=%s (paused=%s reason=%s)",
                         parsed.get("home_score"),
@@ -364,6 +453,8 @@ class ScoreboardVlmReferee:
                 else:
                     log.info("scoreboard VLM → null parse (reason=%s)", reason)
             except Exception as e:
+                if self._is_read_timeout(e):
+                    self._on_read_timeout()
                 log.info("scoreboard VLM failed: %s (reason=%s)", e, reason)
             finally:
                 with self._lock:
@@ -525,7 +616,7 @@ class ScoreboardVlmReferee:
         try:
             import requests
 
-            r = requests.post(url, headers=headers, json=body, timeout=14)
+            r = requests.post(url, headers=headers, json=body, timeout=_HTTP_TIMEOUT_S)
             log.info("scoreboard VLM HTTP %d", r.status_code)
             if r.status_code == 429 or r.status_code in _HOLD_HTTP:
                 err_body = ""
@@ -543,7 +634,10 @@ class ScoreboardVlmReferee:
                 return None
             data = r.json()
         except Exception as e:
-            # stdlib fallback only when requests is missing or the socket failed
+            if self._is_read_timeout(e):
+                self._on_read_timeout()
+                return None
+            # stdlib fallback only when requests is missing or the socket failed (not timeout)
             import urllib.error
             import urllib.request
 
@@ -554,7 +648,7 @@ class ScoreboardVlmReferee:
                 method="POST",
             )
             try:
-                with urllib.request.urlopen(req, timeout=14) as resp:
+                with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT_S) as resp:
                     code = resp.getcode()
                     log.info("scoreboard VLM HTTP %d", code)
                     if self._on_terminal_http(code):
@@ -578,6 +672,9 @@ class ScoreboardVlmReferee:
                 log.warning("scoreboard VLM HTTP error: %s / %s", e, http_err)
                 return None
             except Exception as e2:
+                if self._is_read_timeout(e2):
+                    self._on_read_timeout()
+                    return None
                 log.warning("scoreboard VLM HTTP failed: %s / %s", e, e2)
                 return None
         choice = (data.get("choices") or [{}])[0]
