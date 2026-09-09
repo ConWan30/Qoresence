@@ -31,6 +31,12 @@ body::before{content:none}
 #btnClip{background:var(--gold);color:var(--bg);border:0;margin-left:auto;padding:12px 20px;font-size:12px;min-width:204px;box-shadow:0 10px 28px rgba(155,231,255,.12)}
 #btnClip:disabled{opacity:.55;cursor:wait;transform:none}
 #cmdStatus{font:700 10px/1.2 IBM Plex Mono,monospace;color:var(--muted);min-width:150px;letter-spacing:.04em;text-transform:uppercase}
+#deckLeaseLamp{display:inline-flex;align-items:center;gap:8px;min-height:28px;padding:6px 10px;border:1px solid rgba(155,231,255,.22);border-radius:8px;background:rgba(5,6,10,.72);color:var(--muted);font:700 10px/1 IBM Plex Mono,monospace;letter-spacing:.08em;text-transform:uppercase}
+#deckLeaseLamp[hidden]{display:none!important}
+#deckLeaseLamp .dll-dot{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+#deckLeaseLamp[data-lamp=dark]{color:var(--muted)}
+#deckLeaseLamp[data-lamp=on]{color:var(--ok);border-color:rgba(155,231,255,.55)}
+#deckLeaseLamp[data-lamp=on] .dll-dot{background:var(--ok);box-shadow:0 0 10px rgba(155,231,255,.55)}
 #cmdStatus .dot{color:var(--ok);text-shadow:0 0 12px var(--ok)}
 #cmdStatus .dot.warn{color:var(--amber);text-shadow:0 0 12px var(--amber)}
 #cmdStatus .dot.bad{color:var(--danger);text-shadow:0 0 12px var(--danger)}
@@ -114,6 +120,9 @@ body.dark-theater #strip,body.dark-theater #ctrlStrip,body.dark-theater #ctrlPla
     <button type="button" class="modeBtn" id="btnReplay">REPLAY</button>
   </div>
   <div id="cmdStatus"><span class="dot warn" id="statusDot">●</span> <span id="statusText">connecting…</span></div>
+  <!-- deck-lease-lamp -->
+  <div id="deckLeaseLamp" hidden data-plane="qoresence-observation" data-lamp="off" data-flag="deck_lease_lamp" aria-label="Deck lease lamp"><span class="dll-dot" aria-hidden="true"></span><span class="dll-text" id="deckLeaseLampText">LEASE OFF</span></div>
+  <!-- /deck-lease-lamp -->
   <nav class="glass-nav" aria-label="Glasses">
     <a href="/">Home</a>
     <a href="/deck.html" aria-current="page">Theater</a>
@@ -820,4 +829,5 @@ function renderEvidence(data){
 }
 setInterval(()=>{fetch('/api/evidence').then(r=>r.json()).then(j=>renderEvidence(j)).catch(()=>{});},3000);
 </script>
+<script src="/lease-lamp.js?v=0.1" defer></script>
 </body></html>

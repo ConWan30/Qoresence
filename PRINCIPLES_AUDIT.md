@@ -130,3 +130,31 @@ Branch: `qorgraph-5-a2a-reentrancy`
 ## Must remain empty
 
 No `--play` implies `--a2a`. No Society personality roles. No emit while holding lobe `_lock`. No Presence Fusion as product path. No dual-open. No scorelines on path=fast from A2A.
+
+---
+
+# Principles audit — `deck-lease-lamp-0.1`
+
+Loop: `docs/QORGRAPH_DECK_LEASE_LAMP.md`  
+DShow verifier: `docs/QORGRAPH_DSHOW_VERIFIER.md`  
+Date: 2026-09-09  
+Branch: `feat/deck-lease-lamp-0.1`
+
+## DECK_LEASE_LAMP — Sight Glass is a glass on FrameHub
+
+| Gate | Evidence | Result |
+|---|---|---|
+| `lamp_default_off` | `RetinaUnifiedConfig.deck_lease_lamp` defaults False; `lease_lamp.enabled()` False; `/health` omits `deck_lease_lamp` when off. Test: `test_deck_lease_lamp_default_off`. | pass |
+| `play_does_not_enable_lease_lamp` | `--play` block in `qoresence/cli.py` does not latch `deck_lease_lamp`. `--play` help states the lamp stays OFF. Test: `test_play_does_not_enable_lease_lamp`. | pass |
+| `plane_tag_on_every_emit` | Snapshot / `attach_health` / DOM `data-plane` are `qoresence-observation`. Test: `test_lamp_emits_plane_tag`. | pass |
+| `dark_when_lease_not_ok` | `lease.ok` false or FrameHub subscribe missing → `lamp=dark`, `ok=false`. Never fakes ok. Test: `test_lamp_dark_when_lease_not_ok`. | pass |
+| `no_digit_paint` | Lamp emit keys are lease/subscribe chrome only. Sources have no `home_score` / `0-0` / ConfirmTicket paint. Test: `test_lamp_source_has_no_digit_paint`. | pass |
+| `one_card_owner` | Lamp / Deck chrome / `webrtc_hub` / `live_paint` do not construct `VideoCapture`. Lease second acquire still raises. Tests: `test_lamp_paths_do_not_open_capture`, `test_second_acquire_raises`. | pass |
+
+**Gap found:** Sight Glass already subscribed to FrameHub (WebRTC / MJPEG / `get_latest`) and `/health.lease` already reported `{ok, owner, pid, device}`, but Deck had no opt-in chrome proving the glass leases held frames. Operators could read the feed as a second brain. Fix: default-OFF DeckLeaseLamp that paints lease + subscribe only, dark when the lease is not ok.
+
+DualSense on PS5 stays observe language. This lamp does not invent scores from the pad or the board.
+
+## Must remain empty
+
+No DShow / `VideoCapture` open. No grab. No score digits / last-good / 0-0. No ConfirmTicket claims. No LocalScoreReferee / LocalMuse. No A2A default ON. No `wrap_observation` / `*-truth`. No FrameHub ownership steal. Eval HOLD: chrome only.

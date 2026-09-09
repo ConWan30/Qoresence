@@ -715,6 +715,7 @@ def _glass_index_path() -> pathlib.Path | None:
 
 _CLIP_DOCK_JS = "clip-dock.js"
 _CLIP_DOCK_CSS = "clip-dock.css"
+_LEASE_LAMP_JS = "lease_lamp.js"
 
 
 def _clip_dock_snippet() -> str:
@@ -734,6 +735,31 @@ def _with_clip_dock(html: str) -> str:
     return html + inject
 
 
+def _lease_lamp_on() -> bool:
+    try:
+        from qoresence.deck.lease_lamp import enabled as lamp_on
+
+        return bool(lamp_on())
+    except Exception:
+        return False
+
+
+def _lease_lamp_snippet() -> str:
+    if not _lease_lamp_on():
+        return ""
+    return '<script src="/lease-lamp.js?v=0.1" defer></script>'
+
+
+def _with_lease_lamp(html: str) -> str:
+    """Opt-in DeckLeaseLamp chrome. No-op when the lobe is OFF."""
+    inject = _lease_lamp_snippet()
+    if not inject or "lease-lamp.js" in html or "lease_lamp.js" in html:
+        return html
+    if "</body>" in html:
+        return html.replace("</body>", inject + "</body>", 1)
+    return html + inject
+
+
 def _html(name: str) -> str:
     """Prefer built Retina Deck glass SPA; fall back to qoresence/deck/*.html."""
     body = ""
@@ -747,6 +773,8 @@ def _html(name: str) -> str:
             body = p.read_text(encoding="utf-8")
         else:
             body = f"<h1>{name} missing</h1>"
+    if name == "deck.html":
+        body = _with_lease_lamp(body)
     if name in _GLASS_HTML_NAMES or name == "civif.html":
         return _with_clip_dock(body)
     return body
@@ -1123,6 +1151,12 @@ def create_app():  # type: ignore[no-untyped-def]
             body["lease"] = lease_health()
         except Exception:
             body["lease"] = {"ok": False, "owner": "", "device": "", "pid": 0}
+        try:
+            from qoresence.deck.lease_lamp import attach_health
+
+            attach_health(body)
+        except Exception:
+            pass
         try:
             from qoresence.sync.ivc import get_last_coupling
 
@@ -2221,6 +2255,15 @@ def create_app():  # type: ignore[no-untyped-def]
             headers={"Cache-Control": "no-cache, must-revalidate"},
         )
 
+    @app.get("/lease-lamp.js")
+    async def lease_lamp_js():  # type: ignore[no-untyped-def]
+        p = pathlib.Path(__file__).with_name(_LEASE_LAMP_JS)
+        return FileResponse(
+            p,
+            media_type="text/javascript",
+            headers={"Cache-Control": "no-cache, must-revalidate"},
+        )
+
     @app.get("/deck.html")
     async def deck():  # type: ignore[no-untyped-def]
         return HTMLResponse(
@@ -2697,6 +2740,18 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     self.send_response(404)
                     self.end_headers()
                 return
+            if self.path == "/lease-lamp.js" or self.path.startswith("/lease-lamp.js?"):
+                _p = root / _LEASE_LAMP_JS
+                if _p.is_file():
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/javascript")
+                    self.send_header("Cache-Control", "no-cache, must-revalidate")
+                    self.end_headers()
+                    self.wfile.write(_p.read_bytes())
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+                return
             if self.path == "/sw.js":
                 _p = root / "sw.js"
                 if _p.is_file():
@@ -2736,6 +2791,18 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 health: dict[str, Any] = {"ok": True, "state": _state.snapshot()}
+                try:
+                    from qoresence.capture.lease import lease_health
+
+                    health["lease"] = lease_health()
+                except Exception:
+                    health["lease"] = {"ok": False, "owner": "", "device": "", "pid": 0}
+                try:
+                    from qoresence.deck.lease_lamp import attach_health
+
+                    attach_health(health)
+                except Exception:
+                    pass
                 try:
                     from qoresence.sync.ivc import get_last_coupling
 
