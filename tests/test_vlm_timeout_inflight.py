@@ -106,23 +106,22 @@ def test_menu_with_scorebug_crop_uses_gameplay_interval_not_menu_starved(monkeyp
         assert ref._skip_interval_count == 0
 
 
-def test_cfb_optical_markers_use_gameplay_interval_on_menu(monkeypatch):
-    """CFB optical context must not use menu interval even when game_state=menu."""
+def test_cfb_profile_uses_gameplay_interval_on_menu(monkeypatch):
+    """Football profile must not use menu interval even when game_state=menu."""
     ref = ScoreboardVlmReferee()
     ref.enabled = True
     ref._api_key = "test_key"
     called = threading.Event()
 
     monkeypatch.setattr(ref, "_call_vlm", lambda _c: called.set())
-    monkeypatch.setattr(ref, "_is_cfb_context", lambda **k: True)
     frame = licensed_scorebug_frame()
     ref._last_call = time.time() - 7.0
 
     ref.schedule(
         frame,
         game_state="menu",
-        game_profile="generic_arcade",
-        game_title="",
+        game_profile="cfb_27",
+        game_title="EA SPORTS College Football 27",
         reason="tick",
     )
     assert called.wait(timeout=2.0)

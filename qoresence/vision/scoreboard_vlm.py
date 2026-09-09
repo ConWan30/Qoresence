@@ -395,8 +395,6 @@ class ScoreboardVlmReferee:
         is_football = any(
             kw in profile_lower or kw in title_lower
             for kw in ("football", "cfb", "madden", "ncaa")
-        ) or self._is_cfb_context(
-            game_profile=game_profile, game_title=game_title, frame=frame
         )
         if force or reason in {"score_changed", "menu_exit", "first_lock"}:
             interval = 0.0
