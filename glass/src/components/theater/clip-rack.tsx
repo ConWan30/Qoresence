@@ -1,4 +1,5 @@
 import { CLIP_RACK } from "@/lib/coupling/clip";
+import { XGlassPostControl } from "@/components/theater/x-glass-post";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
@@ -85,6 +86,7 @@ export function ClipBar() {
             );
           })
         )}
+          <XGlassPostControl />
       </div>
     </div>
   );
@@ -136,6 +138,7 @@ export function StageClipDock() {
             );
           })
         )}
+          <XGlassPostControl compact />
       </div>
     </div>
   );
