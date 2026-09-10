@@ -11,6 +11,7 @@ from qoresence.foundry.narrative_engine import (
     note_licensed_tick,
     reset_live_narrative_state,
 )
+from qoresence.foundry.session_view import build_session_recap, recap_from_envelope
 
 
 def _licensed_sit(home=7, away=0, yard=50, ticket="ticket-live"):
@@ -90,6 +91,30 @@ def test_unlicensed_situation_does_not_build_tick():
         frame_seq=1,
     )
     assert tick is None
+
+
+def test_live_flush_sets_session_persisted_without_log_env(monkeypatch, tmp_path):
+    _setup()
+    monkeypatch.delenv("QORESENCE_CIVIF_NARRATIVE_LOG", raising=False)
+    sid = "qoresence_persist_flag"
+    note_licensed_tick(
+        sid,
+        build_licensed_tick(_licensed_sit(home=0, away=0), clock_ns=1, frame_seq=1),
+    )
+    note_licensed_tick(
+        sid,
+        build_licensed_tick(_licensed_sit(home=3, away=0), clock_ns=2, frame_seq=2),
+    )
+    pack = maybe_flush_live_narrative(sid, force=True)
+    assert pack is not None
+    assert pack.get("persisted") is True
+    assert "path" not in pack
+    dest = tmp_path / "narrative_should_not_exist.json"
+    assert not dest.exists()
+    env = sv.build_session_response(session_id=sid)
+    assert env["view"]["persisted"] is True
+    recap = recap_from_envelope(env)
+    assert recap["incomplete"] is False
 
 
 def test_flush_throttles_same_score_key():

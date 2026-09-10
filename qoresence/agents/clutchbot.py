@@ -601,7 +601,9 @@ class ClutchBotAgent:
                 ],
                 stamp=stamp,
             )
-            self._maybe_flush_live_narrative(mem, stamp=stamp, path_label=path_label, event=event)
+            self._maybe_flush_live_narrative(
+                mem, stamp=stamp, path_label=path_label, event=event, moment=moment
+            )
 
             self._last_action_time[moment.action] = time.time()
 
@@ -654,11 +656,18 @@ class ClutchBotAgent:
         stamp: dict[str, Any],
         path_label: str,
         event: BaseEvent,
+        moment: ScoredMoment,
     ) -> None:
-        """Push licensed confirm/timeline rows into the live narrative store."""
+        """Push licensed factual confirm_chat rows into the live narrative store."""
         if not mem.get("accepted") or stamp.get("seqgate") != "licensed":
             return
-        if path_label not in {"fast", "confirm"}:
+        if path_label != "confirm":
+            return
+        pl = moment.payload if isinstance(moment.payload, dict) else {}
+        factual = pl.get("factual")
+        if factual is None:
+            factual = moment.action == "chat"
+        if moment.action == "chat" and factual is False:
             return
         try:
             from qoresence.foundry.narrative_engine import (
@@ -668,8 +677,6 @@ class ClutchBotAgent:
             )
 
             sit = self._situation.to_dict()
-            if path_label == "fast" and not sit.get("score_vlm_locked"):
-                return
             tick = build_licensed_tick(
                 sit,
                 clock_ns=int(stamp.get("clock_ns") or getattr(event, "clock_ns", 0) or 0),

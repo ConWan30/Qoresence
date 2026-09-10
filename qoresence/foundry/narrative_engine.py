@@ -192,6 +192,7 @@ def generate_narrative(
     *,
     ticks: list[dict[str, Any]] | None = None,
     persist: bool = False,
+    session_persisted: bool = False,
     path: Path | str | None = None,
 ) -> dict[str, Any]:
     sid = str(session_id or "")
@@ -221,6 +222,8 @@ def generate_narrative(
         "plane": "qoresence-observation",
         "read_only": True,
     }
+    if session_persisted:
+        payload["persisted"] = True
     with _lock:
         _last[sid or "_"] = payload
     if persist:
@@ -333,7 +336,12 @@ def maybe_flush_live_narrative(session_id: str = "", *, force: bool = False) -> 
             return _last.get(sid)
         _live_flush_key[sid] = key
     try:
-        return generate_narrative(sid, ticks=rows, persist=_log_enabled())
+        return generate_narrative(
+            sid,
+            ticks=rows,
+            persist=_log_enabled(),
+            session_persisted=True,
+        )
     except Exception as e:
         log.debug("live narrative flush: %s", e)
         return None
