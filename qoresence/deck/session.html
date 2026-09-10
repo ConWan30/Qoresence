@@ -87,11 +87,43 @@
       <section class="recap holo-plate" id="recap-section">
         <h2>Recap</h2>
         <div id="recap-stats" class="RecapStats">Connecting…</div>
+        <div id="notary-door" class="NotaryDoor">
+          <h3>Notary door</h3>
+          <p class="door-copy">Eyes stay on this clock. Seal only after you say so. LIVE does not light TRUTH.</p>
+          <p id="notary-hash" class="door-hash">clock —</p>
+          <div class="door-actions">
+            <button type="button" id="btn-export-recap">Export recap</button>
+            <button type="button" id="btn-copy-hash">Copy hash</button>
+          </div>
+          <label>Gamer handle
+            <input id="notary-gamer" type="text" autocomplete="off" spellcheck="false" placeholder="your handle">
+          </label>
+          <label>Purpose
+            <select id="notary-purpose">
+              <option value="portcert">portcert</option>
+              <option value="wmp">wmp</option>
+              <option value="portcert+wmp">portcert+wmp</option>
+            </select>
+          </label>
+          <label>Wallet (optional)
+            <input id="notary-wallet" type="text" autocomplete="off" spellcheck="false" placeholder="0x… paused">
+          </label>
+          <label>Type exactly: I am the gamer
+            <input id="notary-phrase" type="text" autocomplete="off" spellcheck="false" placeholder="I am the gamer">
+          </label>
+          <div class="door-actions">
+            <button type="button" id="btn-seal-recap">Seal this recap</button>
+            <button type="button" id="btn-copy-card">Copy Discord card</button>
+            <button type="button" id="btn-verify-wrap">Verify without trusting us</button>
+          </div>
+          <pre id="notary-status" class="door-status">door closed</pre>
+        </div>
       </section>
     </aside>
   </div>
 </div>
 </main>
 <script src="/session.js" defer></script>
+<script src="/session-door.js" defer></script>
 </body>
 </html>
