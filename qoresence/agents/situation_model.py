@@ -298,7 +298,7 @@ class SituationModel:
             prev_scores = (
                 self._state.home_score,
                 self._state.away_score,
-                self._state.yard_line,
+                getattr(self._state, "yard_line", None),
             )
             # Scores: only apply if plausible (OCR often emits 17-2 for a real 17-17)
             # VLM-locked scores bypass this gate — the scoreboard referee is the
@@ -433,7 +433,11 @@ class SituationModel:
         """Start live narrative when confirm board locks or licensed score shifts."""
         if not self._state.score_vlm_locked or not self._state.confirm_ticket_id:
             return
-        now_scores = (self._state.home_score, self._state.away_score, self._state.yard_line)
+        now_scores = (
+            self._state.home_score,
+            self._state.away_score,
+            getattr(self._state, "yard_line", None),
+        )
         if prev_locked and now_scores == prev_scores:
             return
         try:
