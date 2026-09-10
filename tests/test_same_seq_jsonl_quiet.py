@@ -20,7 +20,7 @@ def _graphs_reset(monkeypatch, tmp_path):
     reset_all()
 
 
-def test_join_ok_60fps_sampled_jsonl_not_per_frame(tmp_path):
+def test_join_ok_jsonl_sampled_not_per_frame(tmp_path):
     path = tmp_path / "look.jsonl"
     for i in range(1, 61):
         classify_join(
@@ -37,7 +37,7 @@ def test_join_ok_60fps_sampled_jsonl_not_per_frame(tmp_path):
     assert last_license().kind == "join_ok"
 
 
-def test_seq_skew_still_appends_each_transition(tmp_path):
+def test_refuse_still_appends(tmp_path):
     path = tmp_path / "look.jsonl"
     classify_join(live_seq=100, widget_seq=100, clock_ns=1)
     classify_join(live_seq=100, widget_seq=1, clock_ns=2)
@@ -49,7 +49,7 @@ def test_seq_skew_still_appends_each_transition(tmp_path):
     assert rows[2].kind == "seq_skew"
 
 
-def test_gate_hot_when_jsonl_quiet(tmp_path):
+def test_gate_unchanged(tmp_path):
     path = tmp_path / "look.jsonl"
     lic = None
     for i in range(1, 61):

@@ -171,9 +171,9 @@ Branch: `feat/look-same-seq-jsonl-quiet`
 
 | Gate | Evidence | Result |
 |---|---|---|
-| `gate_stays_hot` | `classify_join` refreshes `_last_license` every new sig; `confirm_look_allowed` unchanged. Test: `test_gate_hot_when_jsonl_quiet`. | pass |
-| `join_ok_sampled` | 60× `join_ok` with `live_seq=1..60` → ≤3 JSONL lines (default every 30 seq). Test: `test_join_ok_60fps_sampled_jsonl_not_per_frame`. | pass |
-| `loud_kinds_append` | `seq_skew` / `plane_dim` still append each transition. Test: `test_seq_skew_still_appends_each_transition`. | pass |
+| `gate_stays_hot` | `classify_join` refreshes `_last_license` every new sig; `confirm_look_allowed` unchanged. Test: `test_gate_unchanged`. | pass |
+| `join_ok_sampled` | 60× `join_ok` with `live_seq=1..60` → ≤3 JSONL lines (default every 30 seq). Test: `test_join_ok_jsonl_sampled_not_per_frame`. | pass |
+| `loud_kinds_append` | `seq_skew` / `plane_dim` still append each transition. Test: `test_refuse_still_appends`. | pass |
 | `no_score_keys` | `make_license` score freeze unchanged; no digit keys on Same-Seq licenses. Incumbent look-license tests. | pass (incumbent) |
 | `no_grab_bounce` | No `LivePaint` / DShow / capture changes. Same-Seq graph is observation-only. | pass |
 
