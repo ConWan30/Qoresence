@@ -584,6 +584,17 @@ class FusionWeights:
 
 
 @dataclass(frozen=True)
+class XGlassLobeConfig:
+    """X Glass Timeline VOD lobe — default OFF. Opt-in --x-glass / env."""
+
+    enabled: bool = False
+    grant: bool = False  # operator grant before any Timeline write
+    token_file: str | None = ".secrets/x_glass.token"
+    post_cooldown_s: float = 30.0
+    clips_dir: str = "clips"
+
+
+@dataclass(frozen=True)
 class AgentGlassConfig:
     """Agent Glass observability bridge configuration."""
 
@@ -730,6 +741,7 @@ class RetinaUnifiedConfig:
     clutchbot: ClutchBotConfig = field(default_factory=ClutchBotConfig)
     match_agent: MatchAgentConfig = field(default_factory=MatchAgentConfig)
     agent_glass: AgentGlassConfig = field(default_factory=AgentGlassConfig)
+    x_glass: XGlassLobeConfig = field(default_factory=XGlassLobeConfig)
     studio: StudioConfig = field(default_factory=StudioConfig)
     society: object = field(default_factory=lambda: __import__(
         "qoresence.agents.society.config", fromlist=["AgentSocietyConfig"]
@@ -1068,6 +1080,14 @@ class RetinaUnifiedConfig:
                 snapshot_hz=_float("QORESENCE_AGENT_GLASS_SNAPSHOT_HZ", 5.0),
                 allow_frame=_bool("QORESENCE_AGENT_GLASS_ALLOW_FRAME", True),
                 allow_clip=_bool("QORESENCE_AGENT_GLASS_ALLOW_CLIP", True),
+            ),
+            x_glass=XGlassLobeConfig(
+                enabled=_bool("QORESENCE_X_GLASS_ENABLED"),
+                grant=_bool("QORESENCE_X_GLASS_GRANT"),
+                token_file=_str("QORESENCE_X_GLASS_TOKEN_FILE", ".secrets/x_glass.token")
+                or None,
+                post_cooldown_s=_float("QORESENCE_X_GLASS_POST_COOLDOWN_S", 30.0),
+                clips_dir=_str("QORESENCE_X_GLASS_CLIPS_DIR", "clips") or "clips",
             ),
             jsonl_path=_str("QORESENCE_JSONL_PATH") or None,
             ws_host=_str("QORESENCE_WS_HOST", "127.0.0.1"),

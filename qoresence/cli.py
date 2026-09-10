@@ -1391,6 +1391,20 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             **_vlm_extra,
         )
 
+    # X Glass wiring — default OFF; not implied by --play / Theater playClip.
+    try:
+        if getattr(args, "x_glass", False) or getattr(args, "x_glass_grant", False):
+            _xg = {
+                "enabled": bool(getattr(args, "x_glass", False) or config.x_glass.enabled),
+            }
+            if getattr(args, "x_glass", False):
+                _xg["enabled"] = True
+            if getattr(args, "x_glass_grant", False):
+                _xg["grant"] = True
+            config.x_glass = replace(config.x_glass, **_xg)
+    except Exception:
+        pass
+
     # AgentGlass wiring — independent of ClutchBot / --stream.
     # Must apply for --play --deck --agent-glass (and env) or glass stays disabled.
     try:
@@ -1882,6 +1896,20 @@ def main():
             "Spout Glass: publish FrameHub PGM to Spout2 (name QoresencePGM) for OBS Spout Capture. "
             "Default OFF. Not implied by --play. Subscribe only — no second DShow. Windows SpoutGL."
         ),
+    )
+    parser.add_argument(
+        "--x-glass",
+        action="store_true",
+        help=(
+            "X Glass: opt-in Timeline VOD / receipt Posts from Foundry MP4 (Sight Glass create→post). "
+            "Default OFF. Not implied by --play. Never auto-posts; never opens DShow/RTMP. "
+            "Requires operator grant + OAuth token file (never commit secrets)."
+        ),
+    )
+    parser.add_argument(
+        "--x-glass-grant",
+        action="store_true",
+        help="Operator grant for X Glass Timeline write (still needs --x-glass + OAuth). Default OFF.",
     )
     parser.add_argument(
         "--spout-name",
@@ -2627,6 +2655,37 @@ def main():
                 "Play/Deck continue without the window.",
                 e,
             )
+
+    # Optional X Glass (Timeline VOD; default OFF; NOT implied by --play)
+    try:
+        from qoresence.x import XGlass, XGlassConfig, set_x_glass
+
+        _xcfg = getattr(config, "x_glass", None)
+        _xg_enabled = bool(getattr(args, "x_glass", False)) or bool(
+            getattr(_xcfg, "enabled", False)
+        )
+        _xg_grant = bool(getattr(args, "x_glass_grant", False)) or bool(
+            getattr(_xcfg, "grant", False)
+        )
+        set_x_glass(
+            XGlass(
+                XGlassConfig(
+                    enabled=_xg_enabled,
+                    grant=_xg_grant,
+                    token_file=getattr(_xcfg, "token_file", ".secrets/x_glass.token"),
+                    post_cooldown_s=float(getattr(_xcfg, "post_cooldown_s", 30.0) or 30.0),
+                    clips_dir=str(getattr(_xcfg, "clips_dir", "clips") or "clips"),
+                )
+            )
+        )
+        if _xg_enabled:
+            log.info(
+                "X Glass lobe ON (enabled=%s grant=%s; create≠post; no DShow/RTMP)",
+                _xg_enabled,
+                _xg_grant,
+            )
+    except Exception as e:
+        log.warning("X Glass init skipped: %s", e)
 
     # Optional Spout Glass (FrameHub → Spout2; default OFF; NOT implied by --play)
     _spout_stop = None
