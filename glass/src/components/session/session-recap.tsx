@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { fetchSessionRecap, type SessionRecap as SessionRecapType } from "@/lib/coupling/session-api";
 import { RecapBay } from "./recap-bay";
+import { SealDoor } from "./seal-door";
 
-/** Phosphor Shell §2 — Session Recap (fail-closed empty bay). */
+/** Phosphor Shell §2 — Session Recap (fail-closed empty bay + notary door). */
 export function SessionRecap() {
   const [recap, setRecap] = useState<SessionRecapType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,9 +33,13 @@ export function SessionRecap() {
     );
   }
 
-  // Fail-closed: show empty bay for empty/not_persisted
   if (!recap || recap.event_count === 0 || recap.empty_reason) {
-    return <RecapBay recap={recap} />;
+    return (
+      <>
+        <RecapBay recap={recap} />
+        <SealDoor />
+      </>
+    );
   }
 
   return (
@@ -85,6 +90,7 @@ export function SessionRecap() {
           </article>
         ))}
       </div>
+      <SealDoor />
     </section>
   );
 }
