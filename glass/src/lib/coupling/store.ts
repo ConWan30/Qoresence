@@ -36,6 +36,7 @@ import { qsEnhance, qsProbe } from "./quicksilver";
 import { clipHref, clipPublicPath, clipSeconds, momentLooksLikeClip, requestDeckClip, shouldClip, type HdmiClipFile } from "./clip";
 import { CLIP_HOLD_MS, autoClipAllowed } from "./director";
 import type { StemProgram } from "./stem";
+import { buildEnhanceSituation } from "./enhance-situation";
 import { getDeckOrigin } from "./qoresence-deck";
 
 function mergeClipFile(clips: HdmiClipFile[], href: string, name: string): HdmiClipFile[] {
@@ -818,22 +819,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
     const path: "fast" | "confirm" =
       s.confirm && (s.clutch.kind === "score_play" || s.clutch.kind === "climax") ? "confirm" : "fast";
     if (path === "fast" && !s.ticketLive && s.clutch.kind === "quiet") return;
-    const situation: Record<string, unknown> = {
-      game_title: s.gameTitle || "Madden NFL 27",
-      game_state: s.hdmi === "menu" ? "menu" : "gameplay",
-      game_category: "football",
-      phrase: s.phrase.phrase,
-      coupling: s.coupling,
-      climax_score: s.clutch.score,
-      clutch_kind: s.clutch.kind,
-      down: null,
-      clock: "",
-    };
-    if (s.confirm) {
-      situation.home_score = s.confirm.homeScore;
-      situation.away_score = s.confirm.awayScore;
-      situation.score_vlm_locked = true;
-    }
+    const situation = buildEnhanceSituation(s);
     try {
       const out = await qsEnhance({
         data: {

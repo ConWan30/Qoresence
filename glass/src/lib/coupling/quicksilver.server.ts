@@ -61,14 +61,15 @@ export type EnhanceOut = {
   error: string;
 };
 
-function systemPrompt(sit: Record<string, unknown>, path: "fast" | "confirm"): string {
-  const game = String(sit.game_title || sit.gameTitle || "Madden NFL 27");
+export function systemPrompt(sit: Record<string, unknown>, path: "fast" | "confirm"): string {
+  const game = String(sit.game_title || sit.gameTitle || "").trim();
+  const gameClause = game ? ` for ${game}` : "";
   const digits =
     path === "confirm"
       ? "CONFIRM PATH: you may cite score digits only if they appear in SituationState. Never invent a score."
       : "FAST PATH: no scores, no scorelines, no inventing digits.";
   return (
-    `You are ClutchBot on the Qoresence observation plane for ${game}. ` +
+    `You are ClutchBot on the Qoresence observation plane${gameClause}. ` +
     "Ground ONLY on the SituationState JSON. Never hallucinate score, quarter, down, or possession. " +
     "Keep chat <140 chars, hype but not cringe, no hashtags. If situation is uncertain, say nothing. " +
     "Never claim authorship or THROW. Never claim to be human. " +
