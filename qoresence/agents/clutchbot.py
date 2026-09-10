@@ -586,7 +586,8 @@ class ClutchBotAgent:
 
             self._emit_agent_action(moment, results)
             self._record_timeline(moment, path_label=path_label, event=event)
-            self._memory.record(
+            stamp = self._memory_stamp(event, path_label)
+            mem = self._memory.record(
                 moment=moment,
                 situation=self._situation,
                 results=[
@@ -598,8 +599,9 @@ class ClutchBotAgent:
                     }
                     for r in results
                 ],
-                stamp=self._memory_stamp(event, path_label),
+                stamp=stamp,
             )
+            self._maybe_flush_live_narrative(mem, stamp=stamp, path_label=path_label, event=event)
 
             self._last_action_time[moment.action] = time.time()
 
@@ -644,6 +646,42 @@ class ClutchBotAgent:
         if tid:
             stamp["ticket_id"] = tid
         return stamp
+
+    def _maybe_flush_live_narrative(
+        self,
+        mem: dict[str, Any],
+        *,
+        stamp: dict[str, Any],
+        path_label: str,
+        event: BaseEvent,
+    ) -> None:
+        """Push licensed confirm/timeline rows into the live narrative store."""
+        if not mem.get("accepted") or stamp.get("seqgate") != "licensed":
+            return
+        if path_label not in {"fast", "confirm"}:
+            return
+        try:
+            from qoresence.foundry.narrative_engine import (
+                build_licensed_tick,
+                maybe_flush_live_narrative,
+                note_licensed_tick,
+            )
+
+            sit = self._situation.to_dict()
+            if path_label == "fast" and not sit.get("score_vlm_locked"):
+                return
+            tick = build_licensed_tick(
+                sit,
+                clock_ns=int(stamp.get("clock_ns") or getattr(event, "clock_ns", 0) or 0),
+                frame_seq=stamp.get("frame_seq"),
+            )
+            if tick is None:
+                return
+            sid = str(self.bus.session_id or "")
+            if note_licensed_tick(sid, tick):
+                maybe_flush_live_narrative(sid)
+        except Exception as e:
+            log.debug("live narrative flush skipped: %s", e)
 
     def _still_pressure_context(self) -> bool:
         """True if situation still looks like a clutch window (red zone / close / late)."""
