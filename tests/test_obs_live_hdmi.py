@@ -13,6 +13,9 @@ OBS_LIVE = DECK / "obs-live.html"
 
 def test_obs_live_html_ships_brand_and_mjpeg_embed():
     assert OBS_LIVE.is_file(), "qoresence/deck/obs-live.html missing"
+    body = OBS_LIVE.read_text(encoding="utf-8")
+    assert "object-fit:cover" in body.replace(" ", "") or "object-fit: cover" in body
+    assert "/video?fps=30" in body or "FPS = 30" in body or "fps=' + FPS" in body
     html = OBS_LIVE.read_text(encoding="utf-8")
     assert "QORESENCE" in html
     assert "HDMI PORT" in html
