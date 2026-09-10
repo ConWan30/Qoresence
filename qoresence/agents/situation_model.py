@@ -294,6 +294,12 @@ class SituationModel:
             self._state.game_title = ctx.game_title
         self._state.visual_confidence = ctx.confidence
         if ctx.game_category and ctx.game_category.value == "football":
+            prev_locked = bool(self._state.score_vlm_locked)
+            prev_scores = (
+                self._state.home_score,
+                self._state.away_score,
+                getattr(self._state, "yard_line", None),
+            )
             # Scores: only apply if plausible (OCR often emits 17-2 for a real 17-17)
             # VLM-locked scores bypass this gate — the scoreboard referee is the
             # authority and may correct a prior bad OCR lock (e.g. 20-20 → 20-0).
@@ -396,6 +402,11 @@ class SituationModel:
                 roster_loaded=bool(getattr(ctx, "roster_loaded", False)),
                 **ident,
             )
+            self._maybe_flush_live_narrative_on_board(
+                event,
+                prev_locked=prev_locked,
+                prev_scores=prev_scores,
+            )
 
         if ctx.game_category and ctx.game_category.value == "shooter":
             self._apply_if_set(
@@ -411,6 +422,53 @@ class SituationModel:
         for key, value in kwargs.items():
             if value is not None and value != "":
                 setattr(self._state, key, value)
+
+    def _maybe_flush_live_narrative_on_board(
+        self,
+        event: BaseEvent,
+        *,
+        prev_locked: bool,
+        prev_scores: tuple[Any, Any, Any],
+    ) -> None:
+        """Start live narrative when confirm board locks or licensed score shifts."""
+        if not self._state.score_vlm_locked or not self._state.confirm_ticket_id:
+            return
+        now_scores = (
+            self._state.home_score,
+            self._state.away_score,
+            getattr(self._state, "yard_line", None),
+        )
+        if prev_locked and now_scores == prev_scores:
+            return
+        try:
+            from qoresence.foundry.narrative_engine import (
+                build_licensed_tick,
+                maybe_flush_live_narrative,
+                note_licensed_tick,
+            )
+            from qoresence.vision.confirm_ticket import resolve_session_id
+
+            payload = event.payload if isinstance(event.payload, dict) else {}
+            frame_seq = payload.get("frame_seq")
+            if frame_seq is None:
+                try:
+                    from qoresence.sync.ivc import get_last_coupling
+
+                    frame_seq = get_last_coupling().get("frame_seq")
+                except Exception:
+                    frame_seq = None
+            tick = build_licensed_tick(
+                self.to_dict(),
+                clock_ns=int(getattr(event, "clock_ns", 0) or 0),
+                frame_seq=frame_seq,
+            )
+            if tick is None:
+                return
+            sid = resolve_session_id(None)
+            if note_licensed_tick(sid, tick):
+                maybe_flush_live_narrative(sid, force=not prev_locked)
+        except Exception:
+            pass
 
     @staticmethod
     def _score_plausible(prev: Any, new: Any) -> bool:

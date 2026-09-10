@@ -23,6 +23,8 @@ NARRATIVE_SCHEMA = "narrative-1"
 
 _lock = threading.Lock()
 _last: dict[str, dict[str, Any]] = {}
+_live_ticks: dict[str, list[dict[str, Any]]] = {}
+_live_flush_key: dict[str, tuple[Any, ...]] = {}
 
 
 def last_narrative(session_id: str = "") -> dict[str, Any] | None:
@@ -190,6 +192,7 @@ def generate_narrative(
     *,
     ticks: list[dict[str, Any]] | None = None,
     persist: bool = False,
+    session_persisted: bool = False,
     path: Path | str | None = None,
 ) -> dict[str, Any]:
     sid = str(session_id or "")
@@ -219,6 +222,8 @@ def generate_narrative(
         "plane": "qoresence-observation",
         "read_only": True,
     }
+    if session_persisted:
+        payload["persisted"] = True
     with _lock:
         _last[sid or "_"] = payload
     if persist:
@@ -235,6 +240,118 @@ def generate_narrative(
 class NarrativeEngine:
     def generate(self, **kwargs: Any) -> dict[str, Any]:
         return generate_narrative(**kwargs)
+
+
+def _board_licensed(situation: dict[str, Any]) -> bool:
+    if not isinstance(situation, dict):
+        return False
+    ticket = str(situation.get("confirm_ticket_id") or "").strip()
+    return bool(situation.get("score_vlm_locked")) and bool(ticket)
+
+
+def _resolve_live_session_id(session_id: str = "") -> str:
+    sid = str(session_id or "").strip()
+    if sid:
+        return sid
+    try:
+        from qoresence.core.session import SessionAuthority
+
+        ident = SessionAuthority.current()
+        if ident is not None:
+            return str(ident.session_id or "")
+    except Exception:
+        pass
+    return os.getenv("QORESENCE_SESSION_ID") or ""
+
+
+def build_licensed_tick(
+    situation: dict[str, Any],
+    *,
+    clock_ns: int = 0,
+    frame_seq: int | None = None,
+    controller_bodied: bool = False,
+    clip_id: str = "",
+    input_ticks: list[dict[str, Any]] | None = None,
+) -> dict[str, Any] | None:
+    """One licensed confirm-path observation row for live narrative flush."""
+    if not _board_licensed(situation):
+        return None
+    sit = {
+        "board_locked": True,
+        "home_score": situation.get("home_score"),
+        "away_score": situation.get("away_score"),
+        "yard_line": situation.get("yard_line"),
+    }
+    row: dict[str, Any] = {
+        "clock_ns": int(clock_ns or 0),
+        "frame_seq": frame_seq,
+        "controller_bodied": bool(controller_bodied),
+        "board_locked": True,
+        "clip_id": str(clip_id or ""),
+        "situation": sit,
+    }
+    if input_ticks:
+        row["input_ticks"] = list(input_ticks)
+    return row
+
+
+def note_licensed_tick(session_id: str, tick: dict[str, Any]) -> bool:
+    """Buffer one licensed row. Replaces same frame_seq; skips duplicate seq."""
+    sid = _resolve_live_session_id(session_id)
+    if not sid or not isinstance(tick, dict):
+        return False
+    fs = tick.get("frame_seq")
+    with _lock:
+        buf = _live_ticks.setdefault(sid, [])
+        if fs is not None and buf and buf[-1].get("frame_seq") == fs:
+            buf[-1] = tick
+            return True
+        if fs is not None and any(r.get("frame_seq") == fs for r in buf[-12:]):
+            return False
+        buf.append(tick)
+        if len(buf) > 400:
+            _live_ticks[sid] = buf[-400:]
+    return True
+
+
+def maybe_flush_live_narrative(session_id: str = "", *, force: bool = False) -> dict[str, Any] | None:
+    """Flush buffered licensed ticks into the in-memory narrative store (live session view)."""
+    sid = _resolve_live_session_id(session_id)
+    if not sid:
+        return None
+    with _lock:
+        rows = list(_live_ticks.get(sid) or [])
+    if not rows:
+        return None
+    last = rows[-1]
+    sit = last.get("situation") if isinstance(last.get("situation"), dict) else {}
+    key = (
+        last.get("frame_seq"),
+        sit.get("home_score"),
+        sit.get("away_score"),
+        sit.get("yard_line"),
+    )
+    with _lock:
+        if not force and _live_flush_key.get(sid) == key:
+            return _last.get(sid)
+        _live_flush_key[sid] = key
+    try:
+        return generate_narrative(
+            sid,
+            ticks=rows,
+            persist=_log_enabled(),
+            session_persisted=True,
+        )
+    except Exception as e:
+        log.debug("live narrative flush: %s", e)
+        return None
+
+
+def reset_live_narrative_state() -> None:
+    """Test helper — clear live buffers without touching closeout packs."""
+    with _lock:
+        _live_ticks.clear()
+        _live_flush_key.clear()
 
 
 def maybe_write_after_coaches(
