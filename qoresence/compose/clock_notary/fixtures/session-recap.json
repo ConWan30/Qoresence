@@ -1,0 +1,42 @@
+{
+  "schema": "qoresence.session-recap-1",
+  "session_id": "pilot-ncaa-27-demo",
+  "hid_on_console": true,
+  "buttons_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "coupling_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "ticks": [
+    {
+      "clock_ns": 1000,
+      "frame_seq": 10,
+      "ticket_id": "cpl-aa11",
+      "ticket_kind": "coupling",
+      "hid_edge": null,
+      "score_digits": "0-0",
+      "score_vlm_locked": false
+    },
+    {
+      "clock_ns": 2000,
+      "frame_seq": 24,
+      "ticket_id": "cpl-aa11",
+      "ticket_kind": "coupling",
+      "hid_edge": "X",
+      "board_locked": false
+    },
+    {
+      "clock_ns": 3000,
+      "frame_seq": 48,
+      "ticket_id": "cfm-bb22",
+      "ticket_kind": "confirm",
+      "hid_edge": "R2",
+      "score_digits": "14-10",
+      "score_vlm_locked": true
+    },
+    {
+      "clock_ns": 4000,
+      "frame_seq": 60,
+      "ticket_id": null,
+      "ticket_kind": null,
+      "hid_edge": null
+    }
+  ]
+}
