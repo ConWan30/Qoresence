@@ -298,6 +298,8 @@ class DeckState:
             from qoresence.agents.actuators import actuators_health
 
             out["actuators"] = actuators_health(out)
+        except Exception:
+            out["actuators"] = {"registry": [], "receipts": []}
         try:
             from qoresence.x import get_x_glass
 
@@ -309,8 +311,6 @@ class DeckState:
                 "ready": False,
                 "last_reason": "lobe_off",
             }
-        except Exception:
-            out["actuators"] = {"registry": [], "receipts": []}
         # LAYER A: observation object on the Deck wire (sheet-from-picture, named clutch, conflict)
         try:
             from qoresence.deck.observation_wire import build_observation_wire

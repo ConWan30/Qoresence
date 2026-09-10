@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 PLANE = "qoresence-observation"
 CLIP_NAME_RE = re.compile(r"^hdmi_clip_[\w\-]+\.mp4$", re.I)
 
-_glass: "XGlass | None" = None
+_glass: XGlass | None = None
 _glass_lock = threading.Lock()
 
 
