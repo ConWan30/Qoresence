@@ -300,6 +300,17 @@ class DeckState:
             out["actuators"] = actuators_health(out)
         except Exception:
             out["actuators"] = {"registry": [], "receipts": []}
+        try:
+            from qoresence.x import get_x_glass
+
+            out["x_glass"] = get_x_glass().snapshot_field()
+        except Exception:
+            out["x_glass"] = {
+                "enabled": False,
+                "grant": False,
+                "ready": False,
+                "last_reason": "lobe_off",
+            }
         # LAYER A: observation object on the Deck wire (sheet-from-picture, named clutch, conflict)
         try:
             from qoresence.deck.observation_wire import build_observation_wire
@@ -1181,6 +1192,17 @@ def create_app():  # type: ignore[no-untyped-def]
             body["match_agent"] = surface_last_note()
         except Exception:
             body["match_agent"] = {}
+        try:
+            from qoresence.x import x_glass_health
+
+            body["x_glass"] = x_glass_health()
+        except Exception:
+            body["x_glass"] = {
+                "enabled": False,
+                "grant": False,
+                "ready": False,
+                "last_reason": "lobe_off",
+            }
         return JSONResponse(body)
 
     @app.get("/api/situation")
@@ -2054,6 +2076,121 @@ def create_app():  # type: ignore[no-untyped-def]
             return JSONResponse(body)
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+    @app.get("/api/x-glass")
+    async def api_x_glass_get():  # type: ignore[no-untyped-def]
+        """X Glass lobe status — default OFF. Hook for Sight Glass / Qorefront."""
+        try:
+            from qoresence.x import x_glass_health
+
+            return JSONResponse(
+                {"ok": True, "x_glass": x_glass_health()},
+                headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "no-store"},
+            )
+        except Exception as e:
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "x_glass": {
+                        "enabled": False,
+                        "grant": False,
+                        "ready": False,
+                        "last_reason": "lobe_off",
+                    },
+                    "error": str(e),
+                },
+                status_code=500,
+            )
+
+    @app.post("/api/x-glass/create")
+    async def api_x_glass_create(request: Request):  # type: ignore[no-untyped-def]
+        """Draft a Timeline VOD from one Foundry/HDMI MP4. Does NOT post."""
+        denied = _local_client_required_response(request)
+        if denied is not None:
+            return denied
+        try:
+            body: dict = {}
+            try:
+                raw = await request.json()
+                if isinstance(raw, dict):
+                    body = raw
+            except Exception:
+                body = {}
+            # No free caption string accepted — server builds caption fail-closed.
+            if "caption" in body:
+                return JSONResponse(
+                    {"ok": False, "error": "caption_not_allowed", "hint": "caption_mode auto|silent only"},
+                    status_code=400,
+                )
+            from qoresence.x import get_x_glass
+
+            result = get_x_glass().create(
+                clip_name=body.get("clip_name"),
+                clip_path=body.get("clip_path"),
+                caption_mode=str(body.get("caption_mode") or "auto"),
+            )
+            code = 200 if result.get("ok") else 403
+            if result.get("error") in ("no_mp4", "invalid_clip"):
+                code = 404 if result.get("error") == "no_mp4" else 400
+            if result.get("error") == "lobe_off":
+                code = 403
+            return JSONResponse(
+                result,
+                status_code=code,
+                headers={"Access-Control-Allow-Origin": "*"},
+            )
+        except Exception as e:
+            log.exception("POST /api/x-glass/create failed")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.post("/api/x-glass/post")
+    async def api_x_glass_post(request: Request):  # type: ignore[no-untyped-def]
+        """Second explicit click — publish draft. Never auto-post on play."""
+        denied = _local_client_required_response(request)
+        if denied is not None:
+            return denied
+        try:
+            body: dict = {}
+            try:
+                raw = await request.json()
+                if isinstance(raw, dict):
+                    body = raw
+            except Exception:
+                body = {}
+            if "caption" in body:
+                return JSONResponse(
+                    {"ok": False, "error": "caption_not_allowed", "hint": "caption_mode auto|silent only"},
+                    status_code=400,
+                )
+            from qoresence.x import get_x_glass
+
+            result = get_x_glass().post(
+                clip_name=body.get("clip_name"),
+                clip_path=body.get("clip_path"),
+                caption_mode=body.get("caption_mode"),
+            )
+            err = result.get("error")
+            code = 200 if result.get("ok") else 403
+            if err in ("no_mp4",):
+                code = 404
+            elif err in ("invalid_clip", "caption_not_allowed"):
+                code = 400
+            elif err == "rate_limited":
+                code = 429
+            elif err == "oauth_missing":
+                code = 503
+            elif err in ("lobe_off", "no_grant", "create_required", "digit_silent"):
+                code = 403
+            return JSONResponse(
+                result,
+                status_code=code,
+                headers={"Access-Control-Allow-Origin": "*"},
+            )
+        except Exception as e:
+            log.exception("POST /api/x-glass/post failed")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
 
     @app.get("/media/clips/{name}")
     async def media_clip(name: str):  # type: ignore[no-untyped-def]

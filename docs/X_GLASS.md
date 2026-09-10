@@ -52,8 +52,8 @@ Otherwise: **blank glyphs or silence**. Prefer empty over a held stale board.
 |-------|--------|--------|
 | **0** | Pattern B ownership + Live Studio recipe + public overlay digit gate | **Done** — [X_LIVE_STUDIO.md](X_LIVE_STUDIO.md), Lens `overlay.html` |
 | **1** | Bind broadcast URL as session public id (operator paste / grant) | Not shipped |
-| **2** | Fail-closed Timeline receipt from Foundry (opt-in grant) | Not shipped |
-| **3** | `--x-glass` publish lobe (default OFF) | Not shipped |
+| **2** | Fail-closed Timeline receipt from Foundry (opt-in grant) | **Partial** — `/api/x-glass` create→post; OAuth publisher stub (`oauth_missing`) |
+| **3** | `--x-glass` publish lobe (default OFF) | **Partial** — CLI/env real; publish stub fail-closed |
 | **4** | `--x-listen` conversation glass (default OFF) | Not shipped |
 | **5** | Session header / Foundry reel Posts under grant | Not shipped |
 | **6** | Live + chat APIs | **Only if** X publishes them; **no chat scraper** |
@@ -64,7 +64,7 @@ Phase order is **0 → 5**. Do not skip Phase 0 ownership when adding later phas
 
 | Flag / control | Default | Note |
 |----------------|---------|------|
-| `--x-glass` | **off** | Future publish lobe. Not on CLI today. |
+| `--x-glass` | **off** | Timeline VOD lobe. CLI + `QORESENCE_X_GLASS_ENABLED`. |
 | `--x-listen` | **off** | Future conversation glass. Not on CLI today. |
 | Grant id | required for publish | Operator grant before any Timeline write |
 
@@ -103,6 +103,26 @@ Three surfaces. Keep them separate. **Never paste keys, tokens, or stream keys i
 - Exhibit: Grok review (do not claim approved unless verified)
 
 Live Studio keys ≠ Observatory Keys. Pixel path stays [X_LIVE_STUDIO.md](X_LIVE_STUDIO.md). API / receipt path stays this file, default OFF, not implemented.
+
+
+
+## Operator enable (Sight Glass Post-to-X)
+
+```powershell
+# Opt-in lobe (default OFF). Not implied by --play. DualSense stays on PS5.
+$env:QORESENCE_X_GLASS_ENABLED = "1"
+$env:QORESENCE_X_GLASS_GRANT = "1"   # or --x-glass-grant
+# Place brand Observatory OAuth at .secrets/x_glass.token (never commit).
+python -m qoresence.cli --play --deck --x-glass --x-glass-grant
+
+# Sight Glass / Qorefront hook (second click; never auto-post on playClip):
+# POST /api/x-glass/create  {"clip_name":"hdmi_clip_….mp4","caption_mode":"auto"}
+# POST /api/x-glass/post    {"caption_mode":"auto"}   # refuses digit_silent|oauth_missing|…
+# GET  /api/x-glass
+```
+
+Caption digits only with ConfirmTicket + `score_vlm_locked` + ticket-fresh `crop_hash`.
+`board_locked` alone never licenses. Blank beats hold. One MP4; no URL in caption.
 
 ## Related docs
 
