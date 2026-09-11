@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .envelope import clock_commitment
+from .io_ledger import ledger_checks
 from .sanitize import strip_truth_leaks
 from .wrap import ConsentRecord
 
@@ -58,6 +59,7 @@ def verify_wrap(wrap: dict[str, Any] | None, envelope: dict[str, Any] | None) ->
 
     leaks = [k for k in ("phi", "poep_enabled", "imu_export") if k in env or k in inner]
     add("no_truth_leaks", not leaks, ",".join(leaks))
+    checks.extend(ledger_checks(env))
 
     passed = sum(1 for c in checks if c["ok"])
     ok = all(c["ok"] for c in checks)

@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from .envelope import ObservationEnvelope, envelope_from_recap
+from .io_ledger import out_edge_from_event
 from .locks import compose_locks
 from .sanitize import strip_truth_leaks
 
 
 def _truthy_fresh(value: Any) -> bool:
-    """Absent ticket_fresh is ignored; explicit false/0/'' blanks digits."""
     if isinstance(value, str):
         return value.strip().lower() not in {"", "0", "false", "no", "off"}
     return bool(value)
@@ -27,7 +27,6 @@ def _confirm_ticket_id(raw: dict[str, Any], ev: dict[str, Any]) -> str:
 
 
 def _score_vlm_locked(raw: dict[str, Any], ev: dict[str, Any]) -> bool:
-    """Real VLM lock only — board_locked / scoreboard_locked never license digits."""
     if "score_vlm_locked" in ev:
         return bool(ev.get("score_vlm_locked"))
     if "score_vlm_locked" in raw:
@@ -36,7 +35,6 @@ def _score_vlm_locked(raw: dict[str, Any], ev: dict[str, Any]) -> bool:
 
 
 def _ticket_fresh_ok(raw: dict[str, Any], ev: dict[str, Any]) -> bool:
-    """If ticket_fresh is present on the event or view, it must be truthy."""
     if "ticket_fresh" in ev:
         return _truthy_fresh(ev.get("ticket_fresh"))
     if "ticket_fresh" in raw:
@@ -45,7 +43,6 @@ def _ticket_fresh_ok(raw: dict[str, Any], ev: dict[str, Any]) -> bool:
 
 
 def _digits_licensed(raw: dict[str, Any], ev: dict[str, Any]) -> bool:
-    """ConfirmTicket + score_vlm_locked (+ ticket-fresh when present). Fail-closed."""
     if not _score_vlm_locked(raw, ev):
         return False
     if not _confirm_ticket_id(raw, ev):
@@ -85,17 +82,19 @@ def recap_from_session_view(view: dict[str, Any] | None) -> dict[str, Any]:
             kind = "confirm"
         elif ticket or hid or inp:
             kind = "coupling"
-        ticks.append(
-            {
-                "clock_ns": int(ev.get("t_start_ns") or ev.get("clock_ns") or 0),
-                "frame_seq": int(ev.get("frame_seq") or ev.get("seq") or 0),
-                "ticket_id": ticket,
-                "ticket_kind": kind,
-                "hid_edge": hid,
-                "score_digits": digits,
-                "score_vlm_locked": bool(licensed),
-            }
-        )
+        tick = {
+            "clock_ns": int(ev.get("t_start_ns") or ev.get("clock_ns") or 0),
+            "frame_seq": int(ev.get("frame_seq") or ev.get("seq") or 0),
+            "ticket_id": ticket,
+            "ticket_kind": kind,
+            "hid_edge": hid,
+            "score_digits": digits,
+            "score_vlm_locked": bool(licensed),
+        }
+        out_edge = out_edge_from_event(ev)
+        if out_edge is not None:
+            tick["out_edge"] = out_edge
+        ticks.append(tick)
     return {
         "schema": "qoresence.session-recap-1",
         "session_id": str(raw.get("session_id") or ""),

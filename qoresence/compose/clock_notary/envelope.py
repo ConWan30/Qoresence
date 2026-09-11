@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
+from .io_ledger import canonicalize_out_edge
 from .sanitize import strip_truth_leaks
 
 
@@ -23,10 +24,11 @@ class Tick:
     hid_edge: str | None
     score_digits: str | None
     score_vlm_locked: bool = False
+    out_edge: dict | None = None
 
     def as_commit_triple(self) -> dict:
         digits = self.score_digits if self.score_vlm_locked else None
-        return {
+        body = {
             "clock_ns": int(self.clock_ns),
             "frame_seq": int(self.frame_seq),
             "ticket_id": self.ticket_id,
@@ -34,6 +36,9 @@ class Tick:
             "hid_edge": self.hid_edge,
             "score_digits": digits,
         }
+        if self.out_edge:
+            body["out_edge"] = self.out_edge
+        return body
 
 
 @dataclass
@@ -114,7 +119,6 @@ def envelope_from_recap(recap: dict) -> ObservationEnvelope:
         raise ValueError("recap missing session_id")
     ticks: list[Tick] = []
     for raw in recap.get("ticks") or recap.get("civif") or []:
-        # board_locked alone never licenses digits (ConfirmTicket + score_vlm_locked only).
         locked = bool(raw.get("score_vlm_locked"))
         kind = raw.get("ticket_kind")
         if kind not in ("coupling", "confirm", None):
@@ -128,6 +132,7 @@ def envelope_from_recap(recap: dict) -> ObservationEnvelope:
                 hid_edge=raw.get("hid_edge") or raw.get("button"),
                 score_digits=raw.get("score_digits") or raw.get("score"),
                 score_vlm_locked=locked,
+                out_edge=canonicalize_out_edge(raw.get("out_edge") or raw.get("pad_out")),
             )
         )
     sidecars = {}
