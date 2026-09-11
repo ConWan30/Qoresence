@@ -3,7 +3,7 @@ import { fetchSessionRecap, type SessionRecap as SessionRecapType } from "@/lib/
 import { RecapBay } from "./recap-bay";
 import { SealDoor } from "./seal-door";
 
-/** Phosphor Shell §2 — Session Recap (fail-closed empty bay + notary door). */
+/** Phosphor Shell §2 — Session Recap (fail-closed empty bay + export). */
 export function SessionRecap() {
   const [recap, setRecap] = useState<SessionRecapType | null>(null);
   const [loading, setLoading] = useState(true);

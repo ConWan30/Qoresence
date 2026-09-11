@@ -1,3 +1,5 @@
+/** Session Recap export client. Seal/verify live on QorTroller — not Deck glass. */
+
 import { getDeckOrigin } from "./qoresence-deck";
 
 export type ClockNotaryExport = {
@@ -11,27 +13,6 @@ export type ClockNotaryExport = {
   locks?: unknown;
   notary?: { status?: string; reason?: string };
   door?: { live_truth?: string; seal_phrase?: string; chain?: string };
-};
-
-export type ClockNotarySeal = {
-  ok: boolean;
-  status: string;
-  reason?: string;
-  hint?: string;
-  clock_commitment?: string;
-  wrap?: Record<string, unknown>;
-  discord_card?: string;
-  chain?: string;
-  locks?: { truth?: { state?: string } };
-};
-
-export type ClockNotaryVerify = {
-  ok: boolean;
-  passed: number;
-  total: number;
-  clock_commitment?: string;
-  checks: { name: string; ok: boolean; detail?: string }[];
-  trust?: string;
 };
 
 function origin(): string {
@@ -51,30 +32,15 @@ export async function exportClockEnvelope(sessionId?: string, fixture?: string):
   return res.json();
 }
 
-export async function sealClockEnvelope(payload: Record<string, unknown>): Promise<ClockNotarySeal> {
-  const res = await fetch(`${origin()}/api/session/clock-notary/seal`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  return res.json();
-}
-
-export async function verifyClockWrap(wrap: unknown, envelope: unknown): Promise<ClockNotaryVerify> {
-  const res = await fetch(`${origin()}/api/session/clock-notary/verify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ wrap, envelope }),
-  });
-  return res.json();
-}
-
-export async function copyDiscordCard(text: string): Promise<void> {
+export async function copyText(text: string): Promise<void> {
   if (!text) return;
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
   }
 }
+
+/** Hash clipboard only — not Discord notary. */
+export const copyDiscordCard = copyText;
 
 export function downloadJson(name: string, obj: unknown): void {
   const blob = new Blob([`${JSON.stringify(obj, null, 2)}\n`], { type: "application/json" });
