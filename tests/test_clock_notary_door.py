@@ -1,6 +1,7 @@
 import unittest
 
-from qoresence.compose.clock_notary.door import SEAL_PHRASE, export_door, seal_door, verify_door
+from qoresence.compose.clock_notary import door as door_mod
+from qoresence.compose.clock_notary.door import export_door
 
 
 VIEW = {
@@ -26,53 +27,27 @@ class DoorTests(unittest.TestCase):
         self.assertEqual(body["notary"]["status"], "UNSEALED")
         self.assertEqual(body["door"]["live_truth"], "DARK")
         self.assertTrue(body["hid_on_console"])
+        self.assertNotIn("seal_phrase", body["door"])
+        copy = body["door"]["copy"].lower()
+        self.assertIn("eyes only", copy)
+        self.assertIn("qortroller", copy)
 
-    def test_bridge_cannot_seal(self):
-        env = export_door(VIEW)
-        out = seal_door(
-            {
-                "envelope": env,
-                "gamer": "bridge",
-                "signed_by": "bridge",
-                "granted": True,
-                "phrase": SEAL_PHRASE,
-                "purpose": "portcert",
-            }
-        )
-        self.assertFalse(out["ok"])
-        self.assertEqual(out["status"], "REFUSED")
+    def test_seal_door_removed(self):
+        self.assertFalse(hasattr(door_mod, "seal_door"))
+        self.assertFalse(hasattr(door_mod, "verify_door"))
+        self.assertFalse(hasattr(door_mod, "SEAL_PHRASE"))
+        self.assertFalse(hasattr(door_mod, "discord_card"))
 
-    def test_wrong_phrase_refused(self):
-        env = export_door(VIEW)
-        out = seal_door(
-            {
-                "envelope": env,
-                "gamer": "ConWanZo",
-                "signed_by": "ConWanZo",
-                "granted": True,
-                "phrase": "sure",
-                "purpose": "portcert",
-            }
-        )
-        self.assertEqual(out["reason"], "phrase_or_signer")
+    def test_http_mount_export_only(self):
+        from qoresence.deck import clock_notary_http as http_mod
+        import inspect
 
-    def test_gamer_seal_and_verify(self):
-        env = export_door(VIEW)
-        out = seal_door(
-            {
-                "envelope": env,
-                "gamer": "ConWanZo",
-                "signed_by": "ConWanZo",
-                "granted": True,
-                "phrase": SEAL_PHRASE,
-                "purpose": "portcert",
-            }
+        src = inspect.getsource(http_mod)
+        self.assertIn('/api/session/clock-notary"', src) or self.assertIn(
+            "/api/session/clock-notary", src
         )
-        self.assertTrue(out["ok"])
-        self.assertEqual(out["status"], "SEALED")
-        self.assertIn("Clock Notary SEALED", out["discord_card"])
-        self.assertEqual(out["chain"], "paused")
-        self.assertEqual(out["locks"]["truth"]["state"], "TRUTH")
-        verdict = verify_door(out, env)
-        self.assertTrue(verdict["ok"], verdict)
-        self.assertEqual(verdict["trust"], "recomputed — producer status field ignored")
+        self.assertNotIn("/api/session/clock-notary/seal", src)
+        self.assertNotIn("/api/session/clock-notary/verify", src)
+        self.assertNotIn("seal_door", src)
+        self.assertNotIn("verify_door", src)
+        self.assertNotIn("wrap_notary", src)

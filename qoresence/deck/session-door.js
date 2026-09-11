@@ -1,4 +1,4 @@
-/* Recap notary door — separate file so Theater JS stays untouched. */
+/* Recap observation export — separate file so Theater JS stays untouched. */
 (function () {
   const params = new URLSearchParams(location.search);
   const ALLOWED = [
@@ -48,58 +48,8 @@
       return body;
     }
     downloadJson("observation-envelope.json", body);
-    setDoorStatus("exported UNSEALED · " + (body.clock_commitment || ""));
+    setDoorStatus("exported · eyes only · " + (body.clock_commitment || ""));
     return body;
-  }
-
-  async function sealRecapDoor() {
-    let env = window.__notaryEnvelope;
-    if (!env || !env.clock_commitment) env = await exportRecapDoor();
-    const gamer = (document.getElementById("notary-gamer") || {}).value || "";
-    const purpose = (document.getElementById("notary-purpose") || {}).value || "portcert";
-    const wallet = (document.getElementById("notary-wallet") || {}).value || "";
-    const phrase = (document.getElementById("notary-phrase") || {}).value || "";
-    const r = await fetch("/api/session/clock-notary/seal", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        envelope: env,
-        gamer: gamer,
-        signed_by: gamer,
-        purpose: purpose,
-        wallet: wallet,
-        phrase: phrase,
-        granted: true,
-      }),
-    });
-    const body = await r.json();
-    window.__notaryWrap = body;
-    setDoorHash(body.clock_commitment || (env && env.clock_commitment) || "");
-    if (!body.ok) {
-      setDoorStatus("REFUSED · " + (body.reason || "") + " · " + (body.hint || ""));
-      return;
-    }
-    downloadJson("notary-wrap.json", body.wrap || body);
-    setDoorStatus((body.discord_card || "SEALED") + "\nchain " + (body.chain || "paused"));
-  }
-
-  async function verifyRecapDoor() {
-    const env = window.__notaryEnvelope;
-    const wrap = window.__notaryWrap;
-    if (!env || !wrap) {
-      setDoorStatus("export and seal first");
-      return;
-    }
-    const r = await fetch("/api/session/clock-notary/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ envelope: env, wrap: wrap }),
-    });
-    const body = await r.json();
-    const lines = (body.checks || []).map(function (c) {
-      return (c.ok ? "PASS " : "FAIL ") + c.name + (c.detail ? " · " + c.detail : "");
-    });
-    setDoorStatus((body.ok ? "VERIFIED " : "UNTRUSTED ") + body.passed + "/" + body.total + "\n" + lines.join("\n"));
   }
 
   function copyText(text) {
@@ -122,18 +72,10 @@
   }
 
   bind("btn-export-recap", exportRecapDoor);
-  bind("btn-seal-recap", sealRecapDoor);
-  bind("btn-verify-wrap", verifyRecapDoor);
   const copyHashBtn = document.getElementById("btn-copy-hash");
   if (copyHashBtn) copyHashBtn.addEventListener("click", function () {
     const commit = window.__notaryEnvelope && window.__notaryEnvelope.clock_commitment;
     copyText(commit || "");
     setDoorStatus(commit ? "hash copied" : "export first");
-  });
-  const copyCardBtn = document.getElementById("btn-copy-card");
-  if (copyCardBtn) copyCardBtn.addEventListener("click", function () {
-    const card = window.__notaryWrap && window.__notaryWrap.discord_card;
-    copyText(card || "");
-    setDoorStatus(card ? "Discord card copied" : "seal first");
   });
 })();

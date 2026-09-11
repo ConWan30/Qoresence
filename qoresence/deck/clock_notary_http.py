@@ -1,4 +1,4 @@
-"""Deck HTTP mounts for the Recap notary door."""
+"""Deck HTTP mounts for the Recap observation-export door (no seal/verify)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from typing import Any, Callable
 
 
 def mount_clock_notary(app: Any, situation_fn: Callable[[], dict] | None = None) -> None:
-    from qoresence.compose.clock_notary.door import export_door, seal_door, verify_door
+    from qoresence.compose.clock_notary.door import export_door
 
     try:
         from fastapi.responses import JSONResponse
@@ -31,23 +31,3 @@ def mount_clock_notary(app: Any, situation_fn: Callable[[], dict] | None = None)
             view_env = build_session_response(session_id="")
         view = view_env.get("view") if isinstance(view_env, dict) else None
         return _json(export_door(view if isinstance(view, dict) else view_env))
-
-    @app.post("/api/session/clock-notary/seal")
-    async def api_session_clock_notary_seal(request):  # type: ignore[no-untyped-def]
-        try:
-            payload = await request.json()
-        except Exception:
-            payload = {}
-        if not isinstance(payload, dict):
-            payload = {}
-        return _json(seal_door(payload))
-
-    @app.post("/api/session/clock-notary/verify")
-    async def api_session_clock_notary_verify(request):  # type: ignore[no-untyped-def]
-        try:
-            payload = await request.json()
-        except Exception:
-            payload = {}
-        if not isinstance(payload, dict):
-            payload = {}
-        return _json(verify_door(payload.get("wrap"), payload.get("envelope")))
