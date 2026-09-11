@@ -25,8 +25,8 @@ export function SessionTheater() {
   return (
     <main className="holo-deck flex h-dvh min-h-0 flex-col overflow-hidden bg-bg text-fg" onPointerMove={onPrism}>
       <CommandBar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="mx-auto flex h-full max-w-[88rem] flex-1 flex-col overflow-y-auto px-4 py-3 sm:px-5 sm:py-3">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="mx-auto flex min-h-0 w-full max-w-[88rem] flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 py-3 sm:px-5 sm:py-3">
           <div className="mb-4 flex items-center gap-3">
             <nav className="flex items-center gap-1.5 rounded-lg bg-surface/60 p-1 shadow-[var(--shadow-border)]">
               {(["now", "story", "recap"] as const).map((t) => (

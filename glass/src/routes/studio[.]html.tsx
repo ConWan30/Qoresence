@@ -11,13 +11,15 @@ export const Route = createFileRoute("/studio.html")({ component: StudioPage });
 function StudioPage() {
   useTheaterLoop();
   return (
-    <main className="min-h-dvh bg-bg text-fg">
+    <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-bg text-fg">
       <CommandBar />
-      <div className="mx-auto grid max-w-5xl gap-4 px-4 py-5 lg:grid-cols-2">
-        <CouplingCard />
-        <AgentRail />
-        <ClipRack />
-        <ClutchFeed />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+        <div className="mx-auto grid max-w-5xl gap-4 px-4 py-5 lg:grid-cols-2">
+          <CouplingCard />
+          <AgentRail />
+          <ClipRack />
+          <ClutchFeed />
+        </div>
       </div>
     </main>
   );
