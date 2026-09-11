@@ -111,3 +111,56 @@ def test_parse_madden_mnp_tokens_are_21_7_not_yard_line():
     parsed = FootballScoreboardExtractor()._parse(tokens)
     assert parsed.get("away_score") == 21
     assert parsed.get("home_score") == 7
+
+
+def test_sanitize_madden_vlm_rejects_psu():
+    """CFB PSU must not stick on madden home/away after left/right ingest."""
+    from qoresence.vision.scoreboard_extractor import sanitize_madden_vlm_teams
+
+    ctx = VisualContext(
+        game_profile="madden_27",
+        game_category=GameCategory.FOOTBALL,
+        home_team="NO",
+        away_team="PSU",
+        home_score=0,
+        away_score=14,
+    )
+    sanitize_madden_vlm_teams(
+        ctx,
+        {"left_team": "PSU", "right_team": "NO", "home_left": False},
+    )
+    assert ctx.home_team == "NO"
+    assert ctx.away_team != "PSU"
+    assert not ctx.away_team
+    assert ctx.home_score == 0
+    assert ctx.away_score == 14
+
+
+def test_sanitize_madden_vlm_keeps_det_no():
+    from qoresence.vision.scoreboard_extractor import sanitize_madden_vlm_teams
+
+    ctx = VisualContext(game_profile="madden_27", game_category=GameCategory.FOOTBALL)
+    sanitize_madden_vlm_teams(
+        ctx,
+        {"left_team": "DET", "right_team": "NO", "home_left": False},
+    )
+    assert ctx.away_team == "DET"
+    assert ctx.home_team == "NO"
+
+
+def test_sanitize_madden_vlm_skips_cfb_profile():
+    from qoresence.vision.scoreboard_extractor import sanitize_madden_vlm_teams
+
+    ctx = VisualContext(
+        game_profile="ncaa_football_27",
+        game_category=GameCategory.FOOTBALL,
+        away_team="PSU",
+        home_team="OSU",
+    )
+    sanitize_madden_vlm_teams(
+        ctx,
+        {"left_team": "PSU", "right_team": "OSU", "home_left": False},
+    )
+    assert ctx.away_team == "PSU"
+    assert ctx.home_team == "OSU"
+

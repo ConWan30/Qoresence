@@ -869,6 +869,21 @@ class MomentScorer:
             q = state.quarter
             home = getattr(state, "home_team", None)
             away = getattr(state, "away_team", None)
+            profile = getattr(state, "game_profile", None)
+            try:
+                from qoresence.profiles.nfl_roster import (
+                    licensed_nfl_abbr,
+                    requires_nfl_team_gate,
+                )
+
+                if requires_nfl_team_gate(profile):
+                    home = licensed_nfl_abbr(home)
+                    away = licensed_nfl_abbr(away)
+            except Exception:
+                token = str(profile or "").strip().lower()
+                if "madden" in token or token == "nfl":
+                    # Fail-closed: do not echo unlicensed tags if the allowlist is down.
+                    home, away = None, None
             if home and away:
                 board = f"{away} {state.away_score}-{home} {state.home_score}"
             else:

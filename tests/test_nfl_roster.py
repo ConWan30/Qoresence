@@ -9,7 +9,9 @@ from qoresence.profiles.nfl_roster import (
     NflRosterIndex,
     apply_roster_to_context,
     is_madden_profile,
+    licensed_nfl_abbr,
     parse_nameplate,
+    requires_nfl_team_gate,
 )
 from qoresence.vision.visual_context import VisualContext
 
@@ -65,6 +67,18 @@ def _index(tmp_path: Path) -> NflRosterIndex:
 def test_is_madden_profile():
     assert is_madden_profile("madden_27") is True
     assert is_madden_profile("ncaa_football_27") is False
+    assert requires_nfl_team_gate("madden_27") is True
+    assert requires_nfl_team_gate("nfl") is True
+    assert requires_nfl_team_gate("ncaa_football_27") is False
+
+
+def test_licensed_nfl_abbr_rejects_psu():
+    assert licensed_nfl_abbr("PSU") is None
+    assert licensed_nfl_abbr("Penn State") is None
+    assert licensed_nfl_abbr("DET") == "DET"
+    assert licensed_nfl_abbr("NO") == "NO"
+    assert licensed_nfl_abbr("Saints") == "NO"
+    assert licensed_nfl_abbr("Lions") == "DET"
 
 
 def test_team_aliases():
@@ -184,3 +198,15 @@ def test_resolve_possession_and_player(tmp_path: Path):
     assert out["home_team"]["abbr"] == "KC"
     assert out["possession_team"]["nick"] == "Chiefs"
     assert out["on_screen_player"]["full_name"] == "Patrick Mahomes"
+
+
+def test_apply_roster_blanks_cfb_abbrev_on_madden():
+    mad = VisualContext(game_profile="madden_27", home_team="NO", away_team="PSU")
+    apply_roster_to_context(
+        mad,
+        {"home_team_raw": "NO", "away_team_raw": "PSU"},
+    )
+    assert mad.home_team == "NO"
+    assert mad.away_team is None
+    assert mad.away_team != "PSU"
+
