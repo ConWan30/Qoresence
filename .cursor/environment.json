@@ -1,0 +1,16 @@
+{
+  "name": "Qoresence",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "deck",
+      "command": "source .venv/bin/activate && python -m qoresence.cli --deck --deck-port 8765"
+    }
+  ],
+  "ports": [
+    {
+      "name": "Retina Deck",
+      "port": 8765
+    }
+  ]
+}
