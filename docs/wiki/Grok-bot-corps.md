@@ -10,4 +10,4 @@ Full lock: [docs/GROK_BOT_CORPS.md](https://github.com/ConWan30/Qoresence/blob/m
 
 Shared constitution: observation plane, two-speed law, ticket-clock, lock-order, DualSense-on-PS5 emptiness valid, human HOLD.
 
-Against current `main`: Session Theater + recap + private haptic probe (default OFF). Overlay waits on Qoreeval.
+Against current `main`: Session Theater + recap + private haptic probe (default OFF). Qoredev landing receipt on `/health.qoredev` (observation only). Overlay waits on Qoreeval.
