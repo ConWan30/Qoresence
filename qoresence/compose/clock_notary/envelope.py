@@ -114,7 +114,8 @@ def envelope_from_recap(recap: dict) -> ObservationEnvelope:
         raise ValueError("recap missing session_id")
     ticks: list[Tick] = []
     for raw in recap.get("ticks") or recap.get("civif") or []:
-        locked = bool(raw.get("score_vlm_locked") or raw.get("board_locked"))
+        # board_locked alone never licenses digits (ConfirmTicket + score_vlm_locked only).
+        locked = bool(raw.get("score_vlm_locked"))
         kind = raw.get("ticket_kind")
         if kind not in ("coupling", "confirm", None):
             kind = None

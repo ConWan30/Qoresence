@@ -87,11 +87,22 @@
       <section class="recap holo-plate" id="recap-section">
         <h2>Recap</h2>
         <div id="recap-stats" class="RecapStats">Connecting…</div>
+        <div id="notary-door" class="NotaryDoor">
+          <h3>Observation export</h3>
+          <p class="door-copy">Eyes only. Download the observation envelope here; seal/wrap lives on QorTroller.</p>
+          <p id="notary-hash" class="door-hash">clock —</p>
+          <div class="door-actions">
+            <button type="button" id="btn-export-recap">Export recap</button>
+            <button type="button" id="btn-copy-hash">Copy hash</button>
+          </div>
+          <pre id="notary-status" class="door-status">door closed</pre>
+        </div>
       </section>
     </aside>
   </div>
 </div>
 </main>
 <script src="/session.js" defer></script>
+<script src="/session-door.js" defer></script>
 </body>
 </html>

@@ -1,7 +1,8 @@
 """Clock Notary compose layer — observation envelope + consent-gated wrap."""
 
-from .locks import DualLocks, LockState
+from .door import export_door
 from .envelope import ObservationEnvelope, Tick, build_envelope, clock_commitment
+from .locks import DualLocks, LockState
 from .sanitize import strip_truth_leaks
 from .wrap import ConsentRecord, WrapResult, wrap_notary
 
@@ -16,6 +17,7 @@ __all__ = [
     "ConsentRecord",
     "WrapResult",
     "wrap_notary",
+    "export_door",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

@@ -9,6 +9,58 @@ from .locks import compose_locks
 from .sanitize import strip_truth_leaks
 
 
+def _truthy_fresh(value: Any) -> bool:
+    """Absent ticket_fresh is ignored; explicit false/0/'' blanks digits."""
+    if isinstance(value, str):
+        return value.strip().lower() not in {"", "0", "false", "no", "off"}
+    return bool(value)
+
+
+def _confirm_ticket_id(raw: dict[str, Any], ev: dict[str, Any]) -> str:
+    for src in (ev, raw):
+        tid = str(src.get("confirm_ticket_id") or "").strip()
+        if tid:
+            return tid
+    if str(ev.get("ticket_kind") or "").strip() == "confirm":
+        return str(ev.get("ticket_id") or ev.get("event_id") or "").strip()
+    return ""
+
+
+def _score_vlm_locked(raw: dict[str, Any], ev: dict[str, Any]) -> bool:
+    """Real VLM lock only — board_locked / scoreboard_locked never license digits."""
+    if "score_vlm_locked" in ev:
+        return bool(ev.get("score_vlm_locked"))
+    if "score_vlm_locked" in raw:
+        return bool(raw.get("score_vlm_locked"))
+    return False
+
+
+def _ticket_fresh_ok(raw: dict[str, Any], ev: dict[str, Any]) -> bool:
+    """If ticket_fresh is present on the event or view, it must be truthy."""
+    if "ticket_fresh" in ev:
+        return _truthy_fresh(ev.get("ticket_fresh"))
+    if "ticket_fresh" in raw:
+        return _truthy_fresh(raw.get("ticket_fresh"))
+    return True
+
+
+def _digits_licensed(raw: dict[str, Any], ev: dict[str, Any]) -> bool:
+    """ConfirmTicket + score_vlm_locked (+ ticket-fresh when present). Fail-closed."""
+    if not _score_vlm_locked(raw, ev):
+        return False
+    if not _confirm_ticket_id(raw, ev):
+        return False
+    return _ticket_fresh_ok(raw, ev)
+
+
+def _format_digits(score_obj: Any) -> str | None:
+    if not isinstance(score_obj, dict):
+        return None
+    if score_obj.get("home") is None or score_obj.get("away") is None:
+        return None
+    return f"{int(score_obj['home'])}-{int(score_obj['away'])}"
+
+
 def recap_from_session_view(view: dict[str, Any] | None) -> dict[str, Any]:
     raw = strip_truth_leaks(view if isinstance(view, dict) else {})
     locked = bool(raw.get("board_locked"))
@@ -17,18 +69,19 @@ def recap_from_session_view(view: dict[str, Any] | None) -> dict[str, Any]:
     for ev in raw.get("events") or []:
         if not isinstance(ev, dict):
             continue
-        score_obj = ev.get("score") if locked else None
-        digits = None
-        if isinstance(score_obj, dict) and score_obj.get("home") is not None and score_obj.get("away") is not None:
-            digits = f"{int(score_obj['home'])}-{int(score_obj['away'])}"
+        licensed = _digits_licensed(raw, ev)
+        digits = _format_digits(ev.get("score")) if licensed else None
         hid = None
         inp = ev.get("input") if isinstance(ev.get("input"), dict) else {}
         if bodied:
             hid = inp.get("button") or inp.get("hid_edge")
-        ev_locked = bool(digits)
+        ticket = (
+            str(ev.get("confirm_ticket_id") or "").strip()
+            or str(ev.get("event_id") or ev.get("ticket_id") or "").strip()
+            or None
+        )
         kind = None
-        ticket = ev.get("event_id") or ev.get("ticket_id")
-        if ev_locked:
+        if licensed:
             kind = "confirm"
         elif ticket or hid or inp:
             kind = "coupling"
@@ -40,7 +93,7 @@ def recap_from_session_view(view: dict[str, Any] | None) -> dict[str, Any]:
                 "ticket_kind": kind,
                 "hid_edge": hid,
                 "score_digits": digits,
-                "score_vlm_locked": ev_locked,
+                "score_vlm_locked": bool(licensed),
             }
         )
     return {

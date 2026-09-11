@@ -23,7 +23,7 @@ def _write(path: Path, obj: dict) -> None:
 def cmd_export(args: argparse.Namespace) -> int:
     env = envelope_from_recap(_load(Path(args.recap)))
     _write(Path(args.out), env.to_dict())
-    print(env.clock_commitment)
+    print(env.clock_commitment)  # noqa: T201
     return 0
 
 
@@ -55,9 +55,9 @@ def cmd_wrap(args: argparse.Namespace) -> int:
         )
     result = wrap_notary(env, consent)
     _write(Path(args.out), result.to_dict())
-    print(result.status)
+    print(result.status)  # noqa: T201
     if result.status != "SEALED":
-        print(result.reason, file=sys.stderr)
+        print(result.reason, file=sys.stderr)  # noqa: T201
         return 2
     return 0
 

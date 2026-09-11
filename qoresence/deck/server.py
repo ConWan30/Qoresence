@@ -2704,6 +2704,25 @@ def create_app():  # type: ignore[no-untyped-def]
                 _ws_client_count = max(0, _ws_client_count - 1)
             log.info("Deck WS client gone (%d total)", len(_ws_clients))
 
+    # Recap observation export only — seal/verify live on QorTroller, not Deck.
+    try:
+        from qoresence.deck.clock_notary_http import mount_clock_notary
+
+        mount_clock_notary(app, lambda: _state.situation)
+    except Exception:
+        log.exception("clock_notary mount failed")
+
+    _door_js = pathlib.Path(__file__).resolve().with_name("session-door.js")
+    if FileResponse is not None and _door_js.is_file():
+
+        @app.get("/session-door.js")
+        async def session_door_js():  # type: ignore[no-untyped-def]
+            return FileResponse(
+                _door_js,
+                media_type="text/javascript",
+                headers={"Cache-Control": "no-cache, must-revalidate"},
+            )
+
     return app
 
 
