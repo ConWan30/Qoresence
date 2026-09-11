@@ -48,6 +48,24 @@ class EnvelopeTests(unittest.TestCase):
         self.assertEqual(body["locks"]["truth"]["glyph"], "\u25a1")
         self.assertEqual(body["plane"], "observation")
 
+    def test_board_locked_alone_does_not_license(self):
+        env = envelope_from_recap(
+            {
+                "session_id": "sess-board",
+                "ticks": [
+                    {
+                        "clock_ns": 1,
+                        "frame_seq": 1,
+                        "ticket_id": "t1",
+                        "ticket_kind": "coupling",
+                        "score_digits": "14-10",
+                        "board_locked": True,
+                    }
+                ],
+            }
+        )
+        self.assertIsNone(env.ticks[0]["score_digits"])
+
 
 class WrapRailTests(unittest.TestCase):
     def test_observation_cannot_promote_truth(self):

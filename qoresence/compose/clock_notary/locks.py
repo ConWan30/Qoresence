@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class LockState(str, Enum):
+class LockState(StrEnum):
     DARK = "DARK"
     OBS = "OBS"
     TRUTH = "TRUTH"

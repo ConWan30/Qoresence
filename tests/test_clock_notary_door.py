@@ -51,3 +51,48 @@ class DoorTests(unittest.TestCase):
         self.assertNotIn("seal_door", src)
         self.assertNotIn("verify_door", src)
         self.assertNotIn("wrap_notary", src)
+
+
+
+class DigitGateTests(unittest.TestCase):
+    def test_board_locked_alone_blanks_digits(self):
+        from qoresence.compose.clock_notary.from_session import (
+            payload_from_session_view,
+            recap_from_session_view,
+        )
+
+        recap = recap_from_session_view(VIEW)
+        tick = recap["ticks"][0]
+        self.assertIsNone(tick["score_digits"])
+        self.assertFalse(tick["score_vlm_locked"])
+        self.assertNotEqual(tick["ticket_kind"], "confirm")
+        body = payload_from_session_view(VIEW)
+        self.assertIsNone(body["ticks"][0]["score_digits"])
+        self.assertNotEqual(body["ticks"][0]["ticket_kind"], "confirm")
+
+    def test_confirm_ticket_path_exports_digits(self):
+        from qoresence.compose.clock_notary.from_session import (
+            payload_from_session_view,
+            recap_from_session_view,
+        )
+
+        view = {
+            **VIEW,
+            "score_vlm_locked": True,
+            "confirm_ticket_id": "cpl-1",
+            "events": [
+                {
+                    **VIEW["events"][0],
+                    "confirm_ticket_id": "cpl-1",
+                    "ticket_kind": "confirm",
+                    "score_vlm_locked": True,
+                }
+            ],
+        }
+        recap = recap_from_session_view(view)
+        self.assertEqual(recap["ticks"][0]["score_digits"], "14-10")
+        self.assertTrue(recap["ticks"][0]["score_vlm_locked"])
+        body = payload_from_session_view(view)
+        self.assertEqual(body["ticks"][0]["score_digits"], "14-10")
+        self.assertEqual(body["ticks"][0]["ticket_kind"], "confirm")
+
