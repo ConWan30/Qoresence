@@ -9,9 +9,9 @@ export const Route = createFileRoute("/mobile.html")({ component: MobilePage });
 function MobilePage() {
   useTheaterLoop();
   return (
-    <main className="flex min-h-dvh flex-col bg-bg text-fg">
+    <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-bg text-fg">
       <CommandBar />
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain p-3">
         <HdmiStage variant="lens" />
         <ConnectCard />
       </div>
