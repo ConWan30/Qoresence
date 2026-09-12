@@ -13,8 +13,10 @@ from qoresence.vision.scoreboard_vlm import (
     _HTTP_TIMEOUT_S,
     _INFLIGHT_WATCHDOG_S,
     _MENU_INTERVAL_S,
+    _QUICKSILVER_SLOT_WAIT_S,
     _TIMEOUT_BACKOFF_MAX_S,
 )
+from qoresence.agents.quicksilver_slot import acquire_quicksilver
 from tests.scorebug_fixtures import licensed_scorebug_frame
 
 
@@ -235,6 +237,35 @@ def test_stats_exposes_timeout_inflight_skip_counters():
     assert stats["inflight_age_s"] >= 1.0
     assert stats["http_timeout_s"] == _HTTP_TIMEOUT_S
     assert stats["inflight_watchdog_s"] == _HTTP_TIMEOUT_S + 2.0
+
+
+def test_scoreboard_vlm_slot_busy_clears_inflight_without_long_wait(monkeypatch):
+    """Confirm path must not sit inflight for 14s while waiting on Quicksilver."""
+    import threading
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    gate = threading.Event()
+
+    def holder() -> None:
+        with acquire_quicksilver(2.0) as ok:
+            assert ok is True
+            gate.wait(2.0)
+
+    t = threading.Thread(target=holder, daemon=True)
+    t.start()
+    time.sleep(0.05)
+    crop = np.zeros((96, 200, 3), dtype=np.uint8)
+    crop[:, :60] = 255
+    crop[:, 140:] = 255
+    t0 = time.monotonic()
+    assert ref._call_vlm(crop) is None
+    elapsed = time.monotonic() - t0
+    assert elapsed < 0.25, "slot busy must skip quickly, not block on 14s acquire"
+    assert _QUICKSILVER_SLOT_WAIT_S == 0.05
+    gate.set()
+    t.join(1.0)
 
 
 def test_empty_http_200_clears_inflight_and_allows_next_schedule(monkeypatch):

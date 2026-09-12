@@ -558,6 +558,35 @@ def test_http_400_holds_without_urllib_retry_and_redacts_body(caplog):
         call.assert_not_called()
 
 
+def test_visual_vlm_skips_when_licensed_confirm_ticket_active(monkeypatch):
+    """Visual must yield Quicksilver when a licensed confirm ticket is live."""
+    from unittest.mock import MagicMock
+
+    import numpy as np
+
+    from qoresence.core import VisualConfig
+    from qoresence.lobes.visual import VLMClient
+
+    monkeypatch.setattr(
+        "qoresence.vision.confirm_ticket.licensed_last_confirm",
+        lambda: MagicMock(ticket_id="t1"),
+    )
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm",
+        lambda: MagicMock(is_held=lambda: False, is_inflight=lambda: False),
+    )
+    monkeypatch.setattr(
+        "qoresence.lobes.visual._quicksilver_busy",
+        lambda: False,
+    )
+
+    client = VLMClient(VisualConfig(api_key="test_key"))
+    client._session = MagicMock()
+    out = client.analyze_frame_raw(np.zeros((64, 64, 3), dtype=np.uint8), "prompt")
+    assert out is None
+    client._session.post.assert_not_called()
+
+
 def test_visual_vlm_skips_when_scoreboard_confirm_inflight(monkeypatch):
     """Visual must not race confirm VLM while scoreboard read is inflight."""
     from unittest.mock import MagicMock
@@ -607,6 +636,10 @@ def test_visual_vlm_acquires_quicksilver_with_chat_yield_budget(monkeypatch):
     monkeypatch.setattr(
         "qoresence.lobes.visual._quicksilver_busy",
         lambda: False,
+    )
+    monkeypatch.setattr(
+        "qoresence.vision.confirm_ticket.licensed_last_confirm",
+        lambda: None,
     )
     monkeypatch.setattr(
         "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm",
