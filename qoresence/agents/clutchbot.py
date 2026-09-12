@@ -530,6 +530,11 @@ class ClutchBotAgent:
                     pl = dict(moment.payload or {})
                     if ticket is not None:
                         pl["ticket_id"] = ticket.ticket_id
+                    if not str(licensed or "").strip() or str(licensed).strip().lower() in {
+                        "board",
+                        "score update: board.",
+                    }:
+                        continue
                     moment = _dc2.replace(moment, message=licensed, payload=pl)
                 except Exception:
                     pass
@@ -1043,7 +1048,10 @@ class ClutchBotAgent:
                     k: t for k, t in self._recent_chat_texts.items() if now - t < 180.0
                 }
                 last_same = self._recent_chat_texts.get(msg, 0.0)
-                if now - last_same < 120.0:
+                # Deck feed must follow confirm ticks. 120s duplicate window
+                # froze ClutchFeed after the first licensed line.
+                dup_s = 120.0 if (self.config.twitch and self.config.twitch.enabled) else 20.0
+                if now - last_same < dup_s:
                     log.debug("ClutchBot suppress duplicate chat: %s", msg[:50])
                     return False
 
@@ -1069,7 +1077,11 @@ class ClutchBotAgent:
         if action == "arm_prediction":
             return 60.0
         if action == "chat":
-            return max(base, 45.0)  # never chat faster than 45s for feed hygiene
+            tw = self.config.twitch
+            if tw and tw.enabled:
+                return max(base, 45.0)  # Twitch IRC hygiene
+            # Deck ClutchFeed: follow confirm VLM (~6s), not a 45s mute after first lock.
+            return max(6.0, min(float(base or 6.0), 8.0))
         if action == "clip":
             return max(60.0, base)
         if action == "start_prediction":

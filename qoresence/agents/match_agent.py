@@ -227,7 +227,11 @@ class MatchAgent:
     def _stub(self, bag: dict[str, Any]) -> dict[str, Any]:
         pic = bag.get("picture_hid") if isinstance(bag.get("picture_hid"), dict) else None
         if bag.get("confirm_ticket_id") and bag.get("home_score") is not None:
-            text = "Board licensed on this seq."
+            hs = bag.get("home_score")
+            aws = bag.get("away_score")
+            q = bag.get("quarter")
+            qbit = f" Q{q}" if q not in (None, "") else ""
+            text = f"Board licensed {aws}-{hs}{qbit}."
         elif pic:
             text = f"Picture HUD labeled {pic.get('hid_button')} — not a pad press."
         else:
