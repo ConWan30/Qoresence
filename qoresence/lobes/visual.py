@@ -179,15 +179,16 @@ class VLMClient:
 
             from qoresence.agents.quicksilver_slot import acquire_quicksilver
 
-            wait = min(14.0, float(timeout or 14.0))
-            with acquire_quicksilver(wait) as got:
+            # Yield the slot to confirm VLM — same short wait as chat (#212).
+            http_timeout = min(14.0, float(timeout or 14.0))
+            with acquire_quicksilver(0.05) as got:
                 if not got:
                     log.info("visual VLM skip: Quicksilver slot busy")
                     return None
                 response = self._session.post(
                     f"{self.endpoint}/chat/completions",
                     json=payload,
-                    timeout=wait,
+                    timeout=http_timeout,
                 )
             response.raise_for_status()
             data = response.json()
@@ -358,7 +359,7 @@ REASONING: brief explanation"""
 
             from qoresence.agents.quicksilver_slot import acquire_quicksilver
 
-            with acquire_quicksilver(14.0) as got:
+            with acquire_quicksilver(0.05) as got:
                 if not got:
                     log.info("visual VLM skip: Quicksilver slot busy")
                     return None
