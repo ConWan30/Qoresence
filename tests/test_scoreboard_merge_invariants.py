@@ -543,8 +543,9 @@ def test_overlay_html_uses_shared_digit_gate():
     assert "crop_hash" in html
     compact = html.replace(" ", "")
     assert "digitsLicensed(s,snap)" in compact
-    # FrameHub snap.video.crop_hash first, then situation crop_hash / frame_hash.
-    assert "video.crop_hash||s.crop_hash||s.frame_hash" in compact
+    # Situation scorebug crop chain — hub full-frame video.crop_hash is not ticket crop.
+    assert "s.live_crop_hash||s.crop_hash||s.frame_hash" in compact
+    assert "video.crop_hash||s.crop_hash||s.frame_hash" not in compact
     assert "scoreboard_locked" not in html.split("function digitsLicensed")[1].split("function handle")[0]
 
 
