@@ -91,6 +91,11 @@ def recap_from_session_view(view: dict[str, Any] | None) -> dict[str, Any]:
             "score_digits": digits,
             "score_vlm_locked": bool(licensed),
         }
+        if ev.get("evidence_id"):
+            tick["evidence_id"] = str(ev["evidence_id"])
+        if ev.get("observation_id"):
+            tick["observation_id"] = str(ev["observation_id"])
+            tick["revision"] = int(ev.get("revision") or 0)
         out_edge = out_edge_from_event(ev)
         if out_edge is not None:
             tick["out_edge"] = out_edge
@@ -103,6 +108,7 @@ def recap_from_session_view(view: dict[str, Any] | None) -> dict[str, Any]:
         "ticks": ticks,
         "buttons_sha256": raw.get("buttons_sha256"),
         "coupling_sha256": raw.get("coupling_sha256"),
+        **({"observations": raw["observations"]} if raw.get("observations") else {}),
     }
 
 
@@ -124,7 +130,11 @@ def payload_from_session_view(view: dict[str, Any] | None) -> dict[str, Any]:
                 coupling_ticket=False, same_seq=False, consent_granted=False, wrap_sealed=False
             ).to_hud(),
         }
-    env = envelope_from_recap(recap)
+    try:
+        env = envelope_from_recap(recap)
+    except ValueError as exc:
+        return {"ok": False, "plane": "observation", "error": "observations_unavailable",
+                "detail": str(exc)}
     coupling = any(t.get("ticket_kind") == "coupling" and t.get("ticket_id") for t in env.ticks)
     locks = compose_locks(
         coupling_ticket=coupling,

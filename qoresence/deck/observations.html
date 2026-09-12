@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Qoresence · Observations</title>
+<style>
+body{margin:24px;background:#101416;color:#ecf2ed;font:16px system-ui;max-width:950px}
+h1{font-size:24px}article{background:#20282a;padding:16px;margin:12px 0;border-left:3px solid #93e6b5}
+small,p{color:#b8c7c1}a{color:#93e6b5}details{margin-top:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+body.overlay{background:transparent;margin:0;max-width:620px}.overlay h1,.overlay details{display:none}
+</style>
+<h1>Gameplay observations</h1><p id="health" role="status">Connecting…</p><main id="records"></main>
+<script>
+const overlay=new URLSearchParams(location.search).get('overlay')==='1';
+document.body.classList.toggle('overlay',overlay);
+const host=document.querySelector('#records'),health=document.querySelector('#health');
+let fingerprint='';
+function element(tag,text){const node=document.createElement(tag);node.textContent=text;return node}
+function stateLabel(state){return ({candidate:'candidate',tracking:'tracking',provisional:'awaiting qualification',partial:'partial',unresolved:'unresolved',confirmed:'scoreboard qualified'})[state]||'unresolved'}
+function displayRevision(record){const copy=JSON.parse(JSON.stringify(record));if(copy.state==='confirmed')copy.state='scoreboard_qualified';return copy}
+async function refresh(){
+ try{
+  const response=await fetch('/api/observations',{cache:'no-store'});
+  if(!response.ok)throw Error(response.status===401?'Authentication required':'Observations unavailable');
+  const data=await response.json();
+  health.textContent=!data.enabled?'Observations are off':data.persistence_error?'History could not be saved':data.worker_error?'Observation processing degraded':data.dropped?'Some evidence was dropped':'Historical observations · visual boundaries are estimates';
+  const records=overlay?data.records.slice(-1):data.records.slice().reverse();
+  const next=JSON.stringify(records);if(next===fingerprint)return;fingerprint=next;host.replaceChildren();
+  for(const record of records){
+   const card=element('article','');card.append(element('strong',stateLabel(record.state)+' · candidate football play'));
+   card.append(element('p','Historical record · '+record.observation_id+' · revision '+record.revision));
+   for(const claim of record.claims)card.append(element('p','Scoreboard observed: '+claim.home+'–'+claim.away+'. Play outcome unassigned.'));
+   if(!record.claims.length)card.append(element('p',record.state==='partial'?'Scoreboard qualification withheld · play outcome unassigned.':'Awaiting evidence · play outcome unassigned.'));
+   card.append(element('small','Inputs unavailable · no button or causal claims'));
+   if(record.clip.status==='available'){
+    const a=element('a',' Open clip');a.href='/media/clips/'+encodeURIComponent(record.clip.filename);card.append(a);
+   }else card.append(element('p','Clip: '+record.clip.status+(record.clip.reason?' · '+record.clip.reason:'')));
+   const details=element('details','');details.append(element('summary','Evidence and revisions'));
+   details.append(element('pre',JSON.stringify(data.revisions.filter(r=>r.observation_id===record.observation_id).map(displayRevision),null,2)));card.append(details);host.append(card);
+  }
+ }catch(error){health.textContent=error.message;host.replaceChildren();fingerprint=''}
+ finally{setTimeout(refresh,1000)}
+}
+refresh();
+</script></html>

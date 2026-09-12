@@ -422,6 +422,24 @@ class QoresenceApp:
         self.match_agent = None
         self.stem = None
         self.agent_glass = None
+        self.observations = None
+        if os.getenv("QORESENCE_OBSERVATIONS") == "1":
+            from pathlib import Path
+            from qoresence.observation.runtime import start_observations
+
+            def _preserve_observation(record):
+                from qoresence.vision.clip_buffer import get_clip_buffer
+
+                observation_id = record["observation_id"]
+                revision = int(record["revision"])
+                return get_clip_buffer().export(
+                    path=Path("clips") / f"hdmi_clip_{observation_id}_r{revision}.mp4",
+                    start_ns=record["start_ns"], end_ns=record["end_ns"],
+                )
+
+            self.observations = start_observations(
+                self.bus, Path("logs") / "observations.jsonl", export=_preserve_observation,
+            )
         # AgentGlass (glass D) — read-only spectator bridge, default OFF, no capture
         try:
             if getattr(self.config.agent_glass, "enabled", False):
@@ -1009,6 +1027,9 @@ class QoresenceApp:
 
         if self.streamer:
             self.streamer.stop()
+
+        if getattr(self, "observations", None) is not None:
+            self.observations.stop()
 
         if getattr(self, "agent_glass", None) is not None:
             try:
