@@ -150,9 +150,11 @@ def reduce_observation(previous: dict | None, event: dict, policy_version: str =
                 record["state"] = "partial"
     else:
         return record
+    from qoresence.observation.claims import sync_ledger
     from qoresence.observation.uncertainty import refresh_uncertainty_channels
 
     refresh_uncertainty_channels(record, event)
+    sync_ledger(record, event, phase=phase, game_state=game_state)
     record["revision"] += 1
     record["last_clock_ns"] = max(clock, record["last_clock_ns"])
     record["evidence_ids"] = record["evidence_ids"] + [eid]
