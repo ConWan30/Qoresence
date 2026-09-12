@@ -27,6 +27,12 @@ class _FakeVlm:
 
 def _reset() -> None:
     FootballScoreboardExtractor._stabilizer = _ScoreStabilizer(window=6, need=2)
+    try:
+        from qoresence.vision.confirm_ticket import get_ticket_book
+
+        get_ticket_book().clear()
+    except Exception:
+        pass
 
 
 def _noise_frame() -> np.ndarray:

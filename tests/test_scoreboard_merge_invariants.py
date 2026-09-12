@@ -30,6 +30,12 @@ from tests.scorebug_fixtures import licensed_scorebug_frame
 def _reset_stabilizer() -> None:
     """Reset the process-wide stabilizer so tests are independent."""
     FootballScoreboardExtractor._stabilizer = _ScoreStabilizer(window=6, need=2)
+    try:
+        from qoresence.vision.confirm_ticket import get_ticket_book
+
+        get_ticket_book().clear()
+    except Exception:
+        pass
 
 
 class _FakeOcrEngine:
