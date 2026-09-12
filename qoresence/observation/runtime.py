@@ -9,7 +9,7 @@ from copy import deepcopy
 from pathlib import Path
 from queue import Empty, Full, Queue
 
-from .lifecycle import POLICY, normalize_visual, reduce_observation
+from .lifecycle import normalize_visual, pack_journal_row, reduce_observation
 
 
 class ObservationRuntime:
@@ -103,11 +103,7 @@ class ObservationRuntime:
         record = reduce_observation(previous, evidence)
         if record is None or record == previous:
             return
-        row = {
-            "policy_version": POLICY,
-            "evidence": deepcopy(evidence),
-            "record": deepcopy(record),
-        }
+        row = pack_journal_row(evidence, record)
         try:
             self.journal.parent.mkdir(parents=True, exist_ok=True)
             with self.journal.open("a", encoding="utf-8") as stream:
