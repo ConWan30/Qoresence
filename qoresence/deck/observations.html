@@ -4,7 +4,12 @@
 <style>
 body{margin:24px;background:#101416;color:#ecf2ed;font:16px system-ui;max-width:950px}
 h1{font-size:24px}article{background:#20282a;padding:16px;margin:12px 0;border-left:3px solid #93e6b5}
-small,p{color:#b8c7c1}a{color:#93e6b5}details{margin-top:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+small,p{color:#b8c7c1}a,button.claim-link{color:#93e6b5;background:none;border:none;padding:0;font:inherit;cursor:pointer;text-align:left}
+button.claim-link:hover{text-decoration:underline}
+details{margin-top:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+.ledger{margin:8px 0;padding:8px;border:1px solid #2d3833;border-radius:4px}
+.ledger strong{display:block;margin-bottom:4px}
+.evidence-hit{background:#2a3d32;outline:1px solid #93e6b5}
 body.overlay{background:transparent;margin:0;max-width:620px}.overlay h1,.overlay details{display:none}
 </style>
 <h1>Gameplay observations</h1><p id="health" role="status">Connecting…</p><main id="records"></main>
@@ -19,6 +24,35 @@ function displayRevision(record){const copy=JSON.parse(JSON.stringify(record));i
 const channelLabels={capture_freshness:'Capture freshness',ocr_visual_read:'OCR / visual read',input_availability:'Input availability',clock_alignment:'Clock / alignment',moment_boundary:'Moment boundary',outcome_confirmation:'Outcome confirmation'};
 function formatChannel(name,body){if(!body||!Object.keys(body).length)return channelLabels[name]+': unknown';const bits=Object.entries(body).map(([k,v])=>k+' '+v);return channelLabels[name]+': '+bits.join(' · ')}
 function renderChannels(record){const wrap=element('div','');const channels=record.uncertainty_channels||{};for(const name of Object.keys(channelLabels))wrap.append(element('small',formatChannel(name,channels[name])));return wrap}
+function jumpToEvidence(card,evidenceId){
+ const pre=card.querySelector('pre.evidence-dump');
+ if(!pre)return;
+ const mark='evidence_id":"'+evidenceId+'"';
+ const idx=pre.textContent.indexOf(mark);
+ if(idx<0){pre.scrollIntoView({behavior:'smooth',block:'nearest'});return}
+ const range=document.createRange();const node=pre.firstChild||pre;
+ const start=Math.max(0,idx-40);range.setStart(node,start);range.setEnd(node,Math.min(pre.textContent.length,idx+mark.length+40));
+ pre.classList.add('evidence-hit');setTimeout(()=>pre.classList.remove('evidence-hit'),2000);
+ pre.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function renderLedger(card,record){
+ const wrap=element('div','');
+ for(const claim of record.ledger||[]){
+  const row=element('div','');row.className='ledger';
+  row.append(element('strong',claim.kind+' · '+claim.disposition));
+  const btn=element('button',claim.statement);btn.className='claim-link';btn.type='button';
+  const ref=(claim.supporting_refs||[])[0];
+  if(ref&&ref.evidence_id)btn.addEventListener('click',()=>jumpToEvidence(card,ref.evidence_id));
+  else if(ref&&ref.type==='clip'&&ref.filename){
+   btn.addEventListener('click',()=>{window.location.href='/media/clips/'+encodeURIComponent(ref.filename)});
+  }
+  row.append(btn);
+  if(claim.sample_size!=null)row.append(element('small','sample_size '+claim.sample_size+' · uncertainty '+claim.uncertainty));
+  row.append(element('small','refs: '+JSON.stringify(claim.supporting_refs||[])));
+  wrap.append(row);
+ }
+ return wrap;
+}
 async function refresh(){
  try{
   const response=await fetch('/api/observations',{cache:'no-store'});
@@ -32,12 +66,14 @@ async function refresh(){
    card.append(element('p','Historical record · '+record.observation_id+' · revision '+record.revision));
    for(const claim of record.claims)card.append(element('p','Scoreboard observed: '+claim.home+'–'+claim.away+'. Play outcome unassigned.'));
    if(!record.claims.length)card.append(element('p',record.state==='partial'?'Scoreboard qualification withheld · play outcome unassigned.':'Awaiting evidence · play outcome unassigned.'));
+   card.append(renderLedger(card,record));
    card.append(renderChannels(record));
    if(record.clip.status==='available'){
     const a=element('a',' Open clip');a.href='/media/clips/'+encodeURIComponent(record.clip.filename);card.append(a);
    }else card.append(element('p','Clip: '+record.clip.status+(record.clip.reason?' · '+record.clip.reason:'')));
    const details=element('details','');details.append(element('summary','Evidence and revisions'));
-   details.append(element('pre',JSON.stringify(data.revisions.filter(r=>r.observation_id===record.observation_id).map(displayRevision),null,2)));card.append(details);host.append(card);
+   const pre=element('pre',JSON.stringify(data.revisions.filter(r=>r.observation_id===record.observation_id).map(displayRevision),null,2));
+   pre.className='evidence-dump';details.append(pre);card.append(details);host.append(card);
   }
  }catch(error){health.textContent=error.message;host.replaceChildren();fingerprint=''}
  finally{setTimeout(refresh,1000)}

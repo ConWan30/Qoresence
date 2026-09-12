@@ -148,6 +148,7 @@ class FootballAdapter:
             "outcome": None,
             "uncertainty": ["inferred_visual_boundary", "input_unavailable"],
             "uncertainty_channels": initial_uncertainty_channels(input_availability),
+            "ledger": [],
             "evidence_ids": [],
             "clip": {"status": "not_requested"},
         }

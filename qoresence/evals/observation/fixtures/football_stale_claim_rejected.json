@@ -53,6 +53,28 @@
             "status": "unassigned"
           }
         },
+        "ledger": [
+          {
+            "schema_version": "observation-claim-ledger-0",
+            "claim_id": "clm-304c943fbaba540dc6e4",
+            "kind": "interpretation",
+            "observation_vs_inference": "inference",
+            "statement": "Resembles active football phase (running)",
+            "disposition": "accepted",
+            "disposition_reason": "visual_phase_in_active_allowlist",
+            "supporting_refs": [
+              {
+                "type": "evidence",
+                "evidence_id": "1",
+                "frame_seq": 1,
+                "clock_ns": 1000000000
+              }
+            ],
+            "detector_id": null,
+            "software_version": "0.1.0.dev0",
+            "model_version": null
+          }
+        ],
         "evidence_ids": [
           "1"
         ],
@@ -112,6 +134,50 @@
             "status": "qualification_withheld"
           }
         },
+        "ledger": [
+          {
+            "schema_version": "observation-claim-ledger-0",
+            "claim_id": "clm-304c943fbaba540dc6e4",
+            "kind": "interpretation",
+            "observation_vs_inference": "inference",
+            "statement": "Resembles active football phase (running)",
+            "disposition": "accepted",
+            "disposition_reason": "visual_phase_in_active_allowlist",
+            "supporting_refs": [
+              {
+                "type": "evidence",
+                "evidence_id": "1",
+                "frame_seq": 1,
+                "clock_ns": 1000000000
+              }
+            ],
+            "detector_id": null,
+            "software_version": "0.1.0.dev0",
+            "model_version": null
+          },
+          {
+            "schema_version": "observation-claim-ledger-0",
+            "claim_id": "clm-847204dd80c3ac9c90bd",
+            "kind": "suggestion",
+            "observation_vs_inference": "inference",
+            "statement": "Review comparable plays when more labeled samples are available",
+            "disposition": "withheld",
+            "disposition_reason": "scoreboard_not_licensed",
+            "supporting_refs": [
+              {
+                "type": "evidence",
+                "evidence_id": "2",
+                "frame_seq": 2,
+                "clock_ns": 2000000000
+              }
+            ],
+            "sample_size": 0,
+            "uncertainty": "qualification_withheld",
+            "detector_id": null,
+            "software_version": "0.1.0.dev0",
+            "model_version": null
+          }
+        ],
         "evidence_ids": [
           "1",
           "2"
@@ -172,6 +238,28 @@
             "status": "unassigned"
           }
         },
+        "ledger": [
+          {
+            "schema_version": "observation-claim-ledger-0",
+            "claim_id": "clm-1f6a0eb714f7c3c912ee",
+            "kind": "interpretation",
+            "observation_vs_inference": "inference",
+            "statement": "Resembles active football phase (running)",
+            "disposition": "accepted",
+            "disposition_reason": "visual_phase_in_active_allowlist",
+            "supporting_refs": [
+              {
+                "type": "evidence",
+                "evidence_id": "5",
+                "frame_seq": 5,
+                "clock_ns": 5000000000
+              }
+            ],
+            "detector_id": null,
+            "software_version": "0.1.0.dev0",
+            "model_version": null
+          }
+        ],
         "evidence_ids": [
           "5"
         ],
