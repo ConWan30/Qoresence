@@ -158,3 +158,27 @@ DualSense on PS5 stays observe language. This lamp does not invent scores from t
 ## Must remain empty
 
 No DShow / `VideoCapture` open. No grab. No score digits / last-good / 0-0. No ConfirmTicket claims. No LocalScoreReferee / LocalMuse. No A2A default ON. No `wrap_observation` / `*-truth`. No FrameHub ownership steal. Eval HOLD: chrome only.
+
+---
+
+# Principles audit — `look-same-seq-jsonl-quiet`
+
+Loop: `docs/QORGRAPH_LOOK_SAME_SEQ_JSONL_QUIET.md`  
+Date: 2026-09-10  
+Branch: `feat/look-same-seq-jsonl-quiet`
+
+## LOOK_SAME_SEQ_JSONL_QUIET — gate hot, log sampled
+
+| Gate | Evidence | Result |
+|---|---|---|
+| `gate_stays_hot` | `classify_join` refreshes `_last_license` every new sig; `confirm_look_allowed` unchanged. Test: `test_gate_unchanged`. | pass |
+| `join_ok_sampled` | 60× `join_ok` with `live_seq=1..60` → ≤3 JSONL lines (default every 30 seq). Test: `test_join_ok_jsonl_sampled_not_per_frame`. | pass |
+| `loud_kinds_append` | `seq_skew` / `plane_dim` still append each transition. Test: `test_refuse_still_appends`. | pass |
+| `no_score_keys` | `make_license` score freeze unchanged; no digit keys on Same-Seq licenses. Incumbent look-license tests. | pass (incumbent) |
+| `no_grab_bounce` | No `LivePaint` / DShow / capture changes. Same-Seq graph is observation-only. | pass |
+
+**Gap found:** dedupe keyed on full `(kind, live, widget, hid)` so advancing `live_seq` every LIVE paint appended `join_ok` every frame (~92MB soak). Fix: separate last-appended memory; sample quiet kinds; loud skew/dim unchanged.
+
+## Must remain empty
+
+No score keys on licenses. No grab-loop / DShow / LIVE bounce rewrite. Do not delete historic JSONL. Merge HOLD until operator GO MERGE.
