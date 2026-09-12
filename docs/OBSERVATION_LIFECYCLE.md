@@ -105,7 +105,7 @@ Live journaling can freeze detector outputs at emission when
 
 ## Validation and pilot gate
 
-`python -m pytest tests/test_observation_lifecycle.py tests/test_observation_event_replay.py tests/test_observation_football_adapter.py tests/test_observation_uncertainty.py tests/test_deadlock_regression.py`
+`python -m pytest tests/test_observation_lifecycle.py tests/test_observation_event_replay.py tests/test_observation_football_adapter.py tests/test_observation_uncertainty.py tests/test_observation_eval_harness.py tests/test_deadlock_regression.py`
 
 Synthetic tests cover replay, revision immutability, duplicates, late evidence,
 overflow, persistence failures, clip completion routing, missing tickets and
