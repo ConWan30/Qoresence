@@ -290,6 +290,9 @@ class HdmiClipBuffer:
         self,
         path: str | Path | None = None,
         seconds: float | None = None,
+        *,
+        start_ns: int | None = None,
+        end_ns: int | None = None,
     ) -> ClipExportResult | None:
         """Encode buffered HDMI frames to an MP4 file."""
         seconds = float(seconds) if seconds is not None else self.seconds
@@ -312,6 +315,15 @@ class HdmiClipBuffer:
             if len(picked) < 2:
                 picked = list(self._frames)
             snapshot = list(picked)
+
+            if start_ns is not None or end_ns is not None:
+                if start_ns is None or end_ns is None or start_ns >= end_ns:
+                    return None
+                start_s, end_s = start_ns / 1e9, end_ns / 1e9
+                # Refuse expired/incomplete windows rather than attach a newer clip.
+                if self._frames[0][0] > start_s or self._frames[-1][0] < end_s:
+                    return None
+                snapshot = [frame for frame in self._frames if start_s <= frame[0] <= end_s]
 
         if len(snapshot) < 2:
             log.warning("ClipBuffer export: need >=2 frames, have %d", len(snapshot))
@@ -406,13 +418,17 @@ class HdmiClipBuffer:
         )
         # Optional InputRing + chapter sidecars (best-effort; never fail MP4 export)
         try:
-            _write_buttons_sidecar(final_path, duration_s=dur)
+            # Legacy helper samples "now"; historical windows use the interval-aware
+            # coupling sidecar below instead of attaching unrelated current inputs.
+            if start_ns is None:
+                _write_buttons_sidecar(final_path, duration_s=dur)
         except Exception as e:
             log.debug("buttons sidecar skipped: %s", e)
         try:
             from qoresence.vision.clip_chapters import chapters_after_export
 
-            chapters_after_export(final_path, duration_s=dur)
+            if start_ns is None:
+                chapters_after_export(final_path, duration_s=dur)
         except Exception as e:
             log.debug("chapters sidecar skipped: %s", e)
         try:
@@ -430,7 +446,8 @@ class HdmiClipBuffer:
         except Exception as e:
             log.debug("timing coach skipped: %s", e)
         try:
-            _write_stem_audio_sidecar(final_path)
+            if start_ns is None:
+                _write_stem_audio_sidecar(final_path)
         except Exception as e:
             log.debug("stem audio sidecar skipped: %s", e)
         try:

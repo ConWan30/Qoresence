@@ -1013,6 +1013,18 @@ def create_app():  # type: ignore[no-untyped-def]
     from fastapi.responses import StreamingResponse
 
     app = FastAPI(title="Sight Glass", version="0.1.0")
+
+    @app.get("/api/observations")
+    async def api_observations(request: Request):
+        if not _agent_check_token(request):
+            return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+        from qoresence.observation.runtime import observations_snapshot
+
+        return JSONResponse(observations_snapshot(), headers={"Cache-Control": "no-store"})
+
+    @app.get("/observations.html")
+    async def observation_review():
+        return FileResponse(pathlib.Path(__file__).with_name("observations.html"))
     _gassets = _glass_dist() / "assets"
     if _gassets.is_dir():
         from fastapi.staticfiles import StaticFiles

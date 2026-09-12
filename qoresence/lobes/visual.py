@@ -11,6 +11,7 @@ prefer_local=True or no Quicksilver key is present.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import logging
 import os
@@ -605,7 +606,7 @@ class VisualRuntime:
             or context.visible_control
         ):
             self._last_context = context
-            self._emit_visual_context(context)
+            self._emit_visual_context(context, frame_seq=hub_seq)
 
         # 2. Cross-modal verification (if modality provider available)
         if self._modality_provider and self._last_context:
@@ -794,13 +795,45 @@ Do not add any explanation."""
             session_head_ns=self.session_head_ns,
         )
 
-    def _emit_visual_context(self, context: VisualContext) -> None:
+    def _emit_visual_context(
+        self, context: VisualContext, *, frame_seq: int | None = None
+    ) -> None:
         """Emit the canonical visual_context payload."""
+        payload = context.to_dict()
+        emitted_ns = clock_ns()
+        if os.getenv("QORESENCE_OBSERVATIONS") == "1":
+            from qoresence.observation.lifecycle import emission_tick, freeze_score_claim
+
+            try:
+                claim = freeze_score_claim(payload, emitted_ns)
+            except Exception:
+                claim = None
+            payload["observation_score_claim"] = claim
+            # The evidence id is carried by the same visual_context event that
+            # reaches the bus. It is stable for replay and safe for clip names.
+            seed = json.dumps(
+                {
+                    "session_id": self.bus.session_id,
+                    "clock_ns": emitted_ns,
+                    "frame_seq": frame_seq,
+                    "frame_hash": payload.get("frame_hash") or "",
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            evidence_id = "obs-" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:24]
+            payload["event_id"] = evidence_id
+            payload["observation_tick"] = emission_tick(
+                frame_seq=frame_seq,
+                clock=emitted_ns,
+                evidence_id=evidence_id,
+                claim=claim,
+            )
         self.bus.emit_raw(
             source_lobe=SourceLobe.VISUAL,
             event_type="visual_context",
-            payload=context.to_dict(),
-            clock_ns_override=clock_ns(),
+            payload=payload,
+            clock_ns_override=emitted_ns,
             session_head_ns=self.session_head_ns,
         )
 

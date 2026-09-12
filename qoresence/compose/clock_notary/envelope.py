@@ -25,6 +25,9 @@ class Tick:
     score_digits: str | None
     score_vlm_locked: bool = False
     out_edge: dict | None = None
+    evidence_id: str | None = None
+    observation_id: str | None = None
+    revision: int | None = None
 
     def as_commit_triple(self) -> dict:
         digits = self.score_digits if self.score_vlm_locked else None
@@ -38,6 +41,13 @@ class Tick:
         }
         if self.out_edge:
             body["out_edge"] = self.out_edge
+        # Optional lifecycle references are part of the SAME clock commitment.
+        # Existing ticks serialize byte-for-byte as before when these are absent.
+        if self.evidence_id:
+            body["evidence_id"] = self.evidence_id
+        if self.observation_id:
+            body["observation_id"] = self.observation_id
+            body["revision"] = int(self.revision or 0)
         return body
 
 
@@ -133,6 +143,9 @@ def envelope_from_recap(recap: dict) -> ObservationEnvelope:
                 score_digits=raw.get("score_digits") or raw.get("score"),
                 score_vlm_locked=locked,
                 out_edge=canonicalize_out_edge(raw.get("out_edge") or raw.get("pad_out")),
+                evidence_id=raw.get("evidence_id"),
+                observation_id=raw.get("observation_id"),
+                revision=raw.get("revision"),
             )
         )
     sidecars = {}
@@ -141,6 +154,49 @@ def envelope_from_recap(recap: dict) -> ObservationEnvelope:
         if isinstance(block, (bytes, bytearray)):
             sidecars[key] = bytes(block)
     prehashed = {}
+    extras = {}
+    lifecycle = recap.get("observations")
+    if lifecycle:
+        from qoresence.observation.lifecycle import journal_bytes, replay_journal
+
+        if lifecycle.get("persistence_error"):
+            raise ValueError("observation persistence failed; export withheld")
+        if lifecycle.get("enabled") and lifecycle.get("records") and "journal" not in lifecycle:
+            raise ValueError("observation journal missing; export withheld")
+        rows = lifecycle.get("journal") or []
+        records = replay_journal(rows, session_id=str(session_id))
+        sidecars["observations"] = journal_bytes(rows)
+        extras["observations"] = {"journal": rows, "records": records}
+        for row in rows:
+            record, evidence = row["record"], row["evidence"]
+            tick = evidence["tick"]
+            lifecycle_tick = Tick(
+                clock_ns=tick["clock_ns"], frame_seq=tick["frame_seq"],
+                ticket_id=tick.get("ticket_id"), ticket_kind=tick.get("ticket_kind"),
+                hid_edge=None, score_digits=tick.get("score_digits"),
+                score_vlm_locked=evidence.get("score_claim") is not None,
+                evidence_id=evidence["evidence_id"],
+                observation_id=record["observation_id"], revision=record["revision"],
+            )
+            for index, existing in enumerate(ticks):
+                if existing.evidence_id != lifecycle_tick.evidence_id:
+                    continue
+                ticks[index] = Tick(
+                    clock_ns=existing.clock_ns,
+                    frame_seq=existing.frame_seq,
+                    ticket_id=existing.ticket_id or lifecycle_tick.ticket_id,
+                    ticket_kind=existing.ticket_kind or lifecycle_tick.ticket_kind,
+                    hid_edge=existing.hid_edge,
+                    score_digits=existing.score_digits or lifecycle_tick.score_digits,
+                    score_vlm_locked=existing.score_vlm_locked or lifecycle_tick.score_vlm_locked,
+                    out_edge=existing.out_edge,
+                    evidence_id=existing.evidence_id,
+                    observation_id=lifecycle_tick.observation_id,
+                    revision=lifecycle_tick.revision,
+                )
+                break
+            else:
+                ticks.append(lifecycle_tick)
     for key in ("buttons", "coupling", "otel", "clip"):
         digest = recap.get(f"{key}_sha256")
         if isinstance(digest, str):
@@ -150,7 +206,7 @@ def envelope_from_recap(recap: dict) -> ObservationEnvelope:
         ticks=ticks,
         sidecars=sidecars or None,
         hid_on_console=bool(recap.get("hid_on_console", True)),
-        extras={"prehashed_sidecars": prehashed} if prehashed else None,
+        extras={**extras, **({"prehashed_sidecars": prehashed} if prehashed else {})},
     )
     if prehashed:
         merged = dict(env.sidecar_hashes)

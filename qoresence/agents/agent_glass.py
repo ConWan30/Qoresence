@@ -190,6 +190,9 @@ class AgentGlass:
             out["seqgate"] = seqgate
         if memory_receipt is not None:
             out["memory"] = memory_receipt
+        from qoresence.observation.runtime import observations_snapshot
+
+        out["observations"] = observations_snapshot()
         return out
 
     def get_events(
