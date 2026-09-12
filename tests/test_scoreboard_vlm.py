@@ -290,12 +290,14 @@ def test_large_score_pair_home_on_left():
     assert pair == (20, 0)
 
 
-def test_vlm_watchdog_clears_stale_inflight():
+def test_vlm_watchdog_clears_stale_inflight(monkeypatch):
     """Inflight watchdog clears _inflight if VLM thread is stale (>http_timeout+2s).
 
     Regression test for 2026-08-29: if a VLM thread hangs or _inflight sticks,
     the next tick should be able to run after the HTTP timeout + 2s buffer.
     """
+    import threading
+
     from qoresence.vision.scoreboard_vlm import _INFLIGHT_WATCHDOG_S
     import numpy as np
     import time
@@ -303,25 +305,43 @@ def test_vlm_watchdog_clears_stale_inflight():
     ref = ScoreboardVlmReferee()
     ref.enabled = True
     ref._api_key = "test-key"  # Enable scheduling
-    
+
+    release = threading.Event()
+
+    def _blocking_vlm(_crop):
+        release.wait(2.0)
+        return None
+
+    monkeypatch.setattr(ref, "_call_vlm", _blocking_vlm)
+
     h, w = 720, 1280
     frame = np.zeros((h, w, 3), dtype=np.uint8)
     frame[int(h * 0.78) : int(h * 0.93), :, 1] = 255
-    
+
     # Manually set inflight + old timestamp
     with ref._lock:
         ref._inflight = True
         ref._inflight_since = time.time() - (_INFLIGHT_WATCHDOG_S + 5.0)
-    
+
     # schedule should clear stale inflight and allow a new call
     ref.schedule(frame, force=True, game_state="gameplay", game_profile="cfb_27")
-    
+
     # Check that inflight was cleared and reset
     with ref._lock:
         # After watchdog clears and new schedule runs, inflight is True again (new call)
         assert ref._inflight is True, "Watchdog should clear stale, then schedule sets new inflight"
         # The new inflight_since should be recent (< 2s)
         assert (time.time() - ref._inflight_since) < 2.0, "New inflight_since should be recent"
+
+    release.set()
+    deadline = time.time() + 2.0
+    while time.time() < deadline:
+        with ref._lock:
+            if not ref._inflight:
+                break
+        time.sleep(0.02)
+    else:
+        raise AssertionError("scoreboard VLM thread did not release inflight")
 
 
 def test_situation_model_maps_cfb_title_to_cfb_profile():
