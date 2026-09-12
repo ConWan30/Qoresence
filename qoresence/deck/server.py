@@ -42,7 +42,13 @@ LIVE_FPS_MAX = 60.0
 # That is exactly OBS Browser Source FIN_WAIT_2 thrash + clients:0.
 try:
     from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+    from fastapi.responses import (
+        FileResponse,
+        HTMLResponse,
+        JSONResponse,
+        RedirectResponse,
+        Response,
+    )
 
     _HAS_FASTAPI = True
 except ImportError:  # pragma: no cover
