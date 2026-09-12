@@ -26,8 +26,8 @@ export function SessionTheater() {
     <main className="holo-deck flex h-dvh min-h-0 flex-col overflow-hidden bg-bg text-fg" onPointerMove={onPrism}>
       <CommandBar />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="mx-auto flex min-h-0 w-full max-w-[88rem] flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 py-3 sm:px-5 sm:py-3">
-          <div className="mb-4 flex items-center gap-3">
+        <div className="mx-auto flex min-h-0 w-full max-w-[88rem] flex-1 flex-col overflow-hidden px-4 py-3 sm:px-5 sm:py-3">
+          <div className="mb-4 flex shrink-0 items-center gap-3">
             <nav className="flex items-center gap-1.5 rounded-lg bg-surface/60 p-1 shadow-[var(--shadow-border)]">
               {(["now", "story", "recap"] as const).map((t) => (
                 <button
@@ -47,9 +47,11 @@ export function SessionTheater() {
             </nav>
           </div>
 
-          {tab === "now" && <SessionNow />}
-          {tab === "story" && <SessionStory />}
-          {tab === "recap" && <SessionRecap />}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+            {tab === "now" && <SessionNow />}
+            {tab === "story" && <SessionStory />}
+            {tab === "recap" && <SessionRecap />}
+          </div>
         </div>
       </div>
     </main>

@@ -12,11 +12,12 @@ GLASS_HREFS = (
     "/",
     "/deck.html",
     "/session.html",
-    "/civif.html",
     "/overlay.html",
     "/studio.html",
     "/mobile.html",
 )
+
+LEGACY_GLASS_HREFS = (*GLASS_HREFS, "/civif.html")
 
 
 def _nav_chunk(html: str) -> str:
@@ -27,10 +28,10 @@ def _nav_chunk(html: str) -> str:
     return html[start:end]
 
 
-def test_session_glass_nav_lists_civif_as_a_glass():
+def test_legacy_session_html_still_lists_glass_nav():
     html = (DECK / "session.html").read_text(encoding="utf-8")
     nav = _nav_chunk(html)
-    for href in GLASS_HREFS:
+    for href in LEGACY_GLASS_HREFS:
         assert href in nav
     assert 'href="/session.html" aria-current="page"' in nav
     assert "civif-link" not in html
@@ -43,7 +44,7 @@ def test_civif_chrome_matches_session_theater_nav():
     assert "let liveInflight" in html
     assert "if (liveInflight) return" in html
     nav = _nav_chunk(html)
-    for href in GLASS_HREFS:
+    for href in LEGACY_GLASS_HREFS:
         assert href in nav
     assert 'href="/civif.html" aria-current="page"' in nav
 
@@ -61,9 +62,10 @@ def test_glass_nav_css_has_theater_interaction():
     assert ".glass-nav a.stream-key-live" in glass_css
 
 
-def test_theater_command_bar_includes_civif_glass():
+def test_theater_command_bar_excludes_civif_glass():
     blob = GLASS_CMD.read_text(encoding="utf-8")
-    assert "/civif.html" in blob
+    assert 'label: "CIVIF"' not in blob
+    assert 'href: "/civif.html"' not in blob
     assert "offApp" in blob
     assert "glass-nav" in blob
     for href in GLASS_HREFS:
@@ -74,7 +76,7 @@ def test_fallback_deck_and_studio_use_glass_nav():
     for name, current in (("deck.html", "/deck.html"), ("studio.html", "/studio.html")):
         html = (DECK / name).read_text(encoding="utf-8")
         nav = _nav_chunk(html)
-        for href in GLASS_HREFS:
+        for href in LEGACY_GLASS_HREFS:
             assert href in nav, f"{name} missing {href}"
         assert f'href="{current}" aria-current="page"' in nav
 

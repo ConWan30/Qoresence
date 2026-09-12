@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 export function TheaterModeChip() {
   const { pathname } = useLocation();
   const isHdmi = pathname === "/" || pathname === "/deck.html";
-  const isSession = pathname === "/session.html" || pathname === "/civif.html";
+  const isSession = pathname === "/session.html";
 
   return (
     <div className="flex items-center gap-1.5 rounded-lg bg-surface/60 p-1 shadow-[var(--shadow-border)]">

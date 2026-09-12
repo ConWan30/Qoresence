@@ -13,7 +13,6 @@ const GLASSES = [
   { href: "/", label: "Home" },
   { href: "/deck.html", label: "Theater" },
   { href: "/session.html", label: "Session", offApp: true },
-  { href: "/civif.html", label: "CIVIF", offApp: true },
   { href: "/overlay.html", label: "Lens" },
   { href: "/studio.html", label: "Foundry" },
   { href: "/mobile.html", label: "Mobile" },
@@ -62,7 +61,7 @@ function GlassNavLink({
 
 export function CommandBar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isSessionRoute = pathname === "/session.html" || pathname === "/civif.html";
+  const isSessionRoute = pathname === "/session.html";
   const isGamerRoute = pathname === "/deck.html" || pathname === "/session.html";
   const hdmi = useTheater((s) => s.hdmi);
   const pllLock = useTheater((s) => s.pllLock);

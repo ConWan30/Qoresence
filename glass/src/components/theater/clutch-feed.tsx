@@ -53,7 +53,7 @@ export function ClutchFeed() {
   }, [licensed]);
 
   return (
-    <section className="holo-plate flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-xl p-3 sm:p-4">
+    <section className="holo-plate flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl p-3 sm:p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
           Clutch feed
@@ -101,7 +101,7 @@ export function ClutchFeed() {
         </p>
       ) : null}
       {moments.length > 0 ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-y-contain">
           {moments.slice(0, 8).map((e) => {
             const href = momentPlayHref(e, lastClipUrl);
             const landAttr = licensed && e.key === landKey ? e.path || undefined : undefined;
