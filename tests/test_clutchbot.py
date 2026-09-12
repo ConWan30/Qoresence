@@ -534,5 +534,21 @@ class TestTwitchHelixClient:
             assert client.active_prediction is None
 
 
+class TestDeckFeedRealtime:
+    def test_deck_chat_cooldown_is_not_45s_twitch_hygiene(self):
+        config = ClutchBotConfig(enabled=True, twitch=TwitchConfig(enabled=False))
+        with tempfile.TemporaryDirectory() as td:
+            bus = RetinaEventBus(
+                session_id="rt",
+                jsonl_path=Path(td) / "e.jsonl",
+                enable_ws=False,
+            )
+            identity = SessionAuthority.mint(session_id="rt")
+            agent = ClutchBotAgent(config, bus, identity.session_head_ns)
+            cd = agent._cooldown_for("chat")
+            assert cd <= 8.0
+            assert cd >= 6.0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

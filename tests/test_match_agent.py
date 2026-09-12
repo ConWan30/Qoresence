@@ -211,6 +211,7 @@ def test_propose_confirm_ticket_surfaces_when_llm_quiet():
     assert out["path"] == "confirm"
     assert out["ticket_id"] == ticket.ticket_id
     assert out["text"]
+    assert "7" in out["text"] or "0" in out["text"]
 
 
 def test_surface_last_note_unlicensed():
