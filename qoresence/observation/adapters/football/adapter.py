@@ -129,6 +129,9 @@ class FootballAdapter:
         evidence_id: str,
         policy_version: str,
     ) -> dict:
+        from qoresence.observation.uncertainty import initial_uncertainty_channels
+
+        input_availability = self.input_availability(hid_observed=False)
         return {
             "envelope_schema": SCHEMA,
             "policy_version": policy_version,
@@ -140,10 +143,11 @@ class FootballAdapter:
             "start_ns": clock,
             "end_ns": None,
             "last_clock_ns": clock,
-            "input_availability": self.input_availability(hid_observed=False),
+            "input_availability": input_availability,
             "claims": [],
             "outcome": None,
             "uncertainty": ["inferred_visual_boundary", "input_unavailable"],
+            "uncertainty_channels": initial_uncertainty_channels(input_availability),
             "evidence_ids": [],
             "clip": {"status": "not_requested"},
         }
