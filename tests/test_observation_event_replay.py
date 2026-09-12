@@ -117,7 +117,7 @@ def test_out_of_order_rows_do_not_reopen_on_replay():
     rows[1], rows[2] = rows[2], rows[1]
     try:
         replay_journal(rows, session_id="session")
-        assert False, "expected replay mismatch"
+        raise AssertionError("expected replay mismatch")
     except ValueError as exc:
         assert "replay mismatch" in str(exc)
 
@@ -225,6 +225,6 @@ def test_unsupported_journal_schema_rejected():
     row["schema_version"] = "observation-journal-99"
     try:
         parse_journal_row(row)
-        assert False, "expected unsupported schema"
+        raise AssertionError("expected unsupported schema")
     except ValueError as exc:
         assert "unsupported" in str(exc)

@@ -39,9 +39,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         records = replay_file(args.journal, session_id=args.session_id)
     except (ValueError, json.JSONDecodeError, OSError) as exc:
-        print(f"replay failed: {exc}", file=sys.stderr)
+        print(f"replay failed: {exc}", file=sys.stderr)  # noqa: T201
         return 1
-    print(f"ok: {len(records)} observation(s), schema={JOURNAL_SCHEMA}")
+    print(f"ok: {len(records)} observation(s), schema={JOURNAL_SCHEMA}")  # noqa: T201
     return 0
 
 
