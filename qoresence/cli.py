@@ -424,7 +424,6 @@ class QoresenceApp:
         self.agent_glass = None
         self.observations = None
         if os.getenv("QORESENCE_OBSERVATIONS") == "1":
-            from pathlib import Path
             from qoresence.observation.runtime import start_observations
 
             def _preserve_observation(record):

@@ -138,6 +138,28 @@ class TestMomentScorer:
         chat = next(m for m in moments if m.triggered and m.action == "chat")
         assert "Score update" in chat.message
 
+    def test_score_changed_zero_home_is_not_question_mark(self):
+        scorer = MomentScorer()
+        state = SituationState(
+            game_state="gameplay",
+            game_profile="madden_27",
+            home_score=0,
+            away_score=7,
+            quarter=1,
+            down=1,
+            yards_to_go=10,
+        )
+        payload = {
+            "event_name": "score_changed",
+            "profile_id": "madden_27",
+            "confidence": 0.9,
+            "fields": {"home_score": 0, "away_score": 7, "prev_home_score": 0},
+        }
+        moments = scorer.score(state, event_type="outcome_event", event_payload=payload)
+        chat = next(m for m in moments if m.triggered and m.action == "chat")
+        assert "0-7" in chat.message
+        assert "?-7" not in chat.message
+
     def test_menu_state_is_ignored(self):
         scorer = MomentScorer()
         state = SituationState(game_state="menu")

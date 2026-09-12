@@ -101,7 +101,12 @@ export function startDeckMonitor(
     // Harvest even while WS is fresh — do not ingest optics/board from this poll.
     if (wsFresh) {
       const sit = await readJson(`${probe.origin}/api/situation`);
-      if (sit != null) useTheater.getState().ingestMatchAgent(parseMatchAgentNote(sit));
+      if (sit != null) {
+        useTheater.getState().ingestMatchAgent(parseMatchAgentNote(sit));
+        // WS does not replay ClutchBot chat; harvest snapshot moments or the
+        // feed stays empty while /api/situation already has last_moment.
+        for (const fm of parseSnapshotMoments(sit)) onMoment?.(fm);
+      }
       return;
     }
     const [body, snap, events, planeBody] = await Promise.all([
