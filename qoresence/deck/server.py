@@ -123,6 +123,8 @@ class DeckState:
             video["hub_age_s"] = hub.get("age_s")
             video["hub_seq"] = hub.get("seq")
             video["hub_has_frame"] = bool(hub.get("has_frame"))
+            if hub.get("clock_ns"):
+                video["clock_ns"] = int(hub["clock_ns"])
             if hub.get("has_frame"):
                 ch = str(hub.get("crop_hash") or "")
                 if ch:

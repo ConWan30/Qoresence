@@ -26,11 +26,29 @@ def attach_board_health(out: dict[str, Any], situation: Any) -> dict[str, Any]:
     out["score_vlm_locked"] = locked
     out["has_confirm_ticket"] = has_ticket
     t_clock = int(sit_bag.get("confirm_clock_ns") or 0)
-    l_clock = int(sit_bag.get("updated_ns") or sit_bag.get("clock_ns") or 0)
+    l_clock = int(sit_bag.get("clock_ns") or sit_bag.get("live_clock_ns") or 0)
     ticket_id = str(sit_bag.get("confirm_ticket_id") or "") if has_ticket else ""
-    ticket_crop = str(sit_bag.get("ticket_crop_hash") or sit_bag.get("crop_hash") or "")
-    live_crop = str(sit_bag.get("crop_hash") or "")
+    ticket_crop = str(sit_bag.get("ticket_crop_hash") or "")
+    live_crop = str(sit_bag.get("live_crop_hash") or sit_bag.get("crop_hash") or "")
     path = str(sit_bag.get("path") or "")
+    try:
+        from qoresence.monitor.frame_hub import get_latest_stamp
+        from qoresence.vision.confirm_ticket import licensed_last_confirm
+
+        last = licensed_last_confirm()
+        stamp = get_latest_stamp() or {}
+        if last is not None:
+            ticket_id = str(last.ticket_id or ticket_id)
+            t_clock = int(last.clock_ns or t_clock)
+            ticket_crop = str(last.crop_hash or ticket_crop)
+            locked = True
+            has_ticket = True
+        if stamp.get("clock_ns"):
+            l_clock = int(stamp["clock_ns"])
+        if stamp.get("crop_hash"):
+            live_crop = str(stamp.get("crop_hash") or live_crop)
+    except Exception:
+        pass
     same = sit_bag.get("same_seq")
     abstain = str(sit_bag.get("vlm_status") or "").startswith("http_") or str(
         sit_bag.get("last_reason") or ""

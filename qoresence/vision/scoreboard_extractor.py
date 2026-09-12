@@ -966,7 +966,24 @@ class FootballScoreboardExtractor:
                                         locked_ok = False
                                         ticket = None  # type: ignore[assignment]
                                     else:
-                                        ticket = last
+                                        # scale_tick HOLD keeps identity but must
+                                        # refresh clock/crop or SEQGATE goes ticket_stale.
+                                        from dataclasses import replace as _replace
+
+                                        ticket = _replace(
+                                            last,
+                                            clock_ns=int(
+                                                stamp.get("clock_ns") or last.clock_ns or 0
+                                            ),
+                                            frame_seq=(
+                                                _ti(stamp.get("seq"))
+                                                if stamp.get("seq") is not None
+                                                else last.frame_seq
+                                            ),
+                                            crop_hash=str(
+                                                getattr(ctx, "frame_hash", "") or last.crop_hash
+                                            ),
+                                        )
                         except Exception:
                             pass
                         if ticket is not None:
