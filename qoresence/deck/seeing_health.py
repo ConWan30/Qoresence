@@ -45,8 +45,8 @@ def attach_board_health(out: dict[str, Any], situation: Any) -> dict[str, Any]:
             has_ticket = True
         if stamp.get("clock_ns"):
             l_clock = int(stamp["clock_ns"])
-        if stamp.get("crop_hash"):
-            live_crop = str(stamp.get("crop_hash") or live_crop)
+        # Hub crop_hash is the full frame. ConfirmTicket.crop_hash is the
+        # scorebug band — do not treat that mismatch as a moved HUD.
     except Exception:
         pass
     same = sit_bag.get("same_seq")
