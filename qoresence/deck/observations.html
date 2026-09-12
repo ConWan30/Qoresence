@@ -16,6 +16,9 @@ let fingerprint='';
 function element(tag,text){const node=document.createElement(tag);node.textContent=text;return node}
 function stateLabel(state){return ({candidate:'candidate',tracking:'tracking',provisional:'awaiting qualification',partial:'partial',unresolved:'unresolved',confirmed:'scoreboard qualified'})[state]||'unresolved'}
 function displayRevision(record){const copy=JSON.parse(JSON.stringify(record));if(copy.state==='confirmed')copy.state='scoreboard_qualified';return copy}
+const channelLabels={capture_freshness:'Capture freshness',ocr_visual_read:'OCR / visual read',input_availability:'Input availability',clock_alignment:'Clock / alignment',moment_boundary:'Moment boundary',outcome_confirmation:'Outcome confirmation'};
+function formatChannel(name,body){if(!body||!Object.keys(body).length)return channelLabels[name]+': unknown';const bits=Object.entries(body).map(([k,v])=>k+' '+v);return channelLabels[name]+': '+bits.join(' · ')}
+function renderChannels(record){const wrap=element('div','');const channels=record.uncertainty_channels||{};for(const name of Object.keys(channelLabels))wrap.append(element('small',formatChannel(name,channels[name])));return wrap}
 async function refresh(){
  try{
   const response=await fetch('/api/observations',{cache:'no-store'});
@@ -29,7 +32,7 @@ async function refresh(){
    card.append(element('p','Historical record · '+record.observation_id+' · revision '+record.revision));
    for(const claim of record.claims)card.append(element('p','Scoreboard observed: '+claim.home+'–'+claim.away+'. Play outcome unassigned.'));
    if(!record.claims.length)card.append(element('p',record.state==='partial'?'Scoreboard qualification withheld · play outcome unassigned.':'Awaiting evidence · play outcome unassigned.'));
-   card.append(element('small','Inputs unavailable · no button or causal claims'));
+   card.append(renderChannels(record));
    if(record.clip.status==='available'){
     const a=element('a',' Open clip');a.href='/media/clips/'+encodeURIComponent(record.clip.filename);card.append(a);
    }else card.append(element('p','Clip: '+record.clip.status+(record.clip.reason?' · '+record.clip.reason:'')));

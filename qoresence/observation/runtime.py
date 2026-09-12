@@ -10,6 +10,7 @@ from pathlib import Path
 from queue import Empty, Full, Queue
 
 from .lifecycle import normalize_visual, pack_journal_row, reduce_observation
+from .uncertainty import collect_live_signals
 
 
 class ObservationRuntime:
@@ -54,7 +55,7 @@ class ObservationRuntime:
     def snapshot(self, *, include_journal: bool = False):
         with self.lock:
             out = {
-                "schema": "qoresence-observations-1",
+                "schema": "qoresence-observations-2",
                 "enabled": True,
                 "session_id": str(getattr(self.bus, "session_id", "") or ""),
                 "records": deepcopy(list(self.records.values())[-32:]),
@@ -209,6 +210,10 @@ class ObservationRuntime:
             try:
                 evidence = normalize_visual(event.to_dict())
                 if evidence:
+                    if evidence.get("kind") == "visual":
+                        inputs = dict(collect_live_signals())
+                        inputs.update(evidence.get("channel_inputs") or {})
+                        evidence["channel_inputs"] = inputs
                     if self.dropped != self.seen_dropped and self.current:
                         gap_id = evidence["evidence_id"] + ":gap"
                         gap_tick = deepcopy(evidence["tick"])
@@ -236,7 +241,7 @@ def observations_snapshot():
         _runtime.snapshot()
         if _runtime
         else {
-            "schema": "qoresence-observations-1",
+            "schema": "qoresence-observations-2",
             "enabled": False,
             "session_id": "",
             "records": [],
@@ -251,7 +256,7 @@ def observations_export_snapshot():
         _runtime.snapshot(include_journal=True)
         if _runtime
         else {
-            "schema": "qoresence-observations-1",
+            "schema": "qoresence-observations-2",
             "enabled": False,
             "session_id": "",
             "records": [],
