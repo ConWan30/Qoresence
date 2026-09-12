@@ -16,6 +16,9 @@ def test_overlay_digits_licensed_matches_ticket_fresh_clock_age():
     # Same 8s confirm window as glass ticketFresh / CONFIRM_DIGIT_MAX_AGE_NS.
     compact = html.replace(" ", "")
     assert "8000000000" in compact or "8e9" in compact.lower() or "8_000_000_000" in html
+    # Live clock must be FrameHub video.clock_ns, not Deck updated_ns.
+    assert "video.clock_ns" in html
+    assert "snap.updated_ns||" not in html.replace(" ", "")
     assert "path" in html and "fast" in html
     assert "□–□" in html
     assert "SEQGATE" in html

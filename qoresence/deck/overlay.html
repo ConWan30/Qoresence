@@ -62,7 +62,9 @@ function digitsLicensed(s, snap){
   if(ticketCrop&&liveCrop&&ticketCrop!==liveCrop) return false;
   if(video.same_seq===false) return false;
   const ticketClock=Number(lc.clock_ns||s.confirm_clock_ns||0);
-  const liveClock=Number((snap&&(snap.updated_ns||(snap.video&&snap.video.clock_ns)))||s.updated_ns||video.clock_ns||0);
+  // FrameHub video.clock_ns is the same domain as ConfirmTicket.clock_ns.
+  // snap.updated_ns is Deck snapshot time — mixing them always went ticket_stale.
+  const liveClock=Number(video.clock_ns||s.clock_ns||s.live_clock_ns||0);
   if(ticketClock>0&&liveClock>0&&liveClock-ticketClock>8000000000) return false;
   return true;
 }

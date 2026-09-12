@@ -212,7 +212,7 @@ def gate_from_situation(situation: dict[str, Any] | None = None) -> dict[str, An
     same = sit.get("same_seq")
     if same is not None:
         same = bool(same)
-    live_clock = int(sit.get("updated_ns") or sit.get("clock_ns") or sit.get("live_clock_ns") or 0)
+    live_clock = int(sit.get("clock_ns") or sit.get("live_clock_ns") or 0)
     ticket_clock = int(sit.get("confirm_clock_ns") or sit.get("ticket_clock_ns") or 0)
     frame_seq = sit.get("frame_seq")
     try:
