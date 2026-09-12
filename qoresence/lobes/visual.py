@@ -67,6 +67,16 @@ def _scoreboard_vlm_inflight() -> bool:
         return False
 
 
+def _licensed_confirm_blocks_visual() -> bool:
+    """Licensed confirm ticket — scoreboard refresh wins Quicksilver over visual."""
+    try:
+        from qoresence.vision.confirm_ticket import licensed_last_confirm
+
+        return licensed_last_confirm() is not None
+    except Exception:
+        return False
+
+
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # DATA STRUCTURES
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -155,6 +165,9 @@ class VLMClient:
             return None
         if _scoreboard_vlm_inflight():
             log.info("visual VLM skip: scoreboard_vlm inflight")
+            return None
+        if _licensed_confirm_blocks_visual():
+            log.info("visual VLM skip: licensed confirm ticket active")
             return None
         if _quicksilver_busy():
             log.info("visual VLM skip: Quicksilver slot busy")
@@ -339,6 +352,9 @@ class VLMClient:
                 return None
             if _scoreboard_vlm_inflight():
                 log.info("visual VLM skip: scoreboard_vlm inflight")
+                return None
+            if _licensed_confirm_blocks_visual():
+                log.info("visual VLM skip: licensed confirm ticket active")
                 return None
             # Build prompt with other modality context
             modality_summary = "\n".join([f"- {k}: {v}" for k, v in other_modalities.items()])

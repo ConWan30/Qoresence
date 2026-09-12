@@ -51,6 +51,8 @@ _HOLD_HTTP = frozenset({400, 401, 402})
 _QUOTA_BACKOFF_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_429_COOLDOWN", "60.0"))
 # Quicksilver Read timeout — shorter than prior 14s; env override wins.
 _HTTP_TIMEOUT_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_HTTP_TIMEOUT", "14"))
+# Slot wait only — same yield as chat/visual. HTTP read timeout stays separate.
+_QUICKSILVER_SLOT_WAIT_S = 0.05
 _INFLIGHT_WATCHDOG_S = _HTTP_TIMEOUT_S + 2.0
 _TIMEOUT_BACKOFF_BASE_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF", "1"))
 _TIMEOUT_BACKOFF_MAX_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF_MAX", "2"))
@@ -665,7 +667,7 @@ class ScoreboardVlmReferee:
 
             from qoresence.agents.quicksilver_slot import acquire_quicksilver
 
-            with acquire_quicksilver(_HTTP_TIMEOUT_S) as got:
+            with acquire_quicksilver(_QUICKSILVER_SLOT_WAIT_S) as got:
                 if not got:
                     log.info("scoreboard VLM skip: Quicksilver slot busy")
                     return None
