@@ -326,6 +326,9 @@ def test_live_worker_drains_clip_failure_without_blocking_bus(tmp_path):
 
 
 def test_shared_api_and_overlay(tmp_path, monkeypatch):
+    import pytest
+
+    pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
     import qoresence.observation.runtime as module
     from qoresence.deck.server import create_app

@@ -121,6 +121,8 @@ test = [
     "requests>=2.31",
     "websockets>=12.0",
     "paho-mqtt>=1.6",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
 ]
 dev = [
     "pytest>=7.4",
