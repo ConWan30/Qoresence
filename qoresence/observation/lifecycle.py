@@ -48,6 +48,7 @@ def freeze_detector_output(payload: dict) -> dict:
         "game_state": payload.get("game_state"),
         "game_category": payload.get("game_category"),
         "model": payload.get("model"),
+        "raw_response": payload.get("raw_response"),
         "frame_hash": payload.get("frame_hash"),
         "confidence": payload.get("visual_confidence", payload.get("confidence")),
         "home_score": football.get("home_score"),
@@ -73,7 +74,7 @@ def parse_journal_row(raw: dict) -> dict:
     if not isinstance(raw, dict):
         raise ValueError("observation journal row is not an object")
     schema = raw.get("schema_version")
-    if schema is not None and schema != JOURNAL_SCHEMA:
+    if schema != JOURNAL_SCHEMA:
         raise ValueError("unsupported observation journal schema")
     for key in ("policy_version", "evidence", "record"):
         if key not in raw:
