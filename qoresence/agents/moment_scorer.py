@@ -858,7 +858,10 @@ class MomentScorer:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _score_message(self, state: SituationState, home: Any, away: Any) -> str:
-        extra = {"home_score": home or "?", "away_score": away or "?"}
+        extra = {
+            "home_score": home if home is not None else "?",
+            "away_score": away if away is not None else "?",
+        }
         if state.controller.apm_5s > 80:
             extra["apm"] = int(state.controller.apm_5s)
         return self._message("score_changed", state, **extra)

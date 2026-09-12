@@ -187,6 +187,32 @@ def test_surface_last_note_quiet():
     match_agent._agent = None
 
 
+def test_propose_confirm_ticket_surfaces_when_llm_quiet():
+    """Licensed board must not vanish because muse-spark timed out."""
+    from qoresence.vision.confirm_ticket import mint_confirm_ticket
+
+    agent = MatchAgent(enabled=True)
+    agent.live = True
+    ticket = mint_confirm_ticket(
+        session_id="sess-ma",
+        clock_ns=1,
+        home_score=0,
+        away_score=7,
+        crop_hash="abc",
+    )
+    bag = build_match_evidence(confirm=ticket, civif={"controller_bodied": False})
+
+    def _boom(**_kw):
+        return None
+
+    agent._llm.enhance_message = _boom  # type: ignore[method-assign]
+    out = agent.propose(bag)
+    assert out["live"] is True
+    assert out["path"] == "confirm"
+    assert out["ticket_id"] == ticket.ticket_id
+    assert out["text"]
+
+
 def test_surface_last_note_unlicensed():
     """Empty when live=False (stub) even if ticket_id present."""
     from qoresence.agents.match_agent import MatchAgent, surface_last_note
