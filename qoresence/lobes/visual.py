@@ -826,9 +826,13 @@ Do not add any explanation."""
         """Emit the canonical visual_context payload."""
         payload = context.to_dict()
         emitted_ns = clock_ns()
-        from qoresence.observation.lifecycle import event_replay_enabled, freeze_detector_output
+        from qoresence.observation.lifecycle import (
+            event_replay_enabled,
+            freeze_detector_output,
+            observations_enabled,
+        )
 
-        if event_replay_enabled():
+        if observations_enabled() or event_replay_enabled():
             payload["observation_detector_output"] = freeze_detector_output(payload)
         if os.getenv("QORESENCE_OBSERVATIONS") == "1":
             from qoresence.observation.lifecycle import emission_tick, freeze_score_claim

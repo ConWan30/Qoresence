@@ -63,7 +63,7 @@ and affected records close unresolved. Queue depth is 128; export depth is 4.
 
 Records and revision snapshots are bounded in RAM (64 and 128 respectively).
 The API returns the last 32 records; the durable journal retains normalized evidence,
-the policy version, and all emitted revisions. Restart does not automatically load
+`schema_version`, `policy_version`, and all emitted revisions. Restart does not automatically load
 old sessions into the live view. Journal errors are visible; the engine does not
 claim persistence succeeded when writing fails. Recap export reads and replays the
 same journal before hashing it as the `observations` envelope sidecar. Disk
@@ -97,11 +97,17 @@ evidence row are the only model inputs the reducer consults.
 python -m qoresence.observation.replay logs/observations.jsonl
 ```
 
+Fixture (same command, no capture card):
+
+```powershell
+python -m qoresence.observation.replay tests/fixtures/observation_replay_session.jsonl
+```
+
 Optional: `--session-id <id>` when the file contains multiple sessions.
 
-Live journaling can freeze detector outputs at emission when
-`QORESENCE_EVENT_REPLAY=1` (default OFF). Observation runtime remains
-`QORESENCE_OBSERVATIONS=1`.
+Live journaling freezes detector outputs at emission under
+`QORESENCE_OBSERVATIONS=1`. `QORESENCE_EVENT_REPLAY=1` is an extra live freeze
+hook and is not required for offline replay.
 
 ## Validation and pilot gate
 

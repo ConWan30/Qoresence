@@ -228,3 +228,102 @@ def test_unsupported_journal_schema_rejected():
         raise AssertionError("expected unsupported schema")
     except ValueError as exc:
         assert "unsupported" in str(exc)
+
+
+def test_missing_schema_version_rejected():
+    row = pack_journal_row(ev(1), reduce_observation(None, ev(1)))
+    del row["schema_version"]
+    try:
+        parse_journal_row(row)
+        raise AssertionError("expected missing schema to fail closed")
+    except ValueError as exc:
+        assert "schema" in str(exc).lower()
+
+
+def test_freeze_detector_output_includes_raw_response():
+    frozen = freeze_detector_output(
+        {
+            "visual_phase": "running",
+            "game_state": "gameplay",
+            "game_category": "football",
+            "model": "quicksilver",
+            "raw_response": "PHASE: running",
+            "frame_hash": "abc",
+            "football": {"home_score": 7, "away_score": 3},
+        }
+    )
+    assert frozen["raw_response"] == "PHASE: running"
+
+
+def test_observations_live_path_freezes_without_event_replay_env(monkeypatch):
+    from qoresence.lobes.visual import VisualRuntime
+    from qoresence.observation.lifecycle import normalize_visual
+    from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
+
+    class CapturingBus:
+        session_id = "session"
+
+        def __init__(self):
+            self.calls = []
+
+        def emit_raw(self, *args, **kwargs):
+            self.calls.append(kwargs)
+
+    bus = CapturingBus()
+    runtime = VisualRuntime.__new__(VisualRuntime)
+    runtime.bus = bus
+    runtime.session_head_ns = 1
+    runtime._presence_callback = None
+    monkeypatch.delenv("QORESENCE_EVENT_REPLAY", raising=False)
+    monkeypatch.setenv("QORESENCE_OBSERVATIONS", "1")
+    runtime._emit_visual_context(
+        VisualContext(
+            game_state=GameState.GAMEPLAY,
+            game_category=GameCategory.FOOTBALL,
+            details={"visual_phase": "running"},
+            model="quicksilver",
+            raw_response="PHASE: running",
+        ),
+        frame_seq=4,
+    )
+    payload = bus.calls[0]["payload"]
+    assert payload["observation_detector_output"]["raw_response"] == "PHASE: running"
+    evidence = normalize_visual(
+        {
+            "session_id": "session",
+            "clock_ns": bus.calls[0]["clock_ns_override"],
+            "payload": payload,
+        }
+    )
+    assert evidence["detector_output"]["raw_response"] == "PHASE: running"
+
+
+def test_replay_ignores_live_ticket_book(monkeypatch):
+    def boom(*_args, **_kwargs):
+        raise AssertionError("replay must not consult the live ticket book")
+
+    monkeypatch.setattr("qoresence.vision.confirm_ticket.get_ticket_book", boom)
+    rows = build_journal_rows()
+    records = replay_journal(rows, session_id="session")
+    assert records[0]["state"] == "confirmed"
+
+
+FIXTURE = (
+    Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "observation_replay_session.jsonl"
+)
+
+
+def test_committed_fixture_replays_to_stable_qualification():
+    assert FIXTURE.is_file()
+    rows = load_journal_lines(FIXTURE.read_text(encoding="utf-8"))
+    assert rows
+    assert {row["schema_version"] for row in rows} == {JOURNAL_SCHEMA}
+    assert {row["policy_version"] for row in rows} == {POLICY}
+    records = replay_journal(rows, session_id="session")
+    states = [row["record"]["state"] for row in rows]
+    assert "candidate" in states
+    assert "confirmed" in states
+    assert records[0]["outcome"] is None
+    assert any(row["evidence"].get("detector_output") for row in rows)
+    assert any(row["evidence"].get("score_claim") for row in rows)
+    assert replay_main([str(FIXTURE)]) == 0

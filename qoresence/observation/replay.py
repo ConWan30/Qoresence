@@ -27,9 +27,16 @@ def replay_file(path: Path, *, session_id: str | None = None) -> list[dict]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Replay an observation journal offline (no network)"
+        prog="qoresence.observation.replay",
+        description="Replay an observation journal offline (no network)",
     )
-    parser.add_argument("journal", type=Path, help="Path to observations.jsonl")
+    parser.add_argument(
+        "journal",
+        nargs="?",
+        type=Path,
+        default=Path("logs") / "observations.jsonl",
+        help="Path to observations.jsonl (default: logs/observations.jsonl)",
+    )
     parser.add_argument(
         "--session-id",
         default=None,

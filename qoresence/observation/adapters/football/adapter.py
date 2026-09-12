@@ -70,10 +70,7 @@ class FootballAdapter:
         )
 
     def normalize_visual(self, event: dict) -> dict | None:
-        from qoresence.observation.lifecycle import (
-            event_replay_enabled,
-            freeze_detector_output,
-        )
+        from qoresence.observation.lifecycle import freeze_detector_output
 
         p = event.get("payload", {})
         if not self.accepts_category(p.get("game_category")):
@@ -90,7 +87,7 @@ class FootballAdapter:
         detector_output = None
         if isinstance(p.get("observation_detector_output"), dict):
             detector_output = deepcopy(p["observation_detector_output"])
-        elif event_replay_enabled():
+        else:
             detector_output = freeze_detector_output(p)
         phase = p.get("visual_phase")
         game_state = p.get("game_state")
