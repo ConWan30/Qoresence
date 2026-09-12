@@ -558,6 +558,49 @@ def test_http_400_holds_without_urllib_retry_and_redacts_body(caplog):
         call.assert_not_called()
 
 
+def test_visual_vlm_acquires_quicksilver_with_chat_yield_budget(monkeypatch):
+    """Visual path must not block confirm VLM on a 14s slot wait (#212)."""
+    import time
+    from contextlib import contextmanager
+    from unittest.mock import MagicMock
+
+    import numpy as np
+
+    from qoresence.core import VisualConfig
+    from qoresence.lobes.visual import VLMClient
+
+    waits: list[float] = []
+
+    @contextmanager
+    def fake_acquire(wait_s: float):
+        waits.append(wait_s)
+        yield False
+
+    monkeypatch.setattr(
+        "qoresence.lobes.visual._quicksilver_busy",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm",
+        lambda: MagicMock(is_held=lambda: False),
+    )
+    monkeypatch.setattr(
+        "qoresence.agents.quicksilver_slot.acquire_quicksilver",
+        fake_acquire,
+    )
+
+    client = VLMClient(VisualConfig(api_key="test_key"))
+    client._session = MagicMock()
+    t0 = time.monotonic()
+    out = client.analyze_frame_raw(np.zeros((64, 64, 3), dtype=np.uint8), "prompt")
+    elapsed = time.monotonic() - t0
+
+    assert out is None
+    assert waits == [0.05]
+    assert elapsed < 0.15, "visual must skip quickly when Quicksilver is busy"
+    client._session.post.assert_not_called()
+
+
 def test_visual_lobe_skips_post_after_scoreboard_hold(monkeypatch):
     from unittest.mock import MagicMock
 
