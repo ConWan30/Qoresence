@@ -253,6 +253,64 @@ def confirm_mint_refuse(
     return confirm_crop_refuse(vlm_ref)
 
 
+def sanitize_madden_vlm_teams(
+    ctx: VisualContext,
+    parsed: dict[str, Any] | None = None,
+    vlm: dict[str, Any] | None = None,
+) -> VisualContext:
+    """Fail-closed NFL abbrev gate at VLM left/right → home/away ingest.
+
+    On madden_27 / NFL Outcome, only roster-licensed tags stick on ctx.
+    Unknown and CFB codes (PSU) blank. Does not invent scores.
+    """
+    parsed = parsed if isinstance(parsed, dict) else {}
+    src: dict[str, Any] = {}
+    if isinstance(vlm, dict):
+        src.update(vlm)
+    src.update(parsed)
+    profile = getattr(ctx, "game_profile", None) or src.get("game_profile")
+    try:
+        from qoresence.profiles.nfl_roster import apply_roster_to_context, requires_nfl_team_gate
+    except Exception:
+        return ctx
+    if not requires_nfl_team_gate(profile):
+        return ctx
+    home_left = src.get("home_left")
+    if home_left is None:
+        home_left = getattr(ctx, "home_left", False)
+    payload = {
+        "game_profile": profile,
+        "left_team": src.get("left_team") or getattr(ctx, "left_team", None),
+        "right_team": src.get("right_team") or getattr(ctx, "right_team", None),
+        "home_left": home_left,
+        "home_team_raw": src.get("home_team_raw")
+        or src.get("home_team")
+        or getattr(ctx, "home_team_raw", None),
+        "away_team_raw": src.get("away_team_raw")
+        or src.get("away_team")
+        or getattr(ctx, "away_team_raw", None),
+    }
+    try:
+        apply_roster_to_context(ctx, payload)
+    except Exception:
+        # Allowlist unavailable — blank stuck unlicensed tags rather than echo CFB.
+        try:
+            from qoresence.profiles.nfl_roster import licensed_nfl_abbr
+
+            if getattr(ctx, "home_team", None) and licensed_nfl_abbr(ctx.home_team) is None:
+                ctx.home_team = None
+                ctx.home_team_name = None
+            if getattr(ctx, "away_team", None) and licensed_nfl_abbr(ctx.away_team) is None:
+                ctx.away_team = None
+                ctx.away_team_name = None
+        except Exception:
+            ctx.home_team = None
+            ctx.away_team = None
+            ctx.home_team_name = None
+            ctx.away_team_name = None
+    return ctx
+
+
 def _vlm_board_grounded(vlm: dict[str, Any] | None) -> bool:
     """True when DeepSeek reported this match's scorebug, not a lone invented pair.
 
@@ -730,6 +788,7 @@ class FootballScoreboardExtractor:
                         parsed.pop("away_score", None)
                 except Exception:
                     pass
+            sanitize_madden_vlm_teams(ctx, parsed, vlm)
 
         if not parsed:
             # No OCR/VLM this frame — never publish held stabilizer digits without
@@ -814,6 +873,7 @@ class FootballScoreboardExtractor:
                         apply_identity_to_context(ctx, parsed)
                     except Exception:
                         pass
+                    sanitize_madden_vlm_teams(ctx, parsed, vlm)
 
                     book = get_ticket_book()
                     home_team_now = str(getattr(ctx, "home_team", "") or "").strip()
@@ -1044,6 +1104,7 @@ class FootballScoreboardExtractor:
             apply_roster_to_context(ctx, parsed)
         except Exception:
             pass
+        sanitize_madden_vlm_teams(ctx, parsed, vlm)
         if seeing_path_minted_this_frame:
             from qoresence.vision.visual_context import stamp_hdmi_ltr
 

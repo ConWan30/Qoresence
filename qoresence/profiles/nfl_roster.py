@@ -38,6 +38,30 @@ def is_madden_profile(profile: str | object | None) -> bool:
     return "madden" in str(profile or "").lower()
 
 
+def requires_nfl_team_gate(profile: str | object | None) -> bool:
+    """Madden 27 and NFL Outcome must speak only licensed NFL abbrevs."""
+    if is_madden_profile(profile):
+        return True
+    return str(profile or "").strip().lower() == "nfl"
+
+
+def licensed_nfl_abbr(
+    text: str | None,
+    *,
+    index: NflRosterIndex | None = None,
+) -> str | None:
+    """Official NFL abbr if ``text`` hits teams.json / roster keys, else None.
+
+    Fail-closed. Never invents a club. CFB codes such as PSU return None.
+    """
+    raw = str(text or "").strip()
+    if not raw:
+        return None
+    idx = index if index is not None else get_nfl_roster()
+    hit = idx.match_team(raw)
+    return hit.abbr if hit is not None else None
+
+
 @dataclass(frozen=True)
 class NflTeam:
     abbr: str
@@ -380,11 +404,32 @@ def parse_nameplate(text: str | None) -> dict[str, Any]:
     return out
 
 
+def _commit_madden_side(
+    ctx: Any,
+    side: str,
+    resolved: dict[str, Any] | None,
+    idx: NflRosterIndex,
+) -> None:
+    """Write a licensed NFL tag, or blank an unlicensed / CFB code. Fail-closed."""
+    team_attr = f"{side}_team"
+    name_attr = f"{side}_team_name"
+    if resolved:
+        setattr(ctx, team_attr, resolved["abbr"])
+        setattr(ctx, name_attr, resolved["name"])
+        return
+    current = getattr(ctx, team_attr, None)
+    if current and idx.match_team(current) is None:
+        setattr(ctx, team_attr, None)
+    name = getattr(ctx, name_attr, None)
+    if name and idx.match_team(name) is None:
+        setattr(ctx, name_attr, None)
+
+
 def apply_roster_to_context(ctx: Any, parsed: dict[str, Any] | None = None) -> Any:
-    """Fill resolved Madden team/player fields. No-op unless profile is Madden."""
+    """Fill resolved Madden/NFL team/player fields. No-op unless NFL team gate."""
     parsed = parsed or {}
     profile = getattr(ctx, "game_profile", None) or parsed.get("game_profile")
-    if not is_madden_profile(profile):
+    if not requires_nfl_team_gate(profile):
         return ctx
     idx = get_nfl_roster()
     home_raw = parsed.get("home_team_raw") or getattr(ctx, "home_team_raw", None)
@@ -420,12 +465,8 @@ def apply_roster_to_context(ctx: Any, parsed: dict[str, Any] | None = None) -> A
         ctx.away_team_raw = str(away_raw)
     home = resolved.get("home_team")
     away = resolved.get("away_team")
-    if home:
-        ctx.home_team = home["abbr"]
-        ctx.home_team_name = home["name"]
-    if away:
-        ctx.away_team = away["abbr"]
-        ctx.away_team_name = away["name"]
+    _commit_madden_side(ctx, "home", home, idx)
+    _commit_madden_side(ctx, "away", away, idx)
     player = resolved.get("on_screen_player")
     if hasattr(ctx, "roster_loaded"):
         ctx.roster_loaded = bool(resolved.get("roster_loaded"))
