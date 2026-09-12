@@ -99,20 +99,17 @@ test("viewport law: theater-page.tsx first viewport must be the HDMI stage", () 
   );
 });
 
-test("viewport law: intelligence-chamber.tsx internal scroll only", () => {
-  const chamberPath = join(GLASS_ROOT, "src/components/theater/intelligence-chamber.tsx");
-  const chamber = readFileSync(chamberPath, "utf-8");
+test("viewport law: theater-page has no intelligence chamber drawer", () => {
+  const theaterPagePath = join(GLASS_ROOT, "src/components/theater/theater-page.tsx");
+  const theaterPage = readFileSync(theaterPagePath, "utf-8");
 
-  // Chamber drawer should have internal overflow-y: auto
   assert.ok(
-    chamber.includes("overflow-y-auto"),
-    "intelligence-chamber drawer content must have internal overflow-y-auto",
+    !theaterPage.includes("IntelligenceChamber"),
+    "theater-page must not mount the intelligence chamber drawer (gamer cut)",
   );
-
-  // Chamber should be fixed positioned (not in main flow)
   assert.ok(
-    chamber.includes("fixed"),
-    "intelligence-chamber should be position fixed (drawer, not page flow)",
+    theaterPage.includes("overflow-hidden"),
+    "theater-page aside must contain overflow for single-scroll clutch feed",
   );
 });
 

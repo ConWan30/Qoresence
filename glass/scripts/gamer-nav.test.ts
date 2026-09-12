@@ -101,7 +101,7 @@ test("gamer nav: GLASSES array unchanged (all routes still valid)", () => {
   assert.ok(glassesMatch, "GLASSES array must still exist before GAMER_GLASSES");
 
   const glassesContent = glassesMatch[1];
-  const allGlasses = ["Home", "Theater", "Session", "CIVIF", "Lens", "Foundry", "Mobile"];
+  const allGlasses = ["Home", "Theater", "Session", "Lens", "Foundry", "Mobile"];
 
   for (const label of allGlasses) {
     assert.ok(

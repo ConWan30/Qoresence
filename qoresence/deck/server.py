@@ -42,7 +42,13 @@ LIVE_FPS_MAX = 60.0
 # That is exactly OBS Browser Source FIN_WAIT_2 thrash + clients:0.
 try:
     from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+    from fastapi.responses import (
+        FileResponse,
+        HTMLResponse,
+        JSONResponse,
+        RedirectResponse,
+        Response,
+    )
 
     _HAS_FASTAPI = True
 except ImportError:  # pragma: no cover
@@ -53,6 +59,7 @@ except ImportError:  # pragma: no cover
     FileResponse = None  # type: ignore[misc, assignment]
     HTMLResponse = None  # type: ignore[misc, assignment]
     JSONResponse = None  # type: ignore[misc, assignment]
+    RedirectResponse = None  # type: ignore[misc, assignment]
     Response = None  # type: ignore[misc, assignment]
     _HAS_FASTAPI = False
 
@@ -699,6 +706,9 @@ def _fanout_stats() -> dict[str, int]:
 
 
 _GLASS_HTML_NAMES = frozenset(
+    {"deck.html", "overlay.html", "studio.html", "mobile.html", "index.html", "session.html"}
+)
+_CLIP_DOCK_GLASS = frozenset(
     {"deck.html", "overlay.html", "studio.html", "mobile.html", "index.html"}
 )
 
@@ -788,7 +798,7 @@ def _html(name: str) -> str:
             body = f"<h1>{name} missing</h1>"
     if name == "deck.html":
         body = _with_lease_lamp(body)
-    if name in _GLASS_HTML_NAMES or name == "civif.html":
+    if name in _CLIP_DOCK_GLASS:
         return _with_clip_dock(body)
     return body
 
@@ -2425,18 +2435,6 @@ def create_app():  # type: ignore[no-untyped-def]
             _html("deck.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
-    @app.get("/trace.html")
-    async def trace_viewer():  # type: ignore[no-untyped-def]
-        return HTMLResponse(
-            _html("trace.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
-        )
-
-    @app.get("/trace")
-    async def trace_viewer_alias():  # type: ignore[no-untyped-def]
-        return HTMLResponse(
-            _html("trace.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
-        )
-
     @app.get("/studio.html")
     async def studio():  # type: ignore[no-untyped-def]
         return HTMLResponse(
@@ -2451,15 +2449,11 @@ def create_app():  # type: ignore[no-untyped-def]
 
     @app.get("/civif.html")
     async def civif_page():  # type: ignore[no-untyped-def]
-        return HTMLResponse(
-            _html("civif.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
-        )
+        return RedirectResponse(url="/session.html", status_code=307)
 
     @app.get("/civif")
     async def civif_alias():  # type: ignore[no-untyped-def]
-        return HTMLResponse(
-            _html("civif.html"), headers={"Cache-Control": "no-cache, must-revalidate"}
-        )
+        return RedirectResponse(url="/session.html", status_code=307)
 
     @app.get("/session.html")
     async def session_page():  # type: ignore[no-untyped-def]
@@ -2564,7 +2558,6 @@ def create_app():  # type: ignore[no-untyped-def]
             "<p><a href='/overlay.html' style='color:#f5c542'>Lens</a> · "
             "<a href='/deck.html' style='color:#f5c542'>Rail</a> · "
             "<a href='/studio.html' style='color:#f5c542'>Foundry Bay</a> · "
-            "<a href='/civif.html' style='color:#f5c542'>CIVIF</a> · "
             "<a href='/session.html' style='color:#f5c542'>Session</a> · "
             "<a href='/mobile.html' style='color:#f5c542'>Mobile glass</a> · "
             "<a href='/health' style='color:#f5c542'>health</a> · "

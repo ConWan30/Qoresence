@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 ASSET_REF = re.compile(r"""['\"](/assets/[^'\"]+)['\"]""")
-ROUTES = ("/deck.html", "/overlay.html", "/studio.html", "/mobile.html")
+ROUTES = ("/deck.html", "/overlay.html", "/studio.html", "/mobile.html", "/session.html")
 
 FAILURES: list[str] = []
 

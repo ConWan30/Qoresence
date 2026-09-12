@@ -184,11 +184,15 @@ def test_session_routes_and_fixture(monkeypatch):
     client = TestClient(create_app())
     page = client.get("/session.html")
     assert page.status_code == 200
-    assert "Session Theater" in page.text
-    assert "clip-dock.js" not in page.text
-    civ = client.get("/civif.html")
-    assert civ.status_code == 200
-    assert "Coach" in civ.text
+    if 'id="root"' in page.text or "id='root'" in page.text:
+        assert "/assets/" in page.text
+        assert "clip-dock.js" not in page.text
+    else:
+        assert "Session Theater" in page.text
+        assert "clip-dock.js" not in page.text
+    civ = client.get("/civif.html", follow_redirects=False)
+    assert civ.status_code == 307
+    assert civ.headers.get("location") == "/session.html"
     fx = client.get("/session_fixtures/bodied_unlocked.json")
     assert fx.status_code == 200
     assert fx.json()["events"][0]["situation_summary"]["home_score"] == 99
@@ -680,10 +684,10 @@ def test_flag_only_http_sit_does_not_paint_pack_or_sit_digits(monkeypatch):
     assert "23" not in str(env["view"]["confirmed"])
 
 
-def test_session_and_civif_html_are_not_glass_spa():
+def test_session_spa_and_civif_redirect():
     from qoresence.deck.server import _GLASS_HTML_NAMES
 
-    assert "session.html" not in _GLASS_HTML_NAMES
+    assert "session.html" in _GLASS_HTML_NAMES
     assert "civif.html" not in _GLASS_HTML_NAMES
     js = SESSION_JS.read_text(encoding="utf-8")
     html = SESSION_HTML.read_text(encoding="utf-8")
