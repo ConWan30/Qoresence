@@ -2,7 +2,7 @@
 
 Qoresence remains the eyes. QorTroller becomes the notary of the same clock, after the gamer says so.
 
-Gamers reach this the way they reach OBS: Session Theater stays up during the half. The **observation export** is a door on **Recap**. Wrap/seal runs in **QorTroller #145** — not as Deck seal APIs.
+Gamers reach this the way they reach OBS: Session Theater stays up during the half. The **observation export** is a door on **Recap**. Wrap/seal runs in **QorTroller** — not as Deck seal APIs.
 
 ## Friday-night path
 
@@ -20,6 +20,10 @@ LIVE Theater cannot light TRUTH. Deck never exposes `/seal` or `/verify`.
 | GET | `/session-door.js` |
 
 `create_app()` mounts `mount_clock_notary` for the observation export envelope only. There are **no** Deck seal/verify APIs (`plane=truth` / `wrap_notary` stay off this HTTP surface).
+
+## Lifecycle bind
+
+When `QORESENCE_OBSERVATIONS=1`, Recap also hashes the observation journal as sidecar `observations` and stamps `evidence_id` / `observation_id` / `revision` onto the same ticks. Those fields are part of `clock_commitment`. Overlay and Theater must use that id. Glass may not render journal `confirmed` as a certified play — see `glass_state`.
 
 ## Rails
 
