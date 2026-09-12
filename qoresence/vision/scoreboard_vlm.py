@@ -52,8 +52,8 @@ _QUOTA_BACKOFF_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_429_COOLDOWN",
 # Quicksilver Read timeout — shorter than prior 14s; env override wins.
 _HTTP_TIMEOUT_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_HTTP_TIMEOUT", "14"))
 _INFLIGHT_WATCHDOG_S = _HTTP_TIMEOUT_S + 2.0
-_TIMEOUT_BACKOFF_BASE_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF", "5"))
-_TIMEOUT_BACKOFF_MAX_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF_MAX", "60"))
+_TIMEOUT_BACKOFF_BASE_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF", "1"))
+_TIMEOUT_BACKOFF_MAX_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF_MAX", "2"))
 # 26px 360p HUD strips look like tickers to the VLM. Upscale height only.
 _MIN_CROP_H = 96
 
@@ -267,6 +267,8 @@ class ScoreboardVlmReferee:
                 _TIMEOUT_BACKOFF_MAX_S,
             )
             self._timeout_backoff_until = now + exp
+            # Retry as soon as backoff ends — do not also sit the 6s interval.
+            self._last_call = 0.0
         log.warning(
             "scoreboard VLM Read timed out (%.1fs) — backoff %.1fs",
             _HTTP_TIMEOUT_S,
@@ -592,7 +594,7 @@ class ScoreboardVlmReferee:
             cv2.imwrite(str(logs_dir / "vlm_last_crop.jpg"), crop_bgr)
         except Exception:
             pass
-        ok, buf = cv2.imencode(".jpg", crop_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+        ok, buf = cv2.imencode(".jpg", crop_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
         if not ok:
             return None
         b64 = base64.b64encode(buf.tobytes()).decode("ascii")

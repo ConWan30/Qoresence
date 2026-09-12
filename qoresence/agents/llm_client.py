@@ -247,7 +247,8 @@ class QuicksilverLLMClient:
         try:
             from qoresence.agents.quicksilver_slot import acquire_quicksilver
 
-            with acquire_quicksilver(self.config.timeout_s) as got:
+            # Yield the slot to confirm VLM. Chat skip is cheaper than SEQGATE stale.
+            with acquire_quicksilver(0.05) as got:
                 if not got:
                     log.info("Quicksilver busy — skip chat %s", mdl)
                     return None

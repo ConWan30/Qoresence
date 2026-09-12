@@ -13,6 +13,7 @@ from qoresence.vision.scoreboard_vlm import (
     _HTTP_TIMEOUT_S,
     _INFLIGHT_WATCHDOG_S,
     _MENU_INTERVAL_S,
+    _TIMEOUT_BACKOFF_MAX_S,
 )
 from tests.scorebug_fixtures import licensed_scorebug_frame
 
@@ -66,6 +67,20 @@ def test_read_timeout_clears_inflight_and_allows_next_schedule(monkeypatch):
         assert ref._inflight is False
         assert ref._timeout_count == 2
         assert ref._skip_inflight_count == 0
+
+
+def test_timeout_backoff_capped_so_seqgate_can_refresh():
+    """Exponential 60s backoff starved confirm tickets past the 8s SEQGATE window."""
+    assert _TIMEOUT_BACKOFF_MAX_S <= 2.0
+    ref = ScoreboardVlmReferee()
+    now = time.time()
+    for _ in range(8):
+        ref._on_read_timeout()
+    with ref._lock:
+        wait = ref._timeout_backoff_until - now
+        last_call = ref._last_call
+    assert wait <= _TIMEOUT_BACKOFF_MAX_S + 0.5
+    assert last_call == 0.0
 
 
 def _licensed_confirm_crop() -> np.ndarray:
