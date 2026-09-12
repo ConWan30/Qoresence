@@ -42,7 +42,7 @@ def test_clutchbot_chat_and_confirm_vision_use_separate_config_paths(monkeypatch
     assert vision_cfg.max_tokens == 400
     assert chat_cfg.max_tokens == 180
     assert vision_cfg.timeout_s == 14.0
-    assert chat_cfg.timeout_s == 8.0
+    assert chat_cfg.timeout_s == 14.0
 
 
 def test_clutchbot_llm_model_env_overrides_chat_default(monkeypatch):

@@ -48,6 +48,15 @@ def _scoreboard_vlm_held() -> bool:
         return False
 
 
+def _quicksilver_busy() -> bool:
+    try:
+        from qoresence.agents.quicksilver_slot import quicksilver_busy
+
+        return bool(quicksilver_busy())
+    except Exception:
+        return False
+
+
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # DATA STRUCTURES
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -122,7 +131,7 @@ class VLMClient:
         self,
         frame: np.ndarray,
         prompt: str,
-        timeout: float = 30.0,
+        timeout: float = 14.0,
         max_tokens: int = 300,
         **kwargs: object,
     ) -> str | None:
@@ -133,6 +142,9 @@ class VLMClient:
         """
         if _scoreboard_vlm_held():
             log.info("visual VLM skip: scoreboard_vlm HOLD")
+            return None
+        if _quicksilver_busy():
+            log.info("visual VLM skip: Quicksilver slot busy")
             return None
         try:
             # Resize frame
@@ -165,11 +177,18 @@ class VLMClient:
                 "temperature": 0.1,
             }
 
-            response = self._session.post(
-                f"{self.endpoint}/chat/completions",
-                json=payload,
-                timeout=timeout,
-            )
+            from qoresence.agents.quicksilver_slot import acquire_quicksilver
+
+            wait = min(14.0, float(timeout or 14.0))
+            with acquire_quicksilver(wait) as got:
+                if not got:
+                    log.info("visual VLM skip: Quicksilver slot busy")
+                    return None
+                response = self._session.post(
+                    f"{self.endpoint}/chat/completions",
+                    json=payload,
+                    timeout=wait,
+                )
             response.raise_for_status()
             data = response.json()
 
@@ -337,11 +356,17 @@ REASONING: brief explanation"""
                 "temperature": 0.1,
             }
 
-            response = self._session.post(
-                f"{self.endpoint}/chat/completions",
-                json=payload,
-                timeout=30,
-            )
+            from qoresence.agents.quicksilver_slot import acquire_quicksilver
+
+            with acquire_quicksilver(14.0) as got:
+                if not got:
+                    log.info("visual VLM skip: Quicksilver slot busy")
+                    return None
+                response = self._session.post(
+                    f"{self.endpoint}/chat/completions",
+                    json=payload,
+                    timeout=14,
+                )
             response.raise_for_status()
             data = response.json()
 

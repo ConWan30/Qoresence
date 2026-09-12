@@ -542,7 +542,7 @@ class ClutchBotConfig:
     llm_api_key: str | None = None
     llm_api_key_file: str | None = None  # file containing key (never commit)
     llm_fallback_model: str = "gpt-4o-mini"
-    llm_timeout_s: float = 6.0
+    llm_timeout_s: float = 14.0
     llm_max_tokens: int = 256
     # -- A2A bus (Gemini scene ↔ DeepSeek chat); also QORESENCE_A2A=1
     a2a_enabled: bool = False
@@ -1055,7 +1055,7 @@ class RetinaUnifiedConfig:
                     else None
                 ),
                 llm_fallback_model=_str("QORESENCE_CLUTCHBOT_LLM_FALLBACK", "gpt-4o-mini"),
-                llm_timeout_s=_float("QORESENCE_CLUTCHBOT_LLM_TIMEOUT_S", 6.0),
+                llm_timeout_s=_float("QORESENCE_CLUTCHBOT_LLM_TIMEOUT_S", 14.0),
                 deck_enabled=_bool("QORESENCE_DECK_ENABLED", False),
                 deck_host=_str("QORESENCE_DECK_HOST", "127.0.0.1"),
                 deck_port=_int("QORESENCE_DECK_PORT", 8765),

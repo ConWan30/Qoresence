@@ -50,7 +50,7 @@ _MENU_INTERVAL_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_MENU_INTERVAL"
 _HOLD_HTTP = frozenset({400, 401, 402})
 _QUOTA_BACKOFF_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_429_COOLDOWN", "60.0"))
 # Quicksilver Read timeout — shorter than prior 14s; env override wins.
-_HTTP_TIMEOUT_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_HTTP_TIMEOUT", "10"))
+_HTTP_TIMEOUT_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_HTTP_TIMEOUT", "14"))
 _INFLIGHT_WATCHDOG_S = _HTTP_TIMEOUT_S + 2.0
 _TIMEOUT_BACKOFF_BASE_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF", "5"))
 _TIMEOUT_BACKOFF_MAX_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF_MAX", "60"))
@@ -629,7 +629,13 @@ class ScoreboardVlmReferee:
         try:
             import requests
 
-            r = requests.post(url, headers=headers, json=body, timeout=_HTTP_TIMEOUT_S)
+            from qoresence.agents.quicksilver_slot import acquire_quicksilver
+
+            with acquire_quicksilver(_HTTP_TIMEOUT_S) as got:
+                if not got:
+                    log.info("scoreboard VLM skip: Quicksilver slot busy")
+                    return None
+                r = requests.post(url, headers=headers, json=body, timeout=_HTTP_TIMEOUT_S)
             log.info("scoreboard VLM HTTP %d", r.status_code)
             if r.status_code == 429 or r.status_code in _HOLD_HTTP:
                 err_body = ""

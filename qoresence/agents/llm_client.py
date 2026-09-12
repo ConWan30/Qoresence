@@ -83,7 +83,7 @@ class LLMConfig:
     api_key: str | None = None
     api_key_file: str | None = None
     fallback_model: str = FALLBACK_MODEL
-    timeout_s: float = 6.0
+    timeout_s: float = 14.0
     max_tokens: int = 256
 
     @classmethod
@@ -98,7 +98,7 @@ class LLMConfig:
             fallback_model=str(
                 getattr(cfg, "llm_fallback_model", FALLBACK_MODEL) or FALLBACK_MODEL
             ),
-            timeout_s=float(getattr(cfg, "llm_timeout_s", 6.0) or 6.0),
+            timeout_s=float(getattr(cfg, "llm_timeout_s", 14.0) or 14.0),
             max_tokens=int(getattr(cfg, "llm_max_tokens", 256) or 256),
         )
 
@@ -123,7 +123,7 @@ class LLMConfig:
             base_url=str(base or DEFAULT_BASE_URL),
             api_key=os.environ.get("QORESENCE_CLUTCHBOT_LLM_API_KEY") or None,
             api_key_file=key_file,
-            timeout_s=8.0,
+            timeout_s=14.0,
             max_tokens=180,
         )
 
@@ -245,6 +245,26 @@ class QuicksilverLLMClient:
         }
         start = time.time()
         try:
+            from qoresence.agents.quicksilver_slot import acquire_quicksilver
+
+            with acquire_quicksilver(self.config.timeout_s) as got:
+                if not got:
+                    log.info("Quicksilver busy — skip chat %s", mdl)
+                    return None
+                return self._post_chat_locked(url, headers, body, mdl, start)
+        except Exception as e:
+            log.warning(f"Quicksilver LLM call failed ({mdl}): {e}")
+            return None
+
+    def _post_chat_locked(
+        self,
+        url: str,
+        headers: dict[str, str],
+        body: dict[str, Any],
+        mdl: str,
+        start: float,
+    ) -> str | None:
+        try:
             if HAS_REQUESTS:
                 resp = requests.post(url, headers=headers, json=body, timeout=self.config.timeout_s)  # type: ignore
                 elapsed = time.time() - start
@@ -255,7 +275,7 @@ class QuicksilverLLMClient:
                     # fallback once on 404/429 for model
                     if resp.status_code in (404, 429) and mdl != self.config.fallback_model:
                         log.info(f"LLM fallback to {self.config.fallback_model}")
-                        return self._post_chat(messages, model=self.config.fallback_model)
+                        return self._post_chat(body["messages"], model=self.config.fallback_model)
                     return None
                 data = resp.json()
             else:
@@ -284,7 +304,7 @@ class QuicksilverLLMClient:
                         f"Quicksilver LLM {mdl} HTTP {resp2.status}: {safe_http_body(raw)} ({elapsed:.2f}s)"
                     )
                     if resp2.status in (404, 429) and mdl != self.config.fallback_model:
-                        return self._post_chat(messages, model=self.config.fallback_model)
+                        return self._post_chat(body["messages"], model=self.config.fallback_model)
                     return None
                 data = json.loads(raw)
 
