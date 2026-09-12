@@ -10,6 +10,7 @@ from pathlib import Path
 from queue import Empty, Full, Queue
 
 from .lifecycle import POLICY, normalize_visual, reduce_observation
+from .present import present_snapshot
 
 
 class ObservationRuntime:
@@ -69,7 +70,8 @@ class ObservationRuntime:
             except Exception as exc:
                 out["persistence_error"] = out["persistence_error"] or type(exc).__name__
                 out["journal"] = []
-        return out
+            return out
+        return present_snapshot(out)
 
     def _read_journal(self) -> list[dict]:
         if not self.journal.exists():
@@ -128,7 +130,6 @@ class ObservationRuntime:
                 self.current = deepcopy(record)
             while len(self.records) > 64:
                 del self.records[next(iter(self.records))]
-        # Never fan out while holding the runtime lock.
         from qoresence.core.types import SourceLobe
 
         self.bus.emit_raw(
@@ -172,7 +173,6 @@ class ObservationRuntime:
                 **extra,
             },
         }
-        # A separate completion queue avoids deadlocking the evidence worker.
         self.completions.append(event)
 
     def _clips(self):
@@ -236,17 +236,14 @@ def start_observations(bus, journal, *, export=None):
 
 
 def observations_snapshot():
-    return (
-        _runtime.snapshot()
-        if _runtime
-        else {
-            "schema": "qoresence-observations-1",
-            "enabled": False,
-            "session_id": "",
-            "records": [],
-            "revisions": [],
-        }
-    )
+    empty = {
+        "schema": "qoresence-observations-1",
+        "enabled": False,
+        "session_id": "",
+        "records": [],
+        "revisions": [],
+    }
+    return present_snapshot(_runtime.snapshot() if _runtime else empty)
 
 
 def observations_export_snapshot():
