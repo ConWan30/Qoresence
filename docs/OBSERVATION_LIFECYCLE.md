@@ -83,9 +83,25 @@ Interval-aware coupling/OTel sidecars remain available. Legacy helpers that samp
 the current time (buttons, chapters, stem-audio metadata) are skipped for interval
 exports. Clip files use deterministic observation IDs and the existing media route.
 
+## Replay a session
+
+Offline replay verifies every journaled revision without capture, network,
+Quicksilver, or VLM. Frozen `detector_output` and ticket qualification in each
+evidence row are the only model inputs the reducer consults.
+
+```powershell
+python -m qoresence.observation.replay logs/observations.jsonl
+```
+
+Optional: `--session-id <id>` when the file contains multiple sessions.
+
+Live journaling can freeze detector outputs at emission when
+`QORESENCE_EVENT_REPLAY=1` (default OFF). Observation runtime remains
+`QORESENCE_OBSERVATIONS=1`.
+
 ## Validation and pilot gate
 
-`python -m pytest tests/test_observation_lifecycle.py tests/test_deadlock_regression.py`
+`python -m pytest tests/test_observation_lifecycle.py tests/test_observation_event_replay.py tests/test_deadlock_regression.py`
 
 Synthetic tests cover replay, revision immutability, duplicates, late evidence,
 overflow, persistence failures, clip completion routing, missing tickets and
