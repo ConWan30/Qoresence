@@ -57,6 +57,21 @@ _TIMEOUT_BACKOFF_MAX_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_
 # 26px 360p HUD strips look like tickers to the VLM. Upscale height only.
 _MIN_CROP_H = 96
 
+
+def _refresh_confirm_clock_after_200() -> None:
+    """VLM HTTP 200 must bump ConfirmTicket.clock_ns or SEQGATE goes ticket_stale."""
+    try:
+        from qoresence.monitor.frame_hub import get_latest_stamp
+        from qoresence.vision.confirm_ticket import refresh_licensed_ticket_clock
+
+        stamp = get_latest_stamp() or {}
+        refresh_licensed_ticket_clock(
+            clock_ns=int(stamp.get("clock_ns") or 0),
+            frame_seq=stamp.get("seq"),
+        )
+    except Exception:
+        pass
+
 # CFB 26/27: in-game scorebug is the red/blue bar (~y 0.78–0.93).
 # The national ticker / other-games crawl is the last ~7% (y > 0.93).
 TICKER_CUT_Y = 0.93
@@ -653,6 +668,7 @@ class ScoreboardVlmReferee:
             if r.status_code != 200:
                 # Known HTTP from requests — do not urllib-retry (that was the storm).
                 return None
+            _refresh_confirm_clock_after_200()
             data = r.json()
         except Exception as e:
             if self._is_read_timeout(e):
@@ -677,6 +693,8 @@ class ScoreboardVlmReferee:
                     with self._lock:
                         self._last_http_status = code
                     raw = resp.read().decode("utf-8", errors="replace")
+                if int(code) == 200:
+                    _refresh_confirm_clock_after_200()
                 data = json.loads(raw)
             except urllib.error.HTTPError as http_err:
                 log.info("scoreboard VLM HTTP %d (error)", http_err.code)

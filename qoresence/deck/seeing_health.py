@@ -57,7 +57,7 @@ def attach_board_health(out: dict[str, Any], situation: Any) -> dict[str, Any]:
         from qoresence.sync.digit_integrity import digit_void_reason, freshness_band
 
         reason = digit_void_reason(
-            confirm_ticket_id=str(sit_bag.get("confirm_ticket_id") or ""),
+            confirm_ticket_id=str(ticket_id or sit_bag.get("confirm_ticket_id") or ""),
             score_vlm_locked=locked,
             path=path,
             ticket_crop_hash=ticket_crop,
