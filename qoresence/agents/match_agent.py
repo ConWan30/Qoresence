@@ -177,8 +177,13 @@ class MatchAgent:
             picture_ticket=pic,
         )
         stub = self._stub(bag)
-        if not allowed or not self.live:
+        if not allowed:
             return stub
+        # Licensed ticket: surface even when muse-spark times out. Empty glass
+        # was live=False stubs after every Quicksilver miss.
+        licensed = {**stub, "live": True, "path": path, "ticket_id": tid}
+        if not self.live or not self.enabled:
+            return licensed if self.enabled else stub
         try:
             text = self._llm.enhance_message(
                 situation=bag,
@@ -189,10 +194,10 @@ class MatchAgent:
                 system_prompt=_system_prompt(),
             )
         except Exception as e:
-            log.warning("MatchAgent Quicksilver failed, stub: %s", e)
-            return stub
+            log.warning("MatchAgent Quicksilver failed, ticket stub: %s", e)
+            return licensed
         if not text:
-            return stub
+            return licensed
         if bag.get("confirm_ticket_id"):
             text = license_score_text(
                 text,

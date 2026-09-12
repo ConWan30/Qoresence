@@ -1192,7 +1192,7 @@ class ClutchBotAgent:
             extra = f" On screen: {who}." if who else ""
             return (
                 f"Qoresence sees {s.game_title or 'a game'} — "
-                f"{away} {s.away_score or '?'} @ {home} {s.home_score or '?'} Q{s.quarter or '?'}, "
+                f"{away} {s.away_score if s.away_score is not None else '?'} @ {home} {s.home_score if s.home_score is not None else '?'} Q{s.quarter or '?'}, "
                 f"{poss} ball, {s.down or '?'} & {s.yards_to_go or '?'}.{extra}"
             )
 
@@ -1200,7 +1200,7 @@ class ClutchBotAgent:
             s = self._situation.state
             home = getattr(s, "home_team", None) or "HOME"
             away = getattr(s, "away_team", None) or "AWAY"
-            return f"Score: {away} {s.away_score or '?'} @ {home} {s.home_score or '?'} (Q{s.quarter or '?'})."
+            return f"Score: {away} {s.away_score if s.away_score is not None else '?'} @ {home} {s.home_score if s.home_score is not None else '?'} (Q{s.quarter if s.quarter is not None else '?'})."
 
         if cmd == "!lastclip":
             if self._helix_client and self._helix_client.last_clip_url:
