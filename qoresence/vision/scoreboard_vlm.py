@@ -16,6 +16,7 @@ import os
 import re
 import threading
 import time
+from contextlib import contextmanager
 from typing import Any
 
 import cv2
@@ -53,6 +54,8 @@ _QUOTA_BACKOFF_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_429_COOLDOWN",
 _HTTP_TIMEOUT_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_HTTP_TIMEOUT", "14"))
 # Slot wait only — same yield as chat/visual. HTTP read timeout stays separate.
 _QUICKSILVER_SLOT_WAIT_S = 0.05
+# SEQGATE fresh window is 8s; VLM POST can run ~14s. Heartbeat mid-flight only.
+_CONFIRM_HEARTBEAT_INTERVAL_S = 3.0
 _INFLIGHT_WATCHDOG_S = _HTTP_TIMEOUT_S + 2.0
 _TIMEOUT_BACKOFF_BASE_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF", "1"))
 _TIMEOUT_BACKOFF_MAX_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF_MAX", "2"))
@@ -60,11 +63,8 @@ _TIMEOUT_BACKOFF_MAX_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_
 _MIN_CROP_H = 96
 
 
-def _refresh_confirm_clock_after_200() -> None:
-    """VLM HTTP 200 must bump ConfirmTicket.clock_ns or SEQGATE goes ticket_stale.
-
-    Empty/null parse 200s still refresh — the ticket stays licensed without remint.
-    """
+def _refresh_confirm_clock_from_framehub() -> None:
+    """Bump licensed ConfirmTicket.clock_ns from FrameHub — no remint, no new digits."""
     try:
         from qoresence.monitor.frame_hub import get_latest_stamp
         from qoresence.vision.confirm_ticket import refresh_licensed_ticket_clock
@@ -79,6 +79,45 @@ def _refresh_confirm_clock_after_200() -> None:
         )
     except Exception:
         pass
+
+
+def _refresh_confirm_clock_after_200() -> None:
+    """VLM HTTP 200 must bump ConfirmTicket.clock_ns or SEQGATE goes ticket_stale.
+
+    Empty/null parse 200s still refresh — the ticket stays licensed without remint.
+    """
+    _refresh_confirm_clock_from_framehub()
+
+
+@contextmanager
+def _confirm_clock_heartbeat_while_inflight():
+    """Keep licensed ticket fresh while confirm VLM POST blocks (8s window < ~14s POST)."""
+    try:
+        from qoresence.vision.confirm_ticket import licensed_last_confirm
+
+        if licensed_last_confirm() is None:
+            yield
+            return
+    except Exception:
+        yield
+        return
+
+    stop = threading.Event()
+
+    def _loop() -> None:
+        _refresh_confirm_clock_from_framehub()
+        while not stop.wait(_CONFIRM_HEARTBEAT_INTERVAL_S):
+            _refresh_confirm_clock_from_framehub()
+
+    thread = threading.Thread(
+        target=_loop, name="confirm-ticket-heartbeat", daemon=True
+    )
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join(timeout=_CONFIRM_HEARTBEAT_INTERVAL_S + 0.5)
 
 # CFB 26/27: in-game scorebug is the red/blue bar (~y 0.78–0.93).
 # The national ticker / other-games crawl is the last ~7% (y > 0.93).
@@ -469,7 +508,8 @@ class ScoreboardVlmReferee:
 
         def _run() -> None:
             try:
-                parsed = self._call_vlm(crop)
+                with _confirm_clock_heartbeat_while_inflight():
+                    parsed = self._call_vlm(crop)
                 with self._lock:
                     http_status = self._last_http_status
                 if parsed and all(
