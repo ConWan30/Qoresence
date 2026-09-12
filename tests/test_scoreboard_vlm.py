@@ -74,6 +74,7 @@ def test_vlm_prompt_ltr_spatial_contract():
     assert "never swap" in lower
     assert "car" in lower and "no" in lower
     assert "never invent 0-0" in lower or "never invent 0-0 to fill" in lower
+    assert "hollow" in lower or "thin ring" in lower or "score slot" in lower
     assert "madden nfl 26" in lower
     assert "left_score" in _PROMPT
     assert "right_score" in _PROMPT
@@ -92,6 +93,24 @@ def test_vlm_parse_rejects_out_of_range():
     assert out is not None
     assert out["home_score"] is None
     assert out["away_score"] == 0
+
+
+def test_vlm_parse_one_sided_null_score_is_zero_when_both_wordmarks():
+    """Live Madden HUD: NO hollow-0 × IND 22. Model nulls the 0; do not drop the board."""
+    text = (
+        '{"home_score": null, "away_score": null, "home_left": false, '
+        '"left_team": "NO", "left_score": null, "right_team": "IND", "right_score": 22, '
+        '"quarter": 1}'
+    )
+    out = ScoreboardVlmReferee._parse_json(text)
+    assert out is not None
+    assert out["left_team"] == "NO"
+    assert out["right_team"] == "IND"
+    assert out["left_score"] == 0
+    assert out["right_score"] == 22
+    assert out["away_score"] == 0
+    assert out["home_score"] == 22
+    assert out["home_left"] is False
 
 
 def test_vlm_parse_json_chatty_english_then_object():

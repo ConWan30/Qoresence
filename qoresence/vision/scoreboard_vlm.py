@@ -81,6 +81,7 @@ Rules:
 - Read ONLY the two LARGE score digits next to the two team marks on THIS crop. Ignore everything else.
 - SPATIAL LAW (never violate): left_team / left_score are on the LEFT side of this image; right_team / right_score are on the RIGHT side. Never swap sides.
 - Example: CAR · 7 on the left and NO · 0 on the right → left_team=CAR, left_score=7, right_team=NO, right_score=0. Painting 7 onto NO or swapping scores is WRONG.
+- Madden example: NO + hollow 0 on the left, IND + 22 on the right → left_team=NO, left_score=0, right_team=IND, right_score=22, home_left=false. Do not return all-nulls.
 - Do NOT remap via home/away if that would invert left↔right. left_* stays left, right_* stays right.
 - home_score / away_score are HOME vs AWAY (not left vs right). Set home_left true only if the HOME team wordmark is on the LEFT; still keep left_* = left side of image.
 - IGNORE the bottom ticker / crawl / "scores around the country" strip. Those are OTHER games. Never copy a ticker pair.
@@ -93,7 +94,10 @@ Rules:
 - left_logo / right_logo: mascot/mark (eagle, horse, star, fleur-de-lis, mustang, cardinal, …) not a URL.
 - Madden: use NFL abbreviations when readable (KC, PHI, CAR, NO, DAL, SF, …). NCAA: school wordmarks (OU, LOU, …).
 - Read the BIG score digits only (not records, TOTAL, play clock, ticker).
-- 0 is valid when clearly shown. If either large score is unreadable, return null for ALL score fields (home_score, away_score, left_score, right_score). Never invent 0-0 to fill gaps. Fail closed.
+- 0 is valid when clearly shown. A hollow oval, thin ring, or "O" in a team's score slot is 0, not missing.
+- Madden compact HUD: two team marks + scores on the dark bar IS this match (even if one score is 0). Do not null the whole board because one side is 0.
+- If both team wordmarks are readable and only one score digit is fuzzy, still return the readable score and 0 for the hollow/empty slot next to the other wordmark.
+- If you cannot see two team marks, or the crop is a ticker / player close-up, return null for ALL score fields. Never invent 0-0 to fill a blank frame. Fail closed.
 - Game year: read only what the wordmark shows (e.g. Madden NFL 26). Do not guess Madden NFL 27. Null/unset is better than a wrong year.
 """
 
@@ -436,6 +440,15 @@ class ScoreboardVlmReferee:
         def _run() -> None:
             try:
                 parsed = self._call_vlm(crop)
+                if parsed and all(
+                    parsed.get(k) is None
+                    for k in ("home_score", "away_score", "left_score", "right_score")
+                ):
+                    log.info("scoreboard VLM → empty board (reason=%s)", reason)
+                    with self._lock:
+                        # Don't sit 6s on a hollow-zero miss while the HUD is up.
+                        self._last_call = time.time() - max(0.8, _GAMEPLAY_INTERVAL_S) + 1.5
+                    parsed = None
                 if parsed:
                     with self._lock:
                         self._last = parsed
@@ -830,7 +843,31 @@ class ScoreboardVlmReferee:
             out["left_score"] = None
         if rs is not None and not (0 <= rs <= 99):
             out["right_score"] = None
+        ScoreboardVlmReferee._fill_hollow_zero(out)
         return out
+
+    @staticmethod
+    def _fill_hollow_zero(out: dict[str, Any]) -> None:
+        """Wordmark + empty score slot is 0 (Madden hollow oval), not a dropped board."""
+        lt, rt = out.get("left_team"), out.get("right_team")
+        ls, rs = out.get("left_score"), out.get("right_score")
+        if lt and rt:
+            if ls is None and isinstance(rs, int):
+                out["left_score"] = 0
+                ls = 0
+            if rs is None and isinstance(ls, int):
+                out["right_score"] = 0
+                rs = 0
+        hs, aws = out.get("home_score"), out.get("away_score")
+        if hs is None and aws is None and isinstance(ls, int) and isinstance(rs, int):
+            hl = out.get("home_left")
+            if hl is True:
+                out["home_score"], out["away_score"] = ls, rs
+            else:
+                # Madden HUD: home is usually the right mark.
+                out["home_score"], out["away_score"] = rs, ls
+                if hl is None:
+                    out["home_left"] = False
 
 
 _vlm: ScoreboardVlmReferee | None = None

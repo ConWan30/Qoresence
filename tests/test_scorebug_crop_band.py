@@ -90,6 +90,36 @@ def test_madden_confirm_bands_exclude_pause_include_hud_above_players():
     assert (0.18, 0.82, 0.12, 0.42) not in MADDEN_SCOREBUG_CROPS
 
 
+def test_live_madden_hud_color_plates_are_a_scorebug():
+    """2026-09-12 sit: NO 0 × IND 22 HUD refused as no_scorebug_sides.
+
+    Gold/blue team plates merge with white digits at luma>=170, so the
+    connected-component glyph filter dropped both sides. That crop is a
+    licensed Madden scorebug — confirm VLM must send it.
+    """
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent / "fixtures" / "madden_hud_no_ind.jpg"
+    assert path.is_file(), path
+    crop = cv2.imread(str(path))
+    assert crop is not None
+    assert crop.shape[1] > crop.shape[0] * 4
+    assert crop_misses_scorebug(crop) is None
+    assert looks_like_scorebug(crop) is True
+
+
+def test_madden_gold_plate_digits_are_not_player_cu():
+    """White wordmarks on saturated team plates must still look like a scorebug."""
+    h, w = 96, 866
+    crop = np.zeros((h, w, 3), dtype=np.uint8)
+    crop[:, :] = (18, 18, 18)
+    crop[20:76, 8:280] = (20, 170, 210)  # gold-ish Saints plate (BGR)
+    crop[20:76, 586:858] = (160, 70, 20)  # blue Colts plate
+    cv2.putText(crop, "NO 0", (24, 62), cv2.FONT_HERSHEY_SIMPLEX, 1.4, (255, 255, 255), 3)
+    cv2.putText(crop, "IND 22", (600, 62), cv2.FONT_HERSHEY_SIMPLEX, 1.4, (255, 255, 255), 3)
+    assert crop_misses_scorebug(crop) is None
+
+
 def test_player_cu_crop_must_not_look_like_scorebug():
     crop = ScoreboardVlmReferee._crop(
         _player_cu_frame(), game_state="gameplay", game_profile="madden_27"
