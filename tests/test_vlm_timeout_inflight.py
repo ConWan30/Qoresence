@@ -237,6 +237,125 @@ def test_stats_exposes_timeout_inflight_skip_counters():
     assert stats["inflight_watchdog_s"] == _HTTP_TIMEOUT_S + 2.0
 
 
+def test_empty_http_200_clears_inflight_and_allows_next_schedule(monkeypatch):
+    """HTTP 200 with empty content must not stick inflight or block the next read."""
+    from unittest.mock import MagicMock
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    ref._last_call = 0.0
+    refreshed: list[int] = []
+
+    def _empty_200(*_a, **_k):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "choices": [{"message": {"content": ""}, "finish_reason": "stop"}],
+        }
+        return resp
+
+    monkeypatch.setattr("requests.post", _empty_200)
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm._refresh_confirm_clock_after_200",
+        lambda: refreshed.append(1),
+    )
+    frame = licensed_scorebug_frame()
+
+    ref.schedule(frame, force=True, game_state="gameplay", game_profile="cfb_27")
+    _wait_inflight_clear(ref)
+
+    with ref._lock:
+        assert ref._inflight is False
+        assert ref._skip_inflight_count == 0
+        assert ref._last is None
+        assert ref._last_http_status == 200
+    assert refreshed, "empty HTTP 200 must refresh confirm clock"
+    assert ref.stats()["has_result"] is False
+
+    called: list[int] = []
+    monkeypatch.setattr(ref, "_call_vlm", lambda _c: called.append(1))
+    ref._last_call = time.time() - (_GAMEPLAY_INTERVAL_S + 1.0)
+    ref.schedule(frame, force=False, game_state="gameplay", game_profile="cfb_27")
+    assert called, "next schedule must run after empty HTTP 200 clears inflight"
+    _wait_inflight_clear(ref)
+
+
+def test_empty_http_200_refreshes_licensed_confirm_clock(monkeypatch):
+    """Empty 200 still bumps ticket clock so SEQGATE does not go ticket_stale."""
+    from unittest.mock import MagicMock
+
+    from qoresence.vision.confirm_ticket import get_ticket_book, licensed_last_confirm, mint_confirm_ticket
+
+    book = get_ticket_book()
+    book.clear()
+    ticket = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1_000_000_000,
+        home_score=7,
+        away_score=0,
+        crop_hash="crop-ok",
+        book=book,
+    )
+    book.put(ticket, home_team="HOME", away_team="AWAY")
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+
+    def _empty_200(*_a, **_k):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "choices": [{"message": {"content": ""}, "finish_reason": "stop"}],
+        }
+        return resp
+
+    monkeypatch.setattr("requests.post", _empty_200)
+    monkeypatch.setattr(
+        "qoresence.monitor.frame_hub.get_latest_stamp",
+        lambda: {"clock_ns": 5_000_000_000, "seq": 42},
+    )
+    crop = np.zeros((96, 200, 3), dtype=np.uint8)
+    crop[:, :60] = 255
+    crop[:, 140:] = 255
+
+    assert ref._call_vlm(crop) is None
+    last = licensed_last_confirm(book)
+    assert last is not None
+    assert last.clock_ns == 5_000_000_000
+    assert last.home_score == 7
+    assert last.away_score == 0
+
+
+def test_empty_http_200_does_not_mint_zero_zero(monkeypatch):
+    """Empty parse after HTTP 200 must not invent 0-0 on the glass path."""
+    from unittest.mock import MagicMock
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    ref._last = {"home_score": 10, "away_score": 7, "quarter": 3}
+
+    def _empty_200(*_a, **_k):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "choices": [{"message": {"content": ""}, "finish_reason": "stop"}],
+        }
+        return resp
+
+    monkeypatch.setattr("requests.post", _empty_200)
+    crop = np.zeros((96, 200, 3), dtype=np.uint8)
+    crop[:, :60] = 255
+    crop[:, 140:] = 255
+
+    assert ref._call_vlm(crop) is None
+    last = ref.get_last()
+    assert last is not None
+    assert (last.get("home_score"), last.get("away_score")) == (10, 7)
+
+
 def test_health_payload_shape_matches_deck_scoreboard_vlm_stats():
     """Same fields /health uses via get_scoreboard_vlm().stats()."""
     from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm

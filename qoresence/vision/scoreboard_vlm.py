@@ -59,14 +59,20 @@ _MIN_CROP_H = 96
 
 
 def _refresh_confirm_clock_after_200() -> None:
-    """VLM HTTP 200 must bump ConfirmTicket.clock_ns or SEQGATE goes ticket_stale."""
+    """VLM HTTP 200 must bump ConfirmTicket.clock_ns or SEQGATE goes ticket_stale.
+
+    Empty/null parse 200s still refresh — the ticket stays licensed without remint.
+    """
     try:
         from qoresence.monitor.frame_hub import get_latest_stamp
         from qoresence.vision.confirm_ticket import refresh_licensed_ticket_clock
 
         stamp = get_latest_stamp() or {}
+        clock_ns = int(stamp.get("clock_ns") or 0)
+        if clock_ns <= 0:
+            clock_ns = int(time.time_ns())
         refresh_licensed_ticket_clock(
-            clock_ns=int(stamp.get("clock_ns") or 0),
+            clock_ns=clock_ns,
             frame_seq=stamp.get("seq"),
         )
     except Exception:
@@ -221,6 +227,11 @@ class ScoreboardVlmReferee:
             return bool(getattr(self, "_held", False))
         with lock:
             return bool(getattr(self, "_held", False))
+
+    def is_inflight(self) -> bool:
+        """True while a scoreboard VLM read is scheduled or on the wire."""
+        with self._lock:
+            return bool(self._inflight)
 
     def _in_backoff(self, now: float | None = None) -> bool:
         """True while a 429 or read-timeout cooldown is active."""
@@ -457,6 +468,8 @@ class ScoreboardVlmReferee:
         def _run() -> None:
             try:
                 parsed = self._call_vlm(crop)
+                with self._lock:
+                    http_status = self._last_http_status
                 if parsed and all(
                     parsed.get(k) is None
                     for k in ("home_score", "away_score", "left_score", "right_score")
@@ -466,6 +479,10 @@ class ScoreboardVlmReferee:
                         # Don't sit 6s on a hollow-zero miss while the HUD is up.
                         self._last_call = time.time() - max(0.8, _GAMEPLAY_INTERVAL_S) + 1.5
                     parsed = None
+                elif parsed is None and http_status == 200:
+                    log.info("scoreboard VLM → empty HTTP 200 (reason=%s)", reason)
+                    with self._lock:
+                        self._last_call = time.time() - max(0.8, _GAMEPLAY_INTERVAL_S) + 1.5
                 if parsed:
                     with self._lock:
                         self._last = parsed
@@ -654,6 +671,8 @@ class ScoreboardVlmReferee:
                     return None
                 r = requests.post(url, headers=headers, json=body, timeout=_HTTP_TIMEOUT_S)
             log.info("scoreboard VLM HTTP %d", r.status_code)
+            with self._lock:
+                self._last_http_status = r.status_code
             if r.status_code == 429 or r.status_code in _HOLD_HTTP:
                 err_body = ""
                 if r.status_code == 400:
@@ -663,8 +682,6 @@ class ScoreboardVlmReferee:
                         err_body = ""
                 if self._on_terminal_http(r.status_code, body=err_body):
                     return None
-            with self._lock:
-                self._last_http_status = r.status_code
             if r.status_code != 200:
                 # Known HTTP from requests — do not urllib-retry (that was the storm).
                 return None

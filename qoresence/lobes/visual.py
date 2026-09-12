@@ -57,6 +57,16 @@ def _quicksilver_busy() -> bool:
         return False
 
 
+def _scoreboard_vlm_inflight() -> bool:
+    """Confirm-path read owns the tick — visual must not race the slot."""
+    try:
+        from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+
+        return bool(get_scoreboard_vlm().is_inflight())
+    except Exception:
+        return False
+
+
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # DATA STRUCTURES
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -142,6 +152,9 @@ class VLMClient:
         """
         if _scoreboard_vlm_held():
             log.info("visual VLM skip: scoreboard_vlm HOLD")
+            return None
+        if _scoreboard_vlm_inflight():
+            log.info("visual VLM skip: scoreboard_vlm inflight")
             return None
         if _quicksilver_busy():
             log.info("visual VLM skip: Quicksilver slot busy")
@@ -323,6 +336,9 @@ class VLMClient:
         try:
             if _scoreboard_vlm_held():
                 log.info("visual VLM skip: scoreboard_vlm HOLD")
+                return None
+            if _scoreboard_vlm_inflight():
+                log.info("visual VLM skip: scoreboard_vlm inflight")
                 return None
             # Build prompt with other modality context
             modality_summary = "\n".join([f"- {k}: {v}" for k, v in other_modalities.items()])
