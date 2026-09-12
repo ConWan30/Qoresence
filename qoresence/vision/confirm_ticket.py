@@ -288,6 +288,38 @@ def mint_confirm_ticket(
     return minted
 
 
+def refresh_licensed_ticket_clock(
+    *,
+    clock_ns: int,
+    frame_seq: int | None = None,
+    book: ConfirmTicketBook | None = None,
+) -> ConfirmTicket | None:
+    """Keep SEQGATE fresh after VLM HTTP 200 without reminting identity.
+
+    Look-graphs reuse HOLD and ungrounded 200s used to leave last_confirm's
+    clock frozen until ticket_stale (8s) while score_vlm_locked stayed true.
+    Same ticket_id. Same scores. New FrameHub clock_ns only.
+    """
+    live = book if book is not None else get_ticket_book()
+    last = licensed_last_confirm(live)
+    if last is None:
+        return None
+    ns = int(clock_ns or 0)
+    if ns <= 0:
+        return None
+    seq = last.frame_seq
+    try:
+        if frame_seq is not None:
+            seq = int(frame_seq)
+    except (TypeError, ValueError):
+        pass
+    ident = live.last_board_identity()
+    ht = ident[2] if ident is not None else ""
+    at = ident[3] if ident is not None else ""
+    fresh = replace(last, clock_ns=ns, frame_seq=seq)
+    return live.put(fresh, home_team=ht, away_team=at)
+
+
 def overlay_hdmi_ltr(
     ticket: ConfirmTicket,
     *,

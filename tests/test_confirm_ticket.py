@@ -12,6 +12,7 @@ from qoresence.vision.confirm_ticket import (
     licensed_last_confirm,
     mint_confirm_ticket,
     mismatch_snapshot,
+    refresh_licensed_ticket_clock,
     ticket_is_licensed_lock,
     why_strip,
 )
@@ -67,6 +68,42 @@ def test_book_keeps_latest_and_lookup():
     book.put(t)
     assert book.latest() is t
     assert book.get(t.ticket_id) is t
+
+
+def test_refresh_licensed_ticket_clock_keeps_id_updates_clock():
+    book = ConfirmTicketBook()
+    t = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1_000,
+        home_score=13,
+        away_score=31,
+        crop_hash="bug",
+        frame_seq=10,
+        book=book,
+    )
+    book.put(t, home_team="NO", away_team="CIN")
+    fresh = refresh_licensed_ticket_clock(clock_ns=9_000_000_000, frame_seq=99, book=book)
+    assert fresh is not None
+    assert fresh.ticket_id == t.ticket_id
+    assert fresh.home_score == 13
+    assert fresh.away_score == 31
+    assert fresh.clock_ns == 9_000_000_000
+    assert fresh.frame_seq == 99
+    assert book.latest().clock_ns == 9_000_000_000
+
+
+def test_refresh_licensed_ticket_clock_skips_unlicensed_zero_zero():
+    book = ConfirmTicketBook()
+    t = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1,
+        home_score=0,
+        away_score=0,
+        crop_hash="bug",
+        book=book,
+    )
+    book.put(t)
+    assert refresh_licensed_ticket_clock(clock_ns=9_000, book=book) is None
 
 
 def test_license_strips_score_digits_without_ticket():
