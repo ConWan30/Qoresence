@@ -3,11 +3,12 @@ import { CommandBar } from "@/components/theater/command-bar";
 import { SessionNow } from "./session-now";
 import { SessionStory } from "./session-story";
 import { SessionRecap } from "./session-recap";
+import { PresencePackBay } from "./presence-pack-bay";
 import { cn } from "@/lib/utils";
 
-type SessionTab = "now" | "story" | "recap";
+type SessionTab = "now" | "story" | "recap" | "pack";
 
-/** Phosphor Shell §2 — Session Theater (Now | Story | Recap). */
+/** Phosphor Shell §2 — Session Theater (Now | Story | Recap | Pack). */
 export function SessionTheater() {
   const [tab, setTab] = useState<SessionTab>("now");
 
@@ -29,7 +30,7 @@ export function SessionTheater() {
         <div className="mx-auto flex min-h-0 w-full max-w-[88rem] flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 py-3 sm:px-5 sm:py-3">
           <div className="mb-4 flex items-center gap-3">
             <nav className="flex items-center gap-1.5 rounded-lg bg-surface/60 p-1 shadow-[var(--shadow-border)]">
-              {(["now", "story", "recap"] as const).map((t) => (
+              {(["now", "story", "recap", "pack"] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -50,6 +51,7 @@ export function SessionTheater() {
           {tab === "now" && <SessionNow />}
           {tab === "story" && <SessionStory />}
           {tab === "recap" && <SessionRecap />}
+          {tab === "pack" && <PresencePackBay />}
         </div>
       </div>
     </main>
