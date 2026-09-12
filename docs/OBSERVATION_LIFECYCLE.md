@@ -45,7 +45,10 @@ reduction; replay does not consult the current ticket book or a model. The ticke
 identifies its own frame/crop, not necessarily the phase-classifier's frame.
 Historical claims must not be used as live score licenses.
 
-Inputs remain explicitly unavailable in this first adapter. Outcome is null.
+Inputs remain `not_on_this_host` until DualSense HID is separately observed on
+this host (DualSense on PS5 is Path B default). Outcome is null. See
+`docs/ASTRA_SLICE_C_FOOTBALL_ADAPTER.md` for football adapter phases, blind
+spots, and `QORESENCE_FOOTBALL_ADAPTER=1` (auto-select when observations on).
 InputRing analysis, causal attribution, coaching, game-specific hysteresis and
 frame-exact segmentation are follow-up work requiring labeled pilot evidence.
 
@@ -101,7 +104,7 @@ Live journaling can freeze detector outputs at emission when
 
 ## Validation and pilot gate
 
-`python -m pytest tests/test_observation_lifecycle.py tests/test_observation_event_replay.py tests/test_deadlock_regression.py`
+`python -m pytest tests/test_observation_lifecycle.py tests/test_observation_event_replay.py tests/test_observation_football_adapter.py tests/test_deadlock_regression.py`
 
 Synthetic tests cover replay, revision immutability, duplicates, late evidence,
 overflow, persistence failures, clip completion routing, missing tickets and

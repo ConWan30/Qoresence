@@ -102,7 +102,7 @@ def test_replay_and_revisions_do_not_mutate_previous():
     assert [r["state"] for r in history] == ["candidate", "tracking", "partial", "confirmed"]
     assert history[0]["claims"] == []
     assert history[-1]["outcome"] is None
-    assert history[-1]["input_availability"] == "unavailable"
+    assert history[-1]["input_availability"] == "not_on_this_host"
     assert len({r["observation_id"] for r in history}) == 1
 
 
@@ -287,11 +287,12 @@ def test_ticket_must_match_score_and_be_fresh(monkeypatch):
     assert freeze_score_claim(context, 2_000_000_000) is None
 
 
-def test_live_worker_drains_clip_failure_without_blocking_bus(tmp_path):
+def test_live_worker_drains_clip_failure_without_blocking_bus(tmp_path, monkeypatch):
     import threading
     from qoresence.core import RetinaEventBus
     from qoresence.core.types import SourceLobe
 
+    monkeypatch.setenv("QORESENCE_OBSERVATIONS", "1")
     bus = RetinaEventBus(session_id="session", enable_ws=False)
     started, release = threading.Event(), threading.Event()
 

@@ -1,4 +1,4 @@
-"""Versioned football observation records. Reducer has no clock, IO or model calls."""
+"""Versioned observation records. Reducer has no clock, IO or model calls."""
 
 from __future__ import annotations
 
@@ -6,22 +6,12 @@ import json
 import os
 from copy import deepcopy
 
-from qoresence.compose.clock_notary.envelope import SCHEMA, Tick
+from qoresence.compose.clock_notary.envelope import Tick
+from qoresence.observation.adapters.football import FOOTBALL_ADAPTER
+from qoresence.observation.adapters.football import POLICY_VERSION as POLICY
 
-POLICY = "football-observation-1"
 JOURNAL_SCHEMA = "observation-journal-1"
 DETECTOR_SCHEMA = "observation-detector-1"
-ACTIVE = {
-    "running",
-    "passing",
-    "ball_in_air",
-    "coverage",
-    "defense_pursuit",
-    "defense_engaged",
-    "blocking",
-    "player_locked_receiver",
-}
-BOUNDARY = {"huddle_offense", "huddle_defense"}
 
 
 def event_replay_enabled() -> bool:
@@ -100,14 +90,19 @@ def load_journal_lines(text: str) -> list[dict]:
     return rows
 
 
+def _policy_adapter(policy_version: str):
+    if policy_version == FOOTBALL_ADAPTER.policy_version:
+        return FOOTBALL_ADAPTER
+    raise ValueError("unsupported observation policy")
+
+
 def reduce_observation(previous: dict | None, event: dict, policy_version: str = POLICY) -> dict | None:
     """Reduce normalized evidence in arrival order; late events never reopen intervals.
 
     Confirmation qualifies a scoreboard observation, NOT a causal play outcome.
     The caller journals normalized evidence, including frozen ticket qualification.
     """
-    if policy_version != POLICY:
-        raise ValueError("unsupported observation policy")
+    adapter = _policy_adapter(policy_version)
     if previous and previous["policy_version"] != policy_version:
         raise ValueError("cannot silently change observation policy")
     record = deepcopy(previous)
@@ -122,31 +117,8 @@ def reduce_observation(previous: dict | None, event: dict, policy_version: str =
         or (event["kind"] != "clip" and clock < record["last_clock_ns"])
     ):
         return record
-    if (
-        event["kind"] == "visual"
-        and phase in ACTIVE
-        and (record is None or record["end_ns"] is not None)
-    ):
-        # Identity is the first existing bus evidence ID, not a parallel record hash.
-        ident = eid
-        record = {
-            "envelope_schema": SCHEMA,
-            "policy_version": policy_version,
-            "observation_id": ident,
-            "session_id": event["session_id"],
-            "revision": 0,
-            "kind": "candidate_football_play",
-            "state": "candidate",
-            "start_ns": clock,
-            "end_ns": None,
-            "last_clock_ns": clock,
-            "input_availability": "unavailable",
-            "claims": [],
-            "outcome": None,
-            "uncertainty": ["inferred_visual_boundary", "input_unavailable"],
-            "evidence_ids": [],
-            "clip": {"status": "not_requested"},
-        }
+    if event["kind"] == "visual" and adapter.should_open_moment(phase, record):
+        record = adapter.new_candidate_record(event, clock, eid, policy_version)
     if record is None or event["session_id"] != record["session_id"]:
         return record
     if event["kind"] == "clip":
@@ -159,15 +131,10 @@ def reduce_observation(previous: dict | None, event: dict, policy_version: str =
         record["end_ns"] = record["end_ns"] or clock
     elif event["kind"] == "visual":
         if record["end_ns"] is None:
-            if phase in BOUNDARY or game_state in {
-                "replay",
-                "results",
-                "menu",
-                "paused",
-            }:
+            if adapter.should_close_moment(phase, game_state):
                 record["end_ns"] = clock
                 record["state"] = "provisional"
-            elif clock - record["start_ns"] > 30_000_000_000:
+            elif clock - record["start_ns"] > adapter.moment_boundary_timeout_ns():
                 record["end_ns"] = clock
                 record["state"] = "unresolved"
                 record["uncertainty"].append("boundary_timeout")
@@ -175,7 +142,7 @@ def reduce_observation(previous: dict | None, event: dict, policy_version: str =
                 record["state"] = "tracking"
         # Late qualification is deliberately bounded to eight seconds after closure.
         if record["end_ns"] is not None and clock - record["end_ns"] <= 8_000_000_000:
-            claim = qualified_claim(event)
+            claim = adapter.qualified_claim(event)
             if claim and "evidence_dropped" not in record["uncertainty"]:
                 record["claims"] = [dict(claim, evidence_id=eid)]
                 record["state"] = "confirmed"
@@ -190,43 +157,14 @@ def reduce_observation(previous: dict | None, event: dict, policy_version: str =
 
 
 def normalize_visual(event: dict) -> dict | None:
-    """Only accept football visual evidence; never turn outcome heuristics into facts."""
+    """Delegate to the game adapter; abstain for non-football categories."""
+    from qoresence.observation.adapters import resolve_adapter
+
     p = event.get("payload", {})
-    if p.get("game_category") != "football":
+    adapter = resolve_adapter(p.get("game_category"))
+    if adapter is None:
         return None
-    tick = p.get("observation_tick")
-    eid = p.get("event_id")
-    if (
-        not isinstance(tick, dict)
-        or not eid
-        or tick.get("evidence_id") != eid
-        or int(tick.get("clock_ns") or 0) != int(event.get("clock_ns") or 0)
-    ):
-        return None
-    detector_output = None
-    if isinstance(p.get("observation_detector_output"), dict):
-        detector_output = deepcopy(p["observation_detector_output"])
-    elif event_replay_enabled():
-        detector_output = freeze_detector_output(p)
-    phase = p.get("visual_phase")
-    game_state = p.get("game_state")
-    if isinstance(detector_output, dict):
-        phase = detector_output.get("visual_phase") or phase
-        game_state = detector_output.get("game_state") or game_state
-    evidence = {
-        "kind": "visual",
-        "evidence_id": eid,
-        "session_id": event["session_id"],
-        "tick": deepcopy(tick),
-        "phase": phase,
-        "game_state": game_state,
-        "score_claim": p.get("observation_score_claim"),
-        "model": p.get("model"),
-        "frame_hash": p.get("frame_hash"),
-    }
-    if detector_output is not None:
-        evidence["detector_output"] = detector_output
-    return evidence
+    return adapter.normalize_visual(event)
 
 
 def qualified_claim(evidence: dict) -> dict | None:
