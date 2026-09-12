@@ -44,38 +44,42 @@ def main() -> int:
     import qoresence.deck.server as deck
 
     # Prefer packaged SPA for this smoke (CI has no glass/dist).
+    # Restore after — a permanent assign leaks into later pytest modules.
+    _orig_glass_candidates = deck._glass_candidates
     deck._glass_candidates = lambda: [spa]  # type: ignore[method-assign]
+    try:
+        from fastapi.testclient import TestClient
 
-    from fastapi.testclient import TestClient
+        app = deck.create_app()
+        client = TestClient(app)
 
-    app = deck.create_app()
-    client = TestClient(app)
+        seen_assets: set[str] = set()
+        for path in ROUTES:
+            r = client.get(path)
+            if r.status_code != 200:
+                fail(f"GET {path} -> {r.status_code}")
+                continue
+            ok(f"GET {path} -> 200")
+            body = r.text
+            if 'id="root"' not in body and "id='root'" not in body:
+                fail(f"{path} missing id=root")
+            else:
+                ok(f"{path} has #root")
+            for ref in ASSET_REF.findall(body):
+                seen_assets.add(ref)
 
-    seen_assets: set[str] = set()
-    for path in ROUTES:
-        r = client.get(path)
-        if r.status_code != 200:
-            fail(f"GET {path} -> {r.status_code}")
-            continue
-        ok(f"GET {path} -> 200")
-        body = r.text
-        if 'id="root"' not in body and "id='root'" not in body:
-            fail(f"{path} missing id=root")
-        else:
-            ok(f"{path} has #root")
-        for ref in ASSET_REF.findall(body):
-            seen_assets.add(ref)
-
-    if not seen_assets:
-        fail("no /assets/* refs found in HTML")
-    for ref in sorted(seen_assets):
-        ar = client.get(ref)
-        if ar.status_code != 200:
-            fail(f"GET {ref} -> {ar.status_code}")
-        elif not ar.content:
-            fail(f"GET {ref} empty body")
-        else:
-            ok(f"GET {ref} -> 200 ({len(ar.content)} bytes)")
+        if not seen_assets:
+            fail("no /assets/* refs found in HTML")
+        for ref in sorted(seen_assets):
+            ar = client.get(ref)
+            if ar.status_code != 200:
+                fail(f"GET {ref} -> {ar.status_code}")
+            elif not ar.content:
+                fail(f"GET {ref} empty body")
+            else:
+                ok(f"GET {ref} -> 200 ({len(ar.content)} bytes)")
+    finally:
+        deck._glass_candidates = _orig_glass_candidates  # type: ignore[method-assign]
 
     print("=" * 40)
     if FAILURES:
