@@ -55,8 +55,8 @@ function digitsLicensed(s, snap){
   if(!tid||!vlm) return false;
   const ticketCrop=String(lc.crop_hash||'').trim();
   const video=(snap&&snap.video)||{};
-  // Scorebug-band hash only. video.crop_hash is the full FrameHub frame.
-  const liveCrop=String(s.live_crop_hash||s.frame_hash||'').trim();
+  // Scorebug ticket crop chain only — not FrameHub full-frame video.crop_hash.
+  const liveCrop=String(s.live_crop_hash||s.crop_hash||s.frame_hash||'').trim();
   const crop=ticketCrop||liveCrop;
   if(!crop) return false;
   if(ticketCrop&&liveCrop&&ticketCrop!==liveCrop) return false;

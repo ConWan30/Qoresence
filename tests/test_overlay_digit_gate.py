@@ -19,8 +19,9 @@ def test_overlay_digits_licensed_matches_ticket_fresh_clock_age():
     # Live clock must be FrameHub video.clock_ns, not Deck updated_ns.
     assert "video.clock_ns" in html
     assert "snap.updated_ns||" not in html.replace(" ", "")
-    # Full-frame hub crop_hash is not the scorebug ticket crop.
-    assert "s.live_crop_hash" in html or "live_crop_hash" in html
+    # Scorebug crop chain — hub full-frame video.crop_hash is not ticket crop.
+    assert "s.live_crop_hash||s.crop_hash||s.frame_hash" in compact
+    assert "video.crop_hash||s.crop_hash||s.frame_hash" not in compact
     assert "path" in html and "fast" in html
     assert "□–□" in html
     assert "SEQGATE" in html
