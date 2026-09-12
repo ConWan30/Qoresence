@@ -4,6 +4,10 @@ One candidate football moment, one ID, append-only revisions, shared by the
 Deck review page, OBS Browser Source and AgentGlass/MCP snapshots. Default OFF.
 This is an observation engine prototype, not a validated play detector or coach.
 
+Lifecycle records are a **view on the Recap envelope**. `observation_id` is the
+first bus `evidence_id`. `revision` plus that id ride `Tick.as_commit_triple()`
+and the `observations` sidecar hash. There is no second source of truth.
+
 ## Run locally
 
 ```powershell
@@ -22,6 +26,11 @@ When bearer authentication is required, use an authenticated API client; the
 page displays authentication-required rather than placing secrets in URLs.
 FastAPI is required for these new pages/routes; stdlib fallback is not supported.
 OBS consumes the Browser Source; never open the physical card a second time.
+
+Live snapshots add `glass_state`. Journal `confirmed` means a historical
+scoreboard ticket qualified. Glass says `scoreboard_qualified`. It does not say
+the play is certified. Recap export (`observations_export_snapshot`) keeps the
+raw journal so `clock_commitment` does not hash overlay words.
 
 ## Contracts and lifecycle
 
@@ -85,12 +94,13 @@ exports. Clip files use deterministic observation IDs and the existing media rou
 
 ## Validation and pilot gate
 
-`python -m pytest tests/test_observation_lifecycle.py tests/test_deadlock_regression.py`
+`python -m pytest tests/test_observation_lifecycle.py tests/test_observation_envelope_bind.py tests/test_deadlock_regression.py`
 
 Synthetic tests cover replay, revision immutability, duplicates, late evidence,
-overflow, persistence failures, clip completion routing, missing tickets and
-shared surfaces. They do not establish gameplay detection accuracy, Windows
-capture performance, or OBS rendering behavior on an operator machine.
+overflow, persistence failures, clip completion routing, missing tickets,
+envelope commitment bind, glass words, and shared surfaces. They do not establish
+gameplay detection accuracy, Windows capture performance, or OBS rendering
+behavior on an operator machine.
 
 Before default enablement: label actual football sessions, measure segmentation
 error and false confirmed claims, inspect missing-data behavior, and verify that
