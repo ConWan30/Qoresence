@@ -84,7 +84,7 @@ mcp = [
 deck = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
-    "httpx>=0.27",
+    "httpx2>=2.0",
 ]
 windows = [
     "pygrabber>=0.2",
@@ -124,7 +124,7 @@ test = [
     "paho-mqtt>=1.6",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
-    "httpx>=0.27",
+    "httpx2>=2.0",
 ]
 dev = [
     "pytest>=7.4",
