@@ -610,7 +610,7 @@ def test_visual_vlm_acquires_quicksilver_with_chat_yield_budget(monkeypatch):
     )
     monkeypatch.setattr(
         "qoresence.vision.scoreboard_vlm.get_scoreboard_vlm",
-        lambda: MagicMock(is_held=lambda: False),
+        lambda: MagicMock(is_held=lambda: False, is_inflight=lambda: False),
     )
     monkeypatch.setattr(
         "qoresence.agents.quicksilver_slot.acquire_quicksilver",
