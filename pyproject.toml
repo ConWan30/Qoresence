@@ -121,12 +121,16 @@ test = [
     "requests>=2.31",
     "websockets>=12.0",
     "paho-mqtt>=1.6",
+    "fastapi>=0.110",
+    "httpx>=0.27",
 ]
 dev = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21",
     "ruff>=0.3",
     "mypy>=1.5",
+    "fastapi>=0.110",
+    "httpx>=0.27",
 ]
 all = [
     "opencv-python>=4.8",
