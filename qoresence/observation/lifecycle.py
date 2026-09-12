@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 from copy import deepcopy
 
 from qoresence.compose.clock_notary.envelope import SCHEMA, Tick
 
 POLICY = "football-observation-1"
+JOURNAL_SCHEMA = "observation-journal-1"
+DETECTOR_SCHEMA = "observation-detector-1"
 ACTIVE = {
     "running",
     "passing",
@@ -19,6 +22,82 @@ ACTIVE = {
     "player_locked_receiver",
 }
 BOUNDARY = {"huddle_offense", "huddle_defense"}
+
+
+def event_replay_enabled() -> bool:
+    return os.getenv("QORESENCE_EVENT_REPLAY", "").strip().lower() in {"1", "true", "on"}
+
+
+def observations_enabled() -> bool:
+    return os.getenv("QORESENCE_OBSERVATIONS", "").strip().lower() in {"1", "true", "on"}
+
+
+def _evidence_phase(evidence: dict) -> str | None:
+    det = evidence.get("detector_output")
+    if isinstance(det, dict) and det.get("visual_phase") is not None:
+        return str(det.get("visual_phase"))
+    phase = evidence.get("phase")
+    return str(phase) if phase is not None else None
+
+
+def _evidence_game_state(evidence: dict) -> str | None:
+    det = evidence.get("detector_output")
+    if isinstance(det, dict) and det.get("game_state") is not None:
+        return str(det.get("game_state"))
+    state = evidence.get("game_state")
+    return str(state) if state is not None else None
+
+
+def freeze_detector_output(payload: dict) -> dict:
+    """Freeze detector/VLM fields at emission. Replay never calls external models."""
+    details = payload.get("details") if isinstance(payload.get("details"), dict) else {}
+    football = payload.get("football") if isinstance(payload.get("football"), dict) else {}
+    return {
+        "schema_version": DETECTOR_SCHEMA,
+        "visual_phase": payload.get("visual_phase") or details.get("visual_phase"),
+        "game_state": payload.get("game_state"),
+        "game_category": payload.get("game_category"),
+        "model": payload.get("model"),
+        "frame_hash": payload.get("frame_hash"),
+        "confidence": payload.get("visual_confidence", payload.get("confidence")),
+        "home_score": football.get("home_score"),
+        "away_score": football.get("away_score"),
+    }
+
+
+def pack_journal_row(
+    evidence: dict,
+    record: dict,
+    *,
+    policy_version: str = POLICY,
+) -> dict:
+    return {
+        "schema_version": JOURNAL_SCHEMA,
+        "policy_version": policy_version,
+        "evidence": deepcopy(evidence),
+        "record": deepcopy(record),
+    }
+
+
+def parse_journal_row(raw: dict) -> dict:
+    if not isinstance(raw, dict):
+        raise ValueError("observation journal row is not an object")
+    schema = raw.get("schema_version")
+    if schema is not None and schema != JOURNAL_SCHEMA:
+        raise ValueError("unsupported observation journal schema")
+    for key in ("policy_version", "evidence", "record"):
+        if key not in raw:
+            raise ValueError(f"observation journal row missing {key}")
+    return raw
+
+
+def load_journal_lines(text: str) -> list[dict]:
+    rows: list[dict] = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        rows.append(parse_journal_row(json.loads(line)))
+    return rows
 
 
 def reduce_observation(previous: dict | None, event: dict, policy_version: str = POLICY) -> dict | None:
@@ -36,7 +115,8 @@ def reduce_observation(previous: dict | None, event: dict, policy_version: str =
     eid = event["evidence_id"]
     if not eid or event["tick"].get("evidence_id") != eid:
         raise ValueError("envelope tick requires the bus evidence id")
-    phase = event.get("phase")
+    phase = _evidence_phase(event)
+    game_state = _evidence_game_state(event)
     if record and (
         eid in record["evidence_ids"]
         or (event["kind"] != "clip" and clock < record["last_clock_ns"])
@@ -79,7 +159,7 @@ def reduce_observation(previous: dict | None, event: dict, policy_version: str =
         record["end_ns"] = record["end_ns"] or clock
     elif event["kind"] == "visual":
         if record["end_ns"] is None:
-            if phase in BOUNDARY or event.get("game_state") in {
+            if phase in BOUNDARY or game_state in {
                 "replay",
                 "results",
                 "menu",
@@ -123,17 +203,30 @@ def normalize_visual(event: dict) -> dict | None:
         or int(tick.get("clock_ns") or 0) != int(event.get("clock_ns") or 0)
     ):
         return None
-    return {
+    detector_output = None
+    if isinstance(p.get("observation_detector_output"), dict):
+        detector_output = deepcopy(p["observation_detector_output"])
+    elif event_replay_enabled():
+        detector_output = freeze_detector_output(p)
+    phase = p.get("visual_phase")
+    game_state = p.get("game_state")
+    if isinstance(detector_output, dict):
+        phase = detector_output.get("visual_phase") or phase
+        game_state = detector_output.get("game_state") or game_state
+    evidence = {
         "kind": "visual",
         "evidence_id": eid,
         "session_id": event["session_id"],
         "tick": deepcopy(tick),
-        "phase": p.get("visual_phase"),
-        "game_state": p.get("game_state"),
+        "phase": phase,
+        "game_state": game_state,
         "score_claim": p.get("observation_score_claim"),
         "model": p.get("model"),
         "frame_hash": p.get("frame_hash"),
     }
+    if detector_output is not None:
+        evidence["detector_output"] = detector_output
+    return evidence
 
 
 def qualified_claim(evidence: dict) -> dict | None:
@@ -182,6 +275,7 @@ def replay_journal(rows: list[dict], *, session_id: str) -> list[dict]:
     """Verify every revision from envelope-sidecar evidence, including old clip results."""
     records, current = {}, None
     for row in rows:
+        row = parse_journal_row(row)
         evidence = row["evidence"]
         if evidence["session_id"] != session_id:
             raise ValueError("observation journal session mismatch")
