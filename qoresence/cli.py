@@ -423,7 +423,9 @@ class QoresenceApp:
         self.stem = None
         self.agent_glass = None
         self.observations = None
-        if os.getenv("QORESENCE_OBSERVATIONS") == "1":
+        from qoresence.observation.lifecycle import observations_enabled
+
+        if observations_enabled():
             from qoresence.observation.runtime import start_observations
 
             def _preserve_observation(record):
@@ -1377,6 +1379,8 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             _look_on(True)
         except Exception:
             pass
+    if getattr(args, "observations", False):
+        os.environ["QORESENCE_OBSERVATIONS"] = "1"
     if getattr(args, "deck_lease_lamp", False) or getattr(config, "deck_lease_lamp", False):
         config.deck_lease_lamp = True
         try:
@@ -1612,6 +1616,12 @@ def main():
         action="store_true",
         help="License the next look from ticket / crop / Same-Seq graphs. "
         "Default OFF. Also QORESENCE_LOOK_GRAPHS=1. --play does not enable this.",
+    )
+    parser.add_argument(
+        "--observations",
+        action="store_true",
+        help="Gameplay observation journal + /api/observations glass. "
+        "Default OFF. Also QORESENCE_OBSERVATIONS=1. --play does not enable this.",
     )
     parser.add_argument(
         "--deck-lease-lamp",
