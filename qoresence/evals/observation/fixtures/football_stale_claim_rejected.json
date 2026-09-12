@@ -1,0 +1,189 @@
+{
+  "schema": "qoresence-observation-eval-0",
+  "session_id": "session",
+  "journal": [
+    {
+      "schema_version": "observation-journal-1",
+      "policy_version": "football-observation-1",
+      "evidence": {
+        "kind": "visual",
+        "session_id": "session",
+        "evidence_id": "1",
+        "tick": {
+          "clock_ns": 1000000000,
+          "frame_seq": 1,
+          "ticket_id": null,
+          "ticket_kind": null,
+          "hid_edge": null,
+          "score_digits": null,
+          "evidence_id": "1"
+        },
+        "phase": "running",
+        "game_state": "gameplay"
+      },
+      "record": {
+        "envelope_schema": "qoresence.observation-envelope.v0",
+        "policy_version": "football-observation-1",
+        "observation_id": "1",
+        "session_id": "session",
+        "revision": 1,
+        "kind": "candidate_football_play",
+        "state": "candidate",
+        "start_ns": 1000000000,
+        "end_ns": null,
+        "last_clock_ns": 1000000000,
+        "input_availability": "not_on_this_host",
+        "claims": [],
+        "outcome": null,
+        "uncertainty": [
+          "inferred_visual_boundary",
+          "input_unavailable"
+        ],
+        "uncertainty_channels": {
+          "capture_freshness": {},
+          "ocr_visual_read": {},
+          "input_availability": {
+            "status": "not_on_this_host"
+          },
+          "clock_alignment": {},
+          "moment_boundary": {
+            "status": "candidate_inferred"
+          },
+          "outcome_confirmation": {
+            "status": "unassigned"
+          }
+        },
+        "evidence_ids": [
+          "1"
+        ],
+        "clip": {
+          "status": "not_requested"
+        }
+      }
+    },
+    {
+      "schema_version": "observation-journal-1",
+      "policy_version": "football-observation-1",
+      "evidence": {
+        "kind": "visual",
+        "session_id": "session",
+        "evidence_id": "2",
+        "tick": {
+          "clock_ns": 2000000000,
+          "frame_seq": 2,
+          "ticket_id": null,
+          "ticket_kind": null,
+          "hid_edge": null,
+          "score_digits": null,
+          "evidence_id": "2"
+        },
+        "phase": "huddle_offense",
+        "game_state": "gameplay"
+      },
+      "record": {
+        "envelope_schema": "qoresence.observation-envelope.v0",
+        "policy_version": "football-observation-1",
+        "observation_id": "1",
+        "session_id": "session",
+        "revision": 2,
+        "kind": "candidate_football_play",
+        "state": "partial",
+        "start_ns": 1000000000,
+        "end_ns": 2000000000,
+        "last_clock_ns": 2000000000,
+        "input_availability": "not_on_this_host",
+        "claims": [],
+        "outcome": null,
+        "uncertainty": [
+          "inferred_visual_boundary",
+          "input_unavailable"
+        ],
+        "uncertainty_channels": {
+          "capture_freshness": {},
+          "ocr_visual_read": {},
+          "input_availability": {
+            "status": "not_on_this_host"
+          },
+          "clock_alignment": {},
+          "moment_boundary": {
+            "status": "closed_inferred"
+          },
+          "outcome_confirmation": {
+            "status": "qualification_withheld"
+          }
+        },
+        "evidence_ids": [
+          "1",
+          "2"
+        ],
+        "clip": {
+          "status": "not_requested"
+        }
+      }
+    },
+    {
+      "schema_version": "observation-journal-1",
+      "policy_version": "football-observation-1",
+      "evidence": {
+        "kind": "visual",
+        "session_id": "session",
+        "evidence_id": "5",
+        "tick": {
+          "clock_ns": 5000000000,
+          "frame_seq": 5,
+          "ticket_id": null,
+          "ticket_kind": null,
+          "hid_edge": null,
+          "score_digits": null,
+          "evidence_id": "5"
+        },
+        "phase": "running",
+        "game_state": "gameplay"
+      },
+      "record": {
+        "envelope_schema": "qoresence.observation-envelope.v0",
+        "policy_version": "football-observation-1",
+        "observation_id": "5",
+        "session_id": "session",
+        "revision": 1,
+        "kind": "candidate_football_play",
+        "state": "candidate",
+        "start_ns": 5000000000,
+        "end_ns": null,
+        "last_clock_ns": 5000000000,
+        "input_availability": "not_on_this_host",
+        "claims": [],
+        "outcome": null,
+        "uncertainty": [
+          "inferred_visual_boundary",
+          "input_unavailable"
+        ],
+        "uncertainty_channels": {
+          "capture_freshness": {},
+          "ocr_visual_read": {},
+          "input_availability": {
+            "status": "not_on_this_host"
+          },
+          "clock_alignment": {},
+          "moment_boundary": {
+            "status": "candidate_inferred"
+          },
+          "outcome_confirmation": {
+            "status": "unassigned"
+          }
+        },
+        "evidence_ids": [
+          "5"
+        ],
+        "clip": {
+          "status": "not_requested"
+        }
+      }
+    }
+  ],
+  "labels": {
+    "allow_confirmed": false,
+    "expected_final_state": "tracking",
+    "outcome_expected": null
+  }
+}
