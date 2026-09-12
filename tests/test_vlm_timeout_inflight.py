@@ -13,8 +13,10 @@ from qoresence.vision.scoreboard_vlm import (
     _HTTP_TIMEOUT_S,
     _INFLIGHT_WATCHDOG_S,
     _MENU_INTERVAL_S,
+    _QUICKSILVER_SLOT_WAIT_S,
     _TIMEOUT_BACKOFF_MAX_S,
 )
+from qoresence.agents.quicksilver_slot import acquire_quicksilver
 from tests.scorebug_fixtures import licensed_scorebug_frame
 
 
@@ -237,6 +239,35 @@ def test_stats_exposes_timeout_inflight_skip_counters():
     assert stats["inflight_watchdog_s"] == _HTTP_TIMEOUT_S + 2.0
 
 
+def test_scoreboard_vlm_slot_busy_clears_inflight_without_long_wait(monkeypatch):
+    """Confirm path must not sit inflight for 14s while waiting on Quicksilver."""
+    import threading
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    gate = threading.Event()
+
+    def holder() -> None:
+        with acquire_quicksilver(2.0) as ok:
+            assert ok is True
+            gate.wait(2.0)
+
+    t = threading.Thread(target=holder, daemon=True)
+    t.start()
+    time.sleep(0.05)
+    crop = np.zeros((96, 200, 3), dtype=np.uint8)
+    crop[:, :60] = 255
+    crop[:, 140:] = 255
+    t0 = time.monotonic()
+    assert ref._call_vlm(crop) is None
+    elapsed = time.monotonic() - t0
+    assert elapsed < 0.25, "slot busy must skip quickly, not block on 14s acquire"
+    assert _QUICKSILVER_SLOT_WAIT_S == 0.05
+    gate.set()
+    t.join(1.0)
+
+
 def test_empty_http_200_clears_inflight_and_allows_next_schedule(monkeypatch):
     """HTTP 200 with empty content must not stick inflight or block the next read."""
     from unittest.mock import MagicMock
@@ -354,6 +385,115 @@ def test_empty_http_200_does_not_mint_zero_zero(monkeypatch):
     last = ref.get_last()
     assert last is not None
     assert (last.get("home_score"), last.get("away_score")) == (10, 7)
+
+
+def test_inflight_heartbeat_keeps_ticket_fresh_during_slow_post(monkeypatch):
+    """Licensed ticket must not go ticket_stale mid-POST while live clock advances."""
+    import threading
+    from contextlib import contextmanager
+    from unittest.mock import MagicMock
+
+    from qoresence.sync.digit_integrity import CONFIRM_DIGIT_MAX_AGE_NS, digit_void_reason
+    from qoresence.vision import scoreboard_vlm
+    from qoresence.vision.confirm_ticket import (
+        get_ticket_book,
+        licensed_last_confirm,
+        mint_confirm_ticket,
+    )
+
+    book = get_ticket_book()
+    book.clear()
+    ticket = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=1_000_000_000,
+        home_score=13,
+        away_score=31,
+        crop_hash="bug",
+        frame_seq=10,
+        book=book,
+    )
+    book.put(ticket, home_team="NO", away_team="CIN")
+    live_clock = {"ns": 1_000_000_000}
+
+    monkeypatch.setattr(
+        "qoresence.monitor.frame_hub.get_latest_stamp",
+        lambda: {"clock_ns": live_clock["ns"], "seq": 42},
+    )
+    monkeypatch.setattr(scoreboard_vlm, "_CONFIRM_HEARTBEAT_INTERVAL_S", 0.05)
+
+    post_started = threading.Event()
+
+    def slow_post(*_a, **_k):
+        post_started.set()
+        time.sleep(0.35)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "choices": [{"message": {"content": ""}, "finish_reason": "stop"}],
+        }
+        return resp
+
+    @contextmanager
+    def always_acquire(_wait_s: float):
+        yield True
+
+    monkeypatch.setattr("qoresence.agents.quicksilver_slot.acquire_quicksilver", always_acquire)
+    monkeypatch.setattr("requests.post", slow_post)
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    crop = np.zeros((96, 200, 3), dtype=np.uint8)
+    crop[:, :60] = 255
+    crop[:, 140:] = 255
+
+    def run_with_heartbeat() -> None:
+        with scoreboard_vlm._confirm_clock_heartbeat_while_inflight():
+            ref._call_vlm(crop)
+
+    worker = threading.Thread(target=run_with_heartbeat, name="slow-vlm-post", daemon=True)
+    worker.start()
+    assert post_started.wait(timeout=2.0), "VLM POST should start"
+    live_clock["ns"] += int(CONFIRM_DIGIT_MAX_AGE_NS * 1.5)
+    time.sleep(0.25)
+
+    last = licensed_last_confirm(book)
+    assert last is not None
+    assert last.ticket_id == ticket.ticket_id
+    assert (last.home_score, last.away_score) == (13, 31)
+    reason = digit_void_reason(
+        confirm_ticket_id=last.ticket_id,
+        score_vlm_locked=True,
+        ticket_crop_hash=last.crop_hash,
+        live_crop_hash=last.crop_hash,
+        same_seq=True,
+        ticket_clock_ns=last.clock_ns,
+        live_clock_ns=live_clock["ns"],
+    )
+    assert reason == "licensed"
+
+    worker.join(timeout=3.0)
+    book.clear()
+
+
+def test_inflight_heartbeat_skips_without_licensed_ticket(monkeypatch):
+    """No licensed ticket → heartbeat is a no-op (no mint, no crash)."""
+    from qoresence.vision import scoreboard_vlm
+    from qoresence.vision.confirm_ticket import get_ticket_book
+
+    book = get_ticket_book()
+    book.clear()
+    ticks: list[int] = []
+    monkeypatch.setattr(
+        scoreboard_vlm,
+        "_refresh_confirm_clock_from_framehub",
+        lambda: ticks.append(1),
+    )
+
+    with scoreboard_vlm._confirm_clock_heartbeat_while_inflight():
+        time.sleep(0.05)
+
+    assert ticks == []
 
 
 def test_health_payload_shape_matches_deck_scoreboard_vlm_stats():
