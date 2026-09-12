@@ -22,7 +22,7 @@ from qoresence.vision.confirm_ticket import license_score_text
 
 log = logging.getLogger(__name__)
 
-_POLL_S = 1.0
+_POLL_S = 6.0
 _MAX_NOTE = 280
 
 
