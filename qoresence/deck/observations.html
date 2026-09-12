@@ -1,18 +1,57 @@
 <!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Qoresence · Observations</title>
 <style>
-body{margin:24px;background:#101416;color:#ecf2ed;font:16px system-ui;max-width:950px}
-h1{font-size:24px}article{background:#20282a;padding:16px;margin:12px 0;border-left:3px solid #93e6b5}
-small,p{color:#b8c7c1}a,button.claim-link{color:#93e6b5;background:none;border:none;padding:0;font:inherit;cursor:pointer;text-align:left}
-button.claim-link:hover{text-decoration:underline}
-details{margin-top:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
-.ledger{margin:8px 0;padding:8px;border:1px solid #2d3833;border-radius:4px}
-.ledger strong{display:block;margin-bottom:4px}
-.evidence-hit{background:#2a3d32;outline:1px solid #93e6b5}
-body.overlay{background:transparent;margin:0;max-width:620px}.overlay h1,.overlay details{display:none}
+@font-face{font-family:'Instrument Sans';font-weight:400;font-style:normal;font-display:swap;src:url('/fonts/instrument-sans-400.woff2') format('woff2')}
+@font-face{font-family:'Instrument Sans';font-weight:500;font-style:normal;font-display:swap;src:url('/fonts/instrument-sans-500.woff2') format('woff2')}
+@font-face{font-family:'Instrument Sans';font-weight:600;font-style:normal;font-display:swap;src:url('/fonts/instrument-sans-600.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:500;font-style:normal;font-display:swap;src:url('/fonts/ibm-plex-mono-500.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:600;font-style:normal;font-display:swap;src:url('/fonts/ibm-plex-mono-600.woff2') format('woff2')}
+:root{--ink:#05060A;--paper:#E8EAF2;--muted:#8B90A0;--dim:#5B6070;--aperture:#9BE7FF;--brass:#D7B36A;--veto:#E07A7A;--live:#9BE7FF}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--ink);color:var(--paper);font:400 15px/1.45 'Instrument Sans',system-ui,sans-serif}
+a,button.claim-link{color:var(--aperture);text-decoration:none;background:none;border:none;padding:0;font:inherit;cursor:pointer;text-align:left}
+a:hover,button.claim-link:hover{text-decoration:underline}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;border-bottom:1px solid rgba(155,231,255,.12)}
+nav{display:flex;flex-wrap:wrap;gap:8px}
+nav a{font:600 10px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border:1px solid rgba(139,144,160,.24);border-radius:6px;padding:8px 11px;background:rgba(5,6,10,.74)}
+nav a.on,nav a:hover{color:var(--aperture);border-color:rgba(155,231,255,.34);text-decoration:none}
+h1{font:600 13px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--aperture)}
+#health{margin:16px 20px 0;font:500 11px/1.4 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+#health[data-on="1"]{color:var(--aperture)}
+#health[data-on="0"]{color:var(--veto)}
+main{padding:12px 20px 32px;display:flex;flex-direction:column;gap:12px;max-width:56rem}
+article{background:rgba(5,6,10,.74);border:1px solid rgba(155,231,255,.22);border-radius:12px;padding:16px 18px;box-shadow:0 14px 38px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.04)}
+article strong{display:block;font:600 12px/1.3 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--aperture);margin-bottom:8px}
+article p{color:var(--muted);font-size:14px;margin:6px 0}
+article .channels{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+article .channels small{font:500 10px/1.4 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.04em;color:var(--dim);text-transform:uppercase}
+.ledger{margin:8px 0;padding:10px;border:1px solid rgba(155,231,255,.18);border-radius:8px}
+.ledger strong{margin-bottom:4px}
+.evidence-hit{outline:1px solid var(--aperture);background:rgba(155,231,255,.08)}
+details{margin-top:12px}
+summary{cursor:pointer;font:600 10px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--brass)}
+pre{margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere;font:500 11px/1.4 'IBM Plex Mono',ui-monospace,monospace;color:var(--paper);background:rgba(0,0,0,.35);border-radius:8px;padding:10px}
+body.overlay{background:transparent;margin:0}
+.overlay header,.overlay h1,.overlay details{display:none}
+.overlay main{padding:8px;max-width:620px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.001ms!important}}
 </style>
-<h1>Gameplay observations</h1><p id="health" role="status">Connecting…</p><main id="records"></main>
+</head>
+<body>
+<header>
+  <h1>Observations</h1>
+  <nav>
+    <a href="/deck.html">Theater</a>
+    <a class="on" href="/api/observations">Observations</a>
+    <a href="/overlay.html">Lens</a>
+    <a href="/session.html">Session</a>
+  </nav>
+</header>
+<p id="health" role="status">Connecting…</p>
+<main id="records"></main>
 <script>
 const overlay=new URLSearchParams(location.search).get('overlay')==='1';
 document.body.classList.toggle('overlay',overlay);
@@ -23,15 +62,13 @@ function stateLabel(state){return ({candidate:'candidate',tracking:'tracking',pr
 function displayRevision(record){const copy=JSON.parse(JSON.stringify(record));if(copy.state==='confirmed')copy.state='scoreboard_qualified';return copy}
 const channelLabels={capture_freshness:'Capture freshness',ocr_visual_read:'OCR / visual read',input_availability:'Input availability',clock_alignment:'Clock / alignment',moment_boundary:'Moment boundary',outcome_confirmation:'Outcome confirmation'};
 function formatChannel(name,body){if(!body||!Object.keys(body).length)return channelLabels[name]+': unknown';const bits=Object.entries(body).map(([k,v])=>k+' '+v);return channelLabels[name]+': '+bits.join(' · ')}
-function renderChannels(record){const wrap=element('div','');const channels=record.uncertainty_channels||{};for(const name of Object.keys(channelLabels))wrap.append(element('small',formatChannel(name,channels[name])));return wrap}
+function renderChannels(record){const wrap=element('div','');wrap.className='channels';const channels=record.uncertainty_channels||{};for(const name of Object.keys(channelLabels))wrap.append(element('small',formatChannel(name,channels[name])));return wrap}
 function jumpToEvidence(card,evidenceId){
  const pre=card.querySelector('pre.evidence-dump');
  if(!pre)return;
  const mark='evidence_id":"'+evidenceId+'"';
  const idx=pre.textContent.indexOf(mark);
  if(idx<0){pre.scrollIntoView({behavior:'smooth',block:'nearest'});return}
- const range=document.createRange();const node=pre.firstChild||pre;
- const start=Math.max(0,idx-40);range.setStart(node,start);range.setEnd(node,Math.min(pre.textContent.length,idx+mark.length+40));
  pre.classList.add('evidence-hit');setTimeout(()=>pre.classList.remove('evidence-hit'),2000);
  pre.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -55,12 +92,19 @@ function renderLedger(card,record){
 }
 async function refresh(){
  try{
-  const response=await fetch('/api/observations',{cache:'no-store'});
+  const response=await fetch('/api/observations',{cache:'no-store',headers:{Accept:'application/json'}});
   if(!response.ok)throw Error(response.status===401?'Authentication required':'Observations unavailable');
   const data=await response.json();
-  health.textContent=!data.enabled?'Observations are off':data.persistence_error?'History could not be saved':data.worker_error?'Observation processing degraded':data.dropped?'Some evidence was dropped':'Historical observations · visual boundaries are estimates';
+  health.dataset.on=data.enabled?'1':'0';
+  health.textContent=!data.enabled?'Observations are off · start with --observations':data.persistence_error?'History could not be saved':data.worker_error?'Observation processing degraded':data.dropped?'Some evidence was dropped':'Live · historical observations · visual boundaries are estimates';
   const records=overlay?data.records.slice(-1):data.records.slice().reverse();
   const next=JSON.stringify(records);if(next===fingerprint)return;fingerprint=next;host.replaceChildren();
+  if(!records.length){
+    const empty=element('article','');
+    empty.append(element('strong',data.enabled?'HOLD · no moment yet':'HOLD · runtime off'));
+    empty.append(element('p','Fail-closed empty. Digits and play outcomes are not invented here.'));
+    host.append(empty);
+  }
   for(const record of records){
    const card=element('article','');card.append(element('strong',stateLabel(record.state)+' · candidate football play'));
    card.append(element('p','Historical record · '+record.observation_id+' · revision '+record.revision));
@@ -68,15 +112,17 @@ async function refresh(){
    if(!record.claims.length)card.append(element('p',record.state==='partial'?'Scoreboard qualification withheld · play outcome unassigned.':'Awaiting evidence · play outcome unassigned.'));
    card.append(renderLedger(card,record));
    card.append(renderChannels(record));
-   if(record.clip.status==='available'){
+   if(record.clip&&record.clip.status==='available'){
     const a=element('a',' Open clip');a.href='/media/clips/'+encodeURIComponent(record.clip.filename);card.append(a);
-   }else card.append(element('p','Clip: '+record.clip.status+(record.clip.reason?' · '+record.clip.reason:'')));
+   }else if(record.clip) card.append(element('p','Clip: '+record.clip.status+(record.clip.reason?' · '+record.clip.reason:'')));
    const details=element('details','');details.append(element('summary','Evidence and revisions'));
    const pre=element('pre',JSON.stringify(data.revisions.filter(r=>r.observation_id===record.observation_id).map(displayRevision),null,2));
    pre.className='evidence-dump';details.append(pre);card.append(details);host.append(card);
   }
- }catch(error){health.textContent=error.message;host.replaceChildren();fingerprint=''}
+ }catch(error){health.textContent=error.message;health.dataset.on='0';host.replaceChildren();fingerprint=''}
  finally{setTimeout(refresh,1000)}
 }
 refresh();
-</script></html>
+</script>
+</body>
+</html>
