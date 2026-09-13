@@ -87,9 +87,73 @@ class HdmiClipBuffer:
         self._live_event = threading.Event()
         self._worker: threading.Thread | None = None
         self._live_worker: threading.Thread | None = None
+        self._armed = False
+        self._armed_clock_ns = 0
+        self._armed_reason = ""
 
     def enable(self, on: bool = True) -> None:
         self._enabled = bool(on)
+
+    def note_arm(self, *, clock_ns: int = 0, reason: str = "") -> None:
+        """Latch an armed window. Does not encode. Off the grab loop."""
+        with self._lock:
+            self._armed = True
+            self._armed_clock_ns = int(clock_ns or 0)
+            self._armed_reason = str(reason or "")
+
+    def clear_arm(self) -> None:
+        with self._lock:
+            self._armed = False
+            self._armed_clock_ns = 0
+            self._armed_reason = ""
+
+    def flush_armed(self) -> dict[str, Any]:
+        """Stop-flush: write an already-armed ring, or an honest no-file receipt.
+
+        Never invents a clip_id without a file. Fail-open. Do not call from JPEG pump.
+        """
+        try:
+            with self._lock:
+                armed = bool(self._armed)
+                n = len(self._frames)
+            if not armed:
+                return {
+                    "armed": False,
+                    "written": False,
+                    "clip_id": None,
+                    "reason": "not_armed",
+                }
+            if n < 2:
+                return {
+                    "armed": True,
+                    "written": False,
+                    "clip_id": None,
+                    "reason": "armed_no_file",
+                }
+            result = self.export()
+            path = Path(result.path) if result is not None else None
+            if path is None or not path.is_file():
+                return {
+                    "armed": True,
+                    "written": False,
+                    "clip_id": None,
+                    "reason": "armed_no_file",
+                }
+            self.clear_arm()
+            return {
+                "armed": True,
+                "written": True,
+                "clip_id": path.stem,
+                "path": str(path),
+                "reason": "flushed",
+            }
+        except Exception:
+            return {
+                "armed": True,
+                "written": False,
+                "clip_id": None,
+                "reason": "armed_no_file",
+            }
 
     def enqueue(self, frame: np.ndarray | None) -> None:
         """Copy latest BGR and encode on a worker. Capture loop must not JPEG.
@@ -562,6 +626,19 @@ def export_clip(
     seconds: float | None = None, path: str | Path | None = None
 ) -> ClipExportResult | None:
     return get_clip_buffer().export(path=path, seconds=seconds)
+
+
+def flush_armed_clips() -> dict[str, Any]:
+    """Fail-open stop-flush of an already-armed ring. Never a ghost clip_id."""
+    try:
+        return get_clip_buffer().flush_armed()
+    except Exception:
+        return {
+            "armed": False,
+            "written": False,
+            "clip_id": None,
+            "reason": "armed_no_file",
+        }
 
 
 def _write_buttons_sidecar(mp4_path: Path, duration_s: float) -> Path | None:

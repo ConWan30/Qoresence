@@ -479,6 +479,15 @@ class ClutchBotAgent:
                         operator_post=bool(pl.get("operator_post") or pl.get("operator_clip")),
                     ):
                         continue
+                    try:
+                        from qoresence.vision.clip_buffer import get_clip_buffer
+
+                        get_clip_buffer().note_arm(
+                            clock_ns=int(getattr(event, "clock_ns", 0) or 0),
+                            reason=str(moment.reason or "clip"),
+                        )
+                    except Exception:
+                        pass
                 except Exception:
                     continue
 
@@ -546,6 +555,14 @@ class ClutchBotAgent:
                 "path": path_label,
             }
             results = self._executor.execute(moment, context)
+
+            if moment.action == "clip" and any(r.success for r in results):
+                try:
+                    from qoresence.vision.clip_buffer import get_clip_buffer
+
+                    get_clip_buffer().clear_arm()
+                except Exception:
+                    pass
 
             if moment.action == "chat" and any(r.success for r in results):
                 self._record_chat_sent()
@@ -1264,7 +1281,16 @@ class _LocalHdmiClipBackend:
             return True  # non-fatal
 
     def stop(self) -> None:
-        return None
+        try:
+            from qoresence.vision.clip_buffer import flush_armed_clips
+
+            rec = flush_armed_clips()
+            if rec.get("written"):
+                log.info("stop-flush wrote %s", rec.get("clip_id"))
+            elif rec.get("armed"):
+                log.info("stop-flush armed, no file")
+        except Exception:
+            return None
 
     def execute(self, action: str, payload: dict[str, Any]) -> bool:
         if action != "clip":
