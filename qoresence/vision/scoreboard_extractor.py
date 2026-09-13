@@ -978,20 +978,24 @@ class FootballScoreboardExtractor:
                                     else:
                                         # scale_tick HOLD keeps identity but must
                                         # refresh clock/crop or SEQGATE goes ticket_stale.
-                                        from dataclasses import replace as _replace
+                                        # Base on minted ticket so quarter/down advance.
+                                        from qoresence.vision.confirm_ticket import (
+                                            reuse_hold_refresh_ticket,
+                                        )
 
-                                        ticket = _replace(
-                                            last,
+                                        ticket = reuse_hold_refresh_ticket(
+                                            ticket,
                                             clock_ns=int(
-                                                stamp.get("clock_ns") or last.clock_ns or 0
+                                                stamp.get("clock_ns") or ticket.clock_ns or 0
                                             ),
                                             frame_seq=(
                                                 _ti(stamp.get("seq"))
                                                 if stamp.get("seq") is not None
-                                                else last.frame_seq
+                                                else ticket.frame_seq
                                             ),
                                             crop_hash=str(
-                                                getattr(ctx, "frame_hash", "") or last.crop_hash
+                                                getattr(ctx, "frame_hash", "")
+                                                or ticket.crop_hash
                                             ),
                                         )
                         except Exception:

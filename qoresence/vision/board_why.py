@@ -143,7 +143,9 @@ def normalize_vlm_paused_flag(last: dict[str, Any] | None) -> dict[str, Any] | N
     prompt = str(vc.get("prompt") or "").strip().lower()
     if prompt in _PREPLAY_VC_PROMPTS or "preplay" in prompt or prompt == "subs":
         return {**last, "paused": False}
-    if vlm_has_scorebug_wordmarks(last) or vlm_looks_like_live_ingame_hud(last):
+    # Wordmarks only — down+distance without teams is still honest paused=true
+    # (e.g. SELECT 20-0 plate); preplay clears via visible_control prompt above.
+    if vlm_has_scorebug_wordmarks(last):
         return {**last, "paused": False}
     return last
 
