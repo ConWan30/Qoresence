@@ -288,6 +288,25 @@ def mint_confirm_ticket(
     return minted
 
 
+def reuse_hold_refresh_ticket(
+    minted: ConfirmTicket,
+    *,
+    clock_ns: int,
+    frame_seq: int | None = None,
+    crop_hash: str = "",
+) -> ConfirmTicket:
+    """scale_tick HOLD: same ticket_id, minted quarter/down, fresh clock/crop."""
+    seq = minted.frame_seq
+    if frame_seq is not None:
+        seq = frame_seq
+    return replace(
+        minted,
+        clock_ns=int(clock_ns or minted.clock_ns or 0),
+        frame_seq=seq,
+        crop_hash=str(crop_hash or minted.crop_hash),
+    )
+
+
 def refresh_licensed_ticket_clock(
     *,
     clock_ns: int,
