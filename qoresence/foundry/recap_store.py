@@ -159,21 +159,23 @@ def persist_recap_at_stop(
             pass
         sid = str(session_id or "").strip()
         if not sid:
-            return {"recap": {}, "path": None, "spawned": False}
+            log.info("recap_stop miss reason=no_session")
+            return {"recap": {}, "path": None, "spawned": False, "reason": "no_session"}
         src = Path(jsonl_path) if jsonl_path is not None else DEFAULT_JSONL
+        if not src.is_file():
+            log.info("recap_stop miss reason=no_jsonl")
+            return {"recap": {}, "path": None, "spawned": False, "reason": "no_jsonl"}
         recap = recap_from_jsonl(src, sid, tail_bytes=STOP_TAIL_BYTES)
         out = Path(dest) if dest is not None else recap_path_for(sid)
         path = write_session_recap(recap, out, enabled=True)
-        log.info(
-            "Recap at stop: %s events=%s confirmed=%s",
-            path,
-            recap.get("event_count"),
-            recap.get("confirmed_event_count"),
-        )
-        return {"recap": recap, "path": str(path) if path else None, "spawned": False}
+        if path is None:
+            log.info("recap_stop miss reason=write_failed")
+            return {"recap": recap, "path": None, "spawned": False, "reason": "write_failed"}
+        log.info("recap_stop path=%s events=%s", path, recap.get("event_count"))
+        return {"recap": recap, "path": str(path), "spawned": False}
     except Exception as exc:
-        log.debug("Recap at stop fail-open: %s", exc)
-        return {"recap": {}, "path": None, "spawned": False}
+        log.info("recap_stop miss reason=%s", type(exc).__name__)
+        return {"recap": {}, "path": None, "spawned": False, "reason": type(exc).__name__}
 
 
 def install_recap_stop_hooks(session_id: str) -> None:

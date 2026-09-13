@@ -978,12 +978,6 @@ class QoresenceApp:
 
     def stop(self) -> None:
         """Stop all lobes gracefully."""
-        if not self._running:
-            return
-
-        self._running = False
-        log.info("Shutting down...")
-
         try:
             from qoresence.foundry.recap_store import (
                 persist_recap_at_stop,
@@ -994,6 +988,12 @@ class QoresenceApp:
             stop_recap_persist_loop()
         except Exception:
             pass
+
+        if not self._running:
+            return
+
+        self._running = False
+        log.info("Shutting down...")
 
         # Stop trio-retina validator
         if self.trio_config and self.trio_config.enabled:

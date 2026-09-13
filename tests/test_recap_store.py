@@ -122,3 +122,37 @@ def test_stop_once_missing_jsonl_does_not_raise(tmp_path: Path, monkeypatch):
     )
     assert "path" in out
     assert out.get("spawned") is False
+    assert out.get("reason") == "no_jsonl"
+    assert not dest.exists()
+
+
+def test_stop_once_empty_session_is_miss(caplog):
+    import logging
+
+    caplog.set_level(logging.INFO)
+    out = persist_recap_at_stop(session_id="")
+    assert out["path"] is None
+    assert out.get("reason") == "no_session"
+    assert any("recap_stop miss reason=no_session" in r.message for r in caplog.records)
+
+
+def test_stop_persists_before_running_guard():
+    import inspect
+
+    from qoresence.cli import QoresenceApp
+
+    src = inspect.getsource(QoresenceApp.stop)
+    persist_at = src.find("persist_recap_at_stop")
+    guard_at = src.find("if not self._running")
+    assert persist_at != -1
+    assert guard_at != -1
+    assert persist_at < guard_at
+
+
+def test_default_audits_and_jsonl_are_repo_absolute():
+    from qoresence.foundry import recap_store as rs
+
+    assert rs.DEFAULT_AUDITS.is_absolute()
+    assert rs.DEFAULT_JSONL.is_absolute()
+    assert rs.DEFAULT_AUDITS.name == "audits"
+    assert rs.DEFAULT_JSONL.name == "session.jsonl"
