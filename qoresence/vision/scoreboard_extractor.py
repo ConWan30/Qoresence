@@ -241,8 +241,13 @@ def confirm_mint_refuse(
     )
     if refuse:
         return refuse
-    if vlm is not None and not _vlm_board_grounded(vlm):
-        return "vlm_ungrounded"
+    gst = str(game_state or "").lower()
+    if vlm is not None and (vlm.get("paused") or gst in _MENU_STATES):
+        from qoresence.vision.board_why import vlm_last_grounded
+
+        # Pause/SELECT junk (12-15 + clock/quarter, no wordmarks) must not remint.
+        if not vlm_last_grounded(vlm):
+            return "vlm_ungrounded"
     if crop is not None:
         try:
             from qoresence.vision.scorebug_crops import crop_misses_scorebug
@@ -315,10 +320,28 @@ def sanitize_madden_vlm_teams(
 
 
 def _vlm_board_grounded(vlm: dict[str, Any] | None) -> bool:
-    """True when DeepSeek reported this match's scorebug, not a lone invented pair."""
-    from qoresence.vision.board_why import vlm_last_grounded
+    """True when DeepSeek reported this match's scorebug, not a lone invented pair.
 
-    return vlm_last_grounded(vlm)
+    HUD blob reads fail on 640×480 Madden, so a grounded gameplay referee must
+    be allowed to mint without local digits. Bare ``home/away`` (+ optional
+    quarter) is how 3-2 locked on an empty HUD — refuse that.
+    """
+    if not vlm:
+        return False
+    if vlm.get("home_score") is None or vlm.get("away_score") is None:
+        return False
+    left = str(vlm.get("left_team") or "").strip()
+    right = str(vlm.get("right_team") or "").strip()
+    if left and right:
+        return True
+    clock = vlm.get("clock_seconds")
+    if clock is None:
+        return False
+    try:
+        int(clock)
+    except (TypeError, ValueError):
+        return False
+    return vlm.get("quarter") is not None or vlm.get("down") is not None
 
 
 def _normalize_clock(token: str) -> int | None:
