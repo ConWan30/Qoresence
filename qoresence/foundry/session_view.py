@@ -30,6 +30,42 @@ ALLOWED_FIXTURES = frozenset(
 
 _CLIP_STEM_RE = re.compile(r"^hdmi_clip_[\w\-]+$", re.I)
 _CLIP_UNAVAILABLE = {"available": False}
+_PLATE_QUAL = frozenset({"plate", "unlocked", "not-final", "not_final"})
+
+
+def is_score_drop_plate(prev_home: Any, prev_away: Any, home: Any, away: Any) -> bool:
+    """Football scores only go up. A drop is a postgame/replay plate, not a final."""
+    try:
+        h = int(home) if home is not None else None
+        a = int(away) if away is not None else None
+        ph = int(prev_home) if prev_home is not None else None
+        pa = int(prev_away) if prev_away is not None else None
+    except (TypeError, ValueError):
+        return False
+    if ph is not None and h is not None and h < ph:
+        return True
+    if pa is not None and a is not None and a < pa:
+        return True
+    return False
+
+
+def _raw_sit(raw: dict[str, Any]) -> dict[str, Any] | None:
+    sit = raw.get("situation_summary") if isinstance(raw.get("situation_summary"), dict) else None
+    if sit is None and isinstance(raw.get("situation"), dict):
+        sit = raw.get("situation")
+    return sit
+
+
+def _raw_is_plate(raw: dict[str, Any], sit: dict[str, Any] | None) -> bool:
+    ev = raw.get("evidence") if isinstance(raw.get("evidence"), dict) else {}
+    if ev.get("plate") or ev.get("not_final"):
+        return True
+    q = str(ev.get("qualification") or raw.get("qualification") or "").lower().replace("_", "-")
+    if q in _PLATE_QUAL or q == "plate":
+        return True
+    if isinstance(sit, dict) and (sit.get("plate") or sit.get("not_final")):
+        return True
+    return False
 
 _PRESS_TYPES = frozenset({"press_to_score", "spam_window"})
 _HID_KEYS = frozenset({"button", "name", "button_name", "hid", "btn", "control"})
@@ -65,8 +101,10 @@ def _int_or_none(v: Any) -> int | None:
         return None
 
 
-def _score(sit: dict[str, Any] | None, *, locked: bool) -> dict[str, int] | None:
-    if not locked or not sit:
+def _score(sit: dict[str, Any] | None, *, locked: bool, plate: bool = False) -> dict[str, int] | None:
+    if not sit:
+        return None
+    if not locked and not plate:
         return None
     home = _int_or_none(sit.get("home_score"))
     away = _int_or_none(sit.get("away_score"))
@@ -115,7 +153,9 @@ def _empty_view(*, persisted: bool = False) -> dict[str, Any]:
     }
 
 
-def _qualification(event_type: str, *, locked: bool, bodied: bool) -> str:
+def _qualification(event_type: str, *, locked: bool, bodied: bool, plate: bool = False) -> str:
+    if plate:
+        return "plate"
     if event_type in _PRESS_TYPES and (not bodied or not locked):
         return "suppressed"
     if event_type == "situation_shift" and not locked:
@@ -213,12 +253,11 @@ def normalize_event(
     controller_bodied: bool,
     session_id: str = "",
     clips_root: Path | str | None = None,
+    plate: bool = False,
 ) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raw = {}
-    sit = raw.get("situation_summary") if isinstance(raw.get("situation_summary"), dict) else None
-    if sit is None and isinstance(raw.get("situation"), dict):
-        sit = raw.get("situation")
+    sit = _raw_sit(raw)
     inp = raw.get("input_summary") if isinstance(raw.get("input_summary"), dict) else None
     if inp is None and isinstance(raw.get("input"), dict):
         inp = raw.get("input")
@@ -230,34 +269,45 @@ def normalize_event(
     event_session = str(raw.get("session_id") or session_id or "")
     clip = resolve_event_clip(clips_raw, session_id=event_session or session_id, clips_root=clips_root)
     coach_type = str(ev.get("coach_type") or "") or None
-    return {
+    plate = bool(plate) or _raw_is_plate(raw, sit)
+    event_locked = bool(board_locked) and not plate
+    out = {
         "event_id": str(raw.get("event_id") or ""),
         "event_type": event_type,
         "session_id": event_session,
         "t_start_ns": t0,
         "t_end_ns": t1,
         "timestamp": format_timestamp(t0),
-        "state": "locked" if board_locked else "unlocked",
+        "state": "locked" if event_locked else "unlocked",
         "bodied": bool(controller_bodied),
-        "score": _score(sit, locked=board_locked),
-        "yard_line": _yard(sit, locked=board_locked),
+        "score": _score(sit, locked=event_locked, plate=plate),
+        "yard_line": _yard(sit, locked=event_locked),
         "input": _input_view(inp, bodied=controller_bodied),
         "coach_context": {
             "available": bool(coach_type),
             "coach_type": coach_type,
         },
         "clip": clip,
-        "qualification": _qualification(event_type, locked=board_locked, bodied=controller_bodied),
+        "qualification": _qualification(
+            event_type, locked=event_locked, bodied=controller_bodied, plate=plate
+        ),
         "schema_version": str(raw.get("schema_version") or EVENT_SCHEMA),
     }
+    if plate:
+        out["not_final"] = True
+    return out
 
 
 def _confirmed(events: list[dict[str, Any]], *, locked: bool) -> dict[str, Any]:
     if not locked:
         return {"available": False, "score": None, "yard_line": None}
+    if events and str(events[-1].get("qualification") or "") == "plate":
+        return {"available": False, "score": None, "yard_line": None}
     score = None
     yard = None
     for ev in events:
+        if str(ev.get("qualification") or "") != "confirmed":
+            continue
         if ev.get("score") is not None:
             score = ev["score"]
         if ev.get("yard_line") is not None:
@@ -285,16 +335,30 @@ def normalize_pack(
         session_id = str(raw.get("session_id") or "")
         src = raw.get("events")
         rows = [e for e in src if isinstance(e, dict)] if isinstance(src, list) else []
-        events = [
-            normalize_event(
-                e,
-                board_locked=locked,
-                controller_bodied=bodied,
-                session_id=session_id,
-                clips_root=clips_root,
+        events = []
+        prev_pair: tuple[Any, Any] | None = None
+        for e in rows:
+            sit = _raw_sit(e)
+            home = sit.get("home_score") if sit else None
+            away = sit.get("away_score") if sit else None
+            plate = _raw_is_plate(e, sit) or is_score_drop_plate(
+                prev_pair[0] if prev_pair else None,
+                prev_pair[1] if prev_pair else None,
+                home,
+                away,
             )
-            for e in rows
-        ]
+            events.append(
+                normalize_event(
+                    e,
+                    board_locked=locked,
+                    controller_bodied=bodied,
+                    session_id=session_id,
+                    clips_root=clips_root,
+                    plate=plate,
+                )
+            )
+            if home is not None or away is not None:
+                prev_pair = (home, away)
         events.sort(key=lambda e: (int(e["t_start_ns"]), str(e["event_id"])))
         persisted = bool(raw.get("persisted")) or bool(raw.get("path"))
         empty_reason = None

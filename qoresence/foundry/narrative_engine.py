@@ -15,6 +15,7 @@ from typing import Any
 
 from qoresence.core.civif_tick import EVENT_SCHEMA, EventRecord
 from qoresence.foundry.pattern_coach import _presses_from_ticks, spam_windows
+from qoresence.foundry.session_view import is_score_drop_plate
 from qoresence.foundry.timing_coach import samples_from_ticks
 
 log = logging.getLogger(__name__)
@@ -45,23 +46,28 @@ def _eid(session_id: str, n: int) -> str:
     return f"{sid}_evt_{n:04d}"
 
 
-def _sit_summary(sit: dict[str, Any], *, locked: bool) -> dict[str, Any] | None:
-    if not locked or not sit:
+def _sit_summary(sit: dict[str, Any], *, locked: bool, plate: bool = False) -> dict[str, Any] | None:
+    if not sit:
         return None
-    out: dict[str, Any] = {"board_locked": True}
+    if not locked and not plate:
+        return None
+    out: dict[str, Any] = {"board_locked": bool(locked) and not plate}
+    if plate:
+        out["plate"] = True
+        out["not_final"] = True
     if sit.get("home_score") is not None:
         out["home_score"] = sit.get("home_score")
     if sit.get("away_score") is not None:
         out["away_score"] = sit.get("away_score")
     yl = sit.get("yard_line")
-    if yl is not None:
+    if yl is not None and not plate:
         try:
             n = int(yl)
             out["yard_line"] = n
             out["red_zone"] = n <= 20
         except (TypeError, ValueError):
             pass
-    if sit.get("clutch_score") is not None:
+    if sit.get("clutch_score") is not None and not plate:
         out["clutch_score"] = sit.get("clutch_score")
     return out or None
 
@@ -142,7 +148,21 @@ def build_event_records(
             yl = sit.get("yard_line")
             clock = int(t.get("clock_ns") or 0)
             fr = _frame(t)
+            plate = bool(sit.get("plate") or sit.get("not_final")) or is_score_drop_plate(
+                prev[0] if prev else None,
+                prev[1] if prev else None,
+                sit.get("home_score"),
+                sit.get("away_score"),
+            )
             if prev is not None and (key != prev or yl != prev_yl):
+                evidence: dict[str, Any] = {
+                    "clip_ids": [t.get("clip_id")] if t.get("clip_id") else [],
+                    "coach_type": "situation",
+                }
+                if plate:
+                    evidence["plate"] = True
+                    evidence["not_final"] = True
+                    evidence["qualification"] = "plate"
                 events.append(
                     EventRecord(
                         session_id=sid,
@@ -153,8 +173,8 @@ def build_event_records(
                         frame_start=fr,
                         frame_end=fr,
                         input_summary=None,
-                        situation_summary=_sit_summary(sit, locked=True),
-                        evidence={"clip_ids": [t.get("clip_id")] if t.get("clip_id") else [], "coach_type": "situation"},
+                        situation_summary=_sit_summary(sit, locked=not plate, plate=plate),
+                        evidence=evidence,
                     )
                 )
                 n += 1
