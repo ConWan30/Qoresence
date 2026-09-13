@@ -906,6 +906,13 @@ class QoresenceApp:
         if self.clutchbot:
             self.clutchbot.start()
 
+        try:
+            from qoresence.foundry.recap_store import start_recap_persist_loop
+
+            start_recap_persist_loop()
+        except Exception:
+            pass
+
         log.info("Qoresence started: session=%s", self.identity.session_id)
         # Visible no-frame diagnostic (do not crash Deck if video is late/missing)
         if self.config.streamer.enabled:
@@ -1028,6 +1035,13 @@ class QoresenceApp:
 
         if self.streamer:
             self.streamer.stop()
+
+        try:
+            from qoresence.foundry.recap_store import stop_recap_persist_loop
+
+            stop_recap_persist_loop()
+        except Exception:
+            pass
 
         try:
             from qoresence.foundry.qoract_door import persist_live_session_recap
