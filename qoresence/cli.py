@@ -1029,6 +1029,13 @@ class QoresenceApp:
         if self.streamer:
             self.streamer.stop()
 
+        try:
+            from qoresence.foundry.qoract_door import persist_live_session_recap
+
+            persist_live_session_recap(session_id=str(self.identity.session_id or ""))
+        except Exception:
+            pass
+
         if getattr(self, "observations", None) is not None:
             self.observations.stop()
 
