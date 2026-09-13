@@ -7,6 +7,7 @@ from pathlib import Path
 
 from qoresence.foundry.recap_store import (
     PERSIST_ENV,
+    persist_recap_at_stop,
     recap_from_jsonl,
     recap_from_ticks,
     write_session_recap,
@@ -70,3 +71,37 @@ def test_persist_enabled_writes_file_readable_after(tmp_path: Path, monkeypatch)
     assert body["schema"] == "session-recap-1"
     assert body["session"] == "y"
     assert body["event_count"] >= 1
+
+
+def test_stop_once_writes_when_persist_env_unset(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv(PERSIST_ENV, raising=False)
+    monkeypatch.delenv("QORESENCE_QORACT_DOOR", raising=False)
+    sid = "qoresence_stop_once"
+    jsonl = tmp_path / "session.jsonl"
+    rows = [
+        _tick(1_000_000, sid=sid, home=13, away=0),
+        _tick(2_000_000, sid=sid, home=22, away=0),
+    ]
+    jsonl.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    dest = tmp_path / "audits" / f"session-recap-{sid}.json"
+    out = persist_recap_at_stop(session_id=sid, jsonl_path=jsonl, dest=dest)
+    assert dest.is_file()
+    assert out["path"]
+    assert out.get("spawned") is False
+    body = json.loads(dest.read_text(encoding="utf-8"))
+    assert body["schema"] == "session-recap-1"
+    assert body["session"] == sid
+    assert body["event_count"] >= 1
+    assert body["events"][-1]["score"] == {"home": 22, "away": 0}
+
+
+def test_stop_once_missing_jsonl_does_not_raise(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv(PERSIST_ENV, raising=False)
+    dest = tmp_path / "audits" / "session-recap-missing.json"
+    out = persist_recap_at_stop(
+        session_id="gone",
+        jsonl_path=tmp_path / "nope.jsonl",
+        dest=dest,
+    )
+    assert "path" in out
+    assert out.get("spawned") is False

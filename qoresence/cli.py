@@ -1044,9 +1044,9 @@ class QoresenceApp:
             pass
 
         try:
-            from qoresence.foundry.qoract_door import persist_live_session_recap
+            from qoresence.foundry.recap_store import persist_recap_at_stop
 
-            persist_live_session_recap(session_id=str(self.identity.session_id or ""))
+            persist_recap_at_stop(session_id=str(self.identity.session_id or ""))
         except Exception:
             pass
 

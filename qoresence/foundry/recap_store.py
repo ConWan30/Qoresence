@@ -116,6 +116,26 @@ def write_session_recap(
         return None
 
 
+def persist_recap_at_stop(
+    *,
+    session_id: str,
+    jsonl_path: Path | str | None = None,
+    dest: Path | str | None = None,
+) -> dict[str, Any]:
+    """D-PERSIST stop-once: write Recap from jsonl. Env unset still writes. No door."""
+    try:
+        result = rebuild_and_write(
+            session_id=session_id,
+            jsonl_path=jsonl_path,
+            dest=dest,
+            persist_enabled=True,
+        )
+        result["spawned"] = False
+        return result
+    except Exception:
+        return {"recap": {}, "path": None, "spawned": False}
+
+
 def rebuild_and_write(
     *,
     session_id: str,
@@ -139,7 +159,7 @@ def _loop_body(*, interval_s: float, jsonl_path: Path, audits_dir: Path) -> None
             if not sid:
                 continue
             recap = recap_from_jsonl(jsonl_path, sid)
-            write_session_recap(recap, recap_path_for(sid, audits_dir), persist_enabled=True)
+            write_session_recap(recap, recap_path_for(sid, audits_dir), enabled=True)
         except Exception:
             continue
 
