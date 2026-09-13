@@ -48,11 +48,16 @@ def _edges_since(prev_ns: int, now_ns: int) -> list[Any]:
         return []
 
 
+class _Flush:
+    def __init__(self) -> None:
+        self.done = threading.Event()
+
+
 class CerLog:
     def __init__(self, *, maxlen: int = 240, jsonl_path: Path | None = None) -> None:
         self._ring: deque[dict[str, Any]] = deque(maxlen=maxlen)
         self._lock = threading.Lock()
-        self._q: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=128)
+        self._q: queue.Queue[Any] = queue.Queue(maxsize=128)
         self._n = 0
         self._last_clock = 0
         self._jsonl = jsonl_path
@@ -114,12 +119,24 @@ class CerLog:
             rows = list(self._ring)
         return rows[-max(1, min(200, int(n))) :]
 
+    def flush(self, timeout: float = 1.5) -> bool:
+        """Wait until queued jsonl writes are on disk. Fail-open."""
+        token = _Flush()
+        try:
+            self._q.put(token, timeout=0.4)
+        except Exception:
+            return False
+        return bool(token.done.wait(timeout))
+
     def _run(self) -> None:
         path = self._jsonl
         while True:
             rec = self._q.get()
             if rec is None:
                 return
+            if isinstance(rec, _Flush):
+                rec.done.set()
+                continue
             if path is None:
                 continue
             try:

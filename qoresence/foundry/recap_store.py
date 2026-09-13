@@ -5,9 +5,11 @@ Off the grab loop. No QorAct import. Recap stays readable after Deck is down.
 
 from __future__ import annotations
 
+import atexit
 import json
 import logging
 import os
+import sys
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,11 +21,15 @@ from qoresence.foundry.session_view import normalize_pack, recap_from_envelope
 log = logging.getLogger(__name__)
 
 PERSIST_ENV = "QORESENCE_RECAP_PERSIST"
-DEFAULT_JSONL = Path("logs") / "civif" / "session.jsonl"
-DEFAULT_AUDITS = Path("audits")
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_JSONL = _REPO_ROOT / "logs" / "civif" / "session.jsonl"
+DEFAULT_AUDITS = _REPO_ROOT / "audits"
+STOP_TAIL_BYTES = 32_000_000
 
 _loop_stop = threading.Event()
 _loop_thread: threading.Thread | None = None
+_win_handler_ref = None
+_atexit_sid = ""
 
 
 def persist_enabled(environ: dict[str, str] | None = None) -> bool:
@@ -38,7 +44,12 @@ def _iso_z(now: datetime | None = None) -> str:
     return stamp.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def iter_session_ticks(jsonl_path: Path | str, session_id: str):
+def iter_session_ticks(
+    jsonl_path: Path | str,
+    session_id: str,
+    *,
+    tail_bytes: int | None = None,
+):
     """Stream ticks for one session. Skip other lines without full parse when possible."""
     path = Path(jsonl_path)
     sid = str(session_id or "")
@@ -46,6 +57,14 @@ def iter_session_ticks(jsonl_path: Path | str, session_id: str):
         return
     needle = sid.encode("utf-8")
     with path.open("rb") as fh:
+        if tail_bytes is not None and tail_bytes > 0:
+            try:
+                size = path.stat().st_size
+                fh.seek(max(0, size - int(tail_bytes)))
+                if fh.tell() > 0:
+                    fh.readline()
+            except Exception:
+                fh.seek(0)
         for raw in fh:
             if needle not in raw:
                 continue
@@ -85,8 +104,13 @@ def recap_from_ticks(session_id: str, ticks: list[dict[str, Any]]) -> dict[str, 
     )
 
 
-def recap_from_jsonl(jsonl_path: Path | str, session_id: str) -> dict[str, Any]:
-    ticks = list(iter_session_ticks(jsonl_path, session_id))
+def recap_from_jsonl(
+    jsonl_path: Path | str,
+    session_id: str,
+    *,
+    tail_bytes: int | None = None,
+) -> dict[str, Any]:
+    ticks = list(iter_session_ticks(jsonl_path, session_id, tail_bytes=tail_bytes))
     return recap_from_ticks(session_id, ticks)
 
 
@@ -122,18 +146,63 @@ def persist_recap_at_stop(
     jsonl_path: Path | str | None = None,
     dest: Path | str | None = None,
 ) -> dict[str, Any]:
-    """D-PERSIST stop-once: write Recap from jsonl. Env unset still writes. No door."""
+    """D-PERSIST stop-once: write Recap from jsonl tail. Env unset still writes. No door.
+
+    Tail-scan so Windows CTRL_CLOSE (~5s) still finishes. Full salvage uses rebuild_and_write.
+    """
     try:
-        result = rebuild_and_write(
-            session_id=session_id,
-            jsonl_path=jsonl_path,
-            dest=dest,
-            persist_enabled=True,
+        try:
+            from qoresence.foundry.cer_log import get_cer_log
+
+            get_cer_log().flush(timeout=1.5)
+        except Exception:
+            pass
+        sid = str(session_id or "").strip()
+        if not sid:
+            return {"recap": {}, "path": None, "spawned": False}
+        src = Path(jsonl_path) if jsonl_path is not None else DEFAULT_JSONL
+        recap = recap_from_jsonl(src, sid, tail_bytes=STOP_TAIL_BYTES)
+        out = Path(dest) if dest is not None else recap_path_for(sid)
+        path = write_session_recap(recap, out, enabled=True)
+        log.info(
+            "Recap at stop: %s events=%s confirmed=%s",
+            path,
+            recap.get("event_count"),
+            recap.get("confirmed_event_count"),
         )
-        result["spawned"] = False
-        return result
-    except Exception:
+        return {"recap": recap, "path": str(path) if path else None, "spawned": False}
+    except Exception as exc:
+        log.debug("Recap at stop fail-open: %s", exc)
         return {"recap": {}, "path": None, "spawned": False}
+
+
+def install_recap_stop_hooks(session_id: str) -> None:
+    """atexit + Windows console close write Recap before the process is killed."""
+    global _win_handler_ref, _atexit_sid
+    sid = str(session_id or "").strip()
+    if not sid:
+        return
+    _atexit_sid = sid
+
+    def _write() -> None:
+        persist_recap_at_stop(session_id=_atexit_sid or sid)
+
+    atexit.register(_write)
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        Handler = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_uint)
+
+        def _handler(ctrl_type: int) -> int:
+            _write()
+            return 1
+
+        _win_handler_ref = Handler(_handler)
+        ctypes.windll.kernel32.SetConsoleCtrlHandler(_win_handler_ref, 1)
+    except Exception:
+        return
 
 
 def rebuild_and_write(

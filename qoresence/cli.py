@@ -907,9 +907,13 @@ class QoresenceApp:
             self.clutchbot.start()
 
         try:
-            from qoresence.foundry.recap_store import start_recap_persist_loop
+            from qoresence.foundry.recap_store import (
+                install_recap_stop_hooks,
+                start_recap_persist_loop,
+            )
 
             start_recap_persist_loop()
+            install_recap_stop_hooks(str(self.identity.session_id or ""))
         except Exception:
             pass
 
@@ -980,6 +984,17 @@ class QoresenceApp:
         self._running = False
         log.info("Shutting down...")
 
+        try:
+            from qoresence.foundry.recap_store import (
+                persist_recap_at_stop,
+                stop_recap_persist_loop,
+            )
+
+            persist_recap_at_stop(session_id=str(self.identity.session_id or ""))
+            stop_recap_persist_loop()
+        except Exception:
+            pass
+
         # Stop trio-retina validator
         if self.trio_config and self.trio_config.enabled:
             asyncio.create_task(self.bus.stop_trio_validator())
@@ -1035,20 +1050,6 @@ class QoresenceApp:
 
         if self.streamer:
             self.streamer.stop()
-
-        try:
-            from qoresence.foundry.recap_store import stop_recap_persist_loop
-
-            stop_recap_persist_loop()
-        except Exception:
-            pass
-
-        try:
-            from qoresence.foundry.recap_store import persist_recap_at_stop
-
-            persist_recap_at_stop(session_id=str(self.identity.session_id or ""))
-        except Exception:
-            pass
 
         if getattr(self, "observations", None) is not None:
             self.observations.stop()

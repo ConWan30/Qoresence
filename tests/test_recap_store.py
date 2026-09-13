@@ -95,6 +95,23 @@ def test_stop_once_writes_when_persist_env_unset(tmp_path: Path, monkeypatch):
     assert body["events"][-1]["score"] == {"home": 22, "away": 0}
 
 
+def test_stop_once_uses_jsonl_tail(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv(PERSIST_ENV, raising=False)
+    sid = "qoresence_tail"
+    jsonl = tmp_path / "session.jsonl"
+    rows = [_tick(1, sid="old", home=99, away=99)]
+    rows.extend(_tick(10 + i, sid=sid, home=7 + i, away=0) for i in range(3))
+    jsonl.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    dest = tmp_path / "audits" / f"session-recap-{sid}.json"
+    out = persist_recap_at_stop(session_id=sid, jsonl_path=jsonl, dest=dest)
+    assert dest.is_file()
+    assert out["path"]
+    body = json.loads(dest.read_text(encoding="utf-8"))
+    assert body["session"] == sid
+    scores = [e["score"]["home"] for e in body["events"]]
+    assert 99 not in scores
+
+
 def test_stop_once_missing_jsonl_does_not_raise(tmp_path: Path, monkeypatch):
     monkeypatch.delenv(PERSIST_ENV, raising=False)
     dest = tmp_path / "audits" / "session-recap-missing.json"
