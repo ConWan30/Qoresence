@@ -219,6 +219,7 @@ def confirm_mint_refuse(
     game_state: str = "",
     book: Any = None,
     vlm_ref: Any = None,
+    vlm: dict[str, Any] | None = None,
     crop: Any = None,
     crop_hash: str | None = None,
 ) -> str | None:
@@ -240,6 +241,13 @@ def confirm_mint_refuse(
     )
     if refuse:
         return refuse
+    gst = str(game_state or "").lower()
+    if vlm is not None and (vlm.get("paused") or gst in _MENU_STATES):
+        from qoresence.vision.board_why import vlm_last_grounded
+
+        # Pause/SELECT junk (12-15 + clock/quarter, no wordmarks) must not remint.
+        if not vlm_last_grounded(vlm):
+            return "vlm_ungrounded"
     if crop is not None:
         try:
             from qoresence.vision.scorebug_crops import crop_misses_scorebug
@@ -897,6 +905,7 @@ class FootballScoreboardExtractor:
                         away_team=away_team_now,
                         game_state=_game_state_token(ctx),
                         book=book,
+                        vlm=vlm if isinstance(vlm, dict) else None,
                         crop=confirm_crop,
                         crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
                     )

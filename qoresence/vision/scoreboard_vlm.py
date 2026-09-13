@@ -526,6 +526,23 @@ class ScoreboardVlmReferee:
                     with self._lock:
                         self._last_call = time.time() - max(0.8, _GAMEPLAY_INTERVAL_S) + 1.5
                 if parsed:
+                    from qoresence.vision.board_why import vlm_last_grounded
+
+                    if not vlm_last_grounded(parsed):
+                        log.info(
+                            "scoreboard VLM → ungrounded parse refused for remint "
+                            "(scores=%s-%s paused=%s reason=%s)",
+                            parsed.get("home_score"),
+                            parsed.get("away_score"),
+                            parsed.get("paused"),
+                            reason,
+                        )
+                        with self._lock:
+                            self._last_call = (
+                                time.time() - max(0.8, _GAMEPLAY_INTERVAL_S) + 1.5
+                            )
+                        parsed = None
+                if parsed:
                     with self._lock:
                         self._last = parsed
                         self._last_result_ts = time.time()
@@ -629,15 +646,23 @@ class ScoreboardVlmReferee:
 
         if is_madden or is_cfb:
             fallback: np.ndarray | None = None
+            fallback_refuse: str | None = None
             for frac in confirm_scorebug_bands(effective_profile):
                 raw = cls._slice(frame, frac)
                 if raw is None:
                     continue
                 out = cls._prepare_crop(raw)
-                if crop_misses_scorebug(out) is None:
+                miss = crop_misses_scorebug(out)
+                if miss is None:
                     return out
                 if fallback is None:
                     fallback = out
+                    fallback_refuse = miss
+            if fallback is None:
+                return None
+            # Fail-closed: player-CU / pause mid-frame must not ship as confirm crop.
+            if fallback_refuse == "player_cu_crop":
+                return None
             return fallback
 
         scorebug = primary_scorebug_crop(effective_profile)

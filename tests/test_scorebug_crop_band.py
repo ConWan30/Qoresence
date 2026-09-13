@@ -124,16 +124,24 @@ def test_player_cu_crop_must_not_look_like_scorebug():
     crop = ScoreboardVlmReferee._crop(
         _player_cu_frame(), game_state="gameplay", game_profile="madden_27"
     )
-    assert crop is not None
-    assert crop_misses_scorebug(crop) == "player_cu_crop"
-    assert looks_like_scorebug(crop) is False
+    assert crop is None
+    raw = ScoreboardVlmReferee._slice(_player_cu_frame(), MADDEN_PRIMARY_SCOREBUG)
+    assert raw is not None
+    prepared = ScoreboardVlmReferee._prepare_crop(raw)
+    assert crop_misses_scorebug(prepared) == "player_cu_crop"
+    assert looks_like_scorebug(prepared) is False
 
 
 def test_player_cu_must_not_mint_last_confirm():
     """Hallucinated NO/DET on a player CU must fail-closed. No lock."""
-    crop = ScoreboardVlmReferee._crop(
-        _player_cu_frame(), game_state="gameplay", game_profile="madden_27"
+    assert (
+        ScoreboardVlmReferee._crop(
+            _player_cu_frame(), game_state="gameplay", game_profile="madden_27"
+        )
+        is None
     )
+    raw = ScoreboardVlmReferee._slice(_player_cu_frame(), MADDEN_PRIMARY_SCOREBUG)
+    crop = ScoreboardVlmReferee._prepare_crop(raw)
     refuse = crop_misses_scorebug(crop)
     assert refuse == "player_cu_crop"
 
@@ -175,7 +183,7 @@ def test_player_cu_must_not_mint_last_confirm():
             home_team="DET",
             away_team="NO",
             book=book,
-            vlm_ref=_Ref(),
+            crop=crop,
         )
         == "player_cu_crop"
     )
