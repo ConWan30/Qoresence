@@ -58,6 +58,7 @@ _REFUSE_TO_WHY = {
     "no_scorebug_sides": "vlm_ungrounded",
     "empty_crop": "vlm_ungrounded",
     "tiny_crop": "vlm_ungrounded",
+    "vlm_ungrounded": "vlm_ungrounded",
 }
 
 _LOADING_STATES = frozenset({"loading", "cutscene", "intro", "replay"})
@@ -103,6 +104,9 @@ def vlm_last_grounded(last: dict[str, Any] | None) -> bool:
         return False
     left = str(last.get("left_team") or "").strip()
     right = str(last.get("right_team") or "").strip()
+    # Pause / SELECT plates invent 12-15 with clock+quarter but no wordmarks.
+    if last.get("paused") and not (left and right):
+        return False
     if left and right:
         return True
     clock = last.get("clock_seconds")

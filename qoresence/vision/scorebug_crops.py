@@ -104,7 +104,10 @@ def confirm_scorebug_bands(
 ) -> tuple[tuple[float, float, float, float], ...]:
     """Bands the confirm VLM may send. No pause plates. Unknown → CFB scorebug."""
     if is_madden_profile(profile):
-        return scorebug_crops_for_profile(profile)
+        licensed = scorebug_crops_for_profile(profile)
+        # Bottom HUD only — no postgame top plate (y < 0.68).
+        confirm = tuple(b for b in licensed if float(b[2]) >= 0.68)
+        return confirm if confirm else (MADDEN_PRIMARY_SCOREBUG,)
     licensed = scorebug_crops_for_profile(profile)
     # Drop inherited pause plates (y1 < 0.60) from CFB confirm.
     confirm = tuple(b for b in licensed if float(b[2]) >= 0.60)
