@@ -151,6 +151,7 @@ Rules:
 - Madden NFL: the compact lower-center HUD (two team marks + TWO large scores + down/distance + play clock) IS this match's scorebug. It is not a ticker. Read it.
 - A ticker is a ROW OF MANY small scores. Two scores next to two team logos is the match.
 - visible_control: if a DualSense callout is on this crop (Cross/Circle/Square/Triangle/L1/R1/L2/R2 plus an on-screen verb like Preplay/Snap), fill it. Else nulls.
+- paused=true ONLY for true pause/SELECT menu without a live scorebug. Preplay/Subs with down+distance and team wordmarks is gameplay — paused=false.
 - Bind EACH SIDE: the name, jersey/scorebug color, and logo on that side stay with THAT side's score. Never swap a mustang onto a cardinal, or blue onto a red bug.
 - left_color / right_color: dominant jersey or bug color (blue, red, crimson, orange, gold, purple, green, black, white, maroon, navy).
 - left_logo / right_logo: mascot/mark (eagle, horse, star, fleur-de-lis, mustang, cardinal, …) not a URL.
@@ -954,7 +955,9 @@ class ScoreboardVlmReferee:
         if rs is not None and not (0 <= rs <= 99):
             out["right_score"] = None
         ScoreboardVlmReferee._fill_hollow_zero(out)
-        return out
+        from qoresence.vision.board_why import normalize_vlm_paused_flag
+
+        return normalize_vlm_paused_flag(out) or out
 
     @staticmethod
     def _fill_hollow_zero(out: dict[str, Any]) -> None:

@@ -96,17 +96,72 @@ def normalize_vlm_status(value: Any) -> str:
     return "none"
 
 
-def vlm_last_grounded(last: dict[str, Any] | None) -> bool:
-    """True when the last VLM JSON looks like this match's scorebug, not a lone pair."""
+_PREPLAY_VC_PROMPTS = frozenset(
+    {"preplay", "subs", "snap", "flip", "flip play", "audible", "select play"}
+)
+
+
+def vlm_has_scorebug_wordmarks(last: dict[str, Any] | None) -> bool:
+    """True when left/right wordmarks (or licensed NFL tags) are on the parse."""
+    if not last:
+        return False
+    left = str(last.get("left_team") or "").strip()
+    right = str(last.get("right_team") or "").strip()
+    if left and right:
+        return True
+    try:
+        from qoresence.profiles.nfl_roster import licensed_nfl_abbr
+
+        tags: list[str] = []
+        for key in ("left_team", "right_team", "home_team", "away_team"):
+            token = str(last.get(key) or "").strip().upper()
+            if token and licensed_nfl_abbr(token):
+                tags.append(token)
+        return len(set(tags)) >= 2
+    except Exception:
+        return False
+
+
+def vlm_looks_like_live_ingame_hud(last: dict[str, Any] | None) -> bool:
+    """Down+distance+quarter+scores — preplay stick HUD, not SELECT pause plate."""
     if not last:
         return False
     if last.get("home_score") is None or last.get("away_score") is None:
         return False
+    if last.get("quarter") is None or last.get("down") is None:
+        return False
+    if last.get("yards_to_go") is None:
+        return False
+    return True
+
+
+def normalize_vlm_paused_flag(last: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Preplay Subs/Preplay stick HUD is gameplay — not true pause/SELECT."""
+    if not last or not last.get("paused"):
+        return last
+    vc = last.get("visible_control") if isinstance(last.get("visible_control"), dict) else {}
+    prompt = str(vc.get("prompt") or "").strip().lower()
+    if prompt in _PREPLAY_VC_PROMPTS or "preplay" in prompt or prompt == "subs":
+        return {**last, "paused": False}
+    if vlm_has_scorebug_wordmarks(last) or vlm_looks_like_live_ingame_hud(last):
+        return {**last, "paused": False}
+    return last
+
+
+def vlm_last_grounded(last: dict[str, Any] | None) -> bool:
+    """True when the last VLM JSON looks like this match's scorebug, not a lone pair."""
+    if not last:
+        return False
+    last = normalize_vlm_paused_flag(dict(last)) or last
+    if last.get("home_score") is None or last.get("away_score") is None:
+        return False
+    # Pause / SELECT plates invent 12-15 with clock+quarter but no wordmarks.
+    if last.get("paused") and not vlm_has_scorebug_wordmarks(last):
+        return False
+    if vlm_has_scorebug_wordmarks(last):
+        return True
     left = str(last.get("left_team") or "").strip()
     right = str(last.get("right_team") or "").strip()
-    # Pause / SELECT plates invent 12-15 with clock+quarter but no wordmarks.
-    if last.get("paused") and not (left and right):
-        return False
     if left and right:
         return True
     clock = last.get("clock_seconds")

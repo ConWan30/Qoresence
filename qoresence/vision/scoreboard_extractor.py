@@ -242,11 +242,12 @@ def confirm_mint_refuse(
     if refuse:
         return refuse
     gst = str(game_state or "").lower()
-    if vlm is not None and (vlm.get("paused") or gst in _MENU_STATES):
-        from qoresence.vision.board_why import vlm_last_grounded
+    if vlm is not None:
+        from qoresence.vision.board_why import normalize_vlm_paused_flag, vlm_last_grounded
 
-        # Pause/SELECT junk (12-15 + clock/quarter, no wordmarks) must not remint.
-        if not vlm_last_grounded(vlm):
+        vlm = normalize_vlm_paused_flag(dict(vlm)) or vlm
+        if (vlm.get("paused") or gst in _MENU_STATES) and not vlm_last_grounded(vlm):
+            # Pause/SELECT junk (12-15 + clock/quarter, no wordmarks) must not remint.
             return "vlm_ungrounded"
     if crop is not None:
         try:
