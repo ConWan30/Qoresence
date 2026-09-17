@@ -264,6 +264,16 @@ class QoresenceApp:
         except Exception as e:
             log.debug("Jev conductor not started: %s", e)
 
+        # Jev press labeler (same flag) — labels laptop-HID presses after the
+        # deterministic EA sheet goes silent. Never licenses digits.
+        self.press_labeler = None
+        try:
+            from qoresence.observability.press_labeler import make_press_labeler_from_config
+
+            self.press_labeler = make_press_labeler_from_config(getattr(config, "jev", None))
+        except Exception as e:
+            log.debug("Press labeler not started: %s", e)
+
         # Private haptic probe (default OFF; env QORESENCE_HAPTIC_PROBE=1)
         self.haptic_probe = None
         try:

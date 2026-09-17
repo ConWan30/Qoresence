@@ -264,6 +264,10 @@ Deck Integrity Board (operator-only, never Lens) shows Honesty / Presence / HUD 
 
 Gamer product (Theater / Session Now, never Lens): HonestyLine — “Would rather go blank than keep a stale score” + presence `idle/join/dense`. Recap export runs hygiene; HOLD on digit leak / truth dest — never a QorTroller seal.
 
+### Jev press labeler (laptop-HID presses, same `--jev` flag)
+
+Deterministic EA sheets already label `button + mode → verb`. When `mode` is None (ambiguous picture sheet) or a sheet conflict fires, every press goes **unlabeled** — the labeler is the referee for that gap. Three outcomes, fail-closed: `labeled` (verb from the EA sheet, never invented) / `eaten` (press observed, picture did not respond — lag, animation lock, menu; **not** a console-fault claim) / `unlabeled`. Jev fan-out: `mode_pick` Choice over EA candidate modes + `no_match`, `press_efficacy` Noul, `conflict_pick` Choice. Code resolves the picked mode back through the EA sheet; Jev never emits a verb string. Attaches `press_label` to observation wires (`deck/observation_wire.py`).
+
 ---
 
 ## Key URLs
