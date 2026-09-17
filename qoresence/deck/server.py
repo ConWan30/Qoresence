@@ -1160,6 +1160,15 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception:
             body["jev"] = {"enabled": False}
         try:
+            from qoresence.observability.press_labeler import get_press_labeler
+
+            _pl = get_press_labeler()
+            body["press_labeler"] = (
+                _pl.stats() if _pl is not None else {"enabled": False}
+            )
+        except Exception:
+            body["press_labeler"] = {"enabled": False}
+        try:
             from qoresence.a2a.orchestrator import get_a2a_orchestrator
 
             body["a2a"] = get_a2a_orchestrator().stats()
@@ -3040,6 +3049,17 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
                 except Exception:
                     health["jev"] = {"enabled": False}
+                try:
+                    from qoresence.observability.press_labeler import (
+                        get_press_labeler,
+                    )
+
+                    _pl = get_press_labeler()
+                    health["press_labeler"] = (
+                        _pl.stats() if _pl is not None else {"enabled": False}
+                    )
+                except Exception:
+                    health["press_labeler"] = {"enabled": False}
                 try:
                     from qoresence.agents.match_agent import surface_last_note
 

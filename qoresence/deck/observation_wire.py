@@ -235,7 +235,7 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
                 log.debug("Failed to detect sheet conflict: %s", e)
 
         # Build observation wire dict
-        return {
+        wire = {
             "plane": "qoresence-observation",
             "frame_seq": frame_seq,
             "clock_ns": clock_ns,
@@ -247,6 +247,17 @@ def build_observation_wire(situation: dict[str, Any] | None = None) -> dict[str,
             "hid_source": hid_source,
             "conflict": conflict,
         }
+        # Jev press labeler (default OFF) — labeled / unlabeled / eaten.
+        # Never mutates hid_button; label rides as a sibling field.
+        try:
+            from qoresence.observability.press_labeler import label_wire_press
+
+            plabel = label_wire_press(wire, context={"conflict": conflict})
+            if plabel:
+                wire["press_label"] = plabel
+        except Exception:
+            pass
+        return wire
 
     except Exception as e:
         log.debug("Failed to build observation wire: %s", e)
