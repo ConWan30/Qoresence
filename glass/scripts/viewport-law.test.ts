@@ -151,6 +151,15 @@ test("copy leak prevention: observatory-hud must not use situationText", () => {
   );
 });
 
+test("HonestyLine is Theater/Now only — never Lens overlay", () => {
+  const lens = readFileSync(join(GLASS_ROOT, "src/components/theater/lens-overlay.tsx"), "utf-8");
+  const overlay = readFileSync(join(GLASS_ROOT, "src/routes/overlay[.]html.tsx"), "utf-8");
+  assert.ok(!lens.includes("HonestyLine"), "lens-overlay must not mount HonestyLine");
+  assert.ok(!overlay.includes("HonestyLine"), "overlay.html must not mount HonestyLine");
+  const now = readFileSync(join(GLASS_ROOT, "src/components/session/session-now.tsx"), "utf-8");
+  assert.ok(now.includes("HonestyLine"), "session-now mounts HonestyLine for gamers");
+});
+
 test("empty HID copy is DualSense-on-PS5 success, not PAD WAIT", () => {
   const files = [
     "src/components/theater/command-bar.tsx",

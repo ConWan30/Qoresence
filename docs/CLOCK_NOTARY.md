@@ -26,3 +26,4 @@ LIVE Theater cannot light TRUTH. Deck never exposes `/seal` or `/verify`.
 - Unlocked score digits never serialize.
 - Empty DualSense-on-PS5 HID is success.
 - PORT-CERT-lite is advisory, never-ban, `humanity_claim: false` — minted on QorTroller, not Deck.
+- Recap hygiene (`inspect_envelope`) may HOLD a leaky envelope (unlocked digits, truth dest). It never seals. `door.hygiene.seals` is always false.

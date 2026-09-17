@@ -1146,6 +1146,20 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception:
             body["otel"] = {"enabled": False}
         try:
+            from qoresence.observability.noul_observatory import get_noul_observatory
+
+            _nx = get_noul_observatory()
+            body["noul"] = _nx.stats() if _nx is not None else {"enabled": False}
+        except Exception:
+            body["noul"] = {"enabled": False}
+        try:
+            from qoresence.observability.jev_conductor import get_jev_conductor
+
+            _jx = get_jev_conductor()
+            body["jev"] = _jx.stats() if _jx is not None else {"enabled": False}
+        except Exception:
+            body["jev"] = {"enabled": False}
+        try:
             from qoresence.a2a.orchestrator import get_a2a_orchestrator
 
             body["a2a"] = get_a2a_orchestrator().stats()
@@ -3006,6 +3020,26 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                         health["otel"] = {"enabled": False}
                 except Exception:
                     health["otel"] = {"enabled": False}
+                try:
+                    from qoresence.observability.noul_observatory import (
+                        get_noul_observatory,
+                    )
+
+                    _nx = get_noul_observatory()
+                    health["noul"] = (
+                        _nx.stats() if _nx is not None else {"enabled": False}
+                    )
+                except Exception:
+                    health["noul"] = {"enabled": False}
+                try:
+                    from qoresence.observability.jev_conductor import get_jev_conductor
+
+                    _jx = get_jev_conductor()
+                    health["jev"] = (
+                        _jx.stats() if _jx is not None else {"enabled": False}
+                    )
+                except Exception:
+                    health["jev"] = {"enabled": False}
                 try:
                     from qoresence.agents.match_agent import surface_last_note
 

@@ -1,6 +1,7 @@
 /** ClutchBot + Agent Society — live from Deck /health and /api/agent. */
 
 import { pickBoard } from "./board.ts";
+import { EMPTY_LATTICE, parseNoulHealth, type HonestyBand, type PresenceToken } from "./honesty-lattice.ts";
 import { getDeckOrigin, probeDeck } from "./qoresence-deck.ts";
 
 export type SocietyNote = {
@@ -23,6 +24,13 @@ export type AgentPlane = {
   societyLast: SocietyNote[];
   societyRoles: string[];
   seq: number;
+  noulEnabled: boolean;
+  honestyBand: HonestyBand;
+  presenceToken: PresenceToken;
+  identNow: boolean;
+  hudKind: string;
+  gamerLine: string;
+  gamerPresence: string;
 };
 
 export const EMPTY_PLANE: AgentPlane = {
@@ -38,6 +46,13 @@ export const EMPTY_PLANE: AgentPlane = {
   societyLast: [],
   societyRoles: [],
   seq: 0,
+  noulEnabled: false,
+  honestyBand: EMPTY_LATTICE.honestyBand,
+  presenceToken: EMPTY_LATTICE.presenceToken,
+  identNow: false,
+  hudKind: "",
+  gamerLine: "",
+  gamerPresence: "",
 };
 
 function rec(v: unknown): Record<string, unknown> {
@@ -106,6 +121,7 @@ export function parseAgentPlane(parts: {
 
   const sit = rec(snap.situation);
   const confirm = rec(snap.confirm);
+  const noul = parseNoulHealth(health);
   const board = pickBoard(snap, sit, confirm, rec(snap.video), rec(sit.video));
   // pickBoard is the sole digit gate. leftover OCR / ticket-id bits are not permission.
   const vlmLocked = board.locked;
@@ -125,6 +141,13 @@ export function parseAgentPlane(parts: {
     societyLast,
     societyRoles: roles,
     seq: Number(agentH.seq || snap.seq || 0) || 0,
+    noulEnabled: noul.enabled,
+    honestyBand: noul.honestyBand,
+    presenceToken: noul.presenceToken,
+    identNow: noul.identNow,
+    hudKind: noul.hudKind,
+    gamerLine: noul.gamerLine,
+    gamerPresence: noul.gamerPresence,
   };
 }
 
