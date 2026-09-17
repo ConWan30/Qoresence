@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "qoresence"
 version = "0.1.0-dev"
-description = "Local-first game-state capture and Deck ClutchBot for gamers"
+description = "Local-first gaming streaming observatory — one clock, N glasses"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "Qoresence Contributors"}]
@@ -77,6 +77,9 @@ otel = [
     "opentelemetry-sdk>=1.24",
     "opentelemetry-api>=1.24",
     "opentelemetry-exporter-otlp-proto-grpc>=1.24",
+]
+noul = [
+    "typesafe-sdk>=1.0.0",
 ]
 mcp = [
     "mcp>=1.0",

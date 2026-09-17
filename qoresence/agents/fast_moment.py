@@ -74,12 +74,25 @@ class FastMomentEngine:
             red = self._is_red_zone(situation)
             close = self._is_close(situation)
             late = self._is_late(situation)
+            heat_ok = self._heat_ticket_ok(coup)
+            jev = self._jev_override(
+                coup=coup,
+                c=c,
+                red=red,
+                close=close,
+                late=late,
+                heat_ok=heat_ok,
+            )
             moments: list[ScoredMoment] = []
 
             # Soft chat — never include score digits. Heat lines need a coupling ticket.
             if "chat" in features and c >= self.chat_coupling:
-                heat_ok = self._heat_ticket_ok(coup)
-                key, msg = self._pick_soft_chat(red=red, close=close, late=late, heat_ok=heat_ok)
+                if jev is not None:
+                    key, msg = jev[0], jev[1]
+                else:
+                    key, msg = self._pick_soft_chat(
+                        red=red, close=close, late=late, heat_ok=heat_ok
+                    )
                 if msg and self._cooldown_ok(f"fast_chat:{key}", self.chat_cooldown_s):
                     msg = self._sanitize_soft(msg)
                     # EA vocabulary enrichment: add named verb at clutch frame (fail-closed)
@@ -115,7 +128,10 @@ class FastMomentEngine:
                     )
 
             # Clip intent — local Foundry; does not invent facts
-            if "clip" in features and c >= self.clip_coupling and (red or (close and late)):
+            clip_ok = c >= self.clip_coupling and (red or (close and late))
+            if jev is not None and jev[2] is False:
+                clip_ok = False
+            if "clip" in features and clip_ok:
                 if self._cooldown_ok("fast_clip", self.clip_cooldown_s):
                     moments.append(
                         ScoredMoment(
@@ -136,7 +152,10 @@ class FastMomentEngine:
                     )
 
             # Arm prediction latch — confirm path may start/resolve later
-            if "prediction" in features and c >= self.arm_coupling and red:
+            arm_ok = c >= self.arm_coupling and red
+            if jev is not None and jev[3] is False:
+                arm_ok = False
+            if "prediction" in features and arm_ok:
                 if self._cooldown_ok("fast_arm", self.arm_cooldown_s):
                     self._prediction_armed = True
                     self._armed_at = time.time()
@@ -250,6 +269,52 @@ class FastMomentEngine:
             return True
         except Exception:
             return False
+
+    def _jev_override(
+        self,
+        *,
+        coup: dict[str, Any],
+        c: float,
+        red: bool,
+        close: bool,
+        late: bool,
+        heat_ok: bool,
+    ) -> tuple[str, str, bool | None, bool | None] | None:
+        """Optional Jev conductor. Returns (chat_key, msg, clip_ok, arm_ok) or None."""
+        try:
+            from qoresence.observability.jev_conductor import get_jev_conductor
+
+            cond = get_jev_conductor()
+            if cond is None or not cond.enabled:
+                return None
+            out = cond.judge(
+                {
+                    "coupling": c,
+                    "red_zone": red,
+                    "late_close": late,
+                    "close": close,
+                    "heat_ticket": heat_ok,
+                    "situation": {
+                        "red_zone": red,
+                        "close": close,
+                        "late": late,
+                    },
+                    "evidence": {},
+                }
+            )
+            act = str(out.get("fast_act") or "silent")
+            chat_key = act[5:] if act.startswith("chat_") else ""
+            msg = str(out.get("chat") or "")
+            clip_flag = bool(out.get("may_consider_clip")) if "may_consider_clip" in out else None
+            arm_flag = bool(out.get("may_arm")) if "may_arm" in out else None
+            if act == "silent":
+                return "", "", clip_flag, arm_flag
+            if act.startswith("chat_"):
+                return chat_key, msg, clip_flag, arm_flag
+            return "", "", clip_flag, arm_flag
+        except Exception as e:
+            log.debug("jev fast override skipped: %s", e)
+            return None
 
     def _pick_soft_chat(
         self, *, red: bool, close: bool, late: bool, heat_ok: bool = False

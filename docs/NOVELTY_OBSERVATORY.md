@@ -242,6 +242,30 @@ Ranking axes (higher = better fit): **(1) lag/freeze↓ (2) honest scorebug (3) 
 
 ---
 
+## TypeSafe Noul observatory (shipped, default OFF)
+
+`--noul` / `QORESENCE_NOUL=1` adds an observation-plane worker that asks Jev (or a local heuristic) whether a VLM parse looks like a **live scorebug**, **true pause**, or **clip-worthy presence**. Composition lives in code. **Noul never licenses digits** (`licenses_digits: false`). Same enqueue-only contract as OTel. `--play` does not enable it. Extra: `pip install qoresence[noul]` + `TYPESAFE_API_KEY`.
+
+### Honesty Lattice (operator Integrity Board)
+
+Composite of TypeSafe **Score** dimensions, weights in code (`HONESTY_WEIGHTS`):
+
+| Dimension | Primitive | Role |
+| --- | --- | --- |
+| `board_honesty` | Score 0–2 | Inverse of last-good OCR freeze |
+| `presence_density` | Score 0–2 | Pad↔picture join — tokens `idle` / `join` / `dense` (not clutch) |
+| `last_good_temptation` | Noul | Would industry paint stale digits? High → Ident |
+
+Deck Integrity Board (operator-only, never Lens) shows Honesty / Presence / HUD tiles when noul is on. Changing a weight does not require a new inference.
+
+### Jev conductor (ClutchBot / MatchAgent *text*, default OFF)
+
+`--jev` / `QORESENCE_JEV=1`. Jev is **text-only** — it cannot see HDMI. Pixel harvest stays on the VLM. The conductor **selects** closed templates (Choice + speculative Noul clip/arm) instead of generating chat. Code fills digits from the confirm ticket only. Key: `TYPESAFE_API_KEY` or `.secrets/typesafe.key` (never commit). `--play` does not enable.
+
+Gamer product (Theater / Session Now, never Lens): HonestyLine — “Would rather go blank than keep a stale score” + presence `idle/join/dense`. Recap export runs hygiene; HOLD on digit leak / truth dest — never a QorTroller seal.
+
+---
+
 ## Key URLs
 
 - https://scoreboard-ocr.com/faq — last-good freeze as feature (gap inverse)  

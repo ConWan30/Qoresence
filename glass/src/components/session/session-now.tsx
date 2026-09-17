@@ -1,4 +1,5 @@
 import { GlanceGlyph } from "@/components/theater/glance-glyph";
+import { HonestyLine } from "@/components/theater/honesty-line";
 import { LockbugStrip } from "@/components/theater/lockbug-strip";
 import { DownPill } from "@/components/theater/down-pill";
 import { useTheaterLoop } from "@/lib/coupling/loop";
@@ -19,8 +20,9 @@ export function SessionNow() {
         <LockbugStrip />
         <DownPill />
       </div>
+      <HonestyLine className="mb-3" />
       <p className="font-mono text-[10px] tracking-wide text-subtle-foreground">
-        Watching HDMI + scorebug. DualSense stays on the PS5. Fast chat, score locks, and clips land here.
+        Watching HDMI + scorebug. DualSense stays on the PS5. The board goes blank rather than keep a stale score.
       </p>
     </section>
   );

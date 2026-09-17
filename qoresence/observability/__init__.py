@@ -12,6 +12,21 @@ from qoresence.observability.otel import (
     get_otel_exporter,
     make_otel_exporter_from_config,
 )
+from qoresence.observability.noul_observatory import (
+    NoulObservatory,
+    compose_honesty_lattice,
+    compose_observatory,
+    get_noul_observatory,
+    make_noul_from_config,
+)
+from qoresence.observability.jev_conductor import (
+    JevConductor,
+    compose_conductor,
+    get_jev_conductor,
+    make_jev_from_config,
+)
+from qoresence.observability.honesty_speech import gamer_honesty_speech
+from qoresence.observability.recap_hygiene import inspect_envelope
 
 __all__ = [
     "LatencyStats",
@@ -22,4 +37,15 @@ __all__ = [
     "OtelExporter",
     "get_otel_exporter",
     "make_otel_exporter_from_config",
+    "NoulObservatory",
+    "compose_honesty_lattice",
+    "compose_observatory",
+    "get_noul_observatory",
+    "make_noul_from_config",
+    "JevConductor",
+    "compose_conductor",
+    "get_jev_conductor",
+    "make_jev_from_config",
+    "gamer_honesty_speech",
+    "inspect_envelope",
 ]

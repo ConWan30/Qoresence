@@ -242,6 +242,28 @@ class QoresenceApp:
         except Exception as e:
             log.debug("OTel exporter not started: %s", e)
 
+        # TypeSafe Noul observatory (default OFF; env QORESENCE_NOUL=1)
+        self.noul_observatory = None
+        try:
+            from qoresence.observability.noul_observatory import make_noul_from_config
+
+            self.noul_observatory = make_noul_from_config(
+                getattr(config, "noul", None),
+                bus=self.bus,
+                session_identity=self.identity,
+            )
+        except Exception as e:
+            log.debug("Noul observatory not started: %s", e)
+
+        # Jev conductor (default OFF; env QORESENCE_JEV=1). Text-only; never HDMI.
+        self.jev_conductor = None
+        try:
+            from qoresence.observability.jev_conductor import make_jev_from_config
+
+            self.jev_conductor = make_jev_from_config(getattr(config, "jev", None))
+        except Exception as e:
+            log.debug("Jev conductor not started: %s", e)
+
         # Private haptic probe (default OFF; env QORESENCE_HAPTIC_PROBE=1)
         self.haptic_probe = None
         try:
@@ -1385,6 +1407,22 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             enabled=True,
             endpoint=getattr(args, "otel_endpoint", None) or config.otel.endpoint,
         )
+    if getattr(args, "noul", False):
+        from qoresence.core.unified_config import NoulConfig
+
+        prev = getattr(config, "noul", None)
+        config.noul = replace(
+            prev if prev is not None else NoulConfig(),
+            enabled=True,
+        )
+    if getattr(args, "jev", False):
+        from qoresence.core.unified_config import JevConfig
+
+        prev = getattr(config, "jev", None)
+        config.jev = replace(
+            prev if prev is not None else JevConfig(),
+            enabled=True,
+        )
     if getattr(args, "learning_edge", False) or getattr(config, "learning_edge", False):
         config.learning_edge = True
         try:
@@ -1656,6 +1694,21 @@ def main():
         type=str,
         default="http://127.0.0.1:4317",
         help="OTLP gRPC endpoint (default: local collector on loopback)",
+    )
+    parser.add_argument(
+        "--noul",
+        action="store_true",
+        help="TypeSafe Noul observatory (HUD groundedness / clip presence). "
+        "Default OFF. Also QORESENCE_NOUL=1. --play does not enable this. "
+        "Never licenses score digits.",
+    )
+    parser.add_argument(
+        "--jev",
+        action="store_true",
+        help="TypeSafe Jev conductor: select ClutchBot/MatchAgent templates "
+        "(text-only; cannot see HDMI). Default OFF. Also QORESENCE_JEV=1. "
+        "--play does not enable this. Never licenses score digits. "
+        "Key: TYPESAFE_API_KEY or .secrets/typesafe.key.",
     )
     parser.add_argument(
         "--haptic-probe",

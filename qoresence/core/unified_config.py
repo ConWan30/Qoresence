@@ -676,6 +676,30 @@ class HapticProbeConfig:
 
 
 @dataclass
+class JevConfig:
+    """TypeSafe Jev conductor (observation plane). Replaces ClutchBot/MatchAgent LLM *text*.
+
+    Opt-in, default OFF. ``--play`` does not enable. Cannot see HDMI (text-only).
+    Never licenses score digits. Key: TYPESAFE_API_KEY or .secrets/typesafe.key.
+    """
+
+    enabled: bool = False
+
+
+@dataclass
+class NoulConfig:
+    """TypeSafe Noul observatory (observation plane only).
+
+    Opt-in, default OFF. ``--play`` does not enable. Judgments never license
+    score digits and never emit bus events. See qoresence.observability.noul_observatory.
+    """
+
+    enabled: bool = False
+    out_dir: str = "logs/noul"
+    queue_size: int = 256
+
+
+@dataclass
 class OtelConfig:
     """OpenTelemetry exporter configuration (observation plane only).
 
@@ -755,6 +779,12 @@ class RetinaUnifiedConfig:
 
     # ── Observation-plane OTel exporter (default OFF) ───────────────────────
     otel: OtelConfig = field(default_factory=OtelConfig)
+
+    # TypeSafe Noul observatory (default OFF; --play does not enable)
+    noul: NoulConfig = field(default_factory=NoulConfig)
+
+    # Jev conductor (default OFF; --play does not enable)
+    jev: JevConfig = field(default_factory=JevConfig)
 
     # Learning edge: next-run splitter constraints. Default OFF. --play does not enable.
     learning_edge: bool = False
@@ -1106,6 +1136,12 @@ class RetinaUnifiedConfig:
                 out_dir=_str("QORESENCE_HAPTIC_PROBE_DIR", "logs/haptic") or "logs/haptic",
                 queue_size=_int("QORESENCE_HAPTIC_PROBE_QUEUE", 1024) or 1024,
             ),
+            noul=NoulConfig(
+                enabled=_bool("QORESENCE_NOUL"),
+                out_dir=_str("QORESENCE_NOUL_DIR", "logs/noul") or "logs/noul",
+                queue_size=_int("QORESENCE_NOUL_QUEUE", 256) or 256,
+            ),
+            jev=JevConfig(enabled=_bool("QORESENCE_JEV")),
             learning_edge=_bool("QORESENCE_LEARNING_EDGE"),
             look_graphs=_bool("QORESENCE_LOOK_GRAPHS"),
             deck_lease_lamp=_bool("QORESENCE_DECK_LEASE_LAMP"),

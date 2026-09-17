@@ -5,6 +5,7 @@ import { CouplingMeter } from "./coupling-meter";
 import { IntegrityBoard } from "./integrity-board";
 import { LeaseBadge } from "./lease-badge";
 import { LockbugStrip } from "./lockbug-strip";
+import { HonestyLine } from "./honesty-line";
 import { ObservatoryInstrument } from "./observatory-instrument";
 
 export function ObservatoryHUD() {
@@ -53,6 +54,7 @@ export function ObservatoryHUD() {
           <LockbugStrip pulse />
           <LeaseBadge ok={deckLive && !stale} />
           <IntegrityBoard />
+          <HonestyLine />
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <span

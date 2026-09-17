@@ -182,6 +182,34 @@ class MatchAgent:
         # Licensed ticket: surface even when muse-spark times out. Empty glass
         # was live=False stubs after every Quicksilver miss.
         licensed = {**stub, "live": True, "path": path, "ticket_id": tid}
+        jev_note = self._jev_observe(bag)
+        if jev_note is not None:
+            text = jev_note
+            if bag.get("confirm_ticket_id"):
+                text = license_score_text(
+                    text,
+                    ticket=type(
+                        "C",
+                        (),
+                        {
+                            "home_score": bag.get("home_score"),
+                            "away_score": bag.get("away_score"),
+                        },
+                    )(),
+                    home_score=bag.get("home_score"),
+                    away_score=bag.get("away_score"),
+                )
+            else:
+                text = license_score_text(text, ticket=None)
+            return {
+                "ok": True,
+                "live": True,
+                "text": str(text)[:_MAX_NOTE],
+                "ticket_id": tid,
+                "path": path,
+                "evidence": bag,
+                "model": "jev",
+            }
         if not self.live or not self.enabled:
             return licensed if self.enabled else stub
         try:
@@ -223,6 +251,21 @@ class MatchAgent:
             "evidence": bag,
             "model": self._llm.config.model,
         }
+
+    def _jev_observe(self, bag: dict[str, Any]) -> str | None:
+        """Closed observe line from Jev. None if conductor off."""
+        try:
+            from qoresence.observability.jev_conductor import get_jev_conductor
+
+            cond = get_jev_conductor()
+            if cond is None or not cond.enabled:
+                return None
+            out = cond.judge({"evidence": bag, "coupling": 0.0})
+            text = str(out.get("observe_text") or "")
+            return text or None
+        except Exception as e:
+            log.debug("jev observe skipped: %s", e)
+            return None
 
     def _stub(self, bag: dict[str, Any]) -> dict[str, Any]:
         pic = bag.get("picture_hid") if isinstance(bag.get("picture_hid"), dict) else None
