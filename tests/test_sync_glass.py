@@ -516,3 +516,96 @@ def test_health_wired_in_deck():
     assert "get_sync_glass" in text
     assert 'health["sync_glass"]' in text
     assert 'body["sync_glass"]' in text
+
+
+def test_fresh_video_not_starve_from_fps_ratio_alone():
+    """Healthy age_s must not become capture_starve via flaky fps_ratio."""
+    answers = local_sync_answers(
+        {
+            "video": {"age_s": 0.05, "frames": 200, "pll_lock": True},
+            "hid": {
+                "source": "usb_play",
+                "edges_last_n": ["r2"],
+                "sync_lag_ms": 40.0,
+                "lag_center_ms": 40.0,
+            },
+            "haptic": {"co_occur_recent": False, "probe_ok": True},
+            # Explicit starve false — capture_state must not invent starve
+            # when age is fresh even if sync_health fps_ratio is low.
+            "capture": {"starve": False},
+        }
+    )
+    assert answers["lag_class"] != "capture_starve"
+    assert answers["lag_class"] == "ok"
+    out = compose_sync_verdict(
+        bind_healthy=answers["bind_healthy"],
+        lag_class=answers["lag_class"],
+        lag_confidence=answers["lag_confidence"],
+        haptic_coupled=answers["haptic_coupled"],
+        action=answers["action"],
+        action_confidence=answers["action_confidence"],
+        severity=answers["severity"],
+        severity_confidence=answers["severity_confidence"],
+    )
+    assert out["licenses_digits"] is False
+    assert out["glyphs"]["lag"] == "ok"
+
+
+def test_stale_age_still_capture_starve():
+    answers = local_sync_answers(
+        {
+            "video": {"age_s": 2.0, "frames": 10, "pll_lock": False},
+            "hid": {"source": "usb_play", "edges_last_n": ["x"], "sync_lag_ms": 40.0},
+            "capture": {"starve": False},
+            "haptic": {"co_occur_recent": False, "probe_ok": True},
+        }
+    )
+    assert answers["lag_class"] == "capture_starve"
+    assert answers["action"] == "flag_operator"
+
+
+def test_typesafe_ask_cadence_reuses_answers(tmp_path, monkeypatch):
+    monkeypatch.setenv("QORESENCE_SYNC_GLASS_ASK_S", "10")
+    sen = _sentinel(tmp_path, state_fn=lambda: _healthy_state(), ask_fn=None)
+    try:
+        sen._ask_interval_s = 10.0
+        counted = {"n": 0}
+
+        def _fake_try(_state):
+            counted["n"] += 1
+            return {
+                "bind_healthy": 0.9,
+                "lag_class": "ok",
+                "lag_confidence": 0.9,
+                "haptic_coupled": 0.2,
+                "action": "observe",
+                "action_confidence": 0.9,
+                "severity": 0.0,
+                "severity_confidence": 0.9,
+                "source": "typesafe",
+            }
+
+        sen._try_typesafe = _fake_try  # type: ignore[method-assign]
+        a1 = sen._answers_with_typesafe_cadence(_healthy_state())
+        a2 = sen._answers_with_typesafe_cadence(_healthy_state())
+        assert a1 is not None and a1["source"] == "typesafe"
+        assert a2 is not None and a2["source"] == "typesafe"
+        assert counted["n"] == 1
+        assert sen.stats()["licenses_digits"] is False
+    finally:
+        sen.stop()
+
+
+def test_typesafe_failure_falls_back_to_local(tmp_path):
+    sen = _sentinel(tmp_path, state_fn=lambda: _healthy_state(), ask_fn=None)
+    try:
+        sen._ask_interval_s = 0.0
+        sen._try_typesafe = lambda _s: None  # type: ignore[method-assign]
+        answers = sen._answers_with_typesafe_cadence(_healthy_state())
+        assert answers is None
+        verdict = sen._judge(_healthy_state())
+        assert verdict["source"] == "local_heuristic"
+        assert verdict["licenses_digits"] is False
+    finally:
+        sen.stop()
+

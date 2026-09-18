@@ -54,6 +54,11 @@ log = logging.getLogger(__name__)
 PLANE = "qoresence-observation"
 MODEL = "jev-latest"
 
+# Situation ticks stay fast for /health freshness; TypeSafe asks are slower.
+_ASK_INTERVAL_S = 2.0
+_TYPESAFE_REUSE_S = 15.0
+_TYPESAFE_TIMEOUT_S = 10.0
+
 _PIXEL_KEYS = frozenset(
     {
         "jpeg",
@@ -94,6 +99,16 @@ def _key_present() -> bool:
         return p.is_file() and bool(p.stat().st_size)
     except Exception:
         return False
+
+
+def _env_float(key: str, default: float) -> float:
+    raw = os.environ.get(key, "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
 
 
 def _norm_float(v: Any, default: float | None = None) -> float | None:
@@ -366,6 +381,19 @@ class SyncGlassSentinel:
         self._unsubscribe: Any = None
         self._jsonl_handle: Any = None
         self._cadence_s = float(getattr(config, "cadence_s", 0.5) or 0.5)
+        self._ask_interval_s = _env_float(
+            "QORESENCE_SYNC_GLASS_ASK_S",
+            float(getattr(config, "ask_interval_s", _ASK_INTERVAL_S) or _ASK_INTERVAL_S),
+        )
+        self._typesafe_timeout_s = _env_float(
+            "QORESENCE_SYNC_GLASS_TIMEOUT_S", _TYPESAFE_TIMEOUT_S
+        )
+        self._last_typesafe_answers: dict[str, Any] | None = None
+        self._last_typesafe_ask_mono = 0.0
+        self._last_typesafe_ok_mono = 0.0
+        self._typesafe_asks = 0
+        self._typesafe_fails = 0
+        self._warned_typesafe = False
         enabled = bool(getattr(config, "enabled", False)) if config is not None else False
         self.enabled = enabled or bool(jev_enabled) or _env_enabled()
         if not self.enabled:
@@ -647,16 +675,26 @@ class SyncGlassSentinel:
         starve = bool(live.get("starve"))
         if not starve and age is not None and age >= _STARVE_AGE_S:
             starve = True
-        try:
-            from qoresence.sync.sync_health import get_sync_health
+        # Fresh picture wins over a flaky sync_health fps_ratio (<0.4 while
+        # age_s is still sub-second was freezing bind=off under local_heuristic).
+        fresh = age is not None and age < 0.5
+        if not starve and not fresh:
+            try:
+                from qoresence.sync.sync_health import get_sync_health
 
-            st = get_sync_health().stats() or {}
-            ratio = _norm_float(st.get("fps_ratio"))
-            vage = _norm_float(st.get("video_age_s"))
-            if (ratio is not None and ratio < 0.4) or (vage is not None and vage >= _STARVE_AGE_S):
-                starve = True
-        except Exception:
-            pass
+                st = get_sync_health().stats() or {}
+                ratio = _norm_float(st.get("fps_ratio"))
+                vage = _norm_float(st.get("video_age_s"))
+                if vage is not None and vage >= _STARVE_AGE_S:
+                    starve = True
+                elif (
+                    ratio is not None
+                    and ratio < 0.4
+                    and (age is None or age >= _STARVE_AGE_S)
+                ):
+                    starve = True
+            except Exception:
+                pass
         dshow = None
         try:
             from qoresence.lobes.streamer import get_streamer_runtime
@@ -700,12 +738,31 @@ class SyncGlassSentinel:
 
     # ── judging ──────────────────────────────────────────────────────────
 
+    def _answers_with_typesafe_cadence(self, state: dict[str, Any]) -> dict[str, Any] | None:
+        """Ask TypeSafe on a slower cadence; reuse last good vote between asks."""
+        now = time.monotonic()
+        if (now - self._last_typesafe_ask_mono) >= self._ask_interval_s:
+            self._last_typesafe_ask_mono = now
+            self._typesafe_asks += 1
+            got = self._try_typesafe(state)
+            if got is not None:
+                self._last_typesafe_answers = dict(got)
+                self._last_typesafe_ok_mono = now
+                return got
+            self._typesafe_fails += 1
+        if (
+            self._last_typesafe_answers is not None
+            and (now - self._last_typesafe_ok_mono) < _TYPESAFE_REUSE_S
+        ):
+            return dict(self._last_typesafe_answers)
+        return None
+
     def _judge(self, state: dict[str, Any]) -> dict[str, Any]:
         answers = None
         if self._ask_fn is not None:
             answers = self._ask_fn(state)
         if answers is None:
-            answers = self._try_typesafe(state)
+            answers = self._answers_with_typesafe_cadence(state)
         if answers is None:
             answers = local_sync_answers(state)
         verdict = compose_sync_verdict(
@@ -756,15 +813,49 @@ class SyncGlassSentinel:
         }
         model = os.environ.get("QORESENCE_SYNC_GLASS_MODEL", "").strip() or MODEL
         try:
+            retry_kw: dict[str, Any] = {}
             try:
-                client_cm = TypeSafeClient(model=model)
+                from typesafe_sdk import RetryPolicy
+
+                retry_kw["retry"] = RetryPolicy(max_retries=0)
+            except Exception:
+                pass
+            try:
+                client_cm = TypeSafeClient(
+                    model=model, timeout=self._typesafe_timeout_s, **retry_kw
+                )
             except TypeError:
-                client_cm = TypeSafeClient()
+                try:
+                    client_cm = TypeSafeClient(model=model, timeout=self._typesafe_timeout_s)
+                except TypeError:
+                    try:
+                        client_cm = TypeSafeClient(model=model)
+                    except TypeError:
+                        client_cm = TypeSafeClient()
             with client_cm as client:
-                response = client.system_one(state=payload, questions=questions)
-            choices = getattr(response, "choices", {}) or {}
-            nouls = getattr(response, "nouls", {}) or {}
-            scores = getattr(response, "scores", {}) or {}
+                try:
+                    response = client.system_one(
+                        state=payload,
+                        questions=questions,
+                        timeout=self._typesafe_timeout_s,
+                    )
+                except TypeError:
+                    response = client.system_one(state=payload, questions=questions)
+            choices = getattr(response, "choices", None) or {}
+            nouls = getattr(response, "nouls", None) or {}
+            scores = getattr(response, "scores", None) or {}
+            if not choices and not nouls and not scores:
+                answers = getattr(response, "answers", None) or {}
+                for name, ans in answers.items():
+                    kind = getattr(ans, "type", None) or (
+                        ans.get("type") if isinstance(ans, dict) else None
+                    )
+                    if kind == "choice":
+                        choices[name] = ans
+                    elif kind == "noul":
+                        nouls[name] = ans
+                    elif kind == "score":
+                        scores[name] = ans
             bh = nouls.get("bind_healthy")
             lc = choices.get("lag_class")
             hc = nouls.get("haptic_coupled")
@@ -788,7 +879,15 @@ class SyncGlassSentinel:
                 "source": "typesafe",
             }
         except Exception as e:
-            log.debug("sync_glass system_one failed: %s", e)
+            if not self._warned_typesafe:
+                self._warned_typesafe = True
+                log.warning(
+                    "sync_glass system_one failed (%s): %s",
+                    type(e).__name__,
+                    e,
+                )
+            else:
+                log.debug("sync_glass system_one failed: %s", e)
             return None
 
     # ── worker ───────────────────────────────────────────────────────────
@@ -850,6 +949,9 @@ class SyncGlassSentinel:
             "bind_healthy": last.get("bind_healthy"),
             "haptic_coupled": last.get("haptic_coupled"),
             "source": last.get("source"),
+            "typesafe_asks": self._typesafe_asks,
+            "typesafe_fails": self._typesafe_fails,
+            "ask_interval_s": self._ask_interval_s,
             "licenses_digits": False,
             "recenter_applied": False,
             "capture_fps_changed": False,
