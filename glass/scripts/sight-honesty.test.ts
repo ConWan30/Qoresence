@@ -13,6 +13,7 @@ function load(rel: string): string {
 test("HonestyStrip sits under CommandBar, never inside HdmiStage", () => {
   const page = load("src/components/theater/theater-page.tsx");
   const stage = load("src/components/theater/hdmi-stage.tsx");
+  const hud = load("src/components/theater/observatory-hud.tsx");
   assert.match(page, /<CommandBar\s*\/>/);
   assert.match(page, /<HonestyStrip\s*\/>/);
   const cmd = page.indexOf("<CommandBar");
@@ -21,6 +22,8 @@ test("HonestyStrip sits under CommandBar, never inside HdmiStage", () => {
   assert.ok(cmd >= 0 && strip > cmd && hdmi > strip, "strip must sit between CommandBar and HdmiStage");
   assert.doesNotMatch(stage, /HonestyStrip/);
   assert.doesNotMatch(stage, /honesty-strip/);
+  assert.doesNotMatch(hud, /HonestyStrip/);
+  assert.doesNotMatch(hud, /HonestyLine/);
 });
 
 test("overlay does not mount the 6-glyph Honesty strip", () => {

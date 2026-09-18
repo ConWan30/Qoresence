@@ -129,6 +129,7 @@ test("fail-closed copy law: unlocked strip must show □–□ not 0-0", () => {
 test("copy leak prevention: observatory-hud must not use situationText", () => {
   const observatoryHudPath = join(GLASS_ROOT, "src/components/theater/observatory-hud.tsx");
   const observatoryHud = readFileSync(observatoryHudPath, "utf-8");
+  const commandBar = readFileSync(join(GLASS_ROOT, "src/components/theater/command-bar.tsx"), "utf-8");
 
   // ObservatoryHUD must not compute situationText from widgetsOk + situation/boardLine
   assert.ok(
@@ -144,10 +145,14 @@ test("copy leak prevention: observatory-hud must not use situationText", () => {
     "observatory-hud must not read boardLine (unlicensed copy leak)",
   );
 
-  // LockbugStrip is the licensed copy source
+  // Licensed copy stays off-picture (CommandBar), never on the HUD over HDMI
   assert.ok(
-    observatoryHud.includes("LockbugStrip"),
-    "observatory-hud must use LockbugStrip (the fail-closed licensed copy)",
+    !observatoryHud.includes("LockbugStrip"),
+    "observatory-hud must not paint LockbugStrip on the picture",
+  );
+  assert.ok(
+    commandBar.includes("LockbugStrip"),
+    "command-bar must use LockbugStrip (the fail-closed licensed copy, off-picture)",
   );
 });
 
@@ -189,8 +194,10 @@ test("empty HID copy is DualSense-on-PS5 success, not PAD WAIT", () => {
   const padSync = readFileSync(join(GLASS_ROOT, "src/lib/coupling/pad-sync.ts"), "utf-8");
   assert.ok(padSync.includes("pad_not_on_this_host"), "empty HID reason is pad_not_on_this_host");
   assert.ok(padSync.includes("UNBOUND"), "SYNC chip admits UNBOUND when unmeasured");
+  const commandBar = readFileSync(join(GLASS_ROOT, "src/components/theater/command-bar.tsx"), "utf-8");
+  assert.ok(commandBar.includes("UNBOUND"), "CommandBar SYNC is lag admission, not a trophy 0");
+  assert.ok(!commandBar.includes("SYNC 0"), "CommandBar must never decorate SYNC 0");
   const hud = readFileSync(join(GLASS_ROOT, "src/components/theater/observatory-hud.tsx"), "utf-8");
-  assert.ok(hud.includes("UNBOUND"), "Observatory SYNC is lag admission, not a trophy 0");
   assert.ok(!hud.includes("SYNC 0"), "Observatory must never decorate SYNC 0");
 });
 
@@ -203,7 +210,40 @@ test("observatory variant must not mount LensOverlay", () => {
   assert.ok(lensOverlayLine, "HdmiStage must conditionally mount LensOverlay");
   assert.ok(
     lensOverlayLine[0].includes('variant !== "observatory"'),
-    'HdmiStage must NOT mount LensOverlay when variant === "observatory" (ObservatoryHUD owns stage chrome)',
+    'HdmiStage must NOT mount LensOverlay when variant === "observatory" (play-eye first, picture is chrome-free)',
+  );
+});
+
+test("play-eye first: ObservatoryHUD is null and Theater does not mount it", () => {
+  const hud = readFileSync(join(GLASS_ROOT, "src/components/theater/observatory-hud.tsx"), "utf-8");
+  const page = readFileSync(join(GLASS_ROOT, "src/components/theater/theater-page.tsx"), "utf-8");
+  const stage = readFileSync(join(GLASS_ROOT, "src/components/theater/hdmi-stage.tsx"), "utf-8");
+  assert.ok(/return null/.test(hud), "ObservatoryHUD must return null (no on-picture operator chrome)");
+  assert.ok(!page.includes("ObservatoryHUD"), "theater-page must not mount ObservatoryHUD over HDMI");
+  const onPicture = [
+    "LeaseBadge",
+    "LockbugStrip",
+    "IntegrityBoard",
+    "HonestyLine",
+    "ObservatoryInstrument",
+    "LiveHealthGlyph",
+    "CouplingMeter",
+  ];
+  for (const needle of onPicture) {
+    const tag = `<${needle}`;
+    assert.ok(!hud.includes(tag), `observatory-hud must not paint ${needle}`);
+    assert.ok(!stage.includes(tag), `hdmi-stage must not paint ${needle} on the picture`);
+  }
+  assert.ok(stage.includes("ApertureIdent"), "HdmiStage keeps ApertureIdent HOLD as the empty state");
+  assert.ok(stage.includes("SignalPrism"), "HdmiStage keeps the under-plinth SignalPrism");
+  assert.ok(stage.includes("StageClipDock"), "HdmiStage keeps the under-picture clip dock");
+  // Live PGM/HOLD pill on the picture is gone; replay still has a PGM exit control
+  assert.ok(!stage.includes('identOn ? "HOLD" : "PGM"'), "live HOLD/PGM pill must not sit on .hdmi-picture");
+  const ghostLine = stage.match(/\{!replaySrc.*?GhostStickOverlay.*?\}/s);
+  assert.ok(ghostLine, "HdmiStage must conditionally mount GhostStickOverlay");
+  assert.ok(
+    ghostLine[0].includes('variant !== "observatory"'),
+    "GhostStickOverlay must not cover the observatory HDMI picture",
   );
 });
 
