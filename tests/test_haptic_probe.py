@@ -149,6 +149,50 @@ def test_echo_detector_downweights_analog_slew():
         assert got is None
 
 
+def test_echo_detector_mid_amp_quiet_slew_is_vibration_burst():
+    """Edge-like USB IMU echo: mid amp + quiet analog → onset (not stick)."""
+    det = EchoDetector()
+    t0 = 4_000_000_000
+    for i in range(100):
+        ax, ay, az = _oscillating_accel(i, amp=80)
+        det.feed(
+            clock_ns=t0 + i * 1_000_000,
+            accel=(ax, ay, az),
+            gyro=(4, 4, 4),
+            analog_slew=0.0,
+        )
+    ended = None
+    for i in range(100, 160):
+        ended = det.feed(
+            clock_ns=t0 + i * 1_000_000,
+            accel=(0, 0, 1000),
+            gyro=(4, 4, 4),
+            analog_slew=0.0,
+        )
+        if ended is not None:
+            break
+    assert ended is not None
+    assert ended.channel == "imu_echo"
+    assert ended.duration_ms >= 20.0
+
+
+def test_echo_detector_stick_wiggle_alone_not_vibration_burst():
+    """High analog slew with quiet/flat accel must not open an imu_echo pulse."""
+    det = EchoDetector()
+    t0 = 5_000_000_000
+    for i in range(120):
+        # small residual noise + look/wiggle slew — not actuator shake
+        accel = (2, -1, 1000 + (i % 3))
+        got = det.feed(
+            clock_ns=t0 + i * 1_000_000,
+            accel=accel,
+            gyro=(3, 3, 3),
+            analog_slew=0.9,
+        )
+        assert got is None
+    assert det._active is False
+
+
 # ── HID output rumble (emulated path) ────────────────────────────────────────
 
 

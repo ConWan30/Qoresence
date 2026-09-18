@@ -609,3 +609,99 @@ def test_typesafe_failure_falls_back_to_local(tmp_path):
     finally:
         sen.stop()
 
+
+def test_haptic_glyph_on_when_co_occur_recent():
+    """Probe-backed co_occur_recent → haptic_coupled high → glyph on."""
+    answers = local_sync_answers(
+        {
+            "video": {"age_s": 0.05, "frames": 100, "pll_lock": True},
+            "hid": {
+                "source": "usb_play",
+                "edges_last_n": ["r2"],
+                "sync_lag_ms": 40.0,
+                "lag_center_ms": 40.0,
+                "stick_heat": 0.05,
+            },
+            "haptic": {"co_occur_recent": True, "probe_ok": True},
+            "capture": {"starve": False},
+        }
+    )
+    assert answers["haptic_coupled"] >= 0.7
+    out = compose_sync_verdict(
+        bind_healthy=answers["bind_healthy"],
+        lag_class=answers["lag_class"],
+        lag_confidence=answers["lag_confidence"],
+        haptic_coupled=answers["haptic_coupled"],
+        action=answers["action"],
+        action_confidence=answers["action_confidence"],
+        severity=answers["severity"],
+        severity_confidence=answers["severity_confidence"],
+    )
+    assert out["glyphs"]["haptic"] == "on"
+    assert out["licenses_digits"] is False
+    assert out["haptic_authored"] is False
+
+
+def test_haptic_glyph_off_when_probe_disabled():
+    """Without --haptic-probe, probe_ok is null → glyph off (not soft/unknown)."""
+    answers = local_sync_answers(
+        {
+            "video": {"age_s": 0.05, "frames": 100, "pll_lock": True},
+            "hid": {
+                "source": "usb_play",
+                "edges_last_n": ["r2"],
+                "sync_lag_ms": 40.0,
+                "lag_center_ms": 40.0,
+                "stick_heat": 0.8,
+            },
+            "haptic": {"co_occur_recent": False, "probe_ok": None},
+            "capture": {"starve": False},
+        }
+    )
+    assert answers["haptic_coupled"] <= 0.3
+    out = compose_sync_verdict(
+        bind_healthy=answers["bind_healthy"],
+        lag_class=answers["lag_class"],
+        lag_confidence=answers["lag_confidence"],
+        haptic_coupled=answers["haptic_coupled"],
+        action=answers["action"],
+        action_confidence=answers["action_confidence"],
+        severity=answers["severity"],
+        severity_confidence=answers["severity_confidence"],
+    )
+    assert out["glyphs"]["haptic"] == "off"
+    assert out["haptic_authored"] is False
+    assert out["licenses_digits"] is False
+
+
+def test_haptic_glyph_off_stick_heat_without_co_occur():
+    """Stick wiggle / high stick_heat alone must not light the haptic glyph."""
+    answers = local_sync_answers(
+        {
+            "video": {"age_s": 0.05, "frames": 100, "pll_lock": True},
+            "hid": {
+                "source": "usb_play",
+                "edges_last_n": [],
+                "sync_lag_ms": 40.0,
+                "lag_center_ms": 40.0,
+                "stick_heat": 1.2,
+            },
+            "haptic": {"co_occur_recent": False, "probe_ok": True},
+            "capture": {"starve": False},
+        }
+    )
+    assert answers["haptic_coupled"] < 0.7
+    out = compose_sync_verdict(
+        bind_healthy=answers["bind_healthy"],
+        lag_class=answers["lag_class"],
+        lag_confidence=answers["lag_confidence"],
+        haptic_coupled=answers["haptic_coupled"],
+        action=answers["action"],
+        action_confidence=answers["action_confidence"],
+        severity=answers["severity"],
+        severity_confidence=answers["severity_confidence"],
+    )
+    assert out["glyphs"]["haptic"] in {"off", "unknown"}
+    assert out["glyphs"]["haptic"] != "on"
+    assert out["haptic_authored"] is False
+    assert out["licenses_digits"] is False

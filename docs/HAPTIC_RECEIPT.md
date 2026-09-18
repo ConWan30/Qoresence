@@ -47,6 +47,34 @@ Laptop-bodied USB DualSense can expose `hid_output` and/or `imu_echo`. That is t
 
 Not on `/api/civif/live`, Session Theater, or MCP.
 
+
+
+## SyncGlass haptic glyph (play stack)
+
+SyncGlass `/health` → `sync_glass.glyphs.haptic` is **observation-only** and
+stays **off** unless the private haptic probe is running:
+
+- Enable: `--haptic-probe` / `QORESENCE_HAPTIC_PROBE=1` (default **OFF**).
+- Without the probe, SyncGlass `_haptic_state` reports `probe_ok: null` and
+  the local heuristic keeps `haptic_coupled` low → glyph **off**.
+- With the probe, controller `_push_imu` already feeds `observe_imu` (USB
+  accel + `analog_slew`). `EchoDetector` looks for *sustained high-pass
+  accel energy while analog slew is quiet* → `imu_echo` pulses.
+- SyncGlass reads `get_haptic_probe().recent()` and sets `co_occur_recent`
+  when a recent pulse is coupled / in the IVC window. That flips the glyph
+  **on**. Stick wiggle alone must not.
+
+**Topology (immutable):** USB on the laptop is *observe*; BT on the PS5 is
+*play*. Sony does **not** mirror console rumble *output* onto the laptop USB
+pipe. Physical rumble felt by the operator on a laptop-bodied DualSense
+appears as **`imu_echo`**, not as `hid_output` rumble bytes from the console.
+Do not unplug USB to “fix” empty HID — equalize by video-clock bind.
+
+JSONL: `logs/haptic/*.jsonl` (probe) and optional receipt JSONL when
+`--haptic-probe` and/or `QORESENCE_HAPTIC_RECEIPT=1`. Probe stays private;
+`haptic_authored: false` and `licenses_digits: false` forever. Never set
+`controller_bodied` from vibration.
+
 ## Code
 
 - Builder + clock: `qoresence.sync.haptic_receipt`

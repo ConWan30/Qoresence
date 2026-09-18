@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from qoresence.sync.haptic_schema import intensity_bucket
 
-ONSET_SCORE = 48.0
+ONSET_SCORE = 40.0  # was 48; Edge dual-path USB IMU echo is quieter than lab amp=420
 OFF_SCORE = 22.0
 DWELL_ON = 14
 DWELL_OFF = 22
