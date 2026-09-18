@@ -44,6 +44,12 @@ from qoresence.observability.sync_coroner import (
     get_sync_coroner,
     make_coroner_from_config,
 )
+from qoresence.observability.sync_glass import (
+    SyncGlassSentinel,
+    compose_sync_verdict,
+    get_sync_glass,
+    make_sync_glass_from_config,
+)
 from qoresence.observability.ticket_glass import (
     TicketGlassSentinel,
     compose_glass_verdict,
@@ -96,4 +102,8 @@ __all__ = [
     "compose_glass_verdict",
     "get_ticket_glass",
     "make_ticket_glass_from_config",
+    "SyncGlassSentinel",
+    "compose_sync_verdict",
+    "get_sync_glass",
+    "make_sync_glass_from_config",
 ]

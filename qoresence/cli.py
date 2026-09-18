@@ -334,6 +334,23 @@ class QoresenceApp:
         except Exception as e:
             log.debug("TicketGlass sentinel not started: %s", e)
 
+        # SyncGlass v0 — pad↔picture bind glyphs (bind/lag/haptic). Enqueue-only
+        # subscriber + timer worker; advisory only, never licenses digits, never
+        # applies lag_center recenter or capture fps.
+        self.sync_glass = None
+        try:
+            from qoresence.observability.sync_glass import (
+                make_sync_glass_from_config,
+            )
+
+            self.sync_glass = make_sync_glass_from_config(
+                getattr(config, "sync_glass", None),
+                bus=self.bus,
+                jev_enabled=bool(getattr(getattr(config, "jev", None), "enabled", False)),
+            )
+        except Exception as e:
+            log.debug("SyncGlass sentinel not started: %s", e)
+
         # Private haptic probe (default OFF; env QORESENCE_HAPTIC_PROBE=1)
         self.haptic_probe = None
         try:
@@ -1509,6 +1526,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             prev if prev is not None else TicketGlassConfig(),
             enabled=True,
         )
+    if getattr(args, "sync_glass", False):
+        from qoresence.core.unified_config import SyncGlassConfig
+
+        prev = getattr(config, "sync_glass", None)
+        config.sync_glass = replace(
+            prev if prev is not None else SyncGlassConfig(),
+            enabled=True,
+        )
     if getattr(args, "learning_edge", False) or getattr(config, "learning_edge", False):
         config.learning_edge = True
         try:
@@ -1793,7 +1818,7 @@ def main():
         action="store_true",
         help="TypeSafe Jev conductor: select ClutchBot/MatchAgent templates "
         "(text-only; cannot see HDMI). Also starts SyncCoroner, "
-        "ScorePlausibility, press labeler, and TicketGlass. Default OFF. Also "
+        "ScorePlausibility, press labeler, TicketGlass, and SyncGlass. Default OFF. Also "
         "QORESENCE_JEV=1. --play does not enable this. Never licenses "
         "score digits. Key: TYPESAFE_API_KEY or .secrets/typesafe.key.",
     )
@@ -1814,6 +1839,16 @@ def main():
         "QORESENCE_TICKET_GLASS=1 (or under --jev). --play does not enable "
         "this. Observation only — never licenses score digits; "
         "board_paint_block is VETO-only. No Foundry cut side effects.",
+    )
+    parser.add_argument(
+        "--sync-glass",
+        action="store_true",
+        help="TypeSafe SyncGlass v0: live bind/lag/haptic glyphs from "
+        "compact video-clock bind facts + typed questions. Default OFF. Also "
+        "QORESENCE_SYNC_GLASS=1 (or under --jev). --play does not enable "
+        "this. Observation only — never licenses score digits; never applies "
+        "lag_center recenter or capture fps. DualSense USB=laptop observe, "
+        "BT=PS5 play.",
     )
     parser.add_argument(
         "--haptic-probe",
