@@ -30,9 +30,10 @@ those segments is scored as ambiguous, never as incorrect.
 ``observations`` are what the seeing path parsed (right or wrong), bound to the
 source frame's seq/clock. ``arrival_delay_ns`` models VLM latency: an
 observation is evaluated at ``captured_ns + arrival_delay_ns`` and counts stale
-past the confirm window. ``jev`` carries a cached TypeSafe verdict when the row
-was recorded with Jev enabled; fixtures hand-author it as hypothetical input —
-real sessions should record live verdicts.
+past the confirm window. ``jev`` carries a TypeSafe verdict for the
+prior→candidate transition — recorded live when ``QORESENCE_JEV`` is on (the
+VLM worker asks Jev on each changed same-identity pair and stores the verdict
+on the row); fixtures may also hand-author it as hypothetical input.
 
 Recorded sessions: ``QORESENCE_SCORE_REPLAY_LOG=<path>`` makes the scoreboard
 VLM append each surviving parse (plus ``_observation`` source metadata) as one
@@ -164,6 +165,7 @@ def build_manifest_from_recording(
                 "game_clock": row.get("clock"),
                 "arrival_delay_ns": max(0, recorded - captured),
                 "analyzed_crop_hash": src.get("analyzed_crop_hash"),
+                "jev": row.get("jev"),
             }
         )
     ends = [int(o.get("captured_ns") or 0) for o in observations]

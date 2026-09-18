@@ -8,6 +8,8 @@ cached Jev verdicts ride the manifest rows and only feed injected suspicion.
 from __future__ import annotations
 
 import json
+import time
+import types
 
 import pytest
 
@@ -278,3 +280,170 @@ def test_fixture_dir_returns_all_reports(reports):
     for rep in reports.values():
         assert rep["schema"] == "qoresence-score-replay-report-0"
         assert rep["comparison"]
+
+
+# ---------- live Jev verdict recording ----------
+
+def test_transition_verdict_gated_when_jev_off(monkeypatch):
+    from qoresence.observability import score_plausibility as sp
+
+    monkeypatch.delenv("QORESENCE_JEV", raising=False)
+    called = []
+    monkeypatch.setattr(sp, "system_one", lambda **kw: called.append(kw))
+    assert sp.transition_verdict((7, 0), (20, 20)) is None
+    assert called == []
+
+
+def test_transition_verdict_shape_and_failure(monkeypatch):
+    from qoresence.observability import score_plausibility as sp
+
+    monkeypatch.setenv("QORESENCE_JEV", "1")
+    resp = types.SimpleNamespace(
+        nouls={"implausible": types.SimpleNamespace(noul=0.91)},
+        choices={
+            "jump_kind": types.SimpleNamespace(
+                choice="ocr_echo", confidence=0.8
+            )
+        },
+    )
+    seen = []
+    monkeypatch.setattr(
+        sp, "system_one", lambda **kw: seen.append(kw) or resp
+    )
+    v = sp.transition_verdict((20, 0), (20, 20))
+    assert v["implausible_noul"] == 0.91
+    assert v["jump_kind"] == "ocr_echo"
+    assert v["jump_confidence"] == 0.8
+    assert v["prior"] == [20, 0]
+    assert v["source"] == "typesafe"
+    st = seen[0]["state"]
+    assert st["prior"] == {"home_score": 20, "away_score": 0}
+    assert st["proposed"] == {"home_score": 20, "away_score": 20}
+    # service failure → no verdict, never a fabricated one
+    monkeypatch.setattr(sp, "system_one", lambda **kw: None)
+    assert sp.transition_verdict((7, 0), (10, 0)) is None
+
+
+def test_recording_jev_flows_into_manifest_and_typesafe_variant(tmp_path):
+    rec = tmp_path / "session.jsonl"
+    rows = [
+        {"home_score": 7, "away_score": 0, "left_team": "LOU",
+         "right_team": "NCST", "quarter": 2, "clock": "08:00",
+         "recorded_ns": 1_500_000_000, "recheck_status": "accepted",
+         "_observation": {"session_id": "live-j", "seq": 21,
+                          "clock_ns": 1_000_000_000, "crop_hash": "crop-21",
+                          "game_state": "gameplay"}},
+        {"home_score": 20, "away_score": 20, "left_team": "LOU",
+         "right_team": "NCST", "quarter": 2, "clock": "07:30",
+         "recorded_ns": 3_500_000_000, "recheck_status": "recheck",
+         "jev": {"implausible_noul": 0.9, "jump_kind": "ocr_echo",
+                 "prior": [7, 0], "source": "typesafe"},
+         "_observation": {"session_id": "live-j", "seq": 22,
+                          "clock_ns": 3_000_000_000, "crop_hash": "crop-22",
+                          "game_state": "gameplay"}},
+    ]
+    rec.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    manifest = build_manifest_from_recording(
+        rec,
+        truth=[{"start_ns": 0, "home_score": 7, "away_score": 0,
+                "readable": True}],
+    )
+    obs = manifest["observations"]
+    assert obs[0]["jev"] is None
+    assert obs[1]["jev"]["implausible_noul"] == 0.9
+    rep = run_manifest(manifest)
+    # The recorded verdict held the echo under the typesafe policy.
+    assert "recheck" in rep["variants"]["typesafe"]["status_counts"]
+
+
+def test_run_attaches_jev_verdict_to_replay_row(tmp_path, monkeypatch):
+    """End-to-end: changed same-identity pair → Jev verdict on the JSONL row."""
+    import numpy as np
+
+    from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee
+
+    log_path = tmp_path / "rows.jsonl"
+    monkeypatch.setenv("QORESENCE_SCORE_REPLAY_LOG", str(log_path))
+    monkeypatch.setenv("QORESENCE_SCORE_RECHECK", "1")
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    assert ref.recheck_enabled
+
+    reads = iter(
+        [
+            {"home_score": 7, "away_score": 0, "home_team": "LOU",
+             "away_team": "NCST", "quarter": 2, "clock_seconds": 300},
+            {"home_score": 20, "away_score": 20, "home_team": "LOU",
+             "away_team": "NCST", "quarter": 2, "clock_seconds": 240},
+        ]
+    )
+    monkeypatch.setattr(ref, "_call_vlm", lambda _c: next(reads))
+    monkeypatch.setattr(
+        ref, "_crop", lambda *a, **k: np.zeros((8, 8, 3), dtype=np.uint8)
+    )
+
+    tv_calls = []
+
+    def fake_tv(prior, cand, **kw):
+        tv_calls.append((prior, cand))
+        return {
+            "implausible_noul": 0.95,
+            "jump_kind": "ocr_echo",
+            "jump_confidence": 0.8,
+            "prior": list(prior),
+            "source": "typesafe",
+        }
+
+    monkeypatch.setattr(
+        "qoresence.observability.score_plausibility.transition_verdict",
+        fake_tv,
+    )
+    monkeypatch.setattr(
+        "qoresence.vision.confirm_ticket.resolve_session_id",
+        lambda *a, **k: "sess-t",
+    )
+
+    frame = np.zeros((64, 64, 3), dtype=np.uint8)
+    base = time.monotonic_ns()
+    ref.schedule(
+        frame, force=True, reason="tick",
+        source_stamp={"seq": 1, "clock_ns": base, "crop_hash": "c1"},
+        game_state="gameplay", game_profile="cfb_27",
+    )
+    deadline = time.time() + 3.0
+    while time.time() < deadline and ref._calls < 1:
+        time.sleep(0.02)
+    assert ref._calls == 1
+
+    ref.schedule(
+        frame, force=True, reason="score_changed",
+        source_stamp={
+            "seq": 2,
+            "clock_ns": base + 1_000_000,
+            "crop_hash": "c2",
+        },
+        game_state="gameplay", game_profile="cfb_27",
+    )
+    deadline = time.time() + 3.0
+    while time.time() < deadline and not log_path.exists():
+        time.sleep(0.02)
+    rows = [
+        json.loads(ln)
+        for ln in log_path.read_text().splitlines()
+        if ln.strip()
+    ]
+    while len(rows) < 2 and time.time() < deadline:
+        time.sleep(0.02)
+        rows = [
+            json.loads(ln)
+            for ln in log_path.read_text().splitlines()
+            if ln.strip()
+        ]
+    assert len(rows) == 2
+    assert "jev" not in rows[0]
+    assert rows[1]["recheck_status"] == "recheck"
+    assert rows[1]["jev"]["implausible_noul"] == 0.95
+    assert rows[1]["jev"]["jump_kind"] == "ocr_echo"
+    assert tv_calls == [((7, 0), (20, 20))]
