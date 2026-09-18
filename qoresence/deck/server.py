@@ -1169,6 +1169,27 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception:
             body["press_labeler"] = {"enabled": False}
         try:
+            from qoresence.sync.sync_health import get_sync_health
+
+            body["sync_health"] = get_sync_health().stats()
+        except Exception:
+            body["sync_health"] = {"level": "unknown"}
+        try:
+            from qoresence.observability.sync_coroner import get_sync_coroner
+
+            _sc = get_sync_coroner()
+            body["sync_coroner"] = (
+                _sc.stats() if _sc is not None else {"enabled": False}
+            )
+        except Exception:
+            body["sync_coroner"] = {"enabled": False}
+        try:
+            from qoresence.sync.hid_telemetry import snapshot as _hid_snap
+
+            body["hid_telemetry"] = _hid_snap()
+        except Exception:
+            body["hid_telemetry"] = {"enabled": False}
+        try:
             from qoresence.a2a.orchestrator import get_a2a_orchestrator
 
             body["a2a"] = get_a2a_orchestrator().stats()
@@ -3060,6 +3081,23 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
                 except Exception:
                     health["press_labeler"] = {"enabled": False}
+                try:
+                    from qoresence.sync.sync_health import get_sync_health
+
+                    health["sync_health"] = get_sync_health().stats()
+                except Exception:
+                    health["sync_health"] = {"level": "unknown"}
+                try:
+                    from qoresence.observability.sync_coroner import (
+                        get_sync_coroner,
+                    )
+
+                    _sc = get_sync_coroner()
+                    health["sync_coroner"] = (
+                        _sc.stats() if _sc is not None else {"enabled": False}
+                    )
+                except Exception:
+                    health["sync_coroner"] = {"enabled": False}
                 try:
                     from qoresence.agents.match_agent import surface_last_note
 

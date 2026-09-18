@@ -274,6 +274,19 @@ class QoresenceApp:
         except Exception as e:
             log.debug("Press labeler not started: %s", e)
 
+        # SyncCoroner (same flag) — Jev diagnoses lag bottlenecks from sync
+        # telemetry; code applies predeclared SyncHealth mitigations. Timer
+        # worker only — never on capture/HID/bus threads.
+        self.sync_coroner = None
+        try:
+            from qoresence.observability.sync_coroner import make_coroner_from_config
+
+            self.sync_coroner = make_coroner_from_config(
+                getattr(config, "jev", None), bus=self.bus
+            )
+        except Exception as e:
+            log.debug("SyncCoroner not started: %s", e)
+
         # Private haptic probe (default OFF; env QORESENCE_HAPTIC_PROBE=1)
         self.haptic_probe = None
         try:

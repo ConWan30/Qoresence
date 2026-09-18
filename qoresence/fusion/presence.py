@@ -833,23 +833,29 @@ class PresenceFusionEngine:
                 screen_state["decoupled_energy"] = coupling["decoupled_energy"]
 
             elif event.type == EventType.STICK_MOTION:
-                state.setdefault("stick_motions", []).append(
+                stick_motions = state.setdefault("stick_motions", [])
+                stick_motions.append(
                     {
                         "stick": payload.get("stick"),
                         "x": payload.get("x"),
                         "y": payload.get("y"),
+                        "n": int(payload.get("n") or 1),
                         "ts": event.clock_ns,
                     }
                 )
+                del stick_motions[:-64]
 
             elif event.type == EventType.TREMOR_SAMPLE:
-                state.setdefault("tremor_samples", []).append(
+                tremor_samples = state.setdefault("tremor_samples", [])
+                tremor_samples.append(
                     {
                         "gyro": payload.get("gyro"),
                         "accel": payload.get("accel"),
+                        "n": int(payload.get("n") or 1),
                         "ts": event.clock_ns,
                     }
                 )
+                del tremor_samples[:-64]
 
             elif event.type == EventType.CONTROLLER_EVENT:
                 if "causal_parent_ns" in payload:
@@ -1045,8 +1051,12 @@ class PresenceFusionEngine:
 
             elif lobe == SourceLobe.CONTROLLER:
                 causal = state.get("causal_density", 0)
-                tremor_count = len(state.get("tremor_samples", []))
-                stick_count = len(state.get("stick_motions", []))
+                tremor_count = sum(
+                    int(e.get("n") or 1) for e in state.get("tremor_samples", [])
+                )
+                stick_count = sum(
+                    int(e.get("n") or 1) for e in state.get("stick_motions", [])
+                )
                 score = min(1.0, (causal * 0.2) + (tremor_count * 0.01) + (stick_count * 0.01))
                 confidence = min(1.0, (causal + tremor_count + stick_count) * 0.05)
 

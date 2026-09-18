@@ -526,13 +526,16 @@ class SituationModel:
         triggers = sum(1 for _, kind, _ in self._controller_events if kind == "trigger")
         self._state.controller.trigger_events_5s = triggers
 
-        # Stick motion magnitude
+        # Stick motion magnitude (coalesced events carry the summed magnitude)
         stick_magnitude = 0.0
         for _ts, kind, payload in self._controller_events:
             if kind == "stick":
-                x = payload.get("x", 0.0) or 0.0
-                y = payload.get("y", 0.0) or 0.0
-                stick_magnitude += (x * x + y * y) ** 0.5
+                if payload.get("magnitude") is not None:
+                    stick_magnitude += float(payload["magnitude"])
+                else:
+                    x = payload.get("x", 0.0) or 0.0
+                    y = payload.get("y", 0.0) or 0.0
+                    stick_magnitude += (x * x + y * y) ** 0.5
         self._state.controller.stick_motion_5s = stick_magnitude
 
         if self._controller_events:

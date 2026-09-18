@@ -13,6 +13,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import hid
 
@@ -222,6 +223,16 @@ class ControllerRuntime:
         # Analog hold for IVC sustain (throttled; not an edge flood)
         self._last_hold_ns = 0
 
+        # Coalesced HID telemetry. High-rate analog state publishes to the
+        # hid_telemetry slot every report; bus events flush as aggregates at
+        # the sync-health emit ceiling — a 1 kHz poll no longer emits ~2k
+        # bus events/sec that starve the DShow grab thread of the GIL.
+        self._tremor_acc: dict[str, Any] = {"n": 0}
+        self._stick_acc: dict[str, dict[str, Any]] = {}
+        self._telemetry_window_ns = 0
+        self._last_telemetry_flush_mono = 0.0
+        self._telemetry_emitted = 0
+
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
     # ──────────────────────────────────────────────────────────────────────────
@@ -291,6 +302,7 @@ class ControllerRuntime:
             "stick_motion": self._last_stick_motion if hasattr(self, "_last_stick_motion") else 0.0,
             "causal_density": self._causal_density if hasattr(self, "_causal_density") else 0,
             "last_event_ns": self._last_event_ns if hasattr(self, "_last_event_ns") else 0,
+            "telemetry_emitted": self._telemetry_emitted,
         }
 
     def ingest_report(self, report: bytes, *, host_ts_ns: int | None = None) -> ControllerState:
@@ -591,6 +603,13 @@ class ControllerRuntime:
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
+        # Flush any pending coalesced telemetry so short sessions and tests
+        # still see aggregates on the bus.
+        try:
+            self._flush_telemetry(clock_ns(), force=True)
+        except Exception:
+            pass
+
         if self._ever_connected:
             self._emit_session_end()
 
@@ -667,6 +686,12 @@ class ControllerRuntime:
     def _process_state(self, state: ControllerState) -> None:
         """Compare with previous state, emit events, update buffer."""
         now_ns = state.host_ts_ns
+        try:
+            from qoresence.sync.hid_telemetry import note_report
+
+            note_report()
+        except Exception:
+            pass
 
         # Button changes
         changed = state.buttons ^ self._prev_state.buttons
@@ -678,14 +703,17 @@ class ControllerRuntime:
         # Trigger onsets (edge detection)
         self._check_trigger_onsets(state, now_ns)
 
-        # Stick motion (deadzone)
+        # Stick motion (deadzone) — accumulated, flushed at coalesce rate
         self._check_stick_motion(state, now_ns)
 
-        # IMU tremor sample (if IMU available)
+        # IMU tremor sample (if IMU available) — accumulated, flushed at
+        # coalesce rate. Full-rate state still flows to the telemetry slot.
         if any(
             [state.gyro_x, state.gyro_y, state.gyro_z, state.accel_x, state.accel_y, state.accel_z]
         ):
-            self._emit_tremor_sample(state, now_ns)
+            self._accumulate_tremor(state, now_ns)
+
+        self._flush_telemetry(now_ns)
 
         # Do not emit a 100Hz full-state controller_event — bus subscribers
         # can stall the HID poll loop (AGENTS.md lock-order). Heartbeat covers stats.
@@ -935,41 +963,133 @@ class ControllerRuntime:
             outside = dx > deadzone or dy > deadzone
             was_outside = pdx > deadzone or pdy > deadzone
             if outside:
-                # Significant motion from center
-                causal_parent = self.find_causal_parent()
-                self.bus.emit_raw(
-                    source_lobe=SourceLobe.CONTROLLER,
-                    event_type="stick_motion",
-                    payload={
-                        "stick": stick,
-                        "x": (x - 128) / 127.0,  # Normalized -1..1
-                        "y": (y - 128) / 127.0,
-                        "dx": (x - px) / 127.0,
-                        "dy": (y - py) / 127.0,
-                        "causal_parent_ns": causal_parent,
-                    },
-                    clock_ns_override=now_ns,
-                    session_head_ns=self.session_head_ns,
+                # Accumulate for the coalesced bus emit; full-rate latest
+                # state still flows to the telemetry slot every report.
+                nx = (x - 128) / 127.0  # Normalized -1..1
+                ny = (y - 128) / 127.0
+                ndx = (x - px) / 127.0
+                ndy = (y - py) / 127.0
+                acc = self._stick_acc.setdefault(
+                    stick,
+                    {"n": 0, "magnitude": 0.0, "peak": 0.0, "x": 0.0, "y": 0.0, "dx": 0.0, "dy": 0.0},
                 )
+                acc["n"] += 1
+                sample_mag = (nx * nx + ny * ny) ** 0.5
+                acc["magnitude"] += sample_mag
+                acc["peak"] = max(acc["peak"], sample_mag)
+                acc["x"], acc["y"], acc["dx"], acc["dy"] = nx, ny, ndx, ndy
+                if not self._telemetry_window_ns:
+                    self._telemetry_window_ns = now_ns
+                try:
+                    from qoresence.sync.hid_telemetry import publish_stick
+
+                    publish_stick(stick=stick, x=nx, y=ny, dx=ndx, dy=ndy, clock_ns=now_ns)
+                except Exception:
+                    pass
                 # InputRing: edge only (center → outside)
                 if not was_outside:
                     mag = min(1.0, max(dx, dy) / 127.0)
                     self._push_input_ring(kind="stick", name=stick, value=mag, clock_ns=now_ns, hid_domain=state.hid_domain)
 
-    def _emit_tremor_sample(self, state: ControllerState, now_ns: int) -> None:
-        """Emit IMU tremor sample for biometric correlation."""
-        causal_parent = self.find_causal_parent()
-        self.bus.emit_raw(
-            source_lobe=SourceLobe.CONTROLLER,
-            event_type="tremor_sample",
-            payload={
-                "gyro": [state.gyro_x, state.gyro_y, state.gyro_z],
-                "accel": [state.accel_x, state.accel_y, state.accel_z],
-                "causal_parent_ns": causal_parent,
-            },
-            clock_ns_override=now_ns,
-            session_head_ns=self.session_head_ns,
+    def _accumulate_tremor(self, state: ControllerState, now_ns: int) -> None:
+        """Accumulate one IMU sample; publish full-rate state to the slot."""
+        acc = self._tremor_acc
+        acc["n"] = acc.get("n", 0) + 1
+        acc["gyro_sq"] = acc.get("gyro_sq", 0.0) + (
+            state.gyro_x**2 + state.gyro_y**2 + state.gyro_z**2
         )
+        acc["accel_sq"] = acc.get("accel_sq", 0.0) + (
+            state.accel_x**2 + state.accel_y**2 + state.accel_z**2
+        )
+        acc["gyro"] = [state.gyro_x, state.gyro_y, state.gyro_z]
+        acc["accel"] = [state.accel_x, state.accel_y, state.accel_z]
+        if not self._telemetry_window_ns:
+            self._telemetry_window_ns = now_ns
+        try:
+            from qoresence.sync.hid_telemetry import publish_tremor
+
+            publish_tremor(gyro=acc["gyro"], accel=acc["accel"], clock_ns=now_ns)
+        except Exception:
+            pass
+
+    def _flush_telemetry(self, now_ns: int, *, force: bool = False) -> None:
+        """Emit coalesced tremor/stick aggregates at the sync-health ceiling.
+
+        The bus sees ~10 events/sec instead of ~2000; payloads carry ``n``
+        (sample count) and ``magnitude`` (per-sample magnitudes summed) so
+        presence/situation counters keep their meaning. The first call only
+        anchors the window — every emitted aggregate covers ≥ min_gap of
+        accumulation.
+        """
+        now_mono = time.monotonic()
+        if not force:
+            try:
+                from qoresence.sync.sync_health import get_sync_health
+
+                min_gap = 1.0 / max(get_sync_health().coalesce_hz(), 0.5)
+            except Exception:
+                min_gap = 0.1
+            if not self._last_telemetry_flush_mono:
+                self._last_telemetry_flush_mono = now_mono
+                return
+            if (now_mono - self._last_telemetry_flush_mono) < min_gap:
+                return
+        self._last_telemetry_flush_mono = now_mono
+
+        window_ms = (
+            (now_ns - self._telemetry_window_ns) / 1e6 if self._telemetry_window_ns else 0.0
+        )
+
+        tremor = self._tremor_acc
+        if tremor.get("n"):
+            causal_parent = self.find_causal_parent()
+            n = int(tremor["n"])
+            self.bus.emit_raw(
+                source_lobe=SourceLobe.CONTROLLER,
+                event_type="tremor_sample",
+                payload={
+                    "gyro": tremor.get("gyro") or [0, 0, 0],
+                    "accel": tremor.get("accel") or [0, 0, 0],
+                    "n": n,
+                    "gyro_rms": round((tremor.get("gyro_sq", 0.0) / n) ** 0.5, 2),
+                    "accel_rms": round((tremor.get("accel_sq", 0.0) / n) ** 0.5, 2),
+                    "window_ms": round(window_ms, 1),
+                    "coalesced": True,
+                    "causal_parent_ns": causal_parent,
+                },
+                clock_ns_override=now_ns,
+                session_head_ns=self.session_head_ns,
+            )
+            self._telemetry_emitted += 1
+
+        for stick, acc in list(self._stick_acc.items()):
+            if not acc.get("n"):
+                continue
+            causal_parent = self.find_causal_parent()
+            self.bus.emit_raw(
+                source_lobe=SourceLobe.CONTROLLER,
+                event_type="stick_motion",
+                payload={
+                    "stick": stick,
+                    "x": acc["x"],
+                    "y": acc["y"],
+                    "dx": acc["dx"],
+                    "dy": acc["dy"],
+                    "n": int(acc["n"]),
+                    "magnitude": round(acc["magnitude"], 3),
+                    "peak": round(acc["peak"], 3),
+                    "window_ms": round(window_ms, 1),
+                    "coalesced": True,
+                    "causal_parent_ns": causal_parent,
+                },
+                clock_ns_override=now_ns,
+                session_head_ns=self.session_head_ns,
+            )
+            self._telemetry_emitted += 1
+
+        self._tremor_acc = {"n": 0}
+        self._stick_acc = {}
+        self._telemetry_window_ns = 0
 
     def _emit_button_events(
         self, pressed: int, released: int, now_ns: int, hid_domain: str

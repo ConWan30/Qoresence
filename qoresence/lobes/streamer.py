@@ -826,6 +826,12 @@ class StreamerRuntime:
                 self._consecutive_failures = 0
                 self._last_success_frame_time = time.time()
                 self._fps_window.append(time.time())
+            try:
+                from qoresence.sync.sync_health import get_sync_health
+
+                get_sync_health().note_frame()
+            except Exception:
+                pass
 
             self._frames_processed += 1
 
@@ -1214,6 +1220,20 @@ class StreamerRuntime:
         """Emit periodic frame statistics."""
         elapsed = max(now - self._start_time, 1e-6)
         presence_sync, last_ago = self._check_presence(now)
+        fps_meas = self._measure_actual_fps() or self._frames_processed / elapsed
+        try:
+            from qoresence.sync.sync_health import get_sync_health
+
+            with self._grab_lock:
+                # _grab_ts is time.monotonic() — don't mix with `now` (time.time()).
+                video_age = (time.monotonic() - self._grab_ts) if self._grab_ts else None
+            get_sync_health().note_rates(
+                fps_meas=fps_meas,
+                fps_target=self._effective_fps,
+                video_age_s=video_age,
+            )
+        except Exception:
+            pass
 
         self.bus.emit_raw(
             source_lobe=SourceLobe.STREAMER,
