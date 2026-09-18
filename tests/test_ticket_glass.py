@@ -553,3 +553,54 @@ def test_closed_option_sets():
     assert "cut_foundry" in CLIP_NOW
     assert "dark" in GLASS_ROUTES
     assert "x_live_overlay" in GLASS_ROUTES
+
+
+def test_typesafe_ask_cadence_reuses_answers(tmp_path, monkeypatch):
+    """Situation ticks stay fast; TypeSafe asks only on ask_interval."""
+    monkeypatch.setenv("QORESENCE_TICKET_GLASS_ASK_S", "10")
+    sen = _sentinel(tmp_path, state_fn=lambda: _in_game_state(), ask_fn=None)
+    try:
+        sen._ask_interval_s = 10.0
+        counted = {"n": 0}
+
+        def _fake_try(_state):
+            counted["n"] += 1
+            return {
+                "title_in_game": 0.9,
+                "board_paint_block": 0.1,
+                "moment_class": "build",
+                "moment_confidence": 0.85,
+                "clip_now": "hold",
+                "clip_confidence": 0.9,
+                "lens_tension": 2.0,
+                "tension_confidence": 0.85,
+                "glass_route": "deck_only",
+                "route_confidence": 0.85,
+                "source": "typesafe",
+            }
+
+        sen._try_typesafe = _fake_try  # type: ignore[method-assign]
+        a1 = sen._answers_with_typesafe_cadence(_in_game_state())
+        a2 = sen._answers_with_typesafe_cadence(_in_game_state())
+        assert a1 is not None and a1["source"] == "typesafe"
+        assert a2 is not None and a2["source"] == "typesafe"
+        assert counted["n"] == 1
+        assert sen.stats()["licenses_digits"] is False
+    finally:
+        sen.stop()
+
+
+def test_typesafe_failure_falls_back_to_local(tmp_path):
+    sen = _sentinel(tmp_path, state_fn=lambda: _in_game_state(), ask_fn=None)
+    try:
+        sen._ask_interval_s = 0.0
+        sen._try_typesafe = lambda _s: None  # type: ignore[method-assign]
+        answers = sen._answers_with_typesafe_cadence(_in_game_state())
+        assert answers is None
+        verdict = sen._judge(_in_game_state())
+        assert verdict["source"] == "local_heuristic"
+        assert verdict["licenses_digits"] is False
+        assert verdict["glass_route"] == "dark"
+    finally:
+        sen.stop()
+
