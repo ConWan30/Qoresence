@@ -26,6 +26,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.typesafe_ask import (
+    DEFAULT_TIMEOUT_S,
+    system_one,
+)
+
 from qoresence.sync.sync_health import SHEDDING, SMOOTH, TIGHT, get_sync_health
 
 log = logging.getLogger(__name__)
@@ -244,6 +249,11 @@ class SyncCoroner:
         self._bus = bus  # stats only — never emit, never subscribe
         self._ask_fn = ask_fn
         self.enabled = bool(getattr(config, "enabled", False)) or _env_enabled()
+        self._warned_typesafe = [False]
+        self._typesafe_timeout_s = float(
+            getattr(config, "typesafe_timeout_s", DEFAULT_TIMEOUT_S)
+            or DEFAULT_TIMEOUT_S
+        )
         self._cadence_s = float(getattr(config, "cadence_s", 3.0) or 3.0)
         self._stop_evt = threading.Event()
         self._worker: threading.Thread | None = None
@@ -354,18 +364,6 @@ class SyncCoroner:
         return verdict
 
     def _try_typesafe(self, snap: dict[str, Any]) -> dict[str, Any] | None:
-        if not os.environ.get("TYPESAFE_API_KEY", "").strip():
-            try:
-                raw = Path(".secrets/typesafe.key").read_text(encoding="utf-8-sig").strip()
-                if not raw:
-                    return None
-                os.environ["TYPESAFE_API_KEY"] = raw
-            except Exception:
-                return None
-        try:
-            from typesafe_sdk import TypeSafeClient
-        except Exception:
-            return None
         questions = coroner_questions()
         if not questions:
             return None
@@ -380,29 +378,31 @@ class SyncCoroner:
             "controller": snap.get("controller") or {},
             "bus_eps": snap.get("bus_eps"),
         }
-        try:
-            with TypeSafeClient() as client:
-                response = client.system_one(state=state, questions=questions)
-            choices = getattr(response, "choices", {}) or {}
-            scores = getattr(response, "scores", {}) or {}
-            nouls = getattr(response, "nouls", {}) or {}
-            b = choices.get("bottleneck")
-            s = scores.get("severity")
-            t = nouls.get("transient")
-            return {
-                "bottleneck": getattr(b, "choice", None) if b is not None else None,
-                "bottleneck_confidence": (
-                    float(getattr(b, "confidence", 0) or 0) if b is not None else None
-                ),
-                "severity": float(s.score) if s is not None else None,
-                "transient_noul": float(t.noul) if t is not None else None,
-                "source": "typesafe",
-            }
-        except Exception as e:
-            log.debug("coroner system_one failed: %s", e)
+        response = system_one(
+            state=state,
+            questions=questions,
+            timeout_s=self._typesafe_timeout_s,
+            warn_label="sync_coroner",
+            warned_flag=self._warned_typesafe,
+            logger=log,
+        )
+        if response is None:
             return None
-
-    # ── apply (predeclared mitigations only) ─────────────────────────────
+        choices = getattr(response, "choices", {}) or {}
+        scores = getattr(response, "scores", {}) or {}
+        nouls = getattr(response, "nouls", {}) or {}
+        b = choices.get("bottleneck")
+        s = scores.get("severity")
+        t = nouls.get("transient")
+        return {
+            "bottleneck": getattr(b, "choice", None) if b is not None else None,
+            "bottleneck_confidence": (
+                float(getattr(b, "confidence", 0) or 0) if b is not None else None
+            ),
+            "severity": float(s.score) if s is not None else None,
+            "transient_noul": float(t.noul) if t is not None else None,
+            "source": "typesafe",
+        }
 
     def _apply(self, verdict: dict[str, Any]) -> None:
         if verdict.get("action") == "apply" and verdict.get("applied_level"):

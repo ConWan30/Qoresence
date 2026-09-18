@@ -31,6 +31,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.typesafe_ask import (
+    DEFAULT_TIMEOUT_S,
+    system_one,
+)
+
 from qoresence.observability.ticket_stale_questions import (
     CONF_ACT,
     CONF_SOFT,
@@ -207,6 +212,12 @@ class TicketStaleSentinel:
         self._cadence_s = float(getattr(config, "cadence_s", 2.0) or 2.0)
         enabled = bool(getattr(config, "enabled", False)) if config is not None else False
         self.enabled = enabled or _env_enabled()
+        self._warned_typesafe = [False]
+        _cfg = config
+        self._typesafe_timeout_s = float(
+            (getattr(_cfg, "typesafe_timeout_s", DEFAULT_TIMEOUT_S) if _cfg is not None else DEFAULT_TIMEOUT_S)
+            or DEFAULT_TIMEOUT_S
+        )
         if not self.enabled:
             return
         out_dir = Path(getattr(config, "out_dir", "logs/ticket_stale") or "logs/ticket_stale")
@@ -363,18 +374,6 @@ class TicketStaleSentinel:
             return ""
 
     def _try_typesafe(self, state: dict[str, Any]) -> dict[str, Any] | None:
-        if not os.environ.get("TYPESAFE_API_KEY", "").strip():
-            try:
-                raw = Path(".secrets/typesafe.key").read_text(encoding="utf-8-sig").strip()
-                if not raw:
-                    return None
-                os.environ["TYPESAFE_API_KEY"] = raw
-            except Exception:
-                return None
-        try:
-            from typesafe_sdk import TypeSafeClient
-        except Exception:
-            return None
         questions = ticket_stale_questions()
         if not questions:
             return None
@@ -388,29 +387,31 @@ class TicketStaleSentinel:
             "gate_reason": state.get("gate_reason"),
             "identity_stale": bool(state.get("identity_stale")),
         }
-        try:
-            with TypeSafeClient() as client:
-                response = client.system_one(state=payload, questions=questions)
-            choices = getattr(response, "choices", {}) or {}
-            nouls = getattr(response, "nouls", {}) or {}
-            scores = getattr(response, "scores", {}) or {}
-            sc = choices.get("stale_class")
-            hn = nouls.get("hold_now")
-            fr = scores.get("freshness")
-            return {
-                "stale_class": getattr(sc, "choice", None) if sc is not None else None,
-                "stale_confidence": (
-                    float(getattr(sc, "confidence", 0) or 0) if sc is not None else None
-                ),
-                "hold_noul": float(hn.noul) if hn is not None else None,
-                "freshness": float(fr.score) if fr is not None else None,
-                "source": "typesafe",
-            }
-        except Exception as e:
-            log.debug("ticket_stale system_one failed: %s", e)
+        response = system_one(
+            state=payload,
+            questions=questions,
+            timeout_s=self._typesafe_timeout_s,
+            warn_label="ticket_stale",
+            warned_flag=self._warned_typesafe,
+            logger=log,
+        )
+        if response is None:
             return None
-
-    # ── worker ───────────────────────────────────────────────────────────
+        choices = getattr(response, "choices", {}) or {}
+        nouls = getattr(response, "nouls", {}) or {}
+        scores = getattr(response, "scores", {}) or {}
+        sc = choices.get("stale_class")
+        hn = nouls.get("hold_now")
+        fr = scores.get("freshness")
+        return {
+            "stale_class": getattr(sc, "choice", None) if sc is not None else None,
+            "stale_confidence": (
+                float(getattr(sc, "confidence", 0) or 0) if sc is not None else None
+            ),
+            "hold_noul": float(hn.noul) if hn is not None else None,
+            "freshness": float(fr.score) if fr is not None else None,
+            "source": "typesafe",
+        }
 
     def _run(self) -> None:
         while not self._stop_evt.wait(self._cadence_s):

@@ -31,6 +31,13 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.typesafe_ask import (
+    AskCadence,
+    DEFAULT_ASK_INTERVAL_S,
+    DEFAULT_TIMEOUT_S,
+    system_one,
+)
+
 log = logging.getLogger(__name__)
 
 PLANE = "qoresence-observation"
@@ -388,6 +395,16 @@ class NoulObservatory:
         self._ask_fn = ask_fn
         self._jsonl: Path | None = None
         self._jsonl_handle: Any = None
+        ask_interval = float(
+            getattr(config, "ask_interval_s", DEFAULT_ASK_INTERVAL_S)
+            or DEFAULT_ASK_INTERVAL_S
+        )
+        self._typesafe_timeout_s = float(
+            getattr(config, "typesafe_timeout_s", DEFAULT_TIMEOUT_S) or DEFAULT_TIMEOUT_S
+        )
+        self._ask_cadence = AskCadence(
+            ask_interval_s=ask_interval, warn_label="noul"
+        )
         self.enabled = bool(getattr(config, "enabled", False)) or _env_enabled()
         if not self.enabled:
             return
@@ -491,7 +508,9 @@ class NoulObservatory:
             if self._ask_fn is not None:
                 answers = self._ask_fn(rec)
             if answers is None:
-                answers = self._try_typesafe(rec)
+                answers = self._ask_cadence.ask_or_reuse(
+                    lambda: self._try_typesafe(rec)
+                )
             if answers is None:
                 answers = local_heuristic_nouls(rec)
         composed = compose_observatory(
@@ -517,19 +536,6 @@ class NoulObservatory:
         self._write_jsonl(composed)
 
     def _try_typesafe(self, rec: dict[str, Any]) -> dict[str, Any] | None:
-        # Env key first; else load .secrets/typesafe.key without logging it.
-        if not os.environ.get("TYPESAFE_API_KEY", "").strip():
-            try:
-                raw = Path(".secrets/typesafe.key").read_text(encoding="utf-8-sig").strip()
-                if not raw:
-                    return None
-                os.environ["TYPESAFE_API_KEY"] = raw
-            except Exception:
-                return None
-        try:
-            from typesafe_sdk import TypeSafeClient
-        except Exception:
-            return None
         questions = noul_questions()
         if not questions:
             return None
@@ -540,35 +546,39 @@ class NoulObservatory:
             "late_close": rec.get("late_close"),
             "policy": "observation only; never license score digits",
         }
-        try:
-            with TypeSafeClient() as client:
-                response = client.system_one(state=state, questions=questions)
-            nouls = getattr(response, "nouls", {}) or {}
-            choices = getattr(response, "choices", {}) or {}
-            scores = getattr(response, "scores", {}) or {}
-            g = nouls.get("grounded_scorebug")
-            p = nouls.get("true_pause")
-            c = nouls.get("clip_presence")
-            lg = nouls.get("last_good_temptation")
-            h = choices.get("hud_kind")
-            bh = scores.get("board_honesty")
-            pd = scores.get("presence_density")
-            return {
-                "grounded_noul": float(g.noul) if g is not None else None,
-                "true_pause_noul": float(p.noul) if p is not None else None,
-                "clip_noul": float(c.noul) if c is not None else None,
-                "hud_kind": getattr(h, "choice", None) if h is not None else None,
-                "hud_confidence": float(getattr(h, "confidence", 0) or 0)
-                if h is not None
-                else None,
-                "board_honesty": float(bh.score) if bh is not None else None,
-                "presence_density": float(pd.score) if pd is not None else None,
-                "last_good_temptation": float(lg.noul) if lg is not None else None,
-                "source": "typesafe",
-            }
-        except Exception as e:
-            log.debug("typesafe system_one failed: %s", e)
+        response = system_one(
+            state=state,
+            questions=questions,
+            timeout_s=self._typesafe_timeout_s,
+            warn_label="noul",
+            warned_flag=self._ask_cadence.mark_warned(),
+            logger=log,
+        )
+        if response is None:
             return None
+        nouls = getattr(response, "nouls", {}) or {}
+        choices = getattr(response, "choices", {}) or {}
+        scores = getattr(response, "scores", {}) or {}
+        g = nouls.get("grounded_scorebug")
+        p = nouls.get("true_pause")
+        c = nouls.get("clip_presence")
+        lg = nouls.get("last_good_temptation")
+        h = choices.get("hud_kind")
+        bh = scores.get("board_honesty")
+        pd = scores.get("presence_density")
+        return {
+            "grounded_noul": float(g.noul) if g is not None else None,
+            "true_pause_noul": float(p.noul) if p is not None else None,
+            "clip_noul": float(c.noul) if c is not None else None,
+            "hud_kind": getattr(h, "choice", None) if h is not None else None,
+            "hud_confidence": float(getattr(h, "confidence", 0) or 0)
+            if h is not None
+            else None,
+            "board_honesty": float(bh.score) if bh is not None else None,
+            "presence_density": float(pd.score) if pd is not None else None,
+            "last_good_temptation": float(lg.noul) if lg is not None else None,
+            "source": "typesafe",
+        }
 
     def _write_jsonl(self, row: dict[str, Any]) -> None:
         handle = self._jsonl_handle
@@ -625,6 +635,7 @@ class NoulObservatory:
             "presence_density": last.get("presence_density"),
             "last_good_temptation": last.get("last_good_temptation"),
             "gamer": NoulObservatory._gamer_line(last),
+            **self._ask_cadence.stats(),
         }
 
     def stop(self) -> None:

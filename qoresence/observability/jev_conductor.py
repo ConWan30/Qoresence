@@ -24,6 +24,13 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.typesafe_ask import (
+    AskCadence,
+    DEFAULT_ASK_INTERVAL_S,
+    DEFAULT_TIMEOUT_S,
+    system_one,
+)
+
 log = logging.getLogger(__name__)
 
 PLANE = "qoresence-observation"
@@ -325,6 +332,17 @@ class JevConductor:
         self._last: dict[str, Any] = {}
         self._last_ns = 0
         self._asked = 0
+        self._warned_typesafe = [False]
+        self._typesafe_timeout_s = float(
+            getattr(config, "typesafe_timeout_s", DEFAULT_TIMEOUT_S) or DEFAULT_TIMEOUT_S
+        ) if config is not None else DEFAULT_TIMEOUT_S
+        self._ask_cadence = AskCadence(
+            ask_interval_s=float(
+                getattr(config, "ask_interval_s", DEFAULT_ASK_INTERVAL_S)
+                or DEFAULT_ASK_INTERVAL_S
+            ) if config is not None else DEFAULT_ASK_INTERVAL_S,
+            warn_label="jev",
+        )
         enabled = bool(getattr(config, "enabled", False)) if config is not None else False
         self.enabled = enabled or _env_enabled()
 
@@ -352,7 +370,9 @@ class JevConductor:
         if self._ask_fn is not None:
             answers = self._ask_fn(state)
         if answers is None:
-            answers = self._try_typesafe(state)
+            answers = self._ask_cadence.ask_or_reuse(
+                lambda: self._try_typesafe(state)
+            )
         if answers is None:
             answers = local_heuristic_conductor(state)
         ev = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
@@ -397,18 +417,13 @@ class JevConductor:
             "fast_act": last.get("fast_act"),
             "observe": last.get("observe"),
             "licenses_digits": False,
+            **self._ask_cadence.stats(),
             "replaces": ["clutchbot_llm", "match_agent_llm", "scorebug_referee"],
             "cannot_replace": ["hdmi_pixels", "tickets", "clocks"],
             "source": last.get("source"),
         }
 
     def _try_typesafe(self, state: dict[str, Any]) -> dict[str, Any] | None:
-        if not _key_present():
-            return None
-        try:
-            from typesafe_sdk import TypeSafeClient
-        except Exception:
-            return None
         questions = conductor_questions()
         if not questions:
             return None
@@ -425,39 +440,36 @@ class JevConductor:
             "situation": state.get("situation") or {},
             "evidence": state.get("evidence") or {},
         }
-        # Load file key into env for the SDK without logging it.
-        if not os.environ.get("TYPESAFE_API_KEY", "").strip():
-            try:
-                raw = Path(".secrets/typesafe.key").read_text(encoding="utf-8-sig").strip()
-                if raw:
-                    os.environ["TYPESAFE_API_KEY"] = raw
-            except Exception:
-                return None
-        try:
-            with TypeSafeClient() as client:
-                response = client.system_one(state=payload, questions=questions)
-            choices = getattr(response, "choices", {}) or {}
-            nouls = getattr(response, "nouls", {}) or {}
-            fa = choices.get("fast_act")
-            ob = choices.get("observe")
-            cl = nouls.get("consider_clip")
-            ar = nouls.get("arm_prediction")
-            return {
-                "fast_act": getattr(fa, "choice", None) if fa is not None else None,
-                "fast_confidence": float(getattr(fa, "confidence", 0) or 0)
-                if fa is not None
-                else None,
-                "observe": getattr(ob, "choice", None) if ob is not None else None,
-                "observe_confidence": float(getattr(ob, "confidence", 0) or 0)
-                if ob is not None
-                else None,
-                "clip_noul": float(cl.noul) if cl is not None else None,
-                "arm_noul": float(ar.noul) if ar is not None else None,
-                "source": "typesafe",
-            }
-        except Exception as e:
-            log.debug("jev system_one failed: %s", e)
+        response = system_one(
+            state=payload,
+            questions=questions,
+            timeout_s=self._typesafe_timeout_s,
+            warn_label="jev",
+            warned_flag=self._warned_typesafe,
+            logger=log,
+        )
+        if response is None:
             return None
+        choices = getattr(response, "choices", {}) or {}
+        nouls = getattr(response, "nouls", {}) or {}
+        fa = choices.get("fast_act")
+        ob = choices.get("observe")
+        cl = nouls.get("consider_clip")
+        ar = nouls.get("arm_prediction")
+        return {
+            "fast_act": getattr(fa, "choice", None) if fa is not None else None,
+            "fast_confidence": float(getattr(fa, "confidence", 0) or 0)
+            if fa is not None
+            else None,
+            "observe": getattr(ob, "choice", None) if ob is not None else None,
+            "observe_confidence": float(getattr(ob, "confidence", 0) or 0)
+            if ob is not None
+            else None,
+            "clip_noul": float(cl.noul) if cl is not None else None,
+            "arm_noul": float(ar.noul) if ar is not None else None,
+            "source": "typesafe",
+        }
+
 
 
 _singleton: JevConductor | None = None

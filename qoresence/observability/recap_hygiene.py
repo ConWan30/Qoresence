@@ -12,7 +12,15 @@ import os
 import re
 from typing import Any
 
+from qoresence.observability.typesafe_ask import (
+    DEFAULT_TIMEOUT_S,
+    system_one,
+)
+
 log = logging.getLogger(__name__)
+
+_WARNED_TYPESAFE = [False]
+_TYPESAFE_TIMEOUT_S = DEFAULT_TIMEOUT_S
 
 PLANE = "qoresence-observation"
 TRUTH_DEST_RE = re.compile(r"qortroller|poac|(?:^|[\s_\-])truth(?:$|[\s_\-])", re.I)
@@ -248,47 +256,35 @@ def inspect_envelope(envelope: dict[str, Any], *, ask_fn: Any = None) -> dict[st
 
 
 def _try_typesafe(envelope: dict[str, Any]) -> dict[str, Any] | None:
-    # Env key first; else load .secrets/typesafe.key without logging it.
-    if not os.environ.get("TYPESAFE_API_KEY", "").strip():
-        try:
-            from pathlib import Path
-
-            raw = Path(".secrets/typesafe.key").read_text(encoding="utf-8-sig").strip()
-            if not raw:
-                return None
-            os.environ["TYPESAFE_API_KEY"] = raw
-        except Exception:
-            return None
     questions = hygiene_questions()
     if not questions:
         return None
-    try:
-        from typesafe_sdk import TypeSafeClient
-
-        with TypeSafeClient() as client:
-            response = client.system_one(
-                state={
-                    "envelope": envelope,
-                    "policy": "observation only; never seal; never license unlocked digits",
-                },
-                questions=questions,
-            )
-        nouls = getattr(response, "nouls", {}) or {}
-        choices = getattr(response, "choices", {}) or {}
-        d = nouls.get("digit_leak")
-        h = nouls.get("hid_failure_lie")
-        c = choices.get("citation")
-        k = choices.get("issue_kind")
-        return {
-            "digit_leak_noul": float(d.noul) if d is not None else None,
-            "hid_fail_noul": float(h.noul) if h is not None else None,
-            "citation": getattr(c, "choice", None) if c is not None else None,
-            "citation_confidence": float(getattr(c, "confidence", 0) or 0)
-            if c is not None
-            else None,
-            "issue_kind": getattr(k, "choice", None) if k is not None else None,
-            "source": "typesafe",
-        }
-    except Exception as e:
-        log.debug("recap hygiene typesafe skipped: %s", e)
+    response = system_one(
+        state={
+            "envelope": envelope,
+            "policy": "observation only; never seal; never license unlocked digits",
+        },
+        questions=questions,
+        timeout_s=_TYPESAFE_TIMEOUT_S,
+        warn_label="recap_hygiene",
+        warned_flag=_WARNED_TYPESAFE,
+        logger=log,
+    )
+    if response is None:
         return None
+    nouls = getattr(response, "nouls", {}) or {}
+    choices = getattr(response, "choices", {}) or {}
+    d = nouls.get("digit_leak")
+    h = nouls.get("hid_failure_lie")
+    c = choices.get("citation")
+    k = choices.get("issue_kind")
+    return {
+        "digit_leak_noul": float(d.noul) if d is not None else None,
+        "hid_fail_noul": float(h.noul) if h is not None else None,
+        "citation": getattr(c, "choice", None) if c is not None else None,
+        "citation_confidence": float(getattr(c, "confidence", 0) or 0)
+        if c is not None
+        else None,
+        "issue_kind": getattr(k, "choice", None) if k is not None else None,
+        "source": "typesafe",
+    }
