@@ -39,6 +39,12 @@ from qoresence.observability.sync_coroner import (
     get_sync_coroner,
     make_coroner_from_config,
 )
+from qoresence.observability.ticket_stale import (
+    TicketStaleSentinel,
+    compose_stale_verdict,
+    get_ticket_stale_sentinel,
+    make_ticket_stale_from_config,
+)
 
 __all__ = [
     "LatencyStats",
@@ -68,4 +74,8 @@ __all__ = [
     "SyncCoroner",
     "get_sync_coroner",
     "make_coroner_from_config",
+    "TicketStaleSentinel",
+    "compose_stale_verdict",
+    "get_ticket_stale_sentinel",
+    "make_ticket_stale_from_config",
 ]
