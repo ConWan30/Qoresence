@@ -339,6 +339,7 @@ class ScoreboardVlmReferee:
     def _drain_pending_remint(self) -> None:
         """Fire one deferred force/score_changed remint after inflight clears."""
         with self._lock:
+            # Tests may construct a partial referee; never AttributeError mid-drain.
             pending = getattr(self, "_pending_remint", None)
             self._pending_remint = None
             if getattr(self, "_inflight", False) or not pending:
