@@ -12,6 +12,12 @@ Three outcomes per press, fail-closed — never a fourth:
 - ``eaten``     — press observed, picture did not respond (lag, anim lock, menu)
 - ``unlabeled`` — no evidence either way
 
+Two passes per press. The wire label is provisional — ``eaten`` may not fire
+without after-evidence. A worker then samples the first post-press
+``visual_phase`` (the next VisualContext produced at least ~0.4s after the
+edge) and re-judges with real after-state: ``eaten`` means *observed*
+non-response, and a missing post-press sample stays ``unlabeled``.
+
 Code owns HID sampling, the seq join, the EA sheet, and all defaults. Jev
 never sees raw HID reports or pixels — it judges the joined record. Never
 licenses score digits, never claims skill, never calls a press a console
@@ -22,12 +28,14 @@ Gated by the same flag as the Jev conductor: ``--jev`` / ``QORESENCE_JEV=1``.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import threading
 import time
+from collections import deque
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +48,16 @@ NO_MATCH = "no_match"
 # Efficacy thresholds — Noul ~0.5 is a coin-flip, not medium intensity.
 EFFICACY_RESPONDED = 0.6
 EFFICACY_EATEN = 0.3
+
+# Post-press phase sampling. A press-time wire only carries the *before*
+# picture; "eaten" needs an *after* observation. The visual lobe produces a
+# new VisualContext roughly once a second (frame_sample_rate 30 @ ~30fps), so
+# a verdict waits for the first context produced at least AFTER_DELAY_S after
+# the edge, then re-judges with real after-evidence.
+AFTER_DELAY_S = 0.4
+AFTER_TIMEOUT_S = 4.0
+AFTER_POLL_S = 0.1
+AFTER_QUEUE_MAX = 64
 
 
 def _env_enabled() -> bool:
@@ -209,6 +227,38 @@ def compose_press_label(
     }
 
 
+def _ctx_latency_s(ctx_obj: Any) -> float:
+    """Analysis latency of a VisualContext in seconds (0 when unknown)."""
+    try:
+        if isinstance(ctx_obj, dict):
+            ms = ctx_obj.get("latency_ms")
+        else:
+            ms = getattr(ctx_obj, "latency_ms", None)
+        return min(max(float(ms or 0.0), 0.0), 2000.0) / 1000.0
+    except Exception:
+        return 0.0
+
+
+def _phase_from_context(ctx_obj: Any) -> str | None:
+    """visual_phase out of a VisualContext/dict (same coercion as the wire)."""
+    if ctx_obj is None:
+        return None
+    try:
+        if hasattr(ctx_obj, "to_dict"):
+            d = ctx_obj.to_dict()
+        elif isinstance(ctx_obj, dict):
+            d = ctx_obj
+        elif hasattr(ctx_obj, "__dict__"):
+            d = ctx_obj.__dict__
+        else:
+            return None
+        from qoresence.observation.sheet_from_picture import get_visual_phase_from_context
+
+        return get_visual_phase_from_context(d)
+    except Exception:
+        return None
+
+
 def local_press_labels(state: dict[str, Any]) -> dict[str, Any]:
     """Deterministic stand-in — identical to today's behavior, plus efficacy.
 
@@ -248,15 +298,51 @@ def local_press_labels(state: dict[str, Any]) -> dict[str, Any]:
 
 
 class PressLabeler:
-    """Optional TypeSafe client. Never called on the capture/bus thread."""
+    """Optional TypeSafe client. Never called on the capture/bus thread.
 
-    def __init__(self, config: Any = None, ask_fn: Any = None) -> None:
+    Post-press verdicts run on a private worker thread: each wire label that
+    had no ``phase_after`` is queued, and once the visual lobe has produced a
+    fresh context (>= AFTER_DELAY_S after the edge) the judgment is re-run
+    with real after-evidence. The provisional wire outcome is never mutated —
+    the verdict is a second record (``verdict: True``) carried on later wires,
+    JSONL, and ``stats()``. Worker never emits bus events (same class as the
+    Noul observatory's rules).
+    """
+
+    def __init__(
+        self,
+        config: Any = None,
+        ask_fn: Any = None,
+        context_fn: Any = None,
+        after_delay_s: float = AFTER_DELAY_S,
+        after_timeout_s: float = AFTER_TIMEOUT_S,
+        after_poll_s: float = AFTER_POLL_S,
+    ) -> None:
         self.config = config
         self._ask_fn = ask_fn
+        self._context_fn = context_fn
+        self._after_delay_s = float(after_delay_s)
+        self._after_timeout_s = float(after_timeout_s)
+        self._after_poll_s = float(after_poll_s)
         self._lock = threading.Lock()
         self._asked = 0
         self._counts = {"labeled": 0, "unlabeled": 0, "eaten": 0}
         self._last_ns = 0
+        # Post-press verdict state
+        self._pending: list[dict[str, Any]] = []
+        self._pending_keys: set[tuple] = set()
+        self._work_evt = threading.Event()
+        self._stop_evt = threading.Event()
+        self._worker: threading.Thread | None = None
+        self._recent_verdicts: deque[dict[str, Any]] = deque(maxlen=8)
+        self._last_verdict: dict[str, Any] = {}
+        self._verdict_counts = {"labeled": 0, "unlabeled": 0, "eaten": 0}
+        self._verdicts_done = 0
+        self._after_sampled = 0
+        self._after_timeout = 0
+        self._after_dropped = 0
+        self._jsonl_handle: Any = None
+        self._jsonl_tried = False
         enabled = bool(getattr(config, "enabled", False)) if config is not None else False
         self.enabled = enabled or _env_enabled()
 
@@ -299,8 +385,31 @@ class PressLabeler:
                 self._asked += 1
                 self._last_ns = time.monotonic_ns()
                 self._counts["labeled"] += 1
+            self._enqueue_after(od, ctx, lookup, out)
             return out
 
+        out = self._judge(od, ctx, lookup)
+
+        with self._lock:
+            self._asked += 1
+            self._last_ns = time.monotonic_ns()
+            if out["outcome"] in self._counts:
+                self._counts[out["outcome"]] += 1
+
+        # Provisional wire labels lack after-evidence — queue the deferred
+        # verdict so "eaten" means *observed* non-response, not missing state.
+        if ctx.get("phase_after") is None:
+            self._enqueue_after(od, ctx, lookup, out)
+        return out
+
+    def _judge(
+        self,
+        od: dict[str, Any],
+        ctx: dict[str, Any],
+        lookup: Any = None,
+    ) -> dict[str, Any]:
+        """Ask chain + composition for one press. Runs on caller or worker."""
+        button = str(od.get("hid_button") or "")
         state = {
             "press": {
                 "hid_button": button,
@@ -371,19 +480,217 @@ class PressLabeler:
             has_after_evidence=ctx.get("phase_after") is not None,
         )
         out["source"] = answers.get("source") or "unknown"
-
-        with self._lock:
-            self._asked += 1
-            self._last_ns = time.monotonic_ns()
-            if out["outcome"] in self._counts:
-                self._counts[out["outcome"]] += 1
         return out
+
+    # ── Post-press phase sampling (after-evidence verdicts) ──────────────
+
+    def _enqueue_after(
+        self,
+        od: dict[str, Any],
+        ctx: dict[str, Any],
+        lookup: Any,
+        provisional: dict[str, Any],
+    ) -> None:
+        key = (od.get("clock_ns"), od.get("frame_seq"), str(od.get("hid_button") or ""))
+        job = {
+            "key": key,
+            "od": dict(od),
+            "ctx": dict(ctx),
+            "lookup": lookup,
+            "provisional": dict(provisional),
+            "press_mono": time.monotonic(),
+            "deadline": time.monotonic() + self._after_delay_s,
+        }
+        with self._lock:
+            if key in self._pending_keys:
+                return
+            if len(self._pending) >= AFTER_QUEUE_MAX:
+                old = self._pending.pop(0)
+                self._pending_keys.discard(old["key"])
+                self._after_dropped += 1
+            self._pending.append(job)
+            self._pending_keys.add(key)
+            if self._worker is None or not self._worker.is_alive():
+                self._worker = threading.Thread(
+                    target=self._after_loop, name="press-labeler-after", daemon=True
+                )
+                self._worker.start()
+        self._work_evt.set()
+
+    def _after_loop(self) -> None:
+        """Wait for post-press contexts, then re-judge with real after-state."""
+        while not self._stop_evt.is_set():
+            with self._lock:
+                pending = list(self._pending)
+            if not pending:
+                self._work_evt.wait(0.25)
+                self._work_evt.clear()
+                continue
+            now = time.monotonic()
+            earliest = min(j["deadline"] for j in pending)
+            if earliest > now:
+                self._work_evt.wait(min(earliest - now, 0.5))
+                self._work_evt.clear()
+                continue
+            # Wait for a context produced after the earliest due deadline —
+            # that is the first sample guaranteed to post-date the press's
+            # response window for every job we drain below.
+            budget = min(
+                j["press_mono"] + self._after_timeout_s for j in pending
+            ) - now
+            ctx_obj, frame_time = self._await_fresh_context(max(budget, 0.05))
+            if ctx_obj is not None:
+                phase_after = _phase_from_context(ctx_obj)
+                with self._lock:
+                    due = [j for j in self._pending if j["deadline"] <= frame_time]
+                    for j in due:
+                        self._pending.remove(j)
+                        self._pending_keys.discard(j["key"])
+            else:
+                phase_after = None
+                with self._lock:
+                    due = [
+                        j
+                        for j in self._pending
+                        if j["press_mono"] + self._after_timeout_s <= time.monotonic()
+                    ]
+                    for j in due:
+                        self._pending.remove(j)
+                        self._pending_keys.discard(j["key"])
+            for job in due:
+                try:
+                    self._finish_after(job, phase_after)
+                except Exception as e:
+                    log.debug("press verdict skipped: %s", e)
+
+    def _current_context(self) -> Any:
+        if self._context_fn is not None:
+            try:
+                return self._context_fn()
+            except Exception:
+                return None
+        try:
+            from qoresence.lobes.visual import get_last_visual_context
+
+            return get_last_visual_context()
+        except Exception:
+            return None
+
+    def _await_fresh_context(self, budget_s: float) -> tuple[Any, float]:
+        """Poll until a *new* context object exists or budget runs out.
+
+        Returns ``(context, frame_time_est)`` — the estimated monotonic time
+        the analyzed frame was captured, i.e. first-seen minus analysis
+        latency. A cloud-VLM context first observed at T can describe a frame
+        from T-2s; without the correction "after" samples would silently
+        pre-date the response window.
+        """
+        baseline = self._current_context()
+        deadline = time.monotonic() + max(budget_s, 0.0)
+        while not self._stop_evt.is_set():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return None, 0.0
+            self._stop_evt.wait(min(self._after_poll_s, remaining))
+            ctx = self._current_context()
+            if ctx is not None and ctx is not baseline:
+                latency_s = _ctx_latency_s(ctx)
+                frame_time = time.monotonic() - latency_s - self._after_poll_s
+                return ctx, frame_time
+        return None, 0.0
+
+    def _finish_after(self, job: dict[str, Any], phase_after: str | None) -> None:
+        if phase_after is None:
+            # No fresh context inside the window — no model call needed to say
+            # "still no evidence". Verdict echoes the provisional outcome.
+            verdict = dict(job["provisional"])
+            verdict["verdict"] = True
+            verdict["phase_after"] = None
+            verdict["after_timeout"] = True
+        else:
+            ctx = dict(job["ctx"])
+            ctx["phase_after"] = phase_after
+            verdict = self._judge(job["od"], ctx, job["lookup"])
+            verdict["verdict"] = True
+            verdict["phase_after"] = phase_after
+        verdict["after_age_s"] = round(time.monotonic() - job["press_mono"], 3)
+        verdict["provisional"] = {
+            k: job["provisional"].get(k)
+            for k in ("outcome", "label", "mode", "source")
+        }
+        slim = {
+            "outcome": verdict.get("outcome"),
+            "label": verdict.get("label"),
+            "hid_button": verdict.get("hid_button"),
+            "frame_seq": verdict.get("frame_seq"),
+            "efficacy_noul": verdict.get("efficacy_noul"),
+            "responded": verdict.get("responded"),
+            "phase_after": phase_after,
+            "source": verdict.get("source"),
+        }
+        with self._lock:
+            self._verdicts_done += 1
+            if phase_after is not None:
+                self._after_sampled += 1
+            else:
+                self._after_timeout += 1
+            if verdict.get("outcome") in self._verdict_counts:
+                self._verdict_counts[verdict["outcome"]] += 1
+            self._last_verdict = slim
+            self._recent_verdicts.append(verdict)
+        self._write_jsonl("press_verdict", verdict)
+
+    def drain_verdicts(self) -> list[dict[str, Any]]:
+        """Pop completed verdicts so a later wire can carry them."""
+        with self._lock:
+            out = list(self._recent_verdicts)
+            self._recent_verdicts.clear()
+        return out
+
+    def _write_jsonl(self, kind: str, rec: dict[str, Any]) -> None:
+        try:
+            if self._jsonl_handle is None and not self._jsonl_tried:
+                self._jsonl_tried = True
+                out_dir = Path("logs/press_labels")
+                out_dir.mkdir(parents=True, exist_ok=True)
+                self._jsonl_handle = (out_dir / "press_labels.jsonl").open(
+                    "a", encoding="utf-8"
+                )
+            if self._jsonl_handle is None:
+                return
+            line = {"ts_ns": time.time_ns(), "kind": kind, **rec}
+            self._jsonl_handle.write(json.dumps(line, default=str) + "\n")
+            self._jsonl_handle.flush()
+        except Exception:
+            pass
+
+    def stop(self) -> None:
+        self._stop_evt.set()
+        self._work_evt.set()
+        worker = self._worker
+        if worker is not None and worker.is_alive():
+            worker.join(timeout=2.0)
+        try:
+            if self._jsonl_handle is not None:
+                self._jsonl_handle.close()
+        except Exception:
+            pass
+        self._jsonl_handle = None
 
     def stats(self) -> dict[str, Any]:
         with self._lock:
             asked = self._asked
             counts = dict(self._counts)
             last_ns = self._last_ns
+            verdicts = dict(self._verdict_counts)
+            verdicts["total"] = self._verdicts_done
+            after = {
+                "pending": len(self._pending),
+                "sampled": self._after_sampled,
+                "timeout": self._after_timeout,
+                "dropped": self._after_dropped,
+            }
+            last_verdict = dict(self._last_verdict)
         return {
             "enabled": bool(self.enabled),
             "key_present": _key_present(),
@@ -392,6 +699,9 @@ class PressLabeler:
             "unlabeled": counts["unlabeled"],
             "eaten": counts["eaten"],
             "last_age_s": round((time.monotonic_ns() - last_ns) / 1e9, 3) if last_ns else None,
+            "verdicts": verdicts,
+            "after": after,
+            "last_verdict": last_verdict or None,
             "licenses_digits": False,
         }
 
@@ -515,4 +825,12 @@ def label_wire_press(wire: dict[str, Any], *, context: dict[str, Any] | None = N
     ctx.setdefault("visual_phase", wire.get("visual_phase"))
     ctx.setdefault("conflict", wire.get("conflict"))
     ctx["candidate_modes"] = candidates
-    return lab.label_press(wire, context=ctx, lookup=lookup)
+    plabel = lab.label_press(wire, context=ctx, lookup=lookup)
+    # Verdicts for earlier presses ride the next wire that exists.
+    try:
+        verdicts = lab.drain_verdicts()
+        if verdicts:
+            wire["press_verdicts"] = verdicts
+    except Exception:
+        pass
+    return plabel

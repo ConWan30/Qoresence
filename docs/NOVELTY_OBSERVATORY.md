@@ -268,6 +268,8 @@ Gamer product (Theater / Session Now, never Lens): HonestyLine — “Would rath
 
 Deterministic EA sheets already label `button + mode → verb`. When `mode` is None (ambiguous picture sheet) or a sheet conflict fires, every press goes **unlabeled** — the labeler is the referee for that gap. Three outcomes, fail-closed: `labeled` (verb from the EA sheet, never invented) / `eaten` (press observed, picture did not respond — lag, animation lock, menu; **not** a console-fault claim) / `unlabeled`. Jev fan-out: `mode_pick` Choice over EA candidate modes + `no_match`, `press_efficacy` Noul, `conflict_pick` Choice. Code resolves the picked mode back through the EA sheet; Jev never emits a verb string. Attaches `press_label` to observation wires (`deck/observation_wire.py`).
 
+**Two passes per press.** The wire label is provisional — `eaten` may not fire without after-evidence. A labeler-owned worker (`press-labeler-after`) then waits for the first `VisualContext` produced at least ~0.4s after the edge (latency-corrected via `latency_ms`), samples its `visual_phase` as `phase_after`, and re-judges: `eaten` now means *observed* non-response, while a missing post-press sample stays `unlabeled` (never a second model call to say "still nothing"). Verdicts (`verdict: True`, with `provisional` embedded) ride later wires as `press_verdicts`, land in `logs/press_labels/press_labels.jsonl`, and count under `press_labeler.verdicts`/`after` in `/health`.
+
 ---
 
 ## Key URLs
