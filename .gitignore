@@ -34,6 +34,7 @@ reels/
 
 # Local data (never commit)
 sessions/
+audits/
 *.db
 *.sqlite
 
