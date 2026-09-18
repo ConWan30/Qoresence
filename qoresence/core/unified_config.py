@@ -719,6 +719,22 @@ class TicketGlassConfig:
 
 
 @dataclass
+class SyncGlassConfig:
+    """TypeSafe SyncGlass v0 (observation plane).
+
+    Opt-in, default OFF. ``--play`` does not enable. Pad↔picture bind glyphs
+    (bind / lag / haptic) from compact state + typed questions. Never
+    licenses digits, never emits bus events, never takes lobe locks, never
+    applies lag_center recenter or capture fps. See qoresence.observability.sync_glass.
+    """
+
+    enabled: bool = False
+    out_dir: str = "logs/sync_glass"
+    cadence_s: float = 0.5
+    queue_size: int = 256
+
+
+@dataclass
 class NoulConfig:
     """TypeSafe Noul observatory (observation plane only).
 
@@ -823,6 +839,9 @@ class RetinaUnifiedConfig:
 
     # TicketGlass v0 (default OFF; --play does not enable; also under --jev)
     ticket_glass: TicketGlassConfig = field(default_factory=TicketGlassConfig)
+
+    # SyncGlass v0 (default OFF; --play does not enable; also under --jev)
+    sync_glass: SyncGlassConfig = field(default_factory=SyncGlassConfig)
 
     # Learning edge: next-run splitter constraints. Default OFF. --play does not enable.
     learning_edge: bool = False
@@ -1193,6 +1212,13 @@ class RetinaUnifiedConfig:
                 or "logs/ticket_glass",
                 cadence_s=_float("QORESENCE_TICKET_GLASS_CADENCE", 0.25) or 0.25,
                 queue_size=_int("QORESENCE_TICKET_GLASS_QUEUE", 256) or 256,
+            ),
+            sync_glass=SyncGlassConfig(
+                enabled=_bool("QORESENCE_SYNC_GLASS"),
+                out_dir=_str("QORESENCE_SYNC_GLASS_DIR", "logs/sync_glass")
+                or "logs/sync_glass",
+                cadence_s=_float("QORESENCE_SYNC_GLASS_CADENCE", 0.5) or 0.5,
+                queue_size=_int("QORESENCE_SYNC_GLASS_QUEUE", 256) or 256,
             ),
             learning_edge=_bool("QORESENCE_LEARNING_EDGE"),
             look_graphs=_bool("QORESENCE_LOOK_GRAPHS"),
