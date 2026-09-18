@@ -55,6 +55,22 @@ Noul: ≥0.7 / ≤0.3 / else soft. Ambiguous → observe. Fallback dark/observe 
 ## Glyphs
 `bind` / `lag` / `haptic` — fail-closed if Jev down.
 
+
+## Haptic glyph + probe
+
+The `haptic` glyph is **not** self-sufficient under `--sync-glass` alone.
+
+| Fact | Source |
+|------|--------|
+| `haptic.probe_ok` | `null` unless `--haptic-probe` / `QORESENCE_HAPTIC_PROBE=1` |
+| `haptic.co_occur_recent` | `get_haptic_probe().recent()` (`imu_echo` / `hid_output`) |
+
+Local heuristic: `co_occur_recent` → `haptic_coupled≈0.82` (glyph **on**);
+probe off / no co-occur → glyph **off**. Stick heat alone never flips it.
+Physical DualSense rumble on USB-observe appears as `imu_echo` via
+`EchoDetector` (BT console rumble output is **not** on the USB HID pipe).
+`haptic_authored: false` forever — SyncGlass never writes rumble.
+
 ## Relation
 - SyncCoroner / Qoreclock: do not duplicate clocks; SyncGlass consumes stamped lag facts.
 - TicketGlass: orthogonal glass honesty; may appear as input facts only.

@@ -149,13 +149,25 @@ def sync_glass_questions() -> dict[str, Any]:
             instructions={
                 "question": (
                     "Does vibration co-occur with picture/outcome this tick, "
-                    "given `haptic.co_occur_recent` and `haptic.probe_ok`?"
+                    "given `haptic.co_occur_recent` and `haptic.probe_ok`? "
+                    "`probe_ok` is null unless `--haptic-probe` / "
+                    "`QORESENCE_HAPTIC_PROBE=1` started the private probe. "
+                    "`co_occur_recent` is true when a recent `imu_echo` or "
+                    "`hid_output` pulse joined the video clock (EchoDetector "
+                    "on USB IMU — not PS5 BT output rumble mirrored on USB)."
                 ),
-                "true": "A haptic pulse co-occurred with picture/outcome on the video clock.",
-                "false": "No co-occurrence, probe down, or channel unavailable.",
+                "true": (
+                    "A probe-backed haptic pulse (`imu_echo` / `hid_output`) "
+                    "co-occurred with picture/outcome on the video clock."
+                ),
+                "false": (
+                    "No co-occurrence, probe off (`probe_ok` null), probe "
+                    "down, stick-only motion, or channel unavailable."
+                ),
                 "never": (
                     "Observe only. Never author rumble, THROW, or a haptic "
-                    "signature. Never a cheat/eligibility claim."
+                    "signature. Never a cheat/eligibility claim. Vote not "
+                    "voice — do not invent digits or unlock score."
                 ),
             },
         ),

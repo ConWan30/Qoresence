@@ -326,13 +326,18 @@ def local_sync_answers(state: dict[str, Any]) -> dict[str, Any]:
         cls, l_conf, bind_noul, sev = "unknown", 0.0, None, 0
         action, a_conf = "dark_overlay", 0.9
 
+    # Haptic glyph needs --haptic-probe (probe_ok). Without it stay dark/off —
+    # do not soft-unknown from absence alone. co_occur_recent comes from
+    # probe.recent() (imu_echo / hid_output); never invent vibration_burst fields.
     if co_occur:
         hap_noul, h_conf = 0.82, 0.9
     elif probe_ok is False:
         hap_noul, h_conf = 0.12, 0.9
     elif probe_ok is None:
-        hap_noul, h_conf = 0.4, 0.55
+        # Probe default OFF → glyph off (not soft/unknown).
+        hap_noul, h_conf = 0.18, 0.85
     else:
+        # Probe on, no recent co-occurrence → off.
         hap_noul, h_conf = 0.18, 0.85
 
     return {
@@ -646,6 +651,14 @@ class SyncGlassSentinel:
         return hid
 
     def _haptic_state(self, live: dict[str, Any]) -> dict[str, Any]:
+        """Probe-backed haptic facts only (default OFF).
+
+        SyncGlass haptic glyph lights from ``co_occur_recent`` via
+        ``get_haptic_probe().recent()`` (``imu_echo`` / ``hid_output``).
+        Requires ``--haptic-probe`` / ``QORESENCE_HAPTIC_PROBE=1``. USB does
+        not carry PS5 BT rumble *output* packets — physical rumble on a
+        laptop-bodied DualSense appears as ``imu_echo`` via EchoDetector.
+        """
         haptic: dict[str, Any] = {
             "co_occur_recent": bool(live.get("co_occur_recent")),
             "probe_ok": None,
