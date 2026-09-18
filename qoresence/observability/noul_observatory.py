@@ -32,9 +32,9 @@ from pathlib import Path
 from typing import Any
 
 from qoresence.observability.typesafe_ask import (
-    AskCadence,
     DEFAULT_ASK_INTERVAL_S,
     DEFAULT_TIMEOUT_S,
+    AskCadence,
     system_one,
 )
 

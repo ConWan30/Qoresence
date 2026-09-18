@@ -31,17 +31,17 @@ import time
 from pathlib import Path
 from typing import Any
 
-from qoresence.observability.typesafe_ask import (
-    DEFAULT_TIMEOUT_S,
-    system_one,
-)
-
 from qoresence.observability.ticket_stale_questions import (
     CONF_ACT,
     CONF_SOFT,
     STALE_AFTER_NS,
     STALE_CLASSES,
     ticket_stale_questions,
+)
+
+from qoresence.observability.typesafe_ask import (
+    DEFAULT_TIMEOUT_S,
+    system_one,
 )
 
 log = logging.getLogger(__name__)

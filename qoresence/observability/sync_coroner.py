@@ -26,12 +26,12 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.sync.sync_health import SHEDDING, SMOOTH, TIGHT, get_sync_health
+
 from qoresence.observability.typesafe_ask import (
     DEFAULT_TIMEOUT_S,
     system_one,
 )
-
-from qoresence.sync.sync_health import SHEDDING, SMOOTH, TIGHT, get_sync_health
 
 log = logging.getLogger(__name__)
 
