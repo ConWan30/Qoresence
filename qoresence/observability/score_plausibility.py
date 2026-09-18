@@ -18,12 +18,11 @@ import time
 from pathlib import Path
 from typing import Any
 
-from qoresence.sync.digit_integrity import implausible_transition_reason
-
 from qoresence.observability.typesafe_ask import (
     DEFAULT_TIMEOUT_S,
     system_one,
 )
+from qoresence.sync.digit_integrity import implausible_transition_reason
 
 log = logging.getLogger(__name__)
 
