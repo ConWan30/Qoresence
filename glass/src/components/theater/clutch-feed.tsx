@@ -47,7 +47,7 @@ export function ClutchFeed() {
   const seenRef = useRef<Set<string>>(new Set());
   const initRef = useRef(false);
   const [landKey, setLandKey] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const listRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const top = moments[0];
     // Do not animate rows already on the rail at first paint (page refresh).
@@ -58,34 +58,30 @@ export function ClutchFeed() {
     }
     if (!top || seenRef.current.has(top.key)) return;
     for (const m of moments) seenRef.current.add(m.key);
-    // Only a licensed, path-tinted row lands; unlicensed / no-path stays iron.
+    // Presence: always scroll newest into view so the dock is readable.
+    // Glow/land flash stays fail-closed (licensed path only).
+    listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     if (landLicensed && (top.path === "fast" || top.path === "confirm")) {
       const key = top.key;
       setLandKey(key);
       const landId = window.setTimeout(() => setLandKey((k) => (k === key ? null : k)), 260);
-      let expandId = 0;
-      if (theaterPeek) {
-        setExpanded(true);
-        expandId = window.setTimeout(() => setExpanded(false), 2400);
-      }
       return () => {
         window.clearTimeout(landId);
-        if (expandId) window.clearTimeout(expandId);
       };
     }
-  }, [moments, landLicensed, theaterPeek]);
+  }, [moments, landLicensed]);
   // Iron is instant: the moment the license drops, kill any in-flight row glow
   // so HOLD can never keep a bloom on the plate (do not wait out the one-shot).
   useEffect(() => {
     if (!landLicensed) {
       setLandKey(null);
-      setExpanded(false);
     }
   }, [landLicensed]);
 
-  const feedMode = theaterPeek ? (expanded ? "expanded" : "peek") : "rail";
+  // Theater uses a readable dock (not a 48px slit). HOME keeps full rail.
+  const feedMode = theaterPeek ? "dock" : "rail";
   const landFlash = landLicensed && landKey && moments[0] && moments[0].key === landKey ? moments[0].path : undefined;
-  const shown = theaterPeek ? moments.slice(0, expanded ? 3 : 1) : moments.slice(0, 8);
+  const shown = moments.slice(0, theaterPeek ? 6 : 8);
 
   return (
     <section
@@ -140,7 +136,7 @@ export function ClutchFeed() {
         </p>
       ) : null}
       {shown.length > 0 ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-y-contain">
+        <div ref={listRef} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-y-contain">
           {shown.map((e) => {
             const href = momentPlayHref(e, lastClipUrl);
             const landAttr = landLicensed && e.key === landKey ? e.path || undefined : undefined;
