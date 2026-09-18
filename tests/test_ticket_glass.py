@@ -257,21 +257,21 @@ def test_board_paint_block_true_forces_block_and_kills_cut():
 
 
 def test_cut_foundry_needs_triple_gate():
-    base = dict(
-        title_in_game=0.8,
-        board_paint_block=0.1,
-        moment_class="clutch",
-        moment_confidence=0.9,
-        clip_now="cut_foundry",
-        clip_confidence=0.9,
-        lens_tension=3,
-        tension_confidence=0.9,
-        glass_route="lens",
-        route_confidence=0.9,
-        score_vlm_locked=True,
-        ticket_stale_action="observe",
-        ticket_stale_class="fresh",
-    )
+    base = {
+        "title_in_game": 0.8,
+        "board_paint_block": 0.1,
+        "moment_class": "clutch",
+        "moment_confidence": 0.9,
+        "clip_now": "cut_foundry",
+        "clip_confidence": 0.9,
+        "lens_tension": 3,
+        "tension_confidence": 0.9,
+        "glass_route": "lens",
+        "route_confidence": 0.9,
+        "score_vlm_locked": True,
+        "ticket_stale_action": "observe",
+        "ticket_stale_class": "fresh",
+    }
     ok = compose_glass_verdict(**base)
     assert ok["glyphs"]["cut"] == "on"
     assert ok["clip_now"] == "cut_foundry"
