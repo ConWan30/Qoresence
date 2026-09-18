@@ -52,11 +52,15 @@ export function LockbugStrip({ className, pulse = false }: { className?: string;
   const confirm = useTheater((s) => s.confirm);
   const ticket = useTheater((s) => s.ticket);
   const path = useTheater((s) => s.clutchPulsePath);
+  const honesty = useTheater((s) => s.honesty);
+  const paintBlocked = honesty.paintBlocked;
+  const lockBlocked = honesty.lockBlocked;
 
   const widgetsOk = livePaint && sameSeq && !planeDim;
   const licensed =
     widgetsOk &&
     boardLocked &&
+    !paintBlocked &&
     homeScore != null &&
     awayScore != null &&
     (confirm != null || boardLocked);
@@ -65,7 +69,17 @@ export function LockbugStrip({ className, pulse = false }: { className?: string;
       ? Math.max(0, Number(ticket.clockNs || 0) - Number(confirm.clockNs || 0))
       : 0;
   const band = licensed ? freshnessBand(ageNs) : "ident";
-  const voidReason = licensed ? "licensed" : path === "fast" ? "path_fast" : confirm ? "vlm_unlocked" : "no_ticket";
+  const voidReason = paintBlocked
+    ? "paint_block"
+    : lockBlocked
+      ? "lock_blocked"
+      : licensed
+        ? "licensed"
+        : path === "fast"
+          ? "path_fast"
+          : confirm
+            ? "vlm_unlocked"
+            : "no_ticket";
 
   const score = licensed
     ? scorebugPair({

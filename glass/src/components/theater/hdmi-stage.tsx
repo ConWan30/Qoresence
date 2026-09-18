@@ -13,7 +13,8 @@ import {
   hdmiPictureVisible,
 } from "@/lib/coupling/hdmi-picture";
 import { clipHref } from "@/lib/coupling/clip";
-import { clutchPulse } from "@/lib/coupling/clutch-pulse";
+import { clutchPulse, hotterPulse } from "@/lib/coupling/clutch-pulse";
+import { tensionPlinth } from "@/lib/coupling/honesty-health";
 import { scoreLiveHealth } from "@/lib/coupling/live-health";
 import { useTheater } from "@/lib/coupling/store";
 import { ApertureIdent } from "./aperture-ident";
@@ -244,6 +245,10 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
   const videoPushes = useTheater((s) => s.videoPushes);
   const clutch = useTheater((s) => s.clutch);
   const companion = useTheater((s) => s.companion);
+  const honesty = useTheater((s) => s.honesty);
+  const livePaint = useTheater((s) => s.livePaint);
+  const sameSeq = useTheater((s) => s.sameSeq);
+  const planeDim = useTheater((s) => s.planeDim);
   const goLive = useTheater((s) => s.goLive);
   const replaySrc = stageMode === "replay" ? clipHref(lastClipUrl) : "";
   const showLive = hdmiPictureVisible(jpgOk) && !replaySrc;
@@ -265,8 +270,9 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
     jpgAgeMs: ageMs,
     stageMode,
   });
-  const pulse =
-    variant === "deck" && stageMode !== "replay"
+  const darkTheater = planeDim || !livePaint || !sameSeq || honesty.state === "dark";
+  const clutchLamp =
+    (variant === "deck" || variant === "observatory") && stageMode !== "replay" && !darkTheater
       ? clutchPulse({
           kind: clutch.kind,
           score: clutch.score,
@@ -275,6 +281,11 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
           companionClimax: companion.climax,
         })
       : "off";
+  const tensionLamp =
+    (variant === "deck" || variant === "observatory") && stageMode !== "replay" && !darkTheater
+      ? tensionPlinth(honesty.tension, honesty.cut)
+      : "off";
+  const pulse = hotterPulse(clutchLamp, tensionLamp);
 
   return (
     <section

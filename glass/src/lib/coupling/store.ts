@@ -38,6 +38,7 @@ import { CLIP_HOLD_MS, autoClipAllowed } from "./director";
 import type { StemProgram } from "./stem";
 import { buildEnhanceSituation } from "./enhance-situation";
 import { getDeckOrigin } from "./qoresence-deck";
+import { EMPTY_HONESTY, type HonestyHealth } from "./honesty-health";
 
 function mergeClipFile(clips: HdmiClipFile[], href: string, name: string): HdmiClipFile[] {
   const file = name || href.replace(/\\/g, "/").split("/").pop() || "";
@@ -189,6 +190,8 @@ export type TheaterState = {
   opticsAt: number;
   opticsFromWs: boolean;
   ghostStick: GhostStick;
+  honesty: HonestyHealth;
+  ingestHonesty: (h: HonestyHealth) => void;
   ingestAgentPlane: (plane: AgentPlane) => void;
   ingestMatchAgent: (note: MatchAgentNote | null) => void;
   ingestMoment: (m: FeedMoment) => void;
@@ -362,6 +365,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
   opticsAt: 0,
   opticsFromWs: false,
   ghostStick: EMPTY_GHOST,
+  honesty: EMPTY_HONESTY,
 
   setR2: (v) => set({ r2: Math.max(0, Math.min(1, v)), throwAttempt: false }),
   setLeft: (v) => set({ left: Math.max(0, Math.min(1, v)) }),
@@ -440,6 +444,12 @@ export const useTheater = create<TheaterState>((set, get) => ({
     }
     // Spine id present this frame ⇒ live (do not TTL against browser performance.now).
     const liveTicket = ing.ticketId ? ticket : null;
+    const paintBlocked = s.honesty.paintBlocked;
+    const boardLocked = Boolean(ing.boardLocked) && !paintBlocked;
+    const homeScore = boardLocked ? ing.homeScore : null;
+    const awayScore = boardLocked ? ing.awayScore : null;
+    const leftScore = boardLocked ? ing.leftScore ?? null : null;
+    const rightScore = boardLocked ? ing.rightScore ?? null : null;
     const clutch = scoreClutch({
       coupling: ing.coupling,
       climax: ing.climax,
@@ -452,9 +462,9 @@ export const useTheater = create<TheaterState>((set, get) => ({
       down: ing.down,
       distance: ing.distance,
       clock: ing.clock,
-      boardLocked: ing.boardLocked,
-      homeScore: ing.homeScore,
-      awayScore: ing.awayScore,
+      boardLocked,
+      homeScore,
+      awayScore,
       scorePlay: ing.scorePlay,
     });
     const rawHeat =
@@ -468,8 +478,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
     let confirm = s.confirm;
     let log = s.log;
     const sit = situationLine({
-      homeScore: ing.homeScore,
-      awayScore: ing.awayScore,
+      homeScore,
+      awayScore,
       quarter: ing.quarter,
       down: ing.down,
       distance: ing.distance,
@@ -479,8 +489,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
       homeLeft: ing.homeLeft,
       leftTeam: ing.leftTeam,
       rightTeam: ing.rightTeam,
-      leftScore: ing.leftScore,
-      rightScore: ing.rightScore,
+      leftScore,
+      rightScore,
       fieldPos: ing.fieldPos,
       winProb: ing.winProb,
       gameTitle: ing.gameTitle,
@@ -503,29 +513,37 @@ export const useTheater = create<TheaterState>((set, get) => ({
     const widgetsOk = paint && sameSeq && !planeDim;
     // Digits come from pickBoard only. Blank beats hold — never keep-last a pair
     // after ConfirmTicket / VLM lock / crop_hash freshness fails.
-    const board = ing.boardLocked
-      ? sit || boardLine(ing)
+    const board = boardLocked
+      ? sit ||
+        boardLine({
+          homeScore,
+          awayScore,
+          quarter: ing.quarter,
+          down: ing.down,
+          distance: ing.distance,
+          clock: ing.clock,
+        })
       : sit || "";
     // Spine sole mint: adopt confirm.last_confirm.ticket_id + clock_ns (no FNV remint).
     // pickBoard empty (crop_hash move / VLM drop / Same-Seq) clears last-good.
-    if (ing.boardLocked && ing.confirmTicketId && ing.homeScore != null && ing.awayScore != null) {
+    if (boardLocked && ing.confirmTicketId && homeScore != null && awayScore != null) {
       if (
         !confirm ||
         confirm.ticketId !== ing.confirmTicketId ||
-        confirm.homeScore !== ing.homeScore ||
-        confirm.awayScore !== ing.awayScore
+        confirm.homeScore !== homeScore ||
+        confirm.awayScore !== awayScore
       ) {
         confirm = {
           ticketId: ing.confirmTicketId,
           clockNs: ing.confirmClockNs || 0,
-          homeScore: ing.homeScore,
-          awayScore: ing.awayScore,
+          homeScore,
+          awayScore,
           frameSeq: ing.frameSeq || null,
         };
-        log = pushLog(log, "score", board || `${ing.homeScore}-${ing.awayScore}`);
+        log = pushLog(log, "score", board || `${homeScore}-${awayScore}`);
         log = pushLog(log, "confirm", `spine ${ing.confirmTicketId}`);
       }
-    } else if (!ing.boardLocked) {
+    } else if (!boardLocked) {
       confirm = null;
     }
     const scoreLine = confirm ? whyStripConfirm(confirm) : licenseScoreText(SOFT.scoreLine, confirm);
@@ -557,7 +575,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
     // Licensed clutch/climax start = the only license for chrome motion:
     // widgetsOk + board lock + real scores. Fail-closed: HOLD/unlocked = iron.
     const licensedClutchStart =
-      clutchStart && widgetsOk && ing.boardLocked && ing.homeScore != null && ing.awayScore != null;
+      clutchStart && widgetsOk && boardLocked && homeScore != null && awayScore != null;
     set({
       deckLive: true,
       deckAt: Date.now(),
@@ -588,19 +606,19 @@ export const useTheater = create<TheaterState>((set, get) => ({
       heatVetoed,
       scoreLine,
       boardLine: board,
-      homeScore: ing.homeScore,
-      awayScore: ing.awayScore,
-      homeTeam: widgetsOk || ing.boardLocked ? ing.homeTeam : s.homeTeam,
-      awayTeam: widgetsOk || ing.boardLocked ? ing.awayTeam : s.awayTeam,
-      homeLeft: widgetsOk || ing.boardLocked ? Boolean(ing.homeLeft) : s.homeLeft,
-      leftTeam: widgetsOk || ing.boardLocked ? (ing.leftTeam || "") : s.leftTeam,
-      rightTeam: widgetsOk || ing.boardLocked ? (ing.rightTeam || "") : s.rightTeam,
-      leftScore: ing.leftScore ?? null,
-      rightScore: ing.rightScore ?? null,
-      down: widgetsOk ? ing.down : ing.boardLocked ? ing.down : s.down,
-      distance: widgetsOk ? ing.distance : ing.boardLocked ? ing.distance : s.distance,
-      boardLocked: Boolean(ing.boardLocked),
-      situation: widgetsOk || (via === "poll" && opticsFresh) || ing.boardLocked
+      homeScore,
+      awayScore,
+      homeTeam: widgetsOk || boardLocked ? ing.homeTeam : s.homeTeam,
+      awayTeam: widgetsOk || boardLocked ? ing.awayTeam : s.awayTeam,
+      homeLeft: widgetsOk || boardLocked ? Boolean(ing.homeLeft) : s.homeLeft,
+      leftTeam: widgetsOk || boardLocked ? (ing.leftTeam || "") : s.leftTeam,
+      rightTeam: widgetsOk || boardLocked ? (ing.rightTeam || "") : s.rightTeam,
+      leftScore,
+      rightScore,
+      down: widgetsOk ? ing.down : boardLocked ? ing.down : s.down,
+      distance: widgetsOk ? ing.distance : boardLocked ? ing.distance : s.distance,
+      boardLocked,
+      situation: widgetsOk || (via === "poll" && opticsFresh) || boardLocked
         ? sit || s.situation
         : ing.videoOptics
           ? ""
@@ -684,7 +702,7 @@ export const useTheater = create<TheaterState>((set, get) => ({
       get().ingestMoment({
         key: `clutch:${clutch.kind}:${clutch.why}`,
         title: `${clutch.label} · ${clutch.why}`,
-        path: liveTicket ? "fast" : ing.boardLocked ? "confirm" : "",
+        path: liveTicket ? "fast" : boardLocked ? "confirm" : "",
         reason: clutch.phase || clutch.kind,
         clock: ing.clock || "now",
         icon: liveTicket ? "⚡" : "●",
@@ -958,6 +976,23 @@ export const useTheater = create<TheaterState>((set, get) => ({
       url: out.url,
       name: out.name,
     });
+  },
+  ingestHonesty: (h) => {
+    const s = get();
+    if (h.paintBlocked) {
+      set({
+        honesty: h,
+        homeScore: null,
+        awayScore: null,
+        leftScore: null,
+        rightScore: null,
+        boardLocked: false,
+        confirm: null,
+      });
+      return;
+    }
+    if (s.honesty === h) return;
+    set({ honesty: h });
   },
   ingestAgentPlane: (plane) => {
     const s = get();

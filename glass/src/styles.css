@@ -216,6 +216,121 @@ html.obs-lens body {
   box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-live) 72%, transparent);
 }
 
+/* Sight Honesty — TicketGlass + SyncGlass votes. Chrome only, never the picture. */
+.honesty-strip {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  height: 32px;
+  padding: 0 16px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-border);
+}
+
+.honesty-strip-compact {
+  height: 28px;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.honesty-strip[data-honesty="dark"] {
+  opacity: 0.45;
+}
+
+.honesty-glyph {
+  display: inline-flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-subtle-foreground);
+}
+
+.honesty-glyph[data-conf="solid"] {
+  opacity: 1;
+}
+
+.honesty-glyph[data-conf="dim"] {
+  opacity: 0.55;
+}
+
+.honesty-glyph[data-conf="ghost"] {
+  opacity: 0.35;
+}
+
+.honesty-glyph-name {
+  font-size: 9px;
+  color: var(--color-muted-foreground);
+}
+
+.honesty-glyph-value {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.honesty-glyph[data-glyph="lock"][data-value="blocked"] .honesty-glyph-value {
+  color: var(--color-veto);
+}
+
+.honesty-glyph[data-glyph="lock"][data-value="open"] .honesty-glyph-value,
+.honesty-glyph[data-glyph="cut"][data-value="on"] .honesty-glyph-value,
+.honesty-glyph[data-glyph="bind"][data-value="ok"] .honesty-glyph-value,
+.honesty-glyph[data-glyph="lag"][data-value="ok"] .honesty-glyph-value,
+.honesty-glyph[data-glyph="haptic"][data-value="on"] .honesty-glyph-value {
+  color: var(--color-live);
+}
+
+.honesty-glyph[data-glyph="tension"] .honesty-glyph-value,
+.honesty-glyph[data-glyph="lag"] .honesty-glyph-value {
+  color: var(--color-fast);
+}
+
+.honesty-glyph[data-glyph="lag"][data-value="ok"] .honesty-glyph-value {
+  color: var(--color-live);
+}
+
+.clutch-feed[data-feed="peek"] {
+  max-height: 48px;
+  padding: 4px 12px;
+  gap: 4px;
+  transition: max-height 400ms var(--ease-out);
+}
+
+.clutch-feed[data-feed="expanded"] {
+  max-height: 10.5rem;
+  transition: max-height 150ms var(--ease-out);
+}
+
+.clutch-feed[data-feed="peek"] .clutch-feed-meter,
+.clutch-feed[data-feed="peek"] .clutch-feed-empty,
+.clutch-feed[data-feed="peek"] h2 {
+  display: none;
+}
+
+.clutch-feed[data-feed="peek"] .clutch-row,
+.clutch-feed[data-feed="expanded"] .clutch-row {
+  min-height: 32px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.clutch-feed[data-land="fast"] {
+  box-shadow:
+    var(--shadow-border),
+    0 0 0 1px color-mix(in oklab, var(--color-fast) 55%, transparent);
+}
+
+.clutch-feed[data-land="confirm"] {
+  box-shadow:
+    var(--shadow-border),
+    0 0 0 1px color-mix(in oklab, var(--color-live) 55%, transparent);
+}
+
 /* Keep in sync with qoresence/deck/session.css .glass-nav.
  * glass-nav is NOT a scroll strip: wrap, overflow-x hidden, flex 1 1 100%. */
 .glass-nav {

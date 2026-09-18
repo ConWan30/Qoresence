@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { DualSensePad } from "./dualsense-pad";
 import { DownPill } from "./down-pill";
 import { GlanceGlyph } from "./glance-glyph";
+import { HonestyVoidChip } from "./honesty-strip";
 import { LockbugStrip } from "./lockbug-strip";
 
 export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
@@ -69,6 +70,7 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
               {pllLock ? "PLL LOCK" : "PLL OPEN"}
             </Chip>
             <DownPill />
+            <HonestyVoidChip />
           </div>
           <LockbugStrip />
         </div>

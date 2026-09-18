@@ -19,9 +19,16 @@ export function SituationCard() {
   const down = useTheater((s) => s.down);
   const distance = useTheater((s) => s.distance);
   const confirm = useTheater((s) => s.confirm);
+  const paintBlocked = useTheater((s) => s.honesty.paintBlocked);
 
   const widgetsOk = livePaint && sameSeq && !planeDim;
-  const licensed = widgetsOk && boardLocked && homeScore != null && awayScore != null && (confirm != null || boardLocked);
+  const licensed =
+    widgetsOk &&
+    boardLocked &&
+    !paintBlocked &&
+    homeScore != null &&
+    awayScore != null &&
+    (confirm != null || boardLocked);
   const line = licensed ? situation || boardLine : "";
 
   // Fail-closed: unlocked shows □–□ · — & —

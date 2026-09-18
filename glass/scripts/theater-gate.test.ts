@@ -75,6 +75,17 @@ test("parseAgentPlane vlmBoard follows pickBoard — FrameHub crop_hash move bla
   assert.equal(moved.vlmBoard, "");
 });
 
+test("parseAgentPlane ticket_glass lock blocked blanks vlmBoard", () => {
+  const plane = parseAgentPlane({
+    health: {
+      ticket_glass: { enabled: true, glyphs: { lock: "blocked" }, board_paint_block: 0.9, licenses_digits: false },
+    },
+    snapshot: licensedSnap({ sitCrop: WAS, videoCrop: WAS }),
+  });
+  assert.equal(plane.vlmLocked, false);
+  assert.equal(plane.vlmBoard, "");
+});
+
 test("parseAgentPlane Same-Seq skew blanks vlmBoard", () => {
   const plane = parseAgentPlane({
     snapshot: licensedSnap({ sitCrop: WAS, videoCrop: WAS, sameSeq: false }),

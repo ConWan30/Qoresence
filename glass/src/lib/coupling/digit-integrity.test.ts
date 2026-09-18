@@ -52,6 +52,11 @@ test("VLM abstain blanks", () => {
   assert.equal(digitVoidReason({ ...licensed, vlmAbstain: true }), "vlm_abstain");
 });
 
+test("board_paint_block blanks even with a licensed ticket", () => {
+  assert.equal(digitVoidReason({ ...licensed, paintBlock: true }), "paint_block");
+  assert.equal(digitVoidReason({ ...licensed, lockBlocked: true }), "lock_blocked");
+});
+
 test("confirm + lock + fresh is licensed and ok band", () => {
   assert.equal(digitVoidReason(licensed), "licensed");
   assert.equal(freshnessBand(0), "ok");

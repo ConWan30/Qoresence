@@ -576,6 +576,39 @@ test("ConfirmTicket without VLM lock silence", () => {
   assert.equal(ing.boardLocked, false);
 });
 
+test("board_paint_block OR lock=blocked blanks pickBoard digits", () => {
+  const licensedBag = {
+    home_score: 21,
+    away_score: 17,
+    ...license(),
+    last_confirm: lastConfirm({ home_score: 21, away_score: 17, score_vlm_locked: true }),
+  };
+  const open = pickBoard(licensedBag);
+  assert.equal(open.locked, true);
+  assert.equal(open.home, 21);
+
+  const blockedLock = pickBoard(licensedBag, { ticket_glass: { glyphs: { lock: "blocked" } } });
+  assert.equal(blockedLock.locked, false);
+  assert.equal(blockedLock.home, null);
+  assert.equal(blockedLock.away, null);
+
+  const blockedNoul = pickBoard(licensedBag, { board_paint_block: 0.88 });
+  assert.equal(blockedNoul.locked, false);
+  assert.equal(blockedNoul.home, null);
+
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    situation: { game_state: "gameplay", home_score: 21, away_score: 17, ...license() },
+    confirm: { last_confirm: lastConfirm({ home_score: 21, away_score: 17, score_vlm_locked: true }) },
+    video: { has_frame: true, live_seq: 8, same_seq: true, paint: true, plane_dim: false },
+    ticket_glass: { enabled: true, glyphs: { lock: "blocked" }, board_paint_block: 0.9, licenses_digits: false },
+  });
+  assert.ok(ing);
+  assert.equal(ing.homeScore, null);
+  assert.equal(ing.awayScore, null);
+  assert.equal(ing.boardLocked, false);
+});
+
 test("ConfirmTicket + lock paints", () => {
   assert.equal(
     digitsLicensed({

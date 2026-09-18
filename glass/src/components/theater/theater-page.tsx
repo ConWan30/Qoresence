@@ -1,4 +1,5 @@
 import { CommandBar } from "@/components/theater/command-bar";
+import { HonestyStrip } from "@/components/theater/honesty-strip";
 import { HdmiStage } from "@/components/theater/hdmi-stage";
 import { ObservatoryHUD } from "@/components/theater/observatory-hud";
 import { ClutchFeed } from "@/components/theater/clutch-feed";
@@ -14,6 +15,7 @@ export function TheaterPage() {
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-bg text-fg">
       <CommandBar />
+      <HonestyStrip />
 
       <div className="mx-auto flex w-full max-w-[88rem] min-h-0 flex-1 flex-row gap-4 overflow-hidden px-4 pb-3 sm:px-5 sm:pb-4">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
