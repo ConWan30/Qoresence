@@ -371,6 +371,11 @@ def test_run_attaches_jev_verdict_to_replay_row(tmp_path, monkeypatch):
     log_path = tmp_path / "rows.jsonl"
     monkeypatch.setenv("QORESENCE_SCORE_REPLAY_LOG", str(log_path))
     monkeypatch.setenv("QORESENCE_SCORE_RECHECK", "1")
+    # This e2e waits <3s between schedules; soft-preempt (~3.5s) must not
+    # race remint/generation and flip recheck_status to stale.
+    monkeypatch.setenv("QORESENCE_SCOREBOARD_VLM_PENDING_REMINT_SOFT", "30")
+    import qoresence.vision.scoreboard_vlm as sbv
+    monkeypatch.setattr(sbv, "_PENDING_REMINT_SOFT_BUDGET_S", 30.0)
 
     ref = ScoreboardVlmReferee()
     ref.enabled = True
