@@ -1,24 +1,11 @@
-"""Score-transition plausibility — veto-only observation pack.
+"""Shadow score-transition diagnostics, never a live veto or digit license.
 
-A confirm-ticket mint that the VLM force-lock path used to skip
-``_plausible_transition`` (the 20-0 → 20-20 OCR echo) is now refused by
-the deterministic law in ``digit_integrity.implausible_transition_reason``.
-This pack sits *beside* that law: Jev names gray jumps the delta table
-cannot see (a 6-point bump during a pause plate, both-sides flicker that
-looks like a clock leak). Code owns the refuse. The model never licenses
-digits.
+Score deltas alone cannot establish a misread: observations may span multiple
+plays or correct an earlier extraction. Legacy flag_veto actions describe what
+the previous policy would have done, not an instruction to the mint path.
 
-Same observation-plane class as SyncCoroner / TicketStale (AGENTS.md
-Rules 5–6):
-
-1. Timer worker only. Never on capture / HID / bus threads. Never emits.
-   Never takes a lobe lock.
-2. TypeSafe Noul + speculative Choice; missing SDK/key → local heuristic
-   (the same football-delta law the mint path already applied).
-3. ``licenses_digits`` is False forever. A high implausible-noul may only
-   *add* a refuse — it can never grant a lock the law withheld.
-
-Opt-in: ``--jev`` / ``QORESENCE_JEV=1``. ``--play`` does not enable.
+Opt-in via --jev / QORESENCE_JEV=1. Network and audit writes stay on the
+worker, never the capture/HID/bus threads. No bus emissions or lobe locks.
 """
 
 from __future__ import annotations
@@ -209,6 +196,8 @@ def compose_verdict(
         "local_reason": local,
         "action": action,
         "licenses_digits": False,
+        "mode": "shadow",
+        "enforces_veto": False,
     }
 
 
@@ -231,6 +220,7 @@ class ScorePlausibility:
         self._worker: threading.Thread | None = None
         self._lock = threading.Lock()
         self._ticks = 0
+        self._last_state_key: str | None = None
         self._flagged = 0
         self._last: dict[str, Any] = {}
         self._last_ns = 0
@@ -370,6 +360,10 @@ class ScorePlausibility:
         while not self._stop_evt.wait(self._cadence_s):
             try:
                 state = self._collect()
+                state_key = json.dumps(state, sort_keys=True)
+                if state_key == self._last_state_key:
+                    continue
+                self._last_state_key = state_key
                 verdict = self._judge(state)
                 verdict["tick"] = self._ticks
                 verdict["ts"] = time.time()
@@ -418,16 +412,8 @@ class ScorePlausibility:
         home: Any,
         away: Any,
     ) -> bool:
-        """True when the last flag_veto was for this exact transition.
-
-        Cheap enough to call from the mint path. Never grants a lock.
-        """
-        oh, oa = _score_int(prior_home), _score_int(prior_away)
-        nh, na = _score_int(home), _score_int(away)
-        if None in (oh, oa, nh, na):
-            return False
-        with self._lock:
-            return self._veto_key == (oh, oa, nh, na)
+        """Compatibility hook: shadow judgments never veto live candidates."""
+        return False
 
     def stats(self) -> dict[str, Any]:
         with self._lock:
@@ -447,6 +433,8 @@ class ScorePlausibility:
             "implausible_noul": last.get("implausible_noul"),
             "source": last.get("source"),
             "licenses_digits": False,
+            "mode": "shadow",
+            "enforces_veto": False,
         }
 
     def stop(self) -> None:

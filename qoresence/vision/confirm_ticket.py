@@ -74,6 +74,9 @@ class ConfirmTicket:
     right_team: str | None = None
     left_score: int | None = None
     right_score: int | None = None
+    observed_clock_ns: int = 0
+    observed_frame_seq: int | None = None
+    observed_crop_hash: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -90,6 +93,13 @@ def ticket_is_licensed_lock(ticket: ConfirmTicket | None) -> bool:
         return False
     if not str(ticket.crop_hash or "").strip():
         return False
+    if ticket.observed_clock_ns:
+        import time
+
+        from qoresence.sync.digit_integrity import CONFIRM_DIGIT_MAX_AGE_NS
+
+        if not 0 <= time.monotonic_ns() - ticket.observed_clock_ns <= CONFIRM_DIGIT_MAX_AGE_NS:
+            return False
     return True
 
 

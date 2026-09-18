@@ -10,6 +10,8 @@ Sparse + non-blocking: never call from the streamer grab thread.
 from __future__ import annotations
 
 import base64
+import copy
+import hashlib
 import json
 import logging
 import os
@@ -178,6 +180,28 @@ def infer_vlm_source(model: str | None = None, base_url: str | None = None) -> s
     return "quicksilver"
 
 
+def _record_replay_row(parsed: dict, recheck_status: str) -> None:
+    """Append one surviving parse to QORESENCE_SCORE_REPLAY_LOG (JSONL).
+
+    Default-off capture path for the scoreboard replay eval: each row carries
+    the parse plus ``_observation`` source-frame metadata (seq / clock_ns /
+    crop_hash / session_id) — never image bytes or credentials. Folded into a
+    qoresence-score-replay-0 manifest offline via
+    ``evals.scoreboard.manifest.build_manifest_from_recording``.
+    """
+    path = os.environ.get("QORESENCE_SCORE_REPLAY_LOG", "").strip()
+    if not path:
+        return
+    try:
+        row = dict(parsed)
+        row["recorded_ns"] = time.monotonic_ns()
+        row["recheck_status"] = recheck_status
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, default=str) + "\n")
+    except OSError:
+        log.debug("score replay row write failed", exc_info=True)
+
+
 class ScoreboardVlmReferee:
     """Sparse Quicksilver scoreboard reads → last JSON result."""
 
@@ -212,6 +236,14 @@ class ScoreboardVlmReferee:
         self._skip_inflight_count = 0
         self._skip_interval_count = 0
         self._last_timeout_ts = 0.0
+        self._request_generation = 0
+        self.recheck_enabled = os.environ.get("QORESENCE_SCORE_RECHECK", "0").lower() in {
+            "1", "true", "yes", "on",
+        }
+        from qoresence.vision.score_recheck import ScoreRecheck
+
+        self._score_recheck = ScoreRecheck()
+        self._recheck_status = "idle"
 
     def stats(self) -> dict[str, Any]:
         raw = self._last_raw or ""
@@ -251,11 +283,24 @@ class ScoreboardVlmReferee:
             "quota_backoff_s": quota_backoff,
             "gameplay_interval_s": _GAMEPLAY_INTERVAL_S,
             "menu_interval_s": _MENU_INTERVAL_S,
+            "recheck_enabled": getattr(self, "recheck_enabled", False),
+            "recheck_status": getattr(self, "_recheck_status", "idle"),
         }
 
     def get_last(self) -> dict[str, Any] | None:
         with self._lock:
-            return dict(self._last) if self._last else None
+            last = copy.deepcopy(self._last) if self._last else None
+        if last and getattr(self, "recheck_enabled", False):
+            from qoresence.sync.digit_integrity import CONFIRM_DIGIT_MAX_AGE_NS
+            from qoresence.vision.confirm_ticket import resolve_session_id
+
+            source = last.get("_observation") or {}
+            age = time.monotonic_ns() - int(source.get("clock_ns") or 0)
+            if not 0 <= age <= CONFIRM_DIGIT_MAX_AGE_NS:
+                return None
+            if source.get("session_id") != resolve_session_id():
+                return None
+        return last
 
     def last_crop_refuse(self) -> str | None:
         """Why the last confirm crop is not a scorebug. None = may mint."""
@@ -430,6 +475,7 @@ class ScoreboardVlmReferee:
         *,
         force: bool = False,
         reason: str = "tick",
+        source_stamp: dict[str, Any] | None = None,
         game_state: str | None = None,
         game_profile: str | None = None,
         game_title: str | None = None,
@@ -477,8 +523,22 @@ class ScoreboardVlmReferee:
         else:
             interval = max(4.0, _MENU_INTERVAL_S)
 
+        from qoresence.vision.confirm_ticket import resolve_session_id
+
+        source = dict(source_stamp or {})
+        source["session_id"] = resolve_session_id()
+        source["game_state"] = gst
+        source["game_profile"] = game_profile
+        source["submitted_ns"] = time.monotonic_ns()
+        source_key = (source["session_id"], source.get("seq"), source.get("clock_ns"))
         now = time.time()
         with self._lock:
+            if getattr(self, "recheck_enabled", False):
+                if not source.get("seq") or not source.get("clock_ns"):
+                    self._recheck_status = "missing_evidence"
+                    return
+                if source_key == getattr(self, "_source_requested", None):
+                    return
             if self._inflight and (now - self._inflight_since) > _INFLIGHT_WATCHDOG_S:
                 log.info(
                     "scoreboard VLM watchdog: clearing stale inflight (%.1fs)",
@@ -502,16 +562,28 @@ class ScoreboardVlmReferee:
             self._inflight_since = now
             self._last_call = now
             self._last_reason = reason
+            self._request_generation = getattr(self, "_request_generation", 0) + 1
+            generation = self._request_generation
+            self._source_requested = source_key
         if crop is None:
             with self._lock:
                 self._inflight = False
             return
 
+        crop = crop.copy()
+
         def _run() -> None:
             try:
+                source["analyzed_crop_hash"] = hashlib.sha256(crop.tobytes()).hexdigest()
                 with _confirm_clock_heartbeat_while_inflight():
                     parsed = self._call_vlm(crop)
                 with self._lock:
+                    if generation != self._request_generation:
+                        return
+                    if source["session_id"] != resolve_session_id():
+                        self._last = None
+                        self._recheck_status = "session_changed"
+                        return
                     http_status = self._last_http_status
                 if parsed and all(
                     parsed.get(k) is None
@@ -544,11 +616,58 @@ class ScoreboardVlmReferee:
                             )
                         parsed = None
                 if parsed:
+                    parsed = dict(parsed)
+                    parsed["_observation"] = dict(source)
+                    rejected = False
                     with self._lock:
-                        self._last = parsed
-                        self._last_result_ts = time.time()
-                        self._calls += 1
-                        self._consecutive_timeouts = 0
+                        if generation != self._request_generation:
+                            return
+                        if getattr(self, "recheck_enabled", False):
+                            from qoresence.vision.score_recheck import BoardObservation
+
+                            hs, aws = parsed.get("home_score"), parsed.get("away_score")
+                            if type(hs) is int and type(aws) is int:
+                                candidate = BoardObservation(
+                                    session_id=source["session_id"],
+                                    frame_seq=int(source.get("seq") or 0),
+                                    captured_ns=int(source.get("clock_ns") or 0),
+                                    crop_hash=str(
+                                        source.get("analyzed_crop_hash") or ""
+                                    ),
+                                    home_team=str(
+                                        parsed.get("home_team")
+                                        or parsed.get("left_team")
+                                        or ""
+                                    ),
+                                    away_team=str(
+                                        parsed.get("away_team")
+                                        or parsed.get("right_team")
+                                        or ""
+                                    ),
+                                    home_score=hs,
+                                    away_score=aws,
+                                    scene=gst,
+                                    quarter=parsed.get("quarter"),
+                                    game_clock=parsed.get("clock"),
+                                )
+                                self._recheck_status = self._score_recheck.evaluate(
+                                    candidate, time.monotonic_ns()
+                                )
+                            else:
+                                # Grounded non-board read (visible_control, partial
+                                # fields) — carry it; the mint path decides scores.
+                                self._recheck_status = "no_board"
+                            if self._recheck_status not in ("accepted", "no_board"):
+                                self._last = None
+                                rejected = True
+                        if not rejected:
+                            self._last = parsed
+                            self._last_result_ts = time.time()
+                            self._calls += 1
+                            self._consecutive_timeouts = 0
+                    _record_replay_row(parsed, self._recheck_status)
+                    if rejected:
+                        return
                     log.info(
                         "scoreboard VLM → %s-%s q=%s (paused=%s reason=%s)",
                         parsed.get("home_score"),
@@ -565,7 +684,8 @@ class ScoreboardVlmReferee:
                 log.info("scoreboard VLM failed: %s (reason=%s)", e, reason)
             finally:
                 with self._lock:
-                    self._inflight = False
+                    if generation == self._request_generation:
+                        self._inflight = False
 
         threading.Thread(target=_run, name="scoreboard-vlm", daemon=True).start()
 

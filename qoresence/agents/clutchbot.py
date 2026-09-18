@@ -854,13 +854,14 @@ class ClutchBotAgent:
             # Force scoreboard VLM on board-relevant events
             if reason in {"score_changed", "menu_exit"}:
                 try:
-                    from qoresence.monitor.frame_hub import get_latest
+                    from qoresence.monitor.frame_hub import get_frame_hub
                     from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
 
-                    fr = get_latest()
+                    fr, source_stamp = get_frame_hub().get_latest_observation()
                     if fr is not None:
                         get_scoreboard_vlm().schedule(
                             fr,
+                            source_stamp=source_stamp,
                             force=True,
                             reason=reason,
                             game_state=gst,
