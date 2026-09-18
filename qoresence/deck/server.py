@@ -1184,6 +1184,17 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception:
             body["sync_coroner"] = {"enabled": False}
         try:
+            from qoresence.observability.ticket_stale import (
+                get_ticket_stale_sentinel,
+            )
+
+            _ts = get_ticket_stale_sentinel()
+            body["ticket_stale"] = (
+                _ts.stats() if _ts is not None else {"enabled": False}
+            )
+        except Exception:
+            body["ticket_stale"] = {"enabled": False}
+        try:
             from qoresence.sync.hid_telemetry import snapshot as _hid_snap
 
             body["hid_telemetry"] = _hid_snap()
@@ -3081,6 +3092,17 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
                 except Exception:
                     health["press_labeler"] = {"enabled": False}
+                try:
+                    from qoresence.observability.ticket_stale import (
+                        get_ticket_stale_sentinel,
+                    )
+
+                    _ts = get_ticket_stale_sentinel()
+                    health["ticket_stale"] = (
+                        _ts.stats() if _ts is not None else {"enabled": False}
+                    )
+                except Exception:
+                    health["ticket_stale"] = {"enabled": False}
                 try:
                     from qoresence.sync.sync_health import get_sync_health
 

@@ -287,6 +287,22 @@ class QoresenceApp:
         except Exception as e:
             log.debug("SyncCoroner not started: %s", e)
 
+        # Jev ticket-stale sentinel — judges live-board stuck locks. Enqueue-only
+        # subscriber + timer worker; advisory audit, never licenses digits.
+        self.ticket_stale = None
+        try:
+            from qoresence.observability.ticket_stale import (
+                make_ticket_stale_from_config,
+            )
+
+            self.ticket_stale = make_ticket_stale_from_config(
+                getattr(config, "jev_ticket_stale", None),
+                bus=self.bus,
+                jev_enabled=bool(getattr(getattr(config, "jev", None), "enabled", False)),
+            )
+        except Exception as e:
+            log.debug("TicketStale sentinel not started: %s", e)
+
         # Private haptic probe (default OFF; env QORESENCE_HAPTIC_PROBE=1)
         self.haptic_probe = None
         try:
@@ -1446,6 +1462,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             prev if prev is not None else JevConfig(),
             enabled=True,
         )
+    if getattr(args, "jev_ticket_stale", False):
+        from qoresence.core.unified_config import TicketStaleConfig
+
+        prev = getattr(config, "jev_ticket_stale", None)
+        config.jev_ticket_stale = replace(
+            prev if prev is not None else TicketStaleConfig(),
+            enabled=True,
+        )
     if getattr(args, "learning_edge", False) or getattr(config, "learning_edge", False):
         config.learning_edge = True
         try:
@@ -1732,6 +1756,15 @@ def main():
         "(text-only; cannot see HDMI). Default OFF. Also QORESENCE_JEV=1. "
         "--play does not enable this. Never licenses score digits. "
         "Key: TYPESAFE_API_KEY or .secrets/typesafe.key.",
+    )
+    parser.add_argument(
+        "--jev-ticket-stale",
+        action="store_true",
+        help="TypeSafe ticket-stale sentinel: judges live-board stuck locks "
+        "(confirm ticket licensing an old match while the crop moved on). "
+        "Default OFF. Also QORESENCE_JEV_TICKET_STALE=1 (or under --jev). "
+        "--play does not enable this. Advisory audit only — never licenses "
+        "score digits.",
     )
     parser.add_argument(
         "--haptic-probe",
