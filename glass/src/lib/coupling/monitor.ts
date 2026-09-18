@@ -4,6 +4,7 @@ import { fetchAgentPlane, parseAgentPlane, type AgentPlane } from "./agent-plane
 import { parseDeckMessage, type DeckIngest } from "./board";
 import { parseHdmiClipList } from "./clip";
 import { parseFeedMoment, parseSnapshotMoments, type FeedMoment } from "./clutch";
+import { parseHonestyHealth } from "./honesty-health";
 import { parseMatchAgentNote } from "./match-agent";
 import { parseStemProgram, type StemProgram } from "./stem";
 import { getDeckOrigin, probeDeck } from "./qoresence-deck";
@@ -97,6 +98,9 @@ export function startDeckMonitor(
     const wsFresh = wsOpen && st0.deckLive && Date.now() - st0.deckAt < WS_OPTICS_HOLD_MS;
     const clipsBody = await readJson(`${probe.origin}/api/clips`);
     useTheater.getState().ingestClips(parseHdmiClipList(clipsBody, probe.origin));
+    // Honesty votes live on /health. Never JPEG / video / WS decode.
+    const health = await readJson(`${probe.origin}/health`);
+    useTheater.getState().ingestHonesty(parseHonestyHealth(health));
     // match_agent lives on /api/situation (and /health), not /retina WS.
     // Harvest even while WS is fresh — do not ingest optics/board from this poll.
     if (wsFresh) {
@@ -126,8 +130,10 @@ export function startDeckMonitor(
     }
     if (onPlane) {
       const plane = planeBody
-        ? parseAgentPlane({ health: planeBody, agentHealth: planeBody, snapshot: snap || planeBody })
-        : await fetchAgentPlane();
+        ? parseAgentPlane({ health: health ?? planeBody, agentHealth: planeBody, snapshot: snap || planeBody })
+        : health
+          ? parseAgentPlane({ health, snapshot: snap || health })
+          : await fetchAgentPlane();
       if (plane) onPlane(plane);
     }
   };

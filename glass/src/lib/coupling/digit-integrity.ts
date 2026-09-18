@@ -14,6 +14,8 @@ export type DigitVoidReason =
   | "seq_skew"
   | "path_fast"
   | "vlm_abstain"
+  | "paint_block"
+  | "lock_blocked"
   | "licensed";
 
 export type FreshnessBand = "ok" | "amber" | "red" | "ident";
@@ -37,7 +39,11 @@ export function digitVoidReason(args: {
   ticketClockNs: number;
   liveClockNs: number;
   vlmAbstain?: boolean;
+  paintBlock?: boolean;
+  lockBlocked?: boolean;
 }): DigitVoidReason {
+  if (args.paintBlock) return "paint_block";
+  if (args.lockBlocked) return "lock_blocked";
   if (String(args.path || "").toLowerCase() === "fast") return "path_fast";
   if (args.vlmAbstain) return "vlm_abstain";
   if (!String(args.confirmTicketId || "").trim()) return "no_ticket";

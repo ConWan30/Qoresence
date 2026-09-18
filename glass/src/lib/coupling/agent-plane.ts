@@ -122,7 +122,15 @@ export function parseAgentPlane(parts: {
   const sit = rec(snap.situation);
   const confirm = rec(snap.confirm);
   const noul = parseNoulHealth(health);
-  const board = pickBoard(snap, sit, confirm, rec(snap.video), rec(sit.video));
+  const board = pickBoard(
+    snap,
+    sit,
+    confirm,
+    rec(snap.video),
+    rec(sit.video),
+    rec(health.ticket_glass),
+    rec(health),
+  );
   // pickBoard is the sole digit gate. leftover OCR / ticket-id bits are not permission.
   const vlmLocked = board.locked;
   const vlmBoard =

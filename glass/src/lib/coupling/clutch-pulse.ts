@@ -4,6 +4,12 @@ import type { ClutchKind } from "./clutch.ts";
 
 export type ClutchPulse = "off" | "near" | "hot";
 
+const PULSE_RANK: Record<ClutchPulse, number> = { off: 0, near: 1, hot: 2 };
+
+export function hotterPulse(a: ClutchPulse, b: ClutchPulse): ClutchPulse {
+  return PULSE_RANK[a] >= PULSE_RANK[b] ? a : b;
+}
+
 export function clutchPulse(ing: {
   kind: ClutchKind;
   score: number;

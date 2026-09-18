@@ -7,6 +7,7 @@ let _schemaMismatchWarned = false;
 
 import { parseActuatorReceipts, type ActuatorReceipt } from "./actuators.ts";
 import { parseCompanion, type AgentCompanion } from "./companion.ts";
+import { digitsPaintBlocked } from "./honesty-health.ts";
 import type { Phrase } from "./engine";
 
 const PHRASES: readonly Phrase[] = ["IDLE", "HUDDLE", "SNAP", "SPRINT", "CUT", "RELEASE"];
@@ -375,15 +376,17 @@ export function pickBoard(...bags: Record<string, unknown>[]): {
   const liveCrop = videoCrop || sitCrop;
   if (confirmTicketId && !ticketCrop && liveCrop) ticketCrop = liveCrop;
 
-  const locked = digitsLicensed({
-    confirmTicketId,
-    scoreVlmLocked,
-    ticketCropHash: ticketCrop,
-    liveCropHash: liveCrop,
-    sameSeq,
-    ticketClockNs,
-    liveClockNs,
-  });
+  const locked =
+    !digitsPaintBlocked(...bags) &&
+    digitsLicensed({
+      confirmTicketId,
+      scoreVlmLocked,
+      ticketCropHash: ticketCrop,
+      liveCropHash: liveCrop,
+      sameSeq,
+      ticketClockNs,
+      liveClockNs,
+    });
 
   return {
     home: locked ? candHome : null,
@@ -600,7 +603,17 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
   else if (hasFrame && age > 0.35) hdmi = "stale";
   else if (!hasFrame && video.age_s != null) hdmi = "stale";
 
-  const board = pickBoard(m, snap, sit, rec(m.confirm), rec(snap.confirm), rec(snap.video), rec(m.video));
+  const board = pickBoard(
+    m,
+    snap,
+    sit,
+    rec(m.confirm),
+    rec(snap.confirm),
+    rec(snap.video),
+    rec(m.video),
+    rec(m.ticket_glass),
+    rec(snap.ticket_glass),
+  );
   const clutch = pickClutch(m, snap, sit, coup);
   const ident = pickIdentity(m, snap, sit);
   const ltr = pickHdmiLtr(m, snap, sit);
