@@ -203,6 +203,46 @@ def test_zero_zero_and_empty_hash_are_not_licensed_last_confirm():
     assert confirm_glass_must_blank(book) is False
 
 
+def test_observed_clock_bounds_evidence_not_heartbeat():
+    """Heartbeat may refresh ticket clock_ns; it must not extend evidence age."""
+    import time
+    from dataclasses import replace
+
+    from qoresence.sync.digit_integrity import CONFIRM_DIGIT_MAX_AGE_NS
+
+    book = ConfirmTicketBook()
+    ticket = mint_confirm_ticket(
+        session_id="s",
+        clock_ns=time.monotonic_ns(),
+        home_score=7,
+        away_score=0,
+        crop_hash="crop-ok",
+        book=book,
+    )
+    fresh = replace(
+        ticket,
+        observed_clock_ns=time.monotonic_ns(),
+        observed_frame_seq=41,
+        observed_crop_hash="crop-ok",
+    )
+    book.put(fresh)
+    assert ticket_is_licensed_lock(fresh) is True
+
+    bumped = refresh_licensed_ticket_clock(
+        clock_ns=time.monotonic_ns(), frame_seq=99, book=book
+    )
+    assert bumped is not None
+    # Ticket freshness advanced; the real observation must not move.
+    assert bumped.observed_clock_ns == fresh.observed_clock_ns
+    assert bumped.observed_frame_seq == 41
+
+    stale_evidence = replace(
+        bumped,
+        observed_clock_ns=time.monotonic_ns() - CONFIRM_DIGIT_MAX_AGE_NS - 1,
+    )
+    assert ticket_is_licensed_lock(stale_evidence) is False
+
+
 def test_drop_last_confirm_forgets_stuck_ticket():
     book = ConfirmTicketBook()
     t = mint_confirm_ticket(

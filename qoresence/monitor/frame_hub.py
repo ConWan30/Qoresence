@@ -101,6 +101,13 @@ class FrameHub:
                 return None
             return self._frame.copy()
 
+    def get_latest_observation(self) -> tuple[np.ndarray | None, dict[str, Any]]:
+        with self._lock:
+            return (
+                self._frame.copy() if self._frame is not None else None,
+                {"seq": self._seq, "clock_ns": self._clock_ns, "crop_hash": self._crop_hash},
+            )
+
     def get_latest_meta(self) -> tuple[np.ndarray | None, int, float]:
         """Return (frame_copy|None, seq, age_s) — monitor-compatible 3-tuple."""
         with self._lock:

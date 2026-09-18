@@ -82,19 +82,30 @@ def test_missing_prior_is_not_a_veto():
     assert implausible_transition_reason(7, 0, None, 3) is None
 
 
-def test_garbage_lock_refuses_ocr_echo_on_same_identity():
-    book = _IdentBook(20, 0)
+@pytest.mark.parametrize("prior,current", [
+    ((20, 0), (20, 20)),
+    ((7, 3), (9, 3)),
+    ((7, 3), (17, 3)),
+    ((14, 7), (17, 10)),
+    ((20, 7), (14, 7)),
+])
+def test_delta_alone_does_not_refuse_candidate(prior, current, monkeypatch):
+    monkeypatch.setattr(
+        "qoresence.observability.score_plausibility.jev_flags_transition",
+        lambda *args: True,
+    )
+    book = _IdentBook(*prior)
     assert (
         garbage_lock_reason(
-            home=20,
-            away=20,
+            home=current[0],
+            away=current[1],
             home_team="LOU",
             away_team="NCST",
             game_state="gameplay",
             book=book,
             crop_hash="abc",
         )
-        == "implausible_transition"
+        is None
     )
 
 
@@ -207,11 +218,36 @@ def test_local_plausibility_legal_fg():
     assert out["implausible_noul"] < 0.4
 
 
-def test_disabled_by_default():
+def test_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("QORESENCE_JEV", raising=False)
     assert make_plausibility_from_config(SimpleNamespace(enabled=False)) is None
 
 
-def test_worker_never_emits_bus_events(tmp_path):
+def test_shadow_flag_cannot_veto_exact_match(monkeypatch):
+    monkeypatch.delenv("QORESENCE_JEV", raising=False)
+    sp = ScorePlausibility(SimpleNamespace(enabled=False))
+    sp._veto_key = (20, 0, 20, 20)
+    assert sp.veto_matches(20, 0, 20, 20) is False
+    assert sp.stats()["mode"] == "shadow"
+    verdict = compose_verdict(implausible_noul=1.0)
+    assert verdict["enforces_veto"] is False
+    assert verdict["licenses_digits"] is False
+
+
+def test_worker_deduplicates_identical_state(monkeypatch):
+    monkeypatch.delenv("QORESENCE_JEV", raising=False)
+    sp = ScorePlausibility(SimpleNamespace(enabled=False))
+    waits = iter([False, False, False, True])
+    sp._stop_evt = SimpleNamespace(wait=lambda _: next(waits))
+    calls = []
+    monkeypatch.setattr(sp, "_collect", lambda: {"prior": {}, "proposed": {}})
+    monkeypatch.setattr(sp, "_judge", lambda state: calls.append(state) or {})
+    sp._run()
+    assert len(calls) == 1
+
+
+def test_worker_never_emits_bus_events(tmp_path, monkeypatch):
+    monkeypatch.setattr(ScorePlausibility, "_try_typesafe", lambda *args: None)
     bus = RetinaEventBus(
         session_id="t", jsonl_path=tmp_path / "e.jsonl", enable_ws=False
     )

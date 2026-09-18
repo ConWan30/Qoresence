@@ -308,6 +308,9 @@ def test_empty_http_200_clears_inflight_and_allows_next_schedule(monkeypatch):
     monkeypatch.setattr(ref, "_call_vlm", lambda _c: called.append(1))
     ref._last_call = time.time() - (_GAMEPLAY_INTERVAL_S + 1.0)
     ref.schedule(frame, force=False, game_state="gameplay", game_profile="cfb_27")
+    deadline = time.time() + 2.0
+    while time.time() < deadline and not called:
+        time.sleep(0.02)
     assert called, "next schedule must run after empty HTTP 200 clears inflight"
     _wait_inflight_clear(ref)
 

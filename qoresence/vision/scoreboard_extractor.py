@@ -198,24 +198,7 @@ def garbage_lock_reason(
                     )
                 except Exception:
                     pass
-                return jump
-            try:
-                from qoresence.observability.score_plausibility import (
-                    jev_flags_transition,
-                    note_refused,
-                )
 
-                if jev_flags_transition(prior_h, prior_a, home, away):
-                    note_refused(
-                        prior_home=prior_h,
-                        prior_away=prior_a,
-                        home=home,
-                        away=away,
-                        reason="implausible_transition",
-                    )
-                    return "implausible_transition"
-            except Exception:
-                pass
 
     if home == 0 and away == 0:
         if gst in _MENU_STATES:
@@ -647,8 +630,12 @@ class FootballScoreboardExtractor:
                 gst = getattr(ctx.game_state, "value", None) or str(ctx.game_state or "")
             except Exception:
                 gst = None
+            from qoresence.monitor.frame_hub import get_frame_hub
+
+            source_frame, source_stamp = get_frame_hub().get_latest_observation()
             get_scoreboard_vlm().schedule(
-                frame,
+                source_frame if source_frame is not None else frame,
+                source_stamp=source_stamp if source_frame is not None else None,
                 game_state=gst,
                 reason="tick",
                 game_profile=getattr(ctx, "game_profile", None),
@@ -884,6 +871,26 @@ class FootballScoreboardExtractor:
                     except Exception:
                         stamp = {}
 
+                    source_observation = (vlm or {}).get("_observation") or {}
+                    from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
+
+                    evidence_bound = getattr(get_scoreboard_vlm(), "recheck_enabled", False) is True
+                    if evidence_bound:
+                        from qoresence.sync.digit_integrity import CONFIRM_DIGIT_MAX_AGE_NS
+
+                        observed_ns = int(source_observation.get("clock_ns") or 0)
+                        if not 0 <= _time_ticket.monotonic_ns() - observed_ns <= CONFIRM_DIGIT_MAX_AGE_NS:
+                            raise ValueError("stale source observation")
+                        if source_observation.get("session_id") != resolve_session_id():
+                            raise ValueError("source session changed")
+                        stamp = source_observation
+
+                    mint_crop_hash = str(getattr(ctx, "frame_hash", "") or "")
+                    if evidence_bound:
+                        # SEQGATE compares crop_hash to the live scorebug_crop_hash —
+                        # must be the source frame's hash, not the analyzed blob sha256.
+                        mint_crop_hash = str(source_observation.get("crop_hash") or "")
+
                     def _ti(v: Any) -> int | None:
                         try:
                             return int(v) if v is not None and v != "" else None
@@ -943,7 +950,7 @@ class FootballScoreboardExtractor:
                         book=book,
                         vlm=vlm if isinstance(vlm, dict) else None,
                         crop=confirm_crop,
-                        crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
+                        crop_hash=mint_crop_hash,
                     )
                     if refuse:
                         log.info(
@@ -982,7 +989,7 @@ class FootballScoreboardExtractor:
                             model=model_str,
                             source=source_str,
                             frame_seq=_ti(stamp.get("seq")),
-                            crop_hash=str(getattr(ctx, "frame_hash", "") or ""),
+                            crop_hash=mint_crop_hash,
                             quarter=_ti(parsed.get("quarter")),
                             down=_ti(parsed.get("down")),
                             home_team=home_team_now,
@@ -1028,14 +1035,23 @@ class FootballScoreboardExtractor:
                                                 if stamp.get("seq") is not None
                                                 else ticket.frame_seq
                                             ),
-                                            crop_hash=str(
-                                                getattr(ctx, "frame_hash", "")
-                                                or ticket.crop_hash
-                                            ),
+                                            crop_hash=mint_crop_hash or ticket.crop_hash,
                                         )
                         except Exception:
                             pass
                         if ticket is not None:
+                            if evidence_bound:
+                                from dataclasses import replace
+
+                                ticket = replace(
+                                    ticket,
+                                    clock_ns=observed_ns,
+                                    frame_seq=_ti(source_observation.get("seq")),
+                                    crop_hash=mint_crop_hash,
+                                    observed_clock_ns=observed_ns,
+                                    observed_frame_seq=_ti(source_observation.get("seq")),
+                                    observed_crop_hash=mint_crop_hash,
+                                )
                             stamp_hdmi_ltr(ctx, parsed=parsed, vlm=vlm)
                             ticket = overlay_hdmi_ltr(
                                 ticket,
