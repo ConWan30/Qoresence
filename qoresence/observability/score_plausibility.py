@@ -338,22 +338,7 @@ class ScorePlausibility:
             warned_flag=self._warned_typesafe,
             logger=log,
         )
-        if response is None:
-            return None
-        nouls = getattr(response, "nouls", {}) or {}
-        choices = getattr(response, "choices", {}) or {}
-        n = nouls.get("implausible")
-        c = choices.get("jump_kind")
-        return {
-            "implausible_noul": (
-                float(n.noul) if n is not None else None
-            ),
-            "jump_kind": getattr(c, "choice", None) if c is not None else None,
-            "jump_confidence": (
-                float(getattr(c, "confidence", 0) or 0) if c is not None else None
-            ),
-            "source": "typesafe",
-        }
+        return _answers_from_response(response)
 
     def _run(self) -> None:
         while not self._stop_evt.wait(self._cadence_s):
@@ -444,6 +429,69 @@ class ScorePlausibility:
             except Exception:
                 pass
             self._jsonl_handle = None
+
+
+def _answers_from_response(response: Any) -> dict[str, Any] | None:
+    if response is None:
+        return None
+    nouls = getattr(response, "nouls", {}) or {}
+    choices = getattr(response, "choices", {}) or {}
+    n = nouls.get("implausible")
+    c = choices.get("jump_kind")
+    return {
+        "implausible_noul": (
+            float(n.noul) if n is not None else None
+        ),
+        "jump_kind": getattr(c, "choice", None) if c is not None else None,
+        "jump_confidence": (
+            float(getattr(c, "confidence", 0) or 0) if c is not None else None
+        ),
+        "source": "typesafe",
+    }
+
+
+def transition_verdict(
+    prior_pair: tuple[int, int],
+    cand_pair: tuple[int, int],
+    *,
+    timeout_s: float = DEFAULT_TIMEOUT_S,
+    warned_flag: list[bool] | None = None,
+) -> dict[str, Any] | None:
+    """Synchronous Jev verdict for one prior→candidate transition.
+
+    Advisory only — the caller records it on a replay row; it can never
+    license digits or veto a mint. Same state/questions as the cadence
+    shadow observer. Returns None when Jev mode is off, the SDK/key is
+    absent, or the call fails.
+    """
+    if not _env_enabled():
+        return None
+    questions = plausibility_questions()
+    if not questions:
+        return None
+    state = {
+        "policy": (
+            "Diagnosis only. Code owns tickets, clocks, and digit "
+            "licensing. Never prescribe a score."
+        ),
+        "prior": {"home_score": prior_pair[0], "away_score": prior_pair[1]},
+        "proposed": {"home_score": cand_pair[0], "away_score": cand_pair[1]},
+        "refuse_reason": "",
+    }
+    answers = _answers_from_response(
+        system_one(
+            state=state,
+            questions=questions,
+            timeout_s=timeout_s,
+            warn_label="score_recheck_jev",
+            warned_flag=warned_flag,
+            logger=log,
+        )
+    )
+    if answers is None:
+        return None
+    answers["prior"] = [prior_pair[0], prior_pair[1]]
+    return answers
 
 
 _refuse_lock = threading.Lock()

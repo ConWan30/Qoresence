@@ -243,6 +243,8 @@ class ScoreboardVlmReferee:
         self.recheck_enabled = os.environ.get("QORESENCE_SCORE_RECHECK", "0").lower() in {
             "1", "true", "yes", "on",
         }
+        # warn-once flag shared with transition_verdict system_one calls
+        self._jev_warned = [False]
         from qoresence.vision.score_recheck import ScoreRecheck
 
         self._score_recheck = ScoreRecheck()
@@ -680,6 +682,8 @@ class ScoreboardVlmReferee:
                     parsed = dict(parsed)
                     parsed["_observation"] = dict(source)
                     rejected = False
+                    prior_obs = None
+                    candidate = None
                     with self._lock:
                         if generation != self._request_generation:
                             return
@@ -688,12 +692,15 @@ class ScoreboardVlmReferee:
 
                             hs, aws = parsed.get("home_score"), parsed.get("away_score")
                             if type(hs) is int and type(aws) is int:
+                                prior_obs = self._score_recheck.accepted
                                 candidate = BoardObservation(
                                     session_id=source["session_id"],
                                     frame_seq=int(source.get("seq") or 0),
                                     captured_ns=int(source.get("clock_ns") or 0),
                                     crop_hash=str(
-                                        source.get("analyzed_crop_hash") or ""
+                                        source.get("crop_hash")
+                                        or source.get("analyzed_crop_hash")
+                                        or ""
                                     ),
                                     home_team=str(
                                         parsed.get("home_team")
@@ -726,6 +733,28 @@ class ScoreboardVlmReferee:
                             self._last_result_ts = time.time()
                             self._calls += 1
                             self._consecutive_timeouts = 0
+                    # Advisory Jev verdict on changed same-identity
+                    # transitions — recorded on the replay row, never
+                    # consulted by the live mint path.
+                    if (
+                        prior_obs is not None
+                        and candidate is not None
+                        and candidate.identity == prior_obs.identity
+                        and candidate.pair != prior_obs.pair
+                        and self._recheck_status
+                        in ("accepted", "recheck", "exhausted")
+                    ):
+                        from qoresence.observability.score_plausibility import (
+                            transition_verdict,
+                        )
+
+                        verdict = transition_verdict(
+                            prior_obs.pair,
+                            candidate.pair,
+                            warned_flag=self._jev_warned,
+                        )
+                        if verdict:
+                            parsed["jev"] = verdict
                     _record_replay_row(parsed, self._recheck_status)
                     if rejected:
                         return
