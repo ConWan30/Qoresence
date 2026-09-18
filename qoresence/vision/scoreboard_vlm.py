@@ -339,9 +339,9 @@ class ScoreboardVlmReferee:
     def _drain_pending_remint(self) -> None:
         """Fire one deferred force/score_changed remint after inflight clears."""
         with self._lock:
-            pending = self._pending_remint
+            pending = getattr(self, "_pending_remint", None)
             self._pending_remint = None
-            if self._inflight or not pending:
+            if getattr(self, "_inflight", False) or not pending:
                 return
         frame = pending.get("frame")
         if frame is None or getattr(frame, "size", 0) == 0:

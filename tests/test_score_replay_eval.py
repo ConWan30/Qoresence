@@ -298,6 +298,12 @@ def test_transition_verdict_shape_and_failure(monkeypatch):
     from qoresence.observability import score_plausibility as sp
 
     monkeypatch.setenv("QORESENCE_JEV", "1")
+    # CI lacks typesafe_sdk: plausibility_questions() returns {} and
+    # transition_verdict returns None before system_one. Stub a non-empty
+    # sentinel so the mocked system_one path is reachable (no real SDK).
+    monkeypatch.setattr(
+        sp, "plausibility_questions", lambda: {"implausible": object()}
+    )
     resp = types.SimpleNamespace(
         nouls={"implausible": types.SimpleNamespace(noul=0.91)},
         choices={
