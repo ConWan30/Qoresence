@@ -59,6 +59,12 @@ _QUICKSILVER_SLOT_WAIT_S = 0.05
 # SEQGATE fresh window is 8s; VLM POST can run ~14s. Heartbeat mid-flight only.
 _CONFIRM_HEARTBEAT_INTERVAL_S = 3.0
 _INFLIGHT_WATCHDOG_S = _HTTP_TIMEOUT_S + 2.0
+# Soft budget: if a force/score_changed remint is queued while a POST is still
+# inflight, abandon the stale generation after this many seconds so a fresh
+# scorebug crop can mint instead of waiting the full HTTP (~14s) / watchdog (~16s).
+_PENDING_REMINT_SOFT_BUDGET_S = float(
+    os.environ.get("QORESENCE_SCOREBOARD_VLM_PENDING_REMINT_SOFT", "3.5")
+)
 _TIMEOUT_BACKOFF_BASE_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF", "1"))
 _TIMEOUT_BACKOFF_MAX_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_TIMEOUT_BACKOFF_MAX", "2"))
 # 26px 360p HUD strips look like tickers to the VLM. Upscale height only.
@@ -288,6 +294,7 @@ class ScoreboardVlmReferee:
             "pending_remint": has_pending,
             "http_timeout_s": _HTTP_TIMEOUT_S,
             "inflight_watchdog_s": _INFLIGHT_WATCHDOG_S,
+            "pending_remint_soft_budget_s": _PENDING_REMINT_SOFT_BUDGET_S,
             "timeout_backoff_s": timeout_backoff,
             "quota_backoff_s": quota_backoff,
             "gameplay_interval_s": _GAMEPLAY_INTERVAL_S,
@@ -332,9 +339,10 @@ class ScoreboardVlmReferee:
     def _drain_pending_remint(self) -> None:
         """Fire one deferred force/score_changed remint after inflight clears."""
         with self._lock:
-            pending = self._pending_remint
+            # Tests may construct a partial referee; never AttributeError mid-drain.
+            pending = getattr(self, "_pending_remint", None)
             self._pending_remint = None
-            if self._inflight or not pending:
+            if getattr(self, "_inflight", False) or not pending:
                 return
         frame = pending.get("frame")
         if frame is None or getattr(frame, "size", 0) == 0:
@@ -519,6 +527,9 @@ class ScoreboardVlmReferee:
           - force / score_changed / menu_exit → immediate (bypass interval)
           - if inflight, force/score_changed/menu_exit/first_lock queues a
             pending remint that fires when the in-flight POST clears
+          - if pending remint is set and inflight_age > soft budget (~3.5s),
+            bump request generation, clear inflight, drain remint immediately
+            (do not wait full HTTP ~14s / watchdog ~16s with blank digits)
           - gameplay → default 6.0s (env override wins; not 60 fps)
           - menu/hub → ~8s
           - HTTP 429 cooldown → skip until backoff expires (not process HOLD)
@@ -567,6 +578,7 @@ class ScoreboardVlmReferee:
         source["submitted_ns"] = time.monotonic_ns()
         source_key = (source["session_id"], source.get("seq"), source.get("clock_ns"))
         now = time.time()
+        soft_preempt = False
         with self._lock:
             if getattr(self, "recheck_enabled", False):
                 if not source.get("seq") or not source.get("clock_ns"):
@@ -590,6 +602,9 @@ class ScoreboardVlmReferee:
                 "first_lock",
             }
             if self._inflight:
+                inflight_age = (
+                    (now - self._inflight_since) if self._inflight_since else 0.0
+                )
                 if priority and crop is not None:
                     # Do not drop score deltas while Quicksilver is on the wire.
                     # Queue latest full frame; _drain_pending_remint re-crops on clear.
@@ -606,13 +621,34 @@ class ScoreboardVlmReferee:
                     log.info(
                         "scoreboard VLM pending remint (reason=%s inflight_age=%.1fs)",
                         reason,
-                        (now - self._inflight_since) if self._inflight_since else 0.0,
+                        inflight_age,
                     )
+                # Soft preempt: pending remint waiting on a long POST → abandon
+                # stale generation so a fresh crop can mint (blank digits otherwise).
+                if (
+                    self._pending_remint is not None
+                    and inflight_age > _PENDING_REMINT_SOFT_BUDGET_S
+                ):
+                    self._request_generation = (
+                        getattr(self, "_request_generation", 0) + 1
+                    )
+                    self._inflight = False
+                    soft_preempt = True
+                    log.info(
+                        "scoreboard VLM soft-preempt pending remint "
+                        "(inflight_age=%.1fs budget=%.1fs)",
+                        inflight_age,
+                        _PENDING_REMINT_SOFT_BUDGET_S,
+                    )
+                elif priority and crop is not None:
                     return
-                self._skip_inflight_count += 1
-                log.info("scoreboard VLM skip: inflight")
-                return
-            if not force and (now - self._last_call) < interval:
+                else:
+                    self._skip_inflight_count += 1
+                    log.info("scoreboard VLM skip: inflight")
+                    return
+            if soft_preempt:
+                pass
+            elif not force and (now - self._last_call) < interval:
                 self._skip_interval_count += 1
                 log.info(
                     "scoreboard VLM skip: interval (%.1fs < %.1fs)",
@@ -620,13 +656,17 @@ class ScoreboardVlmReferee:
                     interval,
                 )
                 return
-            self._inflight = True
-            self._inflight_since = now
-            self._last_call = now
-            self._last_reason = reason
-            self._request_generation = getattr(self, "_request_generation", 0) + 1
-            generation = self._request_generation
-            self._source_requested = source_key
+            else:
+                self._inflight = True
+                self._inflight_since = now
+                self._last_call = now
+                self._last_reason = reason
+                self._request_generation = getattr(self, "_request_generation", 0) + 1
+                generation = self._request_generation
+                self._source_requested = source_key
+        if soft_preempt:
+            self._drain_pending_remint()
+            return
         if crop is None:
             with self._lock:
                 self._inflight = False

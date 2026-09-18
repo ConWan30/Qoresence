@@ -13,6 +13,7 @@ from qoresence.vision.scoreboard_vlm import (
     _HTTP_TIMEOUT_S,
     _INFLIGHT_WATCHDOG_S,
     _MENU_INTERVAL_S,
+    _PENDING_REMINT_SOFT_BUDGET_S,
     _QUICKSILVER_SLOT_WAIT_S,
     _TIMEOUT_BACKOFF_MAX_S,
 )
@@ -610,3 +611,97 @@ def test_tick_while_inflight_still_skips_without_pending(monkeypatch):
         assert ref._skip_inflight_count >= 1
     release.set()
     _wait_inflight_clear(ref)
+
+
+def test_pending_remint_soft_preempts_stale_inflight(monkeypatch):
+    """pending remint + inflight past soft budget remints without waiting HTTP/watchdog.
+
+    Live blank-digit failure mode: score_changed queues pending_remint while a
+    Quicksilver POST sits inflight ~10s+; ticks pile skip_inflight and ConfirmTicket
+    never remints (board_why=vlm_none, calls=0). Soft preempt bumps generation,
+    clears inflight, and drains the remint after ~3.5s — not ~14s/~16s.
+    licenses_digits stays false; Jev never mints digits.
+    """
+    assert _PENDING_REMINT_SOFT_BUDGET_S <= 4.0
+    assert _PENDING_REMINT_SOFT_BUDGET_S < _HTTP_TIMEOUT_S
+    assert _PENDING_REMINT_SOFT_BUDGET_S < _INFLIGHT_WATCHDOG_S
+
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    calls: list[int] = []
+    first_entered = threading.Event()
+    release_first = threading.Event()
+
+    def _slow_then_fast(_crop):
+        calls.append(1)
+        if len(calls) == 1:
+            first_entered.set()
+            release_first.wait(timeout=20.0)
+            return {
+                "home_score": 7,
+                "away_score": 0,
+                "home_team": "HOME",
+                "away_team": "AWAY",
+                "quarter": 1,
+            }
+        return {
+            "home_score": 14,
+            "away_score": 7,
+            "home_team": "HOME",
+            "away_team": "AWAY",
+            "quarter": 2,
+        }
+
+    monkeypatch.setattr(ref, "_call_vlm", _slow_then_fast)
+    monkeypatch.setattr(ref, "_crop", lambda *a, **k: _licensed_confirm_crop())
+    frame = licensed_scorebug_frame()
+
+    ref.schedule(
+        frame, force=True, reason="tick", game_state="gameplay", game_profile="cfb_27"
+    )
+    assert first_entered.wait(timeout=2.0), "first VLM POST should start"
+    with ref._lock:
+        assert ref._inflight is True
+        gen_at_start = ref._request_generation
+
+    # Queue remint while still under soft budget (must not preempt yet).
+    ref.schedule(
+        frame,
+        force=True,
+        reason="score_changed",
+        game_state="gameplay",
+        game_profile="cfb_27",
+    )
+    with ref._lock:
+        assert ref._pending_remint is not None
+        assert ref._inflight is True
+        assert ref._request_generation == gen_at_start
+
+    # Age past soft budget; next tick must soft-preempt and drain remint.
+    with ref._lock:
+        ref._inflight_since = time.time() - (_PENDING_REMINT_SOFT_BUDGET_S + 0.25)
+
+    t0 = time.monotonic()
+    ref.schedule(
+        frame, force=False, reason="tick", game_state="gameplay", game_profile="cfb_27"
+    )
+
+    deadline = time.time() + 2.0
+    while time.time() < deadline and len(calls) < 2:
+        time.sleep(0.02)
+    elapsed = time.monotonic() - t0
+    assert len(calls) >= 2, f"expected soft-preempt remint call, calls={len(calls)}"
+    assert elapsed < 2.0, f"soft preempt must not wait HTTP/watchdog, elapsed={elapsed:.2f}s"
+    with ref._lock:
+        assert ref._request_generation > gen_at_start
+        assert ref._pending_remint is None
+        soft_budget = ref.stats()["pending_remint_soft_budget_s"]
+    assert soft_budget == _PENDING_REMINT_SOFT_BUDGET_S
+
+    release_first.set()
+    _wait_inflight_clear(ref, timeout_s=3.0)
+    # Stale first POST must not overwrite the reminted board.
+    last = ref.get_last()
+    assert last is not None
+    assert (last.get("home_score"), last.get("away_score")) == (14, 7)

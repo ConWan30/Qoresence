@@ -298,6 +298,12 @@ def test_transition_verdict_shape_and_failure(monkeypatch):
     from qoresence.observability import score_plausibility as sp
 
     monkeypatch.setenv("QORESENCE_JEV", "1")
+    # CI lacks typesafe_sdk: plausibility_questions() returns {} and
+    # transition_verdict returns None before system_one. Stub a non-empty
+    # sentinel so the mocked system_one path is reachable (no real SDK).
+    monkeypatch.setattr(
+        sp, "plausibility_questions", lambda: {"implausible": object()}
+    )
     resp = types.SimpleNamespace(
         nouls={"implausible": types.SimpleNamespace(noul=0.91)},
         choices={
@@ -365,6 +371,11 @@ def test_run_attaches_jev_verdict_to_replay_row(tmp_path, monkeypatch):
     log_path = tmp_path / "rows.jsonl"
     monkeypatch.setenv("QORESENCE_SCORE_REPLAY_LOG", str(log_path))
     monkeypatch.setenv("QORESENCE_SCORE_RECHECK", "1")
+    # This e2e waits <3s between schedules; soft-preempt (~3.5s) must not
+    # race remint/generation and flip recheck_status to stale.
+    monkeypatch.setenv("QORESENCE_SCOREBOARD_VLM_PENDING_REMINT_SOFT", "30")
+    import qoresence.vision.scoreboard_vlm as sbv
+    monkeypatch.setattr(sbv, "_PENDING_REMINT_SOFT_BUDGET_S", 30.0)
 
     ref = ScoreboardVlmReferee()
     ref.enabled = True
