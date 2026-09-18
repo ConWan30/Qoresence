@@ -38,7 +38,6 @@ from qoresence.observability.ticket_stale_questions import (
     STALE_CLASSES,
     ticket_stale_questions,
 )
-
 from qoresence.observability.typesafe_ask import (
     DEFAULT_TIMEOUT_S,
     system_one,
