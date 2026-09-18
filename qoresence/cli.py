@@ -287,6 +287,21 @@ class QoresenceApp:
         except Exception as e:
             log.debug("SyncCoroner not started: %s", e)
 
+        # ScorePlausibility (same flag) — Jev names implausible score
+        # transitions; the mint-path football-delta law already refuses them.
+        # Timer worker only — never licenses digits.
+        self.score_plausibility = None
+        try:
+            from qoresence.observability.score_plausibility import (
+                make_plausibility_from_config,
+            )
+
+            self.score_plausibility = make_plausibility_from_config(
+                getattr(config, "jev", None), bus=self.bus
+            )
+        except Exception as e:
+            log.debug("ScorePlausibility not started: %s", e)
+
         # Jev ticket-stale sentinel — judges live-board stuck locks. Enqueue-only
         # subscriber + timer worker; advisory audit, never licenses digits.
         self.ticket_stale = None
@@ -1753,9 +1768,10 @@ def main():
         "--jev",
         action="store_true",
         help="TypeSafe Jev conductor: select ClutchBot/MatchAgent templates "
-        "(text-only; cannot see HDMI). Default OFF. Also QORESENCE_JEV=1. "
-        "--play does not enable this. Never licenses score digits. "
-        "Key: TYPESAFE_API_KEY or .secrets/typesafe.key.",
+        "(text-only; cannot see HDMI). Also starts SyncCoroner, "
+        "ScorePlausibility, and press labeler. Default OFF. Also "
+        "QORESENCE_JEV=1. --play does not enable this. Never licenses "
+        "score digits. Key: TYPESAFE_API_KEY or .secrets/typesafe.key.",
     )
     parser.add_argument(
         "--jev-ticket-stale",

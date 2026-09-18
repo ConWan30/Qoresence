@@ -34,6 +34,11 @@ from qoresence.observability.press_labeler import (
     make_press_labeler_from_config,
 )
 from qoresence.observability.recap_hygiene import inspect_envelope
+from qoresence.observability.score_plausibility import (
+    ScorePlausibility,
+    get_score_plausibility,
+    make_plausibility_from_config,
+)
 from qoresence.observability.sync_coroner import (
     SyncCoroner,
     get_sync_coroner,
@@ -74,6 +79,9 @@ __all__ = [
     "SyncCoroner",
     "get_sync_coroner",
     "make_coroner_from_config",
+    "ScorePlausibility",
+    "get_score_plausibility",
+    "make_plausibility_from_config",
     "TicketStaleSentinel",
     "compose_stale_verdict",
     "get_ticket_stale_sentinel",

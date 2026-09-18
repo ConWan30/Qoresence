@@ -31,6 +31,7 @@ _REASON_LAYER = {
     "vlm_abstain": "abstain",
     "licensed": "ticket",
     "vocab_veto": "vocab",
+    "implausible_transition": "plausibility",
 }
 
 _VOCAB_BANNED = (
@@ -86,7 +87,7 @@ def vocab_veto(text: str) -> str | None:
 def _kind_for(reason: str, path: str) -> str:
     if reason == "licensed":
         return "fact"
-    if reason in {"path_fast", "vocab_veto"}:
+    if reason in {"path_fast", "vocab_veto", "implausible_transition"}:
         return "veto"
     return "hold"
 
@@ -110,6 +111,7 @@ def license_digits(
     ticket_clock_ns: int = 0,
     live_clock_ns: int = 0,
     vlm_abstain: bool = False,
+    implausible: bool = False,
     frame_seq: int | None = None,
     home_score: Any = None,
     away_score: Any = None,
@@ -126,6 +128,7 @@ def license_digits(
         ticket_clock_ns=ticket_clock_ns,
         live_clock_ns=live_clock_ns,
         vlm_abstain=vlm_abstain,
+        implausible=implausible,
     )
     licensed = reason == "licensed"
     kind = _kind_for(reason, p)

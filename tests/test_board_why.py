@@ -40,6 +40,7 @@ def test_canonical_board_why_values():
         "refuse_zero_zero",
         "refuse_identity_swap",
         "refuse_suspicious",
+        "refuse_implausible",
     ):
         assert token in BOARD_WHY_VALUES
 
@@ -54,6 +55,7 @@ def test_refuse_mapping_matches_garbage_tokens():
     assert refuse_to_board_why("empty_crop_hash") == "vlm_ungrounded"
     assert refuse_to_board_why("identity_swap") == "refuse_identity_swap"
     assert refuse_to_board_why("suspicious_pair") == "refuse_suspicious"
+    assert refuse_to_board_why("implausible_transition") == "refuse_implausible"
 
 
 def test_vlm_status_maps_to_board_why():

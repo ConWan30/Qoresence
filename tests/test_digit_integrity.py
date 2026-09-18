@@ -6,6 +6,7 @@ from qoresence.sync.digit_integrity import (
     CONFIRM_DIGIT_MAX_AGE_NS,
     digit_void_reason,
     freshness_band,
+    implausible_transition_reason,
 )
 
 LICENSED = {
@@ -51,3 +52,8 @@ def test_licensed_fresh():
     assert freshness_band(0) == "ok"
     assert freshness_band(int(CONFIRM_DIGIT_MAX_AGE_NS * 0.7)) == "amber"
     assert freshness_band(int(CONFIRM_DIGIT_MAX_AGE_NS * 0.9)) == "red"
+
+
+def test_implausible_vetoes_even_when_ticket_is_fresh():
+    assert digit_void_reason(**{**LICENSED, "implausible": True}) == "implausible_transition"
+    assert implausible_transition_reason(20, 0, 20, 20) == "implausible_transition"

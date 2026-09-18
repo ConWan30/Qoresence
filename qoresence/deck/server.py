@@ -1195,6 +1195,17 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception:
             body["ticket_stale"] = {"enabled": False}
         try:
+            from qoresence.observability.score_plausibility import (
+                get_score_plausibility,
+            )
+
+            _sp = get_score_plausibility()
+            body["score_plausibility"] = (
+                _sp.stats() if _sp is not None else {"enabled": False}
+            )
+        except Exception:
+            body["score_plausibility"] = {"enabled": False}
+        try:
             from qoresence.sync.hid_telemetry import snapshot as _hid_snap
 
             body["hid_telemetry"] = _hid_snap()
@@ -3103,6 +3114,17 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
                 except Exception:
                     health["ticket_stale"] = {"enabled": False}
+                try:
+                    from qoresence.observability.score_plausibility import (
+                        get_score_plausibility,
+                    )
+
+                    _sp = get_score_plausibility()
+                    health["score_plausibility"] = (
+                        _sp.stats() if _sp is not None else {"enabled": False}
+                    )
+                except Exception:
+                    health["score_plausibility"] = {"enabled": False}
                 try:
                     from qoresence.sync.sync_health import get_sync_health
 

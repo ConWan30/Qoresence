@@ -26,6 +26,7 @@ BOARD_WHY_UNLOCKED = frozenset(
         "refuse_zero_zero",
         "refuse_identity_swap",
         "refuse_suspicious",
+        "refuse_implausible",
     }
 )
 
@@ -48,6 +49,7 @@ VLM_STATUSES = frozenset(
 # garbage_lock_reason tokens → board_why
 _REFUSE_TO_WHY = {
     "suspicious_pair": "refuse_suspicious",
+    "implausible_transition": "refuse_implausible",
     "zero_zero_after_identity_swap": "refuse_zero_zero",
     "zero_zero_after_nonzero": "refuse_zero_zero",
     "zero_zero_kickoff": "refuse_zero_zero",
@@ -79,6 +81,7 @@ BOARD_WHY_SPEECH = {
     "refuse_zero_zero": "Board not licensed yet",
     "refuse_identity_swap": "Board not licensed yet",
     "refuse_suspicious": "Board not licensed yet",
+    "refuse_implausible": "Board not licensed yet",
 }
 
 

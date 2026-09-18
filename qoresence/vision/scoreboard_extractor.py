@@ -181,6 +181,41 @@ def garbage_lock_reason(
                 return "zero_zero_after_nonzero"
         if teams_changed and not stale:
             return "identity_swap"
+        if not teams_changed and not stale:
+            from qoresence.sync.digit_integrity import implausible_transition_reason
+
+            jump = implausible_transition_reason(prior_h, prior_a, home, away)
+            if jump:
+                try:
+                    from qoresence.observability.score_plausibility import note_refused
+
+                    note_refused(
+                        prior_home=prior_h,
+                        prior_away=prior_a,
+                        home=home,
+                        away=away,
+                        reason=jump,
+                    )
+                except Exception:
+                    pass
+                return jump
+            try:
+                from qoresence.observability.score_plausibility import (
+                    jev_flags_transition,
+                    note_refused,
+                )
+
+                if jev_flags_transition(prior_h, prior_a, home, away):
+                    note_refused(
+                        prior_home=prior_h,
+                        prior_away=prior_a,
+                        home=home,
+                        away=away,
+                        reason="implausible_transition",
+                    )
+                    return "implausible_transition"
+            except Exception:
+                pass
 
     if home == 0 and away == 0:
         if gst in _MENU_STATES:
