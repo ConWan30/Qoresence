@@ -461,8 +461,9 @@ def transition_verdict(
 
     Advisory only — the caller records it on a replay row; it can never
     license digits or veto a mint. Same state/questions as the cadence
-    shadow observer. Returns None when Jev mode is off, the SDK/key is
-    absent, or the call fails.
+    shadow observer. Returns None when Jev mode is off, the SDK is
+    absent (plausibility_questions() → {}), the key is missing, or the
+    call fails — before system_one runs when questions are empty.
     """
     if not _env_enabled():
         return None

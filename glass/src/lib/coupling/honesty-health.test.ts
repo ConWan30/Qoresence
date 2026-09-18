@@ -9,28 +9,27 @@ import {
   tensionPlinth,
 } from "./honesty-health.ts";
 
-test("missing health fail-closes dark and never licenses digits", () => {
+test("missing health fail-closes off and never licenses digits", () => {
   for (const raw of [null, undefined, {}, { ticket_glass: {} }, "nope", 0]) {
     const h = parseHonestyHealth(raw);
-    assert.equal(h.state, "dark");
+    assert.equal(h.state, "off");
     assert.equal(h.enabled, false);
     assert.equal(h.licensesDigits, false);
     assert.equal(h.paintBlocked, false);
-    assert.equal(h.glyphs.length, 6);
-    assert.equal(h.glyphs[0].id, "lock");
-    assert.equal(h.glyphs[5].id, "haptic");
-    assert.ok(h.glyphs.every((g) => g.conf === "ghost"));
+    assert.equal(h.glyphs.length, 0);
+    assert.equal(EMPTY_HONESTY.state, "off");
   }
 });
 
-test("disabled packs stay dark even if glyphs look live", () => {
+test("disabled packs stay off even if glyphs look live", () => {
   const h = parseHonestyHealth({
     ticket_glass: { enabled: false, glyphs: { lock: "open", tension: 3, cut: "on" }, licenses_digits: true },
     sync_glass: { enabled: false, glyphs: { bind: "ok", lag: "ok", haptic: "on" } },
   });
-  assert.equal(h.state, "dark");
+  assert.equal(h.state, "off");
   assert.equal(h.enabled, false);
   assert.equal(h.licensesDigits, false);
+  assert.equal(h.glyphs.length, 0);
 });
 
 test("licenses_digits true on the wire is still false", () => {

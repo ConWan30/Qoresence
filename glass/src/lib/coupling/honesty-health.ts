@@ -9,7 +9,7 @@ export const HONESTY_CONF_SOFT = 0.4;
 export const PAINT_BLOCK_ACT = 0.7;
 
 export type HonestyConf = "solid" | "dim" | "ghost";
-export type HonestyState = "live" | "dark";
+export type HonestyState = "off" | "dark" | "live";
 export type HonestyGlyphId = "lock" | "tension" | "cut" | "bind" | "lag" | "haptic";
 
 export const HONESTY_GLYPH_ORDER: readonly HonestyGlyphId[] = [
@@ -105,7 +105,7 @@ function darkGlyph(id: HonestyGlyphId): HonestyGlyph {
 }
 
 export const EMPTY_HONESTY: HonestyHealth = {
-  state: "dark",
+  state: "off",
   enabled: false,
   licensesDigits: false,
   paintBlocked: false,
@@ -115,7 +115,8 @@ export const EMPTY_HONESTY: HonestyHealth = {
   cut: "off",
   lagClass: "unknown",
   severity: 0,
-  glyphs: HONESTY_GLYPH_ORDER.map(darkGlyph),
+  // OFF: no six-ghost strip. UI renders one iron chip; glyphs unused.
+  glyphs: [],
   ticketEnabled: false,
   syncEnabled: false,
 };
