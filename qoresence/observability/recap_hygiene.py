@@ -91,45 +91,53 @@ def hygiene_questions() -> dict[str, Any]:
         return {}
     return {
         "digit_leak": Noul(
-            instructions=(
-                "Does this envelope paint score digits that are not under "
-                "`score_vlm_locked` plus a confirm ticket? Observation law: blank."
-            ),
-            criteria={
+            instructions={
+                "question": (
+                    "Does this envelope paint score digits that are not under "
+                    "`score_vlm_locked` plus a confirm ticket?"
+                ),
                 "true": "Unlocked or last-good digits appear.",
                 "false": "Digits absent or locked with confirm ticket.",
+                "never": "Observation law: blank is always safe — this is a leak check, not a digit check.",
             },
         ),
         "hid_failure_lie": Noul(
-            instructions=(
-                "Does the envelope treat DualSense-on-the-PS5 (empty laptop HID) "
-                "as a failure such as PAD WAIT?"
-            ),
-            criteria={
+            instructions={
+                "question": (
+                    "Does the envelope treat DualSense-on-the-PS5 (empty laptop "
+                    "HID) as a failure such as PAD WAIT?"
+                ),
                 "true": "Empty HID is called failure.",
                 "false": "Empty HID is success or unmentioned.",
             },
         ),
         "citation": Choice(
-            instructions=(
-                "Do Recap claims about scores/presses match the ticks "
-                "(clock_ns + ticket_id)? Select relation to evidence."
-            ),
+            instructions={
+                "question": (
+                    "Do Recap claims about scores/presses match the ticks "
+                    "(clock_ns + ticket_id)?"
+                ),
+                "focus": "Select relation to evidence — do not judge claim quality.",
+                "never": "says_nothing when no score/press claim exists.",
+            },
             criteria={
-                "supports": "Claims cite locked ticks.",
-                "contradicts": "Claims invent digits or presses.",
-                "says_nothing": "No score/press claim.",
+                "supports": {"what": "Claims cite locked ticks."},
+                "contradicts": {"what": "Claims invent digits or presses.", "not_for": "A missing-but-unclaimed field."},
+                "says_nothing": {"what": "No score/press claim."},
             },
         ),
         "issue_kind": Choice(
-            instructions="If QorAct filed an issue from this Recap, which closed kind?",
+            instructions={
+                "question": "If QorAct filed an issue from this Recap, which closed kind?",
+                "never": "no_match when nothing is worth filing.",
+            },
             criteria={
-                "no_match": "Nothing to file.",
-                "situation_shift": "Licensed board/situation change.",
-                "ungrounded_board": "Parse looked like a plate / ungrounded.",
-                "empty_hid_success": "DualSense stayed on the PS5.",
-                "digit_leak": "Unlocked digits would have exported.",
-                "truth_dest": "Wrap dest names qortroller/poac/truth.",
+                "no_match": {"what": "Nothing to file."},
+                "situation_shift": {"what": "Licensed board/situation change."},
+                "ungrounded_board": {"what": "Parse looked like a plate / ungrounded."},
+                "empty_hid_success": {"what": "DualSense stayed on the PS5."},
+                "digit_leak": {"what": "Unlocked digits would have exported."},
+                "truth_dest": {"what": "Wrap dest names qortroller/poac/truth."},
             },
         ),
     }
@@ -211,6 +219,15 @@ def local_hygiene_answers(envelope: dict[str, Any]) -> dict[str, Any]:
 
 
 def inspect_envelope(envelope: dict[str, Any], *, ask_fn: Any = None) -> dict[str, Any]:
+    # Deterministic hard-holds refuse before any model call.
+    if (
+        unlocked_digit_leak(envelope)
+        or truth_dest_named(envelope)
+        or dualsense_treated_as_failure(envelope)
+    ):
+        out = compose_hygiene(envelope)
+        out["source"] = "preflight"
+        return out
     answers = None
     if ask_fn is not None:
         answers = ask_fn(envelope)
@@ -218,7 +235,7 @@ def inspect_envelope(envelope: dict[str, Any], *, ask_fn: Any = None) -> dict[st
         answers = _try_typesafe(envelope)
     if answers is None:
         answers = local_hygiene_answers(envelope)
-    return compose_hygiene(
+    out = compose_hygiene(
         envelope,
         digit_leak_noul=answers.get("digit_leak_noul"),
         hid_fail_noul=answers.get("hid_fail_noul"),
@@ -226,11 +243,22 @@ def inspect_envelope(envelope: dict[str, Any], *, ask_fn: Any = None) -> dict[st
         citation_confidence=answers.get("citation_confidence"),
         issue_kind=answers.get("issue_kind"),
     )
+    out["source"] = answers.get("source")
+    return out
 
 
 def _try_typesafe(envelope: dict[str, Any]) -> dict[str, Any] | None:
+    # Env key first; else load .secrets/typesafe.key without logging it.
     if not os.environ.get("TYPESAFE_API_KEY", "").strip():
-        return None
+        try:
+            from pathlib import Path
+
+            raw = Path(".secrets/typesafe.key").read_text(encoding="utf-8").strip()
+            if not raw:
+                return None
+            os.environ["TYPESAFE_API_KEY"] = raw
+        except Exception:
+            return None
     questions = hygiene_questions()
     if not questions:
         return None

@@ -54,6 +54,23 @@ CHAT_TEMPLATES = {
 }
 
 _SCORE_DIGIT_RE = re.compile(r"\b\d{1,2}\s*[-–—:]\s*\d{1,2}\b")
+_SCORE_PAIR_RE = re.compile(r"(\d{1,2})\s*[-–—:]\s*(\d{1,2})")
+
+
+def scoreline_matches_board(text: str | None, home: Any, away: Any) -> bool:
+    """True when text carries no scoreline, or a scoreline matching the board.
+
+    Deterministic — no model call. A stated pair that does not match
+    home/away in either order fails (licensed-but-wrong guard).
+    """
+    pairs = [(int(a), int(b)) for a, b in _SCORE_PAIR_RE.findall(text or "")]
+    if not pairs:
+        return True
+    try:
+        h, a = int(home), int(away)
+    except (TypeError, ValueError):
+        return False
+    return any(p == (h, a) or p == (a, h) for p in pairs)
 
 
 def _env_enabled() -> bool:
@@ -86,52 +103,54 @@ def conductor_questions() -> dict[str, Any]:
         return {}
     return {
         "fast_act": Choice(
-            instructions=(
-                "Given `coupling`, `situation`, and `policy`, which fast-path "
-                "act should fire? Select a closed template. Never invent scores. "
-                "`silent` if quiet, menu, or missing a coupling ticket for heat."
-            ),
+            instructions={
+                "question": (
+                    "Given `coupling`, `situation`, and `policy`, which fast-path "
+                    "act should fire? Select a closed template."
+                ),
+                "focus": "Classify the act, not whether tickets exist — code owns tickets.",
+                "never": "Never invent scores. `silent` if quiet, menu, or no coupling ticket for heat.",
+            },
             criteria={
-                "silent": "No act. Quiet coupling, menu, or not enough evidence.",
-                "chat_red_zone": "Soft chat: red-zone energy, no digits.",
-                "chat_close_late": "Soft chat: late and close, no digits.",
-                "chat_input_spike": "Soft chat: pad energy on a live drive.",
-                "chat_clutch_window": "Soft chat: pad and picture aligned in a clutch window.",
-                "consider_clip": "Local HDMI clip *consideration* — not a highlight claim.",
-                "arm_prediction": "Arm a prediction latch; confirm path must still referee.",
+                "silent": {"what": "No act.", "not_for": "Heat or join evidence worth soft chat."},
+                "chat_red_zone": {"what": "Soft chat: red-zone energy.", "not_for": "Scorelines."},
+                "chat_close_late": {"what": "Soft chat: late and close.", "not_for": "Scorelines."},
+                "chat_input_spike": {"what": "Soft chat: pad energy on a live drive.", "not_for": "Menus or idle pads."},
+                "chat_clutch_window": {"what": "Soft chat: pad and picture aligned in a clutch window.", "not_for": "Skill or highlight claims."},
+                "consider_clip": {"what": "Local HDMI clip *consideration*.", "not_for": "A highlight claim."},
+                "arm_prediction": {"what": "Arm a prediction latch.", "not_for": "Starting or resolving — confirm path owns that."},
             },
         ),
         "observe": Choice(
-            instructions=(
-                "Pick one match-observer sentence kind from `evidence`. "
-                "Cite only that bag. `board_licensed` only if `evidence.board_locked` "
-                "and a confirm ticket. Never invent digits or button names."
-            ),
+            instructions={
+                "question": "Pick one match-observer sentence kind from `evidence`.",
+                "focus": "Cite only that bag. `board_licensed` only if `evidence.board_locked` and a confirm ticket.",
+                "never": "Never invent digits or button names.",
+            },
             criteria={
-                "silent": "Not enough licensed evidence to speak.",
-                "unlabeled": "No picture HID and no confirm ticket.",
-                "picture_hud": "Picture HID label is present; DualSense is not on this host.",
-                "board_licensed": "Confirm ticket + locked board — code will fill digits.",
+                "silent": {"what": "Not enough licensed evidence to speak."},
+                "unlabeled": {"what": "No picture HID and no confirm ticket."},
+                "picture_hud": {"what": "Picture HID label is present.", "not_for": "A pad press — DualSense is not on this host."},
+                "board_licensed": {"what": "Confirm ticket + locked board — code will fill digits."},
             },
         ),
         "consider_clip": Noul(
-            instructions=(
-                "Assuming a coupling ticket exists, is pad+picture dense enough "
-                "to *consider* a local HDMI clip? Observation only — not a highlight."
-            ),
-            criteria={
+            instructions={
+                "question": (
+                    "Assuming a coupling ticket exists, is pad+picture dense "
+                    "enough to *consider* a local HDMI clip?"
+                ),
                 "true": "High coupling with red-zone or late-close situation.",
                 "false": "Idle, menu, or sparse input.",
+                "never": "Not a highlight or clutch claim — observation only.",
             },
         ),
         "arm_prediction": Noul(
-            instructions=(
-                "Assuming red-zone coupling, should the prediction latch arm? "
-                "Confirm path still owns start/resolve."
-            ),
-            criteria={
+            instructions={
+                "question": "Assuming red-zone coupling, should the prediction latch arm?",
                 "true": "Red-zone + dense join; latch only.",
                 "false": "Do not arm.",
+                "never": "Confirm path still owns start/resolve.",
             },
         ),
     }
@@ -209,6 +228,18 @@ def compose_conductor(
 
     chat = fill_chat(chat_act) if chat_act else ""
     note = fill_observe(obs, evidence or {})
+
+    # Licensed-but-wrong guard: a stated scoreline that does not match the
+    # board goes blank (deterministic — no model call needed).
+    ev = evidence if isinstance(evidence, dict) else {}
+    digits_verified = True
+    if chat and not scoreline_matches_board(chat, ev.get("home_score"), ev.get("away_score")):
+        chat = ""
+        digits_verified = False
+    if note and not scoreline_matches_board(note, ev.get("home_score"), ev.get("away_score")):
+        note = ""
+        digits_verified = False
+
     return {
         "plane": PLANE,
         "fast_act": act,
@@ -219,9 +250,26 @@ def compose_conductor(
         "observe_text": note,
         "may_consider_clip": bool(clip_ok),
         "may_arm": bool(arm_ok),
+        "digits_verified": digits_verified,
         "licenses_digits": False,
         "source": "jev",
     }
+
+
+def conductor_preflight(state: dict[str, Any]) -> dict[str, Any] | None:
+    """Deterministic refuses before any model call. None → proceed."""
+    ev = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
+    draft = state.get("draft") if isinstance(state.get("draft"), dict) else {}
+    blob = ev if ev else draft
+    if any(
+        blob.get(k)
+        for k in ("truth_claim", "humanity_claim", "ban_claim", "eligibility_claim")
+    ):
+        out = compose_conductor()
+        out["reason"] = "truth/humanity/ban claim refused at preflight"
+        out["source"] = "preflight"
+        return out
+    return None
 
 
 def local_heuristic_conductor(state: dict[str, Any]) -> dict[str, Any]:
@@ -293,6 +341,13 @@ class JevConductor:
                 "licenses_digits": False,
                 "source": "off",
             }
+        pre = conductor_preflight(state)
+        if pre is not None:
+            with self._lock:
+                self._last = pre
+                self._last_ns = time.monotonic_ns()
+                self._asked += 1
+            return pre
         answers = None
         if self._ask_fn is not None:
             answers = self._ask_fn(state)

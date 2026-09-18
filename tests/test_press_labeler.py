@@ -164,3 +164,42 @@ def test_labeler_rejects_mode_outside_candidates():
     )
     assert out["outcome"] == "unlabeled"
     assert out["label"] is None
+
+
+def test_preflight_skips_model_when_deterministic():
+    called = []
+    lab = PressLabeler(
+        JevConfig(enabled=True),
+        ask_fn=lambda s: called.append(s) or {},
+    )
+    out = lab.label_press(
+        {"hid_button": "Cross", "verb": "Snap Ball", "mode": "preplay_offense", "frame_seq": 3},
+        context={"candidate_modes": ["preplay_offense"]},
+    )
+    assert called == []
+    assert out["outcome"] == "labeled"
+    assert out["label"] == "Snap Ball"
+    assert out["source"] == "preflight"
+    assert lab.stats()["labeled"] == 1
+
+
+def test_preflight_does_not_skip_when_phase_after_present():
+    called = []
+    lab = PressLabeler(
+        JevConfig(enabled=True),
+        ask_fn=lambda s: called.append(s) or {
+            "mode_pick": "no_match",
+            "efficacy_noul": 0.15,
+            "source": "fake",
+        },
+    )
+    out = lab.label_press(
+        {"hid_button": "Cross", "verb": "Snap Ball", "mode": "preplay_offense", "frame_seq": 3},
+        context={
+            "candidate_modes": ["preplay_offense"],
+            "phase_before": "preplay",
+            "phase_after": "preplay",
+        },
+    )
+    assert len(called) == 1
+    assert out["outcome"] == "eaten"

@@ -65,3 +65,37 @@ def test_export_door_unsealed_when_clean():
     for t in ticks:
         if not t.get("score_vlm_locked"):
             assert t.get("score_digits") in (None, "", "□–□")
+
+
+def test_preflight_holds_without_model_call():
+    called = []
+    env = {
+        "ticks": [{"score_digits": "14-7", "score_vlm_locked": False, "clock_ns": 1, "frame_seq": 1}],
+        "hid_on_console": True,
+    }
+    out = inspect_envelope(env, ask_fn=lambda e: called.append(e) or {})
+    assert called == []
+    assert out["hold"] is True
+    assert out["reason"] == "digit_leak"
+    assert out["seals"] is False
+
+
+def test_preflight_truth_dest_without_model_call():
+    called = []
+    env = {"ticks": [], "dest_plane": "qortroller-truth", "hid_on_console": True}
+    out = inspect_envelope(env, ask_fn=lambda e: called.append(e) or {})
+    assert called == []
+    assert out["hold"] is True
+    assert out["truth_dest"] is True
+
+
+def test_clean_envelope_still_calls_model():
+    called = []
+    env = {
+        "ticks": [{"score_digits": "14-7", "score_vlm_locked": True, "clock_ns": 1, "frame_seq": 1}],
+        "hid_on_console": True,
+        "session_id": "s1",
+    }
+    out = inspect_envelope(env, ask_fn=lambda e: called.append(e) or {"source": "fake"})
+    assert len(called) == 1
+    assert out["source"] == "fake"

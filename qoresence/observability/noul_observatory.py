@@ -75,52 +75,58 @@ def noul_questions() -> dict[str, Any]:
 
     return {
         "grounded_scorebug": Noul(
-            instructions=(
-                "Does `parsed` describe a live in-game scorebug for this crop "
-                "(team wordmarks or down+distance+scores on a real HUD), "
-                "rather than a pause/SELECT plate, menu, or invented pair?"
-            ),
-            criteria={
+            instructions={
+                "question": (
+                    "Does `parsed` describe a live in-game scorebug for this crop "
+                    "(team wordmarks or down+distance+scores on a real HUD)?"
+                ),
                 "true": "Live scorebug or preplay stick HUD with match identity.",
                 "false": "Pause plate, menu, empty crop, or scores without teams/clock.",
+                "never": "Not a digit check — code owns exact score equality.",
             },
         ),
         "true_pause": Noul(
-            instructions=(
-                "Is `parsed.paused` a true pause/SELECT menu, not preplay/Subs "
-                "gameplay with a live scorebug?"
-            ),
-            criteria={
+            instructions={
+                "question": (
+                    "Is `parsed.paused` a true pause/SELECT menu, not preplay/Subs "
+                    "gameplay with a live scorebug?"
+                ),
                 "true": "SELECT/pause overlay without live scorebug wordmarks.",
                 "false": "Preplay, Subs, audible, or live HUD (paused flag is a false positive).",
             },
         ),
         "clip_presence": Noul(
-            instructions=(
-                "Is pad+picture co-occurrence dense enough to *consider* a local "
-                "HDMI clip? Observation only — not a highlight or clutch claim."
-            ),
-            criteria={
+            instructions={
+                "question": (
+                    "Is pad+picture co-occurrence dense enough to *consider* a "
+                    "local HDMI clip?"
+                ),
                 "true": "High coupling with red-zone or late-close situation.",
                 "false": "Idle, menu, or sparse input.",
+                "never": "Not a highlight or clutch claim — observation only.",
             },
         ),
         "hud_kind": Choice(
-            instructions="Which HUD scene is `parsed` most like?",
+            instructions={
+                "question": "Which HUD scene is `parsed` most like?",
+                "focus": "Classify the scene; code still owns digit licensing.",
+                "never": "no_board when nothing usable is in the crop.",
+            },
             criteria={
-                "live_hud": "In-game scorebug during a snap or play.",
-                "preplay": "Play-call / Subs / audible stick HUD with wordmarks.",
-                "select_plate": "Pause SELECT plate that invents a score pair.",
-                "menu": "Main menu, lobby, or results.",
-                "loading": "Loading, cutscene, or replay.",
-                "no_board": "No usable board in the crop.",
+                "live_hud": {"what": "In-game scorebug during a snap or play."},
+                "preplay": {"what": "Play-call / Subs / audible stick HUD with wordmarks."},
+                "select_plate": {"what": "Pause SELECT plate that invents a score pair."},
+                "menu": {"what": "Main menu, lobby, or results."},
+                "loading": {"what": "Loading, cutscene, or replay."},
+                "no_board": {"what": "No usable board in the crop."},
             },
         ),
         "board_honesty": Score(
-            instructions=(
-                "How honest is `parsed` as a live scorebug observation? "
-                "Last-good freeze and invented pause-plate pairs are dishonest."
-            ),
+            instructions={
+                "question": "How honest is `parsed` as a live scorebug observation?",
+                "focus": "Last-good freeze and invented pause-plate pairs are dishonest.",
+                "never": "Not a quality rating of the capture pipeline.",
+            },
             criteria=[
                 "Invented or pause/SELECT plate; industry would keep last-good digits.",
                 "Ambiguous crop; abstain is the honest act.",
@@ -128,10 +134,10 @@ def noul_questions() -> dict[str, Any]:
             ],
         ),
         "presence_density": Score(
-            instructions=(
-                "How dense is pad+picture co-occurrence? Observation of join, "
-                "not clutch, highlight, or skill."
-            ),
+            instructions={
+                "question": "How dense is pad+picture co-occurrence?",
+                "never": "Not clutch, highlight, or skill — join observation only.",
+            },
             criteria=[
                 "Idle or menu; sparse input.",
                 "Some coupling without a situation peak.",
@@ -139,11 +145,11 @@ def noul_questions() -> dict[str, Any]:
             ],
         ),
         "last_good_temptation": Noul(
-            instructions=(
-                "Would a last-good OCR overlay keep painting digits on this crop "
-                "when Qoresence law says blank/Ident?"
-            ),
-            criteria={
+            instructions={
+                "question": (
+                    "Would a last-good OCR overlay keep painting digits on this "
+                    "crop when Qoresence law says blank/Ident?"
+                ),
                 "true": "Scores vanished or ungrounded; freeze-last-good would lie.",
                 "false": "Live grounded HUD; painting licensed digits would not be a freeze lie.",
             },
@@ -475,13 +481,19 @@ class NoulObservatory:
                 log.debug("noul judge skipped: %s", e)
 
     def _judge(self, rec: dict[str, Any]) -> None:
-        answers = None
-        if self._ask_fn is not None:
-            answers = self._ask_fn(rec)
-        if answers is None:
-            answers = self._try_typesafe(rec)
-        if answers is None:
+        parsed = rec.get("parsed")
+        if not isinstance(parsed, dict) or not parsed:
+            # No crop state — semantic questions have nothing to judge.
             answers = local_heuristic_nouls(rec)
+            answers["source"] = "preflight"
+        else:
+            answers = None
+            if self._ask_fn is not None:
+                answers = self._ask_fn(rec)
+            if answers is None:
+                answers = self._try_typesafe(rec)
+            if answers is None:
+                answers = local_heuristic_nouls(rec)
         composed = compose_observatory(
             parsed=rec.get("parsed") if isinstance(rec.get("parsed"), dict) else {},
             coupling=rec.get("coupling") if rec.get("coupling") is not None else None,
@@ -505,9 +517,15 @@ class NoulObservatory:
         self._write_jsonl(composed)
 
     def _try_typesafe(self, rec: dict[str, Any]) -> dict[str, Any] | None:
-        key = os.environ.get("TYPESAFE_API_KEY", "").strip()
-        if not key:
-            return None
+        # Env key first; else load .secrets/typesafe.key without logging it.
+        if not os.environ.get("TYPESAFE_API_KEY", "").strip():
+            try:
+                raw = Path(".secrets/typesafe.key").read_text(encoding="utf-8").strip()
+                if not raw:
+                    return None
+                os.environ["TYPESAFE_API_KEY"] = raw
+            except Exception:
+                return None
         try:
             from typesafe_sdk import TypeSafeClient
         except Exception:

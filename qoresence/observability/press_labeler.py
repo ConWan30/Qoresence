@@ -73,44 +73,51 @@ def press_questions(candidate_modes: list[str]) -> dict[str, Any]:
         return {}
 
     mode_criteria = {
-        m: f"Observed picture state matches the {m} control sheet."
+        m: {"what": f"Observed picture state matches the {m} control sheet."}
         for m in candidate_modes
     }
-    mode_criteria[NO_MATCH] = "No candidate sheet fits; stay unlabeled."
+    mode_criteria[NO_MATCH] = {
+        "what": "No candidate sheet fits; stay unlabeled.",
+        "not_for": "A guess — pick this whenever the picture is ambiguous.",
+    }
     return {
         "mode_pick": Choice(
-            instructions=(
-                "`press` is a real DualSense edge on the laptop HID, and "
-                "`picture` is what HDMI showed around `press.frame_seq`. "
-                "Which control sheet was active? Pick no_match if the picture "
-                "does not fit any candidate."
-            ),
+            instructions={
+                "question": (
+                    "`press` is a real DualSense edge on the laptop HID, and "
+                    "`picture` is what HDMI showed around `press.frame_seq`. "
+                    "Which control sheet was active?"
+                ),
+                "focus": "Classify the mode only — code re-resolves the verb through the EA sheet.",
+                "never": "Pick no_match if the picture does not fit any candidate.",
+            },
             criteria=mode_criteria,
         ),
         "press_efficacy": Noul(
-            instructions=(
-                "Did the picture respond to `press`? Compare "
-                "`picture.phase_before` with `picture.phase_after`: a phase "
-                "change, play start, or menu advance counts as response. "
-                "An identical phase after the join window counts as no "
-                "response."
-            ),
-            criteria={
-                "true": "Picture state changed in a way consistent with the press.",
+            instructions={
+                "question": (
+                    "Did the picture respond to `press`? Compare "
+                    "`picture.phase_before` with `picture.phase_after`."
+                ),
+                "true": "Picture state changed in a way consistent with the press — phase change, play start, or menu advance.",
                 "false": "Picture did not respond — same phase, no action.",
+                "never": "Not a lag or hardware verdict — observation only.",
             },
         ),
         "conflict_pick": Choice(
-            instructions=(
-                "`conflict` says the picture sheet and pad sheet disagree. "
-                "Which side does the joined evidence favor? Pick lag when "
-                "timing desync explains it; unresolvable when neither side wins."
-            ),
+            instructions={
+                "question": (
+                    "`conflict` says the picture sheet and pad sheet disagree. "
+                    "Which side does the joined evidence favor?"
+                ),
+                "focus": "Pick lag when timing desync explains it; unresolvable when neither side wins.",
+                "never": "Never claim the game or controller failed.",
+            },
             criteria={
-                "picture": "Picture sheet matches observed state; pad label was wrong.",
-                "pad": "Pad sheet matches observed state; picture label was stale.",
-                "lag": "Sheets disagree because of input/video desync.",
-                "unresolvable": "Cannot tell — keep the press unlabeled.",
+                "picture": {"what": "Picture sheet matches observed state; pad label was wrong."},
+                "pad": {"what": "Pad sheet matches observed state; picture label was stale."},
+                "lag": {"what": "Sheets disagree because of input/video desync."},
+                "unresolvable": {"what": "Cannot tell — keep the press unlabeled."},
             },
         ),
     }
@@ -268,6 +275,23 @@ class PressLabeler:
                 conflict=ctx.get("conflict"),
             )
             out["source"] = "off"
+            return out
+
+        # Preflight: deterministic sheet label with no conflict and no
+        # phase_after to judge needs no model call.
+        if od.get("verb") and not ctx.get("conflict") and ctx.get("phase_after") is None:
+            out = compose_press_label(
+                hid_button=button,
+                frame_seq=od.get("frame_seq"),
+                clock_ns=od.get("clock_ns"),
+                verb=od["verb"],
+                mode=od.get("mode"),
+            )
+            out["source"] = "preflight"
+            with self._lock:
+                self._asked += 1
+                self._last_ns = time.monotonic_ns()
+                self._counts["labeled"] += 1
             return out
 
         state = {

@@ -6,9 +6,11 @@ from qoresence.core.unified_config import JevConfig, RetinaUnifiedConfig
 from qoresence.observability.jev_conductor import (
     JevConductor,
     compose_conductor,
+    conductor_preflight,
     fill_chat,
     fill_observe,
     make_jev_from_config,
+    scoreline_matches_board,
 )
 
 
@@ -105,3 +107,49 @@ def test_conductor_heuristic_off_thread():
     stats = cond.stats()
     assert stats["enabled"] is True
     assert "hdmi_pixels" in stats["cannot_replace"]
+
+
+def test_scoreline_matches_board():
+    assert scoreline_matches_board("Board licensed 14-7.", 14, 7) is True
+    assert scoreline_matches_board("Board licensed 7–14.", 14, 7) is True  # either order
+    assert scoreline_matches_board("Board licensed 31:38.", 38, 31) is True
+    assert scoreline_matches_board("no scoreline here", 14, 7) is True
+    assert scoreline_matches_board(None, 14, 7) is True
+    assert scoreline_matches_board("Board licensed 14-7.", 31, 38) is False
+    assert scoreline_matches_board("Board licensed 14-7.", None, 7) is False
+    assert scoreline_matches_board("Board licensed 14-7.", "x", 7) is False
+
+
+def test_compose_scoreline_guard_happy_path():
+    out = compose_conductor(
+        observe="board_licensed",
+        observe_confidence=0.9,
+        board_locked=True,
+        evidence={
+            "board_locked": True,
+            "confirm_ticket_id": "t1",
+            "home_score": 14,
+            "away_score": 7,
+        },
+    )
+    assert out["observe"] == "board_licensed"
+    assert out["observe_text"] == "Board licensed 7-14."
+    assert out["digits_verified"] is True
+    assert out["licenses_digits"] is False
+
+
+def test_preflight_refuses_truth_claim_without_model():
+    called = []
+    cond = JevConductor(JevConfig(enabled=True), ask_fn=lambda s: called.append(s) or {})
+    out = cond.judge({"evidence": {"truth_claim": True}})
+    assert called == []
+    assert out["fast_act"] == "silent"
+    assert out["observe"] == "silent"
+    assert out["licenses_digits"] is False
+    assert "preflight" in out["reason"]
+
+
+def test_preflight_none_when_clean():
+    assert conductor_preflight({"evidence": {"board_locked": True}}) is None
+    assert conductor_preflight({"draft": {"humanity_claim": False}}) is None
+    assert conductor_preflight({"draft": {"ban_claim": True}}) is not None
