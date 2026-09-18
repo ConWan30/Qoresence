@@ -4,8 +4,10 @@ ONE constants module: every question, option set, and gate threshold for the
 pack lives here. Question IDs are for code; meaning lives in instructions.
 
 Vote not voice. Compact state + typed questions; code owns consequences.
-``licenses_digits`` is False forever. ``board_paint_block`` is VETO-only —
-it may force dark / block paint and may never unlock ConfirmTicket digits.
+``licenses_digits`` is False forever. ``board_paint_block`` is advisory veto
+evidence — code owns lock/paint_block consequences and may never unlock
+ConfirmTicket digits from a low noul. Licensed ConfirmTicket holds digits
+open despite a high noul unless hard stale/flag fires.
 Never replaces scorebug VLM. No Truth-plane wrap.
 
 Patterns: speculative fan-out (one ``system_one`` call) + confidence-gated
@@ -103,8 +105,11 @@ def ticket_glass_questions() -> dict[str, Any]:
                     "grant — code still owns ConfirmTicket."
                 ),
                 "never": (
-                    "VETO ONLY. true may force dark / block paint. false must "
-                    "never unlock, mint, or license digits. Do not restate scores."
+                    "Advisory veto evidence only. Code owns lock/paint_block "
+                    "glyphs: when score_vlm_locked and no hard stale/flag, a "
+                    "high noul must not blank licensed scorebug digits. false "
+                    "must never unlock, mint, or license digits. Do not restate "
+                    "scores."
                 ),
             },
         ),

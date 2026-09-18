@@ -236,7 +236,30 @@ def test_board_paint_block_cannot_unlock():
 
 
 def test_board_paint_block_true_forces_block_and_kills_cut():
+    """Unlicensed high noul still blocks; cut stays off without block_clear."""
     out = compose_glass_verdict(
+        title_in_game=0.95,
+        board_paint_block=0.9,
+        moment_class="clutch",
+        moment_confidence=0.95,
+        clip_now="cut_foundry",
+        clip_confidence=0.99,
+        lens_tension=3,
+        tension_confidence=0.95,
+        glass_route="lens",
+        route_confidence=0.95,
+        score_vlm_locked=False,
+        ticket_stale_class="fresh",
+    )
+    assert out["glyphs"]["lock"] == "blocked"
+    assert out["paint_block"] == "block"
+    assert out["glyphs"]["cut"] == "off"
+    assert out["clip_now"] == "hold"
+    assert out["licenses_digits"] is False
+    assert out["paint_unlocked"] is False
+
+    # Licensed: high noul is observational — lock stays open; cut still needs clear.
+    licensed = compose_glass_verdict(
         title_in_game=0.95,
         board_paint_block=0.9,
         moment_class="clutch",
@@ -250,12 +273,11 @@ def test_board_paint_block_true_forces_block_and_kills_cut():
         score_vlm_locked=True,
         ticket_stale_class="fresh",
     )
-    assert out["glyphs"]["lock"] == "blocked"
-    assert out["paint_block"] == "block"
-    assert out["glyphs"]["cut"] == "off"
-    assert out["clip_now"] == "hold"
-    assert out["licenses_digits"] is False
-    assert out["paint_unlocked"] is False
+    assert licensed["glyphs"]["lock"] == "open"
+    assert licensed["paint_block"] == "watch"
+    assert licensed["glyphs"]["cut"] == "off"
+    assert licensed["licenses_digits"] is False
+    assert licensed["paint_unlocked"] is False
 
 
 def test_cut_foundry_needs_triple_gate():
@@ -500,8 +522,8 @@ def test_local_glass_licensed_crop_watch_stays_below_paint_act():
     assert out["paint_unlocked"] is False
 
 
-def test_paint_block_veto_still_blocks_even_when_licensed_crop_watch():
-    """board_paint_block >= ACT remains a hard VETO; never unlocks digits."""
+def test_licensed_high_paint_noul_holds_open_on_crop_watch():
+    """Licensed + block_noul=0.9 + crop_moved_on/watch → lock open (not blocked)."""
     out = compose_glass_verdict(
         title_in_game=0.9,
         board_paint_block=0.9,
@@ -509,10 +531,37 @@ def test_paint_block_veto_still_blocks_even_when_licensed_crop_watch():
         ticket_stale_action="watch",
         ticket_stale_class="crop_moved_on",
     )
+    assert out["glyphs"]["lock"] == "open"
+    assert out["paint_block"] == "watch"
+    assert out["licenses_digits"] is False
+    assert out["paint_unlocked"] is False
+
+
+def test_unlicensed_high_paint_noul_still_blocks():
+    out = compose_glass_verdict(
+        title_in_game=0.9,
+        board_paint_block=0.9,
+        score_vlm_locked=False,
+        ticket_stale_action="watch",
+        ticket_stale_class="crop_moved_on",
+    )
     assert out["glyphs"]["lock"] == "blocked"
     assert out["paint_block"] == "block"
     assert out["licenses_digits"] is False
-    assert out["paint_unlocked"] is False
+
+
+def test_flag_stale_blocks_even_with_high_or_low_paint_when_licensed():
+    """flag_stale remains fail-closed under licensed paint hold."""
+    for noul in (0.1, 0.9):
+        out = compose_glass_verdict(
+            title_in_game=0.9,
+            board_paint_block=noul,
+            score_vlm_locked=True,
+            ticket_stale_action="flag_stale",
+            ticket_stale_class="crop_moved_on",
+        )
+        assert out["glyphs"]["lock"] == "blocked"
+        assert out["licenses_digits"] is False
 
 
 
