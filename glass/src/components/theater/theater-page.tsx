@@ -1,7 +1,6 @@
 import { CommandBar } from "@/components/theater/command-bar";
 import { HonestyStrip } from "@/components/theater/honesty-strip";
 import { HdmiStage } from "@/components/theater/hdmi-stage";
-import { ObservatoryHUD } from "@/components/theater/observatory-hud";
 import { ClutchFeed } from "@/components/theater/clutch-feed";
 import { SituationCard } from "@/components/theater/situation-card";
 import { HighlightDirector } from "@/components/theater/highlight-director";
@@ -21,7 +20,6 @@ export function TheaterPage() {
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="relative h-full w-full">
             <HdmiStage variant="observatory" />
-            <ObservatoryHUD />
           </div>
         </div>
 

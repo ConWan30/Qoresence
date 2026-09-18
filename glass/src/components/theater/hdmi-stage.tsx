@@ -20,7 +20,6 @@ import { useTheater } from "@/lib/coupling/store";
 import { ApertureIdent } from "./aperture-ident";
 import { GhostStickOverlay } from "./ghost-stick";
 import { LensOverlay } from "./lens-overlay";
-import { LiveHealthGlyph } from "./live-health-glyph";
 import { SignalPrism } from "./signal-prism";
 import { StageClipDock } from "./clip-rack";
 
@@ -353,14 +352,9 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
           >
             PGM
           </button>
-        ) : variant === "deck" || variant === "observatory" ? (
-          <span className="pointer-events-none absolute top-3 left-3 z-20 rounded-sm bg-bg/75 px-2 py-1 font-mono text-[10px] tracking-[0.2em] text-photon uppercase backdrop-blur-sm">
-            {identOn ? "HOLD" : "PGM"}
-          </span>
         ) : null}
         {identOn ? <ApertureIdent /> : null}
-        {!replaySrc && !identOn ? <LiveHealthGlyph health={health} /> : null}
-        {!replaySrc && !identOn ? <GhostStickOverlay /> : null}
+        {!replaySrc && !identOn && variant !== "observatory" ? <GhostStickOverlay /> : null}
         {!replaySrc && !identOn && variant !== "observatory" ? <LensOverlay variant={variant} /> : null}
       </div>
       {variant === "deck" || variant === "observatory" ? <SignalPrism ageS={videoAgeS} tone={health.tone} /> : null}
