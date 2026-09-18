@@ -192,6 +192,11 @@ def compose_glass_verdict(
     unlock. ``cut_foundry`` needs conf>=0.85 AND title_in_game>=0.7 AND an
     explicit no-block (noul<=0.3). Ambiguous → dark. Glyphs fail-closed.
     ``licenses_digits`` is False on every output forever.
+
+    Licensed hold: when ``score_vlm_locked`` and stale action is only
+    ``watch``, ``crop_moved_on`` alone does not force lock=blocked (crop
+    hash churn must not blank scorebug digits). ``flag_stale``,
+    ``match_changed``, and ``menu_or_plate`` remain fail-closed.
     """
     title_noul = _norm_float(title_in_game)
     block_noul = _norm_float(board_paint_block)
@@ -205,16 +210,32 @@ def compose_glass_verdict(
     block_yes = block_noul is not None and block_noul >= PAINT_BLOCK_ACT
     block_clear = block_noul is not None and block_noul <= PAINT_BLOCK_NOT
 
-    stale_flag = ticket_stale_action == "flag_stale" or ticket_stale_class in {
-        "crop_moved_on",
-        "match_changed",
-        "menu_or_plate",
-    }
+    # Hard identity/menu changes always fail-closed. Soft crop hash churn
+    # (crop_moved_on + action=watch) must NOT force lock=blocked while a
+    # ConfirmTicket license is present — otherwise scorebug digits flicker
+    # every tick as the crop hash drifts. Explicit flag_stale still blocks.
+    action_flag = ticket_stale_action == "flag_stale"
+    hard_stale = ticket_stale_class in {"match_changed", "menu_or_plate"}
+    crop_moved = ticket_stale_class == "crop_moved_on"
+    licensed_crop_watch = (
+        bool(score_vlm_locked)
+        and crop_moved
+        and not action_flag
+        and (ticket_stale_action in (None, "", "watch"))
+    )
+    stale_flag = bool(
+        action_flag
+        or hard_stale
+        or (crop_moved and not licensed_crop_watch)
+    )
 
     # lock — observational of ticket-clock + veto. Never a paint grant.
+    # Sticky open-while-licensed: while ConfirmTicket is licensed, stay open
+    # unless a hard veto (block_yes) or stale_flag fires. Mid-band paint is
+    # observational (paint_block=watch) and must not blank scorebug digits.
     if block_yes or stale_flag:
         lock = "blocked"
-    elif score_vlm_locked and block_clear and ticket_stale_action != "flag_stale":
+    elif score_vlm_locked and not action_flag:
         lock = "open"
     else:
         lock = "unknown"
@@ -322,12 +343,15 @@ def local_glass_answers(state: dict[str, Any]) -> dict[str, Any]:
     reason = str(board.get("digit_integrity_reason") or "")
     locked = bool(board.get("score_vlm_locked"))
 
-    if action == "flag_stale" or cls in {
-        "crop_moved_on",
-        "match_changed",
-        "menu_or_plate",
-    }:
+    if action == "flag_stale" or cls in {"match_changed", "menu_or_plate"}:
         block_noul = 0.88
+    elif cls == "crop_moved_on":
+        # Soft crop churn while licensed + watch: stay below PAINT_BLOCK_ACT
+        # so board_paint_block noul does not thrash the veto threshold.
+        if locked and action in ("", "watch"):
+            block_noul = 0.55
+        else:
+            block_noul = 0.88
     elif reason in {
         "ticket_stale",
         "crop_mismatch",

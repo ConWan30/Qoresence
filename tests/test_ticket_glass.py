@@ -28,6 +28,8 @@ from qoresence.observability.ticket_glass_questions import (
     CONF_CUT,
     GLASS_ROUTES,
     MOMENT_CLASSES,
+    PAINT_BLOCK_ACT,
+    PAINT_BLOCK_NOT,
     ticket_glass_questions,
 )
 
@@ -366,6 +368,154 @@ def test_fallback_reuses_ticket_stale_facts():
     assert out["licenses_digits"] is False
 
 
+
+def test_licensed_crop_moved_on_watch_holds_open():
+    """crop_moved_on + watch must not blank digits while ConfirmTicket licensed."""
+    out = compose_glass_verdict(
+        title_in_game=0.9,
+        board_paint_block=0.1,
+        moment_class="build",
+        moment_confidence=0.8,
+        clip_now="hold",
+        clip_confidence=0.9,
+        lens_tension=1,
+        tension_confidence=0.8,
+        glass_route="deck_only",
+        route_confidence=0.8,
+        score_vlm_locked=True,
+        ticket_stale_action="watch",
+        ticket_stale_class="crop_moved_on",
+    )
+    assert out["glyphs"]["lock"] == "open"
+    assert out["paint_block"] == "clear"
+    assert out["licenses_digits"] is False
+    assert out["paint_unlocked"] is False
+    assert out["foundry_cut"] is False
+
+
+def test_licensed_crop_moved_on_watch_sticky_across_ticks():
+    """Repeated crop churn ticks stay open while licensed (no ~2s flip-flop)."""
+    kwargs = dict(
+        title_in_game=0.85,
+        board_paint_block=0.12,
+        score_vlm_locked=True,
+        ticket_stale_action="watch",
+        ticket_stale_class="crop_moved_on",
+        glass_route="dark",
+        route_confidence=0.9,
+        clip_now="hold",
+        clip_confidence=0.9,
+        lens_tension=0,
+        tension_confidence=0.9,
+    )
+    locks = [compose_glass_verdict(**kwargs)["glyphs"]["lock"] for _ in range(5)]
+    assert locks == ["open"] * 5
+    assert all(
+        compose_glass_verdict(**kwargs)["licenses_digits"] is False for _ in range(3)
+    )
+
+
+def test_unlicensed_crop_moved_on_still_blocks():
+    out = compose_glass_verdict(
+        title_in_game=0.9,
+        board_paint_block=0.1,
+        score_vlm_locked=False,
+        ticket_stale_action="watch",
+        ticket_stale_class="crop_moved_on",
+    )
+    assert out["glyphs"]["lock"] == "blocked"
+    assert out["licenses_digits"] is False
+
+
+def test_flag_stale_and_hard_classes_still_fail_closed_when_licensed():
+    base = dict(
+        title_in_game=0.9,
+        board_paint_block=0.1,
+        score_vlm_locked=True,
+        clip_now="hold",
+        clip_confidence=0.9,
+        glass_route="dark",
+        route_confidence=0.9,
+    )
+    flagged = compose_glass_verdict(
+        **base,
+        ticket_stale_action="flag_stale",
+        ticket_stale_class="crop_moved_on",
+    )
+    assert flagged["glyphs"]["lock"] == "blocked"
+
+    match = compose_glass_verdict(
+        **base,
+        ticket_stale_action="watch",
+        ticket_stale_class="match_changed",
+    )
+    assert match["glyphs"]["lock"] == "blocked"
+
+    menu = compose_glass_verdict(
+        **base,
+        ticket_stale_action="watch",
+        ticket_stale_class="menu_or_plate",
+    )
+    assert menu["glyphs"]["lock"] == "blocked"
+
+
+def test_local_glass_licensed_crop_watch_stays_below_paint_act():
+    """Heuristic must not thrash PAINT_BLOCK_ACT on licensed crop churn."""
+    answers = local_glass_answers(
+        {
+            "title": {"plane": "in_game", "locked": True},
+            "board": {
+                "score_vlm_locked": True,
+                "digit_integrity_reason": "ok",
+                "ticket_stale": {
+                    "stale_class": "crop_moved_on",
+                    "action": "watch",
+                    "gate_reason": "crop_mismatch",
+                    "freshness": 0.4,
+                },
+            },
+        }
+    )
+    assert answers["board_paint_block"] < PAINT_BLOCK_ACT
+    assert answers["board_paint_block"] > PAINT_BLOCK_NOT  # watch band, not clear grant
+    out = compose_glass_verdict(
+        title_in_game=answers["title_in_game"],
+        board_paint_block=answers["board_paint_block"],
+        moment_class=answers["moment_class"],
+        moment_confidence=answers["moment_confidence"],
+        clip_now=answers["clip_now"],
+        clip_confidence=answers["clip_confidence"],
+        lens_tension=answers["lens_tension"],
+        tension_confidence=answers["tension_confidence"],
+        glass_route=answers["glass_route"],
+        route_confidence=answers["route_confidence"],
+        score_vlm_locked=True,
+        ticket_stale_action="watch",
+        ticket_stale_class="crop_moved_on",
+    )
+    # Mid-band paint → watch; sticky licensed hold keeps lock open (no blanking).
+    assert out["paint_block"] == "watch"
+    assert out["glyphs"]["lock"] == "open"
+    assert out["licenses_digits"] is False
+    assert out["paint_unlocked"] is False
+
+
+def test_paint_block_veto_still_blocks_even_when_licensed_crop_watch():
+    """board_paint_block >= ACT remains a hard VETO; never unlocks digits."""
+    out = compose_glass_verdict(
+        title_in_game=0.9,
+        board_paint_block=0.9,
+        score_vlm_locked=True,
+        ticket_stale_action="watch",
+        ticket_stale_class="crop_moved_on",
+    )
+    assert out["glyphs"]["lock"] == "blocked"
+    assert out["paint_block"] == "block"
+    assert out["licenses_digits"] is False
+    assert out["paint_unlocked"] is False
+
+
+
 def test_sanitize_drops_pixels_and_truth_plane():
     from qoresence.observability.ticket_glass import _sanitize
 
@@ -603,4 +753,3 @@ def test_typesafe_failure_falls_back_to_local(tmp_path):
         assert verdict["glass_route"] == "dark"
     finally:
         sen.stop()
-
