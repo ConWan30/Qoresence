@@ -137,6 +137,7 @@ def compose_press_label(
     conflict: dict[str, Any] | None = None,
     conflict_pick: str | None = None,
     conflict_confidence: float | None = None,
+    has_after_evidence: bool = False,
 ) -> dict[str, Any]:
     """Code-owned composition. Fail closed: ambiguous → unlabeled.
 
@@ -169,8 +170,14 @@ def compose_press_label(
         effective_mode = picked_mode
 
     # Efficacy gates the outcome; it never invents a label.
+    # Eaten claims the picture was *observed* not responding — requires real
+    # after-evidence. Missing after-state is unlabeled, not eaten.
     responded = efficacy_noul is not None and efficacy_noul >= EFFICACY_RESPONDED
-    eaten = efficacy_noul is not None and efficacy_noul <= EFFICACY_EATEN
+    eaten = (
+        has_after_evidence
+        and efficacy_noul is not None
+        and efficacy_noul <= EFFICACY_EATEN
+    )
 
     if eaten and conf_res not in {"lag"}:
         outcome = "eaten"
@@ -361,6 +368,7 @@ class PressLabeler:
             conflict=ctx.get("conflict"),
             conflict_pick=conf_pick,
             conflict_confidence=answers.get("conflict_confidence"),
+            has_after_evidence=ctx.get("phase_after") is not None,
         )
         out["source"] = answers.get("source") or "unknown"
 

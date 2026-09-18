@@ -50,9 +50,26 @@ def test_eaten_when_picture_does_not_respond():
         verb="Snap Ball",
         mode="preplay_offense",
         efficacy_noul=0.15,
+        has_after_evidence=True,
     )
     assert out["outcome"] == "eaten"
     assert "no picture response" in out["gamer"]
+
+
+def test_eaten_requires_after_evidence():
+    out = compose_press_label(
+        hid_button="Cross",
+        verb="Snap Ball",
+        mode="preplay_offense",
+        efficacy_noul=0.1,
+    )
+    assert out["outcome"] == "labeled"  # no after-state → not eaten
+    out = compose_press_label(
+        hid_button="R2",
+        verb=None,
+        efficacy_noul=0.1,
+    )
+    assert out["outcome"] == "unlabeled"  # missing evidence is not negative evidence
 
 
 def test_jev_picked_mode_labels_via_sheet_verb():
@@ -81,6 +98,7 @@ def test_conflict_lag_beats_eaten():
         verb="Snap Ball",
         mode="preplay_offense",
         efficacy_noul=0.1,
+        has_after_evidence=True,
         conflict={"picture_sheet": "running", "pad_sheet": "preplay_offense", "kind": "lag"},
         conflict_pick="lag",
         conflict_confidence=0.9,
