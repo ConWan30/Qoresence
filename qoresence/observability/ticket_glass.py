@@ -11,8 +11,10 @@ Same shape as ticket_stale / SyncCoroner (AGENTS.md Rules 5–6 class):
 2. A daemon worker on a situation-tick cadence (200–300 ms) judges compact
    text state via TypeSafe, falling back to a deterministic local heuristic
    (fail-closed **dark**) when the SDK/key is absent.
-3. ``licenses_digits`` is False forever. ``board_paint_block`` is VETO-only:
-   true forces dark board-paint; false never unlocks ConfirmTicket paint.
+3. ``licenses_digits`` is False forever. ``board_paint_block`` is advisory
+   veto evidence; code owns lock/paint_block glyphs. false never unlocks
+   ConfirmTicket paint. Licensed ConfirmTicket holds digits open despite a
+   high TypeSafe noul unless hard stale/flag fires.
 4. Reuses ``board.ticket_stale`` facts from the live ticket_stale pack —
    does not re-ask ``stale_class``. Does not replace scorebug VLM.
 5. No Truth-plane / QorTroller wrap in state. Jev is text-only.
@@ -195,7 +197,10 @@ def compose_glass_verdict(
 
     Licensed hold: when ``score_vlm_locked`` and stale action is only
     ``watch``, ``crop_moved_on`` alone does not force lock=blocked (crop
-    hash churn must not blank scorebug digits). ``flag_stale``,
+    hash churn must not blank scorebug digits). While licensed and not
+    ``flag_stale`` / hard classes, TypeSafe ``board_paint_block`` must not
+    force lock=blocked or paint_block=block — code owns the paint glyph;
+    ConfirmTicket remains the only digit license. ``flag_stale``,
     ``match_changed``, and ``menu_or_plate`` remain fail-closed.
     """
     title_noul = _norm_float(title_in_game)
@@ -229,11 +234,17 @@ def compose_glass_verdict(
         or (crop_moved and not licensed_crop_watch)
     )
 
+    # Licensed paint hold: ConfirmTicket clock wins the observation glyph.
+    # TypeSafe board_paint_block noul must not blank digits while licensed
+    # and no hard stale/flag. licenses_digits stays False forever (never a grant).
+    licensed_paint_hold = bool(score_vlm_locked) and not action_flag and not hard_stale
+
     # lock — observational of ticket-clock + veto. Never a paint grant.
     # Sticky open-while-licensed: while ConfirmTicket is licensed, stay open
-    # unless a hard veto (block_yes) or stale_flag fires. Mid-band paint is
-    # observational (paint_block=watch) and must not blank scorebug digits.
-    if block_yes or stale_flag:
+    # unless stale_flag fires. Mid-band / high TypeSafe paint noul is
+    # observational under licensed_paint_hold and must not blank scorebug digits.
+    paint_veto = block_yes and not licensed_paint_hold
+    if paint_veto or stale_flag:
         lock = "blocked"
     elif score_vlm_locked and not action_flag:
         lock = "open"
@@ -242,7 +253,7 @@ def compose_glass_verdict(
     if lock not in LOCK_STATES:
         lock = "unknown"
 
-    if block_yes:
+    if paint_veto:
         paint_block = "block"
     elif block_clear:
         paint_block = "clear"
@@ -789,9 +800,12 @@ class TicketGlassSentinel:
         payload = {
             "policy": (
                 "Observation only. Never mint, restate, or license score "
-                "digits. board_paint_block is VETO-only — false never unlocks "
-                "ConfirmTicket paint. Code owns tickets, clocks, and Foundry. "
-                "Human HOLD beats every PASS. Ambiguous → dark."
+                "digits. board_paint_block is advisory veto evidence — false "
+                "never unlocks ConfirmTicket paint. When board.score_vlm_locked "
+                "is true and ticket_stale is only crop_moved_on/watch, code "
+                "owns the paint observation glyph and will not blank digits "
+                "from a high board_paint_block noul alone. Code owns tickets, "
+                "clocks, and Foundry. Human HOLD beats every PASS. Ambiguous → dark."
             ),
             "clock_ns": state.get("clock_ns"),
             "frame_seq": state.get("frame_seq"),

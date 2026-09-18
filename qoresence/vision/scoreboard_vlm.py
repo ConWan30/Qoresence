@@ -235,8 +235,11 @@ class ScoreboardVlmReferee:
         self._consecutive_timeouts = 0
         self._skip_inflight_count = 0
         self._skip_interval_count = 0
+        self._pending_remint_count = 0
         self._last_timeout_ts = 0.0
         self._request_generation = 0
+        # Latest force/score_changed request deferred while a VLM POST is inflight.
+        self._pending_remint: dict[str, Any] | None = None
         self.recheck_enabled = os.environ.get("QORESENCE_SCORE_RECHECK", "0").lower() in {
             "1", "true", "yes", "on",
         }
@@ -254,6 +257,8 @@ class ScoreboardVlmReferee:
             timeout_count = int(self._timeout_count)
             skip_inflight = int(self._skip_inflight_count)
             skip_interval = int(self._skip_interval_count)
+            pending_remint = int(self._pending_remint_count)
+            has_pending = self._pending_remint is not None
             timeout_backoff = max(0.0, float(self._timeout_backoff_until or 0.0) - now)
             quota_backoff = max(0.0, float(self._backoff_until or 0.0) - now)
         inflight_age_s = (now - inflight_since) if inflight and inflight_since else None
@@ -277,6 +282,8 @@ class ScoreboardVlmReferee:
             "timeout_count": timeout_count,
             "skip_inflight_count": skip_inflight,
             "skip_interval_count": skip_interval,
+            "pending_remint_count": pending_remint,
+            "pending_remint": has_pending,
             "http_timeout_s": _HTTP_TIMEOUT_S,
             "inflight_watchdog_s": _INFLIGHT_WATCHDOG_S,
             "timeout_backoff_s": timeout_backoff,
@@ -319,6 +326,30 @@ class ScoreboardVlmReferee:
         """True while a scoreboard VLM read is scheduled or on the wire."""
         with self._lock:
             return bool(self._inflight)
+
+    def _drain_pending_remint(self) -> None:
+        """Fire one deferred force/score_changed remint after inflight clears."""
+        with self._lock:
+            pending = self._pending_remint
+            self._pending_remint = None
+            if self._inflight or not pending:
+                return
+        frame = pending.get("frame")
+        if frame is None or getattr(frame, "size", 0) == 0:
+            return
+        log.info(
+            "scoreboard VLM draining pending remint (reason=%s)",
+            pending.get("reason"),
+        )
+        self.schedule(
+            frame,
+            force=bool(pending.get("force", True)),
+            reason=str(pending.get("reason") or "score_changed"),
+            source_stamp=pending.get("source_stamp"),
+            game_state=pending.get("game_state"),
+            game_profile=pending.get("game_profile"),
+            game_title=pending.get("game_title"),
+        )
 
     def _in_backoff(self, now: float | None = None) -> bool:
         """True while a 429 or read-timeout cooldown is active."""
@@ -483,7 +514,9 @@ class ScoreboardVlmReferee:
         """Kick a background VLM read if due; never blocks.
 
         Cadence:
-          - force / score_changed / menu_exit → immediate (if not inflight)
+          - force / score_changed / menu_exit → immediate (bypass interval)
+          - if inflight, force/score_changed/menu_exit/first_lock queues a
+            pending remint that fires when the in-flight POST clears
           - gameplay → default 6.0s (env override wins; not 60 fps)
           - menu/hub → ~8s
           - HTTP 429 cooldown → skip until backoff expires (not process HOLD)
@@ -537,7 +570,10 @@ class ScoreboardVlmReferee:
                 if not source.get("seq") or not source.get("clock_ns"):
                     self._recheck_status = "missing_evidence"
                     return
-                if source_key == getattr(self, "_source_requested", None):
+                # force/score_changed remints may reuse the same seq stamp.
+                if source_key == getattr(self, "_source_requested", None) and not (
+                    force or reason in {"score_changed", "menu_exit", "first_lock"}
+                ):
                     return
             if self._inflight and (now - self._inflight_since) > _INFLIGHT_WATCHDOG_S:
                 log.info(
@@ -546,7 +582,31 @@ class ScoreboardVlmReferee:
                 )
                 self._inflight = False
 
+            priority = force or reason in {
+                "score_changed",
+                "menu_exit",
+                "first_lock",
+            }
             if self._inflight:
+                if priority and crop is not None:
+                    # Do not drop score deltas while Quicksilver is on the wire.
+                    # Queue latest full frame; _drain_pending_remint re-crops on clear.
+                    self._pending_remint = {
+                        "reason": reason if reason else "score_changed",
+                        "force": True,
+                        "game_state": gst,
+                        "game_profile": game_profile,
+                        "game_title": game_title,
+                        "source_stamp": dict(source),
+                        "frame": frame.copy(),
+                    }
+                    self._pending_remint_count += 1
+                    log.info(
+                        "scoreboard VLM pending remint (reason=%s inflight_age=%.1fs)",
+                        reason,
+                        (now - self._inflight_since) if self._inflight_since else 0.0,
+                    )
+                    return
                 self._skip_inflight_count += 1
                 log.info("scoreboard VLM skip: inflight")
                 return
@@ -568,6 +628,7 @@ class ScoreboardVlmReferee:
         if crop is None:
             with self._lock:
                 self._inflight = False
+            self._drain_pending_remint()
             return
 
         crop = crop.copy()
@@ -683,9 +744,13 @@ class ScoreboardVlmReferee:
                     self._on_read_timeout()
                 log.info("scoreboard VLM failed: %s (reason=%s)", e, reason)
             finally:
+                drain = False
                 with self._lock:
                     if generation == self._request_generation:
                         self._inflight = False
+                        drain = True
+                if drain:
+                    self._drain_pending_remint()
 
         threading.Thread(target=_run, name="scoreboard-vlm", daemon=True).start()
 

@@ -120,7 +120,10 @@ export const EMPTY_HONESTY: HonestyHealth = {
   syncEnabled: false,
 };
 
-/** TicketGlass veto — lock=blocked OR board_paint_block ≥ 0.7 OR paint_block=block. */
+/** TicketGlass veto — lock=blocked OR paint_block=block.
+ * Code-owned glyphs win: when lock=open, raw board_paint_block noul alone
+ * must not blank digits (licensed paint hold / ConfirmTicket clock).
+ */
 export function digitsPaintBlocked(...bags: Record<string, unknown>[]): boolean {
   const walk = (o: Record<string, unknown>): boolean => {
     if (!o || !Object.keys(o).length) return false;
@@ -129,6 +132,8 @@ export function digitsPaintBlocked(...bags: Record<string, unknown>[]): boolean 
     if (lock === "blocked") return true;
     const pb = str(o.paint_block ?? o.paintBlock).toLowerCase();
     if (pb === "block") return true;
+    // Licensed open lock: trust code glyphs; ignore thrashing TypeSafe noul.
+    if (lock === "open") return false;
     const n = num(o.board_paint_block ?? o.boardPaintBlock);
     if (n != null && n >= PAINT_BLOCK_ACT) return true;
     return false;
@@ -202,7 +207,7 @@ export function parseHonestyHealth(raw: unknown): HonestyHealth {
   const paintBlocked =
     lockBlocked ||
     str(ticket.paint_block ?? ticket.paintBlock).toLowerCase() === "block" ||
-    (blockNoul != null && blockNoul >= PAINT_BLOCK_ACT);
+    (lock !== "open" && blockNoul != null && blockNoul >= PAINT_BLOCK_ACT);
 
   const lockConf = pickConf(
     tBands.lock ?? ticket.lock_confidence ?? ticket.lockConfidence,

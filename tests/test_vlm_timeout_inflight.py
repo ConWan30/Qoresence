@@ -515,3 +515,98 @@ def test_health_payload_shape_matches_deck_scoreboard_vlm_stats():
     assert vlm["skip_interval_count"] == 3
     assert vlm["inflight"] is False
     assert vlm["menu_interval_s"] == _MENU_INTERVAL_S
+
+
+def test_score_changed_queues_pending_remint_while_inflight(monkeypatch):
+    """score_changed must not permanently skip while a VLM POST is inflight."""
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    calls: list[str] = []
+    release = threading.Event()
+
+    def _slow_vlm(_crop):
+        calls.append("call")
+        release.wait(timeout=2.0)
+        return {
+            "home_score": 14,
+            "away_score": 7,
+            "home_team": "HOME",
+            "away_team": "AWAY",
+            "quarter": 2,
+            "clock_seconds": 300,
+        }
+
+    monkeypatch.setattr(ref, "_call_vlm", _slow_vlm)
+    monkeypatch.setattr(ref, "_crop", lambda *a, **k: _licensed_confirm_crop())
+    frame = licensed_scorebug_frame()
+
+    ref.schedule(frame, force=True, reason="tick", game_state="gameplay", game_profile="cfb_27")
+    # Wait until first call is inflight
+    deadline = time.time() + 2.0
+    while time.time() < deadline:
+        with ref._lock:
+            if ref._inflight:
+                break
+        time.sleep(0.01)
+    else:
+        raise AssertionError("first schedule did not go inflight")
+
+    ref.schedule(
+        frame,
+        force=True,
+        reason="score_changed",
+        game_state="gameplay",
+        game_profile="cfb_27",
+    )
+    with ref._lock:
+        assert ref._pending_remint is not None
+        assert ref._pending_remint["reason"] == "score_changed"
+        assert ref._pending_remint_count >= 1
+        # Must not count as a permanent inflight skip
+        skip_before = ref._skip_inflight_count
+
+    release.set()
+    _wait_inflight_clear(ref, timeout_s=3.0)
+    # Pending remint should have started (and completed) a second call
+    deadline = time.time() + 3.0
+    while time.time() < deadline:
+        if len(calls) >= 2 and not ref.is_inflight():
+            break
+        time.sleep(0.02)
+    assert len(calls) >= 2, f"expected remint after inflight clear, calls={calls}"
+    with ref._lock:
+        assert ref._pending_remint is None
+        assert ref._skip_inflight_count == skip_before
+
+
+def test_tick_while_inflight_still_skips_without_pending(monkeypatch):
+    """Ordinary ticks still skip while inflight (no pending remint)."""
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    release = threading.Event()
+
+    def _slow_vlm(_crop):
+        release.wait(timeout=2.0)
+        return None
+
+    monkeypatch.setattr(ref, "_call_vlm", _slow_vlm)
+    monkeypatch.setattr(ref, "_crop", lambda *a, **k: _licensed_confirm_crop())
+    frame = licensed_scorebug_frame()
+
+    ref.schedule(frame, force=True, reason="tick", game_state="gameplay", game_profile="cfb_27")
+    deadline = time.time() + 2.0
+    while time.time() < deadline:
+        if ref.is_inflight():
+            break
+        time.sleep(0.01)
+    else:
+        raise AssertionError("not inflight")
+
+    ref.schedule(frame, force=False, reason="tick", game_state="gameplay", game_profile="cfb_27")
+    with ref._lock:
+        assert ref._pending_remint is None
+        assert ref._skip_inflight_count >= 1
+    release.set()
+    _wait_inflight_clear(ref)

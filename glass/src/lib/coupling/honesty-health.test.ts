@@ -129,6 +129,25 @@ test("digitsPaintBlocked ORs lock and board_paint_block", () => {
   assert.equal(digitsPaintBlocked({ board_paint_block: 0.2 }), false);
   assert.equal(digitsPaintBlocked({ paint_block: "block" }), true);
   assert.equal(digitsPaintBlocked({ ticket_glass: { glyphs: { lock: "blocked" } } }), true);
+  // Licensed paint hold: open lock wins over thrashing TypeSafe noul.
+  assert.equal(
+    digitsPaintBlocked({ glyphs: { lock: "open" }, board_paint_block: 0.91, paint_block: "watch" }),
+    false,
+  );
+});
+
+test("licensed open lock ignores high board_paint_block noul in parseHonestyHealth", () => {
+  const h = parseHonestyHealth({
+    ticket_glass: {
+      enabled: true,
+      glyphs: { lock: "open", tension: 0, cut: "off" },
+      board_paint_block: 0.91,
+      paint_block: "watch",
+    },
+  });
+  assert.equal(h.lockBlocked, false);
+  assert.equal(h.paintBlocked, false);
+  assert.equal(h.licensesDigits, false);
 });
 
 test("tensionPlinth maps 0 / 1-2 / 3", () => {
