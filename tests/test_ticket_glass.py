@@ -395,19 +395,19 @@ def test_licensed_crop_moved_on_watch_holds_open():
 
 def test_licensed_crop_moved_on_watch_sticky_across_ticks():
     """Repeated crop churn ticks stay open while licensed (no ~2s flip-flop)."""
-    kwargs = dict(
-        title_in_game=0.85,
-        board_paint_block=0.12,
-        score_vlm_locked=True,
-        ticket_stale_action="watch",
-        ticket_stale_class="crop_moved_on",
-        glass_route="dark",
-        route_confidence=0.9,
-        clip_now="hold",
-        clip_confidence=0.9,
-        lens_tension=0,
-        tension_confidence=0.9,
-    )
+    kwargs = {
+        "title_in_game": 0.85,
+        "board_paint_block": 0.12,
+        "score_vlm_locked": True,
+        "ticket_stale_action": "watch",
+        "ticket_stale_class": "crop_moved_on",
+        "glass_route": "dark",
+        "route_confidence": 0.9,
+        "clip_now": "hold",
+        "clip_confidence": 0.9,
+        "lens_tension": 0,
+        "tension_confidence": 0.9,
+    }
     locks = [compose_glass_verdict(**kwargs)["glyphs"]["lock"] for _ in range(5)]
     assert locks == ["open"] * 5
     assert all(
@@ -428,15 +428,15 @@ def test_unlicensed_crop_moved_on_still_blocks():
 
 
 def test_flag_stale_and_hard_classes_still_fail_closed_when_licensed():
-    base = dict(
-        title_in_game=0.9,
-        board_paint_block=0.1,
-        score_vlm_locked=True,
-        clip_now="hold",
-        clip_confidence=0.9,
-        glass_route="dark",
-        route_confidence=0.9,
-    )
+    base = {
+        "title_in_game": 0.9,
+        "board_paint_block": 0.1,
+        "score_vlm_locked": True,
+        "clip_now": "hold",
+        "clip_confidence": 0.9,
+        "glass_route": "dark",
+        "route_confidence": 0.9,
+    }
     flagged = compose_glass_verdict(
         **base,
         ticket_stale_action="flag_stale",
