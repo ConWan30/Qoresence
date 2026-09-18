@@ -195,13 +195,14 @@ def compose_glass_verdict(
     explicit no-block (noul<=0.3). Ambiguous → dark. Glyphs fail-closed.
     ``licenses_digits`` is False on every output forever.
 
-    Licensed hold: when ``score_vlm_locked`` and stale action is only
-    ``watch``, ``crop_moved_on`` alone does not force lock=blocked (crop
-    hash churn must not blank scorebug digits). While licensed and not
-    ``flag_stale`` / hard classes, TypeSafe ``board_paint_block`` must not
-    force lock=blocked or paint_block=block — code owns the paint glyph;
-    ConfirmTicket remains the only digit license. ``flag_stale``,
-    ``match_changed``, and ``menu_or_plate`` remain fail-closed.
+    Licensed hold: when ``score_vlm_locked`` and stale action is soft
+    (``watch``, ``observe``, or empty/None), ``crop_moved_on`` alone does
+    not force lock=blocked (crop hash churn must not blank scorebug digits).
+    Live ticket_stale often emits action=observe for soft crop churn.
+    While licensed and not ``flag_stale`` / hard classes, TypeSafe
+    ``board_paint_block`` must not force lock=blocked or paint_block=block —
+    code owns the paint glyph; ConfirmTicket remains the only digit license.
+    ``flag_stale``, ``match_changed``, and ``menu_or_plate`` remain fail-closed.
     """
     title_noul = _norm_float(title_in_game)
     block_noul = _norm_float(board_paint_block)
@@ -216,9 +217,10 @@ def compose_glass_verdict(
     block_clear = block_noul is not None and block_noul <= PAINT_BLOCK_NOT
 
     # Hard identity/menu changes always fail-closed. Soft crop hash churn
-    # (crop_moved_on + action=watch) must NOT force lock=blocked while a
-    # ConfirmTicket license is present — otherwise scorebug digits flicker
-    # every tick as the crop hash drifts. Explicit flag_stale still blocks.
+    # (crop_moved_on + action in watch/observe/empty) must NOT force
+    # lock=blocked while a ConfirmTicket license is present — otherwise
+    # scorebug digits flicker every tick as the crop hash drifts. Explicit
+    # flag_stale still blocks.
     action_flag = ticket_stale_action == "flag_stale"
     hard_stale = ticket_stale_class in {"match_changed", "menu_or_plate"}
     crop_moved = ticket_stale_class == "crop_moved_on"
@@ -226,7 +228,7 @@ def compose_glass_verdict(
         bool(score_vlm_locked)
         and crop_moved
         and not action_flag
-        and (ticket_stale_action in (None, "", "watch"))
+        and (ticket_stale_action in (None, "", "watch", "observe"))
     )
     stale_flag = bool(
         action_flag
@@ -357,9 +359,9 @@ def local_glass_answers(state: dict[str, Any]) -> dict[str, Any]:
     if action == "flag_stale" or cls in {"match_changed", "menu_or_plate"}:
         block_noul = 0.88
     elif cls == "crop_moved_on":
-        # Soft crop churn while licensed + watch: stay below PAINT_BLOCK_ACT
-        # so board_paint_block noul does not thrash the veto threshold.
-        if locked and action in ("", "watch"):
+        # Soft crop churn while licensed + watch/observe: stay below
+        # PAINT_BLOCK_ACT so board_paint_block noul does not thrash the veto.
+        if locked and action in ("", "watch", "observe"):
             block_noul = 0.55
         else:
             block_noul = 0.88
@@ -802,9 +804,10 @@ class TicketGlassSentinel:
                 "Observation only. Never mint, restate, or license score "
                 "digits. board_paint_block is advisory veto evidence — false "
                 "never unlocks ConfirmTicket paint. When board.score_vlm_locked "
-                "is true and ticket_stale is only crop_moved_on/watch, code "
-                "owns the paint observation glyph and will not blank digits "
-                "from a high board_paint_block noul alone. Code owns tickets, "
+                "is true and ticket_stale is only crop_moved_on with soft "
+                "action (watch/observe/empty), code owns the paint observation "
+                "glyph and will not blank digits from a high board_paint_block "
+                "noul alone. Code owns tickets, "
                 "clocks, and Foundry. Human HOLD beats every PASS. Ambiguous → dark."
             ),
             "clock_ns": state.get("clock_ns"),

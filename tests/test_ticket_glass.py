@@ -437,6 +437,127 @@ def test_licensed_crop_moved_on_watch_sticky_across_ticks():
     )
 
 
+def test_licensed_crop_moved_on_observe_holds_open():
+    """crop_moved_on + action=observe must hold lock open while licensed.
+
+    Live ticket_stale emits action=observe for soft crop churn; treating
+    observe like watch prevents HonestyStrip digitsPaintBlocked blanking.
+    """
+    out = compose_glass_verdict(
+        title_in_game=0.9,
+        board_paint_block=0.41,
+        moment_class="build",
+        moment_confidence=0.8,
+        clip_now="hold",
+        clip_confidence=0.9,
+        lens_tension=1,
+        tension_confidence=0.8,
+        glass_route="deck_only",
+        route_confidence=0.8,
+        score_vlm_locked=True,
+        ticket_stale_action="observe",
+        ticket_stale_class="crop_moved_on",
+    )
+    assert out["glyphs"]["lock"] == "open"
+    assert out["paint_block"] == "watch"
+    assert out["licenses_digits"] is False
+    assert out["paint_unlocked"] is False
+
+
+def test_licensed_crop_moved_on_observe_sticky_across_ticks():
+    """Repeated observe-crop churn ticks stay open while licensed."""
+    kwargs = {
+        "title_in_game": 0.85,
+        "board_paint_block": 0.41,
+        "score_vlm_locked": True,
+        "ticket_stale_action": "observe",
+        "ticket_stale_class": "crop_moved_on",
+        "glass_route": "dark",
+        "route_confidence": 0.9,
+        "clip_now": "hold",
+        "clip_confidence": 0.9,
+        "lens_tension": 0,
+        "tension_confidence": 0.9,
+    }
+    locks = [compose_glass_verdict(**kwargs)["glyphs"]["lock"] for _ in range(5)]
+    assert locks == ["open"] * 5
+    assert all(
+        compose_glass_verdict(**kwargs)["licenses_digits"] is False for _ in range(3)
+    )
+
+
+def test_licensed_crop_observe_still_fail_closed_on_flag_and_menu():
+    """flag_stale / menu_or_plate remain blocked even if action were soft-looking."""
+    base = {
+        "title_in_game": 0.9,
+        "board_paint_block": 0.41,
+        "score_vlm_locked": True,
+        "clip_now": "hold",
+        "clip_confidence": 0.9,
+        "glass_route": "dark",
+        "route_confidence": 0.9,
+    }
+    flagged = compose_glass_verdict(
+        **base,
+        ticket_stale_action="flag_stale",
+        ticket_stale_class="crop_moved_on",
+    )
+    assert flagged["glyphs"]["lock"] == "blocked"
+
+    menu = compose_glass_verdict(
+        **base,
+        ticket_stale_action="observe",
+        ticket_stale_class="menu_or_plate",
+    )
+    assert menu["glyphs"]["lock"] == "blocked"
+
+    match = compose_glass_verdict(
+        **base,
+        ticket_stale_action="observe",
+        ticket_stale_class="match_changed",
+    )
+    assert match["glyphs"]["lock"] == "blocked"
+
+
+def test_local_glass_licensed_crop_observe_stays_below_paint_act():
+    """Heuristic observe band must mirror watch: stay under PAINT_BLOCK_ACT."""
+    answers = local_glass_answers(
+        {
+            "title": {"plane": "in_game", "locked": True},
+            "board": {
+                "score_vlm_locked": True,
+                "digit_integrity_reason": "ok",
+                "ticket_stale": {
+                    "stale_class": "crop_moved_on",
+                    "action": "observe",
+                    "gate_reason": "licensed",
+                    "freshness": 0.4,
+                },
+            },
+        }
+    )
+    assert answers["board_paint_block"] < PAINT_BLOCK_ACT
+    assert answers["board_paint_block"] > PAINT_BLOCK_NOT
+    out = compose_glass_verdict(
+        title_in_game=answers["title_in_game"],
+        board_paint_block=answers["board_paint_block"],
+        moment_class=answers["moment_class"],
+        moment_confidence=answers["moment_confidence"],
+        clip_now=answers["clip_now"],
+        clip_confidence=answers["clip_confidence"],
+        lens_tension=answers["lens_tension"],
+        tension_confidence=answers["tension_confidence"],
+        glass_route=answers["glass_route"],
+        route_confidence=answers["route_confidence"],
+        score_vlm_locked=True,
+        ticket_stale_action="observe",
+        ticket_stale_class="crop_moved_on",
+    )
+    assert out["paint_block"] == "watch"
+    assert out["glyphs"]["lock"] == "open"
+    assert out["licenses_digits"] is False
+
+
 def test_unlicensed_crop_moved_on_still_blocks():
     out = compose_glass_verdict(
         title_in_game=0.9,
