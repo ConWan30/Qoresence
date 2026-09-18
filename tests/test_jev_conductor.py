@@ -9,6 +9,7 @@ from qoresence.observability.jev_conductor import (
     conductor_preflight,
     fill_chat,
     fill_observe,
+    local_heuristic_conductor,
     make_jev_from_config,
     scoreline_matches_board,
 )
@@ -86,7 +87,12 @@ def test_clutch_window_needs_heat_ticket():
 
 
 def test_conductor_heuristic_off_thread():
-    cond = JevConductor(JevConfig(enabled=True))
+    # ask_fn returning local answers keeps this test deterministic when the
+    # real SDK + key happen to be installed (otherwise judge() hits the API).
+    cond = JevConductor(
+        JevConfig(enabled=True),
+        ask_fn=lambda s: local_heuristic_conductor(s),
+    )
     out = cond.judge(
         {
             "coupling": 0.7,

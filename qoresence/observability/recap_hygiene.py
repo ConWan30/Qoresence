@@ -253,7 +253,7 @@ def _try_typesafe(envelope: dict[str, Any]) -> dict[str, Any] | None:
         try:
             from pathlib import Path
 
-            raw = Path(".secrets/typesafe.key").read_text(encoding="utf-8").strip()
+            raw = Path(".secrets/typesafe.key").read_text(encoding="utf-8-sig").strip()
             if not raw:
                 return None
             os.environ["TYPESAFE_API_KEY"] = raw

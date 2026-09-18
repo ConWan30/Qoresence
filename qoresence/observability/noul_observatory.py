@@ -520,7 +520,7 @@ class NoulObservatory:
         # Env key first; else load .secrets/typesafe.key without logging it.
         if not os.environ.get("TYPESAFE_API_KEY", "").strip():
             try:
-                raw = Path(".secrets/typesafe.key").read_text(encoding="utf-8").strip()
+                raw = Path(".secrets/typesafe.key").read_text(encoding="utf-8-sig").strip()
                 if not raw:
                     return None
                 os.environ["TYPESAFE_API_KEY"] = raw
