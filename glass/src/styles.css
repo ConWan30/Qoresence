@@ -294,29 +294,28 @@ html.obs-lens body {
   color: var(--color-live);
 }
 
+/* Theater readable dock — operator must see moments without a 48px slit. */
+.clutch-feed[data-feed="dock"] {
+  min-height: 14rem;
+  max-height: min(42vh, 22rem);
+  flex: 1 1 auto;
+}
+
 .clutch-feed[data-feed="peek"] {
-  max-height: 48px;
-  padding: 4px 12px;
-  gap: 4px;
-  transition: max-height 400ms var(--ease-out);
+  /* Legacy alias: treat peek as dock (do not hide the feed). */
+  min-height: 14rem;
+  max-height: min(42vh, 22rem);
+  flex: 1 1 auto;
 }
 
 .clutch-feed[data-feed="expanded"] {
-  max-height: 10.5rem;
-  transition: max-height 150ms var(--ease-out);
+  min-height: 14rem;
+  max-height: min(50vh, 26rem);
+  flex: 1 1 auto;
 }
 
-.clutch-feed[data-feed="peek"] .clutch-feed-meter,
-.clutch-feed[data-feed="peek"] .clutch-feed-empty,
-.clutch-feed[data-feed="peek"] h2 {
-  display: none;
-}
-
-.clutch-feed[data-feed="peek"] .clutch-row,
-.clutch-feed[data-feed="expanded"] .clutch-row {
-  min-height: 32px;
-  padding-top: 4px;
-  padding-bottom: 4px;
+.clutch-feed[data-feed="rail"] {
+  min-height: 12rem;
 }
 
 .clutch-feed[data-land="fast"] {
