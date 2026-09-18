@@ -37,6 +37,11 @@ from collections import deque
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.typesafe_ask import (
+    DEFAULT_TIMEOUT_S,
+    system_one,
+)
+
 log = logging.getLogger(__name__)
 
 PLANE = "qoresence-observation"
@@ -345,6 +350,12 @@ class PressLabeler:
         self._jsonl_tried = False
         enabled = bool(getattr(config, "enabled", False)) if config is not None else False
         self.enabled = enabled or _env_enabled()
+        self._warned_typesafe = [False]
+        _cfg = config
+        self._typesafe_timeout_s = float(
+            (getattr(_cfg, "typesafe_timeout_s", DEFAULT_TIMEOUT_S) if _cfg is not None else DEFAULT_TIMEOUT_S)
+            or DEFAULT_TIMEOUT_S
+        )
 
     def label_press(
         self,
@@ -723,12 +734,6 @@ class PressLabeler:
         }
 
     def _try_typesafe(self, state: dict[str, Any]) -> dict[str, Any] | None:
-        if not _key_present():
-            return None
-        try:
-            from typesafe_sdk import TypeSafeClient
-        except Exception:
-            return None
         questions = press_questions(state["candidate_modes"])
         if not questions:
             return None
@@ -750,26 +755,29 @@ class PressLabeler:
             "conflict": state["conflict"],
             "situation": state["situation"],
         }
-        try:
-            with TypeSafeClient() as client:
-                response = client.system_one(state=payload, questions=questions)
-            choices = getattr(response, "choices", {}) or {}
-            nouls = getattr(response, "nouls", {}) or {}
-            mp = choices.get("mode_pick")
-            cp = choices.get("conflict_pick")
-            pe = nouls.get("press_efficacy")
-            return {
-                "mode_pick": getattr(mp, "choice", None) if mp is not None else None,
-                "mode_confidence": float(getattr(mp, "confidence", 0) or 0) if mp is not None else None,
-                "conflict_pick": getattr(cp, "choice", None) if cp is not None else None,
-                "conflict_confidence": float(getattr(cp, "confidence", 0) or 0) if cp is not None else None,
-                "efficacy_noul": float(pe.noul) if pe is not None else None,
-                "source": "typesafe",
-            }
-        except Exception as e:
-            log.debug("press labeler system_one failed: %s", e)
+        response = system_one(
+            state=payload,
+            questions=questions,
+            timeout_s=self._typesafe_timeout_s,
+            warn_label="press_labeler",
+            warned_flag=self._warned_typesafe,
+            logger=log,
+        )
+        if response is None:
             return None
-
+        choices = getattr(response, "choices", {}) or {}
+        nouls = getattr(response, "nouls", {}) or {}
+        mp = choices.get("mode_pick")
+        cp = choices.get("conflict_pick")
+        pe = nouls.get("press_efficacy")
+        return {
+            "mode_pick": getattr(mp, "choice", None) if mp is not None else None,
+            "mode_confidence": float(getattr(mp, "confidence", 0) or 0) if mp is not None else None,
+            "conflict_pick": getattr(cp, "choice", None) if cp is not None else None,
+            "conflict_confidence": float(getattr(cp, "confidence", 0) or 0) if cp is not None else None,
+            "efficacy_noul": float(pe.noul) if pe is not None else None,
+            "source": "typesafe",
+        }
 
 _singleton: PressLabeler | None = None
 _singleton_lock = threading.Lock()

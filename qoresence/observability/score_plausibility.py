@@ -18,6 +18,10 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.typesafe_ask import (
+    DEFAULT_TIMEOUT_S,
+    system_one,
+)
 from qoresence.sync.digit_integrity import implausible_transition_reason
 
 log = logging.getLogger(__name__)
@@ -215,6 +219,11 @@ class ScorePlausibility:
         self._bus = bus  # stats only — never emit, never subscribe
         self._ask_fn = ask_fn
         self.enabled = bool(getattr(config, "enabled", False)) or _env_enabled()
+        self._warned_typesafe = [False]
+        self._typesafe_timeout_s = float(
+            getattr(config, "typesafe_timeout_s", DEFAULT_TIMEOUT_S)
+            or DEFAULT_TIMEOUT_S
+        )
         self._cadence_s = float(getattr(config, "cadence_s", 3.0) or 3.0)
         self._stop_evt = threading.Event()
         self._worker: threading.Thread | None = None
@@ -318,43 +327,33 @@ class ScorePlausibility:
         return verdict
 
     def _try_typesafe(self, state: dict[str, Any]) -> dict[str, Any] | None:
-        if not os.environ.get("TYPESAFE_API_KEY", "").strip():
-            try:
-                raw = Path(".secrets/typesafe.key").read_text(
-                    encoding="utf-8-sig"
-                ).strip()
-                if not raw:
-                    return None
-                os.environ["TYPESAFE_API_KEY"] = raw
-            except Exception:
-                return None
-        try:
-            from typesafe_sdk import TypeSafeClient
-        except Exception:
-            return None
         questions = plausibility_questions()
         if not questions:
             return None
-        try:
-            with TypeSafeClient() as client:
-                response = client.system_one(state=state, questions=questions)
-            nouls = getattr(response, "nouls", {}) or {}
-            choices = getattr(response, "choices", {}) or {}
-            n = nouls.get("implausible")
-            c = choices.get("jump_kind")
-            return {
-                "implausible_noul": (
-                    float(n.noul) if n is not None else None
-                ),
-                "jump_kind": getattr(c, "choice", None) if c is not None else None,
-                "jump_confidence": (
-                    float(getattr(c, "confidence", 0) or 0) if c is not None else None
-                ),
-                "source": "typesafe",
-            }
-        except Exception as e:
-            log.debug("score_plausibility system_one failed: %s", e)
+        response = system_one(
+            state=state,
+            questions=questions,
+            timeout_s=self._typesafe_timeout_s,
+            warn_label="score_plausibility",
+            warned_flag=self._warned_typesafe,
+            logger=log,
+        )
+        if response is None:
             return None
+        nouls = getattr(response, "nouls", {}) or {}
+        choices = getattr(response, "choices", {}) or {}
+        n = nouls.get("implausible")
+        c = choices.get("jump_kind")
+        return {
+            "implausible_noul": (
+                float(n.noul) if n is not None else None
+            ),
+            "jump_kind": getattr(c, "choice", None) if c is not None else None,
+            "jump_confidence": (
+                float(getattr(c, "confidence", 0) or 0) if c is not None else None
+            ),
+            "source": "typesafe",
+        }
 
     def _run(self) -> None:
         while not self._stop_evt.wait(self._cadence_s):
