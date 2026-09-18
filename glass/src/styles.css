@@ -216,7 +216,8 @@ html.obs-lens body {
   box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-live) 72%, transparent);
 }
 
-/* Sight Honesty — TicketGlass + SyncGlass votes. Chrome only, never the picture. */
+/* Sight Honesty — TicketGlass + SyncGlass votes. Chrome only, never the picture.
+ * Modes: off = iron chip; dark = 6 ghosts + DARK tally; live = glyphs + 150ms crossfade. */
 .honesty-strip {
   display: flex;
   flex-shrink: 0;
@@ -236,8 +237,33 @@ html.obs-lens body {
   padding: 0 12px;
 }
 
+.honesty-strip[data-honesty="off"] {
+  opacity: 1;
+}
+
+.honesty-iron-chip {
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: var(--color-muted-foreground);
+  border: 1px solid color-mix(in oklab, var(--color-muted-foreground) 28%, transparent);
+  border-radius: 2px;
+  padding: 2px 8px;
+  background: color-mix(in oklab, var(--color-muted-foreground) 6%, transparent);
+}
+
 .honesty-strip[data-honesty="dark"] {
   opacity: 0.45;
+}
+
+.honesty-dark-tally {
+  margin-left: auto;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: var(--color-muted-foreground);
 }
 
 .honesty-glyph {
@@ -248,6 +274,7 @@ html.obs-lens body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-subtle-foreground);
+  transition: color var(--motion-quick) var(--ease-out), opacity var(--motion-quick) var(--ease-out);
 }
 
 .honesty-glyph[data-conf="solid"] {

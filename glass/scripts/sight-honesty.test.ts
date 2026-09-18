@@ -61,3 +61,36 @@ test("pickBoard consumers OR ticket_glass paint veto", () => {
   const plane = load("src/lib/coupling/agent-plane.ts");
   assert.match(plane, /ticket_glass/);
 });
+
+test("OFF mode: iron chip only — no six ghost glyphs in strip source path", () => {
+  const strip = load("src/components/theater/honesty-strip.tsx");
+  const health = load("src/lib/coupling/honesty-health.ts");
+  assert.match(strip, /data-honesty=\{state\}/);
+  assert.match(strip, /data-honesty-iron/);
+  assert.match(strip, /honesty-iron-chip/);
+  assert.match(strip, /state === "off"/);
+  assert.match(strip, /honesty-dark-tally/);
+  assert.match(strip, /data-honesty-tally="dark"/);
+  // OFF branch must not map six glyphs — iron chip only
+  assert.match(strip, /state === "off"[\s\S]*?honesty-iron-chip/);
+  assert.doesNotMatch(strip, /licensesDigits\s*=\s*true/);
+  assert.match(health, /HonestyState = "off" \| "dark" \| "live"/);
+  assert.match(health, /state: "off"/);
+  assert.match(health, /licensesDigits: false/);
+  assert.match(health, /glyphs: \[\]/);
+});
+
+test("LIVE crossfade uses 150ms / motion-quick on glyphs", () => {
+  const css = load("src/styles.css");
+  assert.match(css, /\.honesty-glyph[\s\S]*?transition:[\s\S]*?var\(--motion-quick\)/);
+  assert.match(css, /\.honesty-iron-chip/);
+  assert.match(css, /\.honesty-dark-tally/);
+  assert.match(css, /\[data-honesty="off"\]/);
+});
+
+test("licenses_digits stays false forever in honesty health", () => {
+  const health = load("src/lib/coupling/honesty-health.ts");
+  assert.match(health, /licensesDigits: false/);
+  assert.doesNotMatch(health, /licensesDigits:\s*true/);
+  assert.doesNotMatch(health, /licensesDigits\s*=\s*true/);
+});
