@@ -318,6 +318,22 @@ class QoresenceApp:
         except Exception as e:
             log.debug("TicketStale sentinel not started: %s", e)
 
+        # TicketGlass v0 — live opt-in glyphs (lock/tension/cut). Enqueue-only
+        # subscriber + timer worker; veto-only paint block, never licenses digits.
+        self.ticket_glass = None
+        try:
+            from qoresence.observability.ticket_glass import (
+                make_ticket_glass_from_config,
+            )
+
+            self.ticket_glass = make_ticket_glass_from_config(
+                getattr(config, "ticket_glass", None),
+                bus=self.bus,
+                jev_enabled=bool(getattr(getattr(config, "jev", None), "enabled", False)),
+            )
+        except Exception as e:
+            log.debug("TicketGlass sentinel not started: %s", e)
+
         # Private haptic probe (default OFF; env QORESENCE_HAPTIC_PROBE=1)
         self.haptic_probe = None
         try:
@@ -1485,6 +1501,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             prev if prev is not None else TicketStaleConfig(),
             enabled=True,
         )
+    if getattr(args, "ticket_glass", False):
+        from qoresence.core.unified_config import TicketGlassConfig
+
+        prev = getattr(config, "ticket_glass", None)
+        config.ticket_glass = replace(
+            prev if prev is not None else TicketGlassConfig(),
+            enabled=True,
+        )
     if getattr(args, "learning_edge", False) or getattr(config, "learning_edge", False):
         config.learning_edge = True
         try:
@@ -1769,7 +1793,7 @@ def main():
         action="store_true",
         help="TypeSafe Jev conductor: select ClutchBot/MatchAgent templates "
         "(text-only; cannot see HDMI). Also starts SyncCoroner, "
-        "ScorePlausibility, and press labeler. Default OFF. Also "
+        "ScorePlausibility, press labeler, and TicketGlass. Default OFF. Also "
         "QORESENCE_JEV=1. --play does not enable this. Never licenses "
         "score digits. Key: TYPESAFE_API_KEY or .secrets/typesafe.key.",
     )
@@ -1781,6 +1805,15 @@ def main():
         "Default OFF. Also QORESENCE_JEV_TICKET_STALE=1 (or under --jev). "
         "--play does not enable this. Advisory audit only — never licenses "
         "score digits.",
+    )
+    parser.add_argument(
+        "--ticket-glass",
+        action="store_true",
+        help="TypeSafe TicketGlass v0: live lock/tension/cut glyphs from "
+        "compact state + typed questions. Default OFF. Also "
+        "QORESENCE_TICKET_GLASS=1 (or under --jev). --play does not enable "
+        "this. Observation only — never licenses score digits; "
+        "board_paint_block is VETO-only. No Foundry cut side effects.",
     )
     parser.add_argument(
         "--haptic-probe",

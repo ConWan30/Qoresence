@@ -1195,6 +1195,15 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception:
             body["ticket_stale"] = {"enabled": False}
         try:
+            from qoresence.observability.ticket_glass import get_ticket_glass
+
+            _tg = get_ticket_glass()
+            body["ticket_glass"] = (
+                _tg.stats() if _tg is not None else {"enabled": False}
+            )
+        except Exception:
+            body["ticket_glass"] = {"enabled": False}
+        try:
             from qoresence.observability.score_plausibility import (
                 get_score_plausibility,
             )
@@ -3114,6 +3123,15 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
                 except Exception:
                     health["ticket_stale"] = {"enabled": False}
+                try:
+                    from qoresence.observability.ticket_glass import get_ticket_glass
+
+                    _tg = get_ticket_glass()
+                    health["ticket_glass"] = (
+                        _tg.stats() if _tg is not None else {"enabled": False}
+                    )
+                except Exception:
+                    health["ticket_glass"] = {"enabled": False}
                 try:
                     from qoresence.observability.score_plausibility import (
                         get_score_plausibility,

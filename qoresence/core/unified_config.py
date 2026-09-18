@@ -703,6 +703,22 @@ class TicketStaleConfig:
 
 
 @dataclass
+class TicketGlassConfig:
+    """TypeSafe TicketGlass v0 (observation plane).
+
+    Opt-in, default OFF. ``--play`` does not enable. Live glass glyphs
+    (lock / tension / cut) from compact state + typed questions. Never
+    licenses digits, never emits bus events, never takes lobe locks.
+    ``board_paint_block`` is VETO-only. See qoresence.observability.ticket_glass.
+    """
+
+    enabled: bool = False
+    out_dir: str = "logs/ticket_glass"
+    cadence_s: float = 0.25
+    queue_size: int = 256
+
+
+@dataclass
 class NoulConfig:
     """TypeSafe Noul observatory (observation plane only).
 
@@ -804,6 +820,9 @@ class RetinaUnifiedConfig:
 
     # Jev ticket-stale sentinel (default OFF; --play does not enable)
     jev_ticket_stale: TicketStaleConfig = field(default_factory=TicketStaleConfig)
+
+    # TicketGlass v0 (default OFF; --play does not enable; also under --jev)
+    ticket_glass: TicketGlassConfig = field(default_factory=TicketGlassConfig)
 
     # Learning edge: next-run splitter constraints. Default OFF. --play does not enable.
     learning_edge: bool = False
@@ -1167,6 +1186,13 @@ class RetinaUnifiedConfig:
                 or "logs/ticket_stale",
                 cadence_s=_float("QORESENCE_JEV_TICKET_STALE_CADENCE", 2.0) or 2.0,
                 queue_size=_int("QORESENCE_JEV_TICKET_STALE_QUEUE", 256) or 256,
+            ),
+            ticket_glass=TicketGlassConfig(
+                enabled=_bool("QORESENCE_TICKET_GLASS"),
+                out_dir=_str("QORESENCE_TICKET_GLASS_DIR", "logs/ticket_glass")
+                or "logs/ticket_glass",
+                cadence_s=_float("QORESENCE_TICKET_GLASS_CADENCE", 0.25) or 0.25,
+                queue_size=_int("QORESENCE_TICKET_GLASS_QUEUE", 256) or 256,
             ),
             learning_edge=_bool("QORESENCE_LEARNING_EDGE"),
             look_graphs=_bool("QORESENCE_LOOK_GRAPHS"),
