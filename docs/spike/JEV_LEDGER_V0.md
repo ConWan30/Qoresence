@@ -54,8 +54,10 @@ migration.
 
 ## Deferred (OCCF land order)
 
-- `--jev-connector` / `qoresence.connector-bind.v0` writer (`pack="connector"`
-  is reserved but silent — no lone `connector.jsonl`).
+- ~~`--jev-connector` / `qoresence.connector-bind.v0` writer~~ — landed in
+  slice 2 (`qoresence/observability/connector_bind.py`; binds exist only as
+  `pack="connector"` ledger rows, no `connector.jsonl`). See
+  `docs/spike/CONNECTOR_BIND_V0.md`.
 - Thin MCP tools / `jev_tail` on `get_observation`; Muse skill.md.
 - Pages / directory listing.
 - Migrating packs off private JSONL entirely.

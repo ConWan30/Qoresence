@@ -15,7 +15,9 @@ Hard law:
   only its own lock around the file append — no lobe locks, no bus emits.
 - Unknown ``pack`` fails closed: rejected, nothing written.
 
-``pack="connector"`` is reserved in ``PACKS`` for OCCF slice 3; no writer yet.
+``pack="connector"`` is written by the OCCF connector-bind engine
+(``qoresence.observability.connector_bind``, ``--jev-connector``) — binds
+exist only as ledger rows; there is no ``connector.jsonl``.
 """
 
 from __future__ import annotations
@@ -36,7 +38,7 @@ PLANE = "qoresence-observation"
 DEFAULT_PATH = Path("logs/jev_ledger.jsonl")
 
 # Known judgment packs. ``conductor`` aliases ``jev_conductor``; ``connector``
-# is reserved (OCCF slice 3 — no writer lands in this slice).
+# is the OCCF connector-bind pack (qoresence.observability.connector_bind).
 PACKS = frozenset(
     {
         "ticket_stale",
