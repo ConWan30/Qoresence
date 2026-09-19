@@ -168,6 +168,7 @@ qoresence = ["deck/*.html", "deck/*.webmanifest", "deck/*.js", "deck/*.css", "de
 [project.scripts]
 qoresence = "qoresence.cli:main"
 qoresence-mcp = "qoresence.mcp.server:main"
+qoresence-occf-mcp = "qoresence.mcp.occf:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"

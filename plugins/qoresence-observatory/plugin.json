@@ -1,0 +1,22 @@
+{
+  "name": "qoresence-observatory",
+  "version": "0.1.0",
+  "schema": "qoresence.occf-mcp.v0",
+  "plane": "qoresence-observation",
+  "licenses_digits": false,
+  "description": "Pull-only observatory connector for personal agents (Muse first). One read tool — get_observation — plus closed refuse_* tools. The agent asks about the session; it never takes the pad, never publishes, and never sees score digits.",
+  "default": "off",
+  "transport": "stdio",
+  "bind": "127.0.0.1",
+  "mcp": "mcp.json",
+  "skills": ["skills/muse-observatory"],
+  "tools": ["get_observation", "refuse_actuator", "refuse_mid_drive_publish"],
+  "hard_laws": [
+    "pull-only — never opens capture, never touches DualSense/pad",
+    "licenses_digits=false forever — never mints or echoes score digits",
+    "localhost 127.0.0.1 only — no LAN, no hosted HDMI proxy",
+    "default OFF / opt-in — QORESENCE_OCCF=1 or --occf; --play never enables",
+    "fail-closed blanks when board unlocked, recap empty, or no observation",
+    "no marketplace / directory publish; no get_timeline / export_presence_pack in v0"
+  ]
+}
