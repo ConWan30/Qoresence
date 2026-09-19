@@ -56,6 +56,12 @@ from qoresence.observability.ticket_glass import (
     get_ticket_glass,
     make_ticket_glass_from_config,
 )
+from qoresence.observability.join_picker import (
+    JoinPickerSentinel,
+    compose_join_verdict,
+    get_join_picker,
+    make_join_picker_from_config,
+)
 from qoresence.observability.mint_verifier import (
     MintVerifierSentinel,
     compose_mint_verdict,
@@ -100,6 +106,10 @@ __all__ = [
     "ScorePlausibility",
     "get_score_plausibility",
     "make_plausibility_from_config",
+    "JoinPickerSentinel",
+    "compose_join_verdict",
+    "get_join_picker",
+    "make_join_picker_from_config",
     "MintVerifierSentinel",
     "compose_mint_verdict",
     "get_mint_verifier",

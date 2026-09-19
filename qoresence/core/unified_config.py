@@ -687,6 +687,22 @@ class JevConfig:
 
 
 @dataclass
+class JoinPickerConfig:
+    """TypeSafe join picker (observation plane).
+
+    Opt-in, default OFF. ``--play`` does not enable. Selects which already-
+    stamped hid_seq_line slot belongs on the current HDMI frame. Never
+    invents a lag, never writes PLL, never licenses digits.
+    See qoresence.observability.join_picker.
+    """
+
+    enabled: bool = False
+    out_dir: str = "logs/join_picker"
+    cadence_s: float = 0.5
+    queue_size: int = 256
+
+
+@dataclass
 class MintVerifierConfig:
     """TypeSafe mint verifier (observation plane).
 
@@ -855,6 +871,9 @@ class RetinaUnifiedConfig:
 
     # Jev mint verifier (default OFF; --play does not enable; also under --jev)
     mint_verifier: MintVerifierConfig = field(default_factory=MintVerifierConfig)
+
+    # Jev join picker (default OFF; --play does not enable; also under --jev)
+    join_picker: JoinPickerConfig = field(default_factory=JoinPickerConfig)
 
     # TicketGlass v0 (default OFF; --play does not enable; also under --jev)
     ticket_glass: TicketGlassConfig = field(default_factory=TicketGlassConfig)
@@ -1231,6 +1250,13 @@ class RetinaUnifiedConfig:
                 or "logs/mint_verifier",
                 cadence_s=_float("QORESENCE_MINT_VERIFIER_CADENCE", 2.0) or 2.0,
                 queue_size=_int("QORESENCE_MINT_VERIFIER_QUEUE", 256) or 256,
+            ),
+            join_picker=JoinPickerConfig(
+                enabled=_bool("QORESENCE_JOIN_PICKER"),
+                out_dir=_str("QORESENCE_JOIN_PICKER_DIR", "logs/join_picker")
+                or "logs/join_picker",
+                cadence_s=_float("QORESENCE_JOIN_PICKER_CADENCE", 0.5) or 0.5,
+                queue_size=_int("QORESENCE_JOIN_PICKER_QUEUE", 256) or 256,
             ),
             ticket_glass=TicketGlassConfig(
                 enabled=_bool("QORESENCE_TICKET_GLASS"),
