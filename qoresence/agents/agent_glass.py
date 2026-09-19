@@ -108,6 +108,20 @@ class AgentGlass:
             video = get_clip_buffer().stats()
         except Exception:
             pass
+        # Secondary: prefer FrameHub crop_hash for live video when available.
+        try:
+            from qoresence.monitor.frame_hub import get_frame_hub
+
+            hub = get_frame_hub().stats() if hasattr(get_frame_hub(), "stats") else get_frame_hub().get_latest()
+            hub_d = hub if isinstance(hub, dict) else {}
+            hub_crop = str(hub_d.get("crop_hash") or "").strip()
+            if hub_crop:
+                video = dict(video) if isinstance(video, dict) else {"has_frame": False}
+                video["crop_hash"] = hub_crop
+                if hub_d.get("seq") is not None and video.get("seq") is None:
+                    video["seq"] = hub_d.get("seq")
+        except Exception:
+            pass
         situation: dict[str, Any] = {}
         if self._situation_provider:
             try:
@@ -115,6 +129,24 @@ class AgentGlass:
                 situation = dict(raw) if isinstance(raw, dict) else {}
             except Exception:
                 situation = {}
+        # Publish ConfirmTicket clock/crop onto the live bag AgentGlass snapshots.
+        # ticket_crop_hash is the scorebug crop — never substitute FrameHub full-frame.
+        try:
+            from qoresence.vision.confirm_ticket import get_ticket_book
+
+            latest = get_ticket_book().latest()
+            if latest is not None:
+                situation = dict(situation)
+                if not situation.get("confirm_ticket_id"):
+                    situation["confirm_ticket_id"] = latest.ticket_id
+                    situation["score_vlm_locked"] = True
+                if int(getattr(latest, "clock_ns", 0) or 0) > 0:
+                    situation["confirm_clock_ns"] = int(latest.clock_ns)
+                crop = str(getattr(latest, "crop_hash", "") or "").strip()
+                if crop:
+                    situation["ticket_crop_hash"] = crop
+        except Exception:
+            pass
         seqgate: dict[str, Any] | None = None
         memory_receipt: dict[str, Any] | None = None
         try:
