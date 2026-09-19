@@ -5,7 +5,8 @@
       "args": ["-m", "qoresence.mcp.occf"],
       "env": {
         "QORESENCE_OCCF": "1",
-        "QORESENCE_JEV_LEDGER": "1"
+        "QORESENCE_JEV_LEDGER": "1",
+        "QORESENCE_JEV_CONNECTOR": "1"
       }
     }
   }

@@ -348,6 +348,138 @@ def test_occf_refuse_tools_closed_deny():
     assert p["licenses_digits"] is False
 
 
+def _fake_connector_module(bind):
+    """Stub slice-2 API shape — real module lands with the connector PR."""
+    import types
+
+    mod = types.ModuleType("qoresence.observability.connector_bind")
+    engine = object()
+    mod.get_connector_bind = lambda: engine
+    mod.make_connector_from_config = lambda config, ask_fn=None: engine
+    mod.note_agent_turn = lambda turn, observatory=None, session_id=None: bind
+    return mod
+
+
+def _bound_bind(state="bound", deny=None, sid="sess-1"):
+    return {
+        "schema": "qoresence.connector-bind.v0",
+        "plane": "qoresence-observation",
+        "licenses_digits": False,
+        "bind_id": "cb-abc123",
+        "session_id": sid,
+        "correlation": {"state": state, "method": "live_pull", "same_seq": True},
+        "compose": {"action": "act", "deny_reason": deny, "speech": "none"},
+        "source": "local_heuristic",
+    }
+
+
+def test_occf_agent_turn_unbound_when_connector_absent(monkeypatch):
+    """No slice-2 module on this branch → fail-closed unbound, never a claim."""
+    monkeypatch.setenv("QORESENCE_OCCF", "1")
+    monkeypatch.setattr(
+        mcp_server, "handle_get_snapshot", lambda: dict(LOCKED_SNAPSHOT)
+    )
+    out = occf.handle_get_observation(
+        agent_turn={"brand": "muse", "utterance": "what's happening"}
+    )
+    bind = out["bind"]
+    assert bind["state"] == "unbound"
+    assert bind["recorded"] is False
+    assert bind["reason"] in ("connector_unavailable", "connector_off", "bind_failed")
+    assert bind["licenses_digits"] is False
+
+
+def test_occf_agent_turn_bound_only_when_row_written(monkeypatch):
+    monkeypatch.setenv("QORESENCE_OCCF", "1")
+    monkeypatch.setattr(
+        mcp_server, "handle_get_snapshot", lambda: dict(LOCKED_SNAPSHOT)
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "qoresence.observability.connector_bind",
+        _fake_connector_module(_bound_bind()),
+    )
+    out = occf.handle_get_observation(
+        agent_turn={"brand": "muse", "turn_id": "t-1", "session_id": "sess-1"}
+    )
+    bind = out["bind"]
+    assert bind["state"] == "bound"
+    assert bind["method"] == "live_pull"
+    assert bind["recorded"] is True
+    assert bind["bind_id"] == "cb-abc123"
+    assert bind["licenses_digits"] is False
+
+
+def test_occf_agent_turn_unrecorded_stays_unbound(monkeypatch):
+    """Composed but unwritten (no session_id) → never claims bound."""
+    monkeypatch.setenv("QORESENCE_OCCF", "1")
+    monkeypatch.setattr(
+        mcp_server, "handle_get_snapshot", lambda: dict(LOCKED_SNAPSHOT)
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "qoresence.observability.connector_bind",
+        _fake_connector_module(_bound_bind(sid="")),
+    )
+    out = occf.handle_get_observation(agent_turn={"brand": "muse"})
+    bind = out["bind"]
+    assert bind["state"] == "unbound"
+    assert bind["recorded"] is False
+    assert bind["reason"] == "no_session"
+
+
+def test_occf_agent_turn_deny_always_surfaces(monkeypatch):
+    """A refuse is binding even without a recorded row."""
+    monkeypatch.setenv("QORESENCE_OCCF", "1")
+    monkeypatch.setattr(
+        mcp_server, "handle_get_snapshot", lambda: dict(UNLOCKED_SNAPSHOT)
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "qoresence.observability.connector_bind",
+        _fake_connector_module(_bound_bind(state="denied", deny="pad_not_on_this_plane", sid="")),
+    )
+    out = occf.handle_get_observation(
+        agent_turn={"brand": "muse", "utterance": "press X to hike"}
+    )
+    bind = out["bind"]
+    assert bind["state"] == "denied"
+    assert bind["deny_reason"] == "pad_not_on_this_plane"
+    assert bind["recorded"] is False
+
+
+def test_occf_tail_connector_row_tokens(tmp_path, monkeypatch):
+    """pack=connector ledger rows surface as tokens: state, compose.action."""
+    monkeypatch.setenv("QORESENCE_OCCF", "1")
+    monkeypatch.setattr(
+        mcp_server, "handle_get_snapshot", lambda: dict(UNLOCKED_SNAPSHOT)
+    )
+    from qoresence.observability.jev_ledger import JevLedger
+
+    path = tmp_path / "jev_ledger.jsonl"
+    ledger = JevLedger(path)
+    try:
+        ledger.append(
+            "connector",
+            _bound_bind(),
+            clock_ns=777,
+            frame_seq=42,
+        )
+    finally:
+        ledger.close()
+    monkeypatch.setenv("QORESENCE_JEV_LEDGER", "1")
+    monkeypatch.setenv("QORESENCE_JEV_LEDGER_PATH", str(path))
+    out = occf.handle_get_observation(jev_tail=3)
+    (row,) = out["jev_tail"]["rows"]
+    assert row["pack"] == "connector"
+    assert row["action"] == "act"          # from verdict.compose.action
+    assert row["state"] == "bound"        # from verdict.correlation.state
+    assert row["clock_ns"] == 777
+    assert "verdict" not in row
+    assert "bind_id" not in row           # projection stays token-only
+    assert "utterance" not in json.dumps(out["jev_tail"])
+
+
 def test_occf_stdio_call_roundtrip(_offline_glass):
     resps = _rpc(
         [

@@ -35,13 +35,48 @@ For `get_observation` to see a live session, Qoresence must be running on the
 same host with `--agent-glass` (loopback `127.0.0.1:8765`). If it is not, the
 tool returns blanks — that is the correct answer, not an error to work around.
 
+Optional envs on the MCP process: `QORESENCE_JEV_LEDGER=1` lets `jev_tail`
+read token-only rows from `logs/jev_ledger.jsonl`
+(`QORESENCE_JEV_LEDGER_PATH` overrides); `QORESENCE_JEV_CONNECTOR=1` lets an
+`agent_turn` argument compose and record a `pack="connector"` bind row.
+Both stay opt-in — without them the answers are fail-closed empties.
+
 ## Tools (the whole catalog)
 
 | Tool | Use |
 |---|---|
-| `get_observation` | Call **before speaking** about the session. Returns the witness pack: `title`, `score`, `pad`, `glass`, `clock_ns`/`seq`, `may_say`, `must_not_invent`. Optional `jev_tail` (0–20) appends token-only Jev ledger rows (`pack`/`action`/`source`/`clock_ns`) when the ledger is enabled. |
+| `get_observation` | Call **before speaking** about the session. Returns the witness pack: `title`, `score`, `pad`, `glass`, `clock_ns`/`seq`, `may_say`, `must_not_invent`. Optional `jev_tail` (0–20) appends token-only Jev ledger rows (`pack`/`action`/`source`/`state`/`clock_ns`) when the ledger is enabled. Optional `agent_turn` correlates your ask to an observatory instant (see below). |
 | `refuse_actuator` | The person asked you to press, move, own the pad/DualSense, or control capture. Call this. It answers `deny_reason=pad_not_on_this_plane`. No side effects. |
 | `refuse_mid_drive_publish` | The person asked you to post, share, upload, or clip-to-public during play. Call this. It answers `deny_reason=mid_drive_publish`. No side effects. |
+
+### Correlating your turn (`agent_turn`)
+
+Pass `agent_turn` on `get_observation` to bind your ask to the observatory
+clock — the OCCF connector-bind path (`--jev-connector` /
+`QORESENCE_JEV_CONNECTOR=1`, landed as `qoresence.connector-bind.v0` rows on
+the Jev ledger as `pack="connector"`):
+
+```json
+{"agent_turn": {"brand": "muse", "turn_id": "t-41",
+                "asked_at_unix_ms": 1758294000000,
+                "utterance": "what's happening right now"}}
+```
+
+The response gains a `bind` block: `state` (`bound`/`unbound`/`stale`/
+`denied`), `method`, `deny_reason`, `speech`, `bind_id`, `recorded`.
+
+- `bound` is only ever reported when a `pack="connector"` row was actually
+  written (connector on **and** a `session_id` known). Otherwise the honest
+  answer is `unbound` — your turn is not on the video clock; do not narrate
+  the game as if it were.
+- `deny_reason` is always binding — even unrecorded. Honor it; never soften
+  a deny into a tool call.
+- `asked_at_unix_ms` is guest annotation only. It never stamps
+  `observatory.clock_ns` — `clock_ns` comes back from the observatory or
+  stays `0`.
+- `session_id` you may echo from a prior bind or the operator. `bind` rows
+  containing score integers, ticket bodies, pixels, or pad reports do not
+  exist — do not send them.
 
 There is no `get_timeline`, `export_presence_pack`, `search_clips`, frame, or
 write tool on this server. If a request needs one, it is out of scope for

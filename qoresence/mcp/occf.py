@@ -124,11 +124,21 @@ def _blank_observation() -> dict[str, Any]:
 
 
 def _tail_row(row: dict[str, Any]) -> dict[str, Any]:
-    """Token-only projection — pack/action/source + clock. No verdict body."""
+    """Token-only projection — pack/action/source + clock. No verdict body.
+
+    Connector rows (``pack="connector"``) carry ``compose.action`` /
+    ``correlation.state`` instead of ``verdict.action`` — same tokens.
+    """
     verdict = row.get("verdict") if isinstance(row.get("verdict"), dict) else {}
+    compose = verdict.get("compose") if isinstance(verdict.get("compose"), dict) else {}
+    corr = verdict.get("correlation") if isinstance(verdict.get("correlation"), dict) else {}
+    action = verdict.get("action")
+    if not isinstance(action, str):
+        action = compose.get("action")
     return {
         "pack": row.get("pack"),
-        "action": verdict.get("action") if isinstance(verdict.get("action"), str) else None,
+        "action": action if isinstance(action, str) else None,
+        "state": corr.get("state") if isinstance(corr.get("state"), str) else None,
         "source": verdict.get("source") if isinstance(verdict.get("source"), str) else None,
         "clock_ns": row.get("clock_ns"),
         "frame_seq": row.get("frame_seq"),
@@ -155,9 +165,108 @@ def _jev_tail(limit: int) -> dict[str, Any]:
     return {"enabled": True, "rows": rows}
 
 
-def handle_get_observation(jev_tail: int = 0) -> dict[str, Any]:
+def _observatory_from_pack(pack: dict[str, Any], snap: dict[str, Any]) -> dict[str, Any]:
+    """Observatory snapshot for a connector bind, built from the witness
+    read just served — one truth path, never the guest clock."""
+    title = pack.get("title") if isinstance(pack.get("title"), dict) else {}
+    score = pack.get("score") if isinstance(pack.get("score"), dict) else {}
+    pad = pack.get("pad") if isinstance(pack.get("pad"), dict) else {}
+    video = pack.get("video") if isinstance(pack.get("video"), dict) else {}
+    glass = pack.get("glass") if isinstance(pack.get("glass"), dict) else {}
+    session = snap.get("session") if isinstance(snap.get("session"), dict) else {}
+    has_frame = bool(video.get("has_frame"))
+    return {
+        "clock_ns": int(pack.get("clock_ns") or 0),
+        "frame_seq": video.get("frame_seq") or pad.get("frame_seq") or pack.get("seq"),
+        "title_lock": "locked" if title.get("claim") else "unlocked",
+        "board_lock": "locked" if score.get("claim") else "unlocked",
+        "last_confirm": "present" if score.get("claim") else "absent",
+        "coupling": "present" if pad.get("coupling") else "absent",
+        "climax_ready": False,
+        "live": has_frame,
+        "has_frame": has_frame,
+        "lan_opt_in": bool(glass.get("lan")),
+        "session_id": session.get("session_id"),
+    }
+
+
+def _closed_bind(reason: str) -> dict[str, Any]:
+    return {
+        "state": "unbound",
+        "method": "none",
+        "recorded": False,
+        "reason": reason,
+        "deny_reason": None,
+        "speech": None,
+        "bind_id": None,
+        "source": None,
+        "session_id": None,
+        "licenses_digits": False,
+    }
+
+
+def _bind_for_turn(
+    turn: dict[str, Any], pack: dict[str, Any], snap: dict[str, Any]
+) -> dict[str, Any]:
+    """Correlate one agent turn via OCCF slice-2 ``note_agent_turn``.
+
+    Soft dependency: when the connector module, engine, or env is absent
+    the turn is simply unbound — never a fabricated correlation. A state
+    of ``bound`` is only reported when a ``pack="connector"`` row was
+    actually written (engine on AND session_id present). Deny reasons
+    always surface — a refuse does not need a ledger row to be binding.
+    """
+    try:
+        from qoresence.observability.connector_bind import (
+            get_connector_bind,
+            make_connector_from_config,
+            note_agent_turn,
+        )
+    except Exception:
+        return _closed_bind("connector_unavailable")
+    try:
+        eng = get_connector_bind() or make_connector_from_config(None)
+        if eng is None:
+            return _closed_bind("connector_off")
+        obs = _observatory_from_pack(pack, snap if isinstance(snap, dict) else {})
+        sid = str(turn.get("session_id") or obs.get("session_id") or "")
+        bind = note_agent_turn(
+            dict(turn), observatory=obs, session_id=sid or None
+        )
+    except Exception:
+        return _closed_bind("bind_failed")
+    if not isinstance(bind, dict):
+        return _closed_bind("no_bind")
+    corr = bind.get("correlation") if isinstance(bind.get("correlation"), dict) else {}
+    comp = bind.get("compose") if isinstance(bind.get("compose"), dict) else {}
+    deny = comp.get("deny_reason")
+    recorded = bool(sid)  # note_judgment only writes when a session exists
+    state = str(corr.get("state") or "unbound")
+    return {
+        "state": state if recorded else ("denied" if deny else "unbound"),
+        "method": corr.get("method") if recorded else "none",
+        "recorded": recorded,
+        "reason": None if recorded else ("not_recorded" if deny else "no_session"),
+        "deny_reason": deny,
+        "speech": comp.get("speech"),
+        "bind_id": bind.get("bind_id"),
+        "source": bind.get("source"),
+        "session_id": bind.get("session_id") or sid or None,
+        "licenses_digits": False,
+    }
+
+
+def handle_get_observation(
+    jev_tail: int = 0, agent_turn: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Witness read: what the agent may say right now. Reuses the live
-    ``build_observation`` path — there is no second truth path."""
+    ``build_observation`` path — there is no second truth path.
+
+    ``agent_turn`` is optional guest annotation for the connector bind
+    (``--jev-connector`` / ``QORESENCE_JEV_CONNECTOR=1``). The answer is
+    fail-closed: without a real ``pack="connector"`` row the response
+    reports ``bind.state=unbound``.
+    """
     from qoresence.mcp import server as _glass
 
     out = _blank_observation()
@@ -179,6 +288,13 @@ def handle_get_observation(jev_tail: int = 0) -> dict[str, Any]:
     if int(jev_tail or 0) > 0:
         out["jev_tail"] = _jev_tail(int(jev_tail))
     _strip_score_digits(out)
+    if isinstance(agent_turn, dict) and agent_turn:
+        snap: dict[str, Any] = {}
+        try:
+            snap = _glass.handle_get_snapshot()
+        except Exception:
+            snap = {}
+        out["bind"] = _bind_for_turn(dict(agent_turn), out, snap)
     return scrub_licenses_digits(out)
 
 
@@ -242,7 +358,28 @@ TOOL_DEFS = [
                     "minimum": 0,
                     "maximum": 20,
                     "default": 0,
-                    "description": "Append last N qoresence.jev.ledger.v0 rows as {pack,action,source} tokens.",
+                    "description": "Append last N qoresence.jev.ledger.v0 rows as {pack,action,source,state} tokens.",
+                },
+                "agent_turn": {
+                    "type": "object",
+                    "description": (
+                        "Optional agent-turn annotation for the OCCF connector bind "
+                        "(--jev-connector / QORESENCE_JEV_CONNECTOR=1). Guest clock "
+                        "only — asked_at_unix_ms never stamps observatory clock_ns. "
+                        "Response reports bind.state; unbound when no pack=connector "
+                        "row exists."
+                    ),
+                    "properties": {
+                        "utterance": {"type": "string"},
+                        "brand": {"type": "string"},
+                        "turn_id": {"type": "string"},
+                        "asked_at_unix_ms": {"type": "integer"},
+                        "echo_frame_seq": {"type": "integer"},
+                        "chapter_id": {"type": "string"},
+                        "session_id": {"type": "string"},
+                        "tool": {"type": "string"},
+                    },
+                    "additionalProperties": True,
                 },
             },
             "additionalProperties": False,
@@ -269,7 +406,10 @@ TOOL_DEFS = [
 ]
 
 HANDLERS = {
-    "get_observation": lambda a: handle_get_observation(jev_tail=int(a.get("jev_tail", 0) or 0)),
+    "get_observation": lambda a: handle_get_observation(
+        jev_tail=int(a.get("jev_tail", 0) or 0),
+        agent_turn=a.get("agent_turn") if isinstance(a.get("agent_turn"), dict) else None,
+    ),
     "refuse_actuator": lambda a: handle_refuse_actuator(),
     "refuse_mid_drive_publish": lambda a: handle_refuse_mid_drive_publish(),
 }
