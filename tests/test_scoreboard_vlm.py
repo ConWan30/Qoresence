@@ -12,6 +12,21 @@ from qoresence.vision.scoreboard_extractor import FootballScoreboardExtractor, _
 from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee, infer_vlm_source
 
 
+def test_letterbox_for_vlm_pads_ultra_wide_scorebug():
+    import numpy as np
+
+    strip = np.zeros((115, 768, 3), dtype=np.uint8)
+    strip[:, :] = (18, 42, 18)
+    out = ScoreboardVlmReferee._letterbox_for_vlm(strip)
+    h, w = out.shape[:2]
+    assert w == 768
+    assert h >= int(768 / 3.2)
+    assert (w / float(h)) <= 3.2 + 1e-6
+    # Detector still sees the original strip; we do not pad before crop_misses.
+    raw = ScoreboardVlmReferee._letterbox_for_vlm(np.zeros((200, 400, 3), dtype=np.uint8))
+    assert raw.shape[0] == 200
+
+
 def test_vlm_parse_json_20_0():
     text = '{"home_score": 20, "away_score": 0, "home_left": true, "quarter": 3, "clock": "4:51", "down": 2, "yards_to_go": 10, "play_clock": 24, "paused": true}'
     out = ScoreboardVlmReferee._parse_json(text)
