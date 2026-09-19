@@ -9,7 +9,7 @@ function isTheaterPath(pathname: string): boolean {
   return pathname === "/deck.html" || pathname.endsWith("/deck.html") || pathname === "deck.html";
 }
 
-/** Clutch / chat moments. Clicking a clip only asks the HDMI stage to replay. */
+/** Play-by-play tape. Newest at top; the list scrolls so nothing is cropped by the viewport. */
 export function ClutchFeed() {
   const clutch = useTheater((s) => s.clutch);
   const moments = useTheater((s) => s.moments);
@@ -20,9 +20,6 @@ export function ClutchFeed() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const theaterPeek = isTheaterPath(pathname);
 
-  // Chrome motion license (fail-closed): a freshly landed row may play the
-  // one-shot brass/aperture land envelope only when the glass is licensed —
-  // widgetsOk + board lock + real scores. HOLD / unlocked = iron, no motion.
   const livePaint = useTheater((s) => s.livePaint);
   const sameSeq = useTheater((s) => s.sameSeq);
   const planeDim = useTheater((s) => s.planeDim);
@@ -50,7 +47,6 @@ export function ClutchFeed() {
   const listRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const top = moments[0];
-    // Do not animate rows already on the rail at first paint (page refresh).
     if (!initRef.current) {
       initRef.current = true;
       for (const m of moments) seenRef.current.add(m.key);
@@ -58,8 +54,6 @@ export function ClutchFeed() {
     }
     if (!top || seenRef.current.has(top.key)) return;
     for (const m of moments) seenRef.current.add(m.key);
-    // Presence: always scroll newest into view so the dock is readable.
-    // Glow/land flash stays fail-closed (licensed path only).
     listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     if (landLicensed && (top.path === "fast" || top.path === "confirm")) {
       const key = top.key;
@@ -70,110 +64,99 @@ export function ClutchFeed() {
       };
     }
   }, [moments, landLicensed]);
-  // Iron is instant: the moment the license drops, kill any in-flight row glow
-  // so HOLD can never keep a bloom on the plate (do not wait out the one-shot).
   useEffect(() => {
     if (!landLicensed) {
       setLandKey(null);
     }
   }, [landLicensed]);
 
-  // Theater uses a readable dock (not a 48px slit). HOME keeps full rail.
   const feedMode = theaterPeek ? "dock" : "rail";
   const landFlash = landLicensed && landKey && moments[0] && moments[0].key === landKey ? moments[0].path : undefined;
-  const shown = moments.slice(0, theaterPeek ? 6 : 8);
+  const shown = moments.slice(0, 32);
+  const heat = Math.round(Math.max(clutch.score, 0) * 100);
 
   return (
     <section
       data-feed={feedMode}
       data-land={landFlash || undefined}
-      className="clutch-feed holo-plate flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl p-3 sm:p-4"
+      className="clutch-feed holo-plate flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl"
     >
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-          Clutch feed
-        </h2>
-        <span className="font-mono text-[10px] tabular-nums text-subtle-foreground">
-          {String(moments.length).padStart(2, "0")}
-          <span className="mx-1.5">·</span>
-          <span className={live ? "text-live" : ""}>
-            {live ? clutch.label : "WATCHING"} · {clutch.score.toFixed(2)}
+      <header className="clutch-feed-head shrink-0 px-3 pt-3 pb-2 sm:px-3.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+            Play-by-play
+          </h2>
+          <span className="font-mono text-[10px] tabular-nums text-subtle-foreground">
+            {String(moments.length).padStart(2, "0")}
+            <span className="mx-1.5 text-border">/</span>
+            <span className={live ? "text-live" : ""}>
+              {live ? clutch.label : "quiet"}
+            </span>
           </span>
-        </span>
-      </div>
-      <div className="clutch-feed-meter h-1 w-full overflow-hidden rounded-full bg-bg">
-        <div
-          className="h-full bg-live transition-[width] duration-300"
-          style={{ width: `${Math.round(Math.max(clutch.score, 0) * 100)}%` }}
-        />
-      </div>
+        </div>
+        <div className="clutch-feed-meter mt-2 h-[3px] w-full overflow-hidden bg-bg" aria-hidden>
+          <div
+            className={cn("h-full transition-[width] duration-300", live ? "bg-live" : "bg-fast/70")}
+            style={{ width: `${heat}%` }}
+          />
+        </div>
+      </header>
+
       {note ? (
         <article
           data-match-agent="licensed"
           data-path={note.path}
           className={cn(
-            "flex min-h-14 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
-            note.path === "confirm"
-              ? "border border-live/40 bg-live/10 text-live"
-              : "border border-fast/45 bg-fast/10 text-fast",
+            "clutch-now mx-3 mb-2 shrink-0 px-3 py-2 sm:mx-3.5",
+            note.path === "confirm" ? "clutch-now-confirm" : "clutch-now-fast",
           )}
         >
-          <span className="min-w-0 truncate text-xs">{silenceScorePair(note.text, paintBlocked)}</span>
-          <span
-            data-path-chip={note.path}
-            className={cn(
-              "shrink-0 font-mono text-[10px] tracking-wide uppercase",
-              note.path === "confirm" ? "text-live" : "text-fast",
-            )}
-          >
-            path={note.path}
+          <span className="font-mono text-[9px] tracking-[0.16em] uppercase opacity-80">
+            now · path={note.path}
           </span>
+          <p className="mt-1 text-[13px] leading-snug text-fg">{silenceScorePair(note.text, paintBlocked)}</p>
         </article>
       ) : null}
+
       {moments.length === 0 && !note ? (
-        <p className="clutch-feed-empty text-xs text-muted-foreground">
-          Fast chat and score locks land here. Clip chips replay on the HDMI stage — LIVE kills the player.
+        <p className="clutch-feed-empty px-3 pb-3 text-[13px] leading-relaxed text-muted-foreground sm:px-3.5">
+          Snap, score lock, and fast chat land here as a tape. Scroll the tape — nothing is cropped.
         </p>
       ) : null}
+
       {shown.length > 0 ? (
-        <div ref={listRef} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-y-contain">
+        <div
+          ref={listRef}
+          className="clutch-feed-tape min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 pb-3 sm:px-2.5"
+          tabIndex={0}
+          aria-label="Play-by-play tape"
+        >
           {shown.map((e) => {
             const href = momentPlayHref(e, lastClipUrl);
             const landAttr = landLicensed && e.key === landKey ? e.path || undefined : undefined;
             const title = silenceScorePair(e.title, paintBlocked);
-            const className = cn(
-              "clutch-row flex min-h-14 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left shadow-[var(--shadow-border)]",
-              href ? "cursor-pointer hover:opacity-90" : "",
-              e.path === "confirm"
-                ? "border border-live/40 bg-live/10 text-live"
-                : e.path === "fast"
-                  ? "border border-fast/45 bg-fast/10 text-fast"
-                  : "bg-bg/50 text-fg",
-            );
+            const path = e.path || "none";
+            const className = cn("clutch-row clutch-beat", href ? "cursor-pointer" : "");
             const inner = (
               <>
-                <span className="min-w-0">
-                  <span className="block font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
-                    {e.path ? `[${e.path}]` : "moment"} · {e.clock}
-                    {href ? " · play" : ""}
+                <span className="clutch-beat-tick" data-path={path} aria-hidden />
+                <span className="clutch-beat-body">
+                  <span className="clutch-beat-meta">
+                    {e.path ? e.path : "moment"} · {e.clock}
+                    {href ? " · on picture" : ""}
                   </span>
-                  <span className="block truncate text-xs">
-                    {e.icon === "🎬" || href ? "🎬 " : ""}
+                  <span className="clutch-beat-title">
+                    {e.icon === "🎬" || href ? "▶ " : ""}
                     {title}
                   </span>
                 </span>
-                {href ? (
-                  <span className="shrink-0 font-mono text-[10px] tracking-wide text-live uppercase">
-                    on stage
-                  </span>
-                ) : null}
               </>
             );
             return href ? (
               <button
                 key={e.key}
                 type="button"
-                data-clutch-path={e.path || "none"}
+                data-clutch-path={path}
                 data-land={landAttr}
                 data-landed={landAttr ? "1" : undefined}
                 data-clip-href={href}
@@ -186,7 +169,7 @@ export function ClutchFeed() {
             ) : (
               <article
                 key={e.key}
-                data-clutch-path={e.path || "none"}
+                data-clutch-path={path}
                 data-land={landAttr}
                 data-landed={landAttr ? "1" : undefined}
                 className={className}

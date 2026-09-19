@@ -623,6 +623,30 @@ class ScoreboardVlmReferee:
                         reason,
                         inflight_age,
                     )
+                elif (
+                    has_scorebug
+                    and crop is not None
+                    and inflight_age > _PENDING_REMINT_SOFT_BUDGET_S
+                    and self._pending_remint is None
+                ):
+                    # Visible scorebug waiting behind a stale tick POST (~13s).
+                    # Queue so the soft-preempt below can drain a fresh crop.
+                    self._pending_remint = {
+                        "reason": reason if reason else "tick",
+                        "force": True,
+                        "game_state": gst,
+                        "game_profile": game_profile,
+                        "game_title": game_title,
+                        "source_stamp": dict(source),
+                        "frame": frame.copy(),
+                    }
+                    self._pending_remint_count += 1
+                    log.info(
+                        "scoreboard VLM pending remint "
+                        "(reason=%s inflight_age=%.1fs scorebug=1)",
+                        reason or "tick",
+                        inflight_age,
+                    )
                 # Soft preempt: pending remint waiting on a long POST → abandon
                 # stale generation so a fresh crop can mint (blank digits otherwise).
                 if (

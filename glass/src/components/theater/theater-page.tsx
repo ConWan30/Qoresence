@@ -25,7 +25,7 @@ export function TheaterPage() {
           </div>
         </div>
 
-        <aside className="flex min-h-0 w-full min-w-[18rem] max-w-[21rem] flex-col gap-3 overflow-hidden sm:gap-4">
+        <aside className="flex min-h-0 w-full min-w-[18rem] max-w-[22rem] flex-col gap-2 overflow-hidden sm:gap-3">
           <div className="shrink-0">
             <SituationCard />
           </div>
