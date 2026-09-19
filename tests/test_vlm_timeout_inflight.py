@@ -716,18 +716,32 @@ def test_pending_remint_soft_preempts_stale_inflight(monkeypatch):
                 "away_score": 0,
                 "home_team": "HOME",
                 "away_team": "AWAY",
+                "left_team": "HOME",
+                "right_team": "AWAY",
                 "quarter": 1,
+                "clock_seconds": 420,
             }
         return {
             "home_score": 14,
             "away_score": 7,
             "home_team": "HOME",
             "away_team": "AWAY",
+            "left_team": "HOME",
+            "right_team": "AWAY",
             "quarter": 2,
+            "clock_seconds": 300,
         }
 
     monkeypatch.setattr(ref, "_call_vlm", _slow_then_fast)
     monkeypatch.setattr(ref, "_crop", lambda *a, **k: _licensed_confirm_crop())
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm.crop_misses_scorebug",
+        lambda crop: None,
+    )
+    monkeypatch.setattr(
+        "qoresence.graphs.look_gate.permit_confirm_look",
+        lambda **k: True,
+    )
     frame = licensed_scorebug_frame()
 
     ref.schedule(
