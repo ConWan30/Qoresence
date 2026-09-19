@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.jev_ledger import append_judgment
 from qoresence.observability.typesafe_ask import (
     DEFAULT_TIMEOUT_S,
     system_one,
@@ -380,6 +381,7 @@ class ScorePlausibility:
                 log.debug("score_plausibility tick failed: %s", e)
 
     def _write_jsonl(self, row: dict[str, Any]) -> None:
+        append_judgment("score_plausibility", row)
         handle = self._jsonl_handle
         if handle is None:
             return

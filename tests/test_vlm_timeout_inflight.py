@@ -241,8 +241,16 @@ def test_stats_exposes_timeout_inflight_skip_counters():
 
 
 def test_scoreboard_vlm_slot_busy_clears_inflight_without_long_wait(monkeypatch):
-    """Confirm path must not sit inflight for 14s while waiting on Quicksilver."""
+    """Confirm path must not sit inflight for 14s while waiting on Quicksilver.
+
+    #243 raised the default slot wait to 8s so confirm can POST after chat/visual
+    yield. This test still proves the *skip-quickly* path by pinning wait to 0.05s.
+    """
     import threading
+
+    import qoresence.vision.scoreboard_vlm as sbv
+
+    monkeypatch.setattr(sbv, "_QUICKSILVER_SLOT_WAIT_S", 0.05)
 
     ref = ScoreboardVlmReferee()
     ref.enabled = True
@@ -264,7 +272,7 @@ def test_scoreboard_vlm_slot_busy_clears_inflight_without_long_wait(monkeypatch)
     assert ref._call_vlm(crop) is None
     elapsed = time.monotonic() - t0
     assert elapsed < 0.25, "slot busy must skip quickly, not block on 14s acquire"
-    assert _QUICKSILVER_SLOT_WAIT_S == 0.05
+    assert sbv._QUICKSILVER_SLOT_WAIT_S == 0.05
     gate.set()
     t.join(1.0)
 

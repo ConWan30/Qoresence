@@ -417,10 +417,15 @@ def test_run_attaches_jev_verdict_to_replay_row(tmp_path, monkeypatch):
     )
 
     frame = np.zeros((64, 64, 3), dtype=np.uint8)
-    base = time.monotonic_ns()
+    # Stamp each schedule with fresh monotonic_ns so CI latency cannot
+    # push captured_ns past CONFIRM_DIGIT_MAX_AGE_NS (8s) -> stale.
     ref.schedule(
         frame, force=True, reason="tick",
-        source_stamp={"seq": 1, "clock_ns": base, "crop_hash": "c1"},
+        source_stamp={
+            "seq": 1,
+            "clock_ns": time.monotonic_ns(),
+            "crop_hash": "c1",
+        },
         game_state="gameplay", game_profile="cfb_27",
     )
     deadline = time.time() + 3.0
@@ -432,7 +437,7 @@ def test_run_attaches_jev_verdict_to_replay_row(tmp_path, monkeypatch):
         frame, force=True, reason="score_changed",
         source_stamp={
             "seq": 2,
-            "clock_ns": base + 1_000_000,
+            "clock_ns": time.monotonic_ns(),
             "crop_hash": "c2",
         },
         game_state="gameplay", game_profile="cfb_27",

@@ -7,12 +7,33 @@ from qoresence.observability.jev_conductor import (
     get_jev_conductor,
     make_jev_from_config,
 )
+from qoresence.observability.jev_ledger import (
+    JevLedger,
+    append_judgment,
+    configure_jev_ledger,
+    ledger_enabled,
+    note_judgment,
+    read_judgments,
+    reset_jev_ledger,
+)
+from qoresence.observability.join_picker import (
+    JoinPickerSentinel,
+    compose_join_verdict,
+    get_join_picker,
+    make_join_picker_from_config,
+)
 from qoresence.observability.latency_stats import (
     LatencyStats,
     get_latency_stats,
     latency_span,
     record_latency,
     reset_latency_stats,
+)
+from qoresence.observability.mint_verifier import (
+    MintVerifierSentinel,
+    compose_mint_verdict,
+    get_mint_verifier,
+    make_mint_verifier_from_config,
 )
 from qoresence.observability.noul_observatory import (
     NoulObservatory,
@@ -56,18 +77,6 @@ from qoresence.observability.ticket_glass import (
     get_ticket_glass,
     make_ticket_glass_from_config,
 )
-from qoresence.observability.join_picker import (
-    JoinPickerSentinel,
-    compose_join_verdict,
-    get_join_picker,
-    make_join_picker_from_config,
-)
-from qoresence.observability.mint_verifier import (
-    MintVerifierSentinel,
-    compose_mint_verdict,
-    get_mint_verifier,
-    make_mint_verifier_from_config,
-)
 from qoresence.observability.ticket_stale import (
     TicketStaleSentinel,
     compose_stale_verdict,
@@ -93,6 +102,13 @@ __all__ = [
     "compose_conductor",
     "get_jev_conductor",
     "make_jev_from_config",
+    "JevLedger",
+    "append_judgment",
+    "configure_jev_ledger",
+    "ledger_enabled",
+    "note_judgment",
+    "read_judgments",
+    "reset_jev_ledger",
     "gamer_honesty_speech",
     "inspect_envelope",
     "PressLabeler",

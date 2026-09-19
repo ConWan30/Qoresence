@@ -31,6 +31,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.jev_ledger import append_judgment
 from qoresence.observability.typesafe_ask import (
     DEFAULT_ASK_INTERVAL_S,
     DEFAULT_TIMEOUT_S,
@@ -581,6 +582,7 @@ class NoulObservatory:
         }
 
     def _write_jsonl(self, row: dict[str, Any]) -> None:
+        append_judgment("noul", row)
         handle = self._jsonl_handle
         if handle is None:
             return

@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.jev_ledger import append_judgment
 from qoresence.observability.mint_verifier_questions import (
     ACTIONS,
     BLANK_HUD,
@@ -532,15 +533,16 @@ class MintVerifierSentinel:
                 log.debug("mint_verifier tick failed: %s", e)
 
     def _write_jsonl(self, row: dict[str, Any]) -> None:
+        safe = {
+            k: v
+            for k, v in row.items()
+            if k not in {"ticket_id", "confirm_ticket_id"}
+        }
+        append_judgment("mint_verifier", safe)
         handle = self._jsonl_handle
         if handle is None:
             return
         try:
-            safe = {
-                k: v
-                for k, v in row.items()
-                if k not in {"ticket_id", "confirm_ticket_id"}
-            }
             handle.write(json.dumps(safe, separators=(",", ":"), default=str) + "\n")
             handle.flush()
         except Exception:

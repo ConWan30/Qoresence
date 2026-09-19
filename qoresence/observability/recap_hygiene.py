@@ -12,6 +12,7 @@ import os
 import re
 from typing import Any
 
+from qoresence.observability.jev_ledger import note_judgment
 from qoresence.observability.typesafe_ask import (
     DEFAULT_TIMEOUT_S,
     system_one,
@@ -235,6 +236,7 @@ def inspect_envelope(envelope: dict[str, Any], *, ask_fn: Any = None) -> dict[st
     ):
         out = compose_hygiene(envelope)
         out["source"] = "preflight"
+        note_judgment("recap_hygiene", out)
         return out
     answers = None
     if ask_fn is not None:
@@ -252,6 +254,7 @@ def inspect_envelope(envelope: dict[str, Any], *, ask_fn: Any = None) -> dict[st
         issue_kind=answers.get("issue_kind"),
     )
     out["source"] = answers.get("source")
+    note_judgment("recap_hygiene", out)
     return out
 
 

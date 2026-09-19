@@ -255,6 +255,24 @@ class QoresenceApp:
         except Exception as e:
             log.debug("Noul observatory not started: %s", e)
 
+        # Unified Jev judgment ledger (default OFF; --jev-ledger /
+        # QORESENCE_JEV_LEDGER=1, or under the --jev umbrella). Append-only
+        # observation sink; opt-in packs dual-write through it. Configured
+        # before the packs so their first verdict can land.
+        try:
+            from qoresence.observability.jev_ledger import configure_jev_ledger
+
+            _ledger_cfg = getattr(config, "jev_ledger", None)
+            configure_jev_ledger(
+                enabled=bool(
+                    getattr(_ledger_cfg, "enabled", False)
+                    or getattr(getattr(config, "jev", None), "enabled", False)
+                ),
+                path=getattr(_ledger_cfg, "path", None),
+            )
+        except Exception as e:
+            log.debug("Jev ledger not configured: %s", e)
+
         # Jev conductor (default OFF; env QORESENCE_JEV=1). Text-only; never HDMI.
         self.jev_conductor = None
         try:
@@ -1581,6 +1599,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             prev if prev is not None else SyncGlassConfig(),
             enabled=True,
         )
+    if getattr(args, "jev_ledger", False):
+        from qoresence.core.unified_config import JevLedgerConfig
+
+        prev = getattr(config, "jev_ledger", None)
+        config.jev_ledger = replace(
+            prev if prev is not None else JevLedgerConfig(),
+            enabled=True,
+        )
     if getattr(args, "learning_edge", False) or getattr(config, "learning_edge", False):
         config.learning_edge = True
         try:
@@ -1914,6 +1940,15 @@ def main():
         "this. Observation only — never licenses score digits; never applies "
         "lag_center recenter or capture fps. DualSense USB=laptop observe, "
         "BT=PS5 play.",
+    )
+    parser.add_argument(
+        "--jev-ledger",
+        action="store_true",
+        help="Unified Jev judgment ledger: one append-only JSONL "
+        "(qoresence.jev.ledger.v0, logs/jev_ledger.jsonl) that opt-in packs "
+        "dual-write into. Default OFF. Also QORESENCE_JEV_LEDGER=1 (or under "
+        "--jev). --play does not enable this. Observation only — never "
+        "licenses score digits.",
     )
     parser.add_argument(
         "--haptic-probe",

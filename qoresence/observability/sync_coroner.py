@@ -26,6 +26,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.jev_ledger import append_judgment
 from qoresence.observability.typesafe_ask import (
     DEFAULT_TIMEOUT_S,
     system_one,
@@ -431,6 +432,7 @@ class SyncCoroner:
                 log.debug("sync_coroner tick failed: %s", e)
 
     def _write_jsonl(self, row: dict[str, Any]) -> None:
+        append_judgment("sync_coroner", row)
         handle = self._jsonl_handle
         if handle is None:
             return

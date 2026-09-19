@@ -25,6 +25,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.jev_ledger import append_judgment
 from qoresence.observability.join_picker_questions import (
     ACT_KINDS,
     ACTIONS,
@@ -452,6 +453,7 @@ class JoinPickerSentinel:
                 log.debug("join_picker tick failed: %s", e)
 
     def _write_jsonl(self, row: dict[str, Any]) -> None:
+        append_judgment("join_picker", row)
         handle = self._jsonl_handle
         if handle is None:
             return

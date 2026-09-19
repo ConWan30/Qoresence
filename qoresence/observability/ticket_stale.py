@@ -31,6 +31,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.jev_ledger import append_judgment
 from qoresence.observability.ticket_stale_questions import (
     CONF_ACT,
     CONF_SOFT,
@@ -438,6 +439,7 @@ class TicketStaleSentinel:
                 log.debug("ticket_stale tick failed: %s", e)
 
     def _write_jsonl(self, row: dict[str, Any]) -> None:
+        append_judgment("ticket_stale", row)
         handle = self._jsonl_handle
         if handle is None:
             return

@@ -33,6 +33,7 @@ from collections import deque
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.jev_ledger import append_judgment
 from qoresence.observability.sync_glass_questions import (
     ACTIONS,
     BIND_HEALTHY_ACT,
@@ -922,6 +923,7 @@ class SyncGlassSentinel:
                 log.debug("sync_glass tick failed: %s", e)
 
     def _write_jsonl(self, row: dict[str, Any]) -> None:
+        append_judgment("sync_glass", row)
         handle = self._jsonl_handle
         if handle is None:
             return
