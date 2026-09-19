@@ -613,6 +613,67 @@ def test_tick_while_inflight_still_skips_without_pending(monkeypatch):
     _wait_inflight_clear(ref)
 
 
+def test_scorebug_tick_soft_preempts_stale_inflight(monkeypatch):
+    """A visible scorebug tick past the soft budget remints without score_changed."""
+    ref = ScoreboardVlmReferee()
+    ref.enabled = True
+    ref._api_key = "test_key"
+    calls: list[int] = []
+    first_entered = threading.Event()
+    release_first = threading.Event()
+
+    def _slow_then_fast(_crop):
+        calls.append(1)
+        if len(calls) == 1:
+            first_entered.set()
+            release_first.wait(timeout=20.0)
+            return {
+                "home_score": 6,
+                "away_score": 14,
+                "home_team": "HOME",
+                "away_team": "AWAY",
+                "quarter": 2,
+            }
+        return {
+            "home_score": 13,
+            "away_score": 14,
+            "home_team": "HOME",
+            "away_team": "AWAY",
+            "quarter": 2,
+        }
+
+    monkeypatch.setattr(ref, "_call_vlm", _slow_then_fast)
+    monkeypatch.setattr(ref, "_crop", lambda *a, **k: _licensed_confirm_crop())
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm.crop_misses_scorebug",
+        lambda crop: None,
+    )
+    monkeypatch.setattr(
+        "qoresence.graphs.look_gate.permit_confirm_look",
+        lambda **k: True,
+    )
+    frame = licensed_scorebug_frame()
+
+    try:
+        ref.schedule(frame, force=True, reason="tick", game_state="gameplay", game_profile="cfb_27")
+        assert first_entered.wait(timeout=2.0)
+        with ref._lock:
+            ref._inflight_since = time.time() - (_PENDING_REMINT_SOFT_BUDGET_S + 0.25)
+
+        t0 = time.monotonic()
+        ref.schedule(frame, force=False, reason="tick", game_state="gameplay", game_profile="cfb_27")
+        deadline = time.time() + 2.0
+        while time.time() < deadline and len(calls) < 2:
+            time.sleep(0.02)
+        elapsed = time.monotonic() - t0
+        assert len(calls) >= 2, f"expected scorebug tick remint, calls={len(calls)}"
+        assert elapsed < 2.0
+    finally:
+        release_first.set()
+    _wait_inflight_clear(ref, timeout_s=3.0)
+    assert len(calls) >= 2
+
+
 def test_pending_remint_soft_preempts_stale_inflight(monkeypatch):
     """pending remint + inflight past soft budget remints without waiting HTTP/watchdog.
 

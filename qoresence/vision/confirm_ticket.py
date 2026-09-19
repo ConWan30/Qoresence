@@ -79,7 +79,11 @@ class ConfirmTicket:
     observed_crop_hash: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        out = asdict(self)
+        # Glass pickBoard reads last_confirm.score_vlm_locked. Licensed
+        # confirms are locks; omit this and Theater stays □–□.
+        out["score_vlm_locked"] = ticket_is_licensed_lock(self)
+        return out
 
 
 def ticket_is_licensed_lock(ticket: ConfirmTicket | None) -> bool:
