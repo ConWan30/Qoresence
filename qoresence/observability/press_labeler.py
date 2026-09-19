@@ -46,6 +46,15 @@ log = logging.getLogger(__name__)
 
 PLANE = "qoresence-observation"
 
+def _note_ledger(pack: str, verdict: dict, **kw) -> None:
+    try:
+        from qoresence.agents.society.judgment_ledger import note_pack_verdict
+
+        note_pack_verdict(pack, verdict, **kw)
+    except Exception:
+        pass
+
+
 OUTCOMES = ("labeled", "unlabeled", "eaten")
 CONFLICT_PICKS = ("picture", "pad", "lag", "unresolvable")
 NO_MATCH = "no_match"
@@ -650,6 +659,12 @@ class PressLabeler:
             self._last_verdict = slim
             self._recent_verdicts.append(verdict)
         self._write_jsonl("press_verdict", verdict)
+        _note_ledger(
+            "press",
+            verdict,
+            clock_ns=verdict.get("clock_ns"),
+            frame_seq=verdict.get("frame_seq"),
+        )
 
     def drain_verdicts(self) -> list[dict[str, Any]]:
         """Pop completed verdicts so a later wire can carry them."""

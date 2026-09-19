@@ -52,3 +52,20 @@ $env:QORESENCE_AGENT_SOCIETY = "1"
 | A2A | Sparse scene↔chat negotiate under policy |
 | Agent Society | Leftover opt-in stub — not the product path |
 | AgentGlass/MCP | Tool socket for external IDEs/agents |
+
+## Judgment ledger v0 (Society write sink)
+
+Shared JSONL sink for the seven existing TypeSafe / Jev packs
+(`conductor`, `noul`, `press`, `recap`, `coroner`, `ticket_stale`,
+`score_plausibility`). Soft-act compose lives in Python OCCF
+(`qoresence/agents/society/judgment_ledger.py`). Schema
+`qoresence.jev.ledger.v0`.
+
+Bind row (frozen): agent turn ↔ `clock_ns` / `frame_seq` (or 0 if unbound);
+bind state `bound|stale|unbound|denied`; tool + speech fields only.
+`licenses_digits=false` forever. No score integers, tickets, or pixels on
+the row. Missing clock fail-closes to unbound/denied — never invent a stamp.
+
+`--jev-connector` / connector pack is **not** this module. Glass / join /
+mint widen `PACKS` later. Operator HOLD before merge.
+

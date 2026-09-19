@@ -35,6 +35,15 @@ log = logging.getLogger(__name__)
 
 PLANE = "qoresence-observation"
 
+def _note_ledger(pack: str, verdict: dict, **kw) -> None:
+    try:
+        from qoresence.agents.society.judgment_ledger import note_pack_verdict
+
+        note_pack_verdict(pack, verdict, **kw)
+    except Exception:
+        pass
+
+
 FAST_ACTS = (
     "silent",
     "chat_red_zone",
@@ -365,6 +374,13 @@ class JevConductor:
                 self._last = pre
                 self._last_ns = time.monotonic_ns()
                 self._asked += 1
+            _note_ledger(
+                "conductor",
+                pre,
+                clock_ns=0,
+                frame_seq=0,
+                deny_reason=str(pre.get("reason") or "preflight"),
+            )
             return pre
         answers = None
         if self._ask_fn is not None:
@@ -395,6 +411,22 @@ class JevConductor:
             self._last = composed
             self._last_ns = time.monotonic_ns()
             self._asked += 1
+        ev_clock = state.get("clock_ns") if isinstance(state, dict) else None
+        if ev_clock is None and isinstance(ev, dict):
+            ev_clock = ev.get("clock_ns")
+        ev_seq = None
+        if isinstance(ev, dict):
+            ev_seq = ev.get("frame_seq")
+        deny = None
+        if composed.get("source") == "preflight":
+            deny = str(composed.get("reason") or "preflight")
+        _note_ledger(
+            "conductor",
+            composed,
+            clock_ns=ev_clock,
+            frame_seq=ev_seq,
+            deny_reason=deny,
+        )
         return composed
 
     def last(self) -> dict[str, Any]:

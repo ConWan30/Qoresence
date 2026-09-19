@@ -26,6 +26,15 @@ from qoresence.sync.digit_integrity import implausible_transition_reason
 
 log = logging.getLogger(__name__)
 
+def _note_ledger(pack: str, verdict: dict, **kw) -> None:
+    try:
+        from qoresence.agents.society.judgment_ledger import note_pack_verdict
+
+        note_pack_verdict(pack, verdict, **kw)
+    except Exception:
+        pass
+
+
 PLANE = "qoresence-observation"
 
 # Noul has no separate confidence; the probability itself is the gate.
@@ -376,6 +385,12 @@ class ScorePlausibility:
                         if self._veto_key is not None and self._veto_key != key:
                             self._veto_key = None
                 self._write_jsonl(verdict)
+                _note_ledger(
+                    "score_plausibility",
+                    verdict,
+                    clock_ns=verdict.get("clock_ns"),
+                    frame_seq=verdict.get("frame_seq"),
+                )
             except Exception as e:
                 log.debug("score_plausibility tick failed: %s", e)
 
