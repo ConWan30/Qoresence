@@ -54,8 +54,11 @@ _HOLD_HTTP = frozenset({400, 401, 402})
 _QUOTA_BACKOFF_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_429_COOLDOWN", "60.0"))
 # Quicksilver Read timeout — shorter than prior 14s; env override wins.
 _HTTP_TIMEOUT_S = float(os.environ.get("QORESENCE_SCOREBOARD_VLM_HTTP_TIMEOUT", "14"))
-# Slot wait only — same yield as chat/visual. HTTP read timeout stays separate.
-_QUICKSILVER_SLOT_WAIT_S = 0.05
+# Confirm path waits for chat/visual to drop the slot. 0.05s yield meant
+# scoreboard never POSTed (empty HTTP never ran; last_http_status stayed None).
+_QUICKSILVER_SLOT_WAIT_S = float(
+    os.environ.get("QORESENCE_SCOREBOARD_VLM_SLOT_WAIT", "8.0")
+)
 # SEQGATE fresh window is 8s; VLM POST can run ~14s. Heartbeat mid-flight only.
 _CONFIRM_HEARTBEAT_INTERVAL_S = 3.0
 _INFLIGHT_WATCHDOG_S = _HTTP_TIMEOUT_S + 2.0
@@ -626,11 +629,12 @@ class ScoreboardVlmReferee:
                 elif (
                     has_scorebug
                     and crop is not None
-                    and inflight_age > _PENDING_REMINT_SOFT_BUDGET_S
                     and self._pending_remint is None
                 ):
-                    # Visible scorebug waiting behind a stale tick POST (~13s).
-                    # Queue so the soft-preempt below can drain a fresh crop.
+                    # Visible scorebug while a POST owns the slot — queue a
+                    # remint and wait for that POST to finish. Do not
+                    # soft-preempt: that abandons the waiter still holding
+                    # Quicksilver and the next look never POSTs.
                     self._pending_remint = {
                         "reason": reason if reason else "tick",
                         "force": True,
@@ -643,15 +647,19 @@ class ScoreboardVlmReferee:
                     self._pending_remint_count += 1
                     log.info(
                         "scoreboard VLM pending remint "
-                        "(reason=%s inflight_age=%.1fs scorebug=1)",
+                        "(reason=%s inflight_age=%.1fs scorebug=1 wait_slot)",
                         reason or "tick",
                         inflight_age,
                     )
-                # Soft preempt: pending remint waiting on a long POST → abandon
-                # stale generation so a fresh crop can mint (blank digits otherwise).
+                    self._skip_inflight_count += 1
+                    return
+                # Soft preempt: force/score_changed remint waiting on a long POST.
                 if (
                     self._pending_remint is not None
                     and inflight_age > _PENDING_REMINT_SOFT_BUDGET_S
+                    and bool((self._pending_remint or {}).get("force"))
+                    and str((self._pending_remint or {}).get("reason") or "")
+                    in {"score_changed", "menu_exit", "first_lock"}
                 ):
                     self._request_generation = (
                         getattr(self, "_request_generation", 0) + 1
@@ -832,6 +840,10 @@ class ScoreboardVlmReferee:
                     )
                 else:
                     log.info("scoreboard VLM → null parse (reason=%s)", reason)
+                    with self._lock:
+                        # Slot-busy / empty 200 / parse fail: do not sit the
+                        # full 6s gameplay interval. Retry in ~1.5s.
+                        self._last_call = time.time() - max(0.8, _GAMEPLAY_INTERVAL_S) + 1.5
             except Exception as e:
                 if self._is_read_timeout(e):
                     self._on_read_timeout()
@@ -873,6 +885,33 @@ class ScoreboardVlmReferee:
                 interpolation=cv2.INTER_CUBIC,
             )
         return out
+
+    @staticmethod
+    def _letterbox_for_vlm(crop_bgr: np.ndarray) -> np.ndarray:
+        """Pad an ultra-wide scorebug so Gemini does not return empty HTTP 200.
+
+        Live CFB strips (~768×115, aspect ~6.7) were readable to humans and
+        crop_misses_scorebug, but Quicksilver json_object replies were empty.
+        Detector still sees the raw strip; only the JPEG we POST is padded.
+        """
+        h, w = crop_bgr.shape[:2]
+        if h < 8 or w < 8:
+            return crop_bgr
+        if (w / float(h)) <= 3.2:
+            return crop_bgr
+        target_h = max(h, int(round(w / 3.0)))
+        pad = target_h - h
+        top = pad // 2
+        bot = pad - top
+        return cv2.copyMakeBorder(
+            crop_bgr,
+            top,
+            bot,
+            0,
+            0,
+            cv2.BORDER_CONSTANT,
+            value=(18, 42, 18),
+        )
 
     @classmethod
     def _is_cfb_context(
@@ -964,15 +1003,17 @@ class ScoreboardVlmReferee:
         with self._lock:
             self._last_crop_refuse = refuse
             self._last_crop_kind = kind
+        send = self._letterbox_for_vlm(crop_bgr)
         try:
             import pathlib
 
             logs_dir = pathlib.Path("logs")
             logs_dir.mkdir(exist_ok=True)
             cv2.imwrite(str(logs_dir / "vlm_last_crop.jpg"), crop_bgr)
+            cv2.imwrite(str(logs_dir / "vlm_last_crop_vlm.jpg"), send)
         except Exception:
             pass
-        ok, buf = cv2.imencode(".jpg", crop_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+        ok, buf = cv2.imencode(".jpg", send, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
         if not ok:
             return None
         b64 = base64.b64encode(buf.tobytes()).decode("ascii")

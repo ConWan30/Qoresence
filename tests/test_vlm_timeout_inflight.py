@@ -582,7 +582,7 @@ def test_score_changed_queues_pending_remint_while_inflight(monkeypatch):
 
 
 def test_tick_while_inflight_still_skips_without_pending(monkeypatch):
-    """Ordinary ticks still skip while inflight (no pending remint)."""
+    """Non-scorebug ticks still skip while inflight (no pending remint)."""
     ref = ScoreboardVlmReferee()
     ref.enabled = True
     ref._api_key = "test_key"
@@ -594,6 +594,10 @@ def test_tick_while_inflight_still_skips_without_pending(monkeypatch):
 
     monkeypatch.setattr(ref, "_call_vlm", _slow_vlm)
     monkeypatch.setattr(ref, "_crop", lambda *a, **k: _licensed_confirm_crop())
+    monkeypatch.setattr(
+        "qoresence.vision.scoreboard_vlm.crop_misses_scorebug",
+        lambda crop: "no_scorebug_sides",
+    )
     frame = licensed_scorebug_frame()
 
     ref.schedule(frame, force=True, reason="tick", game_state="gameplay", game_profile="cfb_27")
@@ -613,8 +617,8 @@ def test_tick_while_inflight_still_skips_without_pending(monkeypatch):
     _wait_inflight_clear(ref)
 
 
-def test_scorebug_tick_soft_preempts_stale_inflight(monkeypatch):
-    """A visible scorebug tick past the soft budget remints without score_changed."""
+def test_scorebug_tick_queues_remint_until_inflight_clears(monkeypatch):
+    """A visible scorebug tick queues remint; drain waits for the POST to drop the slot."""
     ref = ScoreboardVlmReferee()
     ref.enabled = True
     ref._api_key = "test_key"
@@ -660,16 +664,16 @@ def test_scorebug_tick_soft_preempts_stale_inflight(monkeypatch):
         with ref._lock:
             ref._inflight_since = time.time() - (_PENDING_REMINT_SOFT_BUDGET_S + 0.25)
 
-        t0 = time.monotonic()
         ref.schedule(frame, force=False, reason="tick", game_state="gameplay", game_profile="cfb_27")
-        deadline = time.time() + 2.0
-        while time.time() < deadline and len(calls) < 2:
-            time.sleep(0.02)
-        elapsed = time.monotonic() - t0
-        assert len(calls) >= 2, f"expected scorebug tick remint, calls={len(calls)}"
-        assert elapsed < 2.0
+        with ref._lock:
+            assert ref._pending_remint is not None
+            assert ref._inflight is True
+        assert len(calls) == 1
     finally:
         release_first.set()
+    deadline = time.time() + 4.0
+    while time.time() < deadline and len(calls) < 2:
+        time.sleep(0.02)
     _wait_inflight_clear(ref, timeout_s=3.0)
     assert len(calls) >= 2
 
