@@ -1204,6 +1204,15 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception:
             body["mint_verifier"] = {"enabled": False}
         try:
+            from qoresence.observability.join_picker import get_join_picker
+
+            _jp = get_join_picker()
+            body["join_picker"] = (
+                _jp.stats() if _jp is not None else {"enabled": False}
+            )
+        except Exception:
+            body["join_picker"] = {"enabled": False}
+        try:
             from qoresence.observability.ticket_glass import get_ticket_glass
 
             _tg = get_ticket_glass()
@@ -3150,6 +3159,15 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
                 except Exception:
                     health["mint_verifier"] = {"enabled": False}
+                try:
+                    from qoresence.observability.join_picker import get_join_picker
+
+                    _jp = get_join_picker()
+                    health["join_picker"] = (
+                        _jp.stats() if _jp is not None else {"enabled": False}
+                    )
+                except Exception:
+                    health["join_picker"] = {"enabled": False}
                 try:
                     from qoresence.observability.ticket_glass import get_ticket_glass
 

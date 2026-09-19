@@ -334,6 +334,21 @@ class QoresenceApp:
         except Exception as e:
             log.debug("MintVerifier sentinel not started: %s", e)
 
+        # Jev join picker — select hid_seq_line slot for pad↔picture join.
+        # Timer worker only; advisory in v0, never writes PLL or licenses digits.
+        self.join_picker = None
+        try:
+            from qoresence.observability.join_picker import (
+                make_join_picker_from_config,
+            )
+
+            self.join_picker = make_join_picker_from_config(
+                getattr(config, "join_picker", None),
+                jev_enabled=bool(getattr(getattr(config, "jev", None), "enabled", False)),
+            )
+        except Exception as e:
+            log.debug("JoinPicker sentinel not started: %s", e)
+
         # TicketGlass v0 — live opt-in glyphs (lock/tension/cut). Enqueue-only
         # subscriber + timer worker; veto-only paint block, never licenses digits.
         self.ticket_glass = None
@@ -1542,6 +1557,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             prev if prev is not None else MintVerifierConfig(),
             enabled=True,
         )
+    if getattr(args, "join_picker", False):
+        from qoresence.core.unified_config import JoinPickerConfig
+
+        prev = getattr(config, "join_picker", None)
+        config.join_picker = replace(
+            prev if prev is not None else JoinPickerConfig(),
+            enabled=True,
+        )
     if getattr(args, "ticket_glass", False):
         from qoresence.core.unified_config import TicketGlassConfig
 
@@ -1842,8 +1865,8 @@ def main():
         action="store_true",
         help="TypeSafe Jev conductor: select ClutchBot/MatchAgent templates "
         "(text-only; cannot see HDMI). Also starts SyncCoroner, "
-        "ScorePlausibility, press labeler, TicketGlass, SyncGlass, and "
-        "mint verifier. Default OFF. Also "
+        "ScorePlausibility, press labeler, TicketGlass, SyncGlass, "
+        "mint verifier, and join picker. Default OFF. Also "
         "QORESENCE_JEV=1. --play does not enable this. Never licenses "
         "score digits. Key: TYPESAFE_API_KEY or .secrets/typesafe.key.",
     )
@@ -1863,6 +1886,15 @@ def main():
         "licensed ConfirmTicket against the live VLM parse. Default OFF. "
         "Also QORESENCE_MINT_VERIFIER=1 (or under --jev). --play does not "
         "enable this. Observation only — never licenses score digits.",
+    )
+    parser.add_argument(
+        "--join-picker",
+        action="store_true",
+        help="TypeSafe join picker: select which already-stamped hid_seq_line "
+        "slot belongs on the current HDMI frame. Default OFF. Also "
+        "QORESENCE_JOIN_PICKER=1 (or under --jev). --play does not enable "
+        "this. Observation only — never invents lag, never writes PLL, "
+        "never licenses score digits.",
     )
     parser.add_argument(
         "--ticket-glass",

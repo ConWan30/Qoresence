@@ -163,6 +163,15 @@ class HidSeqLine:
         with self._lock:
             return self._samples.get(int(hub_seq))
 
+    def window(self, hub_seq: int, *, behind: int = 2, ahead: int = 1) -> dict[int, HidSeqSample]:
+        """Read-only neighbors of hub_seq. Never interpolates missing slots."""
+        seq = int(hub_seq)
+        lo = max(0, behind)
+        hi = max(0, ahead)
+        keys = [seq + d for d in range(-lo, hi + 1)]
+        with self._lock:
+            return {k: self._samples[k] for k in keys if k in self._samples}
+
     def latest(self) -> HidSeqSample | None:
         """Return the most recent sample (highest seq)."""
         with self._lock:
@@ -220,6 +229,14 @@ def get_sample(hub_seq: int) -> HidSeqSample | None:
         return get_hid_seq_line().get(hub_seq)
     except Exception:
         return None
+
+
+def get_window(hub_seq: int, *, behind: int = 2, ahead: int = 1) -> dict[int, Any]:
+    """Module helper — read seq neighbors without interpolating."""
+    try:
+        return get_hid_seq_line().window(hub_seq, behind=behind, ahead=ahead)
+    except Exception:
+        return {}
 
 
 def put_sample(sample: HidSeqSample) -> None:
