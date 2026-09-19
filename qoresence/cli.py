@@ -318,6 +318,22 @@ class QoresenceApp:
         except Exception as e:
             log.debug("TicketStale sentinel not started: %s", e)
 
+        # Jev mint verifier — hold/remint/blank/observe vs licensed ticket.
+        # Enqueue-only subscriber + timer worker; advisory in v0, never licenses digits.
+        self.mint_verifier = None
+        try:
+            from qoresence.observability.mint_verifier import (
+                make_mint_verifier_from_config,
+            )
+
+            self.mint_verifier = make_mint_verifier_from_config(
+                getattr(config, "mint_verifier", None),
+                bus=self.bus,
+                jev_enabled=bool(getattr(getattr(config, "jev", None), "enabled", False)),
+            )
+        except Exception as e:
+            log.debug("MintVerifier sentinel not started: %s", e)
+
         # TicketGlass v0 — live opt-in glyphs (lock/tension/cut). Enqueue-only
         # subscriber + timer worker; veto-only paint block, never licenses digits.
         self.ticket_glass = None
@@ -1518,6 +1534,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             prev if prev is not None else TicketStaleConfig(),
             enabled=True,
         )
+    if getattr(args, "mint_verifier", False):
+        from qoresence.core.unified_config import MintVerifierConfig
+
+        prev = getattr(config, "mint_verifier", None)
+        config.mint_verifier = replace(
+            prev if prev is not None else MintVerifierConfig(),
+            enabled=True,
+        )
     if getattr(args, "ticket_glass", False):
         from qoresence.core.unified_config import TicketGlassConfig
 
@@ -1818,7 +1842,8 @@ def main():
         action="store_true",
         help="TypeSafe Jev conductor: select ClutchBot/MatchAgent templates "
         "(text-only; cannot see HDMI). Also starts SyncCoroner, "
-        "ScorePlausibility, press labeler, TicketGlass, and SyncGlass. Default OFF. Also "
+        "ScorePlausibility, press labeler, TicketGlass, SyncGlass, and "
+        "mint verifier. Default OFF. Also "
         "QORESENCE_JEV=1. --play does not enable this. Never licenses "
         "score digits. Key: TYPESAFE_API_KEY or .secrets/typesafe.key.",
     )
@@ -1830,6 +1855,14 @@ def main():
         "Default OFF. Also QORESENCE_JEV_TICKET_STALE=1 (or under --jev). "
         "--play does not enable this. Advisory audit only — never licenses "
         "score digits.",
+    )
+    parser.add_argument(
+        "--mint-verifier",
+        action="store_true",
+        help="TypeSafe mint verifier: hold / remint / blank / observe a "
+        "licensed ConfirmTicket against the live VLM parse. Default OFF. "
+        "Also QORESENCE_MINT_VERIFIER=1 (or under --jev). --play does not "
+        "enable this. Observation only — never licenses score digits.",
     )
     parser.add_argument(
         "--ticket-glass",

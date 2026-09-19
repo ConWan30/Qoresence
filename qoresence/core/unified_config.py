@@ -687,6 +687,22 @@ class JevConfig:
 
 
 @dataclass
+class MintVerifierConfig:
+    """TypeSafe mint verifier (observation plane).
+
+    Opt-in, default OFF. ``--play`` does not enable. Judges a licensed
+    ConfirmTicket against the live VLM parse and names hold / remint /
+    blank / observe. Never licenses digits, never emits bus events, never
+    takes lobe locks. See qoresence.observability.mint_verifier.
+    """
+
+    enabled: bool = False
+    out_dir: str = "logs/mint_verifier"
+    cadence_s: float = 2.0
+    queue_size: int = 256
+
+
+@dataclass
 class TicketStaleConfig:
     """TypeSafe ticket-stale sentinel (observation plane).
 
@@ -836,6 +852,9 @@ class RetinaUnifiedConfig:
 
     # Jev ticket-stale sentinel (default OFF; --play does not enable)
     jev_ticket_stale: TicketStaleConfig = field(default_factory=TicketStaleConfig)
+
+    # Jev mint verifier (default OFF; --play does not enable; also under --jev)
+    mint_verifier: MintVerifierConfig = field(default_factory=MintVerifierConfig)
 
     # TicketGlass v0 (default OFF; --play does not enable; also under --jev)
     ticket_glass: TicketGlassConfig = field(default_factory=TicketGlassConfig)
@@ -1205,6 +1224,13 @@ class RetinaUnifiedConfig:
                 or "logs/ticket_stale",
                 cadence_s=_float("QORESENCE_JEV_TICKET_STALE_CADENCE", 2.0) or 2.0,
                 queue_size=_int("QORESENCE_JEV_TICKET_STALE_QUEUE", 256) or 256,
+            ),
+            mint_verifier=MintVerifierConfig(
+                enabled=_bool("QORESENCE_MINT_VERIFIER"),
+                out_dir=_str("QORESENCE_MINT_VERIFIER_DIR", "logs/mint_verifier")
+                or "logs/mint_verifier",
+                cadence_s=_float("QORESENCE_MINT_VERIFIER_CADENCE", 2.0) or 2.0,
+                queue_size=_int("QORESENCE_MINT_VERIFIER_QUEUE", 256) or 256,
             ),
             ticket_glass=TicketGlassConfig(
                 enabled=_bool("QORESENCE_TICKET_GLASS"),
