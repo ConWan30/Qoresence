@@ -34,6 +34,21 @@ def test_lock_pass_speaks_digits():
     assert gate["bind"]["kind"] == "fact"
 
 
+def test_situation_gate_ignores_hub_crop_when_ticket_crop_is_explicit():
+    from qoresence.sync.seqgate import gate_from_situation
+
+    gate = gate_from_situation(
+        {
+            **LICENSED,
+            "crop_hash": "framehub-crop",
+            "live_crop_hash": "",
+        }
+    )
+
+    assert gate["licensed"] is True
+    assert gate["reason"] == "licensed"
+
+
 def test_missing_ticket_is_null_digit_not_last_good():
     from qoresence.sync.seqgate import NULL_DIGIT, license_digits
 

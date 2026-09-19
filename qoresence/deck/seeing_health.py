@@ -29,7 +29,11 @@ def attach_board_health(out: dict[str, Any], situation: Any) -> dict[str, Any]:
     l_clock = int(sit_bag.get("clock_ns") or sit_bag.get("live_clock_ns") or 0)
     ticket_id = str(sit_bag.get("confirm_ticket_id") or "") if has_ticket else ""
     ticket_crop = str(sit_bag.get("ticket_crop_hash") or "")
-    live_crop = str(sit_bag.get("live_crop_hash") or sit_bag.get("crop_hash") or "")
+    live_crop = str(
+        sit_bag.get("live_crop_hash") or sit_bag.get("scorebug_crop_hash") or ""
+    )
+    if not ticket_crop and not live_crop:
+        live_crop = str(sit_bag.get("crop_hash") or "")
     path = str(sit_bag.get("path") or "")
     try:
         from qoresence.monitor.frame_hub import get_latest_stamp

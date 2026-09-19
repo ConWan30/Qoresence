@@ -330,6 +330,29 @@ def test_observation_pack_licenses_locked_board_and_lan_glass():
     assert "not a public stream" in pack["glass"]["say"]
 
 
+def test_observation_pack_does_not_compare_hub_crop_to_ticket_crop():
+    from qoresence.mcp.observation import build_observation
+
+    pack = build_observation(
+        situation={
+            "home_score": 14,
+            "away_score": 10,
+            "score_vlm_locked": True,
+            "confirm_ticket_id": "c-1",
+            "path": "confirm",
+            "ticket_crop_hash": "ticket-scorebug-crop",
+            "confirm_clock_ns": 1_000,
+            "clock_ns": 2_000,
+        },
+        video={"has_frame": True, "crop_hash": "framehub-crop"},
+        clock_ns=2_000,
+    )
+
+    assert pack["seqgate"]["licensed"] is True
+    assert pack["seqgate"]["reason"] == "licensed"
+    assert pack["score"] == {"claim": True, "home": 14, "away": 10}
+
+
 def test_wrap_observation_refuses_truth_plane_and_missing_record():
     import qoresence.mcp.server as mcp_server
 
