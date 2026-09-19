@@ -60,6 +60,16 @@ test("viewport law: LIVE rail mounts SituationCard then ClutchFeed", () => {
   );
 });
 
+test("clutch feed tape scrolls instead of cropping at the viewport", () => {
+  const css = readFileSync(join(GLASS_ROOT, "src/styles.css"), "utf-8");
+  const feed = readFileSync(join(GLASS_ROOT, "src/components/theater/clutch-feed.tsx"), "utf-8");
+  assert.ok(!/max-height:\s*min\(42vh/.test(css), "dock must not cap at 42vh (cropped the tape)");
+  assert.ok(feed.includes("clutch-feed-tape"), "play-by-play tape list");
+  assert.ok(feed.includes("overflow-y-auto"), "tape must scroll");
+  assert.ok(feed.includes("clutch-beat-title"), "full beat titles, not a truncated chip");
+  assert.ok(!feed.includes("truncate"), "titles wrap — do not ellipsize the clutch line");
+});
+
 test("MatchAgent last_note binds only on ClutchFeed, fail-closed", () => {
   const clutchFeed = readFileSync(join(GLASS_ROOT, "src/components/theater/clutch-feed.tsx"), "utf-8");
   const observatory = readFileSync(join(GLASS_ROOT, "src/components/theater/observatory-hud.tsx"), "utf-8");

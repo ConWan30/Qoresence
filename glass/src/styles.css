@@ -294,28 +294,95 @@ html.obs-lens body {
   color: var(--color-live);
 }
 
-/* Theater readable dock — operator must see moments without a 48px slit. */
-.clutch-feed[data-feed="dock"] {
-  min-height: 14rem;
-  max-height: min(42vh, 22rem);
-  flex: 1 1 auto;
-}
-
-.clutch-feed[data-feed="peek"] {
-  /* Legacy alias: treat peek as dock (do not hide the feed). */
-  min-height: 14rem;
-  max-height: min(42vh, 22rem);
-  flex: 1 1 auto;
-}
-
-.clutch-feed[data-feed="expanded"] {
-  min-height: 14rem;
-  max-height: min(50vh, 26rem);
-  flex: 1 1 auto;
-}
-
+/* Fill remaining rail. No vh max-height — that cropped the tape under scorebug. */
+.clutch-feed[data-feed="dock"],
+.clutch-feed[data-feed="peek"],
+.clutch-feed[data-feed="expanded"],
 .clutch-feed[data-feed="rail"] {
-  min-height: 12rem;
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 0%;
+}
+
+.clutch-feed-tape {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-live) 35%, transparent) transparent;
+  mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 1.25rem), transparent 100%);
+}
+
+.clutch-feed-tape:hover,
+.clutch-feed-tape:focus-visible {
+  mask-image: none;
+}
+
+.clutch-now {
+  border-left: 2px solid var(--color-fast);
+  background: color-mix(in oklab, var(--color-fast) 8%, transparent);
+}
+
+.clutch-now-confirm {
+  border-left-color: var(--color-live);
+  background: color-mix(in oklab, var(--color-live) 8%, transparent);
+}
+
+.clutch-beat {
+  display: flex;
+  width: 100%;
+  gap: 0.7rem;
+  padding: 0.55rem 0.45rem 0.65rem 0.2rem;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+  color: inherit;
+}
+
+.clutch-beat:last-child {
+  border-bottom: 0;
+}
+
+.clutch-beat:hover {
+  background: color-mix(in oklab, var(--color-fg) 4%, transparent);
+}
+
+.clutch-beat-tick {
+  flex: 0 0 2px;
+  align-self: stretch;
+  min-height: 1.6rem;
+  margin-top: 0.2rem;
+  background: color-mix(in oklab, var(--color-muted-foreground) 45%, transparent);
+}
+
+.clutch-beat-tick[data-path="fast"] {
+  background: var(--color-fast);
+}
+
+.clutch-beat-tick[data-path="confirm"] {
+  background: var(--color-live);
+}
+
+.clutch-beat-body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.clutch-beat-meta {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-subtle-foreground);
+}
+
+.clutch-beat-title {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--color-fg);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .clutch-feed[data-land="fast"] {
