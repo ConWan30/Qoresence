@@ -501,7 +501,7 @@ class ConnectorBind:
         self._lock = threading.Lock()
         self._binds = 0
         self._asked = 0
-        self._states = {s: 0 for s in CORRELATION_STATES}
+        self._states = dict.fromkeys(CORRELATION_STATES, 0)
         self._last: dict[str, Any] = {}
         if self.enabled:
             try:
