@@ -126,6 +126,11 @@
       return m;
     }
 
+    function num(v, dflt) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : dflt;
+    }
+
     function ns2ms(ns) {
       return (ns / 1_000_000).toFixed(3) + ' ms';
     }
@@ -202,13 +207,13 @@
       $('result').style.display = 'block';
 
       const spans = trace.spans.slice();
-      spans.sort((a, b) => (tagMap(a).clock_ns || 0) - (tagMap(b).clock_ns || 0));
+      spans.sort((a, b) => num(tagMap(a).clock_ns, 0) - num(tagMap(b).clock_ns, 0));
 
       // root
       const root = spans.find(s => !s.references || s.references.length === 0) || spans[0];
       const rootTags = tagMap(root);
-      const t0 = rootTags.clock_ns_first || tagMap(spans[0]).clock_ns || 0;
-      const t1 = rootTags.clock_ns_last || tagMap(spans[spans.length - 1]).clock_ns || t0;
+      const t0 = num(rootTags.clock_ns_first, num(tagMap(spans[0]).clock_ns, 0));
+      const t1 = num(rootTags.clock_ns_last, num(tagMap(spans[spans.length - 1]).clock_ns, t0));
       const windowNs = Math.max(1, t1 - t0);
 
       // summary
@@ -238,12 +243,16 @@
       spans.forEach((span, idx) => {
         const tags = tagMap(span);
         const isRoot = (!span.references || span.references.length === 0);
-        let start = tags.clock_ns_first || tags.clock_ns || t0;
-        let end = tags.clock_ns_last || (tags.clock_ns ? tags.clock_ns + (span.duration || 0) * 1000 : start + (span.duration || 0) * 1000);
+        const clockNs = num(tags.clock_ns, NaN);
+        const durNs = num(span.duration, 0) * 1000;
+        let start = num(tags.clock_ns_first, Number.isFinite(clockNs) ? clockNs : t0);
+        let end = num(tags.clock_ns_last, (Number.isFinite(clockNs) ? clockNs : start) + durNs);
         if (end <= start) end = start + 1;
 
-        const left = pad + ((start - t0) / windowNs) * 900;
-        const width = Math.max(2, ((end - start) / windowNs) * 900);
+        const clamp01 = v => Math.min(Math.max(v, 0), 1);
+        const left = pad + clamp01((start - t0) / windowNs) * 900;
+        const right = pad + clamp01((end - t0) / windowNs) * 900;
+        const width = Math.max(2, right - left);
 
         // assign lane to avoid overlap
         let lane = 0;
