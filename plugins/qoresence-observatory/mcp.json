@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "qoresence-observatory": {
+      "command": "python",
+      "args": ["-m", "qoresence.mcp.occf"],
+      "env": {
+        "QORESENCE_OCCF": "1",
+        "QORESENCE_JEV_LEDGER": "1"
+      }
+    }
+  }
+}
