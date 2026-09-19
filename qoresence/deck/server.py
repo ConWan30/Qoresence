@@ -2647,6 +2647,13 @@ def create_app():  # type: ignore[no-untyped-def]
             return FileResponse(p, media_type="image/svg+xml")
         return Response(status_code=404)
 
+    @app.get("/qoresence-logo.png")
+    async def glass_hdmi_ident():  # type: ignore[no-untyped-def]
+        p = _glass_dist() / "qoresence-logo.png"
+        if p.is_file():
+            return FileResponse(p, media_type="image/png")
+        return Response(status_code=404)
+
     @app.get("/")
     async def index():  # type: ignore[no-untyped-def]
         if _glass_index_path() is not None:
@@ -2879,6 +2886,19 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     }.get(resolved.suffix, "application/octet-stream")
                     self.send_response(200)
                     self.send_header("Content-Type", ctype)
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
+                self.send_response(404)
+                self.end_headers()
+                return
+            if path_only == "/qoresence-logo.png":
+                ident = _glass_dist() / "qoresence-logo.png"
+                if ident.is_file():
+                    data = ident.read_bytes()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/png")
                     self.send_header("Content-Length", str(len(data)))
                     self.end_headers()
                     self.wfile.write(data)
