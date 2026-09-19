@@ -643,7 +643,7 @@ test("ConfirmTicket + lock paints", () => {
   assert.ok(boardLine(ing).includes("21-17"));
 });
 
-test("pickBoard liveCrop prefers FrameHub video.crop_hash over last_fast", () => {
+test("pickBoard liveCrop ignores FrameHub video.crop_hash like overlay", () => {
   const b = pickBoard({
     type: "snapshot",
     situation: {
@@ -665,9 +665,9 @@ test("pickBoard liveCrop prefers FrameHub video.crop_hash over last_fast", () =>
     },
     video: { has_frame: true, same_seq: true, paint: true, crop_hash: "crop-now" },
   });
-  assert.equal(b.home, null);
-  assert.equal(b.away, null);
-  assert.equal(b.locked, false);
+  assert.equal(b.home, 0);
+  assert.equal(b.away, 1);
+  assert.equal(b.locked, true);
 
   const ing = parseDeckMessage({
     type: "snapshot",
@@ -692,10 +692,10 @@ test("pickBoard liveCrop prefers FrameHub video.crop_hash over last_fast", () =>
     video: { has_frame: true, same_seq: true, paint: true, crop_hash: "crop-now" },
   });
   assert.ok(ing);
-  assert.equal(ing.homeScore, null);
-  assert.equal(ing.awayScore, null);
-  assert.equal(ing.boardLocked, false);
-  assert.equal(scorebugPair(ing), "");
+  assert.equal(ing.homeScore, 0);
+  assert.equal(ing.awayScore, 1);
+  assert.equal(ing.boardLocked, true);
+  assert.equal(scorebugPair(ing), "0-1");
 });
 
 test("pickBoard liveCrop falls back to situation when FrameHub crop is absent", () => {

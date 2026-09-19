@@ -1195,6 +1195,15 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception:
             body["ticket_stale"] = {"enabled": False}
         try:
+            from qoresence.observability.mint_verifier import get_mint_verifier
+
+            _mv = get_mint_verifier()
+            body["mint_verifier"] = (
+                _mv.stats() if _mv is not None else {"enabled": False}
+            )
+        except Exception:
+            body["mint_verifier"] = {"enabled": False}
+        try:
             from qoresence.observability.ticket_glass import get_ticket_glass
 
             _tg = get_ticket_glass()
@@ -3132,6 +3141,15 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
                 except Exception:
                     health["ticket_stale"] = {"enabled": False}
+                try:
+                    from qoresence.observability.mint_verifier import get_mint_verifier
+
+                    _mv = get_mint_verifier()
+                    health["mint_verifier"] = (
+                        _mv.stats() if _mv is not None else {"enabled": False}
+                    )
+                except Exception:
+                    health["mint_verifier"] = {"enabled": False}
                 try:
                     from qoresence.observability.ticket_glass import get_ticket_glass
 

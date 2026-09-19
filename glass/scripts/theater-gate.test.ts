@@ -65,14 +65,14 @@ test("parseAgentPlane does not paint digits from scoreboard_locked or last_confi
   assert.equal(plane.vlmBoard, "");
 });
 
-test("parseAgentPlane vlmBoard follows pickBoard — FrameHub crop_hash move blanks Theater", () => {
+test("parseAgentPlane vlmBoard follows pickBoard — FrameHub crop_hash move does not blank Theater", () => {
   const locked = parseAgentPlane({ snapshot: licensedSnap({ sitCrop: WAS, videoCrop: WAS }) });
   assert.equal(locked.vlmLocked, true);
   assert.equal(locked.vlmBoard, "0-1");
 
   const moved = parseAgentPlane({ snapshot: licensedSnap({ sitCrop: WAS, videoCrop: NOW }) });
-  assert.equal(moved.vlmLocked, false);
-  assert.equal(moved.vlmBoard, "");
+  assert.equal(moved.vlmLocked, true);
+  assert.equal(moved.vlmBoard, "0-1");
 });
 
 test("parseAgentPlane ticket_glass lock blocked blanks vlmBoard", () => {

@@ -56,6 +56,12 @@ from qoresence.observability.ticket_glass import (
     get_ticket_glass,
     make_ticket_glass_from_config,
 )
+from qoresence.observability.mint_verifier import (
+    MintVerifierSentinel,
+    compose_mint_verdict,
+    get_mint_verifier,
+    make_mint_verifier_from_config,
+)
 from qoresence.observability.ticket_stale import (
     TicketStaleSentinel,
     compose_stale_verdict,
@@ -94,6 +100,10 @@ __all__ = [
     "ScorePlausibility",
     "get_score_plausibility",
     "make_plausibility_from_config",
+    "MintVerifierSentinel",
+    "compose_mint_verdict",
+    "get_mint_verifier",
+    "make_mint_verifier_from_config",
     "TicketStaleSentinel",
     "compose_stale_verdict",
     "get_ticket_stale_sentinel",
