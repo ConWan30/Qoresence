@@ -57,3 +57,22 @@ def test_licensed_fresh():
 def test_implausible_vetoes_even_when_ticket_is_fresh():
     assert digit_void_reason(**{**LICENSED, "implausible": True}) == "implausible_transition"
     assert implausible_transition_reason(20, 0, 20, 20) == "implausible_transition"
+
+
+def test_empty_ticket_crop_is_ticket_stale():
+    assert digit_void_reason(**{**LICENSED, "ticket_crop_hash": ""}) == "ticket_stale"
+
+
+def test_fresh_ticket_crop_and_clock_is_licensed():
+    assert (
+        digit_void_reason(
+            **{
+                **LICENSED,
+                "ticket_crop_hash": "scorebug-abc",
+                "live_crop_hash": "scorebug-abc",
+                "ticket_clock_ns": 5_000,
+                "live_clock_ns": 5_500,
+            }
+        )
+        == "licensed"
+    )
