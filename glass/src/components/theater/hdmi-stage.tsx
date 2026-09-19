@@ -288,6 +288,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
 
   return (
     <section
+      id={variant === "observatory" ? "hdmi-stage" : undefined}
       data-stage-mode={stageMode}
       data-clip-owner="hdmi-stage"
       data-clutch={variant === "deck" || variant === "observatory" ? pulse : undefined}

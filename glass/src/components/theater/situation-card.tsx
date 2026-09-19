@@ -40,7 +40,7 @@ export function SituationCard() {
     <section className="holo-plate flex flex-col gap-2 rounded-xl p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-          Situation
+          Scorebug
         </h2>
         <span className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
           {boardLocked ? "scorebug lock" : hdmi === "menu" ? "menu" : "scorebug"}
