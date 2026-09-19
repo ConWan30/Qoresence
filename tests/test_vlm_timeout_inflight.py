@@ -769,7 +769,8 @@ def test_pending_remint_soft_preempts_stale_inflight(monkeypatch):
     with ref._lock:
         assert ref._request_generation > gen_at_start
         assert ref._pending_remint is None
-        soft_budget = ref.stats()["pending_remint_soft_budget_s"]
+    # stats() takes _lock — must not call it while holding the same Lock (non-reentrant).
+    soft_budget = ref.stats()["pending_remint_soft_budget_s"]
     assert soft_budget == _PENDING_REMINT_SOFT_BUDGET_S
 
     release_first.set()
