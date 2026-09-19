@@ -214,11 +214,6 @@ function cropOf(o: Record<string, unknown>): string {
   return firstStr(o, ["crop_hash", "cropHash", "frame_hash", "frameHash"]);
 }
 
-/** FrameHub video.crop_hash only — overlay liveCrop does not read video.frame_hash. */
-function videoCropOf(o: Record<string, unknown>): string {
-  return firstStr(o, ["crop_hash", "cropHash"]);
-}
-
 function videoOpticsOf(o: Record<string, unknown>): boolean {
   return (
     o.has_frame != null ||
@@ -299,7 +294,6 @@ export function pickBoard(...bags: Record<string, unknown>[]): {
   let confirmTicketId = "";
   let scoreVlmLocked = false;
   let ticketCrop = "";
-  let videoCrop = "";
   let sitCrop = "";
   let sameSeq: boolean | null = null;
   let ticketClockNs = 0;
@@ -339,16 +333,14 @@ export function pickBoard(...bags: Record<string, unknown>[]): {
     if (firstBool(o, ["score_vlm_locked", "scoreVlmLocked"]) === true) scoreVlmLocked = true;
     const tid = firstStr(o, ["confirm_ticket_id", "confirmTicketId"]);
     if (tid && !confirmTicketId) confirmTicketId = tid;
-    // Overlay liveCrop: video.crop_hash first, then situation crop_hash/frame_hash.
+    // Scorebug ticket crop chain only — not FrameHub video.crop_hash.
+    // seeing_health.py / overlay.html: hub band hash vs ConfirmTicket crop is
+    // not a moved HUD. Play-clock ticks were blanking Theater to □–□ while
+    // the ticket still licensed the pair.
     // last_fast is not liveCrop — last-writer here used to paint last-good.
-    if (cropMode !== "none") {
-      if (cropMode === "video" || videoOpticsOf(o)) {
-        const vc = videoCropOf(o);
-        if (vc) videoCrop = vc;
-      } else {
-        const crop = cropOf(o);
-        if (crop) sitCrop = crop;
-      }
+    if (cropMode !== "none" && cropMode !== "video" && !videoOpticsOf(o)) {
+      const crop = cropOf(o);
+      if (crop) sitCrop = crop;
     }
     if (o.same_seq != null || o.sameSeq != null) {
       sameSeq = Boolean(o.same_seq ?? o.sameSeq);
@@ -373,7 +365,7 @@ export function pickBoard(...bags: Record<string, unknown>[]): {
     takeLive(rec(bag.last_fast), "none");
   }
 
-  const liveCrop = videoCrop || sitCrop;
+  const liveCrop = sitCrop;
   if (confirmTicketId && !ticketCrop && liveCrop) ticketCrop = liveCrop;
 
   const locked =

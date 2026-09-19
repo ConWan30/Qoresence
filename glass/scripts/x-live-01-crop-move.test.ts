@@ -62,7 +62,7 @@ test("x-live-01 FIXTURE: stuck 0-1 + crop_hash move — blank beats hold", () =>
   assert.doesNotMatch(scorebugPair(ing), /0-1/);
 });
 
-test("x-live-01 FrameHub video crop_hash move empties pickBoard", () => {
+test("x-live-01 FrameHub video crop_hash move does not empty pickBoard", () => {
   const c = fixture.cases.find((row: { id: string }) => row.id === "stuck_01_framehub_video_only_pickboard");
   const snap = c.snapshot;
   assert.equal(snap.confirm.last_confirm.home_score, 0);
@@ -70,12 +70,12 @@ test("x-live-01 FrameHub video crop_hash move empties pickBoard", () => {
   assert.equal(snap.situation.crop_hash, fixture.crop_was);
   assert.equal(snap.video.crop_hash, fixture.crop_now);
   const b = pickBoard(snap, snap.situation, snap.confirm, snap.video);
-  assert.equal(b.home, null);
-  assert.equal(b.away, null);
-  assert.equal(b.locked, false);
+  assert.equal(b.home, 0);
+  assert.equal(b.away, 1);
+  assert.equal(b.locked, true);
   const ing = parseDeckMessage(snap);
   assert.ok(ing);
-  assert.equal(ing.homeScore, null);
-  assert.equal(ing.awayScore, null);
-  assert.equal(scorebugPair(ing), "");
+  assert.equal(ing.homeScore, 0);
+  assert.equal(ing.awayScore, 1);
+  assert.equal(scorebugPair(ing), "0-1");
 });
