@@ -7,7 +7,7 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 log = logging.getLogger(__name__)
 _DEFAULT_MAXLEN = 1024
@@ -108,6 +108,24 @@ class AgentGlass:
             video = get_clip_buffer().stats()
         except Exception:
             pass
+        try:
+            from qoresence.monitor.frame_hub import get_frame_hub
+
+            hub = get_frame_hub().stats()
+            if hub.get("has_frame"):
+                video["has_frame"] = True
+                video["hub_age_s"] = hub.get("age_s")
+                video["hub_seq"] = hub.get("seq")
+                if hub.get("clock_ns"):
+                    video["clock_ns"] = int(hub["clock_ns"])
+                if hub.get("crop_hash"):
+                    # Live FrameHub observation only. Never substitute this for
+                    # situation.ticket_crop_hash, which belongs to ConfirmTicket.
+                    video["crop_hash"] = str(hub["crop_hash"])
+                if hub.get("age_s") is not None:
+                    video["age_s"] = hub.get("age_s")
+        except Exception:
+            pass
         situation: dict[str, Any] = {}
         if self._situation_provider:
             try:
@@ -192,7 +210,8 @@ class AgentGlass:
             out["memory"] = memory_receipt
         from qoresence.observation.runtime import observations_snapshot
 
-        out["observations"] = observations_snapshot()
+        snapshot_observations = cast(Callable[[], Any], observations_snapshot)
+        out["observations"] = snapshot_observations()
         return out
 
     def get_events(

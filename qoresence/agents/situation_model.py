@@ -45,6 +45,10 @@ class SituationState:
     # True when Gemini scoreboard VLM force-locked the board (confirm path).
     score_vlm_locked: bool = False
     confirm_ticket_id: str = ""
+    # ConfirmTicket observation stamp. The crop is the scorebug band captured
+    # by the ticket, not FrameHub's independent live crop observation.
+    confirm_clock_ns: int = 0
+    ticket_crop_hash: str = ""
     # Canonical seeing-path speech. Observation only; never a last-good score.
     board_why: str = ""
     title_hysteresis: str | None = None
@@ -193,7 +197,10 @@ class SituationModel:
         if payload.get("claim") and payload.get("profile_id"):
             pid = payload.get("profile_id")
             display = payload.get("display_name") or payload.get("game_title")
-            locked = str(payload.get("hysteresis_state") or self._state.title_hysteresis or "") == "locked"
+            locked = (
+                str(payload.get("hysteresis_state") or self._state.title_hysteresis or "")
+                == "locked"
+            )
             if locked:
                 stash_locked_optical_title(
                     str(display) if display else None,
@@ -232,6 +239,11 @@ class SituationModel:
                 ctx.game_profile = "cfb_27"
         # Fail-closed: never adopt score_vlm_locked without a ConfirmTicket id.
         tid = str(getattr(ctx, "confirm_ticket_id", "") or "")
+        confirm = (
+            ctx.details.get("confirm_ticket")
+            if isinstance(getattr(ctx, "details", None), dict)
+            else None
+        )
         why = str(getattr(ctx, "board_why", "") or "").strip()
         if why:
             self._state.board_why = why
@@ -241,6 +253,12 @@ class SituationModel:
                 self._state.board_why = detail_why
         if tid:
             self._state.confirm_ticket_id = tid
+            if isinstance(confirm, dict) and str(confirm.get("ticket_id") or "") == tid:
+                try:
+                    self._state.confirm_clock_ns = int(confirm.get("clock_ns") or 0)
+                except (TypeError, ValueError):
+                    self._state.confirm_clock_ns = 0
+                self._state.ticket_crop_hash = str(confirm.get("crop_hash") or "")
         if ctx.score_vlm_locked and tid:
             self._state.score_vlm_locked = True
             self._state.board_why = "confirm_ticket"
@@ -272,12 +290,11 @@ class SituationModel:
                 else str(ctx.game_category)
             )
         if ctx.game_profile:
-            pin_blocks = bool(
-                self._operator_pin and str(ctx.game_profile) != self._operator_pin
-            )
-            optical_cfb = pin_blocks and is_cfb_profile_id(ctx.game_profile) and (
-                cfb_markers_in_text(ctx_title)
-                or str(ctx.game_profile).lower() == "cfb_27"
+            pin_blocks = bool(self._operator_pin and str(ctx.game_profile) != self._operator_pin)
+            optical_cfb = (
+                pin_blocks
+                and is_cfb_profile_id(ctx.game_profile)
+                and (cfb_markers_in_text(ctx_title) or str(ctx.game_profile).lower() == "cfb_27")
             )
             self._maybe_apply_profile(
                 ctx.game_profile,
@@ -572,6 +589,8 @@ class SituationModel:
             "scoreboard_locked": locked,
             "confirm_ticket_id": tid,
             "has_confirm_ticket": bool(tid),
+            "confirm_clock_ns": s.confirm_clock_ns if tid else 0,
+            "ticket_crop_hash": s.ticket_crop_hash if tid else "",
             "board_why": s.board_why or "",
             "title_hysteresis": s.title_hysteresis,
             "title_claim": s.title_claim,

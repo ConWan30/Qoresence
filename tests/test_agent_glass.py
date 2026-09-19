@@ -6,6 +6,112 @@ import pathlib
 import time
 
 
+def test_confirm_ticket_stamp_reaches_agent_situation_and_seqgate():
+    from qoresence.agents.agent_glass import AgentGlass
+    from qoresence.agents.situation_model import SituationModel
+    from qoresence.core.types import BaseEvent, EventType, SourceLobe
+    from qoresence.vision.visual_context import GameCategory, GameState, VisualContext
+
+    ticket_clock = time.monotonic_ns()
+    ctx = VisualContext(
+        game_state=GameState.GAMEPLAY,
+        game_category=GameCategory.FOOTBALL,
+        home_score=14,
+        away_score=10,
+        score_vlm_locked=True,
+        confirm_ticket_id="confirm-remint",
+        details={
+            "confirm_ticket": {
+                "ticket_id": "confirm-remint",
+                "clock_ns": ticket_clock,
+                "crop_hash": "scorebug-band-hash",
+            }
+        },
+    )
+    model = SituationModel()
+    model.update(
+        BaseEvent(
+            session_id="session",
+            clock_ns=ticket_clock,
+            source_lobe=SourceLobe.VISUAL,
+            type=EventType.VISUAL_CONTEXT,
+            payload=ctx.to_dict(),
+        )
+    )
+
+    situation = model.to_dict()
+    assert situation["confirm_clock_ns"] == ticket_clock
+    assert situation["ticket_crop_hash"] == "scorebug-band-hash"
+
+    remint_clock = ticket_clock + 1_000
+    ctx.confirm_ticket_id = "confirm-remint-2"
+    ctx.details["confirm_ticket"] = {
+        "ticket_id": "confirm-remint-2",
+        "clock_ns": remint_clock,
+        "crop_hash": "scorebug-band-hash-2",
+    }
+    model.update(
+        BaseEvent(
+            session_id="session",
+            clock_ns=remint_clock,
+            source_lobe=SourceLobe.VISUAL,
+            type=EventType.VISUAL_CONTEXT,
+            payload=ctx.to_dict(),
+        )
+    )
+
+    snap = AgentGlass(situation_provider=model.to_dict).snapshot()
+    assert snap["situation"]["confirm_clock_ns"] == remint_clock
+    assert snap["situation"]["ticket_crop_hash"] == "scorebug-band-hash-2"
+    assert snap["seqgate"]["reason"] == "licensed"
+    assert snap["seqgate"]["licensed"] is True
+
+    from qoresence.mcp.observation import build_observation
+
+    observation = build_observation(
+        situation=snap["situation"],
+        video=snap["video"],
+        coupling=snap["coupling"],
+        clock_ns=snap["clock_ns"],
+        seq=snap["seq"],
+    )
+    assert observation["seqgate"]["reason"] == "licensed"
+    assert observation["score"] == {"claim": True, "home": 14, "away": 10}
+
+
+def test_ticket_stamp_requires_matching_confirm_id():
+    from qoresence.agents.situation_model import SituationModel
+    from qoresence.core.types import BaseEvent, EventType, SourceLobe
+    from qoresence.vision.visual_context import VisualContext
+
+    ctx = VisualContext(
+        score_vlm_locked=True,
+        confirm_ticket_id="current",
+        details={
+            "confirm_ticket": {
+                "ticket_id": "stale",
+                "clock_ns": 123,
+                "crop_hash": "wrong-ticket-crop",
+            }
+        },
+    )
+    model = SituationModel()
+    model.update(
+        BaseEvent(
+            session_id="session",
+            clock_ns=123,
+            source_lobe=SourceLobe.VISUAL,
+            type=EventType.VISUAL_CONTEXT,
+            payload=ctx.to_dict(),
+        )
+    )
+
+    situation = model.to_dict()
+    assert situation["confirm_ticket_id"] == "current"
+    assert situation["confirm_clock_ns"] == 0
+    assert situation["ticket_crop_hash"] == ""
+
+
 def test_snapshot_shape():
     from qoresence.agents.agent_glass import AgentGlass
 
