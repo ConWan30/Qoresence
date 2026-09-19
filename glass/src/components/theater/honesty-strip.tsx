@@ -1,6 +1,15 @@
 import { useTheater } from "@/lib/coupling/store";
-import type { HonestyConf, HonestyState } from "@/lib/coupling/honesty-health";
+import type { HonestyConf, HonestyGlyphId, HonestyState } from "@/lib/coupling/honesty-health";
 import { cn } from "@/lib/utils";
+
+const GAMER_GLYPH: Record<HonestyGlyphId, string> = {
+  lock: "board",
+  tension: "heat",
+  cut: "cut",
+  bind: "pad",
+  lag: "lag",
+  haptic: "rumble",
+};
 
 /** TicketGlass + SyncGlass votes. Lives under CommandBar, never inside HdmiStage. */
 export function HonestyStrip({ compact }: { compact?: boolean }) {
@@ -36,7 +45,7 @@ export function HonestyStrip({ compact }: { compact?: boolean }) {
             title={g.title}
             className="honesty-glyph"
           >
-            <span className="honesty-glyph-name">{g.id}</span>
+            <span className="honesty-glyph-name">{GAMER_GLYPH[g.id] ?? g.id}</span>
             <span className="honesty-glyph-value">{value}</span>
           </span>
         );

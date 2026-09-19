@@ -5,6 +5,7 @@ import { pictureLagMs, syncChipText } from "@/lib/coupling/pad-sync";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 import { BroadcastClock } from "./broadcast-clock";
+import { HdmiMark } from "./hdmi-mark";
 import { HoloTally } from "./holo-tally";
 import { LockbugStrip } from "./lockbug-strip";
 import { TheaterModeChip } from "@/components/session/theater-mode-chip";
@@ -112,8 +113,10 @@ export function CommandBar() {
   const status = heatVetoed
     ? "heat veto"
     : ticketLive
-      ? "ticket live"
-      : "couple none";
+      ? "pad on picture"
+      : padConnected
+        ? "pad quiet"
+        : "pad off";
 
   const livePaint = useTheater((s) => s.livePaint);
   const sameSeq = useTheater((s) => s.sameSeq);
@@ -160,18 +163,22 @@ export function CommandBar() {
 
   return (
     <header className="holo-header sticky top-0 z-50 isolate">
+      <a
+        href="#hdmi-stage"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[60] focus:bg-surface focus:px-3 focus:py-2 focus:text-live"
+      >
+        Skip to picture
+      </a>
       <div className="flex flex-col gap-1.5 px-4 py-2 sm:px-5">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex shrink-0 items-center gap-2.5">
-            <span className="holo-mark grid size-8 place-items-center rounded-md font-display text-sm font-extrabold">
-              Q
-            </span>
+            <HdmiMark size={36} className="size-9" />
             <div>
               <p className="font-display text-[18px] font-extrabold leading-none tracking-tight text-fg">
                 Sight Glass
               </p>
               <p className="mt-1 font-mono text-[10px] tracking-[0.2em] text-subtle-foreground uppercase">
-                local switcher
+                HDMI observatory
               </p>
             </div>
           </div>
@@ -263,7 +270,7 @@ export function CommandBar() {
           <div className="flex items-center gap-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
             <span className={cn("size-1.5 shrink-0 rounded-full", dot)} />
             <span className="truncate" data-pll={pllLock ? "lock" : "open"}>
-              {pllLock ? "PLL lock" : "PLL open"} · {status}
+              {pllLock ? "picture lock" : "picture open"} · {status}
             </span>
             <span className="hidden min-w-0 items-center gap-2 sm:inline-flex">
               {sit ? <span className="truncate text-subtle-foreground">· {sit}</span> : null}
@@ -280,10 +287,10 @@ export function CommandBar() {
               {hdmiText}
             </span>
             <span data-monitor={deckLive ? "live" : "wait"} className={deckLive ? "text-live" : ""}>
-              {deckLive ? "MONITOR LIVE" : "MONITOR WAIT"}
+              {deckLive ? "deck live" : "deck wait"}
             </span>
             <span data-sync={syncLabel === "UNBOUND" ? "unbound" : "lock"} className={syncLabel === "UNBOUND" ? "" : "text-sync"}>
-              SYNC {syncLabel}{licensed && bindKind && syncLabel !== "UNBOUND" ? ` · ${bindKind}` : ""}
+              join {syncLabel}{licensed && bindKind && syncLabel !== "UNBOUND" ? ` · ${bindKind}` : ""}
             </span>
           </div>
         </div>

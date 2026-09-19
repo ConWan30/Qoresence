@@ -497,6 +497,12 @@ html.obs-lens body {
   box-shadow: var(--shadow-border);
 }
 
+/* HDMI Q — same Aperture Ident as GitHub Pages. */
+.hdmi-mark {
+  display: block;
+  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--color-live) 45%, transparent));
+}
+
 /* ---------------------------------------------------------------------------
  * Qoreglass motion law — licensed-moment animation. CHROME ONLY, one-shot.
  *
