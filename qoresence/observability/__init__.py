@@ -1,5 +1,14 @@
 """Observability helpers — opt-in latency stats for release hardening."""
 
+from qoresence.observability.connector_bind import (
+    ConnectorBind,
+    compose_bind,
+    get_connector_bind,
+    local_connector_answers,
+    make_connector_from_config,
+    note_agent_turn,
+    reset_connector_bind,
+)
 from qoresence.observability.honesty_speech import gamer_honesty_speech
 from qoresence.observability.jev_conductor import (
     JevConductor,
@@ -142,4 +151,11 @@ __all__ = [
     "compose_sync_verdict",
     "get_sync_glass",
     "make_sync_glass_from_config",
+    "ConnectorBind",
+    "compose_bind",
+    "get_connector_bind",
+    "local_connector_answers",
+    "make_connector_from_config",
+    "note_agent_turn",
+    "reset_connector_bind",
 ]

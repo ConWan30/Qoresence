@@ -701,6 +701,24 @@ class JevLedgerConfig:
 
 
 @dataclass
+class JevConnectorConfig:
+    """OCCF connector bind (observation plane).
+
+    Opt-in, default OFF. ``--play`` does not enable. Correlates one agent
+    turn (Muse first) to an observatory clock instant per
+    ``qoresence.connector-bind.v0``; binds are written only through the
+    unified Jev ledger as ``pack="connector"`` — no connector.jsonl.
+    Guest ``asked_at_unix_ms`` never stamps ``clock_ns``. Never licenses
+    score digits; the agent never takes the pad.
+    See qoresence.observability.connector_bind and docs/OCCF.md.
+    """
+
+    enabled: bool = False
+    seq_match_window: int = 1800
+    typesafe_timeout_s: float = 10.0
+
+
+@dataclass
 class JoinPickerConfig:
     """TypeSafe join picker (observation plane).
 
@@ -883,6 +901,9 @@ class RetinaUnifiedConfig:
     # Unified Jev judgment ledger sink (default OFF; --play does not enable;
     # also enabled under the --jev umbrella)
     jev_ledger: JevLedgerConfig = field(default_factory=JevLedgerConfig)
+
+    # OCCF connector bind (default OFF; --play does not enable)
+    jev_connector: JevConnectorConfig = field(default_factory=JevConnectorConfig)
 
     # Jev ticket-stale sentinel (default OFF; --play does not enable)
     jev_ticket_stale: TicketStaleConfig = field(default_factory=TicketStaleConfig)
@@ -1259,6 +1280,13 @@ class RetinaUnifiedConfig:
                 enabled=_bool("QORESENCE_JEV_LEDGER"),
                 path=_str("QORESENCE_JEV_LEDGER_PATH", "logs/jev_ledger.jsonl")
                 or "logs/jev_ledger.jsonl",
+            ),
+            jev_connector=JevConnectorConfig(
+                enabled=_bool("QORESENCE_JEV_CONNECTOR"),
+                seq_match_window=_int("QORESENCE_JEV_CONNECTOR_SEQ_WINDOW", 1800)
+                or 1800,
+                typesafe_timeout_s=_float("QORESENCE_JEV_CONNECTOR_TIMEOUT", 10.0)
+                or 10.0,
             ),
             jev_ticket_stale=TicketStaleConfig(
                 enabled=_bool("QORESENCE_JEV_TICKET_STALE"),

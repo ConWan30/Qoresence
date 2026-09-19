@@ -119,6 +119,7 @@ glass = [
 test = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21",
+  "pytest-timeout>=2.3",
     "opencv-python-headless>=4.8",
     "hidapi>=0.14",
     "mss>=10.0",

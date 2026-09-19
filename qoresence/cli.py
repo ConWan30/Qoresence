@@ -267,11 +267,31 @@ class QoresenceApp:
                 enabled=bool(
                     getattr(_ledger_cfg, "enabled", False)
                     or getattr(getattr(config, "jev", None), "enabled", False)
+                    or getattr(
+                        getattr(config, "jev_connector", None), "enabled", False
+                    )
                 ),
                 path=getattr(_ledger_cfg, "path", None),
             )
         except Exception as e:
             log.debug("Jev ledger not configured: %s", e)
+
+        # OCCF connector bind (default OFF; --jev-connector /
+        # QORESENCE_JEV_CONNECTOR=1). Correlates agent turns to observatory
+        # instants; binds are written only through the ledger as
+        # pack="connector" — no private connector.jsonl. Synchronous
+        # pull-only engine; no bus subscription, no worker.
+        self.connector_bind = None
+        try:
+            from qoresence.observability.connector_bind import (
+                make_connector_from_config,
+            )
+
+            self.connector_bind = make_connector_from_config(
+                getattr(config, "jev_connector", None)
+            )
+        except Exception as e:
+            log.debug("ConnectorBind not started: %s", e)
 
         # Jev conductor (default OFF; env QORESENCE_JEV=1). Text-only; never HDMI.
         self.jev_conductor = None
@@ -1607,6 +1627,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             prev if prev is not None else JevLedgerConfig(),
             enabled=True,
         )
+    if getattr(args, "jev_connector", False):
+        from qoresence.core.unified_config import JevConnectorConfig
+
+        prev = getattr(config, "jev_connector", None)
+        config.jev_connector = replace(
+            prev if prev is not None else JevConnectorConfig(),
+            enabled=True,
+        )
     if getattr(args, "learning_edge", False) or getattr(config, "learning_edge", False):
         config.learning_edge = True
         try:
@@ -1949,6 +1977,16 @@ def main():
         "dual-write into. Default OFF. Also QORESENCE_JEV_LEDGER=1 (or under "
         "--jev). --play does not enable this. Observation only — never "
         "licenses score digits.",
+    )
+    parser.add_argument(
+        "--jev-connector",
+        action="store_true",
+        help="OCCF connector bind: correlate one agent turn (Muse first) to "
+        "an observatory clock instant per qoresence.connector-bind.v0, noted "
+        "only through the unified Jev ledger as pack=connector (also turns "
+        "the ledger on for these rows). Default OFF. Also "
+        "QORESENCE_JEV_CONNECTOR=1. --play does not enable this. Observation "
+        "only — never licenses score digits; the agent never takes the pad.",
     )
     parser.add_argument(
         "--haptic-probe",
