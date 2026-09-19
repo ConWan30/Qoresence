@@ -37,6 +37,7 @@ from collections import deque
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.jev_ledger import append_judgment
 from qoresence.observability.typesafe_ask import (
     DEFAULT_TIMEOUT_S,
     system_one,
@@ -659,6 +660,7 @@ class PressLabeler:
         return out
 
     def _write_jsonl(self, kind: str, rec: dict[str, Any]) -> None:
+        append_judgment("press_labeler", {**rec, "kind": kind})
         try:
             if self._jsonl_handle is None and not self._jsonl_tried:
                 self._jsonl_tried = True

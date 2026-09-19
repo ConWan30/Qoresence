@@ -687,6 +687,20 @@ class JevConfig:
 
 
 @dataclass
+class JevLedgerConfig:
+    """Unified Jev judgment ledger sink (observation plane).
+
+    Opt-in, default OFF. ``--play`` does not enable. One append-only JSONL
+    (``qoresence.jev.ledger.v0``) every opt-in pack dual-writes into; packs
+    keep their private JSONL. Never licenses score digits.
+    See qoresence.observability.jev_ledger and docs/OCCF.md.
+    """
+
+    enabled: bool = False
+    path: str = "logs/jev_ledger.jsonl"
+
+
+@dataclass
 class JoinPickerConfig:
     """TypeSafe join picker (observation plane).
 
@@ -865,6 +879,10 @@ class RetinaUnifiedConfig:
 
     # Jev conductor (default OFF; --play does not enable)
     jev: JevConfig = field(default_factory=JevConfig)
+
+    # Unified Jev judgment ledger sink (default OFF; --play does not enable;
+    # also enabled under the --jev umbrella)
+    jev_ledger: JevLedgerConfig = field(default_factory=JevLedgerConfig)
 
     # Jev ticket-stale sentinel (default OFF; --play does not enable)
     jev_ticket_stale: TicketStaleConfig = field(default_factory=TicketStaleConfig)
@@ -1237,6 +1255,11 @@ class RetinaUnifiedConfig:
                 queue_size=_int("QORESENCE_NOUL_QUEUE", 256) or 256,
             ),
             jev=JevConfig(enabled=_bool("QORESENCE_JEV")),
+            jev_ledger=JevLedgerConfig(
+                enabled=_bool("QORESENCE_JEV_LEDGER"),
+                path=_str("QORESENCE_JEV_LEDGER_PATH", "logs/jev_ledger.jsonl")
+                or "logs/jev_ledger.jsonl",
+            ),
             jev_ticket_stale=TicketStaleConfig(
                 enabled=_bool("QORESENCE_JEV_TICKET_STALE"),
                 out_dir=_str("QORESENCE_JEV_TICKET_STALE_DIR", "logs/ticket_stale")

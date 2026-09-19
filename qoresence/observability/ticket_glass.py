@@ -35,6 +35,7 @@ from collections import deque
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.jev_ledger import append_judgment
 from qoresence.observability.ticket_glass_questions import (
     CLIP_NOW,
     CONF_ACT,
@@ -925,6 +926,7 @@ class TicketGlassSentinel:
                 log.debug("ticket_glass tick failed: %s", e)
 
     def _write_jsonl(self, row: dict[str, Any]) -> None:
+        append_judgment("ticket_glass", row)
         handle = self._jsonl_handle
         if handle is None:
             return

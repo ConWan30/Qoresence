@@ -24,6 +24,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from qoresence.observability.jev_ledger import note_judgment
 from qoresence.observability.typesafe_ask import (
     DEFAULT_ASK_INTERVAL_S,
     DEFAULT_TIMEOUT_S,
@@ -365,6 +366,7 @@ class JevConductor:
                 self._last = pre
                 self._last_ns = time.monotonic_ns()
                 self._asked += 1
+            note_judgment("jev_conductor", pre)
             return pre
         answers = None
         if self._ask_fn is not None:
@@ -395,6 +397,7 @@ class JevConductor:
             self._last = composed
             self._last_ns = time.monotonic_ns()
             self._asked += 1
+        note_judgment("jev_conductor", composed)
         return composed
 
     def last(self) -> dict[str, Any]:
