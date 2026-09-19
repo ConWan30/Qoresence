@@ -45,6 +45,15 @@ from qoresence.observability.typesafe_ask import (
 
 log = logging.getLogger(__name__)
 
+def _note_ledger(pack: str, verdict: dict, **kw) -> None:
+    try:
+        from qoresence.agents.society.judgment_ledger import note_pack_verdict
+
+        note_pack_verdict(pack, verdict, **kw)
+    except Exception:
+        pass
+
+
 PLANE = "qoresence-observation"
 
 _EVENT_TYPES = frozenset({"visual", "scoreboard", "router_decision", "presence_report"})
@@ -434,6 +443,13 @@ class TicketStaleSentinel:
                     if verdict.get("action") == "flag_stale":
                         self._flags += 1
                 self._write_jsonl(verdict)
+                _note_ledger(
+                    "ticket_stale",
+                    verdict,
+                    clock_ns=(live or {}).get("clock_ns") or (ticket or {}).get("clock_ns"),
+                    frame_seq=(live or {}).get("frame_seq") or (ticket or {}).get("frame_seq"),
+                    stale=verdict.get("action") == "flag_stale",
+                )
             except Exception as e:
                 log.debug("ticket_stale tick failed: %s", e)
 

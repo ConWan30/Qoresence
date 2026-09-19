@@ -23,6 +23,15 @@ _WARNED_TYPESAFE = [False]
 _TYPESAFE_TIMEOUT_S = DEFAULT_TIMEOUT_S
 
 PLANE = "qoresence-observation"
+
+def _note_ledger(pack: str, verdict: dict, **kw) -> None:
+    try:
+        from qoresence.agents.society.judgment_ledger import note_pack_verdict
+
+        note_pack_verdict(pack, verdict, **kw)
+    except Exception:
+        pass
+
 TRUTH_DEST_RE = re.compile(r"qortroller|poac|(?:^|[\s_\-])truth(?:$|[\s_\-])", re.I)
 SCORE_PAIR_RE = re.compile(r"\b\d{1,2}\s*[-–—]\s*\d{1,2}\b")
 
@@ -235,6 +244,13 @@ def inspect_envelope(envelope: dict[str, Any], *, ask_fn: Any = None) -> dict[st
     ):
         out = compose_hygiene(envelope)
         out["source"] = "preflight"
+        _note_ledger(
+            "recap",
+            out,
+            clock_ns=0,
+            frame_seq=0,
+            deny_reason=str(out.get("reason") or "preflight"),
+        )
         return out
     answers = None
     if ask_fn is not None:
@@ -252,6 +268,16 @@ def inspect_envelope(envelope: dict[str, Any], *, ask_fn: Any = None) -> dict[st
         issue_kind=answers.get("issue_kind"),
     )
     out["source"] = answers.get("source")
+    deny = None
+    if out.get("hold") or out.get("truth_dest"):
+        deny = str(out.get("reason") or "recap_hold")
+    _note_ledger(
+        "recap",
+        out,
+        clock_ns=envelope.get("clock_ns") if isinstance(envelope, dict) else 0,
+        frame_seq=envelope.get("frame_seq") if isinstance(envelope, dict) else 0,
+        deny_reason=deny,
+    )
     return out
 
 

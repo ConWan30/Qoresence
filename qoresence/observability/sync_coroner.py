@@ -34,6 +34,15 @@ from qoresence.sync.sync_health import SHEDDING, SMOOTH, TIGHT, get_sync_health
 
 log = logging.getLogger(__name__)
 
+def _note_ledger(pack: str, verdict: dict, **kw) -> None:
+    try:
+        from qoresence.agents.society.judgment_ledger import note_pack_verdict
+
+        note_pack_verdict(pack, verdict, **kw)
+    except Exception:
+        pass
+
+
 BOTTLENECKS = (
     "healthy",
     "hid_fanout_storm",
@@ -427,6 +436,12 @@ class SyncCoroner:
                     self._last_ns = time.monotonic_ns()
                     self._ticks += 1
                 self._write_jsonl(verdict)
+                _note_ledger(
+                    "coroner",
+                    verdict,
+                    clock_ns=verdict.get("clock_ns") or snap.get("clock_ns"),
+                    frame_seq=verdict.get("frame_seq") or snap.get("frame_seq"),
+                )
             except Exception as e:
                 log.debug("sync_coroner tick failed: %s", e)
 
