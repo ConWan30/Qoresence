@@ -60,6 +60,13 @@ def test_html_falls_back_to_deck_files_without_dist(monkeypatch, tmp_path):
     assert "btnClip" in body
 
 
+def test_hdmi_ident_png_ships_in_glass_spa():
+    spa = Path(__file__).resolve().parents[1] / "qoresence" / "deck" / "glass_spa"
+    ident = spa / "qoresence-logo.png"
+    assert ident.is_file(), "Aperture Ident PNG must ship next to index.html"
+    assert ident.stat().st_size > 1000
+
+
 def test_html_uses_glass_index_when_dist_present(monkeypatch, tmp_path):
     import qoresence.deck.server as deck
 
