@@ -6,6 +6,37 @@ import pathlib
 import time
 
 
+def test_snapshot_keeps_framehub_crop_observational(monkeypatch):
+    from qoresence.agents.agent_glass import AgentGlass
+    from qoresence.monitor import frame_hub
+
+    class Hub:
+        def stats(self):
+            return {
+                "has_frame": True,
+                "crop_hash": "framehub-crop",
+                "clock_ns": 2_000,
+            }
+
+    monkeypatch.setattr(frame_hub, "get_frame_hub", lambda: Hub())
+    snap = AgentGlass(
+        situation_provider=lambda: {
+            "home_score": 14,
+            "away_score": 10,
+            "confirm_ticket_id": "c-1",
+            "score_vlm_locked": True,
+            "path": "confirm",
+            "ticket_crop_hash": "ticket-scorebug-crop",
+            "confirm_clock_ns": 1_000,
+            "clock_ns": 2_000,
+        }
+    ).snapshot()
+
+    assert snap["video"]["crop_hash"] == "framehub-crop"
+    assert snap["seqgate"]["licensed"] is True
+    assert snap["seqgate"]["reason"] == "licensed"
+
+
 def test_confirm_ticket_stamp_reaches_agent_situation_and_seqgate():
     from qoresence.agents.agent_glass import AgentGlass
     from qoresence.agents.situation_model import SituationModel

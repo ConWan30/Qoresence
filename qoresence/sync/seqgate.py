@@ -222,12 +222,19 @@ def gate_from_situation(situation: dict[str, Any] | None = None) -> dict[str, An
         frame_seq_i = int(frame_seq) if frame_seq is not None else None
     except (TypeError, ValueError):
         frame_seq_i = None
+    ticket_crop = str(sit.get("ticket_crop_hash") or sit.get("crop_hash") or "")
+    live_crop = str(sit.get("live_crop_hash") or sit.get("scorebug_crop_hash") or "")
+    if not sit.get("ticket_crop_hash") and not live_crop:
+        # Legacy situation bags used crop_hash for both sides of the scorebug
+        # comparison. Once a ticket crop is explicit, crop_hash may be the
+        # FrameHub observation and must not be treated as a live scorebug crop.
+        live_crop = str(sit.get("crop_hash") or "")
     return license_digits(
         confirm_ticket_id=str(sit.get("confirm_ticket_id") or ""),
         score_vlm_locked=bool(sit.get("score_vlm_locked")),
         path=str(sit.get("path") or ""),
-        ticket_crop_hash=str(sit.get("ticket_crop_hash") or sit.get("crop_hash") or ""),
-        live_crop_hash=str(sit.get("crop_hash") or sit.get("live_crop_hash") or ""),
+        ticket_crop_hash=ticket_crop,
+        live_crop_hash=live_crop,
         same_seq=same,
         ticket_clock_ns=ticket_clock,
         live_clock_ns=live_clock,

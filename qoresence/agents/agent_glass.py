@@ -145,8 +145,6 @@ class AgentGlass:
             )
 
             sit_gate = dict(situation)
-            if not sit_gate.get("crop_hash") and video.get("crop_hash"):
-                sit_gate["crop_hash"] = video.get("crop_hash")
             if sit_gate.get("frame_seq") is None:
                 sit_gate["frame_seq"] = coupling.get("frame_seq") or video.get("seq")
             if not sit_gate.get("clock_ns"):
@@ -159,7 +157,11 @@ class AgentGlass:
                     memory_entry,
                     live_clock_ns=int(sit_gate.get("clock_ns") or 0),
                     live_frame_seq=sit_gate.get("frame_seq"),
-                    live_crop_hash=str(sit_gate.get("crop_hash") or ""),
+                    live_crop_hash=str(
+                        sit_gate.get("live_crop_hash")
+                        or sit_gate.get("scorebug_crop_hash")
+                        or ""
+                    ),
                     score_vlm_locked=bool(sit_gate.get("score_vlm_locked")),
                     home_score=situation.get("home_score"),
                     away_score=situation.get("away_score"),
