@@ -80,10 +80,17 @@ def build_packet() -> AgentPacket:
         from qoresence.vision.confirm_ticket import get_ticket_book
 
         latest = get_ticket_book().latest()
-        if latest is not None and not sit_d.get("confirm_ticket_id"):
+        if latest is not None:
             sit_d = dict(sit_d)
-            sit_d["confirm_ticket_id"] = latest.ticket_id
-            sit_d["score_vlm_locked"] = True
+            if not sit_d.get("confirm_ticket_id"):
+                sit_d["confirm_ticket_id"] = latest.ticket_id
+                sit_d["score_vlm_locked"] = True
+            # Publish mint/remint freshness onto the live bag (scorebug crop only).
+            if int(getattr(latest, "clock_ns", 0) or 0) > 0:
+                sit_d["confirm_clock_ns"] = int(latest.clock_ns)
+            crop = str(getattr(latest, "crop_hash", "") or "").strip()
+            if crop:
+                sit_d["ticket_crop_hash"] = crop
     except Exception:
         pass
     phrase = "IDLE"
