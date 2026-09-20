@@ -62,6 +62,7 @@ Every lobe is **OFF** until you opt in.
 | **Foundry RAG** | Search past clips by chapter/buttons/graph/timeline — software-only, no capture needed |
 | **OpenTelemetry (optional)** | Causal bus traces + metrics; per-clip sidecars — local OTLP, default OFF. Exporter may only enqueue |
 | **Causal event bus** | Every event carries `session_id` + `clock_ns` + `source_lobe` |
+| **TypeSafe Jev + OCCF** | Typed snap judgments (`typesafe` CLI / SDK) feed an opt-in judgment ledger and a pull-only observatory MCP. Agents speak licensed tokens only; `licenses_digits=false` forever — never mint score digits |
 
 **Language:** *co-occurrence / coupling / presence evidence* — **not** legitimacy verification.
 
@@ -137,6 +138,11 @@ Every lobe is **OFF** until you opt in.
 | **OpenTelemetry** | `--otel` causal bus traces + coupling metrics; `.otel.json` / `.coupling.json` clip sidecars; Jaeger on localhost |
 | **MCP universal glass** | 12 tools including fail-closed `get_observation` and grant-gated `wrap_observation` (`qoresence-research` only) |
 | **SEQGATE + memory** | Same frame or silence (`docs/SEQGATE.md`). Session-brain writes need a FrameHub stamp; stale memory cannot license digits (`docs/SEQGATE-Memory-Wiring.md`) |
+| **SEQGATE crop honesty** | ConfirmTicket publishes `confirm_clock_ns` + `ticket_crop_hash` into AgentGlass; SEQGATE compares the **ticket scorebug crop**, not FrameHub hub crop — remint no longer false `crop_mismatch` / sticky `ticket_stale` |
+| **TypeSafe Jev** | Typed noul / choice / score judgments via TypeSafe — not fragile LLM parse. Auth: `typesafe auth status` → **has_key** only (never print keys) |
+| **Jev ledger v0** | Unified append-only `logs/jev_ledger.jsonl` (`qoresence.jev.ledger.v0`). Opt-in `--jev` / `--jev-ledger`. Dual-write from judgment packs; unknown pack fails closed |
+| **OCCF connector bind** | Agent turn ↔ observatory instant as ledger `pack=connector` (`--jev-connector`). Guest clock never stamps `clock_ns`. Muse first; agent-generic |
+| **OCCF MCP** | Pull-only `qoresence.mcp.occf`: `get_observation` / `refuse_actuator` / `refuse_mid_drive_publish`. Opt-in `QORESENCE_OCCF=1` / `--occf`. Score **claim** token only — digits never echoed |
 | **Foundry RAG** | `search_clips` / `get_drive_graph` searchable session memory — software-only, no capture card |
 
 Docs for each: [SESSION_THEATER](docs/SESSION_THEATER.md) · [CIVIF](docs/CIVIF.md) · [GHOST_STICK](docs/GHOST_STICK.md) · [TWO_SPEED_CLUTCHBOT](docs/TWO_SPEED_CLUTCHBOT.md) · [PLAY_PHRASE_COUPLING_TICKET](docs/PLAY_PHRASE_COUPLING_TICKET.md) · [MOBILE_GLASS](docs/MOBILE_GLASS.md) · [TITLE_PRESENCE](docs/TITLE_PRESENCE.md) · [WEBRTC_LIVE](docs/WEBRTC_LIVE.md) · [OBS_OWNS_CARD](docs/OBS_OWNS_CARD.md) · [X_LIVE_STUDIO](docs/X_LIVE_STUDIO.md) · [X_GLASS](docs/X_GLASS.md) · [RETINA_MONITOR](docs/RETINA_MONITOR.md) · [CONTROLLER_VIDEO_SYNC](docs/CONTROLLER_VIDEO_SYNC.md) · [OTEL](docs/OTEL.md) · [SEQGATE](docs/SEQGATE.md) · [SEQGATE-Memory-Wiring](docs/SEQGATE-Memory-Wiring.md) · [ROADMAP](docs/ROADMAP.md) · [PILOT_SESSION](docs/PILOT_SESSION.md) · [PILOT_MONITOR](docs/PILOT_MONITOR.md)
@@ -257,6 +263,103 @@ qoresence-mcp --help-tools
 
 Agents must call `get_observation` before they speak. Unlocked scores and localhost URLs stay silent. Wrap dest is `qoresence-research` only, and only with an operator grant.
 
+For a **stricter pull-only observatory surface** aimed at personal agents (Muse first), see [TypeSafe Jev + OCCF](#typesafe-jev--occf-optional) below — default OFF; `--play` does not enable it.
+
+---
+
+## TypeSafe Jev + OCCF (optional)
+
+**What it is:** typed snap judgments + a unified ledger + a fail-closed MCP so a personal agent can *witness* the session without inventing scores, taking the pad, or publishing mid-drive.
+
+**What it is not:** a second truth plane, a DualSense driver, a digit mint, or something `--play` turns on by itself.
+
+### TypeSafe Jev — how it works
+
+[TypeSafe](https://docs.typesafe.ai/llms.txt) **Jev** answers structured questions (noul / choice / score) through the TypeSafe SDK / `typesafe` CLI. Qoresence packs call this for observation-plane gates instead of fragile “LLM prompt → parse JSON” loops.
+
+| Operator habit | Why |
+|----------------|-----|
+| `typesafe auth status` → report **has_key** only | Keys stay out of chat / commits |
+| Prefer `typesafe ask` with temp-dir state + questions | Typed answers, not free-form prose |
+| Never print `TYPESAFE_*` or key files | Standing corps order |
+
+Inside the engine, Jev feeds judgment packs (ticket_stale, conductor, score plausibility, connector-bind classification, …). Python still **owns compose** — the model classifies; code decides deny / silent / act.
+
+Hard laws (every layer):
+
+- Plane `qoresence-observation` only  
+- `licenses_digits` is **false** on every payload, forever — Jev never mints score digits  
+- DualSense stays on the PS5; the agent never takes the pad  
+- Empty / unlocked → blank tokens and `must_not_invent`, never a guess  
+
+### Judgment ledger (`qoresence.jev.ledger.v0`)
+
+Unified append-only JSONL sink (default `logs/jev_ledger.jsonl`). Judgment packs keep any private JSONL **and** dual-write here so later slices (`jev_tail`, connector binds) query one file.
+
+| Flag / env | Default | Effect |
+|------------|---------|--------|
+| `--jev-ledger` / `QORESENCE_JEV_LEDGER=1` | off | Enable the unified ledger |
+| `--jev` / `QORESENCE_JEV=1` | off | Umbrella opt-in (enables ledger among Jev surfaces) |
+| `--play` | — | Does **not** enable the ledger |
+
+- Module: `qoresence/observability/jev_ledger.py`  
+- Unknown `pack` → rejected, nothing written  
+- Append is best-effort and never raises into a pack hot path  
+
+### Connector bind (`qoresence.connector-bind.v0`)
+
+Correlates one **personal-agent turn** to one observatory instant. Binds exist only as ledger rows with `pack="connector"` — there is no `connector.jsonl`.
+
+| Flag / env | Default | Effect |
+|------------|---------|--------|
+| `--jev-connector` / `QORESENCE_JEV_CONNECTOR=1` | off | Enable bind engine (also ensures ledger on for these rows) |
+
+- Guest clock is annotation only: `asked_at_unix_ms` never stamps observatory `clock_ns`  
+- Sync methods (first match): `live_pull` → `seq_match` → `chapter_id` → `recap_door` → `none`  
+- States: `bound` / `unbound` / `stale` / `denied`  
+- TypeSafe door when a key is present; otherwise deterministic `local_heuristic`  
+- Code-owned denies: pad / mid-drive publish / leave-localhost / actuator-or-exfil  
+- Module: `qoresence/observability/connector_bind.py`  
+
+### OCCF MCP (pull-only observatory connector)
+
+Smallest localhost MCP for personal agents. Stdio only — pulls AgentGlass state; never opens capture.
+
+```powershell
+# Opt in (also QORESENCE_OCCF=1). --play does not enable this.
+python -m qoresence.mcp.occf --occf
+
+# Cursor / Claude Desktop example
+{
+  "mcpServers": {
+    "qoresence-observatory": {
+      "command": "python",
+      "args": ["-m", "qoresence.mcp.occf", "--occf"],
+      "env": { "QORESENCE_OCCF": "1" }
+    }
+  }
+}
+```
+
+| Tool | Role |
+|------|------|
+| `get_observation` | Witness read: `may_say` / `must_not_invent`. Optional `jev_tail` (token-only ledger rows). Optional `agent_turn` for connector bind |
+| `refuse_actuator` | Closed deny — pad / DualSense / capture control (`pad_not_on_this_plane`) |
+| `refuse_mid_drive_publish` | Closed deny — publish / share / upload mid-drive |
+
+Score digits are **never echoed**: when the board is licensed, OCCF reports `score.claim=true` with `home`/`away` null and redacts score-pair strings (e.g. speech) to `□–□`. Integers stay on the ConfirmTicket, not on this API.
+
+Contract lives in `qoresence/mcp/occf.py` (and related observability modules). Full OCCF design notes may land under `docs/` later — until then, trust the module docstrings over rumor.
+
+### SEQGATE honesty (related)
+
+SEQGATE still means **same frame or silence** (`docs/SEQGATE.md`). Crop honesty on top:
+
+1. ConfirmTicket mint/remint publishes `confirm_clock_ns` + `ticket_crop_hash` into AgentGlass.  
+2. SEQGATE / seeing-path compare the **ticket scorebug crop**, not FrameHub’s hub crop — so a remint is not falsely `crop_mismatch` / sticky `ticket_stale`.  
+
+Memory wiring: `docs/SEQGATE-Memory-Wiring.md`.
+
 ---
 
 ## Components
@@ -273,7 +376,8 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | `qoresence/deck/` | FastAPI Deck, overlay, LIVE, clip API (serves Aperture Glass SPA) |
 | `glass/` | Sight Glass / Session Theater SPA source (Aperture Glass) |
 | `qoresence/agents/` | SituationModel, MomentScorer, ClutchBot, MatchAgent, **AgentGlass**, **MCP** |
-| `qoresence/observability/` | OTel exporter (enqueue-only on the bus thread) |
+| `qoresence/mcp/` | Universal AgentGlass MCP + opt-in **OCCF** observatory MCP (`occf.py`) |
+| `qoresence/observability/` | OTel exporter (enqueue-only); **Jev ledger**, **connector bind**, TypeSafe ask helpers |
 | `qoresence/fusion/` | Presence fusion (optional) |
 | `qoresence/trio/` | trio-retina WASM validation (optional) |
 
@@ -302,6 +406,10 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | `--agent-glass` | off | HTTP/WS spectator API (MCP-ready) |
 | `--agent-society` | off | Leftover Society stub; opt-in only — `--play` does not enable |
 | `--a2a` | off | Quicksilver scene/chat under local policy. Does not replace confirm tickets |
+| `--jev` / `QORESENCE_JEV=1` | off | Umbrella opt-in for Jev surfaces (ledger among them). `--play` does not enable |
+| `--jev-ledger` / `QORESENCE_JEV_LEDGER=1` | off | Unified judgment ledger JSONL (`logs/jev_ledger.jsonl`) |
+| `--jev-connector` / `QORESENCE_JEV_CONNECTOR=1` | off | OCCF agent↔session bind rows on the ledger |
+| `--occf` / `QORESENCE_OCCF=1` | off | Pull-only observatory MCP (`python -m qoresence.mcp.occf`). `--play` does not enable |
 | `--otel` | off | Causal traces + metrics to local OTLP; clip sidecars; Jaeger on `:16686` |
 
 ---
@@ -382,6 +490,11 @@ Agents must call `get_observation` before they speak. Unlocked scores and localh
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases & versioning |
 | [docs/wiki/](docs/wiki/) | Wiki source (mirrors GitHub Wiki) |
 | [docs/index.html](docs/index.html) | GitHub Pages landing (Aperture Glass) |
+| [docs/SEQGATE.md](docs/SEQGATE.md) | Same frame or silence; ticket crop vs hub crop honesty |
+| [docs/SEQGATE-Memory-Wiring.md](docs/SEQGATE-Memory-Wiring.md) | Session-brain writes need FrameHub stamp; stale memory cannot license digits |
+| `qoresence/observability/jev_ledger.py` | Judgment ledger schema + opt-in flags (module docstring) |
+| `qoresence/observability/connector_bind.py` | OCCF connector-bind contract (module docstring) |
+| `qoresence/mcp/occf.py` | Pull-only OCCF MCP tools + digit scrub laws (module docstring) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to set up, test, and open PRs |
 
 **Community:** [X @Qoresence](https://x.com/Qoresence) · [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Discussions](https://github.com/ConWan30/Qoresence/discussions) · [Pages](https://conwan30.github.io/Qoresence/)  
@@ -415,8 +528,8 @@ Qoresence/
 │   ├── foundry/          # Clip ring + RAG search + DriveGraph
 │   ├── deck/             # Operator theater + Lens (serves glass SPA)
 │   ├── agents/           # ClutchBot, MatchAgent, AgentGlass, MCP
-│   ├── mcp/              # MCP server (FastMCP + stdio)
-│   ├── observability/    # OTel exporter (enqueue-only)
+│   ├── mcp/              # AgentGlass MCP + opt-in OCCF observatory MCP
+│   ├── observability/    # OTel + Jev ledger + connector bind
 │   ├── fusion/           # Optional presence fusion
 │   └── trio/             # Optional WASM path
 ├── glass/                # Aperture Glass SPA (Deck + Session Theater)
@@ -432,6 +545,7 @@ Qoresence/
 - **Observation plane** by default; research modules opt-in  
 - **One physical DShow device → one owner**  
 - **Ticket-clock:** coupling licenses heat; confirm + `score_vlm_locked` licenses digits  
+- **Jev / OCCF:** typed judgments + pull-only MCP; `licenses_digits=false`; opt-in only  
 - **Streamer decides** which lobes run; leftover Twitch / Streamr / Society stay default-OFF  
 - See repository `LICENSE` for terms  
 
