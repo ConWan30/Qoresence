@@ -29,6 +29,99 @@ _CHAPTER_KINDS = frozenset(
 )
 
 
+# Closed vocabulary for observation segments (Noul hud_kind / presence_token).
+# Describes what was on screen — never evaluative (no clutch / highlight / best).
+SEGMENT_LABELS = {
+    "live_hud": "Live",
+    "preplay": "Pre-play",
+    "select_plate": "Play select",
+    "menu": "Menu",
+    "loading": "Loading",
+    "no_board": "No board",
+    "unknown": "Unknown",
+}
+SEGMENT_PRESENCE = frozenset({"idle", "join", "dense", "unknown"})
+SEGMENT_MIN_S = 1.5
+
+
+def build_segments_for_window(
+    runs: list[Any],
+    *,
+    start_ns: int,
+    end_ns: int,
+    min_s: float = SEGMENT_MIN_S,
+) -> list[dict[str, Any]]:
+    """Turn ``(clock_ns, hud_kind, presence_token)`` runs into clip-relative segments.
+
+    Runs are clipped to [start_ns, end_ns]. Runs shorter than ``min_s`` fold
+    into their neighbour (menu-flicker hysteresis), then identical neighbours merge.
+    """
+    if end_ns <= start_ns:
+        return []
+    ordered = sorted(
+        (int(r[0]), str(r[1]), str(r[2])) for r in (runs or []) if len(r) >= 3
+    )
+    raw: list[dict[str, Any]] = []
+    for i, (cns, kind, presence) in enumerate(ordered):
+        nxt = ordered[i + 1][0] if i + 1 < len(ordered) else end_ns
+        t0 = max(cns, start_ns)
+        t1 = min(nxt, end_ns)
+        if t1 <= t0:
+            continue
+        raw.append(
+            {
+                "t0_s": (t0 - start_ns) / 1e9,
+                "t1_s": (t1 - start_ns) / 1e9,
+                "hud_kind": kind if kind in SEGMENT_LABELS else "unknown",
+                "presence": presence if presence in SEGMENT_PRESENCE else "unknown",
+            }
+        )
+
+    folded: list[dict[str, Any]] = []
+    for seg in raw:
+        short = seg["t1_s"] - seg["t0_s"] < float(min_s)
+        if short and folded:
+            folded[-1]["t1_s"] = seg["t1_s"]
+            continue
+        if folded and folded[-1].get("_short"):
+            seg = dict(seg, t0_s=folded[-1]["t0_s"])
+            folded.pop()
+        folded.append(dict(seg, _short=short))
+
+    out: list[dict[str, Any]] = []
+    for seg in folded:
+        seg.pop("_short", None)
+        if (
+            out
+            and out[-1]["hud_kind"] == seg["hud_kind"]
+            and out[-1]["presence"] == seg["presence"]
+        ):
+            out[-1]["t1_s"] = seg["t1_s"]
+            continue
+        out.append(seg)
+    for seg in out:
+        seg["t0_s"] = round(seg["t0_s"], 3)
+        seg["t1_s"] = round(seg["t1_s"], 3)
+        seg["label"] = SEGMENT_LABELS[seg["hud_kind"]]
+    return out
+
+
+def _noul_segments(start_ns: int, end_ns: int) -> list[dict[str, Any]]:
+    """Segments from the Noul observatory; empty when it is off (fail closed)."""
+    try:
+        from qoresence.observability.noul_observatory import get_noul_observatory
+
+        obs = get_noul_observatory()
+        if obs is None or not getattr(obs, "enabled", False):
+            return []
+        return build_segments_for_window(
+            obs.runs_in_window(start_ns, end_ns), start_ns=start_ns, end_ns=end_ns
+        )
+    except Exception as e:
+        log.debug("noul segments skipped: %s", e)
+        return []
+
+
 def build_chapters_for_window(
     duration_s: float,
     timeline_events: list[Any],
@@ -114,6 +207,7 @@ def write_clip_sidecar(
     *,
     duration_s: float | None = None,
     graph_summary: dict[str, Any] | None = None,
+    segments: list[dict[str, Any]] | None = None,
 ) -> Path | None:
     """Write ``<stem>.chapters.json`` with chapters + optional buttons + why + graph."""
     try:
@@ -141,6 +235,10 @@ def write_clip_sidecar(
                 },
                 "drive_id": graph_summary.get("drive_id"),
             }
+        if segments:
+            payload["segments"] = segments
+            payload["segments_source"] = "noul"
+            payload["licenses_digits"] = False
         out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         log.info("chapters sidecar: %s (%d chapters)", out.name, len(chapters))
         return out
@@ -149,15 +247,25 @@ def write_clip_sidecar(
         return None
 
 
-def chapters_after_export(mp4_path: str | Path, duration_s: float) -> Path | None:
+def chapters_after_export(
+    mp4_path: str | Path,
+    duration_s: float,
+    *,
+    window_start_ns: int | None = None,
+    window_end_ns: int | None = None,
+) -> Path | None:
     """Convenience: pull timeline + InputRing, write chapters sidecar."""
     try:
         from qoresence.agents.session_timeline import get_session_timeline
 
         tl = get_session_timeline()
         # Events in last duration_s (absolute clock)
-        end_ns = time.monotonic_ns()
-        start_ns = end_ns - int(max(0.5, float(duration_s)) * 1e9)
+        end_ns = int(window_end_ns) if window_end_ns is not None else time.monotonic_ns()
+        if window_start_ns is not None:
+            start_ns = int(window_start_ns)
+        else:
+            start_ns = end_ns - int(max(0.5, float(duration_s)) * 1e9)
+        segments = _noul_segments(start_ns, end_ns)
         events = tl.events_in_window(start_ns, end_ns)
         if not events:
             events = tl.recent(40)
@@ -259,6 +367,7 @@ def chapters_after_export(mp4_path: str | Path, duration_s: float) -> Path | Non
             why=why,
             duration_s=float(duration_s),
             graph_summary=graph_summary,
+            segments=segments,
         )
     except Exception as e:
         log.debug("chapters_after_export failed: %s", e)

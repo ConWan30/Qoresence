@@ -8,10 +8,14 @@ from pathlib import Path
 
 from qoresence.agents.session_timeline import reset_session_timeline
 from qoresence.vision.clip_chapters import (
+    SEGMENT_LABELS,
     build_chapters_for_window,
+    build_segments_for_window,
     chapters_after_export,
     write_clip_sidecar,
 )
+
+S = 1_000_000_000
 
 
 def test_chapters_ordered_by_t_s():
@@ -101,3 +105,89 @@ def test_chapters_after_export(tmp_path: Path, monkeypatch):
     assert out is not None
     data = json.loads(out.read_text(encoding="utf-8"))
     assert "chapters" in data
+
+
+def test_segments_clip_to_window_and_include_prior_run():
+    runs = [(0, "menu", "idle"), (10 * S, "live_hud", "join"), (40 * S, "loading", "idle")]
+    segs = build_segments_for_window(runs, start_ns=5 * S, end_ns=30 * S)
+    assert [(s["hud_kind"], s["t0_s"], s["t1_s"]) for s in segs] == [
+        ("menu", 0.0, 5.0),
+        ("live_hud", 5.0, 25.0),
+    ]
+    assert segs[1]["label"] == "Live" and segs[1]["presence"] == "join"
+
+
+def test_segments_hysteresis_folds_flicker():
+    runs = [
+        (0, "live_hud", "join"),
+        (10 * S, "menu", "idle"),
+        (10 * S + S // 2, "live_hud", "join"),
+    ]
+    segs = build_segments_for_window(runs, start_ns=0, end_ns=20 * S)
+    assert len(segs) == 1
+    assert segs[0]["hud_kind"] == "live_hud"
+    assert (segs[0]["t0_s"], segs[0]["t1_s"]) == (0.0, 20.0)
+
+
+def test_segments_short_leading_run_folds_forward():
+    runs = [(0, "loading", "idle"), (S // 2, "live_hud", "join")]
+    segs = build_segments_for_window(runs, start_ns=0, end_ns=10 * S)
+    assert [(s["hud_kind"], s["t0_s"]) for s in segs] == [("live_hud", 0.0)]
+
+
+def test_segments_closed_vocabulary():
+    runs = [(0, "clutch_moment", "hype"), (5 * S, "menu", "idle")]
+    segs = build_segments_for_window(runs, start_ns=0, end_ns=10 * S)
+    assert segs[0]["hud_kind"] == "unknown" and segs[0]["presence"] == "unknown"
+    assert segs[0]["label"] == "Unknown"
+    banned = ("clutch", "highlight", "best", "hype")
+    for label in SEGMENT_LABELS.values():
+        assert not any(b in label.lower() for b in banned)
+
+
+def test_segments_empty_window():
+    assert build_segments_for_window([(0, "menu", "idle")], start_ns=5, end_ns=5) == []
+    assert build_segments_for_window([], start_ns=0, end_ns=10 * S) == []
+
+
+def test_sidecar_has_no_segments_when_noul_off(tmp_path: Path, monkeypatch):
+    from qoresence.observability import noul_observatory
+
+    reset_session_timeline()
+    monkeypatch.setattr(noul_observatory, "get_noul_observatory", lambda: None)
+    mp4 = tmp_path / "hdmi_clip_off.mp4"
+    mp4.write_bytes(b"x")
+    out = chapters_after_export(mp4, 5.0)
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert "segments" not in data
+    assert "segments_source" not in data
+
+
+def test_sidecar_segments_from_noul(tmp_path: Path, monkeypatch):
+    from qoresence.observability import noul_observatory
+
+    class FakeObs:
+        enabled = True
+
+        def __init__(self):
+            self.windows = []
+
+        def runs_in_window(self, start_ns, end_ns):
+            self.windows.append((start_ns, end_ns))
+            return [(start_ns - S, "menu", "idle"), (start_ns + 4 * S, "live_hud", "dense")]
+
+    fake = FakeObs()
+    reset_session_timeline()
+    monkeypatch.setattr(noul_observatory, "get_noul_observatory", lambda: fake)
+    mp4 = tmp_path / "stem_x.mp4"
+    mp4.write_bytes(b"x")
+    start = time.monotonic_ns()
+    out = chapters_after_export(
+        mp4, 10.0, window_start_ns=start, window_end_ns=start + 10 * S
+    )
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert fake.windows == [(start, start + 10 * S)]
+    assert [s["hud_kind"] for s in data["segments"]] == ["menu", "live_hud"]
+    assert data["segments"][1]["t0_s"] == 4.0
+    assert data["segments_source"] == "noul"
+    assert data["licenses_digits"] is False
