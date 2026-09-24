@@ -34,12 +34,14 @@ class StemRecord:
         self._dropped = 0
         self._written = 0
         self._path: Path | None = None
+        self._start_ns: int | None = None
         self._lock = threading.Lock()
 
     def start(self) -> None:
         self.out_dir.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y%m%d_%H%M%S")
         self._path = self.out_dir / f"stem_{stamp}.mp4"
+        self._start_ns = clock_ns()
         self._stop.clear()
         self._active = True
         self._thread = threading.Thread(target=self._loop, name="stem-record", daemon=True)
@@ -59,7 +61,14 @@ class StemRecord:
             try:
                 from qoresence.vision.clip_chapters import chapters_after_export
 
-                chapters_after_export(path, duration_s=max(1.0, self._written / 30.0))
+                end_ns = clock_ns()
+                start_ns = self._start_ns if self._start_ns is not None else end_ns
+                chapters_after_export(
+                    path,
+                    duration_s=max(1.0, (end_ns - start_ns) / 1e9),
+                    window_start_ns=start_ns,
+                    window_end_ns=end_ns,
+                )
             except Exception as e:
                 log.debug("stem chapters skipped: %s", e)
         self._emit({"active": False, "path": str(path) if path else "", "frames": self._written})
