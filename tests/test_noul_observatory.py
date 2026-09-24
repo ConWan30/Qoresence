@@ -305,3 +305,70 @@ def test_evidence_ring_is_slim_and_windowed(tmp_path):
         assert len(obs._evidence) == EVIDENCE_RING_MAX
     finally:
         obs.stop()
+
+
+def _live_parsed(**kw):
+    base = {
+        "home_score": 14,
+        "away_score": 7,
+        "left_team": "KC",
+        "right_team": "BUF",
+        "paused": False,
+        "paused_raw": False,
+    }
+    base.update(kw)
+    return base
+
+
+def test_heuristic_raw_pause_over_scorebug_is_low_confidence_pause():
+    h = local_heuristic_nouls({"parsed": _live_parsed(paused_raw=True)})
+    assert h["hud_kind"] == "pause"
+    assert h["hud_confidence"] < 0.6
+    assert 0.5 <= h["true_pause_noul"] < 0.8
+    out = compose_observatory(
+        parsed=_live_parsed(paused_raw=True),
+        grounded_noul=h["grounded_noul"],
+        true_pause_noul=h["true_pause_noul"],
+        hud_kind=h["hud_kind"],
+        hud_confidence=h["hud_confidence"],
+    )
+    assert out["hud_kind"] == "pause"
+    assert out["board_speech"] != "menu"
+    assert out["licenses_digits"] is False
+
+
+def test_heuristic_preplay_raw_pause_is_not_pause():
+    h = local_heuristic_nouls(
+        {"parsed": _live_parsed(paused_raw=True, visible_control={"prompt": "Subs"})}
+    )
+    assert h["hud_kind"] == "preplay"
+    assert h["true_pause_noul"] < 0.3
+
+
+def test_heuristic_legacy_parse_without_paused_raw_unchanged():
+    parsed = _live_parsed()
+    parsed.pop("paused_raw")
+    assert local_heuristic_nouls({"parsed": parsed})["hud_kind"] == "live_hud"
+
+
+def test_confident_pause_speaks_menu():
+    out = compose_observatory(
+        parsed=_live_parsed(),
+        grounded_noul=0.9,
+        hud_kind="pause",
+        hud_confidence=0.9,
+    )
+    assert out["board_speech"] == "menu"
+    assert out["licenses_digits"] is False
+
+
+def test_hud_kind_choice_has_pause_and_no_match():
+    from qoresence.observability import noul_observatory as no
+
+    assert "pause" in no.HUD_KINDS
+    try:
+        import typesafe_sdk  # noqa: F401
+    except Exception:
+        return
+    crit = no.noul_questions()["hud_kind"].criteria
+    assert "pause" in crit and "unknown" in crit

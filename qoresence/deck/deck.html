@@ -494,7 +494,7 @@ player.addEventListener('timeupdate',()=>{
   if(!segSkipIdle.checked || !clipSegments.length) return;
   const t=player.currentTime||0;
   const seg=clipSegments.find(s=>t>=Number(s.t0_s||0) && t<Number(s.t1_s||0));
-  if(seg && SEG_SKIP_KINDS.has(seg.hud_kind)) player.currentTime=Number(seg.t1_s||0);
+  if(seg && SEG_SKIP_KINDS.has(seg.hud_kind) && seg.confidence!=='lo') player.currentTime=Number(seg.t1_s||0);
 });
 function loadChaptersForClip(url){
   // /media/clips/foo.mp4 → /media/clips/foo.chapters.json
