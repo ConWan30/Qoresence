@@ -2119,21 +2119,25 @@ def create_app():  # type: ignore[no-untyped-def]
                 items: list[dict[str, Any]] = []
                 if not root.exists():
                     return items
-                videos = list(root.glob("hdmi_clip_*.mp4")) + list(
-                    root.glob("hdmi_clip_*.avi")
-                )
+                from qoresence.vision.clip_excise import cut_summary, is_cut_render
+
+                videos = [
+                    p for p in root.glob("hdmi_clip_*.mp4") if not is_cut_render(p)
+                ] + list(root.glob("hdmi_clip_*.avi"))
                 videos.sort(key=lambda x: x.stat().st_mtime, reverse=True)
                 for p in videos[:40]:
                     st = p.stat()
-                    items.append(
-                        {
-                            "name": p.name,
-                            "path": str(p.resolve()),
-                            "url": f"/media/clips/{p.name}",
-                            "size_bytes": st.st_size,
-                            "mtime": st.st_mtime,
-                        }
-                    )
+                    item = {
+                        "name": p.name,
+                        "path": str(p.resolve()),
+                        "url": f"/media/clips/{p.name}",
+                        "size_bytes": st.st_size,
+                        "mtime": st.st_mtime,
+                    }
+                    cut = cut_summary(p)
+                    if cut is not None:
+                        item["cut"] = cut
+                    items.append(item)
                 return items
 
             items = await asyncio.to_thread(_list_clips)
@@ -2143,6 +2147,44 @@ def create_app():  # type: ignore[no-untyped-def]
             )
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.post("/api/clip/{stem}/cuts")
+    async def api_clip_cuts(stem: str, request: Request):  # type: ignore[no-untyped-def]
+        """Gamer cut/keep override for one excision span; re-renders from the original."""
+        import re
+
+        denied = _local_client_required_response(request)
+        if denied is not None:
+            return denied
+        if not re.fullmatch(r"hdmi_clip_[\w\-]+", stem):
+            return JSONResponse({"ok": False, "error": "invalid clip"}, status_code=400)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        span_id = str(body.get("span_id") or "")
+        decision = str(body.get("decision") or "")
+        if not re.fullmatch(r"s\d{1,3}", span_id) or decision not in ("cut", "keep"):
+            return JSONResponse({"ok": False, "error": "invalid decision"}, status_code=400)
+        from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
+        from qoresence.vision.clip_excise import request_user_decision
+
+        mp4 = pathlib.Path(DEFAULT_OUT_DIR) / f"{stem}.mp4"
+        if not mp4.is_file():
+            return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+        receipt = await asyncio.to_thread(request_user_decision, mp4, span_id, decision)
+        if receipt is None:
+            return JSONResponse({"ok": False, "error": "no such span"}, status_code=404)
+        return JSONResponse(
+            {
+                "ok": True,
+                "excision": receipt.get("excision"),
+                "render": (receipt.get("render") or {}).get("state"),
+                "edited_duration_s": receipt.get("edited_duration_s"),
+            }
+        )
 
     @app.get("/api/civif/narrative")
     async def api_civif_narrative(clip: str = ""):  # type: ignore[no-untyped-def]
@@ -2334,7 +2376,7 @@ def create_app():  # type: ignore[no-untyped-def]
             return JSONResponse({"ok": False, "error": "invalid name"}, status_code=400)
         # MP4/AVI or sidecars: foo.chapters.json / foo.buttons.json
         if not re.fullmatch(
-            r"hdmi_clip_[\w\-]+(\.(mp4|avi|json)|(\.(chapters|buttons|coupling)\.json))",
+            r"hdmi_clip_[\w\-]+(\.(mp4|avi|json)|(\.(chapters|buttons|coupling|cut)\.json)|\.cut\.mp4)",
             safe,
             flags=re.I,
         ):

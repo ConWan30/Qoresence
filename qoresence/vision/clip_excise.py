@@ -717,6 +717,11 @@ def apply_user_decision(receipt: dict[str, Any], span_id: str, decision: str) ->
     return False
 
 
+def is_cut_render(path: Any) -> bool:
+    """``<stem>.cut.mp4`` renders are derived views, not clips of their own."""
+    return Path(path).name.lower().endswith(".cut.mp4")
+
+
 def receipt_path(mp4_path: Any) -> Path:
     p = Path(mp4_path)
     return p.with_name(p.stem + ".cut.json")
@@ -785,6 +790,14 @@ def _referee_available() -> bool:
             return True
     except Exception:
         pass
+    try:
+        from qoresence.observability.jev_conductor import get_jev_conductor
+
+        jev = get_jev_conductor()
+        if jev is not None and getattr(jev, "enabled", False):
+            return True
+    except Exception:
+        pass
     return os.environ.get("QORESENCE_JEV", "").strip().lower() in {"1", "true", "on", "yes"}
 
 
@@ -809,3 +822,169 @@ def _ledger(receipt: dict[str, Any]) -> None:
         )
     except Exception:
         pass
+
+
+# --------------------------------------------------------------------------- worker + render
+
+WORKER_QUEUE_MAX = 4
+
+
+def render_from_receipt(mp4_path: Any, receipt: dict[str, Any]) -> dict[str, Any]:
+    """Render (or remove) ``<stem>.cut.mp4`` to match the receipt; returns the receipt."""
+    src = Path(mp4_path)
+    cut = cut_mp4_path(src)
+    if not receipt.get("cuts"):
+        cut.unlink(missing_ok=True)
+        receipt["render"] = {"state": "not_needed", "path": None}
+        return receipt
+    from qoresence.vision.clip_buffer import HdmiClipBuffer
+
+    res = HdmiClipBuffer.render_cut(src, receipt.get("keep") or [], cut)
+    if res.get("ok"):
+        receipt["render"] = {"state": "done", "path": cut.name, "audio": res.get("audio")}
+    else:
+        receipt["render"] = {"state": "failed", "path": None}
+    return receipt
+
+
+class _ExciseWorker:
+    """Bounded single worker: referee + render off the export and capture threads."""
+
+    def __init__(self) -> None:
+        import queue
+        import threading
+
+        self._q: queue.Queue[tuple[str, dict[str, Any]]] = queue.Queue(maxsize=WORKER_QUEUE_MAX)
+        self._thread = threading.Thread(target=self._loop, name="clip-excise", daemon=True)
+        self._thread.start()
+
+    def submit(self, kind: str, job: dict[str, Any]) -> bool:
+        import queue
+
+        try:
+            self._q.put_nowait((kind, job))
+            return True
+        except queue.Full:
+            return False
+
+    def drain(self, timeout_s: float = 30.0) -> bool:
+        """Test helper: wait until queued jobs finish."""
+        import time
+
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            if self._q.unfinished_tasks == 0:
+                return True
+            time.sleep(0.02)
+        return False
+
+    def _loop(self) -> None:
+        while True:
+            kind, job = self._q.get()
+            try:
+                if kind == "plan":
+                    receipt = plan_excision(
+                        job["mp4"],
+                        start_ns=job["start_ns"],
+                        end_ns=job["end_ns"],
+                        duration_s=job["duration_s"],
+                        evidence=job["evidence"],
+                    )
+                    if receipt.get("cuts"):
+                        write_receipt(job["mp4"], render_from_receipt(job["mp4"], receipt))
+                elif kind == "render":
+                    receipt = read_receipt(job["mp4"])
+                    if receipt is not None:
+                        write_receipt(job["mp4"], render_from_receipt(job["mp4"], receipt))
+            except Exception as e:
+                log.debug("clip excise job failed: %s", e)
+            finally:
+                self._q.task_done()
+
+
+_worker: _ExciseWorker | None = None
+
+
+def get_excise_worker() -> _ExciseWorker:
+    global _worker
+    if _worker is None:
+        _worker = _ExciseWorker()
+    return _worker
+
+
+def submit_excision(mp4_path: Any, *, snapshot: list[Any], duration_s: float) -> bool:
+    """Called from ``HdmiClipBuffer.export`` (off the capture thread).
+
+    Stillness and evidence are captured now, before the rings roll; the referee
+    and render run on the worker. A full queue writes a ``skipped_busy`` receipt.
+    """
+    frames = [(float(e[0]), e[1]) for e in snapshot if len(e) >= 2]
+    if len(frames) < 2:
+        return False
+    start_ns = int(frames[0][0] * 1e9)
+    end_ns = int(frames[-1][0] * 1e9)
+    evidence = collect_evidence(start_ns, end_ns, stillness=stillness_series(frames))
+    job = {
+        "mp4": str(mp4_path),
+        "start_ns": start_ns,
+        "end_ns": end_ns,
+        "duration_s": float(duration_s),
+        "evidence": evidence,
+    }
+    if get_excise_worker().submit("plan", job):
+        return True
+    write_receipt(
+        mp4_path,
+        {
+            "schema": RECEIPT_SCHEMA,
+            "plane": PLANE,
+            "policy_version": POLICY_VERSION,
+            "source": Path(mp4_path).name,
+            "source_duration_s": round(float(duration_s), 3),
+            "spans": [],
+            "cuts": [],
+            "keep": [[0.0, round(float(duration_s), 3)]],
+            "time_map": [[0.0, 0.0, round(float(duration_s), 3)]],
+            "edited_duration_s": round(float(duration_s), 3),
+            "excision": "skipped_busy",
+            "render": {"state": "not_needed", "path": None},
+            "licenses_digits": False,
+        },
+    )
+    return False
+
+
+def request_user_decision(mp4_path: Any, span_id: str, decision: str) -> dict[str, Any] | None:
+    """Apply a gamer override and queue a re-render. ``None`` if not applicable."""
+    receipt = read_receipt(mp4_path)
+    if receipt is None or not apply_user_decision(receipt, span_id, decision):
+        return None
+    receipt["render"] = {"state": "pending" if receipt["cuts"] else "not_needed", "path": None}
+    write_receipt(mp4_path, receipt)
+    if not get_excise_worker().submit("render", {"mp4": str(mp4_path)}):
+        receipt["render"] = {"state": "skipped_busy", "path": None}
+        write_receipt(mp4_path, receipt)
+    return receipt
+
+
+def cut_summary(mp4_path: Any) -> dict[str, Any] | None:
+    """Compact cut state for clip listings; ``None`` when no receipt exists."""
+    receipt = read_receipt(mp4_path)
+    if receipt is None:
+        return None
+    render = receipt.get("render") or {}
+    cut = cut_mp4_path(mp4_path)
+    url = f"/media/clips/{cut.name}" if render.get("state") == "done" and cut.is_file() else None
+    return {
+        "excision": receipt.get("excision"),
+        "render": render.get("state"),
+        "url": url,
+        "receipt_url": f"/media/clips/{receipt_path(mp4_path).name}",
+        "source_duration_s": receipt.get("source_duration_s"),
+        "edited_duration_s": receipt.get("edited_duration_s"),
+        "suggestions": sum(
+            1
+            for r in receipt.get("spans") or []
+            if r.get("decision") == "suggest" and not r.get("user")
+        ),
+    }

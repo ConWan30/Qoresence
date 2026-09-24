@@ -47,6 +47,8 @@ def scan_clips(clips_dir=None, max_n=None):
         if not d.exists():
             return out
         for mp4 in sorted(d.glob("*.mp4"), key=lambda x: x.stat().st_mtime, reverse=True):
+            if mp4.name.lower().endswith(".cut.mp4"):
+                continue
             stem = mp4.stem
             ch = _load_json(d / (stem + ".chapters.json")) or {}
             bt = _load_json(d / (stem + ".buttons.json")) or {}
