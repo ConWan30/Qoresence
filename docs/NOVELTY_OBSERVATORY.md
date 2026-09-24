@@ -260,7 +260,18 @@ Deck Integrity Board (operator-only, never Lens) shows Honesty / Presence / HUD 
 
 ### Clip segments (Situation Bookmark, no claim)
 
-While noul is on, the observatory keeps a bounded run-length history of `(hud_kind, presence_token)`. The history is appended only when either value changes, under the observatory's own lock, and nothing is emitted. At clip export, `clip_chapters.build_segments_for_window` turns that history into a `segments` list on `<name>.chapters.json`: Live / Pre-play / Play select / Menu / Loading / No board, plus idle / join / dense. The Deck uses it for seek and an opt-in "Skip menus/loading". This is structure, not highlights: closed vocabulary, `licenses_digits: false`, and no segments when noul is off. See [STEM.md](STEM.md#segments-chapters-sidecar).
+While noul is on, the observatory keeps a bounded run-length history of `(hud_kind, presence_token, confidence bucket, true_pause bucket)`, plus a bounded ring of slim VLM snapshots (clock, quarter, teams present, `paused_raw`, prompt; no digits). Both are appended under the observatory's own lock, and nothing is emitted. At clip export, `clip_chapters.build_segments_for_window` turns the history into a `segments` list on `<name>.chapters.json`: Live / Pre-play / Play select / Paused / Menu / Loading / No board, plus idle / join / dense. The Deck uses it for seek and an opt-in "Skip pauses/menus/loading". This is structure, not highlights: closed vocabulary, `licenses_digits: false`, and no segments when noul is off. See [STEM.md](STEM.md#segments-chapters-sidecar).
+
+`pause` is an in-game pause overlay (the scorebug may still show); `select_plate` stays the SELECT plate that invents a score pair. The VLM's own pause read is kept as `paused_raw` before `normalize_vlm_paused_flag` clears `paused` for digit honesty. Because the VLM also false-positives `paused` on live HUDs, a raw-only pause is a low-confidence `pause` that cannot auto-cut.
+
+### Clip excision (Cut Receipt, default OFF)
+
+`--clip-excise` / `QORESENCE_CLIP_EXCISE=1`. After an HDMI clip is written, `qoresence/vision/clip_excise.py` finds candidate dead spans (pause / select_plate / menu / loading segments and frozen-picture runs) and decides cut / suggest / keep per span. The original `<stem>.mp4` is never modified; the edit is `<stem>.cut.mp4` plus a `<stem>.cut.json` receipt with each span's evidence, answers, decision, reason, the Jev model version, `policy_version`, and a `time_map` back to source time.
+
+- **Span Referee:** with `--noul` or `--jev` and a key, one Jev request per clip (pinned `jev-1.13.0`, override `QORESENCE_EXCISE_MODEL`) asks three fan-out questions per span: what was on screen (with `unknown`), was gameplay suspended and resumed from the same moment, and would removing it hide live play.
+- **Triple Proof (offline):** without the referee, only pauses with `paused_raw` throughout + ≥1.5 s frozen picture + (unchanged game clock or an Options press) are cut. Menus and loading are never cut offline.
+- **Fail closed:** spans with a ticket or chapter mark inside, `hides_play ≥ 0.3`, `unknown` / `gameplay`, or confidence < 0.6 are kept. 0.6–0.85 becomes a Deck suggestion (kept until the gamer accepts). Replays and cutscenes are suggest-only. 0.4 s is kept on each side of a cut, and a plan that would remove more than 60 % of the clip keeps everything.
+- The referee and ffmpeg render run on a bounded `clip-excise` worker: no bus events, no lobe locks, nothing on the capture thread. The Deck shows an Edited / Original toggle and a per-span receipt with Cut / Keep; overrides re-render from the original and are logged to the Jev ledger as labelled pilot evidence.
 
 ### Jev conductor (ClutchBot / MatchAgent *text*, default OFF)
 
