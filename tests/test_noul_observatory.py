@@ -193,3 +193,48 @@ def test_hot_path_only_enqueues(tmp_path):
     assert obs.stats()["judged"] >= 1
     assert obs.stats()["licenses_digits"] is False
     obs.stop()
+
+
+def _kind_answers(kind):
+    return {"hud_kind": kind, "hud_confidence": 0.9, "presence_density": 0.0}
+
+
+def test_run_ring_appends_only_on_change(tmp_path):
+    answers = {"a": _kind_answers("live_hud")}
+    obs = NoulObservatory(
+        NoulConfig(enabled=True, out_dir=str(tmp_path), queue_size=8),
+        ask_fn=lambda rec: answers["a"],
+    )
+    try:
+        parsed = {"home_score": 7, "away_score": 0}
+        for ns in (100, 200, 300):
+            obs._judge({"clock_ns": ns, "parsed": parsed})
+        answers["a"] = _kind_answers("menu")
+        obs._judge({"clock_ns": 400, "parsed": parsed})
+        obs._judge({"clock_ns": 500, "parsed": parsed})
+        answers["a"] = _kind_answers("not_a_kind")
+        obs._judge({"clock_ns": 600, "parsed": parsed})
+        runs = list(obs._runs)
+        assert [r[0] for r in runs] == [100, 400, 600]
+        assert [r[1] for r in runs] == ["live_hud", "menu", "unknown"]
+        assert all(r[2] == "idle" for r in runs)
+    finally:
+        obs.stop()
+
+
+def test_run_ring_bounded_and_window_includes_prior_run(tmp_path):
+    from qoresence.observability.noul_observatory import RUN_RING_MAX
+
+    obs = NoulObservatory(NoulConfig(enabled=True, out_dir=str(tmp_path), queue_size=8))
+    try:
+        kinds = ("live_hud", "menu")
+        for i in range(RUN_RING_MAX + 50):
+            obs._runs.append((i * 10, kinds[i % 2], "idle"))
+        assert len(obs._runs) == RUN_RING_MAX
+        obs._runs.clear()
+        obs._runs.extend([(100, "menu", "idle"), (500, "live_hud", "join"), (900, "loading", "idle")])
+        win = obs.runs_in_window(300, 800)
+        assert win == [(100, "menu", "idle"), (500, "live_hud", "join")]
+        assert obs.runs_in_window(950, 1000) == [(900, "loading", "idle")]
+    finally:
+        obs.stop()

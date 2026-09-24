@@ -22,6 +22,7 @@ owns tickets, clocks, and Foundry export.
 
 from __future__ import annotations
 
+import collections
 import json
 import logging
 import os
@@ -249,6 +250,9 @@ PRESENCE_TOKENS = (
     "dense",
 )
 
+# Run-length history of (hud_kind, presence_token) for clip segment sidecars.
+RUN_RING_MAX = 2048
+
 
 def compose_honesty_lattice(
     *,
@@ -387,6 +391,9 @@ class NoulObservatory:
         self._last_compose: dict[str, Any] = {}
         self._last_compose_ns = 0
         self._lock = threading.Lock()
+        self._runs: collections.deque[tuple[int, str, str]] = collections.deque(
+            maxlen=RUN_RING_MAX
+        )
         self._queue: queue.Queue[dict[str, Any]] = queue.Queue(
             maxsize=int(getattr(config, "queue_size", 256))
         )
@@ -530,11 +537,32 @@ class NoulObservatory:
         )
         composed["source"] = answers.get("source") or "unknown"
         composed["clock_ns"] = rec.get("clock_ns")
+        run_ns = int(rec.get("clock_ns") or 0) or time.monotonic_ns()
+        kind = composed.get("hud_kind")
+        token = composed.get("presence_token")
+        run_kind = kind if kind in HUD_KINDS else "unknown"
+        run_token = token if token in PRESENCE_TOKENS else "unknown"
         with self._lock:
             self._last_compose = composed
             self._last_compose_ns = time.monotonic_ns()
             self._judged += 1
+            if not self._runs or self._runs[-1][1:] != (run_kind, run_token):
+                self._runs.append((run_ns, run_kind, run_token))
         self._write_jsonl(composed)
+
+    def runs_in_window(self, start_ns: int, end_ns: int) -> list[tuple[int, str, str]]:
+        """Runs overlapping [start_ns, end_ns], including the one in effect at start."""
+        with self._lock:
+            runs = list(self._runs)
+        out: list[tuple[int, str, str]] = []
+        for run in runs:
+            if run[0] > end_ns:
+                continue
+            if run[0] <= start_ns:
+                out = [run]
+            else:
+                out.append(run)
+        return out
 
     def _try_typesafe(self, rec: dict[str, Any]) -> dict[str, Any] | None:
         questions = noul_questions()
