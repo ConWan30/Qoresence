@@ -191,3 +191,137 @@ def test_module_never_touches_the_bus():
 
     src = inspect.getsource(cx)
     assert "emit_raw" not in src and "subscribe" not in src
+
+
+# --------------------------------------------------------------------------- policy
+
+
+def _span(**ev_over):
+    s = cx.build_candidate_spans(_pause_evidence())[0]
+    s.evidence.update(ev_over)
+    return s
+
+
+def _ans(kind="pause", conf=0.93, suspended=0.91, hides=0.05):
+    return {
+        "s0": {"kind": kind, "kind_confidence": conf, "suspended": suspended, "hides_play": hides}
+    }
+
+
+def test_policy_table():
+    s = _span()
+    assert cx.cut_policy(s, _ans())[0] == "cut"
+    assert cx.cut_policy(s, _ans(conf=0.7))[0] == "suggest"
+    assert cx.cut_policy(s, _ans(suspended=0.6))[0] == "suggest"
+    assert cx.cut_policy(s, _ans(suspended=0.5))[0] == "suggest"
+    assert cx.cut_policy(s, _ans(suspended=0.49))[0] == "keep"
+    assert cx.cut_policy(s, _ans(conf=0.55))[0] == "keep"
+    assert cx.cut_policy(s, _ans(hides=0.3)) == ("keep", "may_hide_play")
+    assert cx.cut_policy(s, _ans(hides=None))[0] == "keep"
+    assert cx.cut_policy(s, _ans(kind="unknown"))[0] == "keep"
+    assert cx.cut_policy(s, _ans(kind="gameplay"))[0] == "keep"
+    assert cx.cut_policy(s, _ans(kind="menu", suspended=None))[0] == "cut"
+    assert cx.cut_policy(s, _ans(kind="loading", conf=0.7))[0] == "suggest"
+    assert cx.cut_policy(s, _ans(kind="replay_or_cutscene", conf=0.99))[0] == "suggest"
+    assert cx.cut_policy(s, {})[0] == "keep"
+
+
+def test_policy_hard_keeps_beat_confident_referee():
+    assert cx.cut_policy(_span(ticket_overlap=True), _ans()) == ("keep", "ticket_or_mark_inside")
+
+
+def test_policy_offline_cuts_only_triple_proof_pause():
+    assert cx.cut_policy(_span(), None)[0] == "cut"
+    assert cx.cut_policy(_span(still_s=0.4), None) == ("keep", "offline_no_proof")
+    menu_ev = _pause_evidence(
+        segments=[{"t0_s": 5.0, "t1_s": 12.0, "hud_kind": "menu", "confidence": "hi"}],
+        vlm=[_vlm(6.0, paused_raw=False), _vlm(9.0, paused_raw=False)],
+    )
+    assert cx.cut_policy(cx.build_candidate_spans(menu_ev)[0], None)[0] == "keep"
+
+
+def test_plan_cuts_pads_and_time_map_round_trip():
+    rows = [{"id": "s0", "t0_s": 5.0, "t1_s": 12.0, "decision": "cut"}]
+    cuts, keep, aborted = cx.plan_cuts(rows, 20.0)
+    assert not aborted
+    assert cuts == [[5.4, 11.6]]
+    assert keep == [[0.0, 5.4], [11.6, 20.0]]
+    tmap = cx.time_map(keep)
+    assert tmap == [[0.0, 0.0, 5.4], [5.4, 11.6, 8.4]]
+    assert cx.source_time(tmap, 6.0) == 12.2
+    assert cx.source_time(tmap, 2.0) == 2.0
+
+
+def test_plan_cuts_aborts_when_too_much_would_go():
+    rows = [{"id": "s0", "t0_s": 0.0, "t1_s": 19.0, "decision": "cut"}]
+    cuts, keep, aborted = cx.plan_cuts(rows, 20.0)
+    assert aborted and cuts == [] and keep == [[0.0, 20.0]]
+
+
+def test_suggest_renders_as_keep_until_user_accepts():
+    rows = [{"id": "s0", "t0_s": 5.0, "t1_s": 12.0, "decision": "suggest", "user": None}]
+    assert cx.plan_cuts(rows, 20.0)[0] == []
+    rows[0]["user"] = "cut"
+    assert cx.plan_cuts(rows, 20.0)[0] == [[5.4, 11.6]]
+
+
+def test_receipt_end_to_end_with_referee(tmp_path):
+    mp4 = tmp_path / "hdmi_clip_x.mp4"
+    mp4.write_bytes(b"x")
+
+    def ask(state, spans):
+        return _ans(), "jev-1.13.0"
+
+    receipt = cx.plan_excision(
+        mp4,
+        start_ns=0,
+        end_ns=int(20e9),
+        duration_s=20.0,
+        evidence=_pause_evidence(),
+        ask_fn=ask,
+        use_referee=True,
+    )
+    assert receipt["schema"] == cx.RECEIPT_SCHEMA
+    assert receipt["referee"] == "jev" and receipt["model"] == "jev-1.13.0"
+    assert receipt["excision"] == "applied" and receipt["cuts"] == [[5.4, 11.6]]
+    assert receipt["edited_duration_s"] == 13.8
+    assert receipt["licenses_digits"] is False
+    assert receipt["spans"][0]["reason"] == "referee_pause"
+    on_disk = cx.read_receipt(mp4)
+    assert on_disk["cuts"] == receipt["cuts"]
+    text = cx.receipt_path(mp4).read_text()
+    for banned in ("highlight", "clutch", "best"):
+        assert banned not in text.lower()
+
+    assert cx.apply_user_decision(on_disk, "s0", "keep")
+    assert on_disk["cuts"] == [] and on_disk["excision"] == "none"
+    assert not cx.apply_user_decision(on_disk, "nope", "cut")
+    assert not cx.apply_user_decision(on_disk, "s0", "maybe")
+
+
+def test_receipt_offline_when_referee_unavailable(tmp_path):
+    mp4 = tmp_path / "hdmi_clip_y.mp4"
+    mp4.write_bytes(b"x")
+    receipt = cx.plan_excision(
+        mp4,
+        start_ns=0,
+        end_ns=int(20e9),
+        duration_s=20.0,
+        evidence=_pause_evidence(),
+        use_referee=False,
+    )
+    assert receipt["referee"] == "offline_triple_proof" and receipt["model"] is None
+    assert receipt["spans"][0]["reason"].startswith("triple_proof:")
+    assert receipt["excision"] == "applied"
+
+
+def test_receipt_no_spans_needs_no_render(tmp_path):
+    mp4 = tmp_path / "hdmi_clip_z.mp4"
+    mp4.write_bytes(b"x")
+    ev = {"segments": [], "vlm": [], "inputs": [], "marks": [], "still_runs": []}
+    receipt = cx.plan_excision(
+        mp4, start_ns=0, end_ns=int(10e9), duration_s=10.0, evidence=ev, use_referee=True
+    )
+    assert receipt["excision"] == "none" and receipt["render"]["state"] == "not_needed"
+    assert receipt["referee"] == "none"
+    assert receipt["keep"] == [[0.0, 10.0]]

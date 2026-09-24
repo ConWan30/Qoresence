@@ -16,9 +16,11 @@ HARD RULES (same class as AGENTS.md Rules 5–6):
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 log = logging.getLogger(__name__)
@@ -533,3 +535,277 @@ def run_referee(
         return None, None
     model_id = getattr(response, "model", None) or model or excise_model()
     return parse_referee_response(response, spans), str(model_id)
+
+
+# --------------------------------------------------------------------------- cut policy
+
+PAD_S = 0.4
+MAX_CUT_FRACTION = 0.6
+HIDES_PLAY_KEEP = 0.3
+KIND_FLOOR = 0.6
+KIND_CUT = 0.85
+SUSPENDED_CUT = 0.8
+NOUL_UNSURE = 0.5
+RECEIPT_SCHEMA = "qoresence.cut_receipt/1"
+DECISIONS = ("cut", "suggest", "keep")
+
+
+def cut_policy(span: Span, answers: dict[str, dict[str, Any]] | None) -> tuple[str, str]:
+    """``(decision, reason)``; ``answers is None`` means no referee (offline)."""
+    ev = span.evidence
+    if ev.get("ticket_overlap"):
+        return "keep", "ticket_or_mark_inside"
+    if span.length_s < MIN_SPAN_S:
+        return "keep", "too_short"
+    if answers is None:
+        ok, reasons = triple_proof(span)
+        if ok:
+            return "cut", "triple_proof:" + "+".join(reasons)
+        return "keep", "offline_no_proof"
+    a = answers.get(span.id)
+    if not a:
+        return "keep", "no_answer"
+    hides = a.get("hides_play")
+    if hides is None:
+        return "keep", "hides_play_unknown"
+    if hides >= HIDES_PLAY_KEEP:
+        return "keep", "may_hide_play"
+    kind = a.get("kind")
+    conf = float(a.get("kind_confidence") or 0.0)
+    if kind in (None, "unknown", "gameplay"):
+        return "keep", f"kind_{kind or 'none'}"
+    if conf < KIND_FLOOR:
+        return "keep", "kind_unsure"
+    if kind == "replay_or_cutscene":
+        return "suggest", "replay_is_taste"
+    if kind == "pause":
+        sus = a.get("suspended")
+        if sus is None or sus < NOUL_UNSURE:
+            return "keep", "not_suspended"
+        if conf >= KIND_CUT and sus >= SUSPENDED_CUT:
+            return "cut", "referee_pause"
+        return "suggest", "referee_pause_unsure"
+    if kind in ("menu", "loading"):
+        if conf >= KIND_CUT:
+            return "cut", f"referee_{kind}"
+        return "suggest", f"referee_{kind}_unsure"
+    return "keep", "unhandled_kind"
+
+
+def effective_decision(span_row: dict[str, Any]) -> str:
+    """User override wins; ``suggest`` renders as keep until accepted."""
+    user = span_row.get("user")
+    if user in ("cut", "keep"):
+        return user
+    return "cut" if span_row.get("decision") == "cut" else "keep"
+
+
+def plan_cuts(
+    span_rows: list[dict[str, Any]], duration_s: float
+) -> tuple[list[list[float]], list[list[float]], bool]:
+    """``(cuts, keep, aborted)`` with ``PAD_S`` kept at both edges of every cut."""
+    dur = max(0.0, float(duration_s))
+    cuts: list[list[float]] = []
+    for row in sorted(span_rows, key=lambda r: float(r.get("t0_s") or 0)):
+        if effective_decision(row) != "cut":
+            continue
+        t0 = max(0.0, float(row["t0_s"]) + PAD_S)
+        t1 = min(dur, float(row["t1_s"]) - PAD_S)
+        if t1 - t0 < MIN_SPAN_S - 2 * PAD_S:
+            continue
+        if cuts and t0 <= cuts[-1][1]:
+            cuts[-1][1] = max(cuts[-1][1], t1)
+        else:
+            cuts.append([round(t0, 3), round(t1, 3)])
+    removed = sum(c[1] - c[0] for c in cuts)
+    if dur <= 0 or removed > MAX_CUT_FRACTION * dur:
+        return [], [[0.0, round(dur, 3)]], bool(cuts)
+    keep: list[list[float]] = []
+    cursor = 0.0
+    for c0, c1 in cuts:
+        if c0 > cursor:
+            keep.append([round(cursor, 3), round(c0, 3)])
+        cursor = c1
+    if cursor < dur:
+        keep.append([round(cursor, 3), round(dur, 3)])
+    return cuts, keep, False
+
+
+def time_map(keep: list[list[float]]) -> list[list[float]]:
+    """``[edited_t0, source_t0, length]`` rows for each kept range."""
+    out = []
+    edited = 0.0
+    for k0, k1 in keep:
+        length = round(k1 - k0, 3)
+        out.append([round(edited, 3), round(k0, 3), length])
+        edited += length
+    return out
+
+
+def source_time(tmap: list[list[float]], edited_t: float) -> float:
+    for e0, s0, length in tmap:
+        if e0 <= edited_t <= e0 + length:
+            return round(s0 + (edited_t - e0), 3)
+    return round(float(edited_t), 3)
+
+
+def build_receipt(
+    source_name: str,
+    duration_s: float,
+    spans: list[Span],
+    answers: dict[str, dict[str, Any]] | None,
+    *,
+    model_id: str | None,
+) -> dict[str, Any]:
+    rows = []
+    for s in spans:
+        decision, reason = cut_policy(s, answers)
+        row = s.to_dict()
+        row.update(
+            {
+                "decision": decision,
+                "reason": reason,
+                "answers": (answers or {}).get(s.id) if answers is not None else None,
+                "user": None,
+            }
+        )
+        rows.append(row)
+    receipt: dict[str, Any] = {
+        "schema": RECEIPT_SCHEMA,
+        "plane": PLANE,
+        "policy_version": POLICY_VERSION,
+        "referee": "none"
+        if not spans
+        else ("jev" if answers is not None else "offline_triple_proof"),
+        "model": model_id if answers is not None else None,
+        "source": source_name,
+        "source_duration_s": round(float(duration_s), 3),
+        "spans": rows,
+        "render": {"state": "pending", "path": None},
+        "licenses_digits": False,
+    }
+    return refresh_receipt(receipt)
+
+
+def refresh_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
+    """Recompute cuts / keep / time map from span decisions and user overrides."""
+    cuts, keep, aborted = plan_cuts(receipt.get("spans") or [], receipt["source_duration_s"])
+    receipt["cuts"] = cuts
+    receipt["keep"] = keep
+    receipt["time_map"] = time_map(keep)
+    receipt["edited_duration_s"] = round(sum(k[1] - k[0] for k in keep), 3)
+    if aborted:
+        receipt["excision"] = "aborted_too_much"
+    elif cuts:
+        receipt["excision"] = "applied"
+    elif any(r.get("decision") == "suggest" and not r.get("user") for r in receipt["spans"]):
+        receipt["excision"] = "suggestions_only"
+    else:
+        receipt["excision"] = "none"
+    return receipt
+
+
+def apply_user_decision(receipt: dict[str, Any], span_id: str, decision: str) -> bool:
+    """Gamer override for one span (``cut`` / ``keep``). Returns False if unknown."""
+    if decision not in ("cut", "keep"):
+        return False
+    for row in receipt.get("spans") or []:
+        if row.get("id") == span_id:
+            row["user"] = decision
+            refresh_receipt(receipt)
+            return True
+    return False
+
+
+def receipt_path(mp4_path: Any) -> Path:
+    p = Path(mp4_path)
+    return p.with_name(p.stem + ".cut.json")
+
+
+def cut_mp4_path(mp4_path: Any) -> Path:
+    p = Path(mp4_path)
+    return p.with_name(p.stem + ".cut.mp4")
+
+
+def write_receipt(mp4_path: Any, receipt: dict[str, Any]) -> Path:
+    out = receipt_path(mp4_path)
+    tmp = out.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
+    tmp.replace(out)
+    return out
+
+
+def read_receipt(mp4_path: Any) -> dict[str, Any] | None:
+    p = receipt_path(mp4_path)
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def plan_excision(
+    mp4_path: Any,
+    *,
+    start_ns: int,
+    end_ns: int,
+    duration_s: float,
+    stillness: list[tuple[float, float]] | None = None,
+    evidence: dict[str, Any] | None = None,
+    ask_fn: Any = None,
+    use_referee: bool | None = None,
+    game_profile: str | None = None,
+) -> dict[str, Any]:
+    """Evidence → spans → referee/offline → receipt (written next to the MP4)."""
+    ev = (
+        evidence
+        if evidence is not None
+        else collect_evidence(start_ns, end_ns, stillness=stillness)
+    )
+    ev["duration_s"] = round(float(duration_s), 3)
+    spans = build_candidate_spans(ev)
+    answers = None
+    model_id = None
+    if spans and (use_referee if use_referee is not None else _referee_available()):
+        answers, model_id = run_referee(spans, ask_fn=ask_fn, game_profile=game_profile)
+    receipt = build_receipt(Path(mp4_path).name, duration_s, spans, answers, model_id=model_id)
+    if not receipt["cuts"]:
+        receipt["render"] = {"state": "not_needed", "path": None}
+    write_receipt(mp4_path, receipt)
+    _ledger(receipt)
+    return receipt
+
+
+def _referee_available() -> bool:
+    """Jev referee only when an observation pack is on (``--noul`` / ``--jev``)."""
+    try:
+        from qoresence.observability.noul_observatory import get_noul_observatory
+
+        obs = get_noul_observatory()
+        if obs is not None and getattr(obs, "enabled", False):
+            return True
+    except Exception:
+        pass
+    return os.environ.get("QORESENCE_JEV", "").strip().lower() in {"1", "true", "on", "yes"}
+
+
+def _ledger(receipt: dict[str, Any]) -> None:
+    try:
+        from qoresence.observability.jev_ledger import append_judgment
+
+        append_judgment(
+            "excise",
+            {
+                "source": receipt.get("source"),
+                "referee": receipt.get("referee"),
+                "model": receipt.get("model"),
+                "policy_version": receipt.get("policy_version"),
+                "excision": receipt.get("excision"),
+                "decisions": [
+                    {"id": r["id"], "decision": r["decision"], "reason": r["reason"]}
+                    for r in receipt.get("spans") or []
+                ],
+                "licenses_digits": False,
+            },
+        )
+    except Exception:
+        pass
