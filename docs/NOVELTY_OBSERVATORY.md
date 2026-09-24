@@ -258,6 +258,10 @@ Composite of TypeSafe **Score** dimensions, weights in code (`HONESTY_WEIGHTS`):
 
 Deck Integrity Board (operator-only, never Lens) shows Honesty / Presence / HUD tiles when noul is on. Changing a weight does not require a new inference.
 
+### Clip segments (Situation Bookmark, no claim)
+
+While noul is on, the observatory keeps a bounded run-length history of `(hud_kind, presence_token)`. The history is appended only when either value changes, under the observatory's own lock, and nothing is emitted. At clip export, `clip_chapters.build_segments_for_window` turns that history into a `segments` list on `<name>.chapters.json`: Live / Pre-play / Play select / Menu / Loading / No board, plus idle / join / dense. The Deck uses it for seek and an opt-in "Skip menus/loading". This is structure, not highlights: closed vocabulary, `licenses_digits: false`, and no segments when noul is off. See [STEM.md](STEM.md#segments-chapters-sidecar).
+
 ### Jev conductor (ClutchBot / MatchAgent *text*, default OFF)
 
 `--jev` / `QORESENCE_JEV=1`. Jev is **text-only** — it cannot see HDMI. Pixel harvest stays on the VLM. The conductor **selects** closed templates (Choice + speculative Noul clip/arm) instead of generating chat. Code fills digits from the confirm ticket only. Key: `TYPESAFE_API_KEY` or `.secrets/typesafe.key` (never commit). `--play` does not enable.

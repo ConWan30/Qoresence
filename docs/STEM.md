@@ -38,6 +38,15 @@ python -m qoresence.cli --play --deck --stem-audio --stem-record
 
 `/health` exposes `stem.mode`, `stem.audio.age_s`, `stem.record.active`.
 
+## Segments (chapters sidecar)
+
+When the Noul observatory is on (`--noul`, default OFF), `<name>.chapters.json` gains a `segments` list. It covers Stem Record and Foundry HDMI clips alike. Each segment describes what was on screen and how much pad↔picture activity there was: `{t0_s, t1_s, hud_kind, presence, label}`. `hud_kind` is one of live_hud / preplay / select_plate / menu / loading / no_board / unknown, and `presence` is idle / join / dense / unknown. Runs shorter than 1.5 s fold into their neighbour.
+
+- The sidecar also carries `segments_source: "noul"` and `licenses_digits: false`. Labels are closed and descriptive, never "clutch", "highlight", or "best".
+- With Noul off, the `segments` key is absent (fail closed).
+- The Deck clip player shows a segment strip plus seek buttons, and a "Skip menus/loading" toggle that is off by default.
+- Stem Record's chapter window is its start/stop `clock_ns`. Stem Record does not mux its MP4 yet, so Stem segments land when the mux does.
+
 ## Pilot order
 
 1. Capture health, VLM score lock, one local HDMI clip (card in).
