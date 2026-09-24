@@ -530,7 +530,14 @@ class HdmiClipBuffer:
         )
 
     @staticmethod
-    def _ffmpeg_h264(src: Path, dst: Path, fps: float, audio_wav: Path | None = None) -> bool:
+    def _ffmpeg_h264(
+        src: Path,
+        dst: Path,
+        fps: float,
+        audio_wav: Path | None = None,
+        *,
+        timeout_s: float = 120.0,
+    ) -> bool:
         """Transcode to browser-safe H.264 MP4 (+faststart for progressive play).
 
         Mux AAC when a Stem Audio wav overlaps the cut; otherwise ``-an``.
@@ -569,7 +576,7 @@ class HdmiClipBuffer:
             str(dst),
         ]
         try:
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
             if r.returncode != 0:
                 log.warning("ffmpeg h264 failed: %s", (r.stderr or r.stdout or "")[:300])
                 return False
