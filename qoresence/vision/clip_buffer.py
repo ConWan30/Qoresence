@@ -493,6 +493,13 @@ class HdmiClipBuffer:
 
             if start_ns is None:
                 chapters_after_export(final_path, duration_s=dur)
+            else:
+                chapters_after_export(
+                    final_path,
+                    duration_s=dur,
+                    window_start_ns=int(start_ns),
+                    window_end_ns=int(end_ns),
+                )
         except Exception as e:
             log.debug("chapters sidecar skipped: %s", e)
         try:

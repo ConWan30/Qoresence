@@ -35,6 +35,7 @@ SEGMENT_LABELS = {
     "live_hud": "Live",
     "preplay": "Pre-play",
     "select_plate": "Play select",
+    "pause": "Paused",
     "menu": "Menu",
     "loading": "Loading",
     "no_board": "No board",
@@ -42,6 +43,13 @@ SEGMENT_LABELS = {
 }
 SEGMENT_PRESENCE = frozenset({"idle", "join", "dense", "unknown"})
 SEGMENT_MIN_S = 1.5
+# Evidence strength, weakest first. Merges keep the weakest (fail closed).
+_CONF_RANK = {"lo": 0, "mid": 1, "hi": 2}
+_PAUSE_RANK = {"no": 0, "na": 1, "maybe": 2, "yes": 3}
+
+
+def _weakest(rank: dict[str, int], a: str, b: str) -> str:
+    return a if rank.get(a, 0) <= rank.get(b, 0) else b
 
 
 def build_segments_for_window(
@@ -51,18 +59,28 @@ def build_segments_for_window(
     end_ns: int,
     min_s: float = SEGMENT_MIN_S,
 ) -> list[dict[str, Any]]:
-    """Turn ``(clock_ns, hud_kind, presence_token)`` runs into clip-relative segments.
+    """Turn ``(clock_ns, hud_kind, presence_token[, conf, pause])`` runs into segments.
 
     Runs are clipped to [start_ns, end_ns]. Runs shorter than ``min_s`` fold
     into their neighbour (menu-flicker hysteresis), then identical neighbours merge.
+    A fold caps the absorbing segment's confidence at ``mid``; merges keep the
+    weakest confidence / pause evidence.
     """
     if end_ns <= start_ns:
         return []
     ordered = sorted(
-        (int(r[0]), str(r[1]), str(r[2])) for r in (runs or []) if len(r) >= 3
+        (
+            int(r[0]),
+            str(r[1]),
+            str(r[2]),
+            str(r[3]) if len(r) > 3 else "lo",
+            str(r[4]) if len(r) > 4 else "na",
+        )
+        for r in (runs or [])
+        if len(r) >= 3
     )
     raw: list[dict[str, Any]] = []
-    for i, (cns, kind, presence) in enumerate(ordered):
+    for i, (cns, kind, presence, conf, pause) in enumerate(ordered):
         nxt = ordered[i + 1][0] if i + 1 < len(ordered) else end_ns
         t0 = max(cns, start_ns)
         t1 = min(nxt, end_ns)
@@ -74,6 +92,8 @@ def build_segments_for_window(
                 "t1_s": (t1 - start_ns) / 1e9,
                 "hud_kind": kind if kind in SEGMENT_LABELS else "unknown",
                 "presence": presence if presence in SEGMENT_PRESENCE else "unknown",
+                "confidence": conf if conf in _CONF_RANK else "lo",
+                "true_pause": pause if pause in _PAUSE_RANK else "na",
             }
         )
 
@@ -81,11 +101,16 @@ def build_segments_for_window(
     for seg in raw:
         short = seg["t1_s"] - seg["t0_s"] < float(min_s)
         if short and folded:
-            folded[-1]["t1_s"] = seg["t1_s"]
+            prev = folded[-1]
+            prev["t1_s"] = seg["t1_s"]
+            if seg["hud_kind"] != prev["hud_kind"]:
+                prev["confidence"] = _weakest(_CONF_RANK, prev["confidence"], "mid")
             continue
         if folded and folded[-1].get("_short"):
-            seg = dict(seg, t0_s=folded[-1]["t0_s"])
-            folded.pop()
+            absorbed = folded.pop()
+            seg = dict(seg, t0_s=absorbed["t0_s"])
+            if absorbed["hud_kind"] != seg["hud_kind"]:
+                seg["confidence"] = _weakest(_CONF_RANK, seg["confidence"], "mid")
         folded.append(dict(seg, _short=short))
 
     out: list[dict[str, Any]] = []
@@ -97,6 +122,8 @@ def build_segments_for_window(
             and out[-1]["presence"] == seg["presence"]
         ):
             out[-1]["t1_s"] = seg["t1_s"]
+            out[-1]["confidence"] = _weakest(_CONF_RANK, out[-1]["confidence"], seg["confidence"])
+            out[-1]["true_pause"] = _weakest(_PAUSE_RANK, out[-1]["true_pause"], seg["true_pause"])
             continue
         out.append(seg)
     for seg in out:
@@ -114,9 +141,11 @@ def _noul_segments(start_ns: int, end_ns: int) -> list[dict[str, Any]]:
         obs = get_noul_observatory()
         if obs is None or not getattr(obs, "enabled", False):
             return []
-        return build_segments_for_window(
-            obs.runs_in_window(start_ns, end_ns), start_ns=start_ns, end_ns=end_ns
+        detailed = getattr(obs, "runs_in_window_detailed", None)
+        runs = detailed(start_ns, end_ns) if callable(detailed) else obs.runs_in_window(
+            start_ns, end_ns
         )
+        return build_segments_for_window(runs, start_ns=start_ns, end_ns=end_ns)
     except Exception as e:
         log.debug("noul segments skipped: %s", e)
         return []
@@ -275,7 +304,12 @@ def chapters_after_export(
         try:
             from qoresence.sync.input_ring import get_input_ring
 
-            input_events = get_input_ring().snapshot(seconds=float(duration_s))
+            lookback_s = max(float(duration_s), (time.monotonic_ns() - start_ns) / 1e9)
+            input_events = [
+                e
+                for e in get_input_ring().snapshot(seconds=lookback_s)
+                if start_ns <= int(e.get("clock_ns") or 0) <= end_ns
+            ]
             for e in input_events:
                 if e.get("kind") in ("press", "trigger") and e.get("name"):
                     n = str(e["name"])

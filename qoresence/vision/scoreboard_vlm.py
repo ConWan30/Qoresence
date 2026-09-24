@@ -1240,6 +1240,9 @@ class ScoreboardVlmReferee:
         else:
             out["clock_seconds"] = None
         out["paused"] = bool(obj.get("paused"))
+        # Scene classifiers need the VLM's own pause read; ``paused`` is later
+        # normalized for digit honesty (wordmarks → not paused).
+        out["paused_raw"] = out["paused"]
         for side_k in (
             "left_team",
             "left_color",

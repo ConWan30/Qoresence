@@ -189,7 +189,7 @@ body.dark-theater #strip,body.dark-theater #ctrlStrip,body.dark-theater #ctrlPla
     <h3><span>Replay chapters</span><span class="cardCode">03</span></h3>
     <div id="segWrap">
       <div id="segStrip" aria-label="Observation segments"></div>
-      <label id="segSkip"><input type="checkbox" id="segSkipIdle"> Skip menus/loading</label>
+      <label id="segSkip"><input type="checkbox" id="segSkipIdle"> Skip pauses/menus/loading</label>
     </div>
     <div id="chapterList"></div>
   </div>
@@ -465,11 +465,11 @@ function paintGhosts(t){
 }
 player.addEventListener('timeupdate',()=>paintGhosts(player.currentTime||0));
 const segWrap=document.getElementById('segWrap'), segStrip=document.getElementById('segStrip'), segSkipIdle=document.getElementById('segSkipIdle');
-const SEG_SKIP_KINDS=new Set(['menu','loading','no_board']);
+const SEG_SKIP_KINDS=new Set(['pause','select_plate','menu','loading','no_board']);
 let clipSegments=[];
 function segClass(kind){
   if(kind==='live_hud') return 'seg-live';
-  if(kind==='preplay'||kind==='select_plate') return 'seg-pre';
+  if(kind==='preplay') return 'seg-pre';
   if(SEG_SKIP_KINDS.has(kind)) return 'seg-idle';
   return 'seg-unknown';
 }
