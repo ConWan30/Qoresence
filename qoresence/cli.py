@@ -1563,6 +1563,10 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             enabled=True,
             endpoint=getattr(args, "otel_endpoint", None) or config.otel.endpoint,
         )
+    if getattr(args, "clip_excise", False):
+        from qoresence.vision.clip_excise import set_enabled as _set_clip_excise
+
+        _set_clip_excise(True)
     if getattr(args, "noul", False):
         from qoresence.core.unified_config import NoulConfig
 
@@ -1913,6 +1917,14 @@ def main():
         help="TypeSafe Noul observatory (HUD groundedness / clip presence). "
         "Default OFF. Also QORESENCE_NOUL=1. --play does not enable this. "
         "Never licenses score digits.",
+    )
+    parser.add_argument(
+        "--clip-excise",
+        action="store_true",
+        help="Cut pauses/menus/loading from local HDMI clips into <stem>.cut.mp4 with "
+        "a <stem>.cut.json receipt; the original MP4 is kept. Jev judges spans when "
+        "--noul or --jev is on, otherwise only proven pauses are cut. Default OFF. "
+        "Also QORESENCE_CLIP_EXCISE=1. --play does not enable this.",
     )
     parser.add_argument(
         "--jev",

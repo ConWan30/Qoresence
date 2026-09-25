@@ -40,11 +40,11 @@ python -m qoresence.cli --play --deck --stem-audio --stem-record
 
 ## Segments (chapters sidecar)
 
-When the Noul observatory is on (`--noul`, default OFF), `<name>.chapters.json` gains a `segments` list. It covers Stem Record and Foundry HDMI clips alike. Each segment describes what was on screen and how much pad↔picture activity there was: `{t0_s, t1_s, hud_kind, presence, label}`. `hud_kind` is one of live_hud / preplay / select_plate / menu / loading / no_board / unknown, and `presence` is idle / join / dense / unknown. Runs shorter than 1.5 s fold into their neighbour.
+When the Noul observatory is on (`--noul`, default OFF), `<name>.chapters.json` gains a `segments` list. It covers Stem Record and Foundry HDMI clips alike, including windowed exports. Each segment describes what was on screen and how much pad↔picture activity there was: `{t0_s, t1_s, hud_kind, presence, confidence, true_pause, label}`. `hud_kind` is one of live_hud / preplay / select_plate / pause / menu / loading / no_board / unknown, and `presence` is idle / join / dense / unknown. `confidence` is hi / mid / lo and `true_pause` is yes / maybe / no / na. Runs shorter than 1.5 s fold into their neighbour and cap its confidence at mid; merges keep the weakest evidence.
 
 - The sidecar also carries `segments_source: "noul"` and `licenses_digits: false`. Labels are closed and descriptive, never "clutch", "highlight", or "best".
 - With Noul off, the `segments` key is absent (fail closed).
-- The Deck clip player shows a segment strip plus seek buttons, and a "Skip menus/loading" toggle that is off by default.
+- The Deck clip player shows a segment strip plus seek buttons, and a "Skip pauses/menus/loading" toggle that is off by default. It never skips `lo`-confidence segments.
 - Stem Record's chapter window is its start/stop `clock_ns`. Stem Record does not mux its MP4 yet, so Stem segments land when the mux does.
 
 ## Pilot order

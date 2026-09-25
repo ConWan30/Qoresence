@@ -191,3 +191,55 @@ def test_sidecar_segments_from_noul(tmp_path: Path, monkeypatch):
     assert data["segments"][1]["t0_s"] == 4.0
     assert data["segments_source"] == "noul"
     assert data["licenses_digits"] is False
+
+
+def test_segments_carry_weakest_confidence_and_pause():
+    runs = [
+        (0, "pause", "idle", "hi", "yes"),
+        (3 * S, "pause", "idle", "mid", "maybe"),
+        (6 * S, "live_hud", "join", "hi", "no"),
+    ]
+    segs = build_segments_for_window(runs, start_ns=0, end_ns=10 * S)
+    assert segs[0]["hud_kind"] == "pause" and segs[0]["label"] == "Paused"
+    assert segs[0]["confidence"] == "mid" and segs[0]["true_pause"] == "maybe"
+    assert segs[1]["confidence"] == "hi" and segs[1]["true_pause"] == "no"
+
+
+def test_segments_flicker_fold_caps_confidence():
+    runs = [
+        (0, "pause", "idle", "hi", "yes"),
+        (4 * S, "live_hud", "idle", "hi", "no"),
+        (int(4.5 * S), "pause", "idle", "hi", "yes"),
+    ]
+    segs = build_segments_for_window(runs, start_ns=0, end_ns=10 * S)
+    assert [s["hud_kind"] for s in segs] == ["pause"]
+    assert segs[0]["confidence"] == "mid"
+
+
+def test_segments_legacy_runs_default_to_weak_evidence():
+    segs = build_segments_for_window([(0, "menu", "idle")], start_ns=0, end_ns=5 * S)
+    assert segs[0]["confidence"] == "lo" and segs[0]["true_pause"] == "na"
+
+
+def test_windowed_chapters_only_attach_inputs_inside_window(tmp_path: Path, monkeypatch):
+    from qoresence.observability import noul_observatory
+    from qoresence.sync import input_ring
+
+    now = time.monotonic_ns()
+    start, end = now - 20 * S, now - 10 * S
+
+    class FakeRing:
+        def snapshot(self, seconds=5.0):
+            return [
+                {"kind": "press", "name": "cross", "clock_ns": start + 2 * S},
+                {"kind": "press", "name": "circle", "clock_ns": now - S},
+            ]
+
+    reset_session_timeline()
+    monkeypatch.setattr(noul_observatory, "get_noul_observatory", lambda: None)
+    monkeypatch.setattr(input_ring, "get_input_ring", lambda: FakeRing())
+    mp4 = tmp_path / "hdmi_clip_win.mp4"
+    mp4.write_bytes(b"x")
+    out = chapters_after_export(mp4, 10.0, window_start_ns=start, window_end_ns=end)
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["buttons"] == {"cross": 1}
