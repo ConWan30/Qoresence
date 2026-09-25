@@ -59,6 +59,8 @@ def _list_clips(clips_dir: Path) -> set[str]:
     out: set[str] = set()
     try:
         for p in clips_dir.rglob("*.mp4"):
+            if p.name.lower().endswith(".cut.mp4"):
+                continue
             out.add(str(p).replace("\\", "/"))
     except OSError:
         return out

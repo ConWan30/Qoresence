@@ -493,6 +493,13 @@ class HdmiClipBuffer:
 
             if start_ns is None:
                 chapters_after_export(final_path, duration_s=dur)
+            else:
+                chapters_after_export(
+                    final_path,
+                    duration_s=dur,
+                    window_start_ns=int(start_ns),
+                    window_end_ns=int(end_ns),
+                )
         except Exception as e:
             log.debug("chapters sidecar skipped: %s", e)
         try:
@@ -518,6 +525,13 @@ class HdmiClipBuffer:
             _write_observation_sidecar(final_path, snapshot=snapshot)
         except Exception as e:
             log.debug("observation sidecar skipped: %s", e)
+        try:
+            from qoresence.vision.clip_excise import excise_enabled, submit_excision
+
+            if ok_h264 and final_path.suffix.lower() == ".mp4" and excise_enabled():
+                submit_excision(final_path, snapshot=snapshot, duration_s=dur)
+        except Exception as e:
+            log.debug("clip excise skipped: %s", e)
         return ClipExportResult(
             path=str(final_path.resolve()),
             frames=written,
@@ -584,6 +598,100 @@ class HdmiClipBuffer:
         except Exception as e:
             log.warning("ffmpeg h264 error: %s", e)
             return False
+
+    @staticmethod
+    def render_cut(
+        src: Path, keep_ranges: list[list[float]], dst: Path
+    ) -> dict[str, Any]:
+        """Render ``src`` with only ``keep_ranges`` (seconds) into ``dst``.
+
+        Ripple edit: ``trim``/``atrim`` per kept range, 20 ms audio fades at
+        seams, ``concat``. Retries video-only if the audio graph fails.
+        Returns ``{"ok", "audio"}``; never touches the original.
+        """
+        import shutil
+        import subprocess
+
+        ffmpeg = shutil.which("ffmpeg")
+        ranges = [
+            (float(a), float(b)) for a, b in keep_ranges if float(b) - float(a) > 0.04
+        ]
+        if not ffmpeg or not ranges or not Path(src).is_file():
+            return {"ok": False, "audio": "none"}
+        dst = Path(dst)
+        tmp = dst.with_name(dst.stem + ".tmp.mp4")
+
+        def _graph(with_audio: bool) -> str:
+            parts: list[str] = []
+            labels: list[str] = []
+            for i, (a, b) in enumerate(ranges):
+                parts.append(f"[0:v]trim=start={a:.3f}:end={b:.3f},setpts=PTS-STARTPTS[v{i}]")
+                labels.append(f"[v{i}]")
+                if with_audio:
+                    fade_out = max(0.0, (b - a) - 0.02)
+                    parts.append(
+                        f"[0:a]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS,"
+                        f"afade=t=in:d=0.02,afade=t=out:st={fade_out:.3f}:d=0.02[a{i}]"
+                    )
+                    labels.append(f"[a{i}]")
+            n = len(ranges)
+            parts.append(
+                "".join(labels) + f"concat=n={n}:v=1:a={1 if with_audio else 0}"
+                + ("[v][a]" if with_audio else "[v]")
+            )
+            return ";".join(parts)
+
+        def _run(with_audio: bool) -> bool:
+            cmd = [
+                ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-i", str(src),
+                "-filter_complex", _graph(with_audio), "-map", "[v]",
+            ]
+            cmd += ["-map", "[a]", "-c:a", "aac"] if with_audio else ["-an"]
+            cmd += [
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(tmp),
+            ]
+            try:
+                r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            except Exception as e:
+                log.debug("render_cut ffmpeg error: %s", e)
+                return False
+            if r.returncode != 0:
+                log.debug("render_cut ffmpeg failed: %s", (r.stderr or "")[:300])
+                return False
+            return tmp.is_file() and tmp.stat().st_size > 500
+
+        audio = "none"
+        ok = False
+        if _has_audio_stream(Path(src)):
+            ok = _run(True)
+            audio = "kept" if ok else "dropped_on_cut"
+        if not ok:
+            ok = _run(False)
+        if ok:
+            tmp.replace(dst)
+        else:
+            tmp.unlink(missing_ok=True)
+        return {"ok": ok, "audio": audio if ok else "none"}
+
+
+def _has_audio_stream(path: Path) -> bool:
+    """True when ffprobe reports an audio stream; unknown → try audio once."""
+    import shutil
+    import subprocess
+
+    ffprobe = shutil.which("ffprobe")
+    if not ffprobe:
+        return True
+    try:
+        r = subprocess.run(
+            [ffprobe, "-v", "error", "-select_streams", "a", "-show_entries",
+             "stream=index", "-of", "csv=p=0", str(path)],
+            capture_output=True, text=True, timeout=15,
+        )
+        return bool((r.stdout or "").strip())
+    except Exception:
+        return True
 
 
 # Process-wide buffer (streamer + deck + clutchbot share this)

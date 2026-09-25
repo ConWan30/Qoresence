@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getCaptureVideo } from "@/lib/coupling/hardware";
 import { deckLiveJpgUrl, deckLiveWsUrl, HDMI_LIVE_FEED } from "@/lib/coupling/qoresence-deck";
@@ -22,6 +22,7 @@ import { GhostStickOverlay } from "./ghost-stick";
 import { LensOverlay } from "./lens-overlay";
 import { SignalPrism } from "./signal-prism";
 import { StageClipDock } from "./clip-rack";
+import { ReplayCutPanel } from "./replay-cut-panel";
 
 export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory" }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -93,7 +94,9 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
           try {
             await paintBlob(next);
           } catch {
-            /* decode miss — keep last good still */
+            /* decode miss — ident, not last still */
+            jpgOkRef.current = false;
+            setJpgOk(false);
           }
         }
         painting = false;
@@ -250,8 +253,33 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
   const planeDim = useTheater((s) => s.planeDim);
   const goLive = useTheater((s) => s.goLive);
   const replaySrc = stageMode === "replay" ? clipHref(lastClipUrl) : "";
+  const replayVideoRef = useRef<HTMLVideoElement | null>(null);
+  const replaySeekRef = useRef<number | null>(null);
+  const [cutSrc, setCutSrc] = useState("");
+  useEffect(() => {
+    setCutSrc("");
+    replaySeekRef.current = null;
+  }, [replaySrc]);
+  const onCutSource = useCallback(
+    (url: string, atSeconds: number) => {
+      replaySeekRef.current = atSeconds;
+      setCutSrc(url === replaySrc ? "" : url);
+    },
+    [replaySrc],
+  );
+  const playSrc = cutSrc
+    ? cutSrc
+    : replaySrc
+      ? `${replaySrc}${replaySrc.includes("?") ? "&" : "?"}v=${encodeURIComponent(lastClipName || "clip")}`
+      : "";
   const showLive = hdmiPictureVisible(jpgOk) && !replaySrc;
-  const identOn = apertureIdentOn(jpgOk, Boolean(replaySrc));
+  const hdmi = useTheater((s) => s.hdmi);
+  const identOn = apertureIdentOn({
+    jpgOk,
+    replay: Boolean(replaySrc),
+    hdmi,
+    sameSeq,
+  });
   const climbed = videoFrames > prevRef.current.frames || videoPushes > prevRef.current.pushes;
   if (climbed) {
     prevRef.current = { frames: videoFrames, pushes: videoPushes, climbedAt: performance.now() };
@@ -322,7 +350,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
           data-hdmi-keep={HDMI_JPEG_KEEP}
           data-hdmi-feed={HDMI_LIVE_FEED}
           data-hdmi-paint={HDMI_LIVE_PAINT}
-          data-hdmi-picture={showLive ? "on" : "off"}
+          data-hdmi-picture={showLive && !identOn ? "on" : "off"}
           className={cn(
             "hdmi-picture pointer-events-none absolute inset-0 z-0 h-full w-full bg-bg object-contain",
             identOn ? "opacity-0" : "",
@@ -330,8 +358,14 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
         />
         {replaySrc ? (
           <video
-            key={replaySrc}
-            src={`${replaySrc}${replaySrc.includes("?") ? "&" : "?"}v=${encodeURIComponent(lastClipName || "clip")}`}
+            key={playSrc}
+            ref={replayVideoRef}
+            src={playSrc}
+            onLoadedMetadata={(e) => {
+              const at = replaySeekRef.current;
+              replaySeekRef.current = null;
+              if (at != null && at > 0) e.currentTarget.currentTime = at;
+            }}
             controls
             playsInline
             autoPlay
@@ -354,11 +388,17 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
             PGM
           </button>
         ) : null}
+        {variant === "observatory" && replaySrc ? (
+          <ReplayCutPanel clipHref={replaySrc} videoRef={replayVideoRef} onSource={onCutSource} floating />
+        ) : null}
         {identOn ? <ApertureIdent /> : null}
         {!replaySrc && !identOn && variant !== "observatory" ? <GhostStickOverlay /> : null}
         {!replaySrc && !identOn && variant !== "observatory" ? <LensOverlay variant={variant} /> : null}
       </div>
       {variant === "deck" || variant === "observatory" ? <SignalPrism ageS={videoAgeS} tone={health.tone} /> : null}
+      {variant === "deck" && replaySrc ? (
+        <ReplayCutPanel clipHref={replaySrc} videoRef={replayVideoRef} onSource={onCutSource} />
+      ) : null}
       {variant === "deck" || variant === "observatory" ? <StageClipDock /> : null}
     </section>
   );

@@ -260,7 +260,34 @@ Deck Integrity Board (operator-only, never Lens) shows Honesty / Presence / HUD 
 
 ### Clip segments (Situation Bookmark, no claim)
 
-While noul is on, the observatory keeps a bounded run-length history of `(hud_kind, presence_token)`. The history is appended only when either value changes, under the observatory's own lock, and nothing is emitted. At clip export, `clip_chapters.build_segments_for_window` turns that history into a `segments` list on `<name>.chapters.json`: Live / Pre-play / Play select / Menu / Loading / No board, plus idle / join / dense. The Deck uses it for seek and an opt-in "Skip menus/loading". This is structure, not highlights: closed vocabulary, `licenses_digits: false`, and no segments when noul is off. See [STEM.md](STEM.md#segments-chapters-sidecar).
+While noul is on, the observatory keeps a bounded run-length history of `(hud_kind, presence_token, confidence bucket, true_pause bucket)`, plus a bounded ring of slim VLM snapshots (clock, quarter, teams present, `paused_raw`, prompt; no digits). Both are appended under the observatory's own lock, and nothing is emitted. At clip export, `clip_chapters.build_segments_for_window` turns the history into a `segments` list on `<name>.chapters.json`: Live / Pre-play / Play select / Paused / Menu / Loading / No board, plus idle / join / dense. The Deck uses it for seek and an opt-in "Skip pauses/menus/loading". This is structure, not highlights: closed vocabulary, `licenses_digits: false`, and no segments when noul is off. See [STEM.md](STEM.md#segments-chapters-sidecar).
+
+`pause` is an in-game pause overlay (the scorebug may still show); `select_plate` stays the SELECT plate that invents a score pair. The VLM's own pause read is kept as `paused_raw` before `normalize_vlm_paused_flag` clears `paused` for digit honesty. Because the VLM also false-positives `paused` on live HUDs, a raw-only pause is a low-confidence `pause` that cannot auto-cut.
+
+### Clip excision (Cut Receipt, default OFF)
+
+`--clip-excise` / `QORESENCE_CLIP_EXCISE=1`. After an HDMI clip is written, `qoresence/vision/clip_excise.py` finds candidate dead spans (pause / select_plate / menu / loading segments and frozen-picture runs) and decides cut / suggest / keep per span. The original `<stem>.mp4` is never modified; the edit is `<stem>.cut.mp4` plus a `<stem>.cut.json` receipt with each span's evidence, answers, decision, reason, the Jev model version, `policy_version`, and a `time_map` back to source time.
+
+- **Span Referee:** with `--noul` or `--jev` and a key, one Jev request per clip (pinned `jev-1.13.0`, override `QORESENCE_EXCISE_MODEL`) asks three fan-out questions per span: what was on screen (with `unknown`), was gameplay suspended and resumed from the same moment, and would removing it hide live play.
+- **Triple Proof (offline):** without the referee, only pauses with `paused_raw` throughout + ≥1.5 s frozen picture + (unchanged game clock or an Options press) are cut. The game-clock leg only counts when the operator has pinned a football profile (`QORESENCE_GAME_PROFILE` or the last pin, recorded as `game_profile` in the receipt); other or unknown titles need the Options press. Menus and loading are never cut offline.
+- **Fail closed:** spans with a ticket or chapter mark inside, `hides_play ≥ 0.3`, `unknown` / `gameplay`, or confidence < 0.6 are kept. 0.6–0.85 becomes a Deck suggestion (kept until the gamer accepts). Replays and cutscenes are suggest-only. 0.4 s is kept on each side of a cut, and a plan that would remove more than 60 % of the clip keeps everything.
+- The referee and ffmpeg render run on a bounded `clip-excise` worker: no bus events, no lobe locks, nothing on the capture thread. The Deck shows an Edited / Original toggle and a per-span receipt with Cut / Keep; overrides re-render from the original and are appended to `excise_labels.jsonl` in the clip folder (policy decision vs gamer decision, bounded at 5 MB) as labelled pilot evidence.
+
+#### Pilot gate (before any default change)
+
+**Labelling on the Theater.** While a clip replays, the Cut receipt card (floating top-right on the home Theater, `glass/src/components/theater/replay-cut-panel.tsx`) has **Label this clip**. Labelling is blind: it switches to the original picture and hides the receipt strip and spans. Mark start → End · Pause / Menu / Loading → Save labels. Labels go to `clips/excise_ground_truth.json` through loopback-only `POST /api/excise/labels/{stem}` (the game profile is copied from the receipt). The card's last line shows `GET /api/excise/gate` progress. The classic `deck.html` fallback has the same card.
+
+`scripts/excise_pilot_gate.py` scores receipts against hand labels and never changes a default. It reads the Theater labels by default:
+
+```bash
+python scripts/excise_pilot_gate.py --clips clips --health logs/pilot/*.json          # Theater labels
+python scripts/excise_pilot_gate.py --clips clips --init-labels labels.json          # or hand-edit JSON
+python scripts/excise_pilot_gate.py --clips clips --labels labels.json --health logs/pilot/*.json
+```
+
+**Health evidence is automatic.** While each excision job runs (referee + ffmpeg render), the worker samples live `age_s` from the FrameHub stamp every 0.5 s (the same read `/health` uses) and records `health: {samples, no_frame, age_s_max, age_s_p50, jobs}` in the receipt, keeping the worst value across re-renders. The gate counts these alongside any `--health` snapshot files. `python scripts/pilot_preflight.py` now prints soft excision checks: ffmpeg, clips folder, pinned football profile, `--clip-excise`, TypeSafe key present (never printed), and gate progress.
+
+It scores the policy's own cuts (gamer overrides stripped). `fail` (exit 1): any cut removes labelled live play (over-cut must be 0), any Deck veto of an auto-cut, `/health` `age_s` ≥ 1.0 s in the supplied snapshots, or Jev receipts from a model other than the pin. `insufficient` (exit 2): fewer than 20 football clips with labelled dead spans, no labelled pause, menu or loading, labelled clips without receipts, or no `/health` samples. `pass` (exit 0) otherwise. Under-cut and the suggest-accept rate are reported, not gated. The report is written to `logs/pilot/excise_gate_<ts>.json`.
 
 ### Jev conductor (ClutchBot / MatchAgent *text*, default OFF)
 

@@ -49,6 +49,7 @@ HUD_KINDS = (
     "live_hud",
     "preplay",
     "select_plate",
+    "pause",
     "menu",
     "loading",
     "no_board",
@@ -97,8 +98,10 @@ def noul_questions() -> dict[str, Any]:
         "true_pause": Noul(
             instructions={
                 "question": (
-                    "Is `parsed.paused` a true pause/SELECT menu, not preplay/Subs "
-                    "gameplay with a live scorebug?"
+                    "Is the game truly paused (pause/SELECT menu), not preplay/Subs "
+                    "gameplay? `parsed.paused_raw` is the vision model's own pause "
+                    "read; `parsed.paused` is cleared when scorebug wordmarks show, "
+                    "even if a pause overlay covers the field."
                 ),
                 "true": "SELECT/pause overlay without live scorebug wordmarks.",
                 "false": "Preplay, Subs, audible, or live HUD (paused flag is a false positive).",
@@ -125,9 +128,18 @@ def noul_questions() -> dict[str, Any]:
                 "live_hud": {"what": "In-game scorebug during a snap or play."},
                 "preplay": {"what": "Play-call / Subs / audible stick HUD with wordmarks."},
                 "select_plate": {"what": "Pause SELECT plate that invents a score pair."},
+                "pause": {
+                    "what": (
+                        "In-game pause overlay; gameplay is suspended. The live "
+                        "scorebug may still be visible behind it."
+                    )
+                },
                 "menu": {"what": "Main menu, lobby, or results."},
                 "loading": {"what": "Loading, cutscene, or replay."},
                 "no_board": {"what": "No usable board in the crop."},
+                "unknown": {
+                    "what": "None of the above fits, or the crop does not show enough to tell."
+                },
             },
         ),
         "board_honesty": Score(
@@ -196,10 +208,11 @@ def compose_observatory(
     kind = hud_kind if hud_kind in HUD_KINDS else None
     kind_ok = hud_confidence is None or hud_confidence >= 0.5
 
+    confident_pause = kind == "pause" and (hud_confidence or 0.0) >= 0.7
     board_speech = "unlocked"
     if ungrounded or kind in {"select_plate", "menu", "loading", "no_board"}:
         board_speech = "vlm_ungrounded"
-    elif pause_yes and kind != "preplay":
+    elif confident_pause or (pause_yes and kind != "preplay"):
         board_speech = "menu"
     elif grounded and kind in {"live_hud", "preplay"} and kind_ok:
         board_speech = "confirm_ticket"  # *speech only* — tickets still required
@@ -250,8 +263,56 @@ PRESENCE_TOKENS = (
     "dense",
 )
 
-# Run-length history of (hud_kind, presence_token) for clip segment sidecars.
+# Run-length history of (hud_kind, presence_token, conf, pause) for clip segment sidecars.
 RUN_RING_MAX = 2048
+# Slim VLM snapshots for post-hoc span evidence (clip excision). Never digits.
+EVIDENCE_RING_MAX = 512
+
+CONF_BUCKETS = ("hi", "mid", "lo")
+PAUSE_BUCKETS = ("yes", "maybe", "no", "na")
+
+
+def conf_bucket(confidence: float | None) -> str:
+    """Choice confidence → hi (≥0.85) / mid (≥0.6) / lo. Missing is lo."""
+    if confidence is None:
+        return "lo"
+    c = float(confidence)
+    if c >= 0.85:
+        return "hi"
+    if c >= 0.6:
+        return "mid"
+    return "lo"
+
+
+def pause_bucket(true_pause_noul: float | None) -> str:
+    """true_pause Noul → yes (≥0.8) / maybe (≥0.5) / no / na (not asked)."""
+    if true_pause_noul is None:
+        return "na"
+    p = float(true_pause_noul)
+    if p >= 0.8:
+        return "yes"
+    if p >= 0.5:
+        return "maybe"
+    return "no"
+
+
+def slim_vlm_evidence(clock_ns: int, parsed: dict[str, Any]) -> dict[str, Any]:
+    """Scene evidence from one VLM parse — no score digits."""
+    vc = parsed.get("visible_control") if isinstance(parsed.get("visible_control"), dict) else {}
+    paused_raw = parsed.get("paused_raw", parsed.get("paused"))
+    return {
+        "clock_ns": int(clock_ns),
+        "clock": parsed.get("clock"),
+        "quarter": parsed.get("quarter"),
+        "has_teams": bool(
+            str(parsed.get("left_team") or "").strip()
+            and str(parsed.get("right_team") or "").strip()
+        ),
+        "has_scores": parsed.get("home_score") is not None
+        and parsed.get("away_score") is not None,
+        "paused_raw": bool(paused_raw),
+        "prompt": (str(vc.get("prompt")).strip() or None) if vc.get("prompt") else None,
+    }
 
 
 def compose_honesty_lattice(
@@ -341,7 +402,16 @@ def local_heuristic_nouls(state: dict[str, Any]) -> dict[str, Any]:
         "select play",
     } or "preplay" in prompt
 
-    if has_teams and has_scores and (not paused or preplay):
+    paused_raw = bool(parsed.get("paused_raw", paused))
+    # Raw pause read that digit-honesty normalization cleared (wordmarks visible).
+    # The VLM also false-positives here on live HUDs, so this stays low-confidence.
+    raw_only_pause = paused_raw and not paused and not preplay
+
+    hud_conf_override = None
+    if has_teams and has_scores and raw_only_pause:
+        grounded, kind = 0.88, "pause"
+        hud_conf_override = 0.55
+    elif has_teams and has_scores and (not paused or preplay):
         grounded, kind = 0.88, "preplay" if preplay else "live_hud"
     elif paused and not has_teams:
         grounded, kind = 0.12, "select_plate"
@@ -350,7 +420,12 @@ def local_heuristic_nouls(state: dict[str, Any]) -> dict[str, Any]:
     else:
         grounded, kind = 0.45, "no_board"
 
-    true_pause = 0.85 if (paused and not preplay and not has_teams) else 0.12
+    if paused and not preplay and not has_teams:
+        true_pause = 0.85
+    elif raw_only_pause:
+        true_pause = 0.55
+    else:
+        true_pause = 0.12
     coup = float(state.get("coupling") or 0.0)
     red = bool(state.get("red_zone"))
     late = bool(state.get("late_close"))
@@ -367,7 +442,9 @@ def local_heuristic_nouls(state: dict[str, Any]) -> dict[str, Any]:
         "true_pause_noul": true_pause,
         "clip_noul": clip,
         "hud_kind": kind,
-        "hud_confidence": 0.8 if grounded >= 0.7 or grounded <= 0.3 else 0.4,
+        "hud_confidence": hud_conf_override
+        if hud_conf_override is not None
+        else (0.8 if grounded >= 0.7 or grounded <= 0.3 else 0.4),
         "board_honesty": honesty,
         "presence_density": dens,
         "last_good_temptation": tempt,
@@ -391,8 +468,9 @@ class NoulObservatory:
         self._last_compose: dict[str, Any] = {}
         self._last_compose_ns = 0
         self._lock = threading.Lock()
-        self._runs: collections.deque[tuple[int, str, str]] = collections.deque(
-            maxlen=RUN_RING_MAX
+        self._runs: collections.deque[tuple] = collections.deque(maxlen=RUN_RING_MAX)
+        self._evidence: collections.deque[dict[str, Any]] = collections.deque(
+            maxlen=EVIDENCE_RING_MAX
         )
         self._queue: queue.Queue[dict[str, Any]] = queue.Queue(
             maxsize=int(getattr(config, "queue_size", 256))
@@ -542,19 +620,27 @@ class NoulObservatory:
         token = composed.get("presence_token")
         run_kind = kind if kind in HUD_KINDS else "unknown"
         run_token = token if token in PRESENCE_TOKENS else "unknown"
+        run_conf = conf_bucket(composed.get("hud_confidence")) if kind in HUD_KINDS else "lo"
+        run_pause = pause_bucket(composed.get("true_pause_noul"))
+        run_key = (run_kind, run_token, run_conf, run_pause)
+        parsed = rec.get("parsed")
+        evidence = (
+            slim_vlm_evidence(run_ns, parsed) if isinstance(parsed, dict) and parsed else None
+        )
         with self._lock:
             self._last_compose = composed
             self._last_compose_ns = time.monotonic_ns()
             self._judged += 1
-            if not self._runs or self._runs[-1][1:] != (run_kind, run_token):
-                self._runs.append((run_ns, run_kind, run_token))
+            if not self._runs or tuple(self._runs[-1][1:5]) != run_key:
+                self._runs.append((run_ns, *run_key))
+            if evidence is not None:
+                self._evidence.append(evidence)
         self._write_jsonl(composed)
 
-    def runs_in_window(self, start_ns: int, end_ns: int) -> list[tuple[int, str, str]]:
-        """Runs overlapping [start_ns, end_ns], including the one in effect at start."""
+    def _window(self, start_ns: int, end_ns: int) -> list[tuple]:
         with self._lock:
             runs = list(self._runs)
-        out: list[tuple[int, str, str]] = []
+        out: list[tuple] = []
         for run in runs:
             if run[0] > end_ns:
                 continue
@@ -563,6 +649,24 @@ class NoulObservatory:
             else:
                 out.append(run)
         return out
+
+    def runs_in_window(self, start_ns: int, end_ns: int) -> list[tuple[int, str, str]]:
+        """Runs overlapping [start_ns, end_ns], including the one in effect at start."""
+        return [tuple(r[:3]) for r in self._window(start_ns, end_ns)]
+
+    def runs_in_window_detailed(self, start_ns: int, end_ns: int) -> list[tuple]:
+        """Like ``runs_in_window`` with ``(clock_ns, kind, token, conf, pause)`` rows."""
+        out = []
+        for r in self._window(start_ns, end_ns):
+            r = tuple(r)
+            out.append(r + ("lo", "na")[len(r) - 3 :] if len(r) < 5 else r[:5])
+        return out
+
+    def evidence_in_window(self, start_ns: int, end_ns: int) -> list[dict[str, Any]]:
+        """Slim VLM snapshots with ``start_ns <= clock_ns <= end_ns`` (copies)."""
+        with self._lock:
+            ev = list(self._evidence)
+        return [dict(e) for e in ev if start_ns <= int(e.get("clock_ns") or 0) <= end_ns]
 
     def _try_typesafe(self, rec: dict[str, Any]) -> dict[str, Any] | None:
         questions = noul_questions()

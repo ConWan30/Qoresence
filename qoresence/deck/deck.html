@@ -105,6 +105,8 @@ body.dark-theater #strip,body.dark-theater #ctrlStrip,body.dark-theater #ctrlPla
 .item .body{min-width:0;flex:1}.item .body .t{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.item .body .r{font:600 10px/1.3 IBM Plex Mono,monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}
 #trail{display:flex;justify-content:space-between;gap:8px;font:600 10px IBM Plex Mono,monospace;color:var(--dim);padding:0 2px;margin-top:auto}#links{display:flex;flex-wrap:wrap;gap:9px 13px;font:600 10px IBM Plex Mono,monospace}#links a{color:var(--cyan);text-decoration:none}#links a:hover{color:var(--gold);text-decoration:underline}#glassBox{width:100%;display:flex;flex-direction:column;gap:6px;margin:0 0 8px;padding:8px;border:1px solid rgba(155,231,255,.2);border-radius:8px}#glassNote{font:600 10px/1.35 IBM Plex Mono,monospace;color:var(--dim)}#glassUrl{font:600 10px IBM Plex Mono,monospace;color:var(--lime);word-break:break-all}#btnGlassCopy{align-self:flex-start;font:700 10px IBM Plex Mono,monospace;padding:6px 10px;border-radius:6px;border:1px solid rgba(155,231,255,.35);background:#111;color:var(--paper);cursor:pointer}#glassQr{width:132px;height:132px;background:#fff;border-radius:4px;image-rendering:pixelated}
 #chaptersCard{display:none;margin-top:0}#chaptersCard.show{display:block}#chapterList{display:flex;flex-direction:column;gap:6px;max-height:140px;overflow:auto}.chBtn{appearance:none;border:1px solid rgba(155,231,255,.24);background:rgba(155,231,255,.06);color:var(--text);border-radius:8px;padding:8px 10px;text-align:left;cursor:pointer;font:600 10px/1.3 IBM Plex Mono,monospace}.chBtn:hover{border-color:var(--gold);background:var(--gold-dim)}#segWrap{display:none;margin-bottom:8px}#segWrap.show{display:block}#segStrip{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--dim);margin-bottom:6px}#segStrip span{height:100%;cursor:pointer}#segStrip .seg-live{background:var(--gold)}#segStrip .seg-pre{background:var(--amber)}#segStrip .seg-idle{background:var(--dim)}#segStrip .seg-unknown{background:var(--muted)}#segSkip{display:flex;align-items:center;gap:6px;color:var(--muted);font:600 10px/1.3 IBM Plex Mono,monospace;margin-bottom:6px}
+#labelCard{display:none}#labelCard.show{display:block}#labelHead{display:flex;align-items:center;gap:8px;margin-bottom:6px}#labelNote,#gateLine{color:var(--muted);font:600 10px/1.3 IBM Plex Mono,monospace}#labelTools{display:none;flex-wrap:wrap;gap:6px;margin-bottom:6px}#labelCard.on #labelTools{display:flex}#labelList{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}.labelRow{display:flex;align-items:center;gap:8px;color:var(--text);font:600 10px/1.3 IBM Plex Mono,monospace}.labelRow span{flex:1;cursor:pointer}body.labelling #cutStrip,body.labelling #cutList,body.labelling #segWrap{visibility:hidden}
+#cutCard{display:none;margin-top:0}#cutCard.show{display:block}#cutHead{display:flex;align-items:center;gap:8px;margin-bottom:6px}#cutNote{color:var(--muted);font:600 10px/1.3 IBM Plex Mono,monospace}#cutStrip{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--dim);margin-bottom:6px}#cutStrip span{height:100%}#cutStrip .cut-keep{background:var(--gold)}#cutStrip .cut-cut{background:repeating-linear-gradient(45deg,var(--dim) 0 3px,transparent 3px 6px)}#cutStrip .cut-suggest{background:repeating-linear-gradient(45deg,var(--amber) 0 3px,transparent 3px 6px)}#cutList{display:flex;flex-direction:column;gap:6px;max-height:160px;overflow:auto}.cutRow{display:flex;align-items:center;gap:8px;color:var(--text);font:600 10px/1.3 IBM Plex Mono,monospace}.cutRow .why{flex:1;color:var(--muted)}.cutRow .chBtn{padding:4px 8px}
 #evidencePanel{background:linear-gradient(145deg,rgba(155,231,255,.08),rgba(12,17,24,.8));border-color:rgba(155,231,255,.22)}#evidencePanel h3{color:var(--gold)!important}
 @keyframes stageScan{0%,35%{transform:translateX(-110%)}70%,100%{transform:translateX(110%)}}
 @media (max-width:1100px){body{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto}#cmd{grid-column:1}#stage{grid-row:2;min-height:50vh}#rail{grid-row:3;border-left:0;border-top:1px solid var(--line);max-height:36vh}:root{--rail-w:100%}#feedDock{max-height:140px}}
@@ -189,9 +191,28 @@ body.dark-theater #strip,body.dark-theater #ctrlStrip,body.dark-theater #ctrlPla
     <h3><span>Replay chapters</span><span class="cardCode">03</span></h3>
     <div id="segWrap">
       <div id="segStrip" aria-label="Observation segments"></div>
-      <label id="segSkip"><input type="checkbox" id="segSkipIdle"> Skip menus/loading</label>
+      <label id="segSkip"><input type="checkbox" id="segSkipIdle"> Skip pauses/menus/loading</label>
     </div>
     <div id="chapterList"></div>
+  </div>
+  <div class="card" id="cutCard">
+    <h3><span>Cut receipt</span><span class="cardCode">04</span></h3>
+    <div id="cutHead"><button type="button" class="chBtn" id="cutToggle"></button><span id="cutNote"></span></div>
+    <div id="cutStrip" aria-label="Kept and removed spans"></div>
+    <div id="cutList"></div>
+  </div>
+  <div class="card" id="labelCard">
+    <h3><span>Pilot labels</span><span class="cardCode">05</span></h3>
+    <div id="labelHead"><button type="button" class="chBtn" id="labelToggle">Label this clip</button><span id="labelNote"></span></div>
+    <div id="labelTools">
+      <button type="button" class="chBtn" id="labelMark">Mark start</button>
+      <button type="button" class="chBtn" data-label-kind="pause">End · Pause</button>
+      <button type="button" class="chBtn" data-label-kind="menu">End · Menu</button>
+      <button type="button" class="chBtn" data-label-kind="loading">End · Loading</button>
+      <button type="button" class="chBtn" id="labelSave">Save labels</button>
+    </div>
+    <div id="labelList"></div>
+    <div id="gateLine"></div>
   </div>
   <div id="trail"><span id="t1">● waiting</span><span>LIVE WebRTC/MJPEG</span><span id="t3">local</span></div>
   <div id="links">
@@ -346,6 +367,16 @@ function playClip(url, label){
   activeUrl=url;
   setMode('replay');
   markHasVideo(true);
+  cutEdited=false;
+  setPlayerSource(url);
+  stageMeta.textContent='REPLAY · '+(label||url.split('/').pop());
+  t1.textContent='● REPLAY';
+  setStatus('warn','Playing clip');
+  loadChaptersForClip(url);
+  loadGhostsForClip(url);
+  loadCutForClip(url, true);
+}
+function setPlayerSource(url, atSeconds){
   const src=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
   player.pause();
   player.removeAttribute('src');
@@ -354,15 +385,181 @@ function playClip(url, label){
   source.src=src; source.type='video/mp4';
   player.appendChild(source);
   player.load();
-  const go=()=>player.play().catch(()=>{ stageMeta.textContent='Click ▶ on the player to start'; });
+  const go=()=>{
+    if(atSeconds!=null){ try{ player.currentTime=atSeconds; }catch(e){} }
+    player.play().catch(()=>{ stageMeta.textContent='Click ▶ on the player to start'; });
+  };
   if(player.readyState>=2) go(); else player.oncanplay=()=>{player.oncanplay=null; go();};
   player.onerror=()=>{ stageMeta.textContent='Decode error — re-make clip (needs H.264)'; setStatus('bad','video error'); };
-  stageMeta.textContent='REPLAY · '+(label||url.split('/').pop());
-  t1.textContent='● REPLAY';
-  setStatus('warn','Playing clip');
-  loadChaptersForClip(url);
-  loadGhostsForClip(url);
 }
+// Cut receipt (<stem>.cut.json): edited view is <stem>.cut.mp4; original is never modified.
+let cutReceipt=null, cutEdited=false, cutOrigUrl=null;
+const cutCard=document.getElementById('cutCard'), cutToggle=document.getElementById('cutToggle'), cutNote=document.getElementById('cutNote'), cutStrip=document.getElementById('cutStrip'), cutList=document.getElementById('cutList');
+function cutMap(){ return (cutReceipt&&Array.isArray(cutReceipt.time_map))?cutReceipt.time_map:[]; }
+function toSourceT(t){
+  if(!cutEdited) return t;
+  for(const [e0,s0,len] of cutMap()){ if(t>=e0 && t<=e0+len) return s0+(t-e0); }
+  return t;
+}
+function toPlayerT(t){
+  if(!cutEdited) return t;
+  for(const [e0,s0,len] of cutMap()){ if(t<s0) return e0; if(t<=s0+len) return e0+(t-s0); }
+  return t;
+}
+function cutStem(url){ return String(url||'').split('/').pop().replace(/\.mp4(\?.*)?$/i,''); }
+function cutReady(){ return !!(cutReceipt && cutReceipt.render && cutReceipt.render.state==='done' && cutReceipt.render.path); }
+const CUT_KIND_LABEL={pause:'Paused',select_plate:'Play select',menu:'Menu',loading:'Loading',still:'Frozen picture'};
+function cutEffective(s){ return (s.user==='cut'||s.user==='keep')?s.user:(s.decision==='cut'?'cut':'keep'); }
+function cutWhy(s){
+  const a=s.answers||{}, ev=s.evidence||{}, bits=[];
+  if(a.kind) bits.push('Jev '+a.kind+(a.kind_confidence!=null?' '+Number(a.kind_confidence).toFixed(2):''));
+  if(a.suspended!=null) bits.push('suspended '+Number(a.suspended).toFixed(2));
+  if(ev.still_s) bits.push('still '+Number(ev.still_s).toFixed(1)+'s');
+  if(ev.options_press_before_s!=null) bits.push('Options −'+Number(ev.options_press_before_s).toFixed(1)+'s');
+  bits.push(s.user?('you: '+s.user):String(s.reason||''));
+  return bits.join(' · ');
+}
+function renderCut(){
+  const r=cutReceipt;
+  const spans=(r&&Array.isArray(r.spans))?r.spans:[];
+  if(!r || !spans.length){ cutCard.classList.remove('show'); return; }
+  cutCard.classList.add('show');
+  const src=Number(r.source_duration_s||0), ed=Number(r.edited_duration_s||src);
+  cutToggle.disabled=!cutReady() || labelOn;
+  cutToggle.textContent=cutReady()?(cutEdited?'Edited '+ed.toFixed(1)+'s · show original':'Original '+src.toFixed(1)+'s · show edited'):'Original '+src.toFixed(1)+'s';
+  const state=(r.render||{}).state||'';
+  cutNote.textContent=r.excision==='aborted_too_much'?'kept all: cut would remove too much':(state==='pending'?'rendering…':(r.referee==='jev'?'judged by '+(r.model||'Jev'):(r.referee==='offline_triple_proof'?'offline: proven pauses only':'')));
+  cutStrip.innerHTML='';
+  const total=Math.max(src,0.001);
+  let cursor=0;
+  const piece=(cls,t0,t1)=>{ if(t1<=t0) return; const sp=document.createElement('span'); sp.className=cls; sp.style.width=((t1-t0)/total*100)+'%'; cutStrip.appendChild(sp); };
+  spans.slice().sort((x,y)=>x.t0_s-y.t0_s).forEach(s=>{
+    const t0=Number(s.t0_s||0), t1=Number(s.t1_s||0);
+    piece('cut-keep',cursor,t0);
+    piece(cutEffective(s)==='cut'?'cut-cut':(s.decision==='suggest'?'cut-suggest':'cut-keep'),Math.max(cursor,t0),t1);
+    cursor=Math.max(cursor,t1);
+  });
+  piece('cut-keep',cursor,total);
+  cutList.innerHTML='';
+  spans.forEach(s=>{
+    const row=document.createElement('div'); row.className='cutRow';
+    const eff=cutEffective(s);
+    const label=(s.kinds||[]).map(k=>CUT_KIND_LABEL[k]||k).join('+');
+    const state=eff==='cut'?'removed':(s.decision==='suggest'&&!s.user?'suggested':'kept');
+    const head=document.createElement('span');
+    head.textContent=label+' '+Number(s.t0_s).toFixed(1)+'–'+Number(s.t1_s).toFixed(1)+'s · '+state;
+    head.style.cursor='pointer'; head.onclick=()=>seekClip(Number(s.t0_s||0));
+    const why=document.createElement('span'); why.className='why'; why.textContent=cutWhy(s);
+    const b=document.createElement('button'); b.type='button'; b.className='chBtn';
+    b.textContent=eff==='cut'?'Keep':'Cut';
+    b.onclick=()=>cutDecide(s.id, eff==='cut'?'keep':'cut');
+    row.append(head, why, b);
+    cutList.appendChild(row);
+  });
+}
+function loadCutForClip(url, preferEdited){
+  cutReceipt=null; cutOrigUrl=url||null;
+  setLabelMode(false);
+  if(!url || /\.cut\.mp4/i.test(url)){ renderCut(); return; }
+  fetch(url.replace(/\.mp4(\?.*)?$/i,'.cut.json')+'?v='+Date.now()).then(r=>{ if(!r.ok) throw new Error('no receipt'); return r.json(); }).then(j=>{
+    cutReceipt=j;
+    const want=preferEdited && cutReady();
+    if(want!==cutEdited) switchCutView(want);
+    renderCut();
+    loadLabelsForClip();
+  }).catch(()=>{ cutReceipt=null; if(cutEdited) switchCutView(false); renderCut(); loadLabelsForClip(); });
+}
+function switchCutView(edited){
+  if(!cutOrigUrl) return;
+  const srcT=toSourceT(player.currentTime||0);
+  cutEdited=!!(edited && cutReady());
+  const url=cutEdited?cutOrigUrl.replace(/[^/]+$/, cutReceipt.render.path):cutOrigUrl;
+  setPlayerSource(url, toPlayerT(srcT));
+  renderCut();
+}
+cutToggle.onclick=()=>switchCutView(!cutEdited);
+function cutDecide(spanId, decision){
+  const stem=cutStem(cutOrigUrl);
+  if(!stem) return;
+  cutNote.textContent='rendering…';
+  fetch('/api/clip/'+encodeURIComponent(stem)+'/cuts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({span_id:spanId,decision:decision})})
+    .then(r=>r.json()).then(()=>{
+      let tries=0;
+      const poll=()=>{
+        fetch(cutOrigUrl.replace(/\.mp4(\?.*)?$/i,'.cut.json')+'?v='+Date.now()).then(r=>r.json()).then(j=>{
+          const st=(j.render||{}).state;
+          if(st==='pending' && ++tries<40){ setTimeout(poll,700); return; }
+          const wasEdited=cutEdited;
+          cutReceipt=j;
+          switchCutView(wasEdited || decision==='cut');
+        }).catch(()=>{});
+      };
+      poll();
+    }).catch(()=>{ cutNote.textContent='cut request failed'; });
+}
+// Pilot labels: hand-marked dead spans on the ORIGINAL picture, blind to the receipt.
+let labelOn=false, labelStart=null, labelDead=[];
+const labelCard=document.getElementById('labelCard'), labelToggle=document.getElementById('labelToggle'), labelNote=document.getElementById('labelNote'), labelList=document.getElementById('labelList'), gateLine=document.getElementById('gateLine');
+const LABEL_KIND={pause:'Pause',menu:'Menu',loading:'Loading'};
+function setLabelMode(on){
+  labelOn=!!(on && cutReceipt);
+  labelStart=null;
+  document.body.classList.toggle('labelling', labelOn);
+  labelCard.classList.toggle('on', labelOn);
+  labelToggle.textContent=labelOn?'Done labelling':'Label this clip';
+  if(labelOn && cutEdited) switchCutView(false); else renderCut();
+  renderLabels();
+}
+function renderLabels(){
+  labelList.innerHTML='';
+  labelDead.forEach((d,i)=>{
+    const row=document.createElement('div'); row.className='labelRow';
+    const txt=document.createElement('span');
+    txt.textContent=LABEL_KIND[d[2]]+' '+Number(d[0]).toFixed(1)+'–'+Number(d[1]).toFixed(1)+'s';
+    txt.onclick=()=>seekClip(Number(d[0]));
+    const x=document.createElement('button'); x.type='button'; x.className='chBtn'; x.textContent='×';
+    x.disabled=!labelOn;
+    x.onclick=()=>{ labelDead.splice(i,1); labelNote.textContent='unsaved'; renderLabels(); };
+    row.append(txt,x); labelList.appendChild(row);
+  });
+  if(labelOn) labelNote.textContent=labelStart!=null?('start '+labelStart.toFixed(1)+'s · pick how it ends'):(labelNote.textContent||'watch the original; mark each pause/menu/loading');
+}
+function loadLabelsForClip(){
+  labelDead=[];
+  if(!cutReceipt || !cutOrigUrl){ labelCard.classList.remove('show'); return; }
+  labelCard.classList.add('show');
+  labelNote.textContent='';
+  fetch('/api/excise/labels/'+encodeURIComponent(cutStem(cutOrigUrl))).then(r=>r.json()).then(j=>{
+    labelDead=((j.labels||{}).dead||[]).map(d=>d.slice());
+    labelNote.textContent=j.labelled?('labelled · '+labelDead.length+' dead span'+(labelDead.length===1?'':'s')):'not labelled yet';
+    renderLabels();
+  }).catch(()=>{});
+  loadGate();
+}
+function loadGate(){
+  fetch('/api/excise/gate').then(r=>r.json()).then(g=>{
+    const sm=g.summary||{};
+    const why=(g.failures||[])[0]||(g.gaps||[])[0]||'';
+    gateLine.textContent='Pilot gate: '+g.verdict+' · '+(sm.football_clips_with_dead||0)+'/'+(g.min_clips||20)+' clips · over-cut '+(sm.over_cut_s||0)+'s'+(why?' · '+why:'');
+  }).catch(()=>{ gateLine.textContent=''; });
+}
+labelToggle.onclick=()=>setLabelMode(!labelOn);
+document.getElementById('labelMark').onclick=()=>{ labelStart=Number(player.currentTime||0); renderLabels(); };
+document.querySelectorAll('[data-label-kind]').forEach(b=>{ b.onclick=()=>{
+  if(labelStart==null){ labelNote.textContent='mark start first'; return; }
+  const t1=Number(player.currentTime||0);
+  if(t1<labelStart+0.2){ labelNote.textContent='end must be after start'; return; }
+  labelDead.push([Math.round(labelStart*1000)/1000, Math.round(t1*1000)/1000, b.getAttribute('data-label-kind')]);
+  labelDead.sort((x,y)=>x[0]-y[0]);
+  labelStart=null; labelNote.textContent='unsaved'; renderLabels();
+}; });
+document.getElementById('labelSave').onclick=()=>{
+  const stem=cutStem(cutOrigUrl);
+  if(!stem) return;
+  fetch('/api/excise/labels/'+encodeURIComponent(stem),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dead:labelDead})})
+    .then(r=>r.json()).then(j=>{ labelNote.textContent=j.ok?('saved · '+labelDead.length+' dead span'+(labelDead.length===1?'':'s')):('save failed: '+(j.error||'')); loadGate(); })
+    .catch(()=>{ labelNote.textContent='save failed'; });
+};
 let ghostEvents=[];
 function loadGhostsForClip(url){
   const pad=document.getElementById('ghostPad');
@@ -463,17 +660,17 @@ function paintGhosts(t){
     }
   }
 }
-player.addEventListener('timeupdate',()=>paintGhosts(player.currentTime||0));
+player.addEventListener('timeupdate',()=>paintGhosts(toSourceT(player.currentTime||0)));
 const segWrap=document.getElementById('segWrap'), segStrip=document.getElementById('segStrip'), segSkipIdle=document.getElementById('segSkipIdle');
-const SEG_SKIP_KINDS=new Set(['menu','loading','no_board']);
+const SEG_SKIP_KINDS=new Set(['pause','select_plate','menu','loading','no_board']);
 let clipSegments=[];
 function segClass(kind){
   if(kind==='live_hud') return 'seg-live';
-  if(kind==='preplay'||kind==='select_plate') return 'seg-pre';
+  if(kind==='preplay') return 'seg-pre';
   if(SEG_SKIP_KINDS.has(kind)) return 'seg-idle';
   return 'seg-unknown';
 }
-function seekClip(t){ try{ player.currentTime=t; player.play().catch(()=>{}); }catch(e){} }
+function seekClip(t){ try{ player.currentTime=toPlayerT(t); player.play().catch(()=>{}); }catch(e){} }
 function renderSegments(segs, duration){
   clipSegments=Array.isArray(segs)?segs:[];
   segStrip.innerHTML='';
@@ -491,10 +688,10 @@ function renderSegments(segs, duration){
   segWrap.classList.add('show');
 }
 player.addEventListener('timeupdate',()=>{
-  if(!segSkipIdle.checked || !clipSegments.length) return;
+  if(cutEdited || !segSkipIdle.checked || !clipSegments.length) return;
   const t=player.currentTime||0;
   const seg=clipSegments.find(s=>t>=Number(s.t0_s||0) && t<Number(s.t1_s||0));
-  if(seg && SEG_SKIP_KINDS.has(seg.hud_kind)) player.currentTime=Number(seg.t1_s||0);
+  if(seg && SEG_SKIP_KINDS.has(seg.hud_kind) && seg.confidence!=='lo') player.currentTime=Number(seg.t1_s||0);
 });
 function loadChaptersForClip(url){
   // /media/clips/foo.mp4 → /media/clips/foo.chapters.json
@@ -520,7 +717,7 @@ function loadChaptersForClip(url){
       b.type='button'; b.className='chBtn';
       const t=Number(c.t_s||0);
       b.textContent=t.toFixed(1)+'s · '+(c.label||c.kind||'mark');
-      b.onclick=()=>{ try{ player.currentTime=t; player.play().catch(()=>{}); }catch(e){} };
+      b.onclick=()=>seekClip(t);
       chapterList.appendChild(b);
     });
   }).catch(()=>{ chaptersCard.classList.remove('show'); chapterList.innerHTML=''; renderSegments([],0); });

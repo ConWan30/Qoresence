@@ -238,3 +238,137 @@ def test_run_ring_bounded_and_window_includes_prior_run(tmp_path):
         assert obs.runs_in_window(950, 1000) == [(900, "loading", "idle")]
     finally:
         obs.stop()
+
+
+def test_run_ring_records_confidence_and_pause_buckets(tmp_path):
+    answers = {"a": {"hud_kind": "live_hud", "hud_confidence": 0.9, "true_pause_noul": 0.1}}
+    obs = NoulObservatory(
+        NoulConfig(enabled=True, out_dir=str(tmp_path), queue_size=8),
+        ask_fn=lambda rec: answers["a"],
+    )
+    try:
+        parsed = {"home_score": 7, "away_score": 0, "paused": True, "paused_raw": True}
+        obs._judge({"clock_ns": 100, "parsed": parsed})
+        answers["a"] = {"hud_kind": "live_hud", "hud_confidence": 0.7, "true_pause_noul": 0.9}
+        obs._judge({"clock_ns": 200, "parsed": parsed})
+        detailed = obs.runs_in_window_detailed(0, 1000)
+        assert detailed == [
+            (100, "live_hud", "idle", "hi", "no"),
+            (200, "live_hud", "idle", "mid", "yes"),
+        ]
+        assert obs.runs_in_window(0, 1000) == [(100, "live_hud", "idle"), (200, "live_hud", "idle")]
+    finally:
+        obs.stop()
+
+
+def test_runs_detailed_pads_legacy_rows(tmp_path):
+    obs = NoulObservatory(NoulConfig(enabled=True, out_dir=str(tmp_path), queue_size=8))
+    try:
+        obs._runs.extend([(100, "menu", "idle"), (200, "pause", "idle", "hi")])
+        assert obs.runs_in_window_detailed(0, 1000) == [
+            (100, "menu", "idle", "lo", "na"),
+            (200, "pause", "idle", "hi", "na"),
+        ]
+    finally:
+        obs.stop()
+
+
+def test_evidence_ring_is_slim_and_windowed(tmp_path):
+    from qoresence.observability.noul_observatory import EVIDENCE_RING_MAX
+
+    obs = NoulObservatory(
+        NoulConfig(enabled=True, out_dir=str(tmp_path), queue_size=8),
+        ask_fn=lambda rec: {"hud_kind": "live_hud", "hud_confidence": 0.9},
+    )
+    try:
+        parsed = {
+            "home_score": 14,
+            "away_score": 7,
+            "left_team": "KC",
+            "right_team": "BUF",
+            "clock": "2:14",
+            "quarter": 4,
+            "paused": False,
+            "paused_raw": True,
+            "visible_control": {"prompt": "Resume"},
+        }
+        for ns in (100, 200, 300):
+            obs._judge({"clock_ns": ns, "parsed": parsed})
+        ev = obs.evidence_in_window(150, 300)
+        assert [e["clock_ns"] for e in ev] == [200, 300]
+        row = ev[0]
+        assert row["paused_raw"] is True and row["clock"] == "2:14"
+        assert row["has_teams"] and row["has_scores"] and row["prompt"] == "Resume"
+        assert "home_score" not in row and "away_score" not in row
+        for i in range(EVIDENCE_RING_MAX + 20):
+            obs._judge({"clock_ns": 1000 + i, "parsed": parsed})
+        assert len(obs._evidence) == EVIDENCE_RING_MAX
+    finally:
+        obs.stop()
+
+
+def _live_parsed(**kw):
+    base = {
+        "home_score": 14,
+        "away_score": 7,
+        "left_team": "KC",
+        "right_team": "BUF",
+        "paused": False,
+        "paused_raw": False,
+    }
+    base.update(kw)
+    return base
+
+
+def test_heuristic_raw_pause_over_scorebug_is_low_confidence_pause():
+    h = local_heuristic_nouls({"parsed": _live_parsed(paused_raw=True)})
+    assert h["hud_kind"] == "pause"
+    assert h["hud_confidence"] < 0.6
+    assert 0.5 <= h["true_pause_noul"] < 0.8
+    out = compose_observatory(
+        parsed=_live_parsed(paused_raw=True),
+        grounded_noul=h["grounded_noul"],
+        true_pause_noul=h["true_pause_noul"],
+        hud_kind=h["hud_kind"],
+        hud_confidence=h["hud_confidence"],
+    )
+    assert out["hud_kind"] == "pause"
+    assert out["board_speech"] != "menu"
+    assert out["licenses_digits"] is False
+
+
+def test_heuristic_preplay_raw_pause_is_not_pause():
+    h = local_heuristic_nouls(
+        {"parsed": _live_parsed(paused_raw=True, visible_control={"prompt": "Subs"})}
+    )
+    assert h["hud_kind"] == "preplay"
+    assert h["true_pause_noul"] < 0.3
+
+
+def test_heuristic_legacy_parse_without_paused_raw_unchanged():
+    parsed = _live_parsed()
+    parsed.pop("paused_raw")
+    assert local_heuristic_nouls({"parsed": parsed})["hud_kind"] == "live_hud"
+
+
+def test_confident_pause_speaks_menu():
+    out = compose_observatory(
+        parsed=_live_parsed(),
+        grounded_noul=0.9,
+        hud_kind="pause",
+        hud_confidence=0.9,
+    )
+    assert out["board_speech"] == "menu"
+    assert out["licenses_digits"] is False
+
+
+def test_hud_kind_choice_has_pause_and_no_match():
+    from qoresence.observability import noul_observatory as no
+
+    assert "pause" in no.HUD_KINDS
+    try:
+        import typesafe_sdk  # noqa: F401
+    except Exception:
+        return
+    crit = no.noul_questions()["hud_kind"].criteria
+    assert "pause" in crit and "unknown" in crit
