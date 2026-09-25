@@ -105,7 +105,7 @@ def test_stop_passes_clock_window_to_chapters(tmp_path, monkeypatch):
     monkeypatch.setattr(clip_chapters, "chapters_after_export", fake_chapters)
     rec = StemRecord(bus=None, out_dir=str(tmp_path))
     final = tmp_path / "stem_final.mp4"
-    monkeypatch.setattr(rec, "_finalize", lambda duration_s: final)
+    monkeypatch.setattr(rec, "_finalize", lambda duration_s, wav=None: final)
     rec.start()
     rec.stop()
     assert calls == [(final, 6.5, 1 * S, int(7.5 * S))]
