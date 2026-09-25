@@ -45,7 +45,18 @@ When the Noul observatory is on (`--noul`, default OFF), `<name>.chapters.json` 
 - The sidecar also carries `segments_source: "noul"` and `licenses_digits: false`. Labels are closed and descriptive, never "clutch", "highlight", or "best".
 - With Noul off, the `segments` key is absent (fail closed).
 - The Deck clip player shows a segment strip plus seek buttons, and a "Skip pauses/menus/loading" toggle that is off by default. It never skips `lo`-confidence segments.
-- Stem Record's chapter window is its start/stop `clock_ns`. Stem Record does not mux its MP4 yet, so Stem segments land when the mux does.
+- Stem Record's chapter window is its start/stop `clock_ns`.
+
+## Record mux
+
+`--stem-record` (default OFF) runs a `stem-record` thread off the capture and bus threads.
+
+- **Sampling.** The thread samples the ClipBuffer LIVE slot, decodes each new JPEG, and writes `clips/stem_<stamp>_raw.avi` at a fixed 30 fps.
+- **Pacing.** Frames are placed by their `clock_ns`, so video time equals session wall time and chapters and segments line up.
+- **Gaps.** Short capture gaps repeat the current frame. Gaps longer than 0.5 s are written as **black frames**, so a stall shows as dark, never as a frozen picture.
+- **Stop.** On stop, ffmpeg transcodes to browser-safe H.264 `clips/stem_<stamp>.mp4`, and the chapters sidecar is written next to it. Without ffmpeg the raw `.avi` is kept, and its sidecar sits next to it.
+- **Health.** `/health` → `stem.record` reports `frames_out`, `dark_frames`, `late`, `dropped`, `fps`, and `h264`.
+- Card audio is not muxed into the Stem MP4 yet.
 
 ## Pilot order
 
