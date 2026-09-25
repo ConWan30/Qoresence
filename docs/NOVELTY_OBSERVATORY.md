@@ -285,6 +285,8 @@ python scripts/excise_pilot_gate.py --clips clips --init-labels labels.json     
 python scripts/excise_pilot_gate.py --clips clips --labels labels.json --health logs/pilot/*.json
 ```
 
+**Health evidence is automatic.** While each excision job runs (referee + ffmpeg render), the worker samples live `age_s` from the FrameHub stamp every 0.5 s (the same read `/health` uses) and records `health: {samples, no_frame, age_s_max, age_s_p50, jobs}` in the receipt, keeping the worst value across re-renders. The gate counts these alongside any `--health` snapshot files. `python scripts/pilot_preflight.py` now prints soft excision checks: ffmpeg, clips folder, pinned football profile, `--clip-excise`, TypeSafe key present (never printed), and gate progress.
+
 It scores the policy's own cuts (gamer overrides stripped). `fail` (exit 1): any cut removes labelled live play (over-cut must be 0), any Deck veto of an auto-cut, `/health` `age_s` ≥ 1.0 s in the supplied snapshots, or Jev receipts from a model other than the pin. `insufficient` (exit 2): fewer than 20 football clips with labelled dead spans, no labelled pause, menu or loading, labelled clips without receipts, or no `/health` samples. `pass` (exit 0) otherwise. Under-cut and the suggest-accept rate are reported, not gated. The report is written to `logs/pilot/excise_gate_<ts>.json`.
 
 ### Jev conductor (ClutchBot / MatchAgent *text*, default OFF)
