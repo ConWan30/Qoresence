@@ -210,7 +210,7 @@ def test_ground_truth_round_trip_and_gate_status(tmp_path):
     st = ep.gate_status(tmp_path)
     assert st["verdict"] == "insufficient" and st["summary"]["over_cut_s"] == 0.0
     assert st["summary"]["football_clips_with_dead"] == 1
-    assert not any("/health" in g for g in st["gaps"])
+    assert any("/health" in g for g in st["gaps"])
     assert st["licenses_digits"] is False
 
 
@@ -268,3 +268,44 @@ def test_deck_label_save_requires_loopback(monkeypatch, tmp_path):
     r = client.post("/api/excise/labels/hdmi_clip_lab", json={"dead": []})
     assert r.status_code == 403
     assert ep.clip_labels(tmp_path, "hdmi_clip_lab.mp4") is None
+
+
+def test_receipt_health_counts_as_gate_evidence(tmp_path):
+    mp4, receipt = _receipt(tmp_path, "a.mp4", GOOD_SPANS)
+    labels = {"a.mp4": {"profile": "madden_27", "dead": GOOD_DEAD}}
+    receipt["health"] = {"source": "frame_hub", "samples": 6, "age_s_max": 0.4}
+    cx.write_receipt(mp4, receipt)
+    r = ep.evaluate(tmp_path, labels, min_clips=1)
+    assert r["verdict"] == "pass", r
+    assert r["summary"]["age_s_from_receipts"] == 1 and r["summary"]["age_s_from_files"] == 0
+    assert r["clips"][0]["health_samples"] == 6
+
+    receipt["health"]["age_s_max"] = 1.2
+    cx.write_receipt(mp4, receipt)
+    slow = ep.evaluate(tmp_path, labels, min_clips=1)
+    assert slow["verdict"] == "fail" and "age_s peaked at 1.20s" in slow["failures"][0]
+    ep.set_clip_labels(tmp_path, "a.mp4", GOOD_DEAD, profile="madden_27")
+    assert ep.gate_status(tmp_path)["summary"]["age_s_max"] == 1.2
+
+
+def test_excise_preflight_is_soft(tmp_path, monkeypatch):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.delenv("QORESENCE_CLIP_EXCISE", raising=False)
+    monkeypatch.setenv("QORESENCE_LAST_PROFILE_PATH", str(tmp_path / "none"))
+    monkeypatch.delenv("QORESENCE_GAME_PROFILE", raising=False)
+    cx.set_enabled(None)
+    rows = {m.split(" ")[0]: lvl for lvl, m in ep.excise_preflight(tmp_path, repo_root=tmp_path)}
+    assert rows["profile"] == "warn" and rows["start"] == "info" and rows["no"] == "info"
+
+    monkeypatch.setenv("QORESENCE_GAME_PROFILE", "madden_27")
+    monkeypatch.setenv("QORESENCE_CLIP_EXCISE", "1")
+    (tmp_path / ".secrets").mkdir()
+    (tmp_path / ".secrets" / "typesafe.key").write_text("SECRETKEY123")
+    _receipt(tmp_path, "a.mp4", GOOD_SPANS)
+    msgs = [m for _lvl, m in ep.excise_preflight(tmp_path, repo_root=tmp_path)]
+    joined = " | ".join(msgs)
+    assert "football profile pinned: madden_27" in joined
+    assert "QORESENCE_CLIP_EXCISE=1 set" in joined
+    assert "TypeSafe key found" in joined and "SECRETKEY123" not in joined
+    assert "pilot gate insufficient: 0/20" in joined
+    cx.set_enabled(None)

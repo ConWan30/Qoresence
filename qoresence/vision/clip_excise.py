@@ -886,6 +886,86 @@ def render_from_receipt(mp4_path: Any, receipt: dict[str, Any]) -> dict[str, Any
     return receipt
 
 
+HEALTH_SAMPLE_S = 0.5
+
+
+def _hub_age_s() -> float | None:
+    """Live picture age from the FrameHub stamp (same read ``/health`` uses; no frame copy)."""
+    try:
+        from qoresence.monitor.frame_hub import get_latest_stamp
+
+        st = get_latest_stamp()
+        if st.get("has_frame") and st.get("age_s") is not None:
+            return float(st["age_s"])
+    except Exception:
+        pass
+    return None
+
+
+class _HealthSampler:
+    """Samples live ``age_s`` while one excision job runs (pilot gate evidence)."""
+
+    def __init__(self, interval_s: float = HEALTH_SAMPLE_S, read: Any = None) -> None:
+        import threading
+
+        self._interval = float(interval_s)
+        self._read = read or _hub_age_s
+        self._stop = threading.Event()
+        self._ages: list[float] = []
+        self._misses = 0
+        self._thread = threading.Thread(target=self._run, name="clip-excise-health", daemon=True)
+
+    def _sample(self) -> None:
+        age = self._read()
+        if age is None:
+            self._misses += 1
+        else:
+            self._ages.append(float(age))
+
+    def _run(self) -> None:
+        self._sample()
+        while not self._stop.wait(self._interval):
+            self._sample()
+
+    def __enter__(self) -> _HealthSampler:
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self._stop.set()
+        self._thread.join(timeout=2.0)
+        self._sample()
+
+    def summary(self) -> dict[str, Any]:
+        ages = sorted(self._ages)
+        return {
+            "source": "frame_hub",
+            "samples": len(ages),
+            "no_frame": self._misses,
+            "age_s_max": round(ages[-1], 3) if ages else None,
+            "age_s_p50": round(ages[len(ages) // 2], 3) if ages else None,
+        }
+
+
+def merge_health(prev: dict[str, Any] | None, new: dict[str, Any]) -> dict[str, Any]:
+    """Keep the worst ``age_s`` across every job run for this clip."""
+    out = dict(new)
+    maxes = [h.get("age_s_max") for h in (prev or {}, new) if h.get("age_s_max") is not None]
+    out["age_s_max"] = max(maxes) if maxes else None
+    out["samples"] = int((prev or {}).get("samples") or 0) + int(new.get("samples") or 0)
+    out["no_frame"] = int((prev or {}).get("no_frame") or 0) + int(new.get("no_frame") or 0)
+    out["jobs"] = int((prev or {}).get("jobs") or 0) + 1
+    return out
+
+
+def _record_health(mp4_path: Any, summary: dict[str, Any]) -> None:
+    receipt = read_receipt(mp4_path)
+    if receipt is None:
+        return
+    receipt["health"] = merge_health(receipt.get("health"), summary)
+    write_receipt(mp4_path, receipt)
+
+
 class _ExciseWorker:
     """Bounded single worker: referee + render off the export and capture threads."""
 
@@ -919,25 +999,31 @@ class _ExciseWorker:
         while True:
             kind, job = self._q.get()
             try:
-                if kind == "plan":
-                    receipt = plan_excision(
-                        job["mp4"],
-                        start_ns=job["start_ns"],
-                        end_ns=job["end_ns"],
-                        duration_s=job["duration_s"],
-                        evidence=job["evidence"],
-                        game_profile=job.get("game_profile"),
-                    )
-                    if receipt.get("cuts"):
-                        write_receipt(job["mp4"], render_from_receipt(job["mp4"], receipt))
-                elif kind == "render":
-                    receipt = read_receipt(job["mp4"])
-                    if receipt is not None:
-                        write_receipt(job["mp4"], render_from_receipt(job["mp4"], receipt))
+                with _HealthSampler() as sampler:
+                    self._run_job(kind, job)
+                _record_health(job["mp4"], sampler.summary())
             except Exception as e:
                 log.debug("clip excise job failed: %s", e)
             finally:
                 self._q.task_done()
+
+    @staticmethod
+    def _run_job(kind: str, job: dict[str, Any]) -> None:
+        if kind == "plan":
+            receipt = plan_excision(
+                job["mp4"],
+                start_ns=job["start_ns"],
+                end_ns=job["end_ns"],
+                duration_s=job["duration_s"],
+                evidence=job["evidence"],
+                game_profile=job.get("game_profile"),
+            )
+            if receipt.get("cuts"):
+                write_receipt(job["mp4"], render_from_receipt(job["mp4"], receipt))
+        elif kind == "render":
+            receipt = read_receipt(job["mp4"])
+            if receipt is not None:
+                write_receipt(job["mp4"], render_from_receipt(job["mp4"], receipt))
 
 
 _worker: _ExciseWorker | None = None

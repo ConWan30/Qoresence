@@ -583,3 +583,38 @@ def test_deck_cut_route_requires_loopback(monkeypatch, tmp_path):
     remote = fastapi_testclient.TestClient(deck_server.create_app(), client=("10.0.0.5", 50123))
     r = remote.post("/api/clip/hdmi_clip_deck/cuts", json={"span_id": "s0", "decision": "cut"})
     assert r.status_code == 403
+
+
+def test_health_sampler_and_merge():
+    ages = iter([0.2, None, 0.6, 0.3, 0.3, 0.3, 0.3])
+    with cx._HealthSampler(interval_s=0.01, read=lambda: next(ages, 0.3)) as s:
+        import time
+
+        time.sleep(0.05)
+    summ = s.summary()
+    assert summ["source"] == "frame_hub" and summ["no_frame"] == 1
+    assert summ["age_s_max"] == 0.6 and summ["samples"] >= 3
+
+    merged = cx.merge_health({"age_s_max": 0.9, "samples": 4, "no_frame": 0, "jobs": 1}, summ)
+    assert merged["age_s_max"] == 0.9 and merged["jobs"] == 2
+    assert merged["samples"] == 4 + summ["samples"]
+    empty = cx.merge_health(None, {"age_s_max": None, "samples": 0, "no_frame": 3})
+    assert empty["age_s_max"] is None and empty["jobs"] == 1
+
+
+def test_worker_records_health_in_receipt(tmp_path, monkeypatch):
+    mp4 = tmp_path / "hdmi_clip_h.mp4"
+    mp4.write_bytes(b"x")
+    monkeypatch.setattr(cx, "_hub_age_s", lambda: 0.25)
+    monkeypatch.setattr(cx, "_referee_available", lambda: False)
+    job = {
+        "mp4": str(mp4),
+        "start_ns": 0,
+        "end_ns": int(20e9),
+        "duration_s": 20.0,
+        "evidence": _pause_evidence(segments=[], still_runs=[]),
+    }
+    assert cx.get_excise_worker().submit("plan", job)
+    assert cx.get_excise_worker().drain(30)
+    health = cx.read_receipt(mp4)["health"]
+    assert health["age_s_max"] == 0.25 and health["samples"] >= 2 and health["jobs"] == 1

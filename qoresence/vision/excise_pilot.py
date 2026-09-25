@@ -86,6 +86,8 @@ def score_clip(
         "cut_s": cut_s,
         "over_cut_s": _uncovered(cuts, dead, tol),
         "under_cut_s": _uncovered(dead, cuts, 0.0),
+        "health_age_s_max": (receipt.get("health") or {}).get("age_s_max"),
+        "health_samples": int((receipt.get("health") or {}).get("samples") or 0),
         "spans_cut": sum(1 for r in rows if r.get("decision") == "cut"),
         "spans_suggest": sum(1 for r in rows if r.get("decision") == "suggest"),
     }
@@ -181,7 +183,11 @@ def evaluate(
     kinds_seen = sorted({k for s in with_dead for k in s["dead_kinds"]})
     models = sorted({s["model"] for s in scored if s["referee"] == "jev" and s["model"]})
     clicks = label_stats(cx.read_labels(clips_dir / cx.LABELS_FILE))
-    ages = health_ages(health_files or [])
+    file_ages = health_ages(health_files or [])
+    receipt_ages = [
+        float(s["health_age_s_max"]) for s in scored if s["health_age_s_max"] is not None
+    ]
+    ages = file_ages + receipt_ages
     over = [s for s in scored if s["over_cut_s"] > 0]
 
     failures: list[str] = []
@@ -226,6 +232,8 @@ def evaluate(
             "models": models,
             "age_s_max": round(max(ages), 3) if ages else None,
             "age_s_samples": len(ages),
+            "age_s_from_files": len(file_ages),
+            "age_s_from_receipts": len(receipt_ages),
         },
         "clicks": clicks,
         "clips": scored,
@@ -295,7 +303,7 @@ def set_clip_labels(
 
 
 def gate_status(clips_dir: Any) -> dict[str, Any]:
-    """Compact gate view for the Deck (no ``/health`` files: run the CLI for the full gate)."""
+    """Compact gate view for the Deck; ``age_s`` comes from receipts sampled during excision."""
     labels = (
         load_labels(ground_truth_path(clips_dir)) if ground_truth_path(clips_dir).is_file() else {}
     )
@@ -303,7 +311,7 @@ def gate_status(clips_dir: Any) -> dict[str, Any]:
     return {
         "verdict": r["verdict"],
         "failures": r["failures"],
-        "gaps": [g for g in r["gaps"] if "/health" not in g],
+        "gaps": r["gaps"],
         "summary": {
             k: r["summary"][k]
             for k in (
@@ -312,6 +320,7 @@ def gate_status(clips_dir: Any) -> dict[str, Any]:
                 "dead_kinds_seen",
                 "over_cut_s",
                 "dead_removed_fraction",
+                "age_s_max",
             )
         },
         "min_clips": GATE_MIN_CLIPS,
@@ -319,6 +328,67 @@ def gate_status(clips_dir: Any) -> dict[str, Any]:
         "vetoes": len(r["clicks"]["vetoes"]),
         "licenses_digits": False,
     }
+
+
+def excise_preflight(clips_dir: Any, *, repo_root: Any = None) -> list[tuple[str, str]]:
+    """Soft pilot checks as ``(level, message)``; level is ``ok`` / ``warn`` / ``info``. Never fails."""
+    import os
+    import shutil
+
+    out: list[tuple[str, str]] = []
+    missing = [b for b in ("ffmpeg", "ffprobe") if not shutil.which(b)]
+    out.append(
+        ("warn", f"{' and '.join(missing)} not on PATH — cut renders will fail")
+        if missing
+        else ("ok", "ffmpeg + ffprobe on PATH")
+    )
+    d = Path(clips_dir)
+    probe = d if d.exists() else d.parent
+    out.append(
+        ("ok", f"clips folder writable: {d}")
+        if os.access(probe, os.W_OK)
+        else ("warn", f"clips folder not writable: {d}")
+    )
+    profile = cx.current_game_profile()
+    if cx.is_football_profile(profile):
+        out.append(("ok", f"football profile pinned: {profile} (frozen-clock proof on)"))
+    else:
+        out.append(
+            (
+                "warn",
+                f"profile {profile or 'unpinned'} — offline cuts need an Options press; "
+                "pin with --game-profile madden_27 or ncaa_football_27",
+            )
+        )
+    out.append(
+        ("ok", "QORESENCE_CLIP_EXCISE=1 set")
+        if cx.excise_enabled()
+        else ("info", "start with --clip-excise (default OFF)")
+    )
+    root = Path(repo_root) if repo_root else Path(".")
+    has_key = (
+        bool(os.environ.get("TYPESAFE_API_KEY", "").strip())
+        or (root / ".secrets" / "typesafe.key").is_file()
+    )
+    out.append(
+        (
+            "ok",
+            f"TypeSafe key found — add --noul or --jev for the Jev referee ({cx.excise_model()})",
+        )
+        if has_key
+        else ("info", "no TypeSafe key — offline Triple Proof only (pauses)")
+    )
+    if d.is_dir() and any(d.glob("*.cut.json")):
+        st = gate_status(d)
+        sm = st["summary"]
+        out.append(
+            (
+                "info",
+                f"pilot gate {st['verdict']}: {sm['football_clips_with_dead']}/{GATE_MIN_CLIPS} "
+                f"labelled football clips, over-cut {sm['over_cut_s']}s",
+            )
+        )
+    return out
 
 
 def init_labels(clips_dir: Any) -> dict[str, Any]:
