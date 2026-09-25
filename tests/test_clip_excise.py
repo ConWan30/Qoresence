@@ -122,7 +122,7 @@ def test_candidate_span_ticket_overlap():
 
 def test_triple_proof_truth_table():
     s = cx.build_candidate_spans(_pause_evidence())[0]
-    ok, reasons = cx.triple_proof(s)
+    ok, reasons = cx.triple_proof(s, game_profile="madden_27")
     assert ok and {"paused_raw", "still", "clock_frozen", "options_press"} <= set(reasons)
 
     no_still = cx.build_candidate_spans(_pause_evidence(still_runs=[]))[0]
@@ -139,6 +139,26 @@ def test_triple_proof_truth_table():
 
     not_paused = _pause_evidence(vlm=[_vlm(6.0), _vlm(9.0, paused_raw=False)])
     assert cx.triple_proof(cx.build_candidate_spans(not_paused)[0])[0] is False
+
+
+def test_frozen_clock_proof_is_football_only():
+    clock_only = cx.build_candidate_spans(_pause_evidence(inputs=[]))[0]
+    assert cx.triple_proof(clock_only, game_profile="madden_27")[0] is True
+    assert cx.triple_proof(clock_only, game_profile="cfb_27")[0] is True
+    assert cx.triple_proof(clock_only, game_profile="valorant")[0] is False
+    assert cx.triple_proof(clock_only)[0] is False
+    assert cx.cut_policy(clock_only, None) == ("keep", "offline_no_proof")
+    assert cx.cut_policy(clock_only, None, game_profile="madden_27")[0] == "cut"
+
+
+def test_current_game_profile_uses_operator_pin(monkeypatch, tmp_path):
+    monkeypatch.setenv("QORESENCE_LAST_PROFILE_PATH", str(tmp_path / "none"))
+    monkeypatch.delenv("QORESENCE_GAME_PROFILE", raising=False)
+    assert cx.current_game_profile() is None
+    monkeypatch.setenv("QORESENCE_GAME_PROFILE", "madden_27")
+    assert cx.current_game_profile() == "madden_27"
+    monkeypatch.setenv("QORESENCE_GAME_PROFILE", "not a game")
+    assert cx.current_game_profile() is None
 
 
 def test_referee_state_names_spans_and_carries_no_digits():
@@ -395,6 +415,7 @@ def test_render_cut_refuses_without_ranges(tmp_path):
 def test_export_with_excise_on_cuts_proven_pause(tmp_path, monkeypatch):
     """Frozen middle + raw pause reads + same game clock + Options → offline cut."""
     monkeypatch.setenv("QORESENCE_CLIP_EXCISE", "1")
+    monkeypatch.setenv("QORESENCE_GAME_PROFILE", "madden_27")
     cx.set_enabled(None)
     real_collect = cx.collect_evidence
 
@@ -416,6 +437,7 @@ def test_export_with_excise_on_cuts_proven_pause(tmp_path, monkeypatch):
     assert cx.get_excise_worker().drain(60)
     receipt = json.loads(cx.receipt_path(src).read_text())
     assert receipt["referee"] == "offline_triple_proof"
+    assert receipt["game_profile"] == "madden_27"
     assert receipt["excision"] == "applied", receipt
     assert receipt["render"]["state"] == "done"
     span = receipt["spans"][0]
@@ -432,6 +454,10 @@ def test_export_with_excise_on_cuts_proven_pause(tmp_path, monkeypatch):
     after = cx.read_receipt(src)
     assert after["excision"] == "none" and after["render"]["state"] == "not_needed"
     assert not cut.exists()
+    labels = cx.read_labels(cx.labels_path(src))
+    assert [(r["system"], r["user"], r["game_profile"]) for r in labels] == [
+        ("cut", "keep", "madden_27")
+    ]
     cx.set_enabled(None)
 
 
@@ -557,3 +583,38 @@ def test_deck_cut_route_requires_loopback(monkeypatch, tmp_path):
     remote = fastapi_testclient.TestClient(deck_server.create_app(), client=("10.0.0.5", 50123))
     r = remote.post("/api/clip/hdmi_clip_deck/cuts", json={"span_id": "s0", "decision": "cut"})
     assert r.status_code == 403
+
+
+def test_health_sampler_and_merge():
+    ages = iter([0.2, None, 0.6, 0.3, 0.3, 0.3, 0.3])
+    with cx._HealthSampler(interval_s=0.01, read=lambda: next(ages, 0.3)) as s:
+        import time
+
+        time.sleep(0.05)
+    summ = s.summary()
+    assert summ["source"] == "frame_hub" and summ["no_frame"] == 1
+    assert summ["age_s_max"] == 0.6 and summ["samples"] >= 3
+
+    merged = cx.merge_health({"age_s_max": 0.9, "samples": 4, "no_frame": 0, "jobs": 1}, summ)
+    assert merged["age_s_max"] == 0.9 and merged["jobs"] == 2
+    assert merged["samples"] == 4 + summ["samples"]
+    empty = cx.merge_health(None, {"age_s_max": None, "samples": 0, "no_frame": 3})
+    assert empty["age_s_max"] is None and empty["jobs"] == 1
+
+
+def test_worker_records_health_in_receipt(tmp_path, monkeypatch):
+    mp4 = tmp_path / "hdmi_clip_h.mp4"
+    mp4.write_bytes(b"x")
+    monkeypatch.setattr(cx, "_hub_age_s", lambda: 0.25)
+    monkeypatch.setattr(cx, "_referee_available", lambda: False)
+    job = {
+        "mp4": str(mp4),
+        "start_ns": 0,
+        "end_ns": int(20e9),
+        "duration_s": 20.0,
+        "evidence": _pause_evidence(segments=[], still_runs=[]),
+    }
+    assert cx.get_excise_worker().submit("plan", job)
+    assert cx.get_excise_worker().drain(30)
+    health = cx.read_receipt(mp4)["health"]
+    assert health["age_s_max"] == 0.25 and health["samples"] >= 2 and health["jobs"] == 1

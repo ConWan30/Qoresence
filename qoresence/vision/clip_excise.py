@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -177,8 +178,6 @@ def collect_evidence(
     except Exception as e:
         log.debug("excise noul evidence skipped: %s", e)
     try:
-        import time
-
         from qoresence.sync.input_ring import get_input_ring
 
         lookback = max(dur, (time.monotonic_ns() - int(start_ns)) / 1e9) + 1.0
@@ -358,6 +357,28 @@ def build_candidate_spans(
 # --------------------------------------------------------------------------- offline proof
 
 
+FOOTBALL_PROFILE_TOKENS = ("madden", "ncaa", "cfb", "college", "football", "nfl")
+
+
+def is_football_profile(profile: str | None) -> bool:
+    p = str(profile or "").lower()
+    return any(t in p for t in FOOTBALL_PROFILE_TOKENS)
+
+
+def current_game_profile() -> str | None:
+    """Operator pin (env, then last pin). Never auto-detected, never the NCAA fallback."""
+    try:
+        from qoresence.core.operator_profile import load_last_profile
+        from qoresence.core.unified_config import normalize_game_profile
+
+        raw = os.environ.get("QORESENCE_GAME_PROFILE", "").strip()
+        if raw:
+            return normalize_game_profile(raw).value
+        return load_last_profile()
+    except Exception:
+        return None
+
+
 def clock_frozen(span: Span) -> bool:
     """Football adapter: the scorebug game clock reads the same across the span."""
     clocks = [
@@ -368,8 +389,12 @@ def clock_frozen(span: Span) -> bool:
     return len(clocks) >= 2 and len(set(clocks)) == 1
 
 
-def triple_proof(span: Span) -> tuple[bool, list[str]]:
-    """Offline pause proof: raw pause read + frozen picture + (clock frozen or Options)."""
+def triple_proof(span: Span, *, game_profile: str | None = None) -> tuple[bool, list[str]]:
+    """Offline pause proof: raw pause read + frozen picture + (clock frozen or Options).
+
+    The frozen-clock leg only counts for a pinned football profile; other or
+    unknown titles need the Options press.
+    """
     reasons: list[str] = []
     inside = [v for v in span.evidence.get("vlm_inside") or [] if v]
     paused = bool(inside) and all(bool(v.get("paused_raw")) for v in inside)
@@ -378,7 +403,7 @@ def triple_proof(span: Span) -> tuple[bool, list[str]]:
     still = float(span.evidence.get("still_s") or 0) >= STILL_MIN_S
     if still:
         reasons.append("still")
-    frozen = clock_frozen(span)
+    frozen = is_football_profile(game_profile) and clock_frozen(span)
     if frozen:
         reasons.append("clock_frozen")
     options = span.evidence.get("options_press_before_s") is not None
@@ -550,7 +575,12 @@ RECEIPT_SCHEMA = "qoresence.cut_receipt/1"
 DECISIONS = ("cut", "suggest", "keep")
 
 
-def cut_policy(span: Span, answers: dict[str, dict[str, Any]] | None) -> tuple[str, str]:
+def cut_policy(
+    span: Span,
+    answers: dict[str, dict[str, Any]] | None,
+    *,
+    game_profile: str | None = None,
+) -> tuple[str, str]:
     """``(decision, reason)``; ``answers is None`` means no referee (offline)."""
     ev = span.evidence
     if ev.get("ticket_overlap"):
@@ -558,7 +588,7 @@ def cut_policy(span: Span, answers: dict[str, dict[str, Any]] | None) -> tuple[s
     if span.length_s < MIN_SPAN_S:
         return "keep", "too_short"
     if answers is None:
-        ok, reasons = triple_proof(span)
+        ok, reasons = triple_proof(span, game_profile=game_profile)
         if ok:
             return "cut", "triple_proof:" + "+".join(reasons)
         return "keep", "offline_no_proof"
@@ -656,10 +686,11 @@ def build_receipt(
     answers: dict[str, dict[str, Any]] | None,
     *,
     model_id: str | None,
+    game_profile: str | None = None,
 ) -> dict[str, Any]:
     rows = []
     for s in spans:
-        decision, reason = cut_policy(s, answers)
+        decision, reason = cut_policy(s, answers, game_profile=game_profile)
         row = s.to_dict()
         row.update(
             {
@@ -678,6 +709,7 @@ def build_receipt(
         if not spans
         else ("jev" if answers is not None else "offline_triple_proof"),
         "model": model_id if answers is not None else None,
+        "game_profile": game_profile,
         "source": source_name,
         "source_duration_s": round(float(duration_s), 3),
         "spans": rows,
@@ -772,7 +804,14 @@ def plan_excision(
     model_id = None
     if spans and (use_referee if use_referee is not None else _referee_available()):
         answers, model_id = run_referee(spans, ask_fn=ask_fn, game_profile=game_profile)
-    receipt = build_receipt(Path(mp4_path).name, duration_s, spans, answers, model_id=model_id)
+    receipt = build_receipt(
+        Path(mp4_path).name,
+        duration_s,
+        spans,
+        answers,
+        model_id=model_id,
+        game_profile=game_profile,
+    )
     if not receipt["cuts"]:
         receipt["render"] = {"state": "not_needed", "path": None}
     write_receipt(mp4_path, receipt)
@@ -847,6 +886,86 @@ def render_from_receipt(mp4_path: Any, receipt: dict[str, Any]) -> dict[str, Any
     return receipt
 
 
+HEALTH_SAMPLE_S = 0.5
+
+
+def _hub_age_s() -> float | None:
+    """Live picture age from the FrameHub stamp (same read ``/health`` uses; no frame copy)."""
+    try:
+        from qoresence.monitor.frame_hub import get_latest_stamp
+
+        st = get_latest_stamp()
+        if st.get("has_frame") and st.get("age_s") is not None:
+            return float(st["age_s"])
+    except Exception:
+        pass
+    return None
+
+
+class _HealthSampler:
+    """Samples live ``age_s`` while one excision job runs (pilot gate evidence)."""
+
+    def __init__(self, interval_s: float = HEALTH_SAMPLE_S, read: Any = None) -> None:
+        import threading
+
+        self._interval = float(interval_s)
+        self._read = read or _hub_age_s
+        self._stop = threading.Event()
+        self._ages: list[float] = []
+        self._misses = 0
+        self._thread = threading.Thread(target=self._run, name="clip-excise-health", daemon=True)
+
+    def _sample(self) -> None:
+        age = self._read()
+        if age is None:
+            self._misses += 1
+        else:
+            self._ages.append(float(age))
+
+    def _run(self) -> None:
+        self._sample()
+        while not self._stop.wait(self._interval):
+            self._sample()
+
+    def __enter__(self) -> _HealthSampler:
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self._stop.set()
+        self._thread.join(timeout=2.0)
+        self._sample()
+
+    def summary(self) -> dict[str, Any]:
+        ages = sorted(self._ages)
+        return {
+            "source": "frame_hub",
+            "samples": len(ages),
+            "no_frame": self._misses,
+            "age_s_max": round(ages[-1], 3) if ages else None,
+            "age_s_p50": round(ages[len(ages) // 2], 3) if ages else None,
+        }
+
+
+def merge_health(prev: dict[str, Any] | None, new: dict[str, Any]) -> dict[str, Any]:
+    """Keep the worst ``age_s`` across every job run for this clip."""
+    out = dict(new)
+    maxes = [h.get("age_s_max") for h in (prev or {}, new) if h.get("age_s_max") is not None]
+    out["age_s_max"] = max(maxes) if maxes else None
+    out["samples"] = int((prev or {}).get("samples") or 0) + int(new.get("samples") or 0)
+    out["no_frame"] = int((prev or {}).get("no_frame") or 0) + int(new.get("no_frame") or 0)
+    out["jobs"] = int((prev or {}).get("jobs") or 0) + 1
+    return out
+
+
+def _record_health(mp4_path: Any, summary: dict[str, Any]) -> None:
+    receipt = read_receipt(mp4_path)
+    if receipt is None:
+        return
+    receipt["health"] = merge_health(receipt.get("health"), summary)
+    write_receipt(mp4_path, receipt)
+
+
 class _ExciseWorker:
     """Bounded single worker: referee + render off the export and capture threads."""
 
@@ -869,8 +988,6 @@ class _ExciseWorker:
 
     def drain(self, timeout_s: float = 30.0) -> bool:
         """Test helper: wait until queued jobs finish."""
-        import time
-
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
             if self._q.unfinished_tasks == 0:
@@ -882,24 +999,31 @@ class _ExciseWorker:
         while True:
             kind, job = self._q.get()
             try:
-                if kind == "plan":
-                    receipt = plan_excision(
-                        job["mp4"],
-                        start_ns=job["start_ns"],
-                        end_ns=job["end_ns"],
-                        duration_s=job["duration_s"],
-                        evidence=job["evidence"],
-                    )
-                    if receipt.get("cuts"):
-                        write_receipt(job["mp4"], render_from_receipt(job["mp4"], receipt))
-                elif kind == "render":
-                    receipt = read_receipt(job["mp4"])
-                    if receipt is not None:
-                        write_receipt(job["mp4"], render_from_receipt(job["mp4"], receipt))
+                with _HealthSampler() as sampler:
+                    self._run_job(kind, job)
+                _record_health(job["mp4"], sampler.summary())
             except Exception as e:
                 log.debug("clip excise job failed: %s", e)
             finally:
                 self._q.task_done()
+
+    @staticmethod
+    def _run_job(kind: str, job: dict[str, Any]) -> None:
+        if kind == "plan":
+            receipt = plan_excision(
+                job["mp4"],
+                start_ns=job["start_ns"],
+                end_ns=job["end_ns"],
+                duration_s=job["duration_s"],
+                evidence=job["evidence"],
+                game_profile=job.get("game_profile"),
+            )
+            if receipt.get("cuts"):
+                write_receipt(job["mp4"], render_from_receipt(job["mp4"], receipt))
+        elif kind == "render":
+            receipt = read_receipt(job["mp4"])
+            if receipt is not None:
+                write_receipt(job["mp4"], render_from_receipt(job["mp4"], receipt))
 
 
 _worker: _ExciseWorker | None = None
@@ -930,6 +1054,7 @@ def submit_excision(mp4_path: Any, *, snapshot: list[Any], duration_s: float) ->
         "end_ns": end_ns,
         "duration_s": float(duration_s),
         "evidence": evidence,
+        "game_profile": current_game_profile(),
     }
     if get_excise_worker().submit("plan", job):
         return True
@@ -954,11 +1079,74 @@ def submit_excision(mp4_path: Any, *, snapshot: list[Any], duration_s: float) ->
     return False
 
 
+LABELS_FILE = "excise_labels.jsonl"
+LABELS_MAX_BYTES = 5 * 1024 * 1024
+
+
+def labels_path(mp4_path: Any) -> Path:
+    return Path(mp4_path).with_name(LABELS_FILE)
+
+
+def label_row(receipt: dict[str, Any], span_id: str, decision: str) -> dict[str, Any] | None:
+    """One labelled pilot row: what the policy said vs what the gamer chose."""
+    for row in receipt.get("spans") or []:
+        if row.get("id") == span_id:
+            return {
+                "ts": round(time.time(), 3),
+                "source": receipt.get("source"),
+                "span_id": span_id,
+                "t0_s": row.get("t0_s"),
+                "t1_s": row.get("t1_s"),
+                "kinds": row.get("kinds"),
+                "system": row.get("decision"),
+                "reason": row.get("reason"),
+                "user": decision,
+                "referee": receipt.get("referee"),
+                "model": receipt.get("model"),
+                "game_profile": receipt.get("game_profile"),
+                "policy_version": receipt.get("policy_version"),
+            }
+    return None
+
+
+def append_label(mp4_path: Any, row: dict[str, Any]) -> bool:
+    """Append to the local labels JSONL (bounded; never raises)."""
+    try:
+        p = labels_path(mp4_path)
+        if p.is_file() and p.stat().st_size >= LABELS_MAX_BYTES:
+            return False
+        with p.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row, separators=(",", ":")) + "\n")
+        return True
+    except Exception:
+        return False
+
+
+def read_labels(path: Any) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    try:
+        for line in Path(path).read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return rows
+
+
 def request_user_decision(mp4_path: Any, span_id: str, decision: str) -> dict[str, Any] | None:
     """Apply a gamer override and queue a re-render. ``None`` if not applicable."""
     receipt = read_receipt(mp4_path)
-    if receipt is None or not apply_user_decision(receipt, span_id, decision):
+    if receipt is None or decision not in ("cut", "keep"):
         return None
+    label = label_row(receipt, span_id, decision)
+    if label is None or not apply_user_decision(receipt, span_id, decision):
+        return None
+    append_label(mp4_path, label)
     receipt["render"] = {"state": "pending" if receipt["cuts"] else "not_needed", "path": None}
     write_receipt(mp4_path, receipt)
     if not get_excise_worker().submit("render", {"mp4": str(mp4_path)}):

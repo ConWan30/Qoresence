@@ -2186,6 +2186,70 @@ def create_app():  # type: ignore[no-untyped-def]
             }
         )
 
+    def _excise_clip(stem: str) -> pathlib.Path | None:
+        import re
+
+        from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
+
+        if not re.fullmatch(r"hdmi_clip_[\w\-]+", stem):
+            return None
+        return pathlib.Path(DEFAULT_OUT_DIR) / f"{stem}.mp4"
+
+    @app.get("/api/excise/labels/{stem}")
+    async def api_excise_labels_get(stem: str):  # type: ignore[no-untyped-def]
+        """Pilot hand labels for one clip (dead spans in source seconds)."""
+        mp4 = _excise_clip(stem)
+        if mp4 is None:
+            return JSONResponse({"ok": False, "error": "invalid clip"}, status_code=400)
+        from qoresence.vision import excise_pilot as ep
+
+        entry = await asyncio.to_thread(ep.clip_labels, mp4.parent, mp4.name)
+        return JSONResponse({"ok": True, "labelled": entry is not None, "labels": entry})
+
+    @app.post("/api/excise/labels/{stem}")
+    async def api_excise_labels_set(stem: str, request: Request):  # type: ignore[no-untyped-def]
+        """Save pilot hand labels for one clip (loopback only)."""
+        denied = _local_client_required_response(request)
+        if denied is not None:
+            return denied
+        mp4 = _excise_clip(stem)
+        if mp4 is None:
+            return JSONResponse({"ok": False, "error": "invalid clip"}, status_code=400)
+        if not mp4.is_file():
+            return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        from qoresence.vision import clip_excise as cx
+        from qoresence.vision import excise_pilot as ep
+
+        receipt = await asyncio.to_thread(cx.read_receipt, mp4)
+        if receipt is None:
+            return JSONResponse({"ok": False, "error": "no receipt"}, status_code=409)
+        dead = ep.clean_dead(body.get("dead"), duration_s=receipt.get("source_duration_s"))
+        if dead is None:
+            return JSONResponse({"ok": False, "error": "invalid labels"}, status_code=400)
+        entry = await asyncio.to_thread(
+            ep.set_clip_labels,
+            mp4.parent,
+            mp4.name,
+            dead,
+            profile=receipt.get("game_profile"),
+        )
+        return JSONResponse({"ok": True, "labels": entry})
+
+    @app.get("/api/excise/gate")
+    async def api_excise_gate():  # type: ignore[no-untyped-def]
+        """Pilot gate progress over the Deck's ground-truth labels (report only)."""
+        from qoresence.vision import excise_pilot as ep
+        from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
+
+        status = await asyncio.to_thread(ep.gate_status, DEFAULT_OUT_DIR)
+        return JSONResponse({"ok": True, **status})
+
     @app.get("/api/civif/narrative")
     async def api_civif_narrative(clip: str = ""):  # type: ignore[no-untyped-def]
         def _narrate() -> dict[str, Any]:

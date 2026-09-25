@@ -61,6 +61,16 @@ def main() -> int:
     except Exception as e:
         print(f"  DualSense enumerate skipped: {e}")
 
+    try:
+        from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
+        from qoresence.vision.excise_pilot import excise_preflight
+
+        print("  clip excision (soft checks):")
+        for level, msg in excise_preflight(DEFAULT_OUT_DIR, repo_root=REPO_ROOT):
+            print(f"    {level.upper():4} {msg}")
+    except Exception as e:
+        print(f"  clip excision checks skipped: {e}")
+
     print("")
     print("Next steps:")
     print("  python -m qoresence.cli --streamer-list")
