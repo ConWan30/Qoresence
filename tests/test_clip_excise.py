@@ -122,7 +122,7 @@ def test_candidate_span_ticket_overlap():
 
 def test_triple_proof_truth_table():
     s = cx.build_candidate_spans(_pause_evidence())[0]
-    ok, reasons = cx.triple_proof(s)
+    ok, reasons = cx.triple_proof(s, game_profile="madden_27")
     assert ok and {"paused_raw", "still", "clock_frozen", "options_press"} <= set(reasons)
 
     no_still = cx.build_candidate_spans(_pause_evidence(still_runs=[]))[0]
@@ -139,6 +139,26 @@ def test_triple_proof_truth_table():
 
     not_paused = _pause_evidence(vlm=[_vlm(6.0), _vlm(9.0, paused_raw=False)])
     assert cx.triple_proof(cx.build_candidate_spans(not_paused)[0])[0] is False
+
+
+def test_frozen_clock_proof_is_football_only():
+    clock_only = cx.build_candidate_spans(_pause_evidence(inputs=[]))[0]
+    assert cx.triple_proof(clock_only, game_profile="madden_27")[0] is True
+    assert cx.triple_proof(clock_only, game_profile="cfb_27")[0] is True
+    assert cx.triple_proof(clock_only, game_profile="valorant")[0] is False
+    assert cx.triple_proof(clock_only)[0] is False
+    assert cx.cut_policy(clock_only, None) == ("keep", "offline_no_proof")
+    assert cx.cut_policy(clock_only, None, game_profile="madden_27")[0] == "cut"
+
+
+def test_current_game_profile_uses_operator_pin(monkeypatch, tmp_path):
+    monkeypatch.setenv("QORESENCE_LAST_PROFILE_PATH", str(tmp_path / "none"))
+    monkeypatch.delenv("QORESENCE_GAME_PROFILE", raising=False)
+    assert cx.current_game_profile() is None
+    monkeypatch.setenv("QORESENCE_GAME_PROFILE", "madden_27")
+    assert cx.current_game_profile() == "madden_27"
+    monkeypatch.setenv("QORESENCE_GAME_PROFILE", "not a game")
+    assert cx.current_game_profile() is None
 
 
 def test_referee_state_names_spans_and_carries_no_digits():
@@ -395,6 +415,7 @@ def test_render_cut_refuses_without_ranges(tmp_path):
 def test_export_with_excise_on_cuts_proven_pause(tmp_path, monkeypatch):
     """Frozen middle + raw pause reads + same game clock + Options → offline cut."""
     monkeypatch.setenv("QORESENCE_CLIP_EXCISE", "1")
+    monkeypatch.setenv("QORESENCE_GAME_PROFILE", "madden_27")
     cx.set_enabled(None)
     real_collect = cx.collect_evidence
 
@@ -416,6 +437,7 @@ def test_export_with_excise_on_cuts_proven_pause(tmp_path, monkeypatch):
     assert cx.get_excise_worker().drain(60)
     receipt = json.loads(cx.receipt_path(src).read_text())
     assert receipt["referee"] == "offline_triple_proof"
+    assert receipt["game_profile"] == "madden_27"
     assert receipt["excision"] == "applied", receipt
     assert receipt["render"]["state"] == "done"
     span = receipt["spans"][0]
@@ -432,6 +454,10 @@ def test_export_with_excise_on_cuts_proven_pause(tmp_path, monkeypatch):
     after = cx.read_receipt(src)
     assert after["excision"] == "none" and after["render"]["state"] == "not_needed"
     assert not cut.exists()
+    labels = cx.read_labels(cx.labels_path(src))
+    assert [(r["system"], r["user"], r["game_profile"]) for r in labels] == [
+        ("cut", "keep", "madden_27")
+    ]
     cx.set_enabled(None)
 
 
