@@ -275,11 +275,13 @@ While noul is on, the observatory keeps a bounded run-length history of `(hud_ki
 
 #### Pilot gate (before any default change)
 
-`scripts/excise_pilot_gate.py` scores receipts against hand labels and never changes a default:
+**Labelling on the Theater.** While a clip replays, the Cut receipt card (floating top-right on the home Theater, `glass/src/components/theater/replay-cut-panel.tsx`) has **Label this clip**. Labelling is blind: it switches to the original picture and hides the receipt strip and spans. Mark start → End · Pause / Menu / Loading → Save labels. Labels go to `clips/excise_ground_truth.json` through loopback-only `POST /api/excise/labels/{stem}` (the game profile is copied from the receipt). The card's last line shows `GET /api/excise/gate` progress. The classic `deck.html` fallback has the same card.
+
+`scripts/excise_pilot_gate.py` scores receipts against hand labels and never changes a default. It reads the Theater labels by default:
 
 ```bash
-python scripts/excise_pilot_gate.py --clips clips --init-labels labels.json   # blank template
-# watch each ORIGINAL clip; list every pause/menu/loading as [t0_s, t1_s, kind]
+python scripts/excise_pilot_gate.py --clips clips --health logs/pilot/*.json          # Theater labels
+python scripts/excise_pilot_gate.py --clips clips --init-labels labels.json          # or hand-edit JSON
 python scripts/excise_pilot_gate.py --clips clips --labels labels.json --health logs/pilot/*.json
 ```
 
