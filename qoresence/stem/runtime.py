@@ -36,7 +36,12 @@ class StemRuntime:
         )
         self.audio = StemAudio(bus, session_head_ns=session_head_ns) if config.audio else None
         self.record = (
-            StemRecord(bus, out_dir=config.record_dir, session_head_ns=session_head_ns)
+            StemRecord(
+                bus,
+                out_dir=config.record_dir,
+                session_head_ns=session_head_ns,
+                audio=self.audio,
+            )
             if config.record
             else None
         )
@@ -51,10 +56,11 @@ class StemRuntime:
 
     def stop(self) -> None:
         self.conductor.stop()
-        if self.audio is not None:
-            self.audio.stop()
+        # Record first: it drains and pads the audio track before the stream closes.
         if self.record is not None:
             self.record.stop()
+        if self.audio is not None:
+            self.audio.stop()
 
     def health(self) -> dict[str, Any]:
         audio = self.audio.snapshot() if self.audio is not None else {"enabled": False}
