@@ -56,7 +56,16 @@ When the Noul observatory is on (`--noul`, default OFF), `<name>.chapters.json` 
 - **Gaps.** Short capture gaps repeat the current frame. Gaps longer than 0.5 s are written as **black frames**, so a stall shows as dark, never as a frozen picture.
 - **Stop.** On stop, ffmpeg transcodes to browser-safe H.264 `clips/stem_<stamp>.mp4`, and the chapters sidecar is written next to it. Without ffmpeg the raw `.avi` is kept, and its sidecar sits next to it.
 - **Health.** `/health` → `stem.record` reports `frames_out`, `dark_frames`, `late`, `dropped`, `fps`, and `h264`.
-- Card audio is not muxed into the Stem MP4 yet.
+
+## Card audio in the record
+
+With both `--stem-audio` and `--stem-record` on (each default OFF), the Stem MP4 carries the capture card's audio.
+
+- **Track.** A `stem-audio-writer` thread writes mono 16-bit `clips/stem_<stamp>.wav` at the card's native sample rate. The PortAudio callback only enqueues blocks (drop-oldest).
+- **Alignment.** Samples are placed on the same `clock_ns` as the video, starting at the record's `start_ns`. If audio falls more than 40 ms behind, silence fills the gap; if it runs more than 40 ms ahead, the block head is trimmed. The track is padded to the video length before the mux.
+- **Mux.** ffmpeg muxes the WAV as AAC into the H.264 MP4, then deletes the WAV. If the audio mux fails, the MP4 is written video-only and the WAV is kept next to it.
+- **Health.** `/health` → `stem.record` reports `audio`, `audio_capturing`, and `audio_track` (blocks, silence_ms, trimmed_ms, dropped_blocks).
+- **Privacy.** Raw PCM never goes on the bus; the bus carries only `rms` and `onset`. Laptop mics are never opened. Without a card audio device, the record is video-only.
 
 ## Pilot order
 
