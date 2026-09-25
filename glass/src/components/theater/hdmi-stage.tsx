@@ -254,7 +254,6 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
   const replaySrc = stageMode === "replay" ? clipHref(lastClipUrl) : "";
   const showLive = hdmiPictureVisible(jpgOk) && !replaySrc;
   const hdmi = useTheater((s) => s.hdmi);
-  const sameSeq = useTheater((s) => s.sameSeq);
   const identOn = apertureIdentOn({
     jpgOk,
     replay: Boolean(replaySrc),
