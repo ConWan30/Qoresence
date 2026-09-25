@@ -176,3 +176,95 @@ def test_script_init_labels_and_exit_codes(tmp_path):
     assert gate.main(args) == 2
     health = str(_health(tmp_path, 0.2))
     assert gate.main(args + ["--min-clips", "1", "--health", health]) == 0
+
+
+def test_clean_dead_validates_and_clamps():
+    assert ep.clean_dead([[9, 12, "menu"], [1, 3, "pause"]]) == [
+        [1.0, 3.0, "pause"],
+        [9.0, 12.0, "menu"],
+    ]
+    assert ep.clean_dead([[25, 40, "loading"]], duration_s=30.0) == [[25.0, 30.0, "loading"]]
+    assert ep.clean_dead([]) == []
+    for bad in (
+        None,
+        "x",
+        [[1, 3]],
+        [[1, 3, "gameplay"]],
+        [[3, 1, "pause"]],
+        [[-1, 1, "pause"]],
+        [["a", 2, "pause"]],
+        [[31, 40, "pause"]],
+        [[0, 1, "pause"]] * (ep.MAX_DEAD_PER_CLIP + 1),
+    ):
+        assert ep.clean_dead(bad, duration_s=30.0) is None, bad
+
+
+def test_ground_truth_round_trip_and_gate_status(tmp_path):
+    _receipt(tmp_path, "a.mp4", GOOD_SPANS)
+    assert ep.clip_labels(tmp_path, "a.mp4") is None
+    assert ep.gate_status(tmp_path)["summary"]["clips_labelled"] == 0
+    ep.set_clip_labels(tmp_path, "a.mp4", GOOD_DEAD, profile="madden_27")
+    ep.set_clip_labels(tmp_path, "b.mp4", [], profile=None)
+    assert ep.clip_labels(tmp_path, "a.mp4")["dead"] == GOOD_DEAD
+    assert ep.load_labels(ep.ground_truth_path(tmp_path))["a.mp4"]["profile"] == "madden_27"
+    st = ep.gate_status(tmp_path)
+    assert st["verdict"] == "insufficient" and st["summary"]["over_cut_s"] == 0.0
+    assert st["summary"]["football_clips_with_dead"] == 1
+    assert not any("/health" in g for g in st["gaps"])
+    assert st["licenses_digits"] is False
+
+
+def test_script_defaults_to_deck_ground_truth(tmp_path, capsys):
+    gate = _script()
+    _receipt(tmp_path, "a.mp4", GOOD_SPANS)
+    out = tmp_path / "r.json"
+    try:
+        gate.main(["--clips", str(tmp_path), "--out", str(out)])
+    except SystemExit as e:
+        assert e.code == 2
+    ep.set_clip_labels(tmp_path, "a.mp4", GOOD_DEAD, profile="madden_27")
+    health = str(_health(tmp_path, 0.2))
+    args = ["--clips", str(tmp_path), "--out", str(out), "--min-clips", "1", "--health", health]
+    assert gate.main(args) == 0
+
+
+def _deck(monkeypatch, tmp_path, client_host="127.0.0.1"):
+    import pytest
+
+    testclient = pytest.importorskip("fastapi.testclient")
+    from qoresence.deck import server as deck_server
+    from qoresence.vision import clip_buffer
+
+    monkeypatch.setattr(clip_buffer, "DEFAULT_OUT_DIR", str(tmp_path))
+    return testclient.TestClient(deck_server.create_app(), client=(client_host, 50123))
+
+
+def test_deck_label_routes(monkeypatch, tmp_path):
+    client = _deck(monkeypatch, tmp_path)
+    _receipt(tmp_path, "hdmi_clip_lab.mp4", GOOD_SPANS)
+    (tmp_path / "hdmi_clip_bare.mp4").write_bytes(b"x")
+    url = "/api/excise/labels/hdmi_clip_lab"
+    assert client.get(url).json() == {"ok": True, "labelled": False, "labels": None}
+
+    r = client.post(url, json={"dead": [[5, 12, "pause"], [15, 19, "menu"]]})
+    assert r.status_code == 200 and r.json()["labels"]["profile"] == "madden_27"
+    got = client.get(url).json()
+    assert got["labelled"] and got["labels"]["dead"] == [[5.0, 12.0, "pause"], [15.0, 19.0, "menu"]]
+
+    assert client.post(url, json={"dead": [[5, 12, "gameplay"]]}).status_code == 400
+    assert client.post(url, json={"dead": "nope"}).status_code == 400
+    assert client.post("/api/excise/labels/hdmi_clip_nope", json={"dead": []}).status_code == 404
+    assert client.post("/api/excise/labels/hdmi_clip_bare", json={"dead": []}).status_code == 409
+    assert client.get("/api/excise/labels/..%2Fetc").status_code in (400, 404)
+
+    gate = client.get("/api/excise/gate").json()
+    assert gate["ok"] and gate["summary"]["clips_labelled"] == 1
+    assert gate["verdict"] == "insufficient"
+
+
+def test_deck_label_save_requires_loopback(monkeypatch, tmp_path):
+    client = _deck(monkeypatch, tmp_path, client_host="192.168.1.50")
+    _receipt(tmp_path, "hdmi_clip_lab.mp4", GOOD_SPANS)
+    r = client.post("/api/excise/labels/hdmi_clip_lab", json={"dead": []})
+    assert r.status_code == 403
+    assert ep.clip_labels(tmp_path, "hdmi_clip_lab.mp4") is None

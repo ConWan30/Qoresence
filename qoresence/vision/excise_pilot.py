@@ -16,6 +16,8 @@ policy cut that removes live play; the gate requires it to be exactly zero.
 from __future__ import annotations
 
 import json
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -230,6 +232,92 @@ def evaluate(
         "missing_receipts": missing,
         "licenses_digits": False,
         "note": "Evidence for human review only; this report never changes a default.",
+    }
+
+
+GROUND_TRUTH_FILE = "excise_ground_truth.json"
+MAX_DEAD_PER_CLIP = 50
+_gt_lock = threading.Lock()  # file write only; no bus, no lobe lock
+
+
+def ground_truth_path(clips_dir: Any) -> Path:
+    return Path(clips_dir) / GROUND_TRUTH_FILE
+
+
+def _read_ground_truth(clips_dir: Any) -> dict[str, Any]:
+    try:
+        doc = json.loads(ground_truth_path(clips_dir).read_text(encoding="utf-8"))
+        if isinstance(doc, dict) and isinstance(doc.get("clips"), dict):
+            return doc
+    except Exception:
+        pass
+    return {"schema": LABEL_SCHEMA, "clips": {}}
+
+
+def clean_dead(dead: Any, *, duration_s: float | None = None) -> list[list[Any]] | None:
+    """Validate Deck-marked dead spans. ``None`` when the input is malformed."""
+    if not isinstance(dead, list) or len(dead) > MAX_DEAD_PER_CLIP:
+        return None
+    out: list[list[Any]] = []
+    for d in dead:
+        if not isinstance(d, (list, tuple)) or len(d) != 3 or d[2] not in GATE_KINDS:
+            return None
+        try:
+            t0, t1 = round(float(d[0]), 3), round(float(d[1]), 3)
+        except (TypeError, ValueError):
+            return None
+        if duration_s:
+            t1 = min(t1, round(float(duration_s), 3))
+        if t0 < 0 or t1 <= t0:
+            return None
+        out.append([t0, t1, str(d[2])])
+    return sorted(out)
+
+
+def clip_labels(clips_dir: Any, clip_name: str) -> dict[str, Any] | None:
+    return _read_ground_truth(clips_dir)["clips"].get(clip_name)
+
+
+def set_clip_labels(
+    clips_dir: Any, clip_name: str, dead: list[list[Any]], *, profile: str | None
+) -> dict[str, Any]:
+    """Store one clip's hand labels (atomic rewrite of the ground-truth file)."""
+    entry = {"profile": profile, "dead": dead, "labelled_at": round(time.time(), 3)}
+    with _gt_lock:
+        doc = _read_ground_truth(clips_dir)
+        doc["schema"] = LABEL_SCHEMA
+        doc["clips"][clip_name] = entry
+        out = ground_truth_path(clips_dir)
+        tmp = out.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+        tmp.replace(out)
+    return entry
+
+
+def gate_status(clips_dir: Any) -> dict[str, Any]:
+    """Compact gate view for the Deck (no ``/health`` files: run the CLI for the full gate)."""
+    labels = (
+        load_labels(ground_truth_path(clips_dir)) if ground_truth_path(clips_dir).is_file() else {}
+    )
+    r = evaluate(clips_dir, labels)
+    return {
+        "verdict": r["verdict"],
+        "failures": r["failures"],
+        "gaps": [g for g in r["gaps"] if "/health" not in g],
+        "summary": {
+            k: r["summary"][k]
+            for k in (
+                "clips_labelled",
+                "football_clips_with_dead",
+                "dead_kinds_seen",
+                "over_cut_s",
+                "dead_removed_fraction",
+            )
+        },
+        "min_clips": GATE_MIN_CLIPS,
+        "suggest_accept_rate": r["clicks"]["suggest_accept_rate"],
+        "vetoes": len(r["clicks"]["vetoes"]),
+        "licenses_digits": False,
     }
 
 

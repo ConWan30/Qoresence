@@ -4,6 +4,7 @@
     python scripts/excise_pilot_gate.py --clips clips --init-labels labels.json
     python scripts/excise_pilot_gate.py --clips clips --labels labels.json \
         --health logs/pilot/*.json
+    python scripts/excise_pilot_gate.py --clips clips --health logs/pilot/*.json  # Deck labels
 
 Exit codes: 0 pass, 1 fail, 2 insufficient evidence. Never changes a default.
 """
@@ -29,7 +30,9 @@ EXIT = {"pass": 0, "fail": 1, "insufficient": 2}
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--clips", default="clips", help="Clip folder with *.mp4 + *.cut.json")
-    ap.add_argument("--labels", help="Labels JSON to score against")
+    ap.add_argument(
+        "--labels", help="Labels JSON (default: <clips>/excise_ground_truth.json from the Deck)"
+    )
     ap.add_argument("--init-labels", metavar="PATH", help="Write a blank labels file and exit")
     ap.add_argument("--health", nargs="*", default=[], help="Saved /health or pilot_snapshot JSON")
     ap.add_argument("--model", help="Pinned Jev model id (default: QORESENCE_EXCISE_MODEL)")
@@ -47,7 +50,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote {len(tpl['clips'])} blank label(s) → {dst}")
         return 0
     if not args.labels:
-        ap.error("--labels or --init-labels is required")
+        gt = ep.ground_truth_path(args.clips)
+        if not gt.is_file():
+            ap.error(f"--labels is required (no Deck labels at {gt})")
+        args.labels = str(gt)
 
     report = ep.evaluate(
         args.clips,
