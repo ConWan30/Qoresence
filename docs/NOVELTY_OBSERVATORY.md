@@ -269,9 +269,21 @@ While noul is on, the observatory keeps a bounded run-length history of `(hud_ki
 `--clip-excise` / `QORESENCE_CLIP_EXCISE=1`. After an HDMI clip is written, `qoresence/vision/clip_excise.py` finds candidate dead spans (pause / select_plate / menu / loading segments and frozen-picture runs) and decides cut / suggest / keep per span. The original `<stem>.mp4` is never modified; the edit is `<stem>.cut.mp4` plus a `<stem>.cut.json` receipt with each span's evidence, answers, decision, reason, the Jev model version, `policy_version`, and a `time_map` back to source time.
 
 - **Span Referee:** with `--noul` or `--jev` and a key, one Jev request per clip (pinned `jev-1.13.0`, override `QORESENCE_EXCISE_MODEL`) asks three fan-out questions per span: what was on screen (with `unknown`), was gameplay suspended and resumed from the same moment, and would removing it hide live play.
-- **Triple Proof (offline):** without the referee, only pauses with `paused_raw` throughout + ≥1.5 s frozen picture + (unchanged game clock or an Options press) are cut. Menus and loading are never cut offline.
+- **Triple Proof (offline):** without the referee, only pauses with `paused_raw` throughout + ≥1.5 s frozen picture + (unchanged game clock or an Options press) are cut. The game-clock leg only counts when the operator has pinned a football profile (`QORESENCE_GAME_PROFILE` or the last pin, recorded as `game_profile` in the receipt); other or unknown titles need the Options press. Menus and loading are never cut offline.
 - **Fail closed:** spans with a ticket or chapter mark inside, `hides_play ≥ 0.3`, `unknown` / `gameplay`, or confidence < 0.6 are kept. 0.6–0.85 becomes a Deck suggestion (kept until the gamer accepts). Replays and cutscenes are suggest-only. 0.4 s is kept on each side of a cut, and a plan that would remove more than 60 % of the clip keeps everything.
-- The referee and ffmpeg render run on a bounded `clip-excise` worker: no bus events, no lobe locks, nothing on the capture thread. The Deck shows an Edited / Original toggle and a per-span receipt with Cut / Keep; overrides re-render from the original and are logged to the Jev ledger as labelled pilot evidence.
+- The referee and ffmpeg render run on a bounded `clip-excise` worker: no bus events, no lobe locks, nothing on the capture thread. The Deck shows an Edited / Original toggle and a per-span receipt with Cut / Keep; overrides re-render from the original and are appended to `excise_labels.jsonl` in the clip folder (policy decision vs gamer decision, bounded at 5 MB) as labelled pilot evidence.
+
+#### Pilot gate (before any default change)
+
+`scripts/excise_pilot_gate.py` scores receipts against hand labels and never changes a default:
+
+```bash
+python scripts/excise_pilot_gate.py --clips clips --init-labels labels.json   # blank template
+# watch each ORIGINAL clip; list every pause/menu/loading as [t0_s, t1_s, kind]
+python scripts/excise_pilot_gate.py --clips clips --labels labels.json --health logs/pilot/*.json
+```
+
+It scores the policy's own cuts (gamer overrides stripped). `fail` (exit 1): any cut removes labelled live play (over-cut must be 0), any Deck veto of an auto-cut, `/health` `age_s` ≥ 1.0 s in the supplied snapshots, or Jev receipts from a model other than the pin. `insufficient` (exit 2): fewer than 20 football clips with labelled dead spans, no labelled pause, menu or loading, labelled clips without receipts, or no `/health` samples. `pass` (exit 0) otherwise. Under-cut and the suggest-accept rate are reported, not gated. The report is written to `logs/pilot/excise_gate_<ts>.json`.
 
 ### Jev conductor (ClutchBot / MatchAgent *text*, default OFF)
 
