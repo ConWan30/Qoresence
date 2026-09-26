@@ -56,7 +56,7 @@ CIVIF ticks call `note_tick_peek` (no JSONL). Opening a drive on `SessionTimelin
 
 When both flags are on, a refuse license may mint an existing `LearningConstraint` kind from the latest seeing-path ticket.
 
-Same-Seq `classify_join` does not append JSONL when `(kind, live_seq, widget_seq, hid_seq)` is unchanged. LIVE paint at 30–60 fps can re-read the same frame without growing the license log.
+Same-Seq `classify_join` always refreshes `_last_license` (look gate stays hot). JSONL append is separate: identical `(kind, live_seq, widget_seq, hid_seq)` still skips a duplicate line; for quiet kinds `join_ok` / `slack_hold`, append is also sampled — kind/refuse polarity change, `QORESENCE_LOOK_SAME_SEQ_JSONL_MIN_NS` (default 1s), or `QORESENCE_LOOK_SAME_SEQ_JSONL_EVERY_SEQ` (default 30 frames). Loud kinds `seq_skew` / `plane_dim` always append.
 
 ## Operator snapshot
 
@@ -89,7 +89,7 @@ python -m qoresence.cli --play --deck --look-graphs --learning-edge
 1. Prove the box without the flag: `python -m qoresence.cli --play --deck --streamer-fps 30` then `curl http://127.0.0.1:8765/health`. Need `state.video.age_s` < 1s, `state.video.frames` climbing, `state.fps` > 5. No `look_*` keys.
 2. Stop, restart with `--look-graphs` (or `$env:QORESENCE_LOOK_GRAPHS=1`). Do not add `--learning-edge` on the first live hour.
 3. Same `/health` curl now includes `state.look_scale`, `state.look_join`, `state.look_permit_confirm`, `state.look_refuse`. Those keys are omitted when the flag is off.
-4. Watch `logs/pilot/look_licenses.jsonl` (override `QORESENCE_LOOK_LICENSES_PATH`). Same-Seq does not append when `(kind, live, widget, hid)` is unchanged. Tick peek writes no JSONL.
+4. Watch `logs/pilot/look_licenses.jsonl` (override `QORESENCE_LOOK_LICENSES_PATH`). Same-Seq samples quiet `join_ok` appends (~every 30 frames at 30–60 fps LIVE); skew/dim still log every transition. Tick peek writes no JSONL.
 5. Confirm digits still require a seeing-path mint: `has_confirm_ticket` + `score_vlm_locked`. A LookLicense never carries `home_score` / `away_score`.
 6. After the session, closeout JSON includes `look_gate` and `look_licenses_applied` only when the flag stayed on. `write_closeout` notes one `session_wrap`.
 

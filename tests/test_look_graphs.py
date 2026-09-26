@@ -811,10 +811,11 @@ def test_classify_join_dedups_unchanged_sig(monkeypatch, tmp_path):
     assert len(rows) == 1
     c = classify_join(live_seq=41, widget_seq=41, hid_seq=41)
     assert c is not None and c.id != a.id
-    assert len(load_licenses(path)) == 2
+    # Quiet join_ok: +1 live_seq from last append does not grow JSONL.
+    assert len(load_licenses(path)) == 1
     skew = classify_join(live_seq=41, widget_seq=1, hid_seq=41)
     assert skew is not None and skew.kind == "seq_skew"
-    assert len(load_licenses(path)) == 3
+    assert len(load_licenses(path)) == 2
 
 
 # ── P10 live apply: HID join, session wrap, /health patch at deck boot ──
