@@ -33,10 +33,13 @@ from qoresence.agents.llm_client import (
 from qoresence.security.redact import safe_http_body as _safe_http_body
 from qoresence.vision.scorebug_crops import (
     CFB_PRIMARY_SCOREBUG,
+    MADDEN_PAUSE_SCORE_PLATE,
+    PAUSE_PLATE_MIN_COVERAGE,
     confirm_scorebug_bands,
     crop_misses_scorebug,
     is_madden_profile,
     primary_scorebug_crop,
+    scorebug_strip_coverage,
 )
 
 log = logging.getLogger(__name__)
@@ -965,17 +968,35 @@ class ScoreboardVlmReferee:
         if is_madden or is_cfb:
             fallback: np.ndarray | None = None
             fallback_refuse: str | None = None
+            best: np.ndarray | None = None
+            best_key: tuple[float, float] | None = None
             for frac in confirm_scorebug_bands(effective_profile):
                 raw = cls._slice(frame, frac)
                 if raw is None:
                     continue
                 out = cls._prepare_crop(raw)
                 miss = crop_misses_scorebug(out)
-                if miss is None:
-                    return out
-                if fallback is None:
-                    fallback = out
-                    fallback_refuse = miss
+                if miss is not None:
+                    if fallback is None:
+                        fallback = out
+                        fallback_refuse = miss
+                    continue
+                # Prefer the band that is the strip, not grass and players
+                # around a scorebug sitting at the edge of a tall crop.
+                key = (scorebug_strip_coverage(out), float(frac[2]))
+                if best_key is None or key > best_key:
+                    best_key = key
+                    best = out
+            if best is not None:
+                return best
+            # RESUME / pause score plate. Bottom of that screen is black, so
+            # no bottom band qualifies. Skip it while a bottom strip won above.
+            if is_madden and not is_cfb:
+                raw = cls._slice(frame, MADDEN_PAUSE_SCORE_PLATE)
+                if raw is not None:
+                    plate = cls._prepare_crop(raw)
+                    if scorebug_strip_coverage(plate) >= PAUSE_PLATE_MIN_COVERAGE:
+                        return plate
             if fallback is None:
                 return None
             # Fail-closed: player-CU / pause mid-frame must not ship as confirm crop.

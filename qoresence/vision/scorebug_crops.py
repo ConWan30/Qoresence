@@ -26,7 +26,9 @@ CFB_SCOREBUG_CROPS: tuple[tuple[float, float, float, float], ...] = (
 # Evidence: 2026-09-01 HDMI — scorebug sat ABOVE the player huddle.
 # Prior 0.82–1.00 primary licensed a player-CU as last_confirm.
 # Postgame FINISH GAME plate lives at the top (left wordmark+score / right).
-# No pause plates — those are mid-frame player CUs.
+# No mid-frame pause plates — those are player CUs.
+# The RESUME score plate is a separate confirm fallback (see
+# MADDEN_PAUSE_SCORE_PLATE). It is not in this OCR list.
 MADDEN_SCOREBUG_CROPS: tuple[tuple[float, float, float, float], ...] = (
     (0.00, 1.00, 0.68, 1.00),  # primary: HUD above player huddle + field pad
     (0.00, 1.00, 0.82, 1.00),  # prior compact HUD (2026-08-28)
@@ -34,6 +36,12 @@ MADDEN_SCOREBUG_CROPS: tuple[tuple[float, float, float, float], ...] = (
     (0.00, 1.00, 0.93, 1.00),  # measured white-strip fallback
     (0.12, 0.88, 0.00, 0.28),  # postgame FINISH GAME score plate
 )
+
+# 2026-09-26 pause: ATL 55 / NO 0, 4th 3:23, 3rd & 8 sat in this window
+# while the bottom of the frame was black. Stadium lights in the same
+# window during play do not clear PAUSE_PLATE_MIN_COVERAGE.
+MADDEN_PAUSE_SCORE_PLATE: tuple[float, float, float, float] = (0.22, 0.98, 0.03, 0.32)
+PAUSE_PLATE_MIN_COVERAGE = 0.60
 
 CFB_PRIMARY_SCOREBUG = CFB_SCOREBUG_CROPS[0]
 MADDEN_PRIMARY_SCOREBUG = MADDEN_SCOREBUG_CROPS[0]
@@ -209,6 +217,38 @@ def crop_misses_scorebug(crop: Any) -> str | None:
 
 def looks_like_scorebug(crop: Any) -> bool:
     return crop_misses_scorebug(crop) is None
+
+
+def scorebug_strip_coverage(crop: Any) -> float:
+    """Share of scanned rows that are a bilateral glyph strip.
+
+    A tall crop that merely contains a scorebug at its edge scores lower
+    than the same strip cropped tight. 0 when the crop is not a scorebug.
+    """
+    if crop_misses_scorebug(crop) is not None:
+        return 0.0
+    try:
+        import numpy as np
+
+        arr = np.asarray(crop)
+    except Exception:
+        return 0.0
+    if arr.ndim < 2 or arr.size == 0:
+        return 0.0
+    gray = _luma(arr)
+    h = int(gray.shape[0])
+    band_h = max(16, int(round(0.22 * h)))
+    step = max(8, band_h // 2)
+    hits = 0
+    total = 0
+    for y0 in range(0, max(1, h - band_h + 1), step):
+        total += 1
+        lf, rf = _glyph_side_fracs(gray[y0 : y0 + band_h])
+        if lf >= 0.010 and rf >= 0.010:
+            hits += 1
+    if total <= 0:
+        return 0.0
+    return hits / float(total)
 
 
 def slice_scorebug_crop(
