@@ -97,6 +97,46 @@ test("WS situation payload carries Madden board", () => {
   assert.equal(boardLine(ing), "21-14 · Q3 3:12 · 2nd & 6");
 });
 
+test("fresh pause witness blanks a locked scorebug", () => {
+  const board = pickBoard({
+    situation: {
+      ...license(),
+      home_score: 14,
+      away_score: 0,
+      quarter: 1,
+      down: 4,
+      frame_witness: { kind: "pause", source: "optical", fresh: true, age_s: 0.2 },
+    },
+    confirm: { last_confirm: { ...lastConfirm(), score_vlm_locked: true, home_score: 14, away_score: 0 } },
+  });
+  assert.equal(board.locked, false);
+  assert.equal(board.home, null);
+  assert.equal(board.away, null);
+});
+
+test("fresh play witness still licenses a confirm ticket", () => {
+  const ing = parseDeckMessage({
+    type: "snapshot",
+    schema_version: "qoresence-deck-v0",
+    situation: {
+      game_state: "gameplay",
+      home_score: 14,
+      away_score: 0,
+      quarter: 1,
+      down: 4,
+      ...license(),
+    },
+    confirm: { last_confirm: { ...lastConfirm(), score_vlm_locked: true, home_score: 14, away_score: 0 } },
+    frame_witness: { kind: "play", source: "optical", fresh: true, age_s: 0.1 },
+    video: { has_frame: true, paint: true, same_seq: true, plane_dim: false },
+  });
+  assert.ok(ing);
+  assert.equal(ing.boardLocked, true);
+  assert.equal(ing.homeScore, 14);
+  assert.equal(ing.frameWitnessKind, "play");
+  assert.equal(ing.frameWitnessSource, "optical");
+});
+
 test("boolean game_title does not paint as true on the sit strip", () => {
   const ing = parseDeckMessage({
     type: "situation",
@@ -389,20 +429,71 @@ test("ghost stick paints on same-seq LIVE and vanishes on seq skew", () => {
   const live = parseDeckMessage({
     type: "snapshot",
     situation: { game_state: "gameplay", frame_seq: 10 },
+    frame_witness: { kind: "play", source: "optical", fresh: true },
     video: { has_frame: true, live_seq: 10, widget_seq: 10, same_seq: true, paint: true, plane_dim: false },
-    ghost_stick: { enabled: true, paint: true, lx: 0.4, ly: -0.2, r2: 0.8, l2: 0, lag_ms: 48, frame_seq: 10, reason: "ok" },
+    ghost_stick: {
+      enabled: true,
+      paint: true,
+      lx: 0.4,
+      ly: -0.2,
+      r2: 0.8,
+      l2: 0,
+      lag_ms: 48,
+      frame_seq: 10,
+      reason: "ok",
+      join_id: "now",
+    },
   });
   assert.ok(live);
   assert.equal(live.ghostStick.paint, true);
   assert.equal(live.ghostStick.lx, 0.4);
+  assert.equal(live.ghostStick.joinId, "now");
+  assert.equal(live.frameWitnessKind, "play");
   const skew = parseDeckMessage({
     type: "snapshot",
     situation: { game_state: "gameplay", frame_seq: 7 },
+    frame_witness: { kind: "play", source: "optical", fresh: true },
     video: { has_frame: true, live_seq: 10, widget_seq: 7, same_seq: false, paint: false, plane_dim: false },
-    ghost_stick: { enabled: true, paint: true, lx: 0.4, ly: 0, r2: 0.8, l2: 0, lag_ms: 48, frame_seq: 10, reason: "ok" },
+    ghost_stick: {
+      enabled: true,
+      paint: true,
+      lx: 0.4,
+      ly: 0,
+      r2: 0.8,
+      l2: 0,
+      lag_ms: 48,
+      frame_seq: 10,
+      reason: "ok",
+      join_id: "behind_1",
+    },
   });
   assert.ok(skew);
   assert.equal(skew.ghostStick.paint, false);
+});
+
+test("ghost stick stays off unless the frame is play and the join is real", () => {
+  const pause = parseDeckMessage({
+    type: "snapshot",
+    situation: { game_state: "gameplay", frame_seq: 10 },
+    frame_witness: { kind: "pause", source: "optical", fresh: true },
+    video: { has_frame: true, live_seq: 10, widget_seq: 10, same_seq: true, paint: true, plane_dim: true },
+    ghost_stick: { enabled: true, paint: true, lx: 0.4, ly: 0.2, r2: 0.8, l2: 0, reason: "ok", join_id: "now" },
+  });
+  assert.ok(pause);
+  assert.equal(pause.ghostStick.paint, false);
+  assert.equal(pause.ghostStick.lx, 0);
+  assert.equal(pause.ghostStick.reason, "not_play");
+  const open = parseDeckMessage({
+    type: "snapshot",
+    situation: { game_state: "gameplay", frame_seq: 10 },
+    frame_witness: { kind: "play", source: "optical", fresh: true },
+    video: { has_frame: true, live_seq: 10, widget_seq: 10, same_seq: true, paint: true, plane_dim: false },
+    ghost_stick: { enabled: true, paint: true, lx: 0.4, ly: 0, r2: 0.8, l2: 0, reason: "ok", join_id: "none" },
+  });
+  assert.ok(open);
+  assert.equal(open.ghostStick.paint, false);
+  assert.equal(open.ghostStick.reason, "join_none");
+  assert.equal(open.ghostStick.joinId, "none");
 });
 
 

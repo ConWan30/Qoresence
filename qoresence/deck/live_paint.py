@@ -129,16 +129,20 @@ def decide_live_paint(
     down: Any = None,
     home_score: Any = None,
     away_score: Any = None,
+    frame_witness: str | None = None,
 ) -> LivePaint:
     """Single gate for Theater LIVE + widget ghosting.
 
     Reasons: ``ok`` | ``no_frame`` | ``blank`` | ``not_play`` | ``seq_skew``.
     Missing / blank / not-play LIVE go dark — never last-good BGR.
     Seq skew ghosts widgets only; the current hub frame still paints.
+    A fresh pause/menu/loading witness dims widgets and keeps the JPEG.
     """
     live_seq = int(live_seq or 0)
     wseq = int(widget_seq or 0)
     locked = bool(score_vlm_locked) or bool(scoreboard_locked)
+    witness = str(frame_witness or "").lower().strip()
+    witness_dim = witness in {"pause", "menu", "loading"}
     plane_dim = not is_play_state(
         game_state,
         title_hysteresis,
@@ -148,6 +152,8 @@ def decide_live_paint(
         home_score=home_score,
         away_score=away_score,
     )
+    if witness_dim:
+        plane_dim = True
     if not has_frame:
         paint = LivePaint(False, live_seq, wseq, False, True, "no_frame", False)
         _note_same_seq(paint)
@@ -160,11 +166,15 @@ def decide_live_paint(
         _note_same_seq(paint)
         _note_absence("blank")
         return paint
-    if plane_dim:
+    if plane_dim and not witness_dim:
         paint = LivePaint(False, live_seq, wseq, False, True, "not_play", True)
         _note_same_seq(paint)
         return paint
     same = live_seq > 0 and (wseq == live_seq or abs(live_seq - wseq) <= SAME_SEQ_SLACK)
+    if witness_dim:
+        paint = LivePaint(True, live_seq, wseq, same, True, "not_play", True)
+        _note_same_seq(paint)
+        return paint
     if not same:
         paint = LivePaint(True, live_seq, wseq, False, False, "seq_skew", True)
     else:
@@ -220,6 +230,13 @@ def snapshot_live_paint(situation: dict[str, Any] | None = None) -> LivePaint:
     if hasattr(gs, "value"):
         gs = gs.value
     hyst = sit.get("title_hysteresis") or sit.get("hysteresis")
+    witness_kind: str | None = None
+    try:
+        from qoresence.vision.frame_witness import applied_kind
+
+        witness_kind = applied_kind()
+    except Exception:
+        witness_kind = None
     return decide_live_paint(
         has_frame=has_frame,
         live_seq=live_seq,
@@ -233,4 +250,5 @@ def snapshot_live_paint(situation: dict[str, Any] | None = None) -> LivePaint:
         down=sit.get("down"),
         home_score=sit.get("home_score", sit.get("score_home")),
         away_score=sit.get("away_score", sit.get("score_away")),
+        frame_witness=witness_kind,
     )

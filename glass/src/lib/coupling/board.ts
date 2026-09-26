@@ -78,6 +78,9 @@ export type DeckIngest = {
   videoOptics: boolean;
   /** ws = /retina; poll = /api/situation (sticky optics apply). */
   via: "ws" | "poll";
+  /** Fresh JPEG situation. Empty source means the witness abstained. */
+  frameWitnessKind: string;
+  frameWitnessSource: string;
   ghostStick: GhostStick;
   companion: AgentCompanion;
   actuators: ActuatorReceipt[];
@@ -95,6 +98,8 @@ export type GhostStick = {
   lagMs: number;
   frameSeq: number;
   reason: string;
+  /** Join picker slot. ``none`` leaves the stick off. */
+  joinId: string;
 };
 
 export const EMPTY_GHOST: GhostStick = {
@@ -107,7 +112,21 @@ export const EMPTY_GHOST: GhostStick = {
   lagMs: 80,
   frameSeq: 0,
   reason: "off",
+  joinId: "none",
 };
+
+const GHOST_JOINS = new Set(["behind_2", "behind_1", "now", "ahead_1"]);
+
+/** Stick stays off unless the fresh witness is play and the join is a real slot. */
+export function ghostStickQuiet(args: {
+  witnessKind: string;
+  witnessSource: string;
+  joinId: string;
+}): boolean {
+  if (args.witnessKind !== "play") return true;
+  if (args.witnessSource !== "optical" && args.witnessSource !== "noul") return true;
+  return !GHOST_JOINS.has(args.joinId);
+}
 
 /** LAYER A: Observation wire — play-pad observation aligned to HDMI clock. */
 export type Observation = {
@@ -369,6 +388,7 @@ export function pickBoard(...bags: Record<string, unknown>[]): {
   if (confirmTicketId && !ticketCrop && liveCrop) ticketCrop = liveCrop;
 
   const locked =
+    !witnessNotPlay(...bags) &&
     !digitsPaintBlocked(...bags) &&
     digitsLicensed({
       confirmTicketId,
@@ -389,6 +409,41 @@ export function pickBoard(...bags: Record<string, unknown>[]): {
     clock,
     locked,
   };
+}
+
+const WITNESS_NOT_PLAY = new Set(["pause", "menu", "loading"]);
+
+function witnessNotPlay(...bags: Record<string, unknown>[]): boolean {
+  for (const bag of bags) {
+    const candidates = [
+      rec(bag.frame_witness),
+      rec(rec(bag.situation).frame_witness),
+      rec(rec(bag.payload).frame_witness),
+      rec(rec(bag.state).frame_witness),
+    ];
+    for (const w of candidates) {
+      if (!Object.keys(w).length || w.fresh !== true) continue;
+      if (WITNESS_NOT_PLAY.has(String(w.kind || ""))) return true;
+    }
+  }
+  return false;
+}
+
+function frameWitnessOf(...bags: Record<string, unknown>[]): { kind: string; source: string } {
+  for (const bag of bags) {
+    const candidates = [
+      rec(bag.frame_witness),
+      rec(rec(bag.situation).frame_witness),
+      rec(rec(bag.payload).frame_witness),
+    ];
+    for (const w of candidates) {
+      if (!Object.keys(w).length || w.fresh !== true) continue;
+      const source = String(w.source || "");
+      if (source !== "optical" && source !== "noul") continue;
+      return { kind: String(w.kind || ""), source };
+    }
+  }
+  return { kind: "", source: "" };
 }
 
 function pickClutch(...bags: Record<string, unknown>[]): {
@@ -595,6 +650,7 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
   else if (hasFrame && age > 0.35) hdmi = "stale";
   else if (!hasFrame && video.age_s != null) hdmi = "stale";
 
+  const witness = frameWitnessOf(m, snap, sit);
   const board = pickBoard(
     m,
     snap,
@@ -727,28 +783,54 @@ export function parseDeckMessage(raw: unknown): DeckIngest | null {
     paint,
     videoOptics,
     via: "ws",
-    ghostStick: parseGhostStick(snap.ghost_stick || m.ghost_stick, widgetsOk),
+    ghostStick: parseGhostStick(snap.ghost_stick || m.ghost_stick, widgetsOk, witness),
     companion: parseCompanion(snap.companion || m.companion || m),
     actuators: parseActuatorReceipts(snap.actuators || m.actuators),
     observation: parseObservation(snap.observation || m.observation),
+    frameWitnessKind: witness.kind,
+    frameWitnessSource: witness.source,
   };
 }
 
-function parseGhostStick(raw: unknown, widgetsOk: boolean): GhostStick {
+function parseGhostStick(
+  raw: unknown,
+  widgetsOk: boolean,
+  witness: { kind: string; source: string },
+): GhostStick {
   const g = rec(raw);
   const enabled = Boolean(g.enabled);
-  const reason = firstStr(g, ["reason"]) || (enabled ? "idle" : "off");
-  const paint = enabled && widgetsOk && Boolean(g.paint) && reason === "ok";
+  let reason = firstStr(g, ["reason"]) || (enabled ? "idle" : "off");
+  const joinId = firstStr(g, ["join_id", "joinId"]) || "none";
+  let paint = enabled && widgetsOk && Boolean(g.paint) && reason === "ok";
+  let lx = num(g.lx);
+  let ly = num(g.ly);
+  let r2 = num(g.r2);
+  let l2 = num(g.l2);
+  if (
+    ghostStickQuiet({
+      witnessKind: witness.kind,
+      witnessSource: witness.source,
+      joinId,
+    })
+  ) {
+    paint = false;
+    lx = 0;
+    ly = 0;
+    r2 = 0;
+    l2 = 0;
+    if (reason === "ok") reason = witness.kind && witness.kind !== "play" ? "not_play" : "join_none";
+  }
   return {
     enabled,
     paint,
-    lx: num(g.lx),
-    ly: num(g.ly),
-    r2: num(g.r2),
-    l2: num(g.l2),
+    lx,
+    ly,
+    r2,
+    l2,
     lagMs: num(g.lag_ms ?? g.lagMs, 80),
     frameSeq: num(g.frame_seq ?? g.frameSeq),
     reason: paint ? "ok" : reason,
+    joinId,
   };
 }
 

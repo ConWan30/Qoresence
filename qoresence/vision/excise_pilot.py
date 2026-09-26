@@ -66,6 +66,22 @@ def _uncovered(ranges: list[list[float]], cover: list[list[float]], tol: float) 
     return round(total, 3)
 
 
+def witness_ranges(receipt: dict[str, Any]) -> list[list[float]]:
+    """Proposed seconds from witness spans. Suggestions are not cuts."""
+
+    out: list[list[float]] = []
+    for row in receipt.get("spans") or []:
+        if not str(row.get("reason") or "").startswith("witness:"):
+            continue
+        try:
+            t0, t1 = float(row["t0_s"]), float(row["t1_s"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        if t1 > t0:
+            out.append([t0, t1])
+    return out
+
+
 def score_clip(
     receipt: dict[str, Any], label: dict[str, Any], *, tol: float = EDGE_TOL_S
 ) -> dict[str, Any]:
@@ -73,6 +89,8 @@ def score_clip(
     dead = [[d[0], d[1]] for d in label.get("dead") or []]
     dead_s = round(sum(d[1] - d[0] for d in dead), 3)
     cut_s = round(sum(c[1] - c[0] for c in cuts), 3)
+    proposed = witness_ranges(receipt)
+    proposed_s = round(sum(p[1] - p[0] for p in proposed), 3)
     rows = receipt.get("spans") or []
     return {
         "clip": receipt.get("source"),
@@ -90,6 +108,9 @@ def score_clip(
         "health_samples": int((receipt.get("health") or {}).get("samples") or 0),
         "spans_cut": sum(1 for r in rows if r.get("decision") == "cut"),
         "spans_suggest": sum(1 for r in rows if r.get("decision") == "suggest"),
+        "witness_proposed_s": proposed_s,
+        "witness_over_s": _uncovered(proposed, dead, tol),
+        "witness_under_s": _uncovered(dead, proposed, 0.0),
     }
 
 
@@ -234,6 +255,10 @@ def evaluate(
             "age_s_samples": len(ages),
             "age_s_from_files": len(file_ages),
             "age_s_from_receipts": len(receipt_ages),
+            "witness_proposed_s": round(sum(s["witness_proposed_s"] for s in scored), 3),
+            "witness_dead_s": round(sum(s["dead_s"] for s in scored), 3),
+            "witness_over_s": round(sum(s["witness_over_s"] for s in scored), 3),
+            "witness_under_s": round(sum(s["witness_under_s"] for s in scored), 3),
         },
         "clicks": clicks,
         "clips": scored,

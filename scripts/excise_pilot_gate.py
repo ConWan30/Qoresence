@@ -79,6 +79,12 @@ def main(argv: list[str] | None = None) -> int:
         f"  over-cut {s['over_cut_s']}s  under-cut {s['under_cut_s']}s  "
         f"dead removed {s['dead_removed_fraction']}"
     )
+    print(
+        f"  witness proposed {s.get('witness_proposed_s', 0)}s vs labelled dead "
+        f"{s.get('witness_dead_s', 0)}s  "
+        f"witness over {s.get('witness_over_s', 0)}s  "
+        f"witness under {s.get('witness_under_s', 0)}s"
+    )
     c = report["clicks"]
     print(
         f"  suggest-accept {c['suggest_accept_rate']}  vetoes {len(c['vetoes'])}  "

@@ -280,7 +280,14 @@ class SituationModel:
                 if self._state.down is not None
                 else getattr(ctx, "down", None),
             )
-            note_game_state(self._state.game_state)
+            noted = self._state.game_state
+            try:
+                from qoresence.vision.frame_witness import heat_state_for
+
+                noted = heat_state_for(noted)
+            except Exception:
+                pass
+            note_game_state(noted)
         except Exception:
             pass
         if ctx.game_category is not None:

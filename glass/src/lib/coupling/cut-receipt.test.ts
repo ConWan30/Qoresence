@@ -86,4 +86,12 @@ test("gate line", () => {
     gateLine({ verdict: "insufficient", min_clips: 20, gaps: ["no labelled menu"], summary: { football_clips_with_dead: 3, over_cut_s: 0 } }),
     "Pilot gate: insufficient · 3/20 clips · over-cut 0s · no labelled menu",
   );
+  assert.equal(
+    gateLine({
+      verdict: "insufficient",
+      min_clips: 20,
+      summary: { football_clips_with_dead: 6, over_cut_s: 0, witness_proposed_s: 4.5, witness_dead_s: 12 },
+    }),
+    "Pilot gate: insufficient · 6/20 clips · over-cut 0s · witness 4.5s / dead 12s",
+  );
 });

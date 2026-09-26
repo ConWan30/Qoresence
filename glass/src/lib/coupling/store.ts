@@ -100,6 +100,8 @@ export type TheaterState = {
   down: number | null;
   distance: number | null;
   boardLocked: boolean;
+  frameWitnessKind: string;
+  frameWitnessSource: string;
   gameTitle: string;
   clutch: ClutchSnap;
   moments: FeedMoment[];
@@ -300,6 +302,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
   down: null,
   distance: null,
   boardLocked: false,
+  frameWitnessKind: "",
+  frameWitnessSource: "",
   gameTitle: "",
   clutch: QUIET_CLUTCH,
   moments: [],
@@ -618,6 +622,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
       down: widgetsOk ? ing.down : boardLocked ? ing.down : s.down,
       distance: widgetsOk ? ing.distance : boardLocked ? ing.distance : s.distance,
       boardLocked,
+      frameWitnessKind: ing.frameWitnessKind || "",
+      frameWitnessSource: ing.frameWitnessSource || "",
       situation: widgetsOk || (via === "poll" && opticsFresh) || boardLocked
         ? sit || s.situation
         : ing.videoOptics

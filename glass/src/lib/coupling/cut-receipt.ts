@@ -161,15 +161,24 @@ export type GateStatus = {
   failures?: string[];
   gaps?: string[];
   min_clips?: number;
-  summary?: { football_clips_with_dead?: number; over_cut_s?: number };
+  summary?: {
+    football_clips_with_dead?: number;
+    over_cut_s?: number;
+    witness_proposed_s?: number;
+    witness_dead_s?: number;
+  };
 };
 
 export function gateLine(g: GateStatus | null): string {
   if (!g || !g.verdict) return "";
   const s = g.summary || {};
   const why = (g.failures || [])[0] || (g.gaps || [])[0] || "";
+  const witness =
+    s.witness_proposed_s != null
+      ? ` · witness ${s.witness_proposed_s}s / dead ${s.witness_dead_s || 0}s`
+      : "";
   return (
     `Pilot gate: ${g.verdict} · ${s.football_clips_with_dead || 0}/${g.min_clips || 20} clips` +
-    ` · over-cut ${s.over_cut_s || 0}s${why ? " · " + why : ""}`
+    ` · over-cut ${s.over_cut_s || 0}s${witness}${why ? " · " + why : ""}`
   );
 }

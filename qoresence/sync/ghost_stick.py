@@ -141,6 +141,62 @@ def _lag_ms(coupling: dict[str, Any]) -> float:
     return DEFAULT_LAG_MS
 
 
+REAL_JOINS = frozenset({"behind_2", "behind_1", "now", "ahead_1"})
+
+
+def apply_quiet_pad(
+    view: dict[str, Any],
+    *,
+    witness_kind: str | None,
+    join_id: str | None,
+) -> dict[str, Any]:
+    """Stick draws only on a fresh play witness and a real join slot.
+
+    Menu, pause, loading, abstain, and ``join_id=none`` zero the pose.
+    No last-good stick is kept.
+    """
+
+    out = dict(view)
+    jid = str(join_id or "none")
+    if jid not in REAL_JOINS:
+        jid = "none"
+    out["join_id"] = jid
+    if out.get("paint") and (witness_kind != "play" or jid == "none"):
+        out["paint"] = False
+        out["lx"] = 0.0
+        out["ly"] = 0.0
+        out["r2"] = 0.0
+        out["l2"] = 0.0
+        out["reason"] = "not_play" if witness_kind != "play" else "join_none"
+    return out
+
+
+def _fresh_witness_kind() -> str | None:
+    try:
+        from qoresence.vision.frame_witness import applied_kind
+
+        return applied_kind()
+    except Exception:
+        return None
+
+
+def _current_join_id() -> str:
+    try:
+        from qoresence.observability.join_picker import get_join_picker
+        from qoresence.vision.frame_witness import WITNESS_MAX_AGE_S
+
+        picker = get_join_picker()
+        if picker is None:
+            return "none"
+        stats = picker.stats()
+        age = stats.get("last_age_s")
+        if age is None or float(age) > WITNESS_MAX_AGE_S:
+            return "none"
+        return str(stats.get("join_id") or "none")
+    except Exception:
+        return "none"
+
+
 def snapshot_ghost_stick(
     *,
     live_paint: Any | None = None,
@@ -211,4 +267,8 @@ def snapshot_ghost_stick(
         pose=pose,
         lag_ms=lag,
     )
-    return view.to_dict()
+    return apply_quiet_pad(
+        view.to_dict(),
+        witness_kind=_fresh_witness_kind(),
+        join_id=_current_join_id(),
+    )

@@ -217,10 +217,24 @@ class DeckState:
                     controller["reason"] = "pad_not_on_this_host"
         except Exception:
             pass
+        sit_out = dict(self.situation) if isinstance(self.situation, dict) else {}
+        try:
+            from qoresence.vision.frame_witness import public_witness
+
+            frame_witness = public_witness()
+        except Exception:
+            frame_witness = {
+                "kind": "abstain",
+                "source": "none",
+                "age_s": None,
+                "fresh": False,
+            }
+        sit_out["frame_witness"] = frame_witness
         out: dict[str, Any] = {
             "type": "snapshot",
             "schema_version": SCHEMA_VERSION,
-            "situation": self.situation,
+            "situation": sit_out,
+            "frame_witness": frame_witness,
             "last_moment": self.last_moment,
             "moments": self.moments[-3:],
             "latency_ms": self.latency_ms,
@@ -410,6 +424,12 @@ def update_situation(situation: dict[str, Any], latency_ms: float | None = None)
     import time as _t
 
     sit = dict(situation)
+    try:
+        from qoresence.vision.frame_witness import public_witness
+
+        sit["frame_witness"] = public_witness()
+    except Exception:
+        pass
     if sit.get("frame_seq") is None:
         try:
             from qoresence.monitor.frame_hub import get_frame_hub
@@ -449,6 +469,7 @@ def update_situation(situation: dict[str, Any], latency_ms: float | None = None)
         "type": "situation",
         "schema_version": SCHEMA_VERSION,
         "payload": sit,
+        "frame_witness": sit.get("frame_witness"),
         "latency_ms": _state.latency_ms,
         "updated_ns": _state.updated_ns,
     }
@@ -3557,6 +3578,13 @@ def start_deck(
         atexit.register(stop_mdns)
     except Exception:
         pass
+    try:
+        from qoresence.vision.frame_witness import start_witness_worker
+
+        noul_on = bool(getattr(getattr(config, "noul", None), "enabled", False))
+        start_witness_worker(noul=noul_on)
+    except Exception:
+        log.debug("frame witness worker skipped", exc_info=True)
     app = create_app()
     if app is not None:
         import uvicorn

@@ -140,6 +140,52 @@ def test_menu_with_locked_scores_stays_play():
     assert d.widgets_ok() is True
 
 
+def test_pause_witness_dims_and_keeps_the_picture():
+    d = decide_live_paint(
+        has_frame=True,
+        live_seq=10,
+        widget_seq=10,
+        game_state="gameplay",
+        blank=False,
+        score_vlm_locked=True,
+        quarter=1,
+        down=4,
+        frame_witness="pause",
+    )
+    assert d.paint is True
+    assert d.has_frame is True
+    assert d.plane_dim is True
+    assert d.reason == "not_play"
+    assert d.widgets_ok() is False
+
+
+def test_abstain_witness_matches_play_state():
+    base = decide_live_paint(
+        has_frame=True,
+        live_seq=10,
+        widget_seq=10,
+        game_state="gameplay",
+        blank=False,
+        score_vlm_locked=True,
+        quarter=1,
+        down=1,
+    )
+    abstain = decide_live_paint(
+        has_frame=True,
+        live_seq=10,
+        widget_seq=10,
+        game_state="gameplay",
+        blank=False,
+        score_vlm_locked=True,
+        quarter=1,
+        down=1,
+        frame_witness="abstain",
+    )
+    assert abstain.reason == base.reason
+    assert abstain.plane_dim is base.plane_dim
+    assert abstain.paint is base.paint
+
+
 def test_menu_without_locked_digits_stays_not_play():
     """Menu/pause without locked digits still dims."""
     assert is_play_state("menu", "overlay-rejected", locked=False) is False

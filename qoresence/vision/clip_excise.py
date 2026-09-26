@@ -159,7 +159,14 @@ def collect_evidence(
         "inputs": [],
         "marks": [],
         "still_runs": still_runs(stillness or []),
+        "witness": [],
     }
+    try:
+        from qoresence.vision.frame_witness import samples_in_window
+
+        ev["witness"] = samples_in_window(int(start_ns), int(end_ns))
+    except Exception as e:
+        log.debug("excise witness tape skipped: %s", e)
     try:
         from qoresence.observability.noul_observatory import get_noul_observatory
         from qoresence.vision.clip_chapters import build_segments_for_window
@@ -679,6 +686,77 @@ def source_time(tmap: list[list[float]], edited_t: float) -> float:
     return round(float(edited_t), 3)
 
 
+def attach_witness_proposals(
+    rows: list[dict[str, Any]],
+    samples: list[dict[str, Any]] | None,
+    duration_s: float,
+) -> list[dict[str, Any]]:
+    """Add witness spans the policy did not already cover.
+
+    Each proposal is ``decision: suggest`` and ``user`` unset. ``effective_decision``
+    keeps it until the player accepts. A span the policy already named is left alone.
+    """
+
+    from qoresence.vision.frame_witness import collapse_witness_spans
+
+    proposals = collapse_witness_spans(list(samples or []), min_s=MIN_SPAN_S)
+    out = list(rows)
+    ids = {str(r.get("id")) for r in out}
+    dur = float(duration_s or 0)
+    n = 0
+    for proposal in proposals:
+        t0 = max(0.0, float(proposal["t0_s"]))
+        t1 = float(proposal["t1_s"])
+        if dur > 0:
+            t1 = min(dur, t1)
+        if t1 - t0 < MIN_SPAN_S:
+            continue
+        if any(
+            _overlap(t0, t1, float(r.get("t0_s") or 0), float(r.get("t1_s") or 0)) > 0.05
+            for r in out
+        ):
+            continue
+        while f"w{n}" in ids:
+            n += 1
+        sid = f"w{n}"
+        ids.add(sid)
+        n += 1
+        kind = str(proposal.get("kind") or "pause")
+        out.append(
+            {
+                "id": sid,
+                "t0_s": round(t0, 3),
+                "t1_s": round(t1, 3),
+                "kinds": [kind],
+                "confidence": "hi" if proposal.get("source") == "optical" else "mid",
+                "true_pause": "yes" if kind == "pause" else "na",
+                "evidence": {"witness": True, "source": proposal.get("source")},
+                "decision": "suggest",
+                "reason": f"witness:{kind}",
+                "answers": None,
+                "user": None,
+            }
+        )
+    out.sort(key=lambda r: (float(r.get("t0_s") or 0), str(r.get("id") or "")))
+    return out
+
+
+def _witness_rows(samples: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    rows = []
+    for sample in samples or []:
+        if not isinstance(sample, dict):
+            continue
+        rows.append(
+            {
+                "t_s": sample.get("t_s"),
+                "kind": sample.get("kind"),
+                "source": sample.get("source"),
+                "frame_seq": sample.get("frame_seq"),
+            }
+        )
+    return rows
+
+
 def build_receipt(
     source_name: str,
     duration_s: float,
@@ -687,6 +765,7 @@ def build_receipt(
     *,
     model_id: str | None,
     game_profile: str | None = None,
+    witness: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     rows = []
     for s in spans:
@@ -701,6 +780,7 @@ def build_receipt(
             }
         )
         rows.append(row)
+    rows = attach_witness_proposals(rows, witness, duration_s)
     receipt: dict[str, Any] = {
         "schema": RECEIPT_SCHEMA,
         "plane": PLANE,
@@ -713,6 +793,7 @@ def build_receipt(
         "source": source_name,
         "source_duration_s": round(float(duration_s), 3),
         "spans": rows,
+        "witness": _witness_rows(witness),
         "render": {"state": "pending", "path": None},
         "licenses_digits": False,
     }
@@ -811,6 +892,7 @@ def plan_excision(
         answers,
         model_id=model_id,
         game_profile=game_profile,
+        witness=list(ev.get("witness") or []),
     )
     if not receipt["cuts"]:
         receipt["render"] = {"state": "not_needed", "path": None}

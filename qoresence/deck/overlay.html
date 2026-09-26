@@ -53,6 +53,8 @@ function digitsLicensed(s, snap){
   const tid=String(lc.ticket_id||s.confirm_ticket_id||'').trim();
   const vlm=s.score_vlm_locked===true||lc.score_vlm_locked===true;
   if(!tid||!vlm) return false;
+  const w=(snap&&snap.frame_witness)||s.frame_witness||{};
+  if(w.fresh===true&&(w.kind==='pause'||w.kind==='menu'||w.kind==='loading')) return false;
   const ticketCrop=String(lc.crop_hash||'').trim();
   const video=(snap&&snap.video)||{};
   // Scorebug ticket crop chain only — not FrameHub full-frame video.crop_hash.

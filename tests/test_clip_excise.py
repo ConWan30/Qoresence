@@ -618,3 +618,45 @@ def test_worker_records_health_in_receipt(tmp_path, monkeypatch):
     assert cx.get_excise_worker().drain(30)
     health = cx.read_receipt(mp4)["health"]
     assert health["age_s_max"] == 0.25 and health["samples"] >= 2 and health["jobs"] == 1
+
+
+def _witness(*rows):
+    return [
+        {"t_s": t, "kind": kind, "source": "optical", "frame_seq": i + 1}
+        for i, (t, kind) in enumerate(rows)
+    ]
+
+
+def test_witness_proposal_stays_suggest_until_accepted():
+    samples = _witness((0.0, "pause"), (1.0, "pause"), (2.0, "play"))
+    receipt = cx.build_receipt("c.mp4", 10.0, [], None, model_id=None, witness=samples)
+    assert receipt["excision"] == "suggestions_only"
+    assert receipt["cuts"] == []
+    assert receipt["witness"][0]["kind"] == "pause"
+    span = receipt["spans"][0]
+    assert span["id"] == "w0"
+    assert span["decision"] == "suggest" and span["user"] is None
+    assert span["reason"] == "witness:pause"
+    assert cx.effective_decision(span) == "keep"
+    assert cx.apply_user_decision(receipt, span["id"], "keep") is True
+    assert receipt["cuts"] == []
+    assert cx.apply_user_decision(receipt, span["id"], "cut") is True
+    assert receipt["cuts"]
+
+
+def test_witness_does_not_duplicate_a_policy_span():
+    covered = cx.Span(id="s0", t0_s=0.0, t1_s=4.0, kinds=["pause"], confidence="hi", true_pause="yes")
+    samples = _witness((0.0, "pause"), (1.0, "pause"), (2.0, "play"))
+    receipt = cx.build_receipt("c.mp4", 10.0, [covered], None, model_id=None, witness=samples)
+    assert [r["id"] for r in receipt["spans"]] == ["s0"]
+
+
+def test_witness_gap_is_a_separate_suggestion():
+    early = cx.Span(id="s0", t0_s=0.0, t1_s=2.0, kinds=["still"])
+    samples = _witness((4.0, "menu"), (5.0, "menu"), (6.0, "play"))
+    receipt = cx.build_receipt("c.mp4", 12.0, [early], None, model_id=None, witness=samples)
+    added = [r for r in receipt["spans"] if str(r["id"]).startswith("w")]
+    assert len(added) == 1
+    assert added[0]["decision"] == "suggest"
+    assert added[0]["t0_s"] == 4.0 and added[0]["t1_s"] == 6.0
+    assert cx.plan_cuts(receipt["spans"], 12.0)[0] == []
