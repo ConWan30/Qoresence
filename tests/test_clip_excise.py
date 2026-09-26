@@ -213,6 +213,34 @@ def test_excise_default_off(monkeypatch):
     cx.set_enabled(None)
 
 
+def test_submit_recording_is_off_unless_excise_is_on(tmp_path, monkeypatch):
+    monkeypatch.delenv("QORESENCE_CLIP_EXCISE", raising=False)
+    cx.set_enabled(None)
+    mp4 = tmp_path / "stem_x.mp4"
+    mp4.write_bytes(b"x")
+    assert cx.submit_recording(mp4, start_ns=0, end_ns=int(5e9), duration_s=5.0) is False
+    assert cx.read_receipt(mp4) is None
+
+    queued = []
+
+    class Worker:
+        def submit(self, kind, job):
+            queued.append((kind, job))
+            return True
+
+    monkeypatch.setattr(cx, "get_excise_worker", lambda: Worker())
+    monkeypatch.setattr(cx, "collect_evidence", lambda *a, **k: {"still_runs": k.get("stillness")})
+    cx.set_enabled(True)
+    assert (
+        cx.submit_recording(mp4, start_ns=3, end_ns=9, duration_s=5.0, stillness=[(1.0, 0.2)])
+        is True
+    )
+    kind, job = queued[0]
+    assert kind == "plan" and job["start_ns"] == 3 and job["end_ns"] == 9
+    assert job["evidence"]["still_runs"] == [(1.0, 0.2)]
+    cx.set_enabled(None)
+
+
 def test_module_never_touches_the_bus():
     import inspect
 
@@ -645,7 +673,9 @@ def test_witness_proposal_stays_suggest_until_accepted():
 
 
 def test_witness_does_not_duplicate_a_policy_span():
-    covered = cx.Span(id="s0", t0_s=0.0, t1_s=4.0, kinds=["pause"], confidence="hi", true_pause="yes")
+    covered = cx.Span(
+        id="s0", t0_s=0.0, t1_s=4.0, kinds=["pause"], confidence="hi", true_pause="yes"
+    )
     samples = _witness((0.0, "pause"), (1.0, "pause"), (2.0, "play"))
     receipt = cx.build_receipt("c.mp4", 10.0, [covered], None, model_id=None, witness=samples)
     assert [r["id"] for r in receipt["spans"]] == ["s0"]

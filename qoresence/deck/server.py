@@ -209,8 +209,10 @@ class DeckState:
                 if controller.get("connected"):
                     controller["controller_bodied"] = bool(coup.get("imu_bodied"))
                     if not controller.get("reason"):
-                        controller["reason"] = "imu_bodied" if coup.get("imu_bodied") else (
-                            controller.get("transport") or "hid"
+                        controller["reason"] = (
+                            "imu_bodied"
+                            if coup.get("imu_bodied")
+                            else (controller.get("transport") or "hid")
                         )
                 else:
                     controller["controller_bodied"] = False
@@ -259,9 +261,7 @@ class DeckState:
             try:
                 from qoresence.sync.ghost_stick import snapshot_ghost_stick
 
-                out["ghost_stick"] = snapshot_ghost_stick(
-                    live_paint=lp, situation=self.situation
-                )
+                out["ghost_stick"] = snapshot_ghost_stick(live_paint=lp, situation=self.situation)
             except Exception:
                 out["ghost_stick"] = {"enabled": False, "paint": False, "reason": "off"}
         except Exception:
@@ -877,7 +877,15 @@ _PLACEHOLDER_JPEG: bytes | None = None
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _GLASS_APK_CANDIDATES = (
     _REPO_ROOT / "qoresence-glass-debug.apk",
-    _REPO_ROOT / "native" / "android" / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk",
+    _REPO_ROOT
+    / "native"
+    / "android"
+    / "app"
+    / "build"
+    / "outputs"
+    / "apk"
+    / "debug"
+    / "app-debug.apk",
 )
 
 
@@ -1062,6 +1070,7 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.get("/observations.html")
     async def observation_review():
         return FileResponse(pathlib.Path(__file__).with_name("observations.html"))
+
     _gassets = _glass_dist() / "assets"
     if _gassets.is_dir():
         from fastapi.staticfiles import StaticFiles
@@ -1147,20 +1156,12 @@ def create_app():  # type: ignore[no-untyped-def]
                     "enabled": bool(_ostats.get("enabled")),
                     "exported": int(_ostats.get("exported", 0)),
                     "dropped": int(_ostats.get("dropped", 0)),
-                    "last_export_age_s": round(
-                        (time.monotonic_ns() - _last_ns) / 1e9, 3
-                    )
+                    "last_export_age_s": round((time.monotonic_ns() - _last_ns) / 1e9, 3)
                     if _last_ns
                     else None,
-                    "reentrant_cycles_total": int(
-                        _ostats.get("reentrant_cycles_total", 0)
-                    ),
-                    "reentrant_cycles_recent": int(
-                        _ostats.get("reentrant_cycles_recent", 0)
-                    ),
-                    "reentrant_lobe_counts": _ostats.get(
-                        "reentrant_lobe_counts", {}
-                    ),
+                    "reentrant_cycles_total": int(_ostats.get("reentrant_cycles_total", 0)),
+                    "reentrant_cycles_recent": int(_ostats.get("reentrant_cycles_recent", 0)),
+                    "reentrant_lobe_counts": _ostats.get("reentrant_lobe_counts", {}),
                 }
             else:
                 body["otel"] = {"enabled": False}
@@ -1184,9 +1185,7 @@ def create_app():  # type: ignore[no-untyped-def]
             from qoresence.observability.press_labeler import get_press_labeler
 
             _pl = get_press_labeler()
-            body["press_labeler"] = (
-                _pl.stats() if _pl is not None else {"enabled": False}
-            )
+            body["press_labeler"] = _pl.stats() if _pl is not None else {"enabled": False}
         except Exception:
             body["press_labeler"] = {"enabled": False}
         try:
@@ -1199,9 +1198,7 @@ def create_app():  # type: ignore[no-untyped-def]
             from qoresence.observability.sync_coroner import get_sync_coroner
 
             _sc = get_sync_coroner()
-            body["sync_coroner"] = (
-                _sc.stats() if _sc is not None else {"enabled": False}
-            )
+            body["sync_coroner"] = _sc.stats() if _sc is not None else {"enabled": False}
         except Exception:
             body["sync_coroner"] = {"enabled": False}
         try:
@@ -1210,45 +1207,35 @@ def create_app():  # type: ignore[no-untyped-def]
             )
 
             _ts = get_ticket_stale_sentinel()
-            body["ticket_stale"] = (
-                _ts.stats() if _ts is not None else {"enabled": False}
-            )
+            body["ticket_stale"] = _ts.stats() if _ts is not None else {"enabled": False}
         except Exception:
             body["ticket_stale"] = {"enabled": False}
         try:
             from qoresence.observability.mint_verifier import get_mint_verifier
 
             _mv = get_mint_verifier()
-            body["mint_verifier"] = (
-                _mv.stats() if _mv is not None else {"enabled": False}
-            )
+            body["mint_verifier"] = _mv.stats() if _mv is not None else {"enabled": False}
         except Exception:
             body["mint_verifier"] = {"enabled": False}
         try:
             from qoresence.observability.join_picker import get_join_picker
 
             _jp = get_join_picker()
-            body["join_picker"] = (
-                _jp.stats() if _jp is not None else {"enabled": False}
-            )
+            body["join_picker"] = _jp.stats() if _jp is not None else {"enabled": False}
         except Exception:
             body["join_picker"] = {"enabled": False}
         try:
             from qoresence.observability.ticket_glass import get_ticket_glass
 
             _tg = get_ticket_glass()
-            body["ticket_glass"] = (
-                _tg.stats() if _tg is not None else {"enabled": False}
-            )
+            body["ticket_glass"] = _tg.stats() if _tg is not None else {"enabled": False}
         except Exception:
             body["ticket_glass"] = {"enabled": False}
         try:
             from qoresence.observability.sync_glass import get_sync_glass
 
             _sg = get_sync_glass()
-            body["sync_glass"] = (
-                _sg.stats() if _sg is not None else {"enabled": False}
-            )
+            body["sync_glass"] = _sg.stats() if _sg is not None else {"enabled": False}
         except Exception:
             body["sync_glass"] = {"enabled": False}
         try:
@@ -1257,9 +1244,7 @@ def create_app():  # type: ignore[no-untyped-def]
             )
 
             _sp = get_score_plausibility()
-            body["score_plausibility"] = (
-                _sp.stats() if _sp is not None else {"enabled": False}
-            )
+            body["score_plausibility"] = _sp.stats() if _sp is not None else {"enabled": False}
         except Exception:
             body["score_plausibility"] = {"enabled": False}
         try:
@@ -2143,7 +2128,9 @@ def create_app():  # type: ignore[no-untyped-def]
                 from qoresence.vision.clip_excise import cut_summary, is_cut_render
 
                 videos = [
-                    p for p in root.glob("hdmi_clip_*.mp4") if not is_cut_render(p)
+                    p
+                    for p in list(root.glob("hdmi_clip_*.mp4")) + list(root.glob("stem_*.mp4"))
+                    if not is_cut_render(p)
                 ] + list(root.glob("hdmi_clip_*.avi"))
                 videos.sort(key=lambda x: x.stat().st_mtime, reverse=True)
                 for p in videos[:40]:
@@ -2177,7 +2164,7 @@ def create_app():  # type: ignore[no-untyped-def]
         denied = _local_client_required_response(request)
         if denied is not None:
             return denied
-        if not re.fullmatch(r"hdmi_clip_[\w\-]+", stem):
+        if not re.fullmatch(r"(?:hdmi_clip|stem)_[\w\-]+", stem):
             return JSONResponse({"ok": False, "error": "invalid clip"}, status_code=400)
         try:
             body = await request.json()
@@ -2212,7 +2199,7 @@ def create_app():  # type: ignore[no-untyped-def]
 
         from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
 
-        if not re.fullmatch(r"hdmi_clip_[\w\-]+", stem):
+        if not re.fullmatch(r"(?:hdmi_clip|stem)_[\w\-]+", stem):
             return None
         return pathlib.Path(DEFAULT_OUT_DIR) / f"{stem}.mp4"
 
@@ -2334,7 +2321,6 @@ def create_app():  # type: ignore[no-untyped-def]
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
-
     @app.get("/api/x-glass")
     async def api_x_glass_get():  # type: ignore[no-untyped-def]
         """X Glass lobe status — default OFF. Hook for Sight Glass / Qorefront."""
@@ -2377,7 +2363,11 @@ def create_app():  # type: ignore[no-untyped-def]
             # No free caption string accepted — server builds caption fail-closed.
             if "caption" in body:
                 return JSONResponse(
-                    {"ok": False, "error": "caption_not_allowed", "hint": "caption_mode auto|silent only"},
+                    {
+                        "ok": False,
+                        "error": "caption_not_allowed",
+                        "hint": "caption_mode auto|silent only",
+                    },
                     status_code=400,
                 )
             from qoresence.x import get_x_glass
@@ -2417,7 +2407,11 @@ def create_app():  # type: ignore[no-untyped-def]
                 body = {}
             if "caption" in body:
                 return JSONResponse(
-                    {"ok": False, "error": "caption_not_allowed", "hint": "caption_mode auto|silent only"},
+                    {
+                        "ok": False,
+                        "error": "caption_not_allowed",
+                        "hint": "caption_mode auto|silent only",
+                    },
                     status_code=400,
                 )
             from qoresence.x import get_x_glass
@@ -2448,7 +2442,6 @@ def create_app():  # type: ignore[no-untyped-def]
             log.exception("POST /api/x-glass/post failed")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
-
     @app.get("/media/clips/{name}")
     async def media_clip(name: str):  # type: ignore[no-untyped-def]
         """Stream a local HDMI clip MP4 or sidecar JSON for in-page players."""
@@ -2461,7 +2454,7 @@ def create_app():  # type: ignore[no-untyped-def]
             return JSONResponse({"ok": False, "error": "invalid name"}, status_code=400)
         # MP4/AVI or sidecars: foo.chapters.json / foo.buttons.json
         if not re.fullmatch(
-            r"hdmi_clip_[\w\-]+(\.(mp4|avi|json)|(\.(chapters|buttons|coupling|cut)\.json)|\.cut\.mp4)",
+            r"(?:hdmi_clip|stem)_[\w\-]+(\.(mp4|avi|json)|(\.(chapters|buttons|coupling|cut)\.json)|\.cut\.mp4)",
             safe,
             flags=re.I,
         ):
@@ -3236,20 +3229,14 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                             "enabled": bool(_ostats.get("enabled")),
                             "exported": int(_ostats.get("exported", 0)),
                             "dropped": int(_ostats.get("dropped", 0)),
-                            "last_export_age_s": round(
-                                (time.monotonic_ns() - _last_ns) / 1e9, 3
-                            )
+                            "last_export_age_s": round((time.monotonic_ns() - _last_ns) / 1e9, 3)
                             if _last_ns
                             else None,
-                            "reentrant_cycles_total": int(
-                                _ostats.get("reentrant_cycles_total", 0)
-                            ),
+                            "reentrant_cycles_total": int(_ostats.get("reentrant_cycles_total", 0)),
                             "reentrant_cycles_recent": int(
                                 _ostats.get("reentrant_cycles_recent", 0)
                             ),
-                            "reentrant_lobe_counts": _ostats.get(
-                                "reentrant_lobe_counts", {}
-                            ),
+                            "reentrant_lobe_counts": _ostats.get("reentrant_lobe_counts", {}),
                         }
                     else:
                         health["otel"] = {"enabled": False}
@@ -3261,18 +3248,14 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
 
                     _nx = get_noul_observatory()
-                    health["noul"] = (
-                        _nx.stats() if _nx is not None else {"enabled": False}
-                    )
+                    health["noul"] = _nx.stats() if _nx is not None else {"enabled": False}
                 except Exception:
                     health["noul"] = {"enabled": False}
                 try:
                     from qoresence.observability.jev_conductor import get_jev_conductor
 
                     _jx = get_jev_conductor()
-                    health["jev"] = (
-                        _jx.stats() if _jx is not None else {"enabled": False}
-                    )
+                    health["jev"] = _jx.stats() if _jx is not None else {"enabled": False}
                 except Exception:
                     health["jev"] = {"enabled": False}
                 try:
@@ -3281,9 +3264,7 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
 
                     _pl = get_press_labeler()
-                    health["press_labeler"] = (
-                        _pl.stats() if _pl is not None else {"enabled": False}
-                    )
+                    health["press_labeler"] = _pl.stats() if _pl is not None else {"enabled": False}
                 except Exception:
                     health["press_labeler"] = {"enabled": False}
                 try:
@@ -3292,45 +3273,35 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
 
                     _ts = get_ticket_stale_sentinel()
-                    health["ticket_stale"] = (
-                        _ts.stats() if _ts is not None else {"enabled": False}
-                    )
+                    health["ticket_stale"] = _ts.stats() if _ts is not None else {"enabled": False}
                 except Exception:
                     health["ticket_stale"] = {"enabled": False}
                 try:
                     from qoresence.observability.mint_verifier import get_mint_verifier
 
                     _mv = get_mint_verifier()
-                    health["mint_verifier"] = (
-                        _mv.stats() if _mv is not None else {"enabled": False}
-                    )
+                    health["mint_verifier"] = _mv.stats() if _mv is not None else {"enabled": False}
                 except Exception:
                     health["mint_verifier"] = {"enabled": False}
                 try:
                     from qoresence.observability.join_picker import get_join_picker
 
                     _jp = get_join_picker()
-                    health["join_picker"] = (
-                        _jp.stats() if _jp is not None else {"enabled": False}
-                    )
+                    health["join_picker"] = _jp.stats() if _jp is not None else {"enabled": False}
                 except Exception:
                     health["join_picker"] = {"enabled": False}
                 try:
                     from qoresence.observability.ticket_glass import get_ticket_glass
 
                     _tg = get_ticket_glass()
-                    health["ticket_glass"] = (
-                        _tg.stats() if _tg is not None else {"enabled": False}
-                    )
+                    health["ticket_glass"] = _tg.stats() if _tg is not None else {"enabled": False}
                 except Exception:
                     health["ticket_glass"] = {"enabled": False}
                 try:
                     from qoresence.observability.sync_glass import get_sync_glass
 
                     _sg = get_sync_glass()
-                    health["sync_glass"] = (
-                        _sg.stats() if _sg is not None else {"enabled": False}
-                    )
+                    health["sync_glass"] = _sg.stats() if _sg is not None else {"enabled": False}
                 except Exception:
                     health["sync_glass"] = {"enabled": False}
                 try:
@@ -3356,9 +3327,7 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
 
                     _sc = get_sync_coroner()
-                    health["sync_coroner"] = (
-                        _sc.stats() if _sc is not None else {"enabled": False}
-                    )
+                    health["sync_coroner"] = _sc.stats() if _sc is not None else {"enabled": False}
                 except Exception:
                     health["sync_coroner"] = {"enabled": False}
                 try:

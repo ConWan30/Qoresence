@@ -49,7 +49,7 @@ const KIND_LABEL: Record<string, string> = {
 
 export function clipStem(href: string): string {
   const name = String(href || "").split("?")[0].split("/").pop() || "";
-  return /^hdmi_clip_[\w-]+\.mp4$/i.test(name) ? name.replace(/\.mp4$/i, "") : "";
+  return /^(?:hdmi_clip|stem)_[\w-]+\.mp4$/i.test(name) ? name.replace(/\.mp4$/i, "") : "";
 }
 
 export function receiptUrl(href: string): string {
@@ -64,7 +64,7 @@ export function cutReady(r: CutReceipt | null): boolean {
 export function cutRenderUrl(href: string, r: CutReceipt | null): string {
   if (!cutReady(r) || !clipStem(href)) return "";
   const path = String(r!.render!.path);
-  return /^hdmi_clip_[\w-]+\.cut\.mp4$/i.test(path) ? `/media/clips/${path}` : "";
+  return /^(?:hdmi_clip|stem)_[\w-]+\.cut\.mp4$/i.test(path) ? `/media/clips/${path}` : "";
 }
 
 export function cutEffective(s: CutSpan): "cut" | "keep" {

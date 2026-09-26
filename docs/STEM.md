@@ -55,6 +55,7 @@ When the Noul observatory is on (`--noul`, default OFF), `<name>.chapters.json` 
 - **Pacing.** Frames are placed by their `clock_ns`, so video time equals session wall time and chapters and segments line up.
 - **Gaps.** Short capture gaps repeat the current frame. Gaps longer than 0.5 s are written as **black frames**, so a stall shows as dark, never as a frozen picture.
 - **Stop.** On stop, ffmpeg transcodes to browser-safe H.264 `clips/stem_<stamp>.mp4`, and the chapters sidecar is written next to it. Without ffmpeg the raw `.avi` is kept, and its sidecar sits next to it.
+- **Excision.** With `--clip-excise` (still default OFF; `--play` and `--stem-record` do not turn it on), stop enqueues a Cut Receipt for that MP4 on the `clip-excise` worker. The original file stays. The first 12 candidate spans are judged; the rest are kept. A raw AVI is not excised. The Theater lists `stem_*.mp4` next to HDMI clips.
 - **Health.** `/health` → `stem.record` reports `frames_out`, `dark_frames`, `late`, `dropped`, `fps`, and `h264`.
 
 ## Card audio in the record

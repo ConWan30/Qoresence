@@ -20,7 +20,7 @@
       }
     }
     if (s.indexOf("/media/clips/") === 0) return s.split("?")[0];
-    const m = s.replace(/\\/g, "/").match(/hdmi_clip_[\w.\-]+\.(mp4|avi)/i);
+    const m = s.replace(/\\/g, "/").match(/(?:hdmi_clip|stem)_[\w.\-]+\.(mp4|avi)/i);
     return m ? "/media/clips/" + m[0] : "";
   }
 
@@ -187,7 +187,7 @@
   }
 
   function hydratePaths() {
-    const re = /hdmi_clip_[\w.\-]+\.(mp4|avi)/i;
+    const re = /(?:hdmi_clip|stem)_[\w.\-]+\.(mp4|avi)/i;
     const nodes = document.querySelectorAll("article, button, p, span, li, div");
     for (let i = 0; i < nodes.length && i < 400; i++) {
       const n = nodes[i];
@@ -290,7 +290,7 @@
         return;
       }
       const href = mediaHref((ev.target.textContent || "").trim());
-      if (href && /hdmi_clip/i.test(ev.target.textContent || "")) {
+      if (href && /(?:hdmi_clip|stem)_/i.test(ev.target.textContent || "")) {
         ev.preventDefault();
         ev.stopPropagation();
         playClip(href);

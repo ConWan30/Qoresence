@@ -31,6 +31,14 @@ const receipt: CutReceipt = {
 
 test("clip urls only accept hdmi clip names", () => {
   assert.equal(clipStem("/media/clips/hdmi_clip_20260925_020000.mp4?v=1"), "hdmi_clip_20260925_020000");
+  assert.equal(clipStem("/media/clips/stem_20260926_120000.mp4"), "stem_20260926_120000");
+  assert.equal(
+    cutRenderUrl("/media/clips/stem_20260926_120000.mp4", {
+      ...receipt,
+      render: { state: "done", path: "stem_20260926_120000.cut.mp4" },
+    }),
+    "/media/clips/stem_20260926_120000.cut.mp4",
+  );
   assert.equal(receiptUrl("/media/clips/hdmi_clip_x.mp4"), "/media/clips/hdmi_clip_x.cut.json");
   assert.equal(clipStem("/media/clips/../etc.mp4"), "");
   assert.equal(

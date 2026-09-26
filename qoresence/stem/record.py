@@ -26,6 +26,8 @@ from qoresence.core.types import EventType, SourceLobe, clock_ns
 log = logging.getLogger(__name__)
 
 QUEUE_MAX = 120  # drop-oldest ~2s at 60 if mux lags
+STILL_HZ = 10.0
+STILL_MAX = 100_000
 DEFAULT_FPS = 30.0
 GAP_DARK_S = 0.5
 JOIN_TIMEOUT_S = 10.0
@@ -45,6 +47,9 @@ class StemRecord:
         self.audio = audio
         self._audio_on = False
         self._audio_muxed: bool | None = None
+        self._still: list[tuple[float, float]] = []
+        self._still_prev = None
+        self._still_next_s = 0.0
         self.out_dir = Path(out_dir)
         self._session_head_ns = session_head_ns
         self.fps = float(max(1.0, fps))
@@ -75,6 +80,9 @@ class StemRecord:
         self._h264 = None
         self._audio_muxed = None
         self._start_ns = clock_ns()
+        self._still = []
+        self._still_prev = None
+        self._still_next_s = 0.0
         self._audio_on = False
         if self.audio is not None:
             try:
@@ -119,6 +127,21 @@ class StemRecord:
                 )
             except Exception as e:
                 log.debug("stem chapters skipped: %s", e)
+        if path is not None and self._h264 and path.suffix.lower() == ".mp4":
+            try:
+                from qoresence.vision.clip_excise import submit_recording
+
+                with self._lock:
+                    stillness = list(self._still)
+                submit_recording(
+                    path,
+                    start_ns=start_ns,
+                    end_ns=end_ns,
+                    duration_s=duration_s,
+                    stillness=stillness,
+                )
+            except Exception as e:
+                log.debug("stem excise skipped: %s", e)
         self._emit(
             {
                 "active": False,
@@ -245,6 +268,33 @@ class StemRecord:
         with self._lock:
             self._frames_out += dark + gap + 1
             self._dark_frames += dark
+        self._note_still(img, ts_ns)
+
+    def _note_still(self, img: Any, ts_ns: int) -> None:
+        """~10 Hz gray diff for excision. Runs on the stem-record thread, not capture."""
+        start = self._start_ns
+        if start is None or img is None:
+            return
+        t = (int(ts_ns) - int(start)) / 1e9
+        if t < self._still_next_s:
+            return
+        try:
+            import cv2
+            import numpy as np
+
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            small = cv2.resize(gray, (64, 36), interpolation=cv2.INTER_AREA).astype(np.int16)
+        except Exception:
+            return
+        self._still_next_s = t + (1.0 / STILL_HZ)
+        prev, self._still_prev = self._still_prev, small
+        if prev is None:
+            return
+        diff = float(np.abs(small - prev).mean())
+        with self._lock:
+            self._still.append((round(t, 3), round(diff, 3)))
+            if len(self._still) > STILL_MAX:
+                del self._still[: len(self._still) - STILL_MAX]
 
     def _open_writer(self, w: int, h: int) -> bool:
         import cv2

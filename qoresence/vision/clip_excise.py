@@ -1138,6 +1138,37 @@ def submit_excision(mp4_path: Any, *, snapshot: list[Any], duration_s: float) ->
         "evidence": evidence,
         "game_profile": current_game_profile(),
     }
+    return _enqueue_plan(mp4_path, job, duration_s)
+
+
+def submit_recording(
+    mp4_path: Any,
+    *,
+    start_ns: int,
+    end_ns: int,
+    duration_s: float,
+    stillness: list[tuple[float, float]] | None = None,
+) -> bool:
+    """Stem Record hook: a finished MP4 with a known clock window.
+
+    Evidence is copied now. The referee and render stay on the worker. No-op
+    unless ``--clip-excise`` is on. Does not emit bus events.
+    """
+    if not excise_enabled():
+        return False
+    evidence = collect_evidence(int(start_ns), int(end_ns), stillness=list(stillness or []))
+    job = {
+        "mp4": str(mp4_path),
+        "start_ns": int(start_ns),
+        "end_ns": int(end_ns),
+        "duration_s": float(duration_s),
+        "evidence": evidence,
+        "game_profile": current_game_profile(),
+    }
+    return _enqueue_plan(mp4_path, job, duration_s)
+
+
+def _enqueue_plan(mp4_path: Any, job: dict[str, Any], duration_s: float) -> bool:
     if get_excise_worker().submit("plan", job):
         return True
     write_receipt(
