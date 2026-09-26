@@ -14,6 +14,14 @@ test("Sight Glass command bar uses HDMI Q ident, not letter Q", () => {
   assert.ok(mark.includes("Qoresence HDMI"), "HdmiMark alt names the HDMI logo");
 });
 
+test("dark theater feeds plane dim and live paint into the HDMI Q ident", () => {
+  const stage = readFileSync(join(GLASS_ROOT, "src/components/theater/hdmi-stage.tsx"), "utf-8");
+  const call = stage.slice(stage.indexOf("apertureIdentOn("), stage.indexOf("apertureIdentOn(") + 280);
+  assert.ok(call.includes("livePaint"), "HdmiStage must pass livePaint into apertureIdentOn");
+  assert.ok(call.includes("planeDim"), "HdmiStage must pass planeDim into apertureIdentOn");
+  assert.ok(stage.includes("<ApertureIdent"), "dark stage mounts the HDMI Q ident");
+});
+
 test("gamer dock is on Theater and does not sit inside HdmiStage", () => {
   const page = readFileSync(join(GLASS_ROOT, "src/components/theater/theater-page.tsx"), "utf-8");
   assert.ok(page.includes("<GamerDock"), "Theater mounts GamerDock");
