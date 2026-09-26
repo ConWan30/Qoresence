@@ -201,6 +201,87 @@ def test_scorebug_no40_det6_crop_includes_bug_not_just_players():
     assert crop_misses_scorebug(crop) is None
 
 
+def _bottom_bar_over_field(h: int = 720, w: int = 1280) -> np.ndarray:
+    """Madden broadcast bar at y>=0.93. The tall 0.68 crop is grass above it."""
+    frame = np.zeros((h, w, 3), dtype=np.uint8)
+    frame[int(h * 0.68) : int(h * 0.90), :] = (40, 170, 40)
+    y_bar = int(h * 0.93)
+    frame[y_bar:, :] = (12, 12, 12)
+    cv2.putText(
+        frame,
+        "ATL 52",
+        (int(w * 0.04), h - 8),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1.1,
+        (255, 255, 255),
+        2,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame,
+        "NO 0",
+        (int(w * 0.62), h - 8),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1.1,
+        (255, 255, 255),
+        2,
+        cv2.LINE_AA,
+    )
+    return frame
+
+
+def _pause_score_plate(h: int = 720, w: int = 1280) -> np.ndarray:
+    """RESUME plate: large scores up top, bottom of the frame is not the HUD."""
+    frame = np.zeros((h, w, 3), dtype=np.uint8)
+    frame[int(h * 0.70) :, :] = (0, 255, 0)
+    cv2.putText(
+        frame, "ATL 55", (int(w * 0.25), int(h * 0.14)),
+        cv2.FONT_HERSHEY_SIMPLEX, 1.4, (255, 255, 255), 2, cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame, "NO 0", (int(w * 0.74), int(h * 0.14)),
+        cv2.FONT_HERSHEY_SIMPLEX, 1.4, (255, 255, 255), 2, cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame, "4th", (int(w * 0.28), int(h * 0.24)),
+        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2, cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame, "3rd", (int(w * 0.72), int(h * 0.24)),
+        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2, cv2.LINE_AA,
+    )
+    return frame
+
+
+def test_madden_pause_plate_crop_when_the_bottom_is_not_a_scorebug():
+    """2026-09-26 pause: ATL 55–NO 0 sat on the RESUME plate. Bottom was black.
+
+    The locked board stayed on the previous play because confirm crops
+    never looked above y=0.68.
+    """
+    frame = _pause_score_plate()
+    crop = ScoreboardVlmReferee._crop(frame, game_state="paused", game_profile="madden_27")
+    assert crop is not None
+    assert looks_like_scorebug(crop) is True
+    green = (crop[:, :, 1] > 200) & (crop[:, :, 1] > crop[:, :, 0] + 40)
+    assert float(green.mean()) < 0.02
+
+
+def test_madden_broadcast_bar_crop_excludes_the_field_above_it():
+    """2026-09-26 sit: bottom bar read 3rd & 17 while the bar said 1st & 10.
+
+    The 0.68–1.00 confirm crop includes the grass and players above the
+    Madden bar, and that clutter licensed the wrong down and distance.
+    The posted crop is the bar itself.
+    """
+    frame = _bottom_bar_over_field()
+    crop = ScoreboardVlmReferee._crop(frame, game_state="gameplay", game_profile="madden_27")
+    assert crop is not None
+    assert looks_like_scorebug(crop) is True
+    green = (crop[:, :, 1] > 120) & (crop[:, :, 1] > crop[:, :, 2] + 40)
+    assert float(green.mean()) < 0.05
+
+
 def test_scorebug_no40_det6_yields_left_no_40_right_det_6():
     """Crop geometry: left wordmark+digits / right wordmark+digits. home/away unchanged."""
     ctx = VisualContext(
