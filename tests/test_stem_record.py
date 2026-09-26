@@ -111,6 +111,70 @@ def test_stop_passes_clock_window_to_chapters(tmp_path, monkeypatch):
     assert calls == [(final, 6.5, 1 * S, int(7.5 * S))]
 
 
+def test_stop_enqueues_excision_only_for_h264_when_enabled(tmp_path, monkeypatch):
+    from qoresence.stem import record as record_mod
+    from qoresence.vision import clip_chapters, clip_excise
+
+    calls = []
+    ticks = itertools.chain([1 * S], itertools.repeat(int(7.5 * S)))
+    monkeypatch.setattr(record_mod, "clock_ns", lambda: next(ticks))
+    monkeypatch.setattr(clip_chapters, "chapters_after_export", lambda *a, **k: None)
+    monkeypatch.setattr(clip_excise, "excise_enabled", lambda: True)
+    monkeypatch.setattr(
+        clip_excise, "submit_recording", lambda *a, **k: calls.append((a, k)) or True
+    )
+    rec = StemRecord(bus=None, out_dir=str(tmp_path))
+    final = tmp_path / "stem_final.mp4"
+
+    def fake_finalize(duration_s, wav=None):
+        rec._h264 = True
+        return final
+
+    monkeypatch.setattr(rec, "_finalize", fake_finalize)
+    monkeypatch.setattr(rec, "_note_still", lambda *a, **k: None)
+    rec.start()
+    rec._still = [(1.0, 0.2), (2.0, 0.3)]
+    rec.stop()
+    assert len(calls) == 1
+    args, kwargs = calls[0]
+    assert args == (final,)
+    assert kwargs["start_ns"] == 1 * S
+    assert kwargs["end_ns"] == int(7.5 * S)
+    assert kwargs["duration_s"] == 6.5
+    assert kwargs["stillness"] == [(1.0, 0.2), (2.0, 0.3)]
+
+
+def test_stop_skips_excision_when_off_or_not_h264(tmp_path, monkeypatch):
+    from qoresence.stem import record as record_mod
+    from qoresence.vision import clip_chapters, clip_excise
+
+    calls = []
+    ticks = itertools.chain([1 * S], itertools.repeat(int(4 * S)))
+    monkeypatch.setattr(record_mod, "clock_ns", lambda: next(ticks))
+    monkeypatch.setattr(clip_chapters, "chapters_after_export", lambda *a, **k: None)
+    monkeypatch.setattr(clip_excise, "submit_recording", lambda *a, **k: calls.append(1) or True)
+    rec = StemRecord(bus=None, out_dir=str(tmp_path))
+    monkeypatch.setattr(rec, "_finalize", lambda duration_s, wav=None: tmp_path / "stem_raw.avi")
+    rec.start()
+    rec.stop()
+    assert calls == []
+
+
+def test_note_still_samples_about_ten_hertz():
+    import numpy as np
+
+    rec = StemRecord(bus=None, out_dir="clips")
+    rec._start_ns = 0
+    a = np.full((72, 128, 3), 10, dtype=np.uint8)
+    b = np.full((72, 128, 3), 200, dtype=np.uint8)
+    rec._note_still(a, 0)
+    rec._note_still(a, int(0.05 * S))
+    rec._note_still(b, int(0.2 * S))
+    assert len(rec._still) == 1
+    assert rec._still[0][0] == 0.2
+    assert rec._still[0][1] > 10
+
+
 def test_stop_without_frames_writes_no_sidecar(tmp_path, monkeypatch):
     from qoresence.vision import clip_buffer
 
@@ -127,9 +191,7 @@ def _run_live(tmp_path, monkeypatch, seconds: float = 0.6) -> StemRecord:
 
     seq = itertools.count(1)
     frames = [_jpeg(40), _jpeg(200)]
-    monkeypatch.setattr(
-        clip_buffer, "get_latest_frame", lambda: (frames[next(seq) % 2], next(seq))
-    )
+    monkeypatch.setattr(clip_buffer, "get_latest_frame", lambda: (frames[next(seq) % 2], next(seq)))
     rec = StemRecord(bus=None, out_dir=str(tmp_path), fps=10.0)
     rec.start()
     time.sleep(seconds)

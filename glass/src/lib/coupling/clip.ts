@@ -22,7 +22,7 @@ export function clipSeconds(kind: ClutchKind): number {
   return 8;
 }
 
-const CLIP_NAME = /^hdmi_clip_[\w.\-]+\.(mp4|avi)$/i;
+const CLIP_NAME = /^(?:hdmi_clip|stem)_[\w.\-]+\.(mp4|avi)$/i;
 
 /** Hygiene: Theater Clip Rack reads disk via GET /api/clips. */
 export const CLIP_RACK = "clipRackDisk";

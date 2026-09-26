@@ -4,7 +4,7 @@ import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 
 function clipStamp(name: string, mtime: number): string {
-  const m = name.match(/hdmi_clip_(\d{8})_(\d{6})/i);
+  const m = name.match(/(?:hdmi_clip|stem)_(\d{8})_(\d{6})/i);
   if (m) {
     const t = m[2];
     return `${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`;
