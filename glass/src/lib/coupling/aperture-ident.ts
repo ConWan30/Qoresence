@@ -1,9 +1,10 @@
-/** Aperture Ident — no capture yet.
+/** Aperture Ident — HDMI Q on void.
 
-The ident covers the stage only while a LIVE JPEG has not arrived.
-Pause, menu, cutscene, and seq-skew ghost widgets. They do not cover
-the HDMI picture. The JPEG pump drops jpgOk after a gap, so a frozen
-last frame does not stay up. Replay owns the stage; ident stays off.
+The ident covers the stage when no LIVE JPEG has arrived, and when
+Dark Theater is up: plane dim or live paint off (no frame, blank,
+title-presence not play). Seq skew ghosts widgets only; a current
+JPEG stays. An HDMI menu/stale label alone is not dark. Replay owns
+the stage; ident stays off.
 */
 export const APERTURE_IDENT = "apertureIdent";
 export const APERTURE_IDENT_SRC = "/qoresence-logo.png";
@@ -13,9 +14,16 @@ export type IdentLatch = {
   replay?: boolean;
   hdmi?: "live" | "menu" | "stale";
   sameSeq?: boolean;
+  /** False when LIVE paint is off (no frame, blank, not play). */
+  livePaint?: boolean;
+  /** True when title-presence is not play (menu, pause, witness dim). */
+  planeDim?: boolean;
 };
 
 export function apertureIdentOn(latch: IdentLatch): boolean {
   if (latch.replay) return false;
-  return !latch.jpgOk;
+  if (!latch.jpgOk) return true;
+  if (latch.planeDim) return true;
+  if (latch.livePaint === false) return true;
+  return false;
 }

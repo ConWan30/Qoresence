@@ -279,6 +279,8 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
     replay: Boolean(replaySrc),
     hdmi,
     sameSeq,
+    livePaint,
+    planeDim,
   });
   const climbed = videoFrames > prevRef.current.frames || videoPushes > prevRef.current.pushes;
   if (climbed) {
