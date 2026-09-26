@@ -11,6 +11,8 @@ export function SituationCard() {
   const sameSeq = useTheater((s) => s.sameSeq);
   const livePaint = useTheater((s) => s.livePaint);
   const boardLocked = useTheater((s) => s.boardLocked);
+  const witnessKind = useTheater((s) => s.frameWitnessKind);
+  const witnessSource = useTheater((s) => s.frameWitnessSource);
   const homeScore = useTheater((s) => s.homeScore);
   const awayScore = useTheater((s) => s.awayScore);
   const homeTeam = useTheater((s) => s.homeTeam);
@@ -29,6 +31,12 @@ export function SituationCard() {
     homeScore != null &&
     awayScore != null &&
     (confirm != null || boardLocked);
+  const witnessOn =
+    (witnessSource === "optical" || witnessSource === "noul") &&
+    (witnessKind === "play" ||
+      witnessKind === "pause" ||
+      witnessKind === "menu" ||
+      witnessKind === "loading");
   const line = licensed ? situation || boardLine : "";
 
   // Fail-closed: unlocked shows □–□ · — & —
@@ -43,7 +51,7 @@ export function SituationCard() {
           Scorebug
         </h2>
         <span className="font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
-          {boardLocked ? "scorebug lock" : hdmi === "menu" ? "menu" : "scorebug"}
+          {witnessOn ? witnessKind : boardLocked ? "scorebug lock" : hdmi === "menu" ? "menu" : "scorebug"}
         </span>
       </div>
       <p

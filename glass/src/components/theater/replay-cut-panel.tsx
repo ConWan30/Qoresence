@@ -10,6 +10,7 @@ import {
   gateLine,
   receiptUrl,
   refereeNote,
+  spanState,
   spanTitle,
   spanWhy,
   stripPieces,
@@ -221,20 +222,42 @@ export function ReplayCutPanel({
           <div className="flex max-h-28 flex-col gap-1 overflow-auto">
             {spans.map((s) => {
               const eff = cutEffective(s);
+              const state = spanState(s);
               return (
                 <div key={s.id} className="flex items-center gap-2 text-fg">
                   <button type="button" className="shrink-0 text-left" onClick={() => seek(s.t0_s)}>
                     {spanTitle(s)}
                   </button>
                   <span className="min-w-0 flex-1 truncate text-muted-foreground">{spanWhy(s)}</span>
-                  <button
-                    type="button"
-                    className={btn}
-                    data-action="cut-decide"
-                    onClick={() => decide(s.id, eff === "cut" ? "keep" : "cut")}
-                  >
-                    {eff === "cut" ? "Keep" : "Cut"}
-                  </button>
+                  {state === "suggested" ? (
+                    <>
+                      <button
+                        type="button"
+                        className={btn}
+                        data-action="cut-accept"
+                        onClick={() => decide(s.id, "cut")}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        className={btn}
+                        data-action="cut-reject"
+                        onClick={() => decide(s.id, "keep")}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className={btn}
+                      data-action="cut-decide"
+                      onClick={() => decide(s.id, eff === "cut" ? "keep" : "cut")}
+                    >
+                      {eff === "cut" ? "Keep" : "Cut"}
+                    </button>
+                  )}
                 </div>
               );
             })}

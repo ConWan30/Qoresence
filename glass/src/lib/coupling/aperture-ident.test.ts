@@ -24,13 +24,15 @@ test("ident stays off while JPEG is current on LIVE same-seq", () => {
   assert.equal(hdmiPictureVisible(true), true);
 });
 
-test("ident latches on non-play even when JPEG is current", () => {
-  assert.equal(apertureIdentOn({ ...live, hdmi: "menu" }), true);
-  assert.equal(apertureIdentOn({ ...live, hdmi: "stale" }), true);
+test("pause, menu, and stale keep a current JPEG on the stage", () => {
+  assert.equal(apertureIdentOn({ ...live, hdmi: "menu" }), false);
+  assert.equal(apertureIdentOn({ ...live, hdmi: "stale" }), false);
+  assert.equal(hdmiPictureVisible(true), true);
 });
 
-test("ident latches on seq-skew even when JPEG is current", () => {
-  assert.equal(apertureIdentOn({ ...live, sameSeq: false }), true);
+test("seq-skew keeps a current JPEG on the stage", () => {
+  assert.equal(apertureIdentOn({ ...live, sameSeq: false }), false);
+  assert.equal(hdmiPictureVisible(true), true);
 });
 
 test("planeDim is not an ident field — picture stays", () => {
@@ -55,9 +57,9 @@ test("fresh LIVE JPEG and ident are exclusive", () => {
   assert.equal(picture, true);
 });
 
-test("HOLD ident can cover a current JPEG on menu", () => {
+test("a current JPEG stays up on the pause menu", () => {
   const ident = apertureIdentOn({ ...live, hdmi: "menu" });
   const picture = hdmiPictureVisible(true);
-  assert.equal(ident, true);
+  assert.equal(ident, false);
   assert.equal(picture, true);
 });

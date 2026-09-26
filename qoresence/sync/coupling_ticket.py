@@ -62,6 +62,13 @@ def mint_coupling_ticket(
     ph = str(phrase or "").upper()
     if ph not in LIVE_PHRASES:
         return None
+    try:
+        from qoresence.vision.frame_witness import witness_blocks_heat
+
+        if witness_blocks_heat():
+            return None
+    except Exception:
+        pass
     if not pll_lock or not video_fresh:
         return None
     try:

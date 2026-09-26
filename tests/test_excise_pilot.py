@@ -59,6 +59,30 @@ def test_score_clip_over_and_under_cut(tmp_path):
     assert live["over_cut_s"] == 6.2
 
 
+def test_witness_column_does_not_count_as_a_cut(tmp_path):
+    _mp4, receipt = _receipt(tmp_path, "a.mp4", [(1.0, 4.0, "suggest")])
+    receipt["spans"][0]["reason"] = "witness:pause"
+    labelled = ep.score_clip(receipt, {"dead": [[1.0, 4.0, "pause"]]})
+    assert labelled["over_cut_s"] == 0.0
+    assert labelled["witness_proposed_s"] == 3.0
+    assert labelled["witness_over_s"] == 0.0
+    assert labelled["witness_under_s"] == 0.0
+    outside = ep.score_clip(receipt, {"dead": []})
+    assert outside["over_cut_s"] == 0.0
+    assert outside["witness_over_s"] == 3.0
+    cx.write_receipt(_mp4, receipt)
+    r = ep.evaluate(
+        tmp_path,
+        {"a.mp4": {"profile": "madden_27", "dead": [[1.0, 4.0, "pause"]]}},
+        health_files=[_health(tmp_path, 0.2)],
+        min_clips=1,
+    )
+    assert r["summary"]["witness_proposed_s"] == 3.0
+    assert r["summary"]["witness_dead_s"] == 3.0
+    assert r["summary"]["over_cut_s"] == 0.0
+    assert "over_cut" not in " ".join(r["failures"])
+
+
 def test_score_uses_policy_cuts_not_gamer_overrides(tmp_path):
     _mp4, receipt = _receipt(tmp_path, "a.mp4", [(5.0, 12.0, "keep")])
     receipt["spans"][0]["user"] = "cut"

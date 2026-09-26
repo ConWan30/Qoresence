@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from qoresence.sync.ghost_stick import (
+    apply_quiet_pad,
     decide_ghost_stick,
     ghost_stick_enabled,
     set_ghost_stick_enabled,
@@ -74,6 +75,33 @@ def test_vanish_idle_and_no_interpolate():
     missing = _ok(pose=None)
     assert missing.paint is False
     assert missing.reason == "idle"
+
+
+def test_quiet_pad_needs_play_and_a_real_join():
+    painted = {
+        "enabled": True,
+        "paint": True,
+        "lx": 0.4,
+        "ly": -0.2,
+        "r2": 0.5,
+        "l2": 0.0,
+        "lag_ms": 40.0,
+        "frame_seq": 3,
+        "reason": "ok",
+    }
+    pause = apply_quiet_pad(painted, witness_kind="pause", join_id="now")
+    assert pause["paint"] is False
+    assert pause["lx"] == 0.0 and pause["r2"] == 0.0
+    assert pause["reason"] == "not_play"
+    assert pause["join_id"] == "now"
+    missing = apply_quiet_pad(painted, witness_kind="play", join_id="none")
+    assert missing["paint"] is False and missing["reason"] == "join_none"
+    assert missing["join_id"] == "none"
+    unknown = apply_quiet_pad(painted, witness_kind="play", join_id="ahead_2")
+    assert unknown["paint"] is False and unknown["join_id"] == "none"
+    kept = apply_quiet_pad(painted, witness_kind="play", join_id="ahead_1")
+    assert kept["paint"] is True and kept["lx"] == 0.4 and kept["join_id"] == "ahead_1"
+    assert painted["paint"] is True and painted["lx"] == 0.4
 
 
 def test_vanish_not_play_and_coupling():

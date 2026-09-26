@@ -75,6 +75,17 @@ test("overlay digits EMPTY when situation crop_hash moves", () => {
   assert.equal(digitsLicensed(sit(WAS), snap({ sitCrop: WAS })), true);
 });
 
+test("overlay digits blank on a fresh pause witness", () => {
+  const digitsLicensed = loadOverlayDigitsLicensed();
+  const base = snap({ sitCrop: WAS });
+  assert.equal(digitsLicensed(sit(WAS), base), true);
+  const paused = {
+    ...base,
+    frame_witness: { kind: "pause", source: "optical", fresh: true },
+  };
+  assert.equal(digitsLicensed(sit(WAS), paused), false);
+});
+
 test("overlay liveCrop uses situation scorebug chain", () => {
   const digitsLicensed = loadOverlayDigitsLicensed();
   assert.equal(digitsLicensed(sit(WAS), snap({ sitCrop: WAS })), true);

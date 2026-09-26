@@ -1,11 +1,13 @@
+import { ghostStickQuiet } from "@/lib/coupling/board";
 import { useTheater } from "@/lib/coupling/store";
 
-/** DualSense locus on LIVE, IVC-delayed. Invisible when boring or vetoed. */
+/** DualSense locus on LIVE. Draws only during play on a real join. */
 export function GhostStickOverlay() {
   const g = useTheater((s) => s.ghostStick);
-  const padConnected = useTheater((s) => s.padConnected);
-  if (!g.enabled) return null;
-  if (!g.paint && !padConnected) return null;
+  const witnessKind = useTheater((s) => s.frameWitnessKind);
+  const witnessSource = useTheater((s) => s.frameWitnessSource);
+  if (ghostStickQuiet({ witnessKind, witnessSource, joinId: g.joinId })) return null;
+  if (!g.enabled || !g.paint) return null;
   const cx = 40 + g.lx * 16;
   const cy = 40 + g.ly * 16;
   const r2h = 4 + g.r2 * 10;
@@ -15,11 +17,7 @@ export function GhostStickOverlay() {
       data-ghost-stick="on"
       data-ghost-reason={g.reason}
       viewBox="0 0 80 80"
-      className={
-        g.paint
-          ? "pointer-events-none absolute bottom-3 left-3 h-16 w-16 text-live"
-          : "pointer-events-none absolute bottom-3 left-3 h-16 w-16 text-live opacity-40"
-      }
+      className="pointer-events-none absolute bottom-3 left-3 h-16 w-16 text-live"
       aria-hidden
     >
       <circle cx="40" cy="40" r="22" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.35" />
