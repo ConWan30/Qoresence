@@ -73,6 +73,8 @@ FrameHub, capture lease, ConfirmTicket / ticket-fresh, Dark Theater / Ghost / Nu
 
 ## SKU stubs (export contract only — **no payment**)
 
+Frame License Bureau runbook + pack shapes: [`docs/Frame-License-Bureau.md`](./Frame-License-Bureau.md) (`license-pack-v0.jsonl` / `notary.jsonl` via `qoresence.license_bureau`).
+
 These are receipt shapes for a later export glass. This PR does **not** build checkout, meters-as-billing, or entitlements.
 
 ```yaml
