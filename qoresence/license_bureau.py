@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -202,9 +201,9 @@ def main(argv: list[str] | None = None) -> int:
     out = args.out_dir
     write_jsonl(out / "license-pack-v0.jsonl", pack)
     write_jsonl(out / "notary.jsonl", notary)
-    print(f"wrote {out / 'license-pack-v0.jsonl'} ({len(pack)} lines)")
-    print(f"wrote {out / 'notary.jsonl'} ({len(notary)} lines)")
-    print("monetize=false density_gate=pending")
+    print(f"wrote {out / 'license-pack-v0.jsonl'} ({len(pack)} lines)")  # noqa: T201
+    print(f"wrote {out / 'notary.jsonl'} ({len(notary)} lines)")  # noqa: T201
+    print("monetize=false density_gate=pending")  # noqa: T201
     return 0
 
 
