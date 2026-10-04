@@ -1,0 +1,216 @@
+/* Hold loop stage. Flat void and iron. No transitions, no will-change, no glow. */
+
+.motion-stage {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--r-xl);
+  background: var(--subtle);
+  box-shadow: var(--shadow-border);
+  overflow: hidden;
+}
+
+.motion-stage,
+.motion-stage * {
+  transition: none;
+  animation: none;
+}
+
+.motion-well {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #05060a;
+  overflow: hidden;
+}
+
+.motion-static {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #05060a;
+}
+
+.motion-static::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 1px solid var(--line);
+  pointer-events: none;
+}
+
+.motion-static img {
+  position: relative;
+  width: auto;
+  height: 58%;
+  max-width: 46%;
+  object-fit: contain;
+  background: #05060a;
+}
+
+.motion-static-label {
+  position: relative;
+  color: var(--muted);
+  font: 500 12px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+}
+
+.motion-live {
+  display: none;
+  position: absolute;
+  inset: 0;
+}
+
+.motion-stage.is-live .motion-static { display: none; }
+.motion-stage.is-live .motion-live { display: block; }
+
+.motion-shape {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  transform-origin: center center;
+  pointer-events: none;
+}
+
+.motion-shutter {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.motion-shutter i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: block;
+  height: 50%;
+  background: #05060a;
+}
+
+.motion-shutter i[data-leaf="top"] {
+  top: 0;
+  transform-origin: top center;
+}
+
+.motion-shutter i[data-leaf="bot"] {
+  bottom: 0;
+  transform-origin: bottom center;
+}
+
+.motion-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.motion-label {
+  color: var(--muted);
+  font: 500 12px/1.2 var(--font-mono);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.motion-label-control {
+  color: var(--fg);
+  font: 600 15px/1.2 var(--font-sans);
+  letter-spacing: -0.02em;
+}
+
+.loader {
+  display: block;
+  width: 28px;
+  height: 28px;
+}
+
+.well-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78%;
+  height: 62%;
+  border: 1px solid var(--line);
+  background: #05060a;
+}
+
+.well-frame img {
+  width: auto;
+  height: 78%;
+  max-width: 70%;
+  object-fit: contain;
+}
+
+.glyphs {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  margin: 0;
+  color: var(--dim);
+  font: 500 28px/1 var(--font-mono);
+  letter-spacing: 0;
+}
+
+.stick {
+  position: relative;
+  display: block;
+  width: 46px;
+  height: 46px;
+}
+
+.stick-base,
+.stick-cap {
+  position: absolute;
+  display: block;
+  border: 1.5px solid var(--muted);
+  border-radius: 50%;
+  background: transparent;
+}
+
+.stick-base { inset: 0; }
+
+.stick-cap {
+  width: 34%;
+  height: 34%;
+  left: 33%;
+  top: 33%;
+  background: var(--subtle);
+}
+
+.motion-layer[data-key="ticket"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--muted);
+}
+
+.motion-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  width: 18px;
+  height: 18px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-stage.is-live .motion-static { display: flex; }
+  .motion-stage.is-live .motion-live { display: none; }
+}

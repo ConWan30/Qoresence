@@ -23,6 +23,7 @@
   <meta name="twitter:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
   <link rel="stylesheet" href="./aperture.css">
   <link rel="stylesheet" href="./pages-next.css">
+  <link rel="stylesheet" href="./motion.css">
 </head>
 <body>
   <a class="skip" href="#top">Skip to content</a>
@@ -55,19 +56,61 @@
       <h1>Goes dark instead of lying.</h1>
       <p class="lede">One capture card. HDMI and DualSense share one clock. The board stays blank until a ConfirmTicket licenses digits. Pad glyphs couple to the picture — they do not invent it.</p>
       <div class="hallway-stage">
-        <div class="holo-plinth" data-holo-tone="iron" data-shutter>
-          <div class="holo-plinth-well">
-            <span class="shutter-leaf" aria-hidden="true"></span>
-            <img
-              class="pgm-ident"
-              src="./assets/qoresence-logo.png"
-              width="1024"
-              height="1024"
-              alt="Aperture Ident: HDMI Q on void when the picture cannot be licensed">
+        <div class="motion-stage" data-motion-stage role="img" aria-label="Hold loop. One shape becomes Open card, Card, HOLD, an empty board, Idle, No ticket, and not play, then returns to Open card. Not a live session. No score.">
+          <div class="motion-well" data-motion-root>
+            <div class="motion-static">
+              <img
+                class="pgm-ident"
+                src="./assets/qoresence-logo.png"
+                width="1024"
+                height="1024"
+                alt="">
+              <span class="motion-static-label">HOLD</span>
+            </div>
+            <div class="motion-live" data-motion-live>
+              <div class="motion-shape" data-motion-shape>
+                <div class="motion-shutter" data-motion-shutter aria-hidden="true">
+                  <i data-leaf="top"></i>
+                  <i data-leaf="bot"></i>
+                </div>
+                <div class="motion-layer" data-key="open">
+                  <span class="motion-label motion-label-control">Open card</span>
+                </div>
+                <div class="motion-layer" data-key="capture">
+                  <svg class="loader" data-loader viewBox="0 0 32 32" aria-hidden="true">
+                    <circle cx="16" cy="16" r="11" fill="none" stroke="#5b6070" stroke-width="1.5"></circle>
+                    <circle cx="16" cy="16" r="11" fill="none" stroke="#8b90a0" stroke-width="1.5" stroke-dasharray="18 52"></circle>
+                  </svg>
+                  <span class="motion-label">Card</span>
+                </div>
+                <div class="motion-layer" data-key="frame">
+                  <span class="well-frame" aria-hidden="true">
+                    <img src="./assets/qoresence-logo.png" alt="" width="1024" height="1024">
+                  </span>
+                  <span class="motion-label">HOLD</span>
+                </div>
+                <div class="motion-layer" data-key="board">
+                  <p class="glyphs" aria-hidden="true"><span>□</span><span>–</span><span>□</span></p>
+                  <span class="motion-label">Board not licensed</span>
+                </div>
+                <div class="motion-layer" data-key="pad">
+                  <span class="stick" aria-hidden="true"><i class="stick-base"></i><i class="stick-cap"></i></span>
+                  <span class="motion-label">Idle</span>
+                </div>
+                <div class="motion-layer" data-key="ticket">
+                  <span class="motion-label">No ticket</span>
+                </div>
+                <div class="motion-layer" data-key="dark">
+                  <span class="motion-label">not play</span>
+                </div>
+              </div>
+              <svg class="motion-cursor" data-motion-cursor viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
+                <path d="M1 1 L1 14.6 L4.7 11.1 L8 16.4 L9.9 15.4 L6.6 10.2 L11.2 10.2 Z" fill="#e8eaf2" stroke="#05060a" stroke-width="1"></path>
+              </svg>
+            </div>
           </div>
-          <div class="signal-prism" aria-hidden="true"><div class="signal-prism-fill is-hold"></div></div>
           <div class="demo-chrome">
-            <span><strong>APERTURE IDENT</strong> · HDMI Q · not a picture</span>
+            <span><strong>ONE SHAPE</strong> · eight holds · not a picture</span>
             <span>HOLD · board not licensed</span>
           </div>
         </div>
@@ -154,5 +197,6 @@
     </div>
   </footer>
   <script src="./site.js" defer></script>
+  <script src="./motion.js" defer></script>
 </body>
 </html>

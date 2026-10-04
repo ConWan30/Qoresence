@@ -2,6 +2,32 @@
 
 Live today: https://conwan30.github.io/Qoresence/
 
+## Motion stage (2026-10-03)
+
+The first hallway plinth is a hold loop, not a static logo. One iron shape
+on the void (`#05060a`), no cuts: it changes size, radius, and content.
+A drawn cursor clicks each change. `docs/motion.js` samples a closed-form
+spring inside `seek(t)` — slight overshoot only, no CSS transitions, no
+frame-to-frame motion state, no audio. 120 BPM, eight states, two seconds
+each, sixteen seconds. The last frame matches the first, including the
+cursor. `prefers-reduced-motion` keeps the static HOLD frame and does not
+loop. The NCAA tape under the stage is unchanged. `docs/aperture.css` is
+untouched.
+
+| # | t | State | On the shape |
+|---|---|---|---|
+| 1 | 0s | Open | Control: “Open card” |
+| 2 | 2s | Capture | Loader, label “Card” |
+| 3 | 4s | Frame | Picture well, label HOLD. Aperture ident, not a game image |
+| 4 | 6s | Board | Empty glyphs □ – □. “Board not licensed” |
+| 5 | 8s | Pad | Stick at rest, label “Idle” |
+| 6 | 10s | Ticket | Plate: “No ticket” |
+| 7 | 12s | Dark | Well shutters closed, label “not play” |
+| 8 | 14s | Return | Morphs back to Open so the seam matches |
+
+Digits stay unlicensed. The loop never invents a score, a clock, a team,
+or a LIVE lamp.
+
 ## Hallway (2026-09-01)
 
 The public site is no longer a 12-section Deck parody. GitHub Pages is the
