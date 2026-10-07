@@ -166,3 +166,11 @@ python -m http.server 5500 --directory docs
 ```
 
 Operator reviews this branch before merge to `main` (Pages deploys from `docs/` on `main` push).
+
+## Rivalatch door loop (2026-10-07)
+
+Peer surface at `docs/rivalatch.html`. Same hallway chrome and spring-loop
+discipline as the home hold stage; vocabulary is Lodged / Recalled / Contested
+(prose only). CTAs point at the live Rivalatch door, MOBILE_KNOCKER, and listing.
+Details: `docs/RIVALATCH_MOTION_NOTES.md`.
+
