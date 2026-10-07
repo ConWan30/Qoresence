@@ -92,7 +92,7 @@
 
 /* ── Base ───────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+html { scroll-behavior: smooth; scroll-padding-top: 96px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 html, body { max-width: 100%; }
 body {
   position: relative;
@@ -512,20 +512,25 @@ img, video, svg { max-width: 100%; }
 .code {
   position: relative;
   margin: 12px 0;
-  padding: 14px 84px 14px 16px;
+  padding: 12px 14px 12px 16px;
   border: 1px solid var(--glass-edge);
   border-radius: var(--r-sm);
   background: rgba(5, 6, 10, 0.72);
   color: var(--fg);
   font: 500 12.5px/1.6 var(--font-mono);
-  white-space: pre;
-  overflow-x: auto;
+  /* Commands wrap at any width instead of hiding behind a scrollbar. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   box-shadow: inset 0 1px 0 rgba(232, 234, 242, 0.05);
 }
+.code::after { content: ""; display: table; clear: both; }
+.code-tok { display: inline-block; max-width: 100%; overflow-wrap: anywhere; vertical-align: top; }
+/* Copy sits first in the markup and floats right: text wraps around it and
+   can never run underneath it. */
 .code .copy {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+  float: right;
+  position: relative;
+  margin: -4px -6px 6px 14px;
   min-height: 28px;
   padding: 0 10px;
   border: 1px solid var(--glass-edge);
@@ -630,9 +635,10 @@ html.q-motion .holo-plinth[data-shutter].is-open .shutter-leaf { transform: scal
 .field select:focus { outline: none; border-color: color-mix(in oklab, var(--live) 60%, transparent); }
 .row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .row .field { flex: 1; min-width: 220px; margin-bottom: 0; }
-.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-.stat { padding: 14px; border: 1px solid var(--glass-edge); border-radius: var(--r-sm); background: rgba(5, 6, 10, 0.6); }
-.stat b { display: block; margin-bottom: 4px; color: var(--live); font: 600 20px/1 var(--font-display); }
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.stat { min-width: 0; padding: 14px; border: 1px solid var(--glass-edge); border-radius: var(--r-sm); background: rgba(5, 6, 10, 0.6); }
+.stat b { display: block; margin-bottom: 6px; color: var(--live); font: 600 20px/1.2 var(--font-display); overflow-wrap: anywhere; }
+.stat b.is-id { font: 600 15px/1.35 var(--font-mono); letter-spacing: 0.01em; }
 .stat span { color: var(--muted); font: 500 10px/1 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; }
 .trace-empty,
 .trace-error { padding: 40px 0; color: var(--muted); text-align: center; }
@@ -653,6 +659,9 @@ html.q-motion .holo-plinth[data-shutter].is-open .shutter-leaf { transform: scal
   text-overflow: ellipsis;
   cursor: pointer;
 }
+.span-bar.is-bare { padding: 0; }
+.span-label { position: absolute; height: 22px; color: var(--muted); font: 500 10px/22px var(--font-mono); white-space: nowrap; cursor: pointer; }
+.span-label:hover { color: var(--fg); }
 .span-bar:hover { z-index: 10; background: color-mix(in oklab, var(--live) 38%, var(--surface)); }
 .span-bar.root { border-color: var(--live); background: color-mix(in oklab, var(--live) 40%, var(--surface)); }
 .span-bar.child { border-color: color-mix(in oklab, var(--live) 60%, transparent); background: color-mix(in oklab, var(--live) 16%, var(--surface)); }
@@ -1091,6 +1100,16 @@ html.q-motion .q-track.is-drawn .q-node { animation: q-fade var(--t-settle) var(
 @media (max-width: 860px) {
   .command-row { flex-wrap: wrap; }
 }
+/* Tablet: keep the mast on one row (wordmark + nav) instead of wrapping. */
+@media (max-width: 900px) {
+  table.spans th, table.spans td { padding: 10px 9px; }
+}
+@media (max-width: 900px) and (min-width: 681px) {
+  .holo-tally { display: none; }
+  .glass-nav { flex-wrap: nowrap; }
+  .glass-nav a { padding: 0 9px; letter-spacing: 0.14em; }
+}
+
 @media (max-width: 680px) {
   .wrap { padding: 0 18px; }
   .doc-main { padding: 28px 18px 64px; }
@@ -1126,6 +1145,9 @@ html.q-motion .q-track.is-drawn .q-node { animation: q-fade var(--t-settle) var(
   .row { flex-direction: column; align-items: stretch; }
   .row .field { width: 100%; }
   .trace-main .card { padding: 18px; }
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat b { font-size: 17px; }
+  .stat b.is-id { font-size: 11px; }
 
   /* Stage on a phone */
   .q-hero { padding-top: 28px; gap: 0; }

@@ -205,7 +205,20 @@
       }
     }
 
+    let lastTrace = null;
+    let resizeTimer = 0;
+    window.addEventListener('resize', () => {
+      if (!lastTrace) return;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const detail = $('detail').style.display;
+        render(lastTrace);
+        $('detail').style.display = detail;
+      }, 150);
+    });
+
     function render(trace) {
+      lastTrace = trace;
       $('status').style.display = 'none';
       $('result').style.display = 'block';
 
@@ -223,7 +236,7 @@
       const summary = $('summary');
       summary.innerHTML = '';
       [
-        { k: 'Trace', v: trace.traceID.slice(0, 16) + '…' },
+        { k: 'Trace', v: trace.traceID.slice(0, 16) + '…', id: true },
         { k: 'Spans', v: spans.length },
         { k: 'Service', v: (trace.processes[root.processID] || {}).serviceName || '—' },
         { k: 'Window', v: ns2ms(windowNs) },
@@ -232,7 +245,7 @@
       ].forEach(s => {
         const d = document.createElement('div');
         d.className = 'stat';
-        d.innerHTML = '<b>' + escapeHtml(s.v) + '</b><span>' + escapeHtml(s.k) + '</span>';
+        d.innerHTML = '<b' + (s.id ? ' class="is-id"' : '') + (s.id ? ' title="' + escapeHtml(trace.traceID) + '"' : '') + '>' + (s.id ? escapeHtml(s.v) : escapeHtml(s.v).replace(/([.\-_\/])/g, '$1<wbr>')) + '</b><span>' + escapeHtml(s.k) + '</span>';
         summary.appendChild(d);
       });
 
@@ -241,9 +254,14 @@
       canvas.innerHTML = '';
       const laneH = 28;
       const pad = 10;
-      const lanes = [];
+      const gap = 8;
+      const CHAR = 6.1;  // IBM Plex Mono 500 at 10px, per glyph
+      // Scale the clock window to the card; phones keep a 560px floor and scroll.
+      const scaleW = Math.max(560, $('timeline').clientWidth - pad * 2 - 2);
+      const lanes = [];  // right edge (px) of the last bar + label in each lane
+      let maxRight = 0;
 
-      spans.forEach((span, idx) => {
+      spans.forEach((span) => {
         const tags = tagMap(span);
         const isRoot = (!span.references || span.references.length === 0);
         const clockNs = num(tags.clock_ns, NaN);
@@ -253,35 +271,46 @@
         if (end <= start) end = start + 1;
 
         const clamp01 = v => Math.min(Math.max(v, 0), 1);
-        const left = pad + clamp01((start - t0) / windowNs) * 900;
-        const right = pad + clamp01((end - t0) / windowNs) * 900;
-        const width = Math.max(2, right - left);
+        const left = pad + clamp01((start - t0) / windowNs) * scaleW;
+        const right = pad + clamp01((end - t0) / windowNs) * scaleW;
+        const width = Math.max(4, right - left);
 
-        // assign lane to avoid overlap
-        let lane = 0;
-        for (let l = 0; l < lanes.length; l++) {
-          const last = lanes[l];
-          if (start >= last.end || end <= last.start) {
-            lane = l;
-            break;
-          }
-          lane = l + 1;
-        }
-        if (!lanes[lane]) lanes[lane] = { start, end };
-        else { lanes[lane].start = Math.min(lanes[lane].start, start); lanes[lane].end = Math.max(lanes[lane].end, end); }
+        // Label goes inside the bar when it fits, otherwise just to its right.
+        const label = span.operationName.length > 24 ? span.operationName.slice(0, 24) + '…' : span.operationName;
+        const labelW = Math.ceil(label.length * CHAR);
+        const inside = width >= labelW + 16;
+        const extent = inside ? left + width : left + width + 6 + labelW;
 
+        // Pack lanes in pixels (bar + label), so nothing in a lane overlaps.
+        let lane = lanes.findIndex(edge => left >= edge + gap);
+        if (lane === -1) { lane = lanes.length; lanes.push(0); }
+        lanes[lane] = extent;
+        maxRight = Math.max(maxRight, extent);
+
+        const top = pad + lane * laneH;
         const bar = document.createElement('div');
         bar.className = 'span-bar ' + (isRoot ? 'root' : 'child');
         bar.style.left = left + 'px';
-        bar.style.top = (pad + lane * laneH) + 'px';
+        bar.style.top = top + 'px';
         bar.style.width = width + 'px';
         bar.title = span.operationName + ' @ ' + (tags.clock_ns || 0);
-        bar.textContent = (span.operationName.length > 24 ? span.operationName.slice(0, 24) + '…' : span.operationName);
+        if (inside) bar.textContent = label;
+        else bar.classList.add('is-bare');
         bar.onclick = () => showDetail(span, tags);
         canvas.appendChild(bar);
+        if (!inside) {
+          const tag = document.createElement('div');
+          tag.className = 'span-label';
+          tag.style.left = (left + width + 6) + 'px';
+          tag.style.top = top + 'px';
+          tag.textContent = label;
+          tag.title = bar.title;
+          tag.onclick = () => showDetail(span, tags);
+          canvas.appendChild(tag);
+        }
       });
       canvas.style.height = (pad + lanes.length * laneH + pad) + 'px';
-      canvas.style.minWidth = (920 + pad * 2) + 'px';
+      canvas.style.minWidth = Math.max(scaleW + pad * 2, Math.ceil(maxRight) + pad) + 'px';
 
       // table
       const tbody = $('spans-body');
