@@ -1,0 +1,69 @@
+# Rivalatch ship receipt — opt-in knock on push to main.
+#
+# Lodges the frozen gate.run body at the pushed SHA:
+#   app_ref {type: git, uri: https://github.com/ConWan30/Qoresence, rev: $GITHUB_SHA}
+#   checks [smoke] · acceptance {criteria: [], base_url_path: /}
+# Rivalatch shallow-clones the public repo at that SHA, serves docs/ (Pages
+# root) and smokes GET /. Prints job_id + verdict to the log and job summary.
+#
+# Opt-in: needs repo secret VIBEGATE_API_KEY. Absent → skip-closed (green,
+# nothing sent). The key is passed via env only and never echoed.
+name: Rivalatch ship receipt
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rivalatch-ship-receipt-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  knock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VIBEGATE_API_KEY: ${{ secrets.VIBEGATE_API_KEY }}
+      VIBEGATE_DOOR_URL: ${{ vars.VIBEGATE_DOOR_URL }}
+    steps:
+      - name: Checkout (knock script only)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: qoresence/deck/rivalatch_knock.py
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Knock Rivalatch (skip-closed without secret)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${VIBEGATE_API_KEY:-}" ]; then
+            echo "skip-closed: repo secret VIBEGATE_API_KEY not set; nothing lodged"
+            echo "### Rivalatch ship receipt: skip-closed (no VIBEGATE_API_KEY secret)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          set +e
+          python qoresence/deck/rivalatch_knock.py lodge --sha "$GITHUB_SHA" --json-out receipt.json
+          rc=$?
+          set -e
+          if [ -f receipt.json ]; then
+            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          r = json.load(open("receipt.json"))
+          print("### Rivalatch ship receipt")
+          print("")
+          print(f"- sha: `{r.get('sha')}`")
+          print(f"- door: {r.get('door')} (HTTP {r.get('run_http')})")
+          print(f"- job_id: `{r.get('job_id')}`")
+          print(f"- verdict: **{r.get('verdict')}** · fail_class: `{r.get('fail_class')}`")
+          PY
+          fi
+          exit "$rc"
