@@ -407,9 +407,11 @@
 
   function mountCopy() {
     document.querySelectorAll("[data-copy]").forEach(function (button) {
+      var host = button.parentElement;
+      /* The button floats first so wrapped text flows around it, never under it. */
+      if (host && host.firstChild !== button) host.insertBefore(button, host.firstChild);
       button.addEventListener("click", function () {
-        var host = button.parentElement;
-        var code = (host && host.dataset.code) || (host ? host.textContent : "").replace(/copy$/i, "").trim();
+        var code = (host && host.dataset.code) || (host ? host.textContent : "").replace(/^\s*copy/i, "").trim();
         if (!navigator.clipboard) { button.textContent = "select"; return; }
         navigator.clipboard.writeText(code).then(function () {
           button.textContent = "copied";
@@ -429,13 +431,44 @@
     });
   }
 
+  /* Commands wrap at spaces, not after the hyphen in "--flag": each token is an
+     inline-block that only breaks inside itself when wider than the line. */
+  function mountCodeWrap() {
+    document.querySelectorAll(".code").forEach(function (block) {
+      Array.prototype.slice.call(block.childNodes).forEach(function (node) {
+        if (node.nodeType !== 3 || !node.nodeValue.trim()) return;
+        var frag = document.createDocumentFragment();
+        node.nodeValue.split(/(\s+)/).forEach(function (part) {
+          if (!part) return;
+          if (/^\s+$/.test(part)) frag.appendChild(document.createTextNode(part));
+          else frag.appendChild(el("span", "code-tok", part));
+        });
+        block.replaceChild(frag, node);
+      });
+    });
+  }
+
+  /* Anchor jumps land below the sticky mast, whatever height it wraps to. */
+  function mountScrollPadding() {
+    var header = document.querySelector(".holo-header");
+    if (!header) return;
+    function set() {
+      document.documentElement.style.scrollPaddingTop = Math.ceil(header.getBoundingClientRect().height + 16) + "px";
+    }
+    set();
+    if (typeof ResizeObserver !== "undefined") new ResizeObserver(set).observe(header);
+    else window.addEventListener("resize", set);
+  }
+
   function boot() {
     if (redirectLegacyHash()) return;
+    mountScrollPadding();
     var reduce = reduceQuery();
     var motion = !(reduce && reduce.matches);
     if (motion) document.documentElement.classList.add("q-motion");
     mountMenu();
     mountCopy();
+    mountCodeWrap();
     mountShutter();
     var door = document.querySelector("[data-door-stage]");
     if (door) mountStage(door, DOOR, reduce);
