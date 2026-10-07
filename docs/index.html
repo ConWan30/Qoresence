@@ -22,8 +22,6 @@
   <meta name="twitter:description" content="One clock. Card opens once. The board stays blank until a ConfirmTicket licenses digits.">
   <meta name="twitter:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
   <link rel="stylesheet" href="./aperture.css">
-  <link rel="stylesheet" href="./pages-next.css">
-  <link rel="stylesheet" href="./motion.css">
 </head>
 <body>
   <a class="skip" href="#top">Skip to content</a>
@@ -52,70 +50,72 @@
   </header>
 
   <main id="top">
-    <section class="wrap hallway" id="watch">
-      <div class="kicker"><i></i> Local observatory</div>
-      <h1>Goes dark instead of lying.</h1>
-      <p class="lede">One capture card. HDMI and DualSense share one clock. The board stays blank until a ConfirmTicket licenses digits. Pad glyphs couple to the picture — they do not invent it.</p>
-      <div class="hallway-stage">
-        <div class="motion-stage" data-motion-stage role="img" aria-label="Hold loop. One shape becomes Open card, Card, HOLD, an empty board, Idle, No ticket, and not play, then returns to Open card. Not a live session. No score.">
-          <div class="motion-well" data-motion-root>
-            <div class="motion-static">
-              <img
-                class="pgm-ident"
-                src="./assets/qoresence-logo.png"
-                width="1024"
-                height="1024"
-                alt="">
-              <span class="motion-static-label">HOLD</span>
-            </div>
-            <div class="motion-live" data-motion-live>
-              <div class="motion-shape" data-motion-shape>
-                <div class="motion-shutter" data-motion-shutter aria-hidden="true">
-                  <i data-leaf="top"></i>
-                  <i data-leaf="bot"></i>
-                </div>
-                <div class="motion-layer" data-key="open">
-                  <span class="motion-label motion-label-control">Open card</span>
-                </div>
-                <div class="motion-layer" data-key="capture">
-                  <svg class="loader" data-loader viewBox="0 0 32 32" aria-hidden="true">
-                    <circle cx="16" cy="16" r="11" fill="none" stroke="#5b6070" stroke-width="1.5"></circle>
-                    <circle cx="16" cy="16" r="11" fill="none" stroke="#8b90a0" stroke-width="1.5" stroke-dasharray="18 52"></circle>
-                  </svg>
-                  <span class="motion-label">Card</span>
-                </div>
-                <div class="motion-layer" data-key="frame">
-                  <span class="well-frame" aria-hidden="true">
-                    <img src="./assets/qoresence-logo.png" alt="" width="1024" height="1024">
-                  </span>
-                  <span class="motion-label">HOLD</span>
-                </div>
-                <div class="motion-layer" data-key="board">
-                  <p class="glyphs" aria-hidden="true"><span>□</span><span>–</span><span>□</span></p>
-                  <span class="motion-label">Board not licensed</span>
-                </div>
-                <div class="motion-layer" data-key="pad">
-                  <span class="stick" aria-hidden="true"><i class="stick-base"></i><i class="stick-cap"></i></span>
-                  <span class="motion-label">Idle</span>
-                </div>
-                <div class="motion-layer" data-key="ticket">
-                  <span class="motion-label">No ticket</span>
-                </div>
-                <div class="motion-layer" data-key="dark">
-                  <span class="motion-label">not play</span>
-                </div>
-              </div>
-              <svg class="motion-cursor" data-motion-cursor viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
-                <path d="M1 1 L1 14.6 L4.7 11.1 L8 16.4 L9.9 15.4 L6.6 10.2 L11.2 10.2 Z" fill="#e8eaf2" stroke="#05060a" stroke-width="1"></path>
-              </svg>
-            </div>
+    <section class="wrap q-hero" id="watch">
+      <div class="q-hero-copy">
+        <div class="kicker">Local observatory</div>
+        <h1 class="display">Goes dark instead of lying.</h1>
+        <p class="lede">One capture card. HDMI and DualSense share one clock. The board stays blank until a ConfirmTicket licenses digits. Pad glyphs couple to the picture — they do not invent it.</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Get Windows package</a>
+          <a class="button" href="./watch.html">Watch this session</a>
+          <a class="button" href="./rivalatch.html">Rivalatch door</a>
+          <a class="button" href="https://github.com/ConWan30/Qoresence">Source</a>
+        </div>
+        <p class="hero-note">Windows-first pilot · lobes default OFF · never a fake live feed</p>
+        <figure class="q-wire" style="--tone: var(--st-held)" aria-label="Board readout on this page: empty glyphs, board not licensed.">
+          <div class="q-wire-head"><span>board</span><span class="q-wire-tag">HOLD · this is a page</span></div>
+          <div class="q-wire-line"><span class="q-wire-verb">□ – □</span> <span class="q-wire-arrow">→</span> <b>not licensed</b></div>
+          <p class="q-wire-cap board-speech"><b>Board not licensed — this is a page.</b> Empty glyphs stay empty. A live Now pair waits on the laptop with the card.</p>
+        </figure>
+      </div>
+
+      <div class="q-stage" data-hold-stage role="img" aria-label="Hold loop demo, not a live session. Open card; the card opens once and glasses subscribe to FrameHub; HOLD shows the ident, not a game image; the board stays not licensed with empty glyphs; the pad is idle, which is presence evidence, not a fail; no ConfirmTicket, so digits stay dark; not play, so the theater goes dark; then the loop returns. No score.">
+        <div class="q-projection" aria-hidden="true"></div>
+        <div class="q-tape" aria-hidden="true"><div class="q-reel" data-reel><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>FrameHub</em><span>picture</span></div><div class="q-frame held" style="--tone: var(--st-held)"><b>HID</b><code>edge</code><em>InputRing</em><span>pad</span></div><div class="q-frame idle"><b>·</b><code>—</code><span>idle</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>FrameHub</em><span>picture</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>FrameHub</em><span>picture</span></div><div class="q-frame idle"><b>·</b><code>—</code><span>idle</span></div><div class="q-frame held" style="--tone: var(--st-held)"><b>HID</b><code>edge</code><em>InputRing</em><span>pad</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>FrameHub</em><span>picture</span></div></div></div>
+        <div class="q-gate" data-gate data-tone="hold" aria-hidden="true"></div>
+        <div class="q-stage-head">
+          <div class="q-gate-readout" data-gate-readout data-tone="hold" aria-hidden="true">window<b data-gate-b>no ConfirmTicket</b></div>
+          <div class="q-demo-tag">Demo · HOLD · not a live session</div>
+        </div>
+        <div class="q-margin" aria-hidden="true">
+          <div class="q-slotwrap">
+            <article class="q-card card" data-plate="card">
+              <div class="q-mark card" data-mark>card</div>
+              <div class="q-label" data-label>Card · opened once</div>
+              <div class="q-meta"><span data-meta>glasses subscribe to FrameHub</span><span class="q-code" data-code>1 owner</span></div>
+            </article>
+            <div class="q-slot">vacant</div>
           </div>
-          <div class="demo-chrome">
-            <span><strong>ONE SHAPE</strong> · eight holds · not a picture</span>
-            <span>HOLD · board not licensed</span>
+          <div class="q-slotwrap">
+            <article class="q-card hold" data-plate="board">
+              <div class="q-mark hold" data-mark>hold</div>
+              <div class="q-label" data-label>Board not licensed</div>
+              <div class="q-meta"><span data-meta>no ConfirmTicket · digits stay dark</span><span class="q-code" data-code>□ – □</span></div>
+            </article>
+            <div class="q-slot">vacant</div>
+          </div>
+          <div class="q-slotwrap">
+            <article class="q-card idle" data-plate="pad">
+              <div class="q-mark idle" data-mark>idle</div>
+              <div class="q-label" data-label>Pad · Idle</div>
+              <div class="q-meta"><span data-meta>a still pad is presence evidence, not a fail</span><span class="q-code" data-code>idle</span></div>
+            </article>
+            <div class="q-slot">vacant</div>
           </div>
         </div>
-        <p class="board-speech"><b>Board not licensed — this is a page.</b> Empty glyphs stay empty. A live Now pair waits on the laptop with the card.</p>
+        <div class="q-step">
+          <div class="q-dots" data-dots><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+          <span data-step>No ticket. The board stays dark — no invented digits.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="tape">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">This is tape</div><h2>One local NCAA 27 hour.</h2></div>
+          <p>Window-capture of the operator glass. HDMI and DualSense on one clock. It is a file, not a second open of the card.</p>
+        </div>
         <div class="holo-plinth" data-holo-tone="iron" data-shutter>
           <div class="holo-plinth-well">
             <span class="shutter-leaf" aria-hidden="true"></span>
@@ -137,13 +137,6 @@
         </div>
         <p class="demo-cap">6m45s of a local NCAA 27 hour · USB DualSense Edge · SMU–Louisville Q1 · <a href="./watch.html">Open the watch room</a></p>
       </div>
-      <div class="actions">
-        <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Get Windows package</a>
-        <a class="button" href="./watch.html">Watch this session</a>
-        <a class="button" href="./rivalatch.html">Rivalatch door</a>
-        <a class="button" href="https://github.com/ConWan30/Qoresence">Source</a>
-      </div>
-      <p class="hero-note">Windows-first pilot · lobes default OFF · never a fake live feed</p>
     </section>
 
     <section class="section" id="proof">
@@ -200,6 +193,5 @@
     </div>
   </footer>
   <script src="./site.js" defer></script>
-  <script src="./motion.js" defer></script>
 </body>
 </html>

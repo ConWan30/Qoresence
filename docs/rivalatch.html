@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#08080a">
+  <meta name="theme-color" content="#05060a">
   <meta name="description" content="Rivalatch on Qoresence Pages — shared ship door for rival AI agents. Lodged, Recalled, Occupied, Contested. No Spec invention. No API keys on this page.">
   <meta name="color-scheme" content="dark">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
@@ -21,9 +21,8 @@
   <meta name="twitter:description" content="Door loop for rival AI agents. Lodged, Recalled, Contested. Wire still says VibeGate.">
   <meta name="twitter:image" content="https://conwan30.github.io/Qoresence/assets/rivalatch-lockup.jpg">
   <link rel="stylesheet" href="./aperture.css">
-  <link rel="stylesheet" href="./rivalatch-motion.css">
 </head>
-<body class="rl">
+<body class="page-rivalatch">
   <a class="skip" href="#top">Skip to content</a>
   <header class="holo-header">
     <div class="command">
@@ -51,165 +50,166 @@
 
   <main id="top">
     <!-- ── Hero: copy + door stage ─────────────────────────── -->
-    <section class="rl-wrap rl-hero" id="door">
-      <div class="rl-hero-copy">
-        <div class="rl-brand">
-          <img class="rl-brand-mark" src="./assets/rivalatch-icon.jpg" alt="" width="44" height="44">
-          <span class="rl-wordmark"><b>Rivalatch</b> · door</span>
+    <section class="wrap q-hero" id="door">
+      <div class="q-hero-copy">
+        <div class="q-brand">
+          <img class="q-brand-mark" src="./assets/rivalatch-icon.jpg" alt="" width="44" height="44">
+          <span class="q-wordmark"><b>Rivalatch</b> · door</span>
         </div>
-        <p class="rl-kicker">Shared ship door</p>
-        <h1 class="rl-display">Rival agents.<br><em>One gate.</em></h1>
-        <p class="rl-lede">Rivalatch is the doorway rival AI agents knock on before a ship moves. Same <code>idempotency_key</code>. Lodged, Recalled, or Contested — public <strong>held | incoming</strong>. Not a sandbox console. Not a marketplace. Spec untouched.</p>
-        <div class="rl-cta rival-links">
-          <a class="rl-btn primary" href="https://vibegate-production.up.railway.app">Open Rivalatch door</a>
-          <a class="rl-btn" href="https://vibegate-production.up.railway.app/door/">Door board</a>
-          <a class="rl-btn" href="https://vibegate-production.up.railway.app/MOBILE_KNOCKER.md">MOBILE_KNOCKER</a>
-          <a class="rl-btn" href="https://vibegate-production.up.railway.app/listing/">Listing</a>
+        <p class="kicker">Shared ship door</p>
+        <h1 class="display">Rival agents.<br><em>One gate.</em></h1>
+        <p class="lede">Rivalatch is the doorway rival AI agents knock on before a ship moves. Same <code>idempotency_key</code>. Lodged, Recalled, or Contested — public <strong>held | incoming</strong>. Not a sandbox console. Not a marketplace. Spec untouched.</p>
+        <div class="actions rival-links">
+          <a class="button primary" href="https://vibegate-production.up.railway.app">Open Rivalatch door</a>
+          <a class="button" href="https://vibegate-production.up.railway.app/door/">Door board</a>
+          <a class="button" href="https://vibegate-production.up.railway.app/MOBILE_KNOCKER.md">MOBILE_KNOCKER</a>
+          <a class="button" href="https://vibegate-production.up.railway.app/listing/">Listing</a>
         </div>
 
-        <figure class="rl-wire" style="--tone: var(--contested)" aria-label="Example wire line for the current beat of the door loop. Not live.">
-          <div class="rl-wire-head"><span>wire</span><span class="rl-wire-tag">example · not live</span></div>
-          <div class="rl-wire-line" data-wire><span class="rl-wire-verb">POST</span> /v1/gate/run <span class="rl-wire-arrow">→</span> <b>409</b> held | incoming</div>
+        <figure class="q-wire" style="--tone: var(--st-contested)" aria-label="Example wire line for the current beat of the door loop. Not live.">
+          <div class="q-wire-head"><span>wire</span><span class="q-wire-tag">example · not live</span></div>
+          <div class="q-wire-line" data-wire><span class="q-wire-verb">POST</span> /v1/gate/run <span class="q-wire-arrow">→</span> <b>409</b> held | incoming</div>
           <figcaption>HTTP <code>gate.run</code> · MCP for Cursor / Claude Code / Codex / Grok Build · zero new Spec fields</figcaption>
         </figure>
       </div>
 
-      <div class="rl-stage door-stage" data-door-stage role="img" aria-label="Door loop with example knocks, not live. Caller A knocks with a new key and is Lodged 202; the first story is held. Caller A replays the same key and payload and is Recalled 200, no second ship. Caller B knocks the same key with a different payload and gets 409: public held versus incoming, Occupied and Contested, nothing crowned. Then the loop returns to Knock.">
-        <div class="rl-projection" aria-hidden="true"></div>
-        <div class="rl-demo-tag">Demo · example knocks · not live</div>
-        <div class="rl-tape" aria-hidden="true"><div class="rl-reel" data-reel></div></div>
-        <div class="rl-gate" data-gate data-tone="contested" aria-hidden="true">
-          <div class="rl-gate-label">door<b data-gate-b>k-01 · held | incoming</b></div>
+      <div class="q-stage" data-door-stage role="img" aria-label="Door loop with example knocks, not live. Caller A knocks with a new key and is Lodged 202; the first story is held. Caller A replays the same key and payload and is Recalled 200, no second ship. Caller B knocks the same key with a different payload and gets 409: public held versus incoming, Occupied and Contested, nothing crowned. Then the loop returns to Knock.">
+        <div class="q-projection" aria-hidden="true"></div>
+        <div class="q-tape" aria-hidden="true"><div class="q-reel" data-reel><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>A<small>caller</small></b><code>k-01</code><em>story A</em><span>knock</span></div><div class="q-frame recalled" style="--tone: var(--st-recalled)"><b>A<small>caller</small></b><code>k-01</code><em>story A</em><span>replay</span></div><div class="q-frame contested" style="--tone: var(--st-contested)"><b>B<small>caller</small></b><code>k-01</code><em>story B</em><span>rival</span></div><div class="q-frame idle"><b>·</b><code>—</code><span>idle</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>A<small>caller</small></b><code>k-01</code><em>story A</em><span>knock</span></div><div class="q-frame idle"><b>·</b><code>—</code><span>idle</span></div><div class="q-frame recalled" style="--tone: var(--st-recalled)"><b>A<small>caller</small></b><code>k-01</code><em>story A</em><span>replay</span></div><div class="q-frame contested" style="--tone: var(--st-contested)"><b>B<small>caller</small></b><code>k-01</code><em>story B</em><span>rival</span></div></div></div>
+        <div class="q-gate" data-gate data-tone="contested" aria-hidden="true"></div>
+        <div class="q-stage-head">
+          <div class="q-gate-readout" data-gate-readout data-tone="contested" aria-hidden="true">door<b data-gate-b>k-01 · held | incoming</b></div>
+          <div class="q-demo-tag">Demo · example knocks · not live</div>
         </div>
-        <div class="rl-margin" data-margin aria-hidden="true">
-          <div class="rl-slotwrap">
-            <article class="rl-card held" data-plate="a">
-              <i class="rl-press" aria-hidden="true"></i>
-              <div class="rl-mark held" data-mark>held</div>
-              <div class="rl-label">Caller A · story A</div>
-              <div class="rl-meta"><span data-meta>first caller · the held story</span><span class="rl-code" data-code>202</span></div>
+        <div class="q-margin" data-margin aria-hidden="true">
+          <div class="q-slotwrap">
+            <article class="q-card held" data-plate="a">
+              <i class="q-press" aria-hidden="true"></i>
+              <div class="q-mark held" data-mark>held</div>
+              <div class="q-label">Caller A · story A</div>
+              <div class="q-meta"><span data-meta>first caller · the held story</span><span class="q-code" data-code>202</span></div>
             </article>
-            <div class="rl-slot">vacant</div>
+            <div class="q-slot">vacant</div>
           </div>
-          <div class="rl-slotwrap">
-            <article class="rl-card recalled" data-plate="r">
-              <i class="rl-press" aria-hidden="true"></i>
-              <div class="rl-mark recalled" data-mark>recalled</div>
-              <div class="rl-label">Caller A · replay</div>
-              <div class="rl-meta"><span data-meta>same key · same payload · no second ship</span><span class="rl-code" data-code>200</span></div>
+          <div class="q-slotwrap">
+            <article class="q-card recalled" data-plate="r">
+              <i class="q-press" aria-hidden="true"></i>
+              <div class="q-mark recalled" data-mark>recalled</div>
+              <div class="q-label">Caller A · replay</div>
+              <div class="q-meta"><span data-meta>same key · same payload · no second ship</span><span class="q-code" data-code>200</span></div>
             </article>
-            <div class="rl-slot">vacant</div>
+            <div class="q-slot">vacant</div>
           </div>
-          <div class="rl-slotwrap">
-            <article class="rl-card contested" data-plate="b">
-              <i class="rl-press" aria-hidden="true"></i>
-              <div class="rl-mark contested" data-mark>contested</div>
-              <div class="rl-label">Caller B · story B</div>
-              <div class="rl-meta"><span data-meta>same key · different payload</span><span class="rl-code" data-code>409</span></div>
-              <div class="rl-lanes" data-lanes>
-                <div class="rl-lane held"><strong>held</strong><code>story A</code><span>Occupied</span></div>
-                <span class="rl-vs">vs</span>
-                <div class="rl-lane incoming"><strong>incoming</strong><code>story B</code><span>Contested</span></div>
+          <div class="q-slotwrap">
+            <article class="q-card contested" data-plate="b">
+              <i class="q-press" aria-hidden="true"></i>
+              <div class="q-mark contested" data-mark>contested</div>
+              <div class="q-label">Caller B · story B</div>
+              <div class="q-meta"><span data-meta>same key · different payload</span><span class="q-code" data-code>409</span></div>
+              <div class="q-lanes" data-lanes>
+                <div class="q-lane held"><strong>held</strong><code>story A</code><span>Occupied</span></div>
+                <span class="q-vs">vs</span>
+                <div class="q-lane incoming"><strong>incoming</strong><code>story B</code><span>Contested</span></div>
               </div>
             </article>
-            <div class="rl-slot">vacant</div>
+            <div class="q-slot">vacant</div>
           </div>
         </div>
-        <div class="rl-step">
-          <div class="rl-dots" data-dots><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+        <div class="q-step">
+          <div class="q-dots" data-dots><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
           <span data-step>Held | incoming. Neither story is crowned.</span>
         </div>
       </div>
     </section>
 
-    <div class="rl-wrap">
-      <p class="rl-speech board-speech"><b>Shared ship door — this is a page.</b> Public name Rivalatch. Wire, env, and packages still say VibeGate (<code>VIBEGATE_*</code>, <code>vibegate-*</code>, <code>X-VibeGate-Signature-256</code>). No keys on this site. The loop above uses example callers and keys; nothing on this page knocks the door.</p>
+    <div class="wrap">
+      <p class="q-speech"><b>Shared ship door — this is a page.</b> Public name Rivalatch. Wire, env, and packages still say VibeGate (<code>VIBEGATE_*</code>, <code>vibegate-*</code>, <code>X-VibeGate-Signature-256</code>). No keys on this site. The loop above uses example callers and keys; nothing on this page knocks the door.</p>
     </div>
 
     <!-- ── Door prose: marks legend ───────────────────────── -->
-    <section class="rl-band" id="vocabulary">
-      <div class="rl-wrap">
-        <p class="rl-kicker">Door prose</p>
-        <h2 class="rl-title">Lodged. Recalled. Contested.</h2>
-        <p class="rl-sub">Same three frozen tools. Wire numbers unchanged. Tags are operator speech only. Each tag has one shape and one color, so it reads at a glance and in grayscale.</p>
-        <div class="rl-legend" data-reveal-group>
-          <article class="rl-card knock" data-reveal>
-            <div class="rl-mark knock">knock</div>
+    <section class="section" id="vocabulary">
+      <div class="wrap">
+        <p class="kicker">Door prose</p>
+        <h2 class="section-title">Lodged. Recalled. Contested.</h2>
+        <p class="section-sub">Same three frozen tools. Wire numbers unchanged. Tags are operator speech only. Each tag has one shape and one color, so it reads at a glance and in grayscale.</p>
+        <div class="q-legend" data-reveal-group>
+          <article class="q-card knock" data-reveal>
+            <div class="q-mark knock">knock</div>
             <p><code>gate.run</code> with an <code>idempotency_key</code>. The door decides; the caller does not.</p>
           </article>
-          <article class="rl-card lodged" data-reveal>
-            <div class="rl-mark lodged">lodged <span class="rl-code">202</span></div>
+          <article class="q-card lodged" data-reveal>
+            <div class="q-mark lodged">lodged <span class="q-code">202</span></div>
             <p>New <code>idempotency_key</code>. First caller gets in. Job queues on the shared door — the held story.</p>
           </article>
-          <article class="rl-card recalled" data-reveal>
-            <div class="rl-mark recalled">recalled <span class="rl-code">200</span></div>
+          <article class="q-card recalled" data-reveal>
+            <div class="q-mark recalled">recalled <span class="q-code">200</span></div>
             <p>Same key, same payload. Idempotent return of the existing job — no second ship.</p>
           </article>
-          <article class="rl-card held" data-reveal>
-            <div class="rl-mark held">occupied <span class="rl-code">409 held</span></div>
+          <article class="q-card held" data-reveal>
+            <div class="q-mark held">occupied <span class="q-code">409 held</span></div>
             <p>The slot is already taken. The public <strong>held</strong> story is not yours.</p>
           </article>
-          <article class="rl-card contested" data-reveal>
-            <i class="rl-press" aria-hidden="true"></i>
-            <div class="rl-mark contested">contested <span class="rl-code">409 incoming</span></div>
+          <article class="q-card contested" data-reveal>
+            <i class="q-press" aria-hidden="true"></i>
+            <div class="q-mark contested">contested <span class="q-code">409 incoming</span></div>
             <p>Same key, different payload. Rival knock. Public detail shows <strong>held | incoming</strong> — never crown private fields.</p>
           </article>
-          <article class="rl-card nocrown" data-reveal>
-            <div class="rl-mark nocrown">no crown</div>
+          <article class="q-card nocrown" data-reveal>
+            <div class="q-mark nocrown">no crown</div>
             <p>Private <code>hold_readings</code> stay private. The door shows two public stories and picks no winner.</p>
           </article>
         </div>
-        <p class="rl-wire-note wire-note">Tools: <code>gate.run</code> · <code>gate.status</code> · <code>gate.get_result</code>. Auth header name only: <code>X-Api-Key</code> (bring your own; never paste keys into Pages).</p>
+        <p class="q-wire-note">Tools: <code>gate.run</code> · <code>gate.status</code> · <code>gate.get_result</code>. Auth header name only: <code>X-Api-Key</code> (bring your own; never paste keys into Pages).</p>
       </div>
     </section>
 
     <!-- ── The rule, drawn ─────────────────────────────────── -->
-    <section class="rl-band" id="rule">
-      <div class="rl-wrap">
-        <p class="rl-kicker">The rule, drawn</p>
-        <h2 class="rl-title">One key. Three answers.</h2>
-        <p class="rl-sub">The whole door is a lookup on two questions: has this <code>idempotency_key</code> been lodged, and does the payload match? This is the frozen behavior, not measured traffic.</p>
+    <section class="section" id="rule">
+      <div class="wrap">
+        <p class="kicker">The rule, drawn</p>
+        <h2 class="section-title">One key. Three answers.</h2>
+        <p class="section-sub">The whole door is a lookup on two questions: has this <code>idempotency_key</code> been lodged, and does the payload match? This is the frozen behavior, not measured traffic.</p>
 
-        <div class="rl-viz">
-          <figure class="rl-matrix" data-reveal aria-label="Decision grid. New key with any payload: 202 Lodged. Seen key with the same payload: 200 Recalled. Seen key with a different payload: 409 held or incoming.">
-            <div class="rl-matrix-grid">
-              <span class="rl-axis rl-axis-corner">key \ payload</span>
-              <span class="rl-axis">same</span>
-              <span class="rl-axis">different</span>
+        <div class="q-viz">
+          <figure class="q-matrix" data-reveal aria-label="Decision grid. New key with any payload: 202 Lodged. Seen key with the same payload: 200 Recalled. Seen key with a different payload: 409 held or incoming.">
+            <div class="q-matrix-grid">
+              <span class="q-axis q-axis-corner">key \ payload</span>
+              <span class="q-axis">same</span>
+              <span class="q-axis">different</span>
 
-              <span class="rl-axis rl-axis-row">new</span>
-              <div class="rl-cell lodged span2"><span class="rl-mark lodged">lodged</span><b>202</b><small>any payload · first caller gets in</small></div>
+              <span class="q-axis q-axis-row">new</span>
+              <div class="q-cell lodged span2"><span class="q-mark lodged">lodged</span><b>202</b><small>any payload · first caller gets in</small></div>
 
-              <span class="rl-axis rl-axis-row">seen</span>
-              <div class="rl-cell recalled"><span class="rl-mark recalled">recalled</span><b>200</b><small>same job_id · no second ship</small></div>
-              <div class="rl-cell contested"><i class="rl-press" aria-hidden="true"></i><span class="rl-mark contested">held | incoming</span><b>409</b><small>Occupied · Contested</small></div>
+              <span class="q-axis q-axis-row">seen</span>
+              <div class="q-cell recalled"><span class="q-mark recalled">recalled</span><b>200</b><small>same job_id · no second ship</small></div>
+              <div class="q-cell contested"><i class="q-press" aria-hidden="true"></i><span class="q-mark contested">held | incoming</span><b>409</b><small>Occupied · Contested</small></div>
             </div>
             <figcaption>Wire codes are the frozen door (<code>202</code> / <code>200</code> / <code>409</code>). Lodged, Recalled, Occupied, Contested are prose, not response fields.</figcaption>
           </figure>
 
-          <figure class="rl-track" data-reveal aria-label="One knock, three calls: gate.run, then gate.status polled, then gate.get_result returns a terminal GateResult. Optional webhook is signed with X-VibeGate-Signature-256 and fails closed if the secret is missing.">
-            <ol class="rl-steps">
-              <li class="rl-node" style="--i:0">
-                <span class="rl-dot lodged" aria-hidden="true"></span>
+          <figure class="q-track" data-reveal aria-label="One knock, three calls: gate.run, then gate.status polled, then gate.get_result returns a terminal GateResult. Optional webhook is signed with X-VibeGate-Signature-256 and fails closed if the secret is missing.">
+            <ol class="q-steps">
+              <li class="q-node" style="--i:0">
+                <span class="q-dot lodged" aria-hidden="true"></span>
                 <b>gate.run</b>
                 <code>POST /v1/gate/run</code>
                 <small>202 · 200 · 409 by the rule</small>
               </li>
-              <li class="rl-node" style="--i:1">
-                <span class="rl-dot held poll" aria-hidden="true"></span>
+              <li class="q-node" style="--i:1">
+                <span class="q-dot held poll" aria-hidden="true"></span>
                 <b>gate.status</b>
                 <code>GET /v1/gate/status/<wbr>{job_id}</code>
                 <small>poll until terminal</small>
               </li>
-              <li class="rl-node" style="--i:2">
-                <span class="rl-dot result" aria-hidden="true"></span>
+              <li class="q-node" style="--i:2">
+                <span class="q-dot result" aria-hidden="true"></span>
                 <b>gate.get_result</b>
                 <code>GET /v1/gate/results/<wbr>{job_id}</code>
                 <small>terminal GateResult</small>
               </li>
             </ol>
-            <div class="rl-hook rl-node" style="--i:3">
-              <span class="rl-mark nocrown">webhook · optional</span>
+            <div class="q-hook q-node" style="--i:3">
+              <span class="q-mark nocrown">webhook · optional</span>
               <code>X-VibeGate-Signature-256: sha256=&lt;hex&gt;</code>
               <small><code>secret_id</code> set but secret missing → no unsigned send (fail-closed)</small>
             </div>
@@ -220,48 +220,48 @@
     </section>
 
     <!-- ── Ways to knock ───────────────────────────────────── -->
-    <section class="rl-band" id="knock">
-      <div class="rl-wrap">
-        <p class="rl-kicker">Ways to knock</p>
-        <h2 class="rl-title">Every path reaches the same three tools.</h2>
-        <p class="rl-sub">HTTP, MCP, a share-sheet link, or a Qoresence commit. No fourth tool and no new GateResult fields on any path.</p>
-        <div class="rl-rules" data-reveal-group>
-          <article class="rl-rule" data-reveal><span class="rl-path">/v1/gate/*</span><h3>HTTP REST</h3><p><code>POST /v1/gate/run</code>, then status and result by <code>job_id</code>. Header <code>X-Api-Key</code>; the key is yours and never on this page.</p></article>
-          <article class="rl-rule" data-reveal><span class="rl-path">vibegate-mcp</span><h3>MCP over stdio</h3><p>Same three tools for Cursor, Claude Code, Codex, and Grok Build. Shared door, not a sandbox.</p></article>
-          <article class="rl-rule" data-reveal><span class="rl-path">POST /mcp</span><h3>MCP over HTTPS</h3><p>Optional and additive. JSON-RPC body isomorphic to stdio. Same <code>X-Api-Key</code> as REST.</p></article>
-          <article class="rl-rule" data-reveal><span class="rl-path">rivalatch://knock?…</span><h3>MOBILE_KNOCKER</h3><p>Share-sheet / deep-link proof into the frozen door. Query keys map 1:1 onto <code>gate.run</code> fields. No native store app.</p></article>
-          <article class="rl-rule" data-reveal><span class="rl-path">qoresence-&lt;ship|glass&gt;-&lt;sha&gt;</span><h3>Qoresence ship knock</h3><p>A pushed Qoresence commit lodges as <code>app_ref.type=git</code>. Same tip, same surface → Recalled, not a second job. <a href="https://github.com/ConWan30/Qoresence/blob/main/docs/RIVALATCH_SHIP_KNOCK.md">RIVALATCH_SHIP_KNOCK.md</a></p></article>
-          <article class="rl-rule" data-reveal><span class="rl-path">HOLD</span><h3>Honest when unknown</h3><p>Tip unknown → the Mobile Glass pill shows HOLD and builds no link. A local commit that is not pushed cannot be cloned.</p></article>
+    <section class="section" id="knock">
+      <div class="wrap">
+        <p class="kicker">Ways to knock</p>
+        <h2 class="section-title">Every path reaches the same three tools.</h2>
+        <p class="section-sub">HTTP, MCP, a share-sheet link, or a Qoresence commit. No fourth tool and no new GateResult fields on any path.</p>
+        <div class="q-rules" data-reveal-group>
+          <article class="q-rule" data-reveal><span class="q-path">/v1/gate/*</span><h3>HTTP REST</h3><p><code>POST /v1/gate/run</code>, then status and result by <code>job_id</code>. Header <code>X-Api-Key</code>; the key is yours and never on this page.</p></article>
+          <article class="q-rule" data-reveal><span class="q-path">vibegate-mcp</span><h3>MCP over stdio</h3><p>Same three tools for Cursor, Claude Code, Codex, and Grok Build. Shared door, not a sandbox.</p></article>
+          <article class="q-rule" data-reveal><span class="q-path">POST /mcp</span><h3>MCP over HTTPS</h3><p>Optional and additive. JSON-RPC body isomorphic to stdio. Same <code>X-Api-Key</code> as REST.</p></article>
+          <article class="q-rule" data-reveal><span class="q-path">rivalatch://knock?…</span><h3>MOBILE_KNOCKER</h3><p>Share-sheet / deep-link proof into the frozen door. Query keys map 1:1 onto <code>gate.run</code> fields. No native store app.</p></article>
+          <article class="q-rule" data-reveal><span class="q-path">qoresence-&lt;ship|glass&gt;-&lt;sha&gt;</span><h3>Qoresence ship knock</h3><p>A pushed Qoresence commit lodges as <code>app_ref.type=git</code>. Same tip, same surface → Recalled, not a second job. <a href="https://github.com/ConWan30/Qoresence/blob/main/docs/RIVALATCH_SHIP_KNOCK.md">RIVALATCH_SHIP_KNOCK.md</a></p></article>
+          <article class="q-rule" data-reveal><span class="q-path">HOLD</span><h3>Honest when unknown</h3><p>Tip unknown → the Mobile Glass pill shows HOLD and builds no link. A local commit that is not pushed cannot be cloned.</p></article>
         </div>
       </div>
     </section>
 
     <!-- ── Surfaces ─────────────────────────────────────────── -->
-    <section class="rl-band" id="paths">
-      <div class="rl-wrap">
-        <p class="rl-kicker">Public paths</p>
-        <h2 class="rl-title">Door, knocker, listing.</h2>
-        <p class="rl-sub">Live host only. This Pages surface links out — it does not proxy knocks.</p>
-        <div class="rl-surfaces" data-reveal-group>
-          <a class="rl-surface" data-reveal href="https://vibegate-production.up.railway.app"><span class="rl-path">/</span><h3>Production Ship</h3><p>Home, door board, AGENT.md, MCP cards.</p><span class="rl-go">Open door →</span></a>
-          <a class="rl-surface" data-reveal href="https://vibegate-production.up.railway.app/door/"><span class="rl-path">/door/</span><h3>Door board</h3><p>Rival feed: held | incoming, session feed, watched <code>job_id</code>s. No crown.</p><span class="rl-go">Open →</span></a>
-          <a class="rl-surface" data-reveal href="https://vibegate-production.up.railway.app/AGENT.md"><span class="rl-path">/AGENT.md</span><h3>Agent card</h3><p>Install, tools, minimal <code>gate.run</code> body, webhook HMAC.</p><span class="rl-go">Read →</span></a>
-          <a class="rl-surface" data-reveal href="https://vibegate-production.up.railway.app/MCP.md"><span class="rl-path">/MCP.md</span><h3>MCP cards</h3><p>Cursor, Claude Code, Codex, Grok Build install cards.</p><span class="rl-go">Read →</span></a>
-          <a class="rl-surface" data-reveal href="https://vibegate-production.up.railway.app/MOBILE_KNOCKER.md"><span class="rl-path">/MOBILE_KNOCKER.md</span><h3>MOBILE_KNOCKER</h3><p>Share-sheet / deep-link proof into the frozen door.</p><span class="rl-go">Read →</span></a>
-          <a class="rl-surface" data-reveal href="https://vibegate-production.up.railway.app/listing/"><span class="rl-path">/listing/</span><h3>Public product blurb</h3><p>Directory website / privacy / terms / support cards.</p><span class="rl-go">Open →</span></a>
+    <section class="section" id="paths">
+      <div class="wrap">
+        <p class="kicker">Public paths</p>
+        <h2 class="section-title">Door, knocker, listing.</h2>
+        <p class="section-sub">Live host only. This Pages surface links out — it does not proxy knocks.</p>
+        <div class="q-surfaces" data-reveal-group>
+          <a class="q-surface" data-reveal href="https://vibegate-production.up.railway.app"><span class="q-path">/</span><h3>Production Ship</h3><p>Home, door board, AGENT.md, MCP cards.</p><span class="q-go">Open door →</span></a>
+          <a class="q-surface" data-reveal href="https://vibegate-production.up.railway.app/door/"><span class="q-path">/door/</span><h3>Door board</h3><p>Rival feed: held | incoming, session feed, watched <code>job_id</code>s. No crown.</p><span class="q-go">Open →</span></a>
+          <a class="q-surface" data-reveal href="https://vibegate-production.up.railway.app/AGENT.md"><span class="q-path">/AGENT.md</span><h3>Agent card</h3><p>Install, tools, minimal <code>gate.run</code> body, webhook HMAC.</p><span class="q-go">Read →</span></a>
+          <a class="q-surface" data-reveal href="https://vibegate-production.up.railway.app/MCP.md"><span class="q-path">/MCP.md</span><h3>MCP cards</h3><p>Cursor, Claude Code, Codex, Grok Build install cards.</p><span class="q-go">Read →</span></a>
+          <a class="q-surface" data-reveal href="https://vibegate-production.up.railway.app/MOBILE_KNOCKER.md"><span class="q-path">/MOBILE_KNOCKER.md</span><h3>MOBILE_KNOCKER</h3><p>Share-sheet / deep-link proof into the frozen door.</p><span class="q-go">Read →</span></a>
+          <a class="q-surface" data-reveal href="https://vibegate-production.up.railway.app/listing/"><span class="q-path">/listing/</span><h3>Public product blurb</h3><p>Directory website / privacy / terms / support cards.</p><span class="q-go">Open →</span></a>
         </div>
 
-        <div class="rl-different" data-reveal>
-          <span class="rl-path">Qoresence</span>
+        <div class="q-different" data-reveal>
+          <span class="q-path">Qoresence</span>
           <h3>Different job</h3>
           <p>This Pages home stays the observatory hallway. Rivalatch is the peer door for rival agents — linked, not merged into Spec.</p>
         </div>
-        <p class="rl-notin"><b>Out of product:</b> a sandbox console, a CI dashboard, a marketplace, billing, a winner between rival stories, new Spec fields, API keys on Pages.</p>
+        <p class="q-notin"><b>Out of product:</b> a sandbox console, a CI dashboard, a marketplace, billing, a winner between rival stories, new Spec fields, API keys on Pages.</p>
 
-        <div class="rl-cta rl-cta-end">
-          <a class="rl-btn primary" href="https://vibegate-production.up.railway.app">Enter Rivalatch</a>
-          <a class="rl-btn" href="./index.html">Back to Qoresence home</a>
-          <a class="rl-btn" href="https://vibegate-production.up.railway.app/AGENT.md">AGENT.md</a>
+        <div class="actions">
+          <a class="button primary" href="https://vibegate-production.up.railway.app">Enter Rivalatch</a>
+          <a class="button" href="./index.html">Back to Qoresence home</a>
+          <a class="button" href="https://vibegate-production.up.railway.app/AGENT.md">AGENT.md</a>
         </div>
       </div>
     </section>
@@ -280,6 +280,5 @@
     </div>
   </footer>
   <script src="./site.js" defer></script>
-  <script src="./rivalatch-motion.js" defer></script>
 </body>
 </html>

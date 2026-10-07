@@ -2,7 +2,76 @@
 
 Live today: https://conwan30.github.io/Qoresence/
 
-## Motion stage (2026-10-03)
+## One design system (2026-10-07)
+
+Operator direction: one look for the whole Pages site. **Colors and fonts are
+Qoresence's** (Aperture Glass, same tokens as `glass/src/styles.css`);
+**layout, glass plates, header, section rhythm, and motion come from the
+Rivalatch door page**. Every `docs/*.html` page links exactly one stylesheet
+(`docs/aperture.css`) and one script (`docs/site.js`). No page carries its own
+`<style>` block or motion file. `trace.html` keeps its inline viewer script.
+
+| Token | Value | Use |
+|---|---|---|
+| `--bg` void | `#05060a` | page |
+| `--surface` well / `--subtle` plate | `#0b0d14` / `#12151e` | plates, wells |
+| `--fg` star | `#e8eaf2` | headings, values |
+| `--muted` iron | `#8b90a0` | body copy, small text (5.7:1 on plate) |
+| `--dim` iron dim | `#5b6070` | decoration only (2.9:1 — never body text) |
+| `--live` aperture | `#9be7ff` | primary action, current page, lodged/card |
+| `--fast` brass | `#d7b36a` | held / HOLD, notices |
+| `--veto` | `#e07a7a` | contested, "not" panels |
+| `--font-display` / `--font-sans` | Instrument Sans 400/500/600 | display + body |
+| `--font-mono` | IBM Plex Mono 500/600 | kickers, wire, codes |
+| `--ease` | `cubic-bezier(0.23, 1, 0.32, 1)` | the only easing curve (hover 160ms, settle 620ms, draw 900ms) |
+
+Status hues map onto that palette and always pair with a glyph, so they read
+in grayscale: knock = iron ring, lodged = aperture ring+core, recalled = star
+double ring, held = brass diamond+pin, contested = veto wedges + two-sided
+press, no crown = iron dotted ring. Hold-loop marks reuse them: open = iron
+ring, card = aperture core, HOLD = brass diamond, idle = iron dotted, dark =
+iron bar.
+
+**Shared pieces** (all in `aperture.css`): glass mast header with pill nav and
+an opaque dropdown under 680px; kicker + display type scale; stacked section
+heads; glass plates with a 2px tone rule and a 2px hover lift; the `q-stage`
+(film tape + bracket + margin plates + step dots) used by both stages.
+
+**Motion** (all in `site.js`): plates settle in once on scroll (70ms stagger,
+then hand back to normal styles so hover still lifts); video plinths shutter
+open once; two 16s beat stages share one engine:
+
+- **Hold loop** (home, `[data-hold-stage]`): Open card → Card · opened once →
+  HOLD (ident, not a game image) → Board not licensed □ – □ → Pad · Idle → No
+  ConfirmTicket → not play (stage goes dark) → return. Labeled "Demo · HOLD ·
+  not a live session". No digits, clock values, teams, or LIVE lamp.
+- **Door loop** (Rivalatch, `[data-door-stage]`): Knock → Lodged 202 → held →
+  Replay → Recalled 200 → Rival → Contested 409 → return. Example callers.
+
+`prefers-reduced-motion: reduce` turns every animation and transition off and
+shows one settled frame (home: No ticket; Rivalatch: Contested). Without JS the
+markup is that settled frame and nothing starts hidden: reveal and shutter
+only hide content under `html.q-motion`, which the script adds. Hidden tabs
+stop the loop timers.
+
+The old "flat void, no radial wash" deck law is relaxed for Pages only: a faint
+aperture/brass ambient light sits behind content (no scanlines, no glow on
+text). The Deck itself is unchanged.
+
+**Fonts**: `docs/fonts/` now ships the five woff2 files that `aperture.css`
+requests (copied byte-for-byte from `glass/src/fonts`) plus both OFL license
+texts. The jsdelivr CDN fallback is gone; `@font-face` is local-only, so there
+are no font 404s and no third-party font requests. See `docs/fonts/README.md`.
+
+Retired: `docs/motion.css`, `docs/motion.js` (spring hold loop),
+`docs/pages-next.css`, `docs/rivalatch-motion.css`, `docs/rivalatch-motion.js`.
+`tests/test_rivalatch_pages.py` checks the one-stylesheet/one-script rule,
+local font URLs, licenses, tokens, links, non-claims, and both loops.
+
+## Motion stage (2026-10-03, superseded 2026-10-07)
+
+Replaced by the Hold loop above (same eight states, now on the shared stage).
+Kept for history.
 
 The first hallway plinth is a hold loop, not a static logo. One iron shape
 on the void (`#05060a`), no cuts: it changes size, radius, and content.
@@ -52,13 +121,6 @@ from `site.js`. `#watch` and `#proof` stay on home.
 `trace.html` and `dark.html` keep their bodies; chrome matches the hallway.
 
 Do not promote overlay, Streamr, Twitch, or a launcher as the product face.
-
-## Aperture Glass migration (2026-08-30)
-
-The public site now mirrors the Retina Deck's **Aperture Glass** token system
-(`glass/src/styles.css`) instead of the earlier "night field-ops / phosphor
-broadcast" palette. One aesthetic for every surface — the operator Deck and the
-GitHub Pages site share the same machined iron chrome.
 
 ## Aperture Glass migration (2026-08-30)
 

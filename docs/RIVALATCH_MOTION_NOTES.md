@@ -10,54 +10,56 @@ A Rivalatch-themed motion surface on the Qoresence GitHub Pages hallway,
 without inventing Spec fields, without embedding API keys, and without claiming
 a live Ship session. Public name **Rivalatch**; wire identifiers stay VibeGate.
 
-## Design language (Gloss)
+## Design language
 
-The page uses the design language of [ConWan30/Gloss](https://github.com/ConWan30/Gloss)
-(`docs/MOTION_NOTES.md`, `public/gloss.css`), adapted to the door. Gloss content
-is not copied; only tokens, type, plate treatment, and motion rules.
+The page started in the design language of [ConWan30/Gloss](https://github.com/ConWan30/Gloss)
+(tape, bracket, margin plates, marks). On 2026-10-07 it moved onto the
+Qoresence palette and fonts, and its layout and motion became the system for
+the whole Pages site (see `docs/PAGES_REDESIGN_NOTES.md`, "One design
+system"). Gloss content is not copied.
 
-| Gloss | Rivalatch door |
+| Gloss idea | Rivalatch door |
 |---|---|
 | Live tape strip | Knock tape: example callers A / B with key `k-01` advance under the door |
-| Window bracket | Door bracket: label shows the key and the door's answer |
+| Window bracket | Door bracket over the tape; its readout (`door k-01 · held \| incoming`) sits in the stage head beside the demo tag, so it never covers a frame |
 | Reading plates in the margin | Answer plates: Lodged, Recalled, Contested (with `held \| incoming` lanes) |
 | Marks (shape + one hue) | Door tags (shape + one hue), see below |
 | Clash (two pressures, neither crowned) | Contested 409: held vs incoming, no crown |
-| Hold (sealed, gold) | The held story (first caller); Occupied = 409 held |
+| Hold (sealed) | The held story (first caller); Occupied = 409 held |
 | Echo (same reading, other words) | Recalled 200: same key + payload returns the same job |
-| Caption □ / demo tag | "Demo · example knocks · not live" tag + example wire readout |
+| Caption / demo tag | "Demo · example knocks · not live" tag + example wire readout |
 
-Tokens are scoped to `body.rl` in `rivalatch-motion.css`. The shared Aperture
-tokens (`--bg`, `--fg`, `--primary`, `--font-*`, …) are re-pointed on this page
-only, so the site header/nav match without touching other Pages. Fonts are the
-Gloss system stacks (serif display, system sans, ui-monospace); nothing is
-fetched.
+Tokens and fonts are the shared Qoresence ones in `docs/aperture.css`
+(Instrument Sans + IBM Plex Mono, self-hosted).
 
 ### Door tags
 
-| Tag | Wire | Glyph | Hue |
+| Tag | Wire | Glyph | Hue (token) |
 |---|---|---|---|
-| knock | `gate.run` | hollow ring (breathes while open) | `#b4aea2` |
-| lodged | 202 | ring with a core | `#8fb898` |
-| recalled | 200 | two overlapping rings | `#a698d2` |
-| held / occupied | 202 held story / 409 held | sealed diamond + pin | `#e2c072` |
-| contested | 409 incoming | two wedges meeting + two-sided press | `#d76d61` |
-| no crown | — | dotted ring | `#8796a6` |
+| knock | `gate.run` | hollow ring (breathes while open) | iron `#8b90a0` |
+| lodged | 202 | ring with a core | aperture `#9be7ff` |
+| recalled | 200 | two overlapping rings | star `#e8eaf2` |
+| held / occupied | 202 held story / 409 held | sealed diamond + pin | brass `#d7b36a` |
+| contested | 409 incoming | two wedges meeting + two-sided press | veto `#e07a7a` |
+| no crown | — | dotted ring, dashed plate | iron `#8b90a0` |
+
+Knock and no crown share a hue but never a glyph (ring vs dotted ring, solid
+vs dashed plate). All hues are at least 5.7:1 on the plate color.
 
 Prose tags only. HTTP numbers are the frozen door (`202` / `200` / `409`).
 No GateResult / OpenAPI / MCP tool invention.
 
 ## Motion
 
-Gloss rules: one settle curve `cubic-bezier(0.2, 0.7, 0.1, 1)`, 400–900ms, no
+One settle curve (the site `--ease`, `cubic-bezier(0.23, 1, 0.32, 1)`), 400–900ms, no
 bounce, no neon glow. A plate animates only when it is new (`is-new`, 620ms
 settle) or when its tag changes (`is-remarked`, one soft ring; held plays one
 900ms seal). Contested keeps a slow two-sided press; knock breathes. The tape
 advances linearly with `transform` only (32s). Sections settle in once on
 scroll (IntersectionObserver, 70ms stagger); the request line in "The rule,
-drawn" draws once. Hover: surfaces lift 2px with a gold edge (200ms).
+drawn" draws once. Hover: surfaces lift 2px with an aperture edge (160ms).
 
-Door loop (`rivalatch-motion.js`), 16s period, eight 2s beats:
+Door loop (`site.js`, `[data-door-stage]`), 16s period, eight 2s beats:
 
 | # | t | Beat | Stage |
 |---|---|---|---|
@@ -87,11 +89,11 @@ timers. Without `backdrop-filter`, plates fall back to opaque fills.
 | Path | Job |
 |---|---|
 | `docs/rivalatch.html` | Door hallway page + CTAs |
-| `docs/rivalatch-motion.css` | Gloss-language tokens, plates, stage, motion (scoped to `body.rl`) |
-| `docs/rivalatch-motion.js` | Door loop beats + scroll settle; exports `BEATS` / `beatAt` for tests |
+| `docs/aperture.css` | Shared site stylesheet: tokens, fonts, plates, `q-stage`, motion |
+| `docs/site.js` | Shared site script: menu, reveal, door + hold loops; exports `door` / `hold` / `beatAt` for tests |
 | `docs/assets/rivalatch-icon.jpg` | Gate mark (from vibegate brand) |
 | `docs/assets/rivalatch-lockup.jpg` | Social / lockup |
-| `tests/test_rivalatch_pages.py` | Static checks: links, no keys, demo labels, reduced motion |
+| `tests/test_rivalatch_pages.py` | Static checks for every page: one stylesheet/script, local fonts, links, no keys, demo labels, reduced motion, both loops |
 | `docs/RIVALATCH_MOTION_NOTES.md` | This note |
 
 ## CTAs (public only)
