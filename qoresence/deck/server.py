@@ -804,6 +804,19 @@ def _with_lease_lamp(html: str) -> str:
     return html + inject
 
 
+_RIVALATCH_KNOCK_JS = "rivalatch-knock.js"
+
+
+def _with_rivalatch_knock(html: str) -> str:
+    """Mobile Glass only: 'Knock Rivalatch' share/deep-link pill (no key on page)."""
+    if _RIVALATCH_KNOCK_JS in html:
+        return html
+    inject = f'<script src="/{_RIVALATCH_KNOCK_JS}?v=1" defer></script>'
+    if "</body>" in html:
+        return html.replace("</body>", inject + "</body>", 1)
+    return html + inject
+
+
 def _html(name: str) -> str:
     """Prefer built Retina Deck glass SPA; fall back to qoresence/deck/*.html."""
     body = ""
@@ -819,6 +832,8 @@ def _html(name: str) -> str:
             body = f"<h1>{name} missing</h1>"
     if name == "deck.html":
         body = _with_lease_lamp(body)
+    if name == "mobile.html":
+        body = _with_rivalatch_knock(body)
     if name in _CLIP_DOCK_GLASS:
         return _with_clip_dock(body)
     return body
@@ -1412,6 +1427,22 @@ def create_app():  # type: ignore[no-untyped-def]
     @app.get("/api/glass-link")
     async def api_glass_link():  # type: ignore[no-untyped-def]
         return JSONResponse({"ok": True, **glass_link_info()})
+
+    @app.get("/api/rivalatch/knock-link")
+    async def api_rivalatch_knock_link():  # type: ignore[no-untyped-def]
+        """rivalatch://knock?… for the local checkout tip. No key; no network."""
+        from qoresence.deck.rivalatch_knock import knock_link_info
+
+        return JSONResponse(knock_link_info(), headers={"Cache-Control": "no-store"})
+
+    @app.get("/rivalatch-knock.js")
+    async def rivalatch_knock_js():  # type: ignore[no-untyped-def]
+        p = pathlib.Path(__file__).with_name(_RIVALATCH_KNOCK_JS)
+        return FileResponse(
+            p,
+            media_type="text/javascript",
+            headers={"Cache-Control": "no-cache, must-revalidate"},
+        )
 
     @app.get("/api/glass-qr")
     async def api_glass_qr():  # type: ignore[no-untyped-def]
