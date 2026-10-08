@@ -45,9 +45,9 @@
 - Using Deck LIVE as your aim monitor for competitive play  
 - Expecting coupling without PC-visible DualSense (USB / Remote Play)
 
-## Legacy Pattern A
+## Legacy Pattern A (not recommended)
 
-If you must keep OBS Preview on the physical card: Start Virtual Camera, pass VCam index to Qoresence, widen `QORESENCE_IVC_LAG_HI_MS=200`. See [tools/obs/VIRTUAL_CAM.md](../../tools/obs/VIRTUAL_CAM.md).
+The current setup is Qoresence owns the card and OBS only gets the Browser Source overlay (above). Only if you must keep OBS Preview on the physical card: Start Virtual Camera, pass VCam index to Qoresence, widen `QORESENCE_IVC_LAG_HI_MS=200`. See [tools/obs/VIRTUAL_CAM.md](../../tools/obs/VIRTUAL_CAM.md).
 
 ## Clip + buttons
 

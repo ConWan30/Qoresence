@@ -10,6 +10,11 @@ it serves docs/ locally and, at 390 / 768 / 1024 / 1280 px, fails on
  - the page itself scrolling sideways.
 The animated hero stages are skipped; below 900px the trace timeline and
 spans table scroll sideways on purpose.
+
+Front door: the home page opens with a plain-language opener (who it is for,
+what you need, what it does, Install + feedback buttons) above the hero, every
+Qoresence page links the feedback Discussion in its footer, and no page scrolls
+sideways at 375 / 768 / 1024 / 1440 px.
 """
 from __future__ import annotations
 
@@ -29,6 +34,12 @@ CSS = (DOCS / "aperture.css").read_text(encoding="utf-8")
 PAGES = ["index.html", "watch.html", "install.html", "limits.html", "trace.html",
          "trace.html?demo=1", "dark.html", "rivalatch.html"]
 WIDTHS = [390, 768, 1024, 1280]
+OVERFLOW_WIDTHS = [375, 768, 1024, 1440]
+FEEDBACK = "https://github.com/ConWan30/Qoresence/discussions/269"
+# Rivalatch is moving to its own project; its page is left untouched here.
+QORESENCE_PAGES = sorted(p for p in DOCS.glob("*.html") if p.name != "rivalatch.html")
+# Internal names that must not reach a first-time visitor without a plain gloss.
+INTERNAL_TERMS = ("FrameHub", "ConfirmTicket", "glass", "lobe", "DShow", "score_vlm_locked", "InputRing")
 
 
 def _rule(selector: str) -> str:
@@ -65,6 +76,69 @@ def test_trace_stats_cannot_spill_into_neighbours():
     assert "min-width: 0" in _rule(".stat")
     assert "overflow-wrap: anywhere" in _rule(".stat b")
     assert "repeat(3, minmax(0, 1fr))" in _rule(".summary")
+
+
+def _opener(html: str) -> str:
+    m = re.search(r'<section class="wrap q-opener"[^>]*>(.*?)</section>', html, re.S)
+    assert m, "home page has no plain-language opener"
+    return m.group(1)
+
+
+def test_home_opens_with_a_plain_language_opener_above_the_hero():
+    html = (DOCS / "index.html").read_text(encoding="utf-8")
+    opener = _opener(html)
+    main = html.index('<main id="top">')
+    assert main < html.index('class="wrap q-opener"') < html.index('class="wrap q-hero"')
+    text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", opener))
+    # who it's for
+    for word in ("PS5", "Madden", "College Football", "capture card", "Windows laptop"):
+        assert word in text, word
+    # what you need
+    for word in ("capture card", "Windows", "OBS", "Browser Source", "Optional", "DualSense"):
+        assert word in text, word
+    # what it does, in one sentence
+    assert re.search(r"reads your capture card and shows the score on your stream overlay only when it can confirm it; "
+                     r"otherwise the overlay stays blank instead of showing a wrong score\.", text)
+    # two buttons: Install first, then the feedback Discussion
+    buttons = re.findall(r'<a class="button[^"]*" href="([^"]+)">([^<]+)</a>', opener)
+    assert buttons == [("./install.html", "Install"), (FEEDBACK, "Tell me what broke")], buttons
+    # the opener is the page's h1; the hero keeps its line below it
+    assert re.search(r"<h1 [^>]*>", opener) and html.count("<h1") == 1
+    assert "Goes dark instead of lying." in html and 'data-hold-stage' in html
+    # no internal jargon in the opener
+    for term in INTERNAL_TERMS:
+        assert term.lower() not in text.lower(), term
+
+
+def test_hero_glosses_internal_terms():
+    html = (DOCS / "index.html").read_text(encoding="utf-8")
+    hero = re.search(r'<section class="wrap q-hero"[^>]*>(.*?)</section>', html, re.S).group(1)
+    lede = re.search(r'<p class="lede">(.*?)</p>', hero, re.S).group(1)
+    assert "ConfirmTicket" not in lede or "confirm check" in lede
+    for term in ("FrameHub", "InputRing", "DShow", "score_vlm_locked"):
+        assert term not in hero, term
+    js = (DOCS / "site.js").read_text(encoding="utf-8")
+    hold = js[js.index("Hold loop (home)"):js.index("var TONE_VAR")]
+    for term in ("FrameHub", "InputRing", "DShow", "ConfirmTicket"):
+        assert term not in hold, term
+
+
+@pytest.mark.parametrize("page", QORESENCE_PAGES, ids=lambda p: p.name)
+def test_every_page_links_the_feedback_discussion_in_its_footer(page: Path):
+    html = page.read_text(encoding="utf-8")
+    footer = re.search(r'<footer class="site-footer">(.*?)</footer>', html, re.S)
+    assert footer, page.name
+    assert f'href="{FEEDBACK}">Tell me what broke</a>' in footer.group(1), page.name
+
+
+def test_install_explains_execution_policy_bypass_honestly():
+    html = (DOCS / "install.html").read_text(encoding="utf-8")
+    note = re.search(r'<p class="step-note">(.*?)</p>', html, re.S)
+    assert note and "-ExecutionPolicy Bypass" in note.group(1)
+    assert "does not change your system" in note.group(1)
+    # The note is only true while the bundled script never touches the policy itself.
+    script = (ROOT / "installer" / "windows" / "Install-Qoresence.ps1").read_text(encoding="utf-8")
+    assert "Set-ExecutionPolicy" not in script
 
 
 PROBE = r"""
@@ -166,6 +240,44 @@ def test_headless_no_clipped_or_covered_text(served_docs):
                 found = {k: v for k, v in pg.evaluate(PROBE).items() if v}
                 if found:
                     problems[f"{page}@{width}"] = found
+                ctx.close()
+        browser.close()
+    assert not problems, problems
+
+
+@pytest.mark.timeout(600)
+def test_headless_no_sideways_scroll_and_opener_on_first_screen(served_docs):
+    """375 / 768 / 1024 / 1440: no page scrolls sideways; the opener and both buttons sit in the first screen."""
+    sync_api = pytest.importorskip("playwright.sync_api")
+    chrome = _chrome()
+    if not chrome:
+        pytest.skip("no Chrome/Chromium binary")
+    problems = {}
+    with sync_api.sync_playwright() as p:
+        browser = p.chromium.launch(executable_path=chrome)
+        for page in PAGES:
+            for width in OVERFLOW_WIDTHS:
+                ctx = browser.new_context(viewport={"width": width, "height": 900}, reduced_motion="reduce")
+                pg = ctx.new_page()
+                pg.goto(f"{served_docs}/{page}", wait_until="load")
+                pg.wait_for_timeout(300)
+                over = pg.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth")
+                if over > 0:
+                    problems[f"{page}@{width}"] = f"page scrolls sideways by {over}px"
+                if page == "index.html":
+                    box = pg.evaluate("""() => {
+                      const o = document.querySelector('#start .q-opener-panel');
+                      const btns = [...document.querySelectorAll('#start .actions .button')].map(b => b.getBoundingClientRect());
+                      const r = o.getBoundingClientRect();
+                      return {top: r.top, left: r.left, right: r.right, inner: innerWidth, h: innerHeight,
+                              btnBottom: Math.max(...btns.map(b => b.bottom)), btnRight: Math.max(...btns.map(b => b.right))};
+                    }""")
+                    if box["left"] < 0 or box["right"] > box["inner"] or box["btnRight"] > box["inner"]:
+                        problems[f"opener@{width}"] = f"opener spills sideways {box}"
+                    if width >= 768 and box["btnBottom"] > box["h"]:
+                        problems[f"opener-buttons@{width}"] = f"buttons below the first screen {box}"
+                    if box["top"] > box["h"] / 3:
+                        problems[f"opener-top@{width}"] = f"opener starts too low {box}"
                 ctx.close()
         browser.close()
     assert not problems, problems

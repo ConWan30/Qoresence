@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#05060a">
-  <meta name="description" content="Qoresence is a local-first observatory for gamers. One capture card, one clock. The overlay goes dark instead of lying.">
+  <meta name="description" content="For PS5 streamers playing Madden or College Football with a capture card and a Windows laptop. Qoresence reads your capture card and shows the score on your OBS overlay only when it can confirm it; otherwise the overlay stays blank instead of showing a wrong score.">
   <meta name="color-scheme" content="dark">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -19,7 +19,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@Qoresence">
   <meta name="twitter:title" content="Qoresence — goes dark instead of lying">
-  <meta name="twitter:description" content="One clock. Card opens once. The board stays blank until a ConfirmTicket licenses digits.">
+  <meta name="twitter:description" content="A score overlay for PS5 football streams that stays blank instead of showing a wrong score. Capture card + Windows laptop + OBS.">
   <meta name="twitter:image" content="https://conwan30.github.io/Qoresence/assets/qoresence-social-preview.png">
   <link rel="stylesheet" href="./aperture.css">
 </head>
@@ -50,18 +50,47 @@
   </header>
 
   <main id="top">
+    <section class="wrap q-opener" id="start" aria-labelledby="start-title">
+      <div class="q-opener-panel">
+        <div class="q-opener-lead">
+          <div class="kicker">Start here · the plain version</div>
+          <h1 id="start-title" class="q-opener-title">A score overlay that would rather stay blank than be wrong.</h1>
+          <p class="q-opener-what">Qoresence reads your capture card and shows the score on your stream overlay only when it can confirm it; otherwise the overlay stays blank instead of showing a wrong score.</p>
+          <div class="actions">
+            <a class="button primary" href="./install.html">Install</a>
+            <a class="button" href="https://github.com/ConWan30/Qoresence/discussions/269">Tell me what broke</a>
+          </div>
+        </div>
+        <div class="q-opener-facts">
+          <div class="q-opener-fact">
+            <span class="idx">Who it's for</span>
+            <p>PS5 streamers playing <b>Madden NFL 27</b> or <b>College Football 27</b> with a capture card and a Windows laptop.</p>
+          </div>
+          <div class="q-opener-fact">
+            <span class="idx">What you need</span>
+            <ul>
+              <li>An HDMI capture card between the PS5 and the laptop</li>
+              <li>A Windows 10 or 11 laptop with Python 3.11 or newer</li>
+              <li>OBS, to show the overlay as a Browser Source (Qoresence keeps the capture card; OBS never opens it)</li>
+              <li>Optional: a DualSense the laptop can see (USB), so your button presses line up with the video</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="wrap q-hero" id="watch">
       <div class="q-hero-copy">
         <div class="kicker">Local observatory</div>
-        <h1 class="display">Goes dark instead of lying.</h1>
-        <p class="lede">One capture card. HDMI and DualSense share one clock. The board stays blank until a ConfirmTicket licenses digits. Pad glyphs couple to the picture — they do not invent it.</p>
+        <h2 class="display">Goes dark instead of lying.</h2>
+        <p class="lede">One capture card. The video and your DualSense presses share one clock. The score stays blank until a confirm check (a ConfirmTicket) matches it to the picture. Button icons follow the picture — they do not invent it.</p>
         <div class="actions">
           <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Get Windows package</a>
           <a class="button" href="./watch.html">Watch this session</a>
           <a class="button" href="./rivalatch.html">Rivalatch door</a>
           <a class="button" href="https://github.com/ConWan30/Qoresence">Source</a>
         </div>
-        <p class="hero-note">Windows-first pilot · lobes default OFF · never a fake live feed</p>
+        <p class="hero-note">Windows-first pilot · optional features (“lobes”) start OFF · never a fake live feed</p>
         <figure class="q-wire" style="--tone: var(--st-held)" aria-label="Board readout on this page: empty glyphs, board not licensed.">
           <div class="q-wire-head"><span>board</span><span class="q-wire-tag">HOLD · this is a page</span></div>
           <div class="q-wire-line"><span class="q-wire-verb">□ – □</span> <span class="q-wire-arrow">→</span> <b>not licensed</b></div>
@@ -69,12 +98,12 @@
         </figure>
       </div>
 
-      <div class="q-stage" data-hold-stage role="img" aria-label="Hold loop demo, not a live session. Open card; the card opens once and glasses subscribe to FrameHub; HOLD shows the ident, not a game image; the board stays not licensed with empty glyphs; the pad is idle, which is presence evidence, not a fail; no ConfirmTicket, so digits stay dark; not play, so the theater goes dark; then the loop returns. No score.">
+      <div class="q-stage" data-hold-stage role="img" aria-label="Hold loop demo, not a live session. Open card; the card opens once and every view reads the same frames; HOLD shows the ident, not a game image; the board stays not licensed with empty glyphs; the pad is idle, which is presence evidence, not a fail; no confirm check, so the score stays blank; not play, so the theater goes dark; then the loop returns. No score.">
         <div class="q-projection" aria-hidden="true"></div>
-        <div class="q-tape" aria-hidden="true"><div class="q-reel" data-reel><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>FrameHub</em><span>picture</span></div><div class="q-frame held" style="--tone: var(--st-held)"><b>HID</b><code>edge</code><em>InputRing</em><span>pad</span></div><div class="q-frame idle"><b>·</b><code>—</code><span>idle</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>FrameHub</em><span>picture</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>FrameHub</em><span>picture</span></div><div class="q-frame idle"><b>·</b><code>—</code><span>idle</span></div><div class="q-frame held" style="--tone: var(--st-held)"><b>HID</b><code>edge</code><em>InputRing</em><span>pad</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>FrameHub</em><span>picture</span></div></div></div>
+        <div class="q-tape" aria-hidden="true"><div class="q-reel" data-reel><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>shared feed</em><span>picture</span></div><div class="q-frame held" style="--tone: var(--st-held)"><b>HID</b><code>edge</code><em>button log</em><span>pad</span></div><div class="q-frame idle"><b>·</b><code>—</code><span>idle</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>shared feed</em><span>picture</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>shared feed</em><span>picture</span></div><div class="q-frame idle"><b>·</b><code>—</code><span>idle</span></div><div class="q-frame held" style="--tone: var(--st-held)"><b>HID</b><code>edge</code><em>button log</em><span>pad</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>shared feed</em><span>picture</span></div></div></div>
         <div class="q-gate" data-gate data-tone="hold" aria-hidden="true"></div>
         <div class="q-stage-head">
-          <div class="q-gate-readout" data-gate-readout data-tone="hold" aria-hidden="true">window<b data-gate-b>no ConfirmTicket</b></div>
+          <div class="q-gate-readout" data-gate-readout data-tone="hold" aria-hidden="true">window<b data-gate-b>no confirm check</b></div>
           <div class="q-demo-tag">Demo · HOLD · not a live session</div>
         </div>
         <div class="q-margin" aria-hidden="true">
@@ -82,7 +111,7 @@
             <article class="q-card card" data-plate="card">
               <div class="q-mark card" data-mark>card</div>
               <div class="q-label" data-label>Card · opened once</div>
-              <div class="q-meta"><span data-meta>glasses subscribe to FrameHub</span><span class="q-code" data-code>1 owner</span></div>
+              <div class="q-meta"><span data-meta>every view reads the same frames</span><span class="q-code" data-code>1 owner</span></div>
             </article>
             <div class="q-slot">vacant</div>
           </div>
@@ -90,7 +119,7 @@
             <article class="q-card hold" data-plate="board">
               <div class="q-mark hold" data-mark>hold</div>
               <div class="q-label" data-label>Board not licensed</div>
-              <div class="q-meta"><span data-meta>no ConfirmTicket · digits stay dark</span><span class="q-code" data-code>□ – □</span></div>
+              <div class="q-meta"><span data-meta>no confirm check · score stays blank</span><span class="q-code" data-code>□ – □</span></div>
             </article>
             <div class="q-slot">vacant</div>
           </div>
@@ -105,7 +134,7 @@
         </div>
         <div class="q-step">
           <div class="q-dots" data-dots><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
-          <span data-step>No ticket. The board stays dark — no invented digits.</span>
+          <span data-step>No confirmed score. The board stays blank — no invented digits.</span>
         </div>
       </div>
     </section>
@@ -149,7 +178,7 @@
           <article>
             <span class="idx">Card</span>
             <h3>Opens once</h3>
-            <p>One physical DShow owner. Glasses subscribe to FrameHub. Nothing else is allowed to open the device.</p>
+            <p>One owner for the physical card: Qoresence. Every view (a “glass”) reads the same shared frames (FrameHub). OBS and everything else never open the device; OBS only gets the Browser Source overlay.</p>
           </article>
           <article>
             <span class="idx">Clock</span>
@@ -159,7 +188,7 @@
           <article>
             <span class="idx">Speech</span>
             <h3>Tickets, not guesses</h3>
-            <p>Score digits need <code>score_vlm_locked</code> and a ConfirmTicket. Flag-only lock stays dark. Quota, menu, and no key become one sentence.</p>
+            <p>Score digits need the score reader to lock on (<code>score_vlm_locked</code>) and a ConfirmTicket — a confirm check against the same frame. A lock alone stays blank. A menu, a used-up quota, or a missing API key becomes one plain sentence instead of a number.</p>
           </article>
           <article>
             <span class="idx">Clips</span>
@@ -181,6 +210,7 @@
     <div class="wrap footer-row">
       <div>Qoresence / local-first observatory / observation plane only<br>The capture card is the brain. Everything else is a glass.</div>
       <div>
+        <a class="footer-feedback" href="https://github.com/ConWan30/Qoresence/discussions/269">Tell me what broke</a> ·
         <a href="./watch.html">Watch</a> ·
         <a href="./install.html">Install</a> ·
         <a href="./limits.html">Limits</a> ·

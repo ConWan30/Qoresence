@@ -100,6 +100,7 @@ curl http://127.0.0.1:8765/api/session/view</div>
             <h3>Install</h3>
             <p>Run from the package folder.</p>
             <div class="code" data-code="powershell -ExecutionPolicy Bypass -File .\Install-Qoresence.ps1"><button class="copy" type="button" data-copy>copy</button>powershell -ExecutionPolicy Bypass -File .\Install-Qoresence.ps1</div>
+            <p class="step-note"><b>Why <code>-ExecutionPolicy Bypass</code>?</b> Windows often blocks downloaded scripts by default. This flag applies only to this one PowerShell run of the bundled <code>Install-Qoresence.ps1</code>; it does not change your system's execution policy. The script only creates a <code>.venv</code> folder inside the package folder and installs Qoresence's Python packages there.</p>
           </article>
           <article class="step">
             <div class="number">Step / 03</div>
@@ -137,7 +138,7 @@ curl http://127.0.0.1:8765/api/session/view</div>
             </ul>
           </div>
         </div>
-        <div class="notice"><strong>Hardware rule:</strong> one physical HDMI/DShow device gets one owner. Close OBS on the physical card before <code>--play</code>. Phone glass is <code>/mobile.html</code> on localhost. Same-Wi-Fi bind is opt-in, not the default.</div>
+        <div class="notice"><strong>Hardware rule:</strong> Qoresence owns the capture card (one physical HDMI/DShow device, one owner). Remove the card from OBS before <code>--play</code>; in OBS add only the Browser Source overlay, <code>http://127.0.0.1:8765/overlay.html</code>. Phone glass is <code>/mobile.html</code> on localhost. Same-Wi-Fi bind is opt-in, not the default.</div>
         <div class="actions">
           <a class="button" href="https://github.com/ConWan30/Qoresence/blob/main/docs/CAPTURE_OWNERSHIP.md">Capture ownership</a>
           <a class="button" href="https://github.com/ConWan30/Qoresence/blob/main/docs/SESSION_THEATER.md">Session Theater checklist</a>
@@ -151,6 +152,7 @@ curl http://127.0.0.1:8765/api/session/view</div>
     <div class="wrap footer-row">
       <div>Qoresence / local-first observatory / observation plane only<br>The capture card is the brain. Everything else is a glass.</div>
       <div>
+        <a class="footer-feedback" href="https://github.com/ConWan30/Qoresence/discussions/269">Tell me what broke</a> ·
         <a href="./index.html">Home</a> ·
         <a href="./watch.html">Watch</a> ·
         <a href="./limits.html">Limits</a> ·
