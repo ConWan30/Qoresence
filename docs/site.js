@@ -90,9 +90,9 @@
   };
 
   /* ── Hold loop (home). Not a live session; no score, no clock value. ── */
-  var CARD_ON = ["card", "glasses subscribe to FrameHub", "1 owner", "Card · opened once"];
+  var CARD_ON = ["card", "every view reads the same frames", "1 owner", "Card · opened once"];
   var BOARD_HOLD = ["hold", "empty glyphs stay empty", "□ – □", "Board not licensed"];
-  var BOARD_NOTICKET = ["hold", "no ConfirmTicket · digits stay dark", "□ – □", "Board not licensed"];
+  var BOARD_NOTICKET = ["hold", "no confirm check · score stays blank", "□ – □", "Board not licensed"];
   var PAD_IDLE = ["idle", "a still pad is presence evidence, not a fail", "idle", "Pad · Idle"];
   var HOLD = {
     key: "hold",
@@ -101,9 +101,9 @@
     beats: [
       { key: "open", gate: [null, "one clock · card not open"], tone: "knock",
         step: "Open card. One owner opens it once.",
-        plates: { card: ["open", "one DShow owner", "—", "Open card"], board: null, pad: null } },
+        plates: { card: ["open", "one owner: Qoresence", "—", "Open card"], board: null, pad: null } },
       { key: "capture", gate: ["card", "card · opened once"], tone: "lodged",
-        step: "Card. Glasses subscribe to FrameHub; nothing else opens it.",
+        step: "Card. Every view reads the same frames; nothing else opens it.",
         plates: { card: CARD_ON, board: null, pad: null } },
       { key: "frame", gate: ["hold", "HOLD · this is a page"], tone: "held",
         step: "HOLD. The well shows the ident, not a game image.",
@@ -114,8 +114,8 @@
       { key: "pad", gate: ["hold", "pad · idle"], tone: "held",
         step: "Pad at rest. Idle is presence evidence, not a fail.",
         plates: { card: CARD_ON, board: BOARD_HOLD, pad: PAD_IDLE } },
-      { key: "ticket", gate: ["hold", "no ConfirmTicket"], tone: "held",
-        step: "No ticket. The board stays dark — no invented digits.",
+      { key: "ticket", gate: ["hold", "no confirm check"], tone: "held",
+        step: "No confirmed score. The board stays blank — no invented digits.",
         plates: { card: CARD_ON, board: BOARD_NOTICKET, pad: PAD_IDLE } },
       { key: "dark", gate: ["dark", "not play · goes dark"], tone: "knock", dark: true,
         step: "Not play. The theater goes dark instead of lying.",
@@ -125,14 +125,14 @@
         plates: { card: "off", board: "off", pad: "off" } }
     ],
     frames: [
-      { who: "HDMI", code: "frame", em: "FrameHub", note: "picture", tone: "lodged" },
-      { who: "HID", code: "edge", em: "InputRing", note: "pad", tone: "held" },
+      { who: "HDMI", code: "frame", em: "shared feed", note: "picture", tone: "lodged" },
+      { who: "HID", code: "edge", em: "button log", note: "pad", tone: "held" },
       { idle: true },
-      { who: "HDMI", code: "frame", em: "FrameHub", note: "picture", tone: "lodged" },
-      { who: "HDMI", code: "frame", em: "FrameHub", note: "picture", tone: "lodged" },
+      { who: "HDMI", code: "frame", em: "shared feed", note: "picture", tone: "lodged" },
+      { who: "HDMI", code: "frame", em: "shared feed", note: "picture", tone: "lodged" },
       { idle: true },
-      { who: "HID", code: "edge", em: "InputRing", note: "pad", tone: "held" },
-      { who: "HDMI", code: "frame", em: "FrameHub", note: "picture", tone: "lodged" }
+      { who: "HID", code: "edge", em: "button log", note: "pad", tone: "held" },
+      { who: "HDMI", code: "frame", em: "shared feed", note: "picture", tone: "lodged" }
     ]
   };
 

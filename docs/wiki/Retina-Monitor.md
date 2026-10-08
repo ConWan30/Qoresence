@@ -42,7 +42,7 @@ pip install opencv-python
 |-------|-----|
 | **Stem Program** (`--stem-program`) | Pattern B operator eye |
 | **Retina Monitor** | Same FrameHub blit |
-| OBS Preview (physical card) | Pattern A only |
+| OBS Preview (physical card) | Not used — OBS no longer opens the card (legacy Pattern A only) |
 | Deck JPEG | Preview only |
 
 ## Troubleshooting

@@ -149,21 +149,23 @@ Docs for each: [SESSION_THEATER](docs/SESSION_THEATER.md) · [CIVIF](docs/CIVIF.
 
 ---
 
-## Capture (choose one owner)
+## Capture: Qoresence owns the card
 
-**One physical HDMI/DShow device → one owner.** Full guide: [docs/CAPTURE_OWNERSHIP.md](docs/CAPTURE_OWNERSHIP.md)
+**One physical HDMI/DShow device → one owner, and that owner is Qoresence.** OBS never opens the capture card; it only gets the overlay as a Browser Source (`http://127.0.0.1:8765/overlay.html`). Full guide: [docs/CAPTURE_OWNERSHIP.md](docs/CAPTURE_OWNERSHIP.md)
 
-| Goal | Pattern |
-|------|---------|
-| Low-lag pilot / native monitor | **B** — Qoresence owns card |
-| OBS as broadcast director | **A** — OBS owns card → Virtual Cam |
+| Job | Who does it |
+|-----|-------------|
+| Open the physical capture card | **Qoresence** (`--streamer-device`, e.g. `0`) |
+| Show the score overlay on stream | **OBS Browser Source** → `http://127.0.0.1:8765/overlay.html` |
+| Anything in OBS on the same card | Nothing — remove any Video Capture Device that points at the card |
 
 ```powershell
 python -m qoresence.cli --streamer-list
-# Pattern B (recommended): free the physical card from OBS, then:
+# Remove the physical card from OBS first, then:
 python -m qoresence.cli --play --deck --monitor --agent-glass --streamer-fps 60
-# Pattern A: OBS Video Capture on card + Start Virtual Camera, then --streamer-device <VCAM>
 ```
+
+The older "OBS owns the card → Virtual Camera" setup (legacy Pattern A) is no longer the recommended path; it is kept only in [docs/CAPTURE_OWNERSHIP.md](docs/CAPTURE_OWNERSHIP.md) for reference.
 
 ---
 
@@ -232,7 +234,7 @@ Start-Process http://127.0.0.1:8765/deck.html
 
 Session notes: [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md). While playing, `python scripts/pilot_monitor.py` writes `logs/pilot/closeout_*.md` ([docs/PILOT_MONITOR.md](docs/PILOT_MONITOR.md)). After the session stops, optional one-shot `python -m qoresence.cli --logbook` writes a short debrief from JSONL + chapters ([docs/LOGBOOK.md](docs/LOGBOOK.md); default OFF).
 
-**Gameplay eye:** TV / Retina Monitor (Pattern B) or OBS Preview (Pattern A). Shared `clock_ns` — not a stream-delay clock.
+**Gameplay eye:** your TV or the Retina Monitor (`--monitor`), both fed by the card Qoresence owns. OBS is not a gameplay eye here — it only shows the Browser Source overlay. Shared `clock_ns` — not a stream-delay clock.
 
 ClutchBot on `--play` is **Deck feed + local HDMI clips**. Twitch IRC/Helix is leftover code, default-OFF, not a launch path. Do not set `--clutchbot-channel` for the local pilot.
 
@@ -401,7 +403,7 @@ Memory wiring: `docs/SEQGATE-Memory-Wiring.md`.
 | `--ghost-stick` | on with `--play` | Pad locus on Same-Seq LIVE. `--no-ghost-stick` / `QORESENCE_GHOST_STICK=0` to opt out |
 | `--match-agent` | off | Match observer via Quicksilver muse-spark-1.3. Also `QORESENCE_MATCH_AGENT=1` on `qoresence.bat` |
 | `--tray` | off | System tray score / sync chip. On by default when you double-click `qoresence.bat` |
-| `--streamer-device N` | -1 | Auto physical card by name; or fixed index; VCam only Pattern A |
+| `--streamer-device N` | -1 | Auto physical card by name; or fixed index. Point it at the physical card (OBS Virtual Camera only for the legacy Pattern A setup) |
 | `--clutchbot` / leftover Twitch flags | off | Deck feed is already on with `--play`. Channel/token flags are leftover IRC/Helix — not the local route |
 | `--agent-glass` | off | HTTP/WS spectator API (MCP-ready) |
 | `--agent-society` | off | Leftover Society stub; opt-in only — `--play` does not enable |
@@ -460,8 +462,8 @@ Memory wiring: `docs/SEQGATE-Memory-Wiring.md`.
 | Doc | Topic |
 |-----|--------|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Core design |
-| [docs/CAPTURE_OWNERSHIP.md](docs/CAPTURE_OWNERSHIP.md) | Pattern A (OBS) vs B (Qoresence owns card) |
-| [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Extended capture operator detail |
+| [docs/CAPTURE_OWNERSHIP.md](docs/CAPTURE_OWNERSHIP.md) | Qoresence owns the card; OBS = Browser Source overlay only (legacy Pattern A kept for reference) |
+| [docs/OBS_OWNS_CARD.md](docs/OBS_OWNS_CARD.md) | Extended capture operator detail (despite the old file name, it describes the Qoresence-owns-the-card setup) |
 | [docs/X_LIVE_STUDIO.md](docs/X_LIVE_STUDIO.md) | Audience live to X via OBS Custom RTMP (not a Qoresence encoder) |
 | [docs/X_GLASS.md](docs/X_GLASS.md) | Live 0.9.0 product face — default-off X Glass (not shipped); VOD receipts = future X API |
 | [docs/PILOT_SESSION.md](docs/PILOT_SESSION.md) | CFB pilot runbook + notes |
