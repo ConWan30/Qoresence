@@ -1,0 +1,38 @@
+{
+ "_about": "Bottom 30 rows (y 330-360) of 640x360 Madden NFL 27 HDMI frames from the owner's clips, JPEG q95. Areas outside the logo, score panel and clock box are flattened to grey to keep each file a few KB. Labels are visual reads (see qoresence/vision/local_scorebug/labels/).",
+ "fixtures": {
+  "std_29_15_4th_2-38": {
+   "source_frame": "hdmi_clip_20260911_235614_001.jpg"
+  },
+  "std_14_7_2nd_1-23": {
+   "source_frame": "hdmi_clip_20260911_234020_028.jpg"
+  },
+  "std_6_0_2nd_0-50_dim": {
+   "source_frame": "hdmi_clip_20260912_013105_022.jpg"
+  },
+  "std_21_24_4th_0-32": {
+   "source_frame": "hdmi_clip_20260906_121931_004.jpg"
+  },
+  "std_22_7_3rd_4-00": {
+   "source_frame": "hdmi_clip_20260911_234709_020.jpg"
+  },
+  "std_0_0_2nd_0-53": {
+   "source_frame": "hdmi_clip_20260912_013105_004.jpg"
+  },
+  "std_red_clock": {
+   "source_frame": "hdmi_clip_20260906_122006_004.jpg"
+  },
+  "std_touchdown_banner": {
+   "source_frame": "hdmi_clip_20260912_013105_016.jpg"
+  },
+  "dark_skin": {
+   "source_frame": "hdmi_clip_20260906_181652_010.jpg"
+  },
+  "cfb": {
+   "source_frame": "hdmi_clip_20260909_194524_010.jpg"
+  },
+  "no_scorebug": {
+   "source_frame": "hdmi_clip_20260912_015442_010.jpg"
+  }
+ }
+}

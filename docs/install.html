@@ -112,6 +112,33 @@ curl http://127.0.0.1:8765/api/session/view</div>
       </div>
     </section>
 
+    <section class="section" id="scores">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Getting scores</div><h2>Sure, or blank.</h2></div>
+          <p>Qoresence shows a score only when it is sure. Otherwise the score stays blank. It never guesses.</p>
+        </div>
+        <div class="package">
+          <div class="package-panel">
+            <h3>Madden NFL 27: no key needed</h3>
+            <ul>
+              <li>A built-in reader reads the score, clock and quarter from the standard Madden scorebug, on your PC. No account, no key, no upload.</li>
+              <li>It waits for the same reading on several frames in a row before it shows a score.</li>
+              <li>It stays blank when unsure: scorebug styles it has not learned yet (like the dark primetime look), digits it has not learned yet (today: 8), banners over the score, the red final-seconds clock, overtime.</li>
+            </ul>
+          </div>
+          <div class="package-panel">
+            <h3>College Football 27: key for now</h3>
+            <ul>
+              <li>College Football and the cloud score reader need a QuicksilverPro key for now.</li>
+              <li>With a key, Madden still reads locally first and the cloud double-checks. If they disagree, the score stays blank.</li>
+              <li>Switch the local reader off with <code>QORESENCE_LOCAL_SCOREBUG=0</code>.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="section">
       <div class="wrap">
         <div class="section-head">

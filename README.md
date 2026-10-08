@@ -183,6 +183,15 @@ powershell -ExecutionPolicy Bypass -File .\Install-Qoresence.ps1
 .\Start-Qoresence.bat
 ```
 
+## Getting scores
+
+Qoresence only shows a score when it is sure. When it is not sure, the score stays blank. It never guesses.
+
+- **Madden NFL 27 works without a key.** A built-in local reader reads the score, game clock and quarter straight from the standard Madden scorebug on your capture card. It runs on your PC with no account, no API key and no upload. It needs the same reading on several frames in a row before it shows anything.
+- **The local reader stays blank when it is unsure.** That includes scorebug styles it has not learned yet (for example the dark primetime look), digits it has not learned yet (today: the digit 8), banners or replays covering the score, the red clock in the final seconds, and overtime. Blank is the safe answer, not a bug.
+- **College Football 27 and the cloud reader need a QuicksilverPro key for now.** With a key set, Madden still uses the local reader first and the cloud read double-checks it. If the two disagree, the score stays blank.
+- Turn the local reader off with `QORESENCE_LOCAL_SCOREBUG=0` (or force it on with `=1`). Details: [qoresence/vision/local_scorebug/README.md](qoresence/vision/local_scorebug/README.md).
+
 ## Quickstart (Windows-first pilot)
 
 ```powershell

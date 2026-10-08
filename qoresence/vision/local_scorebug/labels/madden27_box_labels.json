@@ -1,0 +1,3643 @@
+{
+"_about": "Frame labels for the Madden NFL 27 local scorebug reader. One row per 1 fps sample (frame NNN taken at about NNN-0.56 s) of the HDMI clips on the build box (640x360), plus two 640x360 stills. Labelled by eye by Grok Bot on 2026-10-07/08 CT from enlarged crops; NOT owner-verified. left/right = score digits as drawn left/right on the strip (null = no readable score on this frame: the reader must blank). quarter/clock only where the standard strip's clock box is fully visible; clock '?' = could not be verified (skipped). train=false = used for eval only. skin: madden_standard | madden_dark | cfb | none.",
+"profile": "madden27_standard",
+"frames": [
+{
+"frame": "hdmi_clip_20260906_111605_001.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "2:26"
+},
+{
+"frame": "hdmi_clip_20260906_111605_002.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "2:25"
+},
+{
+"frame": "hdmi_clip_20260906_111605_003.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "2:24"
+},
+{
+"frame": "hdmi_clip_20260906_111605_004.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "2:24"
+},
+{
+"frame": "hdmi_clip_20260906_111605_005.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "2:22"
+},
+{
+"frame": "hdmi_clip_20260906_111605_006.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_007.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_008.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_009.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_010.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260906_111605_011.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260906_111605_012.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260906_111605_013.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260906_111605_014.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "strip slide-in / partial: must blank"
+},
+{
+"frame": "hdmi_clip_20260906_111605_015.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 6,
+"quarter": "2nd",
+"clock": "2:21",
+"train": false,
+"note": "strip mid-animation, digits legible"
+},
+{
+"frame": "hdmi_clip_20260906_111605_016.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 6,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_017.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 6,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_018.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 6,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_019.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 6,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_020.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 6,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_021.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 6,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_022.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 6,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_023.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 6,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_024.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 6,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_025.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 6,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_026.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 7,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_027.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 7,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_028.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 7,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_029.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 7,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_111605_030.jpg",
+"clip": "hdmi_clip_20260906_111605",
+"skin": "madden_standard",
+"left": 0,
+"right": 7,
+"quarter": "2nd",
+"clock": "2:21"
+},
+{
+"frame": "hdmi_clip_20260906_121931_001.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:35"
+},
+{
+"frame": "hdmi_clip_20260906_121931_002.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:34"
+},
+{
+"frame": "hdmi_clip_20260906_121931_003.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:33"
+},
+{
+"frame": "hdmi_clip_20260906_121931_004.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_121931_005.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_121931_006.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_121931_007.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_121931_008.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_121931_009.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_121931_010.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_121931_011.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_121931_012.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_121931_013.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_121931_014.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_121931_015.jpg",
+"clip": "hdmi_clip_20260906_121931",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:32"
+},
+{
+"frame": "hdmi_clip_20260906_122006_001.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:22"
+},
+{
+"frame": "hdmi_clip_20260906_122006_002.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:21"
+},
+{
+"frame": "hdmi_clip_20260906_122006_003.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:20"
+},
+{
+"frame": "hdmi_clip_20260906_122006_004.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:19"
+},
+{
+"frame": "hdmi_clip_20260906_122006_005.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:19"
+},
+{
+"frame": "hdmi_clip_20260906_122006_006.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:18"
+},
+{
+"frame": "hdmi_clip_20260906_122006_007.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:17"
+},
+{
+"frame": "hdmi_clip_20260906_122006_008.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:16"
+},
+{
+"frame": "hdmi_clip_20260906_122006_009.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:16"
+},
+{
+"frame": "hdmi_clip_20260906_122006_010.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:15"
+},
+{
+"frame": "hdmi_clip_20260906_122006_011.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:15"
+},
+{
+"frame": "hdmi_clip_20260906_122006_012.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:14"
+},
+{
+"frame": "hdmi_clip_20260906_122006_013.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "?"
+},
+{
+"frame": "hdmi_clip_20260906_122006_014.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:11"
+},
+{
+"frame": "hdmi_clip_20260906_122006_015.jpg",
+"clip": "hdmi_clip_20260906_122006",
+"skin": "madden_standard",
+"left": 21,
+"right": 24,
+"quarter": "4th",
+"clock": "0:11"
+},
+{
+"frame": "hdmi_clip_20260906_181652_001.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_002.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_003.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_004.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_005.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_006.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_007.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_008.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_009.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_010.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_011.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_012.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_013.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_014.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_015.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_016.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_017.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_018.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_019.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_020.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_021.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_022.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_023.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_024.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_025.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_026.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_027.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_028.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_029.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260906_181652_030.jpg",
+"clip": "hdmi_clip_20260906_181652",
+"skin": "madden_dark",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "dark primetime/compact skin: no profile yet, must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_001.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_002.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_003.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_004.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_005.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_006.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_007.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_008.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_009.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_010.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_011.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_012.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_013.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_014.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_015.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_016.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_017.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_018.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_019.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_020.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_021.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_022.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_023.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_024.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_025.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_026.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_027.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_028.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_029.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_194524_030.jpg",
+"clip": "hdmi_clip_20260909_194524",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_001.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_002.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_003.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_004.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_005.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_006.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_007.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_008.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_009.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_010.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_011.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_012.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_013.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_014.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_015.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_016.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_017.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_018.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_019.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_020.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_021.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_022.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_023.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_024.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_025.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_026.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_027.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260909_195549_028.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260909_195549_029.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260909_195549_030.jpg",
+"clip": "hdmi_clip_20260909_195549",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224008_001.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "1:32"
+},
+{
+"frame": "hdmi_clip_20260911_224008_002.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "1:32"
+},
+{
+"frame": "hdmi_clip_20260911_224008_003.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "1:31"
+},
+{
+"frame": "hdmi_clip_20260911_224008_004.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "1:30"
+},
+{
+"frame": "hdmi_clip_20260911_224008_005.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "1:29"
+},
+{
+"frame": "hdmi_clip_20260911_224008_006.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "2nd",
+"clock": "1:28"
+},
+{
+"frame": "hdmi_clip_20260911_224008_007.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224008_008.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224008_009.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224008_010.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224008_011.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "strip slide-in / partial: must blank"
+},
+{
+"frame": "hdmi_clip_20260911_224008_012.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "2nd",
+"clock": "1:28"
+},
+{
+"frame": "hdmi_clip_20260911_224008_013.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "1:28"
+},
+{
+"frame": "hdmi_clip_20260911_224008_014.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "1:06"
+},
+{
+"frame": "hdmi_clip_20260911_224008_015.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:58"
+},
+{
+"frame": "hdmi_clip_20260911_224008_016.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:57"
+},
+{
+"frame": "hdmi_clip_20260911_224008_017.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:56"
+},
+{
+"frame": "hdmi_clip_20260911_224008_018.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:55"
+},
+{
+"frame": "hdmi_clip_20260911_224008_019.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:55"
+},
+{
+"frame": "hdmi_clip_20260911_224008_020.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_224008_021.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260911_224008_022.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:52"
+},
+{
+"frame": "hdmi_clip_20260911_224008_023.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:51"
+},
+{
+"frame": "hdmi_clip_20260911_224008_024.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:49"
+},
+{
+"frame": "hdmi_clip_20260911_224008_025.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:48"
+},
+{
+"frame": "hdmi_clip_20260911_224008_026.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": 0,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:47"
+},
+{
+"frame": "hdmi_clip_20260911_224008_027.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "2nd",
+"clock": "0:47"
+},
+{
+"frame": "hdmi_clip_20260911_224008_028.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224008_029.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260911_224008_030.jpg",
+"clip": "hdmi_clip_20260911_224008",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260911_224621_001.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_002.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_003.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_004.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "3rd",
+"clock": "3:50"
+},
+{
+"frame": "hdmi_clip_20260911_224621_005.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": 0,
+"right": 31,
+"quarter": "3rd",
+"clock": "3:50"
+},
+{
+"frame": "hdmi_clip_20260911_224621_006.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "3rd",
+"clock": "3:50"
+},
+{
+"frame": "hdmi_clip_20260911_224621_007.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "3rd",
+"clock": "3:50"
+},
+{
+"frame": "hdmi_clip_20260911_224621_008.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "3rd",
+"clock": "3:50"
+},
+{
+"frame": "hdmi_clip_20260911_224621_009.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": 0,
+"right": 31,
+"quarter": "3rd",
+"clock": "3:50"
+},
+{
+"frame": "hdmi_clip_20260911_224621_010.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "3rd",
+"clock": "3:50"
+},
+{
+"frame": "hdmi_clip_20260911_224621_011.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "3rd",
+"clock": "3:49"
+},
+{
+"frame": "hdmi_clip_20260911_224621_012.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": 0,
+"right": 31,
+"quarter": "3rd",
+"clock": "3:48"
+},
+{
+"frame": "hdmi_clip_20260911_224621_013.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": 0,
+"right": 31,
+"quarter": "3rd",
+"clock": "3:47"
+},
+{
+"frame": "hdmi_clip_20260911_224621_014.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "3rd",
+"clock": "3:46"
+},
+{
+"frame": "hdmi_clip_20260911_224621_015.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260911_224621_016.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260911_224621_017.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260911_224621_018.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260911_224621_019.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_020.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_021.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_022.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_023.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_024.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_025.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_026.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_027.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_224621_028.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "strip slide-in / partial: must blank"
+},
+{
+"frame": "hdmi_clip_20260911_224621_029.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": 0,
+"right": 37,
+"quarter": "3rd",
+"clock": "3:46"
+},
+{
+"frame": "hdmi_clip_20260911_224621_030.jpg",
+"clip": "hdmi_clip_20260911_224621",
+"skin": "madden_standard",
+"left": 0,
+"right": 37,
+"quarter": "3rd",
+"clock": "3:46"
+},
+{
+"frame": "hdmi_clip_20260911_234020_001.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_002.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_003.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_004.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_005.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_006.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_007.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_008.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_009.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_010.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_011.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_012.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_013.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_014.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_015.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_016.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_017.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_018.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_019.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_020.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_021.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_022.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_023.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 13,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_024.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 14,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_025.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 14,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_026.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 14,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_027.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 14,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_028.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 14,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_029.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 14,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234020_030.jpg",
+"clip": "hdmi_clip_20260911_234020",
+"skin": "madden_standard",
+"left": 14,
+"right": 7,
+"quarter": "2nd",
+"clock": "1:23"
+},
+{
+"frame": "hdmi_clip_20260911_234709_001.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "2nd",
+"clock": "0:02"
+},
+{
+"frame": "hdmi_clip_20260911_234709_002.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "2nd",
+"clock": "0:01"
+},
+{
+"frame": "hdmi_clip_20260911_234709_003.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "2nd",
+"clock": "0:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_004.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "2nd",
+"clock": "0:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_005.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "2nd",
+"clock": "0:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_006.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "2nd",
+"clock": "0:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_007.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_008.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_009.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_234709_010.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "cfb",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "College Football (not in phase 1): must blank"
+},
+{
+"frame": "hdmi_clip_20260911_234709_011.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_234709_012.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_234709_013.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260911_234709_014.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null,
+"note": "strip slide-in / partial: must blank"
+},
+{
+"frame": "hdmi_clip_20260911_234709_015.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00",
+"train": false,
+"note": "transition, digits partly covered; true score 22-7"
+},
+{
+"frame": "hdmi_clip_20260911_234709_016.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_017.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_018.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_019.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_020.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_021.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_022.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_023.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_024.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_025.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_026.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_027.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_028.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_029.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_234709_030.jpg",
+"clip": "hdmi_clip_20260911_234709",
+"skin": "madden_standard",
+"left": 22,
+"right": 7,
+"quarter": "3rd",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260911_235614_001.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:38"
+},
+{
+"frame": "hdmi_clip_20260911_235614_002.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:38"
+},
+{
+"frame": "hdmi_clip_20260911_235614_003.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:38"
+},
+{
+"frame": "hdmi_clip_20260911_235614_004.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:38"
+},
+{
+"frame": "hdmi_clip_20260911_235614_005.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:38"
+},
+{
+"frame": "hdmi_clip_20260911_235614_006.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:37"
+},
+{
+"frame": "hdmi_clip_20260911_235614_007.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:36"
+},
+{
+"frame": "hdmi_clip_20260911_235614_008.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_009.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_010.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_011.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_012.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_013.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_014.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_015.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_016.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_017.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_018.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_019.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_020.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_021.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_022.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_023.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_024.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_025.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_026.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_027.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_028.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_029.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235614_030.jpg",
+"clip": "hdmi_clip_20260911_235614",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "2:35"
+},
+{
+"frame": "hdmi_clip_20260911_235918_001.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:58"
+},
+{
+"frame": "hdmi_clip_20260911_235918_002.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:57"
+},
+{
+"frame": "hdmi_clip_20260911_235918_003.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:56"
+},
+{
+"frame": "hdmi_clip_20260911_235918_004.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:56"
+},
+{
+"frame": "hdmi_clip_20260911_235918_005.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:55"
+},
+{
+"frame": "hdmi_clip_20260911_235918_006.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_007.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_008.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_009.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_010.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_011.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_012.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_013.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_014.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_015.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_016.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_017.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_018.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_019.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_020.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_021.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_022.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_023.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_024.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_025.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_026.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_027.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_028.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_029.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:54"
+},
+{
+"frame": "hdmi_clip_20260911_235918_030.jpg",
+"clip": "hdmi_clip_20260911_235918",
+"skin": "madden_standard",
+"left": 29,
+"right": 15,
+"quarter": "4th",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_001.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_002.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_003.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_004.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_005.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_006.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_007.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_008.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_009.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_010.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_011.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:53"
+},
+{
+"frame": "hdmi_clip_20260912_013105_012.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:52"
+},
+{
+"frame": "hdmi_clip_20260912_013105_013.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:52"
+},
+{
+"frame": "hdmi_clip_20260912_013105_014.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:51"
+},
+{
+"frame": "hdmi_clip_20260912_013105_015.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "2nd",
+"clock": "0:50",
+"note": "TOUCHDOWN banner over scores: must blank"
+},
+{
+"frame": "hdmi_clip_20260912_013105_016.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "2nd",
+"clock": "0:50",
+"note": "TOUCHDOWN banner over scores: must blank"
+},
+{
+"frame": "hdmi_clip_20260912_013105_017.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "2nd",
+"clock": "0:50",
+"note": "TOUCHDOWN banner over scores: must blank"
+},
+{
+"frame": "hdmi_clip_20260912_013105_018.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_019.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_020.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_021.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_022.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_023.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_024.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_025.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_026.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_027.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_028.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_029.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_013105_030.jpg",
+"clip": "hdmi_clip_20260912_013105",
+"skin": "madden_standard",
+"left": 6,
+"right": 0,
+"quarter": "2nd",
+"clock": "0:50"
+},
+{
+"frame": "hdmi_clip_20260912_015442_001.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_002.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_003.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_004.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_005.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_006.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_007.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_008.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_009.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_010.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_011.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_012.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_013.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_014.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_015.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_016.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_017.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_018.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_019.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_020.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "none",
+"left": null,
+"right": null,
+"quarter": null,
+"clock": null
+},
+{
+"frame": "hdmi_clip_20260912_015442_021.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "madden_standard",
+"left": null,
+"right": null,
+"quarter": "1st",
+"clock": "4:00",
+"note": "matchup intro slide (SAINTS/COLTS): must blank"
+},
+{
+"frame": "hdmi_clip_20260912_015442_022.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "1st",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260912_015442_023.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "1st",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260912_015442_024.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "1st",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260912_015442_025.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "1st",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260912_015442_026.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "1st",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260912_015442_027.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "1st",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260912_015442_028.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "1st",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260912_015442_029.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "1st",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_clip_20260912_015442_030.jpg",
+"clip": "hdmi_clip_20260912_015442",
+"skin": "madden_standard",
+"left": 0,
+"right": 0,
+"quarter": "1st",
+"clock": "4:00"
+},
+{
+"frame": "hdmi_live_bottom.jpg",
+"clip": "hdmi_live_bottom",
+"skin": "madden_standard",
+"left": 3,
+"right": 24,
+"quarter": "2nd",
+"clock": "0:58"
+},
+{
+"frame": "live_frame_receipt5.jpg",
+"clip": "live_frame_receipt5",
+"skin": "madden_standard",
+"left": 6,
+"right": 14,
+"quarter": "2nd",
+"clock": "4:03"
+}
+]
+}

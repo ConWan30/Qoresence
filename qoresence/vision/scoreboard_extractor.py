@@ -338,6 +338,54 @@ def sanitize_madden_vlm_teams(
     return ctx
 
 
+def _is_local_board(board: dict[str, Any] | None) -> bool:
+    return isinstance(board, dict) and board.get("_source") == "local_scorebug"
+
+
+def _local_scorebug_board(
+    frame: np.ndarray,
+    ctx: VisualContext | None,
+    home_left: bool,
+) -> dict[str, Any] | None:
+    """Sure board from the keyless local reader, or None. Never raises.
+
+    Reads the FrameHub latest observation (same frame + stamp the cloud referee
+    uses) so the ticket can be bound to the exact frame that was read. Phase 1
+    is Madden only: an explicit College Football profile skips the reader.
+    """
+    try:
+        from qoresence.vision.local_scorebug import get_local_scorebug, local_scorebug_enabled
+
+        if not local_scorebug_enabled():
+            return None
+        prof = str(getattr(ctx, "game_profile", "") or "").lower()
+        title = str(getattr(ctx, "game_title", "") or "").lower()
+        if any(k in prof or k in title for k in ("cfb", "college", "ncaa")):
+            return None
+        src, stamp = None, {}
+        try:
+            from qoresence.monitor.frame_hub import get_frame_hub
+
+            src, stamp = get_frame_hub().get_latest_observation()
+        except Exception:
+            src, stamp = None, {}
+        if src is None:
+            src, stamp = frame, {}
+        from qoresence.vision.confirm_ticket import resolve_session_id
+
+        return get_local_scorebug().observe(
+            src,
+            stamp=stamp,
+            session_id=resolve_session_id(),
+            game_state=_game_state_token(ctx),
+            game_profile=getattr(ctx, "game_profile", None),
+            home_left=bool(home_left),
+        )
+    except Exception as e:
+        log.debug("local scorebug: %s", e)
+        return None
+
+
 def _vlm_board_grounded(vlm: dict[str, Any] | None) -> bool:
     """True when DeepSeek reported this match's scorebug, not a lone invented pair.
 
@@ -722,6 +770,24 @@ class FootballScoreboardExtractor:
             vlm = get_scoreboard_vlm().get_last()
         except Exception:
             vlm = None
+        # Keyless local scorebug reader: a sure local board (glyph gates +
+        # multi-frame agreement) takes the cloud board's place on the SAME mint
+        # path below. With a cloud key the cloud read only cross-checks it;
+        # a disagreement blanks. No local board -> cloud board, unchanged.
+        local_sure = _local_scorebug_board(frame, ctx, home_left)
+        if local_sure is not None:
+            _vc_keep = vlm.get("visible_control") if isinstance(vlm, dict) else None
+            try:
+                from qoresence.vision.local_scorebug import choose_board, get_local_scorebug
+
+                vlm, _choice = choose_board(local_sure, vlm)
+                get_local_scorebug().note_choice(_choice)
+            except Exception:
+                vlm = None
+            if vlm is None and isinstance(_vc_keep, dict) and (
+                _vc_keep.get("button") or _vc_keep.get("glyph")
+            ):
+                vlm = {"visible_control": _vc_keep}
         if vlm and not local_board and not _vlm_board_grounded(vlm):
             # Bare scores with no wordmarks/clock invented this morning's 3-2.
             # Grounded gameplay Gemini may still lock when HUD blobs miss.
@@ -755,7 +821,7 @@ class FootballScoreboardExtractor:
                     frame_seq=stamp.get("seq"),
                     clock_ns=int(stamp.get("clock_ns") or 0),
                     source=infer_vlm_source(
-                        _hid_model, str(getattr(_vlm_ref, "base_url", "") or "")
+                        _hid_model, str(getattr(_vlm_ref, "base_url", "") or ""), board=vlm
                     ),
                     model=_hid_model,
                 )
@@ -874,7 +940,12 @@ class FootballScoreboardExtractor:
                     source_observation = (vlm or {}).get("_observation") or {}
                     from qoresence.vision.scoreboard_vlm import get_scoreboard_vlm
 
-                    evidence_bound = getattr(get_scoreboard_vlm(), "recheck_enabled", False) is True
+                    # Local scorebug boards are always evidence-bound: the ticket
+                    # carries the read frame's seq/clock/crop_hash (8 s age gate).
+                    local_read = _is_local_board(vlm)
+                    evidence_bound = local_read or (
+                        getattr(get_scoreboard_vlm(), "recheck_enabled", False) is True
+                    )
                     if evidence_bound:
                         from qoresence.sync.digit_integrity import CONFIRM_DIGIT_MAX_AGE_NS
 
@@ -916,7 +987,10 @@ class FootballScoreboardExtractor:
                         or getattr(ctx, "model", "")
                         or DEFAULT_VISION_MODEL
                     )
-                    source_str = infer_vlm_source(model_str, vlm_base)
+                    if local_read:
+                        model_str = str((vlm or {}).get("_model") or "local_scorebug")
+                    # Provenance: name who actually read the digits.
+                    source_str = infer_vlm_source(model_str, vlm_base, board=vlm)
 
                     # Apply team identity early so home_team/away_team are available for ticket
                     try:

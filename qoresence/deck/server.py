@@ -279,6 +279,12 @@ class DeckState:
         except Exception:
             out["scoreboard_vlm"] = {"enabled": False}
         try:
+            from qoresence.vision.local_scorebug import get_local_scorebug
+
+            out["local_scorebug"] = get_local_scorebug().stats()
+        except Exception:
+            out["local_scorebug"] = {"enabled": False}
+        try:
             from qoresence.operator_bus.mailbox import get_operator_mailbox
 
             out["operator_bus"] = get_operator_mailbox().stats()
