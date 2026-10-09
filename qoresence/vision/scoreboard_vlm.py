@@ -179,10 +179,23 @@ Rules:
 """
 
 
-def infer_vlm_source(model: str | None = None, base_url: str | None = None) -> str:
-    """Map model / endpoint to a seeing-path ConfirmTicket source."""
+def infer_vlm_source(
+    model: str | None = None,
+    base_url: str | None = None,
+    *,
+    board: dict[str, Any] | None = None,
+) -> str:
+    """Map model / endpoint to a seeing-path ConfirmTicket source.
+
+    A board read by the keyless local scorebug reader says so
+    (``local_scorebug``); it must never be labelled as a cloud read.
+    """
+    if isinstance(board, dict) and board.get("_source") == "local_scorebug":
+        return "local_scorebug"
     m = str(model or "").lower()
     b = str(base_url or "").lower()
+    if m.startswith("local_scorebug"):
+        return "local_scorebug"
     if "gemini" in m:
         return "gemini"
     if "quicksilver" in m or "quicksilverpro" in b:

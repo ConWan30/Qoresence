@@ -19,8 +19,12 @@ from qoresence.agents.llm_client import DEFAULT_VISION_MODEL
 DOMAIN = "QORESENCE-CONFIRM-TICKET-v0"
 SCORE_PAIR = re.compile(r"\b(\d{1,2})\s*[-–—]\s*(\d{1,2})\b")
 
-# Seeing-path sources (VLM / OCR scorebug) that license score_vlm_locked
-SEEING_PATH_SOURCES = frozenset({"deepseek", "gemini", "quicksilver", "easyocr_scorebug"})
+# Seeing-path sources (VLM / OCR scorebug / keyless local scorebug reader)
+# that license score_vlm_locked. ``local_scorebug`` = glyph-template reader
+# (qoresence/vision/local_scorebug) after multi-frame agreement.
+SEEING_PATH_SOURCES = frozenset(
+    {"deepseek", "gemini", "quicksilver", "easyocr_scorebug", "local_scorebug"}
+)
 
 # Source aliases for normalization
 SOURCE_ALIASES = {
@@ -31,6 +35,8 @@ SOURCE_ALIASES = {
     "qs": "quicksilver",
     "easyocr": "easyocr_scorebug",
     "paddle": "easyocr_scorebug",
+    "local": "local_scorebug",
+    "local_scorebug_v1": "local_scorebug",
 }
 
 
