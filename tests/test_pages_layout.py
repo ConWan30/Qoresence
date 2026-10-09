@@ -36,7 +36,7 @@ PAGES = ["index.html", "watch.html", "install.html", "limits.html", "trace.html"
 WIDTHS = [390, 768, 1024, 1280]
 OVERFLOW_WIDTHS = [375, 768, 1024, 1440]
 FEEDBACK = "https://github.com/ConWan30/Qoresence/discussions/269"
-# Rivalatch is moving to its own project; its page is left untouched here.
+# Rivalatch lives on its own site; rivalatch.html is only a pointer card to it.
 QORESENCE_PAGES = sorted(p for p in DOCS.glob("*.html") if p.name != "rivalatch.html")
 # Internal names that must not reach a first-time visitor without a plain gloss.
 INTERNAL_TERMS = ("FrameHub", "ConfirmTicket", "glass", "lobe", "DShow", "score_vlm_locked", "InputRing")
