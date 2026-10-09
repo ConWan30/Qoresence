@@ -25,6 +25,7 @@ Every lobe is **OFF** until you opt in.
 
 [![GitHub](https://img.shields.io/badge/github-ConWan30%2FQoresence-181717?logo=github)](https://github.com/ConWan30/Qoresence)
 [![X](https://img.shields.io/badge/X-%40Qoresence-000000?logo=x)](https://x.com/Qoresence)
+[![Email](https://img.shields.io/badge/email-qoresence%40mail.grokbot.com-D14836?logo=maildotru&logoColor=white)](mailto:qoresence@mail.grokbot.com)
 [![Website](https://img.shields.io/badge/website-GitHub%20Pages-blue)](https://conwan30.github.io/Qoresence/)
 [![Wiki](https://img.shields.io/badge/wiki-operator%20glass-informational)](https://github.com/ConWan30/Qoresence/wiki)
 [![Python](https://img.shields.io/badge/python-3.11%2B-yellow)](https://www.python.org/)
@@ -508,7 +509,7 @@ Memory wiring: `docs/SEQGATE-Memory-Wiring.md`.
 | `qoresence/mcp/occf.py` | Pull-only OCCF MCP tools + digit scrub laws (module docstring) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to set up, test, and open PRs |
 
-**Community:** [X @Qoresence](https://x.com/Qoresence) · [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Discussions](https://github.com/ConWan30/Qoresence/discussions) · [Pages](https://conwan30.github.io/Qoresence/)  
+**Community:** [X @Qoresence](https://x.com/Qoresence) · [Email](mailto:qoresence@mail.grokbot.com) · [Wiki](https://github.com/ConWan30/Qoresence/wiki) · [Discussions](https://github.com/ConWan30/Qoresence/discussions) · [Pages](https://conwan30.github.io/Qoresence/)  
 *(If wiki/discussions/pages are first-time, enable once under Settings — see [docs/GITHUB_COMMUNITY.md](docs/GITHUB_COMMUNITY.md).)*
 
 ---
