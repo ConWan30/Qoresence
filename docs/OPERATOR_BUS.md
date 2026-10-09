@@ -14,7 +14,13 @@ Cloud Grok Bots cannot see the capture card. They were merging crop PRs from `/h
 POST http://127.0.0.1:8765/api/operator/bus
 GET  http://127.0.0.1:8765/api/operator/bus
 GET  http://127.0.0.1:8765/api/operator/bus/prompt
+GET  http://127.0.0.1:8765/api/operator/bus/prompt?bot=qoredev
+GET  http://127.0.0.1:8765/api/operator/qoredev
 ```
+
+Qoredev landing sequence (physical → clock → lock → glass → story) is
+query-only on `/health.qoredev` and `/api/operator/qoredev`. See
+[`docs/QOREDEV.md`](QOREDEV.md). It does not emit on the event bus.
 
 JSONL drop: `logs/operator_bus/inbox.jsonl` (bots → Grok Build), `outbox.jsonl` (Grok Build → bots).
 
