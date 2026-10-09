@@ -229,10 +229,14 @@ python -m http.server 5500 --directory docs
 
 Operator reviews this branch before merge to `main` (Pages deploys from `docs/` on `main` push).
 
-## Rivalatch door loop (2026-10-07)
+## Rivalatch door loop (2026-10-07) → pointer card (2026-10-09)
 
-Peer surface at `docs/rivalatch.html`. Same hallway chrome and spring-loop
-discipline as the home hold stage; vocabulary is Lodged / Recalled / Contested
-(prose only). CTAs point at the live Rivalatch door, MOBILE_KNOCKER, and listing.
-Details: `docs/RIVALATCH_MOTION_NOTES.md`.
+`docs/rivalatch.html` was a door-loop page; Rivalatch now has its own canonical
+site (https://vibegate-production.up.railway.app/, `/listing/`, `/door/`).
+The page is now a short static pointer card (one headline, three sentences,
+one primary button + a listing link) so old links keep working. Site nav
+"Rivalatch" tabs link straight to the Rivalatch home. The door-loop beats in
+`site.js` / `q-stage` styles stay (shared with the home hold loop) but no page
+mounts `[data-door-stage]` any more. `docs/RIVALATCH_MOTION_NOTES.md` was
+removed with the loop page.
 

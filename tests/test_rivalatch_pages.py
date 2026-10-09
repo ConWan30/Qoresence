@@ -1,13 +1,13 @@
-"""Static checks for Qoresence Pages (docs/*.html), including the Rivalatch door.
+"""Static checks for Qoresence Pages (docs/*.html), including the Rivalatch pointer card.
 
-No network. Guards the rules from docs/PAGES_REDESIGN_NOTES.md and
-docs/RIVALATCH_MOTION_NOTES.md:
+No network. Guards the rules from docs/PAGES_REDESIGN_NOTES.md:
 
 - one stylesheet (aperture.css) and one script (site.js) for every page;
 - fonts are self-hosted, every @font-face URL exists, licenses ship with them;
 - no keys on Pages, demo data labeled, reduced motion honored;
 - local assets resolve and the public CTAs stay in place;
-- both beat stages (door loop, hold loop) keep their order and settled frame.
+- rivalatch.html stays a short pointer card to the canonical Rivalatch site;
+- both loop beat tables in site.js (door, hold) keep their order and settled frame.
 """
 from __future__ import annotations
 
@@ -128,10 +128,33 @@ def test_qoresence_tokens_drive_the_palette():
 
 def test_public_ctas_present():
     refs = set(_parse(PAGE).refs)
-    for path in ("", "/door/", "/MOBILE_KNOCKER.md", "/listing/", "/AGENT.md"):
+    for path in ("/", "/listing/"):
         assert DOOR + path in refs, path
     assert "./index.html" in refs
     assert "https://github.com/ConWan30/Qoresence" in refs
+
+
+def test_rivalatch_page_is_a_pointer_card():
+    """Rivalatch has its own site; this URL stays alive as a short card pointing there."""
+    html = PAGE.read_text(encoding="utf-8")
+    assert html.count("<h1") == 1
+    assert 'class="q-pointer"' in html
+    assert f'class="button primary" href="{DOOR}/"' in html
+    assert f'href="{DOOR}/listing/"' in html
+    assert "Rivalatch ship receipt" in html
+    assert "Mobile Glass" in html
+    # The door loop is gone from Pages: no stage, no example wire, no motion hooks.
+    for gone in ("data-door-stage", "q-stage", "data-wire", "data-reveal"):
+        assert gone not in html, gone
+
+
+@pytest.mark.parametrize("page", PAGES, ids=lambda p: p.name)
+def test_nav_rivalatch_tab_points_at_canonical_site(page: Path):
+    html = page.read_text(encoding="utf-8")
+    nav = re.search(r"<nav[^>]*data-nav[^>]*>(.*?)</nav>", html, re.S)
+    assert nav, page.name
+    assert f'<a href="{DOOR}/">Rivalatch</a>' in nav.group(1), page.name
+    assert "./rivalatch.html" not in nav.group(1), page.name
 
 
 def test_home_keeps_its_links_video_and_non_claims():
@@ -155,20 +178,13 @@ def test_no_key_values_on_pages():
 
 
 def test_demo_is_labeled_and_honest():
-    html = PAGE.read_text(encoding="utf-8")
-    assert "not live" in html.lower()
-    assert "example knocks" in html.lower()
-    assert "not a live Ship session" in html
-    assert "Spec untouched" in html
-    for code in ("202", "200", "409"):
-        assert code in html
     home = HOME.read_text(encoding="utf-8")
     assert "Demo · HOLD · not a live session" in home
 
 
 def test_gate_readout_sits_off_the_tape():
     """The door label lives in the stage head, not inside the bracket over the film strip."""
-    for page in (PAGE, HOME):
+    for page in (HOME,):
         html = page.read_text(encoding="utf-8")
         assert 'class="q-stage-head"' in html
         assert "data-gate-readout" in html

@@ -6,8 +6,8 @@
  * iron #8b90a0, aperture #9be7ff, brass #d7b36a, veto #e07a7a.
  * Instrument Sans + IBM Plex Mono, self-hosted in docs/fonts (OFL-1.1).
  *
- * Layout, glass plates, header, section rhythm, and motion: the Rivalatch
- * door page (docs/RIVALATCH_MOTION_NOTES.md). One easing curve. Plates settle
+ * Layout, glass plates, header, section rhythm, and motion: first drawn for
+ * the Rivalatch door page (now a pointer card). One easing curve. Plates settle
  * in once; nothing glows; nothing claims LIVE. The public site is HOLD.
  *
  * prefers-reduced-motion stops every animation and transition. Without JS,
@@ -331,6 +331,7 @@ img, video, svg { max-width: 100%; }
 .q-rule,
 .q-surface,
 .q-different,
+.q-pointer,
 .q-matrix,
 .q-track,
 .q-wire,
@@ -357,6 +358,7 @@ img, video, svg { max-width: 100%; }
   .q-rule,
   .q-surface,
   .q-different,
+  .q-pointer,
   .q-matrix,
   .q-track,
   .q-opener-panel,
@@ -1223,6 +1225,21 @@ html.q-motion .q-track.is-drawn .q-node { animation: q-fade var(--t-settle) var(
   .q-hook { width: 100%; margin-left: 0; }
   .q-hook::before { display: none; }
   table.spans { font-size: 12px; }
+}
+
+/* Rivalatch pointer card (docs/rivalatch.html). Static: no motion. */
+.q-pointer-main { display: flex; align-items: center; min-height: calc(100vh - 260px); padding: 64px 0; }
+.q-pointer-main > .wrap { width: 100%; }
+.q-pointer { max-width: 640px; padding: 36px 36px 32px; }
+.q-pointer::before { content: ""; position: absolute; left: 0; top: 18px; bottom: 18px; width: 2px; background: var(--tone); }
+.q-pointer .display { max-width: 18ch; }
+.q-pointer .lede { max-width: none; margin-bottom: 0; }
+.q-pointer .actions { align-items: center; gap: 18px; }
+.q-pointer-link { color: var(--muted); font: 600 10.5px/1 var(--font-sans); letter-spacing: 0.18em; text-transform: uppercase; text-decoration: none; border-bottom: 1px solid transparent; padding: 4px 0; }
+.q-pointer-link:hover, .q-pointer-link:focus-visible { color: var(--fg); border-bottom-color: var(--glass-edge); }
+@media (max-width: 640px) {
+  .q-pointer-main { min-height: 0; padding: 36px 0; }
+  .q-pointer { padding: 26px 20px 24px; }
 }
 
 /* Reduced motion: everything settles in place; tapes stop. */
