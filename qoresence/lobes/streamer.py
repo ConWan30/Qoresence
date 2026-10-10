@@ -189,6 +189,8 @@ def _frame_contains_person(frame: np.ndarray, area_threshold: float = 0.25) -> b
     Lightweight person check on the first frame.
     Used as a safety net to avoid streaming a personal camera by mistake.
     """
+    from qoresence.vision.motion_tracker import ModelDownloadNotAllowed
+
     try:
         import mediapipe as mp
         from mediapipe.tasks.python.core.base_options import BaseOptions
@@ -227,6 +229,13 @@ def _frame_contains_person(frame: np.ndarray, area_threshold: float = 0.25) -> b
                 if box_area / frame_area > area_threshold:
                     return True
         return False
+    except ModelDownloadNotAllowed as e:
+        log.error(
+            f"PRIVACY GUARD: cannot run the person check ({e}) "
+            "Failing closed: this device is NOT cleared. Capture refused. "
+            "Real capture cards on the allowlist skip this check."
+        )
+        return True
     except Exception as e:
         log.debug(f"Person guard check failed: {e}")
         # If we cannot verify, fail-safe: assume person present
@@ -920,9 +929,7 @@ class StreamerRuntime:
         Otherwise fall back to a timed cap.read() so a hung device still
         times out and the main loop can rebind.
         """
-        if self._grab_alive or (
-            self._grab_thread is not None and self._grab_thread.is_alive()
-        ):
+        if self._grab_alive or (self._grab_thread is not None and self._grab_thread.is_alive()):
             return self._read_grabbed_frame(timeout=0.25)
         if self._cap is None:
             return False, None

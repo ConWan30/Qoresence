@@ -21,7 +21,7 @@ None of these leave the machine unless you explicitly enable a glass that sends 
 | A2A bus | Scene description + prompt | `--a2a` |
 | Streamr | Selected events | `qoresence/streamr/`, experimental and default OFF |
 | Trio / IoTeX block RPC | A JSON-RPC `eth_blockNumber` request (no frames, no game data) to `https://babel-api.testnet.iotex.io` by default; your IP is visible to that host | `--trio`; the URL can be changed with `--trio-block-rpc` / `QORESENCE_TRIO_BLOCK_RPC` and the call needs the optional `aiohttp` package |
-| MediaPipe model download | A one-time download of `efficientdet_lite0_uint8.tflite` from `storage.googleapis.com` into `./models/`; nothing of yours is sent except the normal request metadata (your IP) | Only if `mediapipe` is installed (`game` extra) and `models/efficientdet_lite0.tflite` is not already present. See "Model download" below |
+| MediaPipe model download | A one-time download of `efficientdet_lite0_uint8.tflite` from `storage.googleapis.com` into `./models/`; nothing of yours is sent except the normal request metadata (your IP) | **Off by default.** Only if you set `QORESENCE_ALLOW_MODEL_DOWNLOAD=1`, `mediapipe` is installed (`game` extra) and `models/efficientdet_lite0.tflite` is not already present. See "Model download" below |
 
 ## Cloud uploads when a Quicksilver key is set
 
@@ -37,12 +37,12 @@ Without a key, none of the above runs and no outbound connection is made by the 
 
 ## Model download
 
-`qoresence/vision/motion_tracker.py` (`_ensure_mediapipe_model`) downloads the EfficientDet-Lite0 model from `https://storage.googleapis.com/mediapipe-tasks/object_detector/efficientdet_lite0_uint8.tflite` into `./models/` if the file is missing. It is reached from two places, and both need the `mediapipe` package:
+`qoresence/vision/motion_tracker.py` (`_ensure_mediapipe_model`) can fetch the EfficientDet-Lite0 model from `https://storage.googleapis.com/mediapipe-tasks/object_detector/efficientdet_lite0_uint8.tflite` into `./models/efficientdet_lite0.tflite`. **It never downloads unless you opt in with `QORESENCE_ALLOW_MODEL_DOWNLOAD=1`** (exactly `1`). It is reached from two places, and both need the `mediapipe` package:
 
-1. **Motion tracking** (`MotionTracker`, used by the vision stack). The game-detection vision stack only enables it when a cloud key is set.
-2. **The capture person-check** in `qoresence/lobes/streamer.py` (`_frame_contains_person`). It runs when a local (non-network) capture device opens, `QORESENCE_PRIVACY_GUARD` is not `0`, the device name is not a recognised physical capture card, and `eye_check_required` is on (the default; config validation requires it). So it can trigger on first run with `mediapipe` installed, with no cloud key.
+1. **Motion tracking** (`MotionTracker`, used by the vision stack). The game-detection vision stack only enables it when a cloud key is set. Without the model and without opt-in, the MediaPipe foreground mask is simply disabled (a warning is logged).
+2. **The capture person-check** in `qoresence/lobes/streamer.py` (`_frame_contains_person`). It runs when a local (non-network) capture device opens, `QORESENCE_PRIVACY_GUARD` is not `0`, the device name is not a recognised physical capture card, and `eye_check_required` is on (the default). **It fails closed:** if the model is missing and you have not opted in (or `mediapipe` is not installed, or anything else goes wrong), the device is treated as not cleared and capture is refused, with a log line explaining how to fix it. Recognised physical capture cards skip this check and are unaffected.
 
-The download happens once; after that the cached file is used. To avoid it, do not install `mediapipe`, or place the model file in `models/` yourself. Other libraries you install (for example `easyocr`, `paddleocr`, `ultralytics`) may fetch their own weights on first use; that is their behavior, not Qoresence code.
+To enable the person-check on a non-allowlisted device (for example an OBS virtual camera), either set `QORESENCE_ALLOW_MODEL_DOWNLOAD=1` for a one-time download (the cached file is used afterwards), or place the model file at `models/efficientdet_lite0.tflite` yourself (relative to the directory you launch from) and no download is made. Other libraries you install (for example `easyocr`, `paddleocr`, `ultralytics`) may fetch their own weights on first use; that is their behavior, not Qoresence code.
 
 ## Browser requests to third parties
 
