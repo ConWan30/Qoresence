@@ -1,35 +1,39 @@
-/* Overlay only — do not push the HDMI stage off-screen. Aperture Glass. */
+/* Overlay only — do not push the HDMI stage off-screen. Aperture Glass, logo
+   palette (docs/DECK_MOTION_NOTES.md). No backdrop blur: it also rides the OBS lens. */
 body.qore-has-clip-dock{padding-bottom:0}
 #qore-clip-dock{
   position:fixed;left:12px;right:12px;bottom:10px;z-index:2147483000;
   display:flex;align-items:center;gap:6px;
   max-width:min(72rem,calc(100vw - 24px));margin:0 auto;
   padding:6px 8px;border-radius:999px;
-  background:rgba(5,6,10,.74);backdrop-filter:blur(10px);
-  box-shadow:0 0 0 1px color-mix(in oklab,#8b90a0 22%,transparent);
+  background:rgba(1,4,9,.88);
+  box-shadow:0 0 0 1px rgba(169,251,253,.12),0 10px 28px rgba(0,0,0,.35);
   font-family:'Instrument Sans',ui-sans-serif,system-ui,sans-serif;pointer-events:auto;
 }
 #qore-clip-dock .row{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;flex:0 0 auto}
 #qore-clip-dock button,#qore-clip-player button{
-  border:0;border-radius:999px;padding:5px 10px;font:600 10px/1 'IBM Plex Mono',ui-monospace,monospace;
+  border:0;border-radius:999px;padding:5px 10px;font:600 10px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.08em;
   text-transform:uppercase;cursor:pointer;white-space:nowrap;
+  transition:background-color .16s cubic-bezier(.2,.7,.1,1),color .16s cubic-bezier(.2,.7,.1,1);
 }
-#qore-clip-dock .live,#qore-clip-player .back{background:#9be7ff;color:#05060a}
-#qore-clip-dock .replay{background:#12151e;color:#9be7ff}
-#qore-clip-dock .make{background:#9be7ff;color:#05060a}
-#qore-clip-dock .toggle{background:#0b0d14;color:#9be7ff}
+#qore-clip-dock .live,#qore-clip-player .back{background:#66e0e6;color:#010206}
+#qore-clip-dock .replay{background:#0b1a22;color:#66e0e6;box-shadow:inset 0 0 0 1px #24414a}
+#qore-clip-dock .make{background:rgba(102,224,230,.12);color:#a9fbfd;box-shadow:inset 0 0 0 1px rgba(102,224,230,.45)}
+#qore-clip-dock .toggle{background:#08131a;color:#8a9ea6;box-shadow:inset 0 0 0 1px #16262e}
+#qore-clip-dock button:hover{color:#e4f1f3}
+#qore-clip-dock .live:hover,#qore-clip-player .back:hover{background:#a9fbfd;color:#010206}
 #qore-clip-dock a.civif{
-  border-radius:4px;padding:5px 10px;font:500 12px/1 'Instrument Sans',system-ui,sans-serif;
-  text-transform:none;text-decoration:none;letter-spacing:0;
-  background:color-mix(in oklab,#12151e 80%,transparent);color:#8ea396;
-  box-shadow:0 0 0 1px color-mix(in oklab,#8b90a0 22%,transparent);
+  border-radius:999px;padding:5px 10px;font:600 10px/1 'Instrument Sans',system-ui,sans-serif;
+  text-transform:uppercase;text-decoration:none;letter-spacing:.16em;
+  background:rgba(8,19,26,.85);color:#8ea396;
+  box-shadow:0 0 0 1px rgba(169,251,253,.12);
 }
-#qore-clip-dock a.civif:hover{color:#e8eaf2;background:color-mix(in oklab,#9be7ff 10%,transparent)}
+#qore-clip-dock a.civif:hover{color:#e4f1f3;background:rgba(102,224,230,.08)}
 #qore-clip-dock a.civif:active{transform:translateY(1px)}
-#qore-clip-dock a.civif:focus-visible{outline:2px solid #9be7ff;outline-offset:2px}
+#qore-clip-dock a.civif:focus-visible{outline:1px solid #66e0e6;outline-offset:2px}
 #qore-clip-dock .tile{
   display:flex;align-items:center;gap:4px;height:26px;min-width:0;
-  border-radius:999px;padding:0 8px;background:#0b0d14;color:#e8eaf2;
+  border-radius:999px;padding:0 8px;background:#08131a;color:#e4f1f3;box-shadow:inset 0 0 0 1px #16262e;
 }
 #qore-clip-dock .tile .go{display:none}
 #qore-clip-dock .tile small{display:none}
@@ -37,16 +41,16 @@ body.qore-has-clip-dock{padding-bottom:0}
   display:none;flex:1 1 auto;gap:4px;overflow-x:auto;min-width:0;
 }
 #qore-clip-dock.open .tiles{display:flex}
-#qore-clip-dock .meta{color:#9be7ff;font:600 9px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase}
+#qore-clip-dock .meta{color:#8a9ea6;font:600 9px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase}
 #qore-clip-player{
-  display:none;position:absolute;inset:0;z-index:40;background:#000;
+  display:none;position:absolute;inset:0;z-index:40;background:#010206;
 }
 #qore-clip-player[data-on-stage="1"]{position:absolute}
 #qore-clip-player:not([data-on-stage="1"]){position:fixed;inset:0;z-index:2147483646}
 #qore-clip-player.on{display:block}
-#qore-clip-player video{width:100%;height:100%;object-fit:contain;background:#000}
+#qore-clip-player video{width:100%;height:100%;object-fit:contain;background:#010206}
 #qore-clip-player .hud{
   position:absolute;top:10px;left:10px;z-index:2;display:flex;gap:8px;align-items:center;
 }
-#qore-clip-player .label{color:#9be7ff;font:600 11px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.1em}
-.qore-play-hint{color:#9be7ff;font:600 10px/1 'IBM Plex Mono',ui-monospace,monospace}
+#qore-clip-player .label{color:#66e0e6;font:600 11px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.1em}
+.qore-play-hint{color:#66e0e6;font:600 10px/1 'IBM Plex Mono',ui-monospace,monospace}

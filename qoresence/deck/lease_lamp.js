@@ -32,13 +32,13 @@
     var s = document.createElement("style");
     s.id = "deckLeaseLampStyle";
     s.textContent =
-      "#deckLeaseLamp{display:inline-flex;align-items:center;gap:8px;min-height:28px;padding:6px 10px;border:1px solid rgba(155,231,255,.22);border-radius:8px;background:rgba(5,6,10,.72);color:#8b90a0;font:700 10px/1 IBM Plex Mono,ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase}" +
+      "#deckLeaseLamp{display:inline-flex;align-items:center;gap:8px;min-height:28px;padding:6px 10px;border:1px solid rgba(169,251,253,.14);border-radius:4px;background:rgba(1,4,9,.88);color:#8a9ea6;font:700 10px/1 IBM Plex Mono,ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase}" +
       "#deckLeaseLamp[hidden]{display:none!important}" +
-      "#deckLeaseLamp .dll-dot{width:8px;height:8px;border-radius:50%;background:#5b6070;box-shadow:none}" +
-      "#deckLeaseLamp[data-lamp=dark]{color:#8b90a0;border-color:rgba(139,144,160,.28)}" +
-      "#deckLeaseLamp[data-lamp=dark] .dll-dot{background:#5b6070}" +
-      "#deckLeaseLamp[data-lamp=on]{color:#9be7ff;border-color:rgba(155,231,255,.55)}" +
-      "#deckLeaseLamp[data-lamp=on] .dll-dot{background:#9be7ff;box-shadow:0 0 10px rgba(155,231,255,.55)}";
+      "#deckLeaseLamp .dll-dot{width:8px;height:8px;border-radius:50%;background:#24414a;box-shadow:none}" +
+      "#deckLeaseLamp[data-lamp=dark]{color:#8a9ea6;border-color:#16262e}" +
+      "#deckLeaseLamp[data-lamp=dark] .dll-dot{background:#24414a}" +
+      "#deckLeaseLamp[data-lamp=on]{color:#66e0e6;border-color:rgba(102,224,230,.55)}" +
+      "#deckLeaseLamp[data-lamp=on] .dll-dot{background:#66e0e6;box-shadow:0 0 10px rgba(102,224,230,.55)}";
     document.head.appendChild(s);
   }
 

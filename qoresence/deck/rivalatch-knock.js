@@ -16,9 +16,11 @@
 
   var box = el('div', { id: 'qore-rivalatch-knock', 'data-knock': 'rivalatch', role: 'group', 'aria-label': 'Knock Rivalatch' });
   box.style.cssText = 'position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:40;' +
-    'display:flex;gap:6px;align-items:center;font:700 11px/1 ui-monospace,monospace;letter-spacing:.04em';
-  var pill = 'border-radius:999px;padding:9px 12px;border:1px solid rgba(155,231,255,.35);' +
-    'background:rgba(5,6,10,.82);color:#9be7ff;text-decoration:none;cursor:pointer';
+    'display:flex;gap:6px;align-items:center;font:600 10px/1 "IBM Plex Mono",ui-monospace,monospace;' +
+    'letter-spacing:.12em;text-transform:uppercase';
+  var pill = 'border-radius:999px;padding:10px 13px;border:1px solid rgba(102,224,230,.4);' +
+    'background:rgba(1,4,9,.9);color:#66e0e6;text-decoration:none;cursor:pointer;' +
+    'box-shadow:0 8px 24px rgba(0,0,0,.4)';
   var link = el('a', { id: 'qore-rivalatch-link', href: '#', rel: 'noopener' }, 'Knock Rivalatch');
   link.style.cssText = pill;
   var share = el('button', { id: 'qore-rivalatch-share', type: 'button' }, 'Share');
@@ -30,7 +32,7 @@
     link.textContent = 'Rivalatch · HOLD';
     link.title = msg || 'local git tip unknown';
     link.removeAttribute('href');
-    link.style.color = '#d7b36a';
+    link.style.color = '#8a9ea6';
     share.style.display = 'none';
   }
 
