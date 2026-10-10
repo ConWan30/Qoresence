@@ -264,3 +264,15 @@ test("lens overlay never paints LIVE without a live /health tally", () => {
   assert.match(src, /lensWord\(/);
   assert.doesNotMatch(src, /:\s*"LIVE"\}/);
 });
+
+test("short screens: rail scrolls on its own and Play-by-play keeps a floor height", () => {
+  const css = readFileSync(join(GLASS_ROOT, "src/styles.css"), "utf-8");
+  const page = readFileSync(join(GLASS_ROOT, "src/components/theater/theater-page.tsx"), "utf-8");
+  assert.match(page, /className="deck-rail [^"]*min-h-0/, "rail is a min-h-0 flex child");
+  assert.match(page, /deck-rail-feed[^"]*min-h-0/, "ClutchFeed wrapper sits in the rail scrollport");
+  const rail = css.match(/\.deck-rail \{[^}]*\}/)?.[0] ?? "";
+  assert.match(rail, /overflow-y:\s*auto/, "rail scrolls instead of cropping Play-by-play");
+  assert.match(css, /\.deck-rail > \.deck-rail-feed \{[^}]*min-height:\s*7\.5rem/);
+  assert.match(css, /@media \(max-height: 700px\) and \(min-width: 761px\)/, "short-screen compaction");
+  assert.match(css, /@media \(max-height: 600px\)[^{]*\{\s*[^@]*\.deck-votes \{\s*display: none/, "dim chip row folds on short screens");
+});
