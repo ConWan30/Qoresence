@@ -42,60 +42,94 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Aperture Glass tokens. One palette for every glass. Void well, iron chrome,
- * aperture live. Digits are IBM Plex Mono so a lock is a fill, not a restyle.
+ * Aperture Glass tokens — the HDMI-Q logo palette shared with GitHub Pages
+ * (docs/aperture.css). Void well, aqua line art as the one accent, gold ONLY
+ * for a locked / confirmed read, slate for copy, blank for honest empties.
+ * Utility names (bg-bg, text-live, …) are kept so every glass recolors at once.
+ * Notes: docs/DECK_MOTION_NOTES.md
  * ------------------------------------------------------------------------- */
 @theme {
-  --color-bg: #05060a; /* void */
-  --color-surface: #0b0d14; /* well */
-  --color-subtle: #12151e; /* plate */
-  --color-fg: #e8eaf2; /* star */
-  --color-foreground: #e8eaf2;
-  --color-muted-foreground: #8b90a0; /* iron */
-  --color-subtle-foreground: #5b6070; /* iron dim */
-  --color-primary: #9be7ff; /* aperture */
-  --color-primary-foreground: #05060a;
-  --color-border: color-mix(in oklab, #8b90a0 22%, transparent); /* iron hairline */
-  --color-ring: #9be7ff;
-  --color-field: #12151e;
-  --color-live: #9be7ff; /* aperture */
-  --color-sync: #9be7ff; /* iris */
-  --color-fast: #d7b36a; /* brass — clutch path=fast */
-  --color-veto: #e07a7a;
-  --color-photon: #8b90a0; /* iron */
-  --color-flare: #9be7ff;
-  --color-iris: #9be7ff;
-  --color-card: #0b0d14;
-  --color-card-foreground: #e8eaf2;
-  --color-background: #05060a;
-  --color-muted: #8b90a0;
+  --color-void: #010206; /* logo background */
+  --color-navy: #011c24; /* halo just outside the ring */
+  --color-aqua: #66e0e6; /* line art — the one accent */
+  --color-aqua-hi: #a9fbfd; /* brightest ring highlight */
+  --color-aqua-deep: #3f979b; /* inner strokes, rules */
+  --color-aqua-glow: #1c5859; /* glow falloff */
+  --color-gold: #fcde74; /* LOCKED ONLY */
+  --color-ink: #e4f1f3;
+  --color-ink-2: #b9cdd2;
+  --color-mute: #8a9ea6;
+  --color-blank: #0d1a21; /* honest empty cells */
+  --color-plate: #08131a;
+  --color-line: #16262e;
+  --color-line-hi: #24414a;
 
-  --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --color-bg: #010206; /* void */
+  --color-surface: #08131a; /* plate */
+  --color-subtle: #0b1a22; /* plate-2 */
+  --color-fg: #e4f1f3; /* ink */
+  --color-foreground: #e4f1f3;
+  --color-muted-foreground: #8a9ea6; /* mute */
+  --color-subtle-foreground: #6f858d; /* quiet labels, 4.6:1 on plate */
+  --color-primary: #66e0e6; /* aqua */
+  --color-primary-foreground: #010206;
+  --color-border: rgba(169, 251, 253, 0.12); /* glass edge hairline */
+  --color-ring: #66e0e6;
+  --color-field: #0b1a22;
+  --color-live: #66e0e6; /* aqua */
+  --color-sync: #66e0e6;
+  --color-fast: #a9fbfd; /* fast path = aqua-hi (gold is reserved for lock) */
+  --color-veto: #e8877c; /* fault only: blocked / stall / forbidden */
+  --color-photon: #8a9ea6;
+  --color-flare: #a9fbfd;
+  --color-iris: #66e0e6;
+  --color-card: #08131a;
+  --color-card-foreground: #e4f1f3;
+  --color-background: #010206;
+  --color-muted: #8a9ea6;
 
-  /* Machined plates, not broadcast pills. */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-sans: "Instrument Sans", system-ui, "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", "SF Mono", Consolas, Menlo, monospace;
+
+  /* Machined plates: small radii, hairline edges. */
   --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius: 8px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 5px;
+  --radius-xl: 6px;
+  --radius: 4px;
 
-  --shadow-border: 0 0 0 1px color-mix(in oklab, #8b90a0 22%, transparent);
-  --shadow-border-hover: 0 0 0 1px color-mix(in oklab, #9be7ff 40%, transparent);
-  /* Aperture bloom, 12px max — lockbug only, never the picture. */
-  --shadow-live: 0 0 12px color-mix(in oklab, #9be7ff 22%, transparent);
-  --shadow-sync: 0 0 10px color-mix(in oklab, #9be7ff 14%, transparent);
+  --shadow-border: 0 0 0 1px rgba(169, 251, 253, 0.12);
+  --shadow-border-hover: 0 0 0 1px rgba(102, 224, 230, 0.42);
+  /* Bloom ≤ 12px — chrome only, never the picture. */
+  --shadow-live: 0 0 12px rgba(102, 224, 230, 0.22);
+  --shadow-sync: 0 0 10px rgba(102, 224, 230, 0.14);
 
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* One easing curve (Pages): hover 160 ms, settle 620 ms, draw 900 ms. */
+  --ease-out: cubic-bezier(0.2, 0.7, 0.1, 1);
+  --ease-smooth-out: cubic-bezier(0.2, 0.7, 0.1, 1);
   --motion-micro: 80ms;
-  --motion-quick: 150ms;
+  --motion-quick: 160ms;
   --motion-fast: 250ms;
   --motion-slow: 400ms;
-  --motion-emphasis: 500ms;
+  --motion-emphasis: 620ms;
   --motion-scale-modal: 0.96;
+}
+
+:root {
+  color-scheme: dark;
+  --glass: rgba(6, 16, 22, 0.62);
+  --glass-edge: rgba(169, 251, 253, 0.12);
+  --t-hover: 160ms;
+  --t-settle: 620ms;
+  --t-draw: 900ms;
+  /* State glyph masks (16×16), tinted with currentColor — same set as Pages. */
+  --g-signal: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M1.5 4.5h13v3.2l-2.4 3.3H3.9L1.5 7.7z' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'/><path d='M4.5 7.2h7' stroke='black' stroke-width='1.3'/></svg>");
+  --g-read: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='5.6' fill='none' stroke='black' stroke-width='1.4' stroke-dasharray='2.4 2'/><circle cx='8' cy='8' r='1.6' fill='black'/></svg>");
+  --g-locked: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6.5' fill='none' stroke='black' stroke-width='1.3'/><path d='M8 4.4 11.1 6.2v3.6L8 11.6 4.9 9.8V6.2z' fill='none' stroke='black' stroke-width='1.3'/><path d='M8 1.5v2.9M13.6 4.8l-2.5 1.4M13.6 11.2l-2.5-1.4M8 14.5v-2.9M2.4 11.2l2.5-1.4M2.4 4.8l2.5 1.4' stroke='black' stroke-width='1.1'/></svg>");
+  --g-dark: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M2.75 2.75h10.5v10.5H2.75z' fill='none' stroke='black' stroke-width='1.5'/></svg>");
+  --g-recheck: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M13 8a5 5 0 1 1-1.6-3.7' fill='none' stroke='black' stroke-width='1.5'/><path d='M13.6 1.8v3.6H10' fill='none' stroke='black' stroke-width='1.5'/></svg>");
 }
 
 @layer base {
@@ -113,16 +147,26 @@
     color: var(--color-fg);
   }
 
-  /* Picture is the aperture: flat void field. No scanlines, no radial wash. */
+  /* Chrome backdrop: the logo's navy halo, low and static. The picture well
+   * paints its own void on top — no wash ever reaches the video. */
   body {
     font-family: var(--font-sans);
     line-height: 1.5;
-    background: var(--color-bg);
+    background:
+      radial-gradient(900px 520px at 88% -12%, rgba(102, 224, 230, 0.06), transparent 62%),
+      radial-gradient(760px 560px at -8% 30%, rgba(1, 28, 36, 0.85), transparent 64%),
+      linear-gradient(180deg, #020810, var(--color-bg) 46%);
   }
 
   #root {
     position: relative;
     z-index: 1;
+    background: transparent;
+  }
+
+  ::selection {
+    background: rgba(102, 224, 230, 0.28);
+    color: var(--color-ink);
   }
 
   button:not(:disabled),
@@ -135,7 +179,8 @@
   h3 {
     text-wrap: balance;
     font-family: var(--font-display);
-    letter-spacing: -0.03em;
+    font-weight: 500;
+    letter-spacing: -0.01em;
   }
 
   p {
@@ -153,67 +198,368 @@
   }
 }
 
-@media (max-width: 1099px) {
-  .glass-nav {
-    flex-basis: 100%;
-  }
-}
-
-/* overlay.html only — OBS lens is transparent, no page wash. */
+/* overlay.html only — OBS lens is transparent, no page wash, sans display. */
 html.obs-lens,
-html.obs-lens body {
+html.obs-lens body,
+html.obs-lens #root {
   background: transparent !important;
 }
 
-/* Never filter this <img> — contrast/brightness on JPEG blocks looks specky. */
+/* color-scheme stays "normal" on the lens: a dark scheme makes Chromium paint
+ * an opaque canvas behind an embedded/transparent page. */
+html.obs-lens {
+  color-scheme: normal;
+  --font-display: "Instrument Sans", system-ui, sans-serif;
+}
+
+.mobile-stage {
+  aspect-ratio: 4 / 3;
+  max-height: 72dvh;
+}
+
+/* Never filter this <img>/<canvas>/<video> — no blur, tint, blend or overlay
+ * on the actual picture. Contrast/brightness on JPEG blocks looks specky. */
 .hdmi-picture {
   image-rendering: auto;
+  filter: none !important;
+  mix-blend-mode: normal !important;
   transition: none !important;
 }
 
 /* ---------------------------------------------------------------------------
- * Machined chrome. Iron hairlines and flat plates — no bloom on the picture.
+ * Glass plates. Hairline edge, aqua-tinted glass; opaque plate when the
+ * browser has no backdrop-filter, so contrast never depends on blur. Plates
+ * are chrome — none of them sits over the HDMI picture.
  * ------------------------------------------------------------------------- */
 .holo-header {
-  background: color-mix(in oklab, var(--color-surface) 84%, var(--color-bg));
-  border-bottom: 1px solid var(--color-border);
-  backdrop-filter: blur(10px);
+  background: rgba(1, 4, 9, 0.94);
+  border-bottom: 1px solid rgba(169, 251, 253, 0.08);
 }
 
 .holo-plate {
   position: relative;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-border);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-xl);
+  background: var(--color-plate);
+  box-shadow: inset 0 1px 0 rgba(169, 251, 253, 0.04);
 }
 
-/* HDMI bezel — a machined iron frame around the void well. No tilt, no glow. */
-.holo-plinth {
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .holo-header {
+    background: rgba(1, 4, 9, 0.72);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    backdrop-filter: blur(16px) saturate(1.2);
+  }
+  .holo-plate {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+  }
+}
+
+.plate-label,
+.holo-plate h2.plate-label {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-mute);
+}
+
+.plate-title {
+  margin-top: 8px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 1.15;
+  color: var(--color-ink);
+}
+
+.plate-title em {
+  color: var(--color-ink-2);
+}
+
+.plate-link {
+  display: inline-flex;
+  margin-top: 10px;
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-aqua);
+  text-decoration: none;
+  transition: color var(--t-hover) var(--ease-out);
+}
+
+.plate-link:hover {
+  color: var(--color-aqua-hi);
+}
+
+.foundry-plate {
+  padding: 13px 15px 14px 17px;
+}
+
+.foundry-plate::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+  background: var(--color-aqua-deep);
+}
+
+/* ---------------------------------------------------------------------------
+ * Command bar: wordmark · tab bar · tally · keys, then the meter strip.
+ * ------------------------------------------------------------------------- */
+.deck-bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  padding: 10px 16px 8px;
+}
+
+.deck-brand {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.deck-wordmark {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--color-ink);
+}
+
+.deck-kicker {
+  margin-top: 4px;
+  font: 600 9px/1 var(--font-sans);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-aqua);
+}
+
+.deck-tally {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.deck-take {
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-subtle-foreground);
+}
+
+.deck-keys {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.deck-key {
+  display: inline-flex;
+  height: 34px;
+  min-width: 4.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  font: 600 11px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.deck-key-n {
+  font-size: 9px;
+  opacity: 0.55;
+}
+
+.deck-key-clip {
+  min-width: 8.5rem;
+}
+
+.deck-bar-sub {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border-top: 1px solid rgba(169, 251, 253, 0.06);
+}
+
+.deck-board {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 16px;
+  border-left: 1px solid rgba(169, 251, 253, 0.06);
+}
+
+.deck-sit {
+  font: 500 10px/1.2 var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--color-mute);
+}
+
+.deck-votes {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-width: 0;
+  border-bottom: 1px solid rgba(169, 251, 253, 0.06);
+  background: rgba(1, 4, 9, 0.5);
+}
+
+.deck-votes > .honesty-strip {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.deck-votes > [aria-label="Play instruments"] {
+  flex: 0 0 auto;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Signal-health strip: broadcast meters. Label over value, hairline dividers,
+ * a 2px tone rule on the left. Unknown = em dash. */
+.meter-strip {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: stretch;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.meter-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.meter {
+  --tone: var(--color-subtle-foreground);
   position: relative;
-  isolation: isolate;
-  padding: 1px;
-  background: var(--color-subtle);
-  box-shadow: var(--shadow-border);
+  display: flex;
+  min-width: 4.6rem;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 12px 7px 13px;
+  border-right: 1px solid rgba(169, 251, 253, 0.06);
 }
 
-/* Video-health tone: 1px hairline tint only. Never a bloom on the picture. */
-.holo-plinth[data-holo-tone="red"] {
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-veto) 55%, transparent);
+.meter::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 2px;
+  background: var(--tone);
+  opacity: 0.85;
+  transition: background-color var(--t-hover) var(--ease-out);
 }
 
-.holo-plinth-well {
-  position: relative;
-  overflow: hidden;
-  background: var(--color-bg);
+.meter[data-tone="ok"] {
+  --tone: var(--color-aqua);
 }
 
-/* Clutch on the bezel is a hairline tint keyed by path — brass fast, aperture
- * hot. No animation, no bloom, no glow on the picture. */
-.holo-plinth[data-clutch="near"] {
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-fast) 60%, transparent);
+.meter[data-tone="hold"] {
+  --tone: var(--color-mute);
 }
 
-.holo-plinth[data-clutch="hot"] {
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-live) 72%, transparent);
+.meter[data-tone="dark"] {
+  --tone: var(--color-line-hi);
+}
+
+.meter[data-tone="fault"] {
+  --tone: var(--color-veto);
+}
+
+.meter[data-tone="idle"]::before {
+  display: none;
+}
+
+.meter-label {
+  font: 600 8.5px/1 var(--font-sans);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-subtle-foreground);
+  white-space: nowrap;
+}
+
+.meter-value {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+  font: 600 12px/1.1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+.meter[data-tone="dark"] .meter-value {
+  color: var(--color-mute);
+}
+
+.meter[data-tone="fault"] .meter-value {
+  color: var(--color-veto);
+}
+
+.meter-value small {
+  font: 500 9.5px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--color-subtle-foreground);
+}
+
+.meter-card {
+  max-width: 11rem;
+}
+
+.meter-bar {
+  display: inline-flex;
+  align-self: center;
+  gap: 2px;
+}
+
+.meter-bar i {
+  width: 5px;
+  height: 8px;
+  border-radius: 1px;
+  background: var(--color-blank);
+  box-shadow: inset 0 0 0 1px var(--color-line-hi);
+}
+
+.meter-bar i.on {
+  background: var(--tone);
+  box-shadow: none;
+}
+
+.meter-clock time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink-2);
+}
+
+.meter-strip-compact .meter {
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
 
 /* Sight Honesty — TicketGlass + SyncGlass votes. Chrome only, never the picture. */
@@ -221,33 +567,37 @@ html.obs-lens body {
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 12px;
-  height: 32px;
+  gap: 14px;
+  height: 28px;
   padding: 0 16px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   font-family: var(--font-mono);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-border);
+  background: rgba(1, 4, 9, 0.5);
+  box-shadow: inset 0 -1px 0 rgba(169, 251, 253, 0.06);
 }
 
 .honesty-strip-compact {
-  height: 28px;
-  gap: 8px;
+  height: 26px;
+  gap: 10px;
   padding: 0 12px;
 }
 
 .honesty-strip[data-honesty="dark"] {
-  opacity: 0.45;
+  opacity: 0.55;
 }
 
 .honesty-glyph {
   display: inline-flex;
+  flex-shrink: 0;
   min-width: 0;
   align-items: baseline;
   gap: 6px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-subtle-foreground);
+  white-space: nowrap;
 }
 
 .honesty-glyph[data-conf="solid"] {
@@ -255,16 +605,16 @@ html.obs-lens body {
 }
 
 .honesty-glyph[data-conf="dim"] {
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 .honesty-glyph[data-conf="ghost"] {
-  opacity: 0.35;
+  opacity: 0.4;
 }
 
 .honesty-glyph-name {
   font-size: 9px;
-  color: var(--color-muted-foreground);
+  color: var(--color-mute);
 }
 
 .honesty-glyph-value {
@@ -294,6 +644,518 @@ html.obs-lens body {
   color: var(--color-live);
 }
 
+/* ---------------------------------------------------------------------------
+ * HDMI stage: a broadcast monitor bezel AROUND the picture. Corner brackets
+ * and the tone hairline live on the bezel; the well is plain void and the
+ * picture is never blurred, tinted, masked or overlaid.
+ * ------------------------------------------------------------------------- */
+.holo-plinth {
+  position: relative;
+  isolation: isolate;
+  padding: 7px;
+  border: 1px solid var(--color-line);
+  background: linear-gradient(180deg, #050d13, #02070b);
+  box-shadow: inset 0 1px 0 rgba(169, 251, 253, 0.05);
+}
+
+/* Bezel corner brackets (outside the picture well). */
+.holo-plinth::before,
+.holo-plinth::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  border-color: var(--color-aqua-deep);
+  border-style: solid;
+  transition: border-color var(--t-settle) var(--ease-out);
+}
+
+.holo-plinth::before {
+  top: 2px;
+  left: 2px;
+  border-width: 1px 0 0 1px;
+}
+
+.holo-plinth::after {
+  right: 2px;
+  bottom: 2px;
+  border-width: 0 1px 1px 0;
+}
+
+/* Video-health tone: bezel hairline only. Never a bloom on the picture. */
+.holo-plinth[data-holo-tone="green"] {
+  border-color: rgba(102, 224, 230, 0.32);
+}
+
+.holo-plinth[data-holo-tone="green"]::before,
+.holo-plinth[data-holo-tone="green"]::after {
+  border-color: var(--color-aqua);
+}
+
+.holo-plinth[data-holo-tone="amber"] {
+  border-color: rgba(138, 158, 166, 0.35);
+}
+
+.holo-plinth[data-holo-tone="red"] {
+  border-color: rgba(232, 135, 124, 0.5);
+}
+
+.holo-plinth-well {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-void);
+}
+
+/* Clutch on the bezel is a hairline tint keyed by path. No animation, no
+ * bloom, no glow on the picture. */
+.holo-plinth[data-clutch="near"] {
+  border-color: rgba(169, 251, 253, 0.55);
+}
+
+.holo-plinth[data-clutch="hot"] {
+  border-color: rgba(102, 224, 230, 0.8);
+}
+
+/* Honest empty frame: closed iris on a blank well. Static — no spinner. */
+.aperture-ident {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(60% 70% at 50% 50%, rgba(1, 28, 36, 0.55), transparent 70%),
+    var(--color-void);
+}
+
+.aperture-ident-safe {
+  position: absolute;
+  inset: 5% 5%;
+  border: 1px dashed rgba(169, 251, 253, 0.08);
+}
+
+.aperture-ident-core {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.aperture-ident-iris {
+  width: clamp(72px, 14vmin, 128px);
+}
+
+.aperture-ident-title {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3.4vmin, 32px);
+  font-style: italic;
+  line-height: 1;
+  color: var(--color-ink-2);
+}
+
+.aperture-ident-why {
+  font: 500 10px/1.4 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-mute);
+}
+
+.aperture-ident-corner {
+  position: absolute;
+  bottom: 12px;
+  font: 600 9px/1 var(--font-sans);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-subtle-foreground);
+}
+
+.aperture-ident-corner.is-left {
+  left: 14px;
+}
+
+.aperture-ident-corner.is-right {
+  right: 14px;
+}
+
+/* Signal bar under the HDMI bezel — freshness in aqua, slate on HOLD. */
+.signal-prism {
+  height: 3px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 1px;
+  background: var(--color-blank);
+}
+
+.signal-prism-fill {
+  height: 100%;
+  transition: width 180ms var(--ease-out);
+  background: linear-gradient(90deg, var(--color-aqua-glow), var(--color-aqua));
+}
+
+.signal-prism-fill.is-hold {
+  background: linear-gradient(90deg, var(--color-line-hi), var(--color-mute));
+}
+
+.signal-prism-fill.is-stall {
+  background: var(--color-veto);
+}
+
+/* ---------------------------------------------------------------------------
+ * Aperture iris (inline SVG, see aperture-iris.tsx). Opens on a confirmed
+ * read: blades slide out + turn 24°, pins and tick go gold. Closed = dark.
+ * ------------------------------------------------------------------------- */
+.q-iris {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.q-iris svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.q-iris .well {
+  fill: #020a10;
+}
+
+.q-iris .ring {
+  fill: none;
+  stroke: var(--color-aqua-deep);
+  stroke-width: 2.2;
+  transition: stroke 500ms ease;
+}
+
+.q-iris .ring-glow {
+  fill: none;
+  stroke: var(--color-aqua);
+  stroke-width: 6;
+  opacity: 0.06;
+  transition: opacity 500ms ease;
+}
+
+.q-iris .tick {
+  stroke: #566a72;
+  stroke-width: 3;
+  transition: stroke 500ms ease;
+}
+
+.q-iris .blades {
+  transform-origin: 60px 60px;
+  transition: transform var(--t-draw) var(--ease-out);
+}
+
+.q-iris .blade {
+  fill: #061a22;
+  transition: transform var(--t-draw) var(--ease-out);
+}
+
+.q-iris .blade-edge {
+  fill: none;
+  stroke: var(--color-aqua-deep);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.q-iris .port {
+  fill: none;
+  stroke: var(--color-aqua);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.q-iris .port-line {
+  stroke: var(--color-aqua);
+  stroke-width: 1.6;
+}
+
+.q-iris .pin {
+  fill: #566a72;
+  transition: fill 500ms ease;
+}
+
+.q-iris.is-open .blades {
+  transform: rotate(24deg);
+}
+
+.q-iris.is-open .blade {
+  transform: translateY(-31px);
+}
+
+.q-iris.is-open .ring {
+  stroke: var(--color-aqua-hi);
+}
+
+.q-iris.is-open .ring-glow {
+  opacity: 0.14;
+}
+
+/* Gold is the lock: only an open iris carries it. */
+.q-iris.is-open .pin {
+  fill: var(--color-gold);
+}
+
+.q-iris.is-open .tick {
+  stroke: var(--color-gold);
+}
+
+/* ---------------------------------------------------------------------------
+ * Scorebug read board (situation-card.tsx). LOCKED gold vs DARK blank.
+ * ------------------------------------------------------------------------- */
+.read-board {
+  --tone: var(--color-mute);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 15px 12px 17px;
+  transition: border-color 500ms ease;
+}
+
+.read-board::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+  background: var(--tone);
+  transition: background-color 500ms ease;
+}
+
+.read-board.is-reading {
+  --tone: var(--color-aqua);
+}
+
+.read-board.is-recheck {
+  --tone: var(--color-aqua-hi);
+  border-style: dashed;
+  border-color: rgba(169, 251, 253, 0.3);
+}
+
+.read-board.is-locked {
+  --tone: var(--color-gold);
+  border-color: rgba(252, 222, 116, 0.42);
+  background: linear-gradient(160deg, rgba(252, 222, 116, 0.07), rgba(8, 19, 26, 0.85) 55%);
+}
+
+.read-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.read-board-witness {
+  font: 500 9.5px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-subtle-foreground);
+}
+
+.read-board-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.read-board-iris {
+  width: 64px;
+  padding: 4px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: rgba(1, 2, 6, 0.55);
+}
+
+.read-board-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+
+.read-board-stamp {
+  margin-left: auto;
+  padding: 3px 6px;
+  border: 1px solid var(--color-line-hi);
+  border-radius: 2px;
+  font: 600 9.5px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--color-mute);
+  white-space: nowrap;
+}
+
+.read-board.is-locked .read-board-stamp {
+  border-color: rgba(252, 222, 116, 0.55);
+  background: rgba(252, 222, 116, 0.1);
+  color: var(--color-gold);
+}
+
+.state-glyph {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  background: currentColor;
+  -webkit-mask: var(--g-dark) center / contain no-repeat;
+  mask: var(--g-dark) center / contain no-repeat;
+}
+
+.state-glyph.g-locked {
+  -webkit-mask-image: var(--g-locked);
+  mask-image: var(--g-locked);
+}
+
+.state-glyph.g-reading {
+  -webkit-mask-image: var(--g-read);
+  mask-image: var(--g-read);
+}
+
+.state-glyph.g-recheck {
+  -webkit-mask-image: var(--g-recheck);
+  mask-image: var(--g-recheck);
+}
+
+.state-glyph.g-signal {
+  -webkit-mask-image: var(--g-signal);
+  mask-image: var(--g-signal);
+}
+
+.read-board-score {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 8px 0 3px;
+  font: 600 34px/1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--color-mute);
+  white-space: nowrap;
+}
+
+.read-board-score i {
+  padding: 0 0.12em;
+  font-style: normal;
+  color: var(--color-line-hi);
+}
+
+.read-board-score small {
+  margin: 0 6px;
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-2);
+}
+
+.read-board.is-locked .read-board-score {
+  color: var(--color-gold);
+}
+
+.read-board.is-locked .read-board-score i {
+  color: rgba(252, 222, 116, 0.55);
+}
+
+.blank-cell {
+  display: inline-block;
+  width: 0.62em;
+  height: 0.78em;
+  border: 1px solid var(--color-line-hi);
+  border-radius: 2px;
+  background: var(--color-blank);
+}
+
+.read-board-meta {
+  font: 500 11.5px/1.35 var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--color-subtle-foreground);
+}
+
+.read-board.is-locked .read-board-meta {
+  color: var(--color-ink-2);
+}
+
+.q-reads {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.q-reads i {
+  width: 22px;
+  height: 6px;
+  border: 1px solid var(--color-line-hi);
+  border-radius: 1px;
+  background: var(--color-blank);
+  transform-origin: left center;
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease;
+}
+
+.q-reads.is-nine i {
+  width: 12px;
+}
+
+.q-reads i.on {
+  border-color: var(--color-aqua);
+  background: var(--color-aqua);
+  animation: tick-in 360ms var(--ease-out) both;
+}
+
+.read-board.is-recheck .q-reads i.on {
+  border-color: var(--color-aqua-hi);
+  background: var(--color-aqua-hi);
+}
+
+.read-board.is-locked .q-reads i.on {
+  border-color: var(--color-gold);
+  background: var(--color-gold);
+}
+
+.q-reads span {
+  margin-left: 6px;
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--color-mute);
+}
+
+.read-board-local {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 10px;
+  margin: 0;
+  padding-top: 9px;
+  border-top: 1px solid var(--color-line);
+}
+
+.read-board-local dt {
+  font: 600 8.5px/1 var(--font-sans);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-subtle-foreground);
+}
+
+.read-board-local dd {
+  margin: 4px 0 0;
+  font: 600 12px/1.1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-2);
+}
+
+.read-board-foot {
+  font: 500 9.5px/1.2 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-subtle-foreground);
+}
+
 /* Fill remaining rail. No vh max-height — that cropped the tape under scorebug. */
 .clutch-feed[data-feed="dock"],
 .clutch-feed[data-feed="peek"],
@@ -306,7 +1168,7 @@ html.obs-lens body {
 
 .clutch-feed-tape {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--color-live) 35%, transparent) transparent;
+  scrollbar-color: rgba(102, 224, 230, 0.35) transparent;
   mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 1.25rem), transparent 100%);
 }
 
@@ -317,15 +1179,16 @@ html.obs-lens body {
 
 .clutch-now {
   border-left: 2px solid var(--color-fast);
-  background: color-mix(in oklab, var(--color-fast) 8%, transparent);
+  background: rgba(169, 251, 253, 0.06);
 }
 
 .clutch-now-confirm {
   border-left-color: var(--color-live);
-  background: color-mix(in oklab, var(--color-live) 8%, transparent);
+  background: rgba(102, 224, 230, 0.07);
 }
 
 .clutch-beat {
+  position: relative;
   display: flex;
   width: 100%;
   gap: 0.7rem;
@@ -333,7 +1196,7 @@ html.obs-lens body {
   text-align: left;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+  border-bottom: 1px solid var(--color-line);
   color: inherit;
 }
 
@@ -342,7 +1205,7 @@ html.obs-lens body {
 }
 
 .clutch-beat:hover {
-  background: color-mix(in oklab, var(--color-fg) 4%, transparent);
+  background: rgba(169, 251, 253, 0.04);
 }
 
 .clutch-beat-tick {
@@ -350,7 +1213,7 @@ html.obs-lens body {
   align-self: stretch;
   min-height: 1.6rem;
   margin-top: 0.2rem;
-  background: color-mix(in oklab, var(--color-muted-foreground) 45%, transparent);
+  background: var(--color-line-hi);
 }
 
 .clutch-beat-tick[data-path="fast"] {
@@ -386,33 +1249,32 @@ html.obs-lens body {
 }
 
 .clutch-feed[data-land="fast"] {
-  box-shadow:
-    var(--shadow-border),
-    0 0 0 1px color-mix(in oklab, var(--color-fast) 55%, transparent);
+  border-color: rgba(169, 251, 253, 0.5);
 }
 
 .clutch-feed[data-land="confirm"] {
-  box-shadow:
-    var(--shadow-border),
-    0 0 0 1px color-mix(in oklab, var(--color-live) 55%, transparent);
+  border-color: rgba(102, 224, 230, 0.55);
 }
 
-/* Keep in sync with qoresence/deck/session.css .glass-nav.
- * glass-nav is NOT a scroll strip: wrap, overflow-x hidden, flex 1 1 100%. */
+/* ---------------------------------------------------------------------------
+ * Tab bar — one look on every glass (SPA + fallback pages via session.css).
+ * Keep in sync with qoresence/deck/session.css .glass-nav.
+ * glass-nav is NOT a scroll strip: wrap, overflow-x hidden.
+ * ------------------------------------------------------------------------- */
 .glass-nav {
   display: flex;
-  flex: 1 1 100%;
-  width: 100%;
+  flex: 0 1 auto;
   min-width: 0;
   flex-wrap: wrap;
+  align-items: stretch;
   gap: 2px;
   overflow-x: hidden;
   overflow-y: visible;
   scrollbar-width: none;
   padding: 3px;
-  border-radius: var(--radius-md);
-  background: color-mix(in oklab, var(--color-subtle) 72%, transparent);
-  box-shadow: var(--shadow-border);
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: rgba(1, 4, 9, 0.55);
 }
 
 .glass-nav::-webkit-scrollbar {
@@ -422,29 +1284,31 @@ html.obs-lens body {
 }
 
 .glass-nav a {
+  position: relative;
   display: inline-flex;
   min-width: 4rem;
-  height: 34px;
+  height: 30px;
   align-items: center;
   justify-content: center;
   padding: 0 12px;
-  border-radius: var(--radius-sm);
-  color: var(--color-muted-foreground);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--color-mute);
   text-decoration: none;
   font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   transition:
-    color 150ms var(--ease-out),
-    background 150ms var(--ease-out),
-    box-shadow 150ms var(--ease-out);
+    color var(--t-hover) var(--ease-out),
+    background-color var(--t-hover) var(--ease-out),
+    border-color var(--t-hover) var(--ease-out);
 }
 
 .glass-nav a:hover {
-  color: var(--color-fg);
-  background: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  color: var(--color-ink);
+  background: rgba(102, 224, 230, 0.07);
 }
 
 .glass-nav a:active {
@@ -452,199 +1316,309 @@ html.obs-lens body {
 }
 
 .glass-nav a:focus-visible {
-  outline: 2px solid var(--color-live);
+  outline: 1px solid var(--color-aqua);
   outline-offset: 2px;
 }
 
 .glass-nav a[aria-current="page"],
 .glass-nav a.stream-key-live {
-  color: var(--color-primary-foreground);
-  background: var(--color-primary);
+  color: var(--color-aqua);
+  border-color: rgba(102, 224, 230, 0.45);
+  background: rgba(102, 224, 230, 0.08);
 }
 
 .glass-nav a[aria-current="page"]:hover,
 .glass-nav a.stream-key-live:hover {
-  color: var(--color-primary-foreground);
-  background: color-mix(in oklab, var(--color-primary) 92%, #fff);
+  color: var(--color-aqua-hi);
+  background: rgba(102, 224, 230, 0.12);
 }
 
-/* Machined keys — flat plate, iron hairline. Active = flat aperture fill. */
+/* Keys — plate with hairline; the active key is the one aqua fill. */
 .stream-key {
   border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-subtle);
-  color: var(--color-muted-foreground);
-  box-shadow: var(--shadow-border);
+  border: 1px solid var(--color-line-hi);
+  background: rgba(8, 19, 26, 0.85);
+  color: var(--color-ink-2);
+  box-shadow: none;
   transition:
-    color 150ms var(--ease-out),
-    background 150ms var(--ease-out),
-    box-shadow 150ms var(--ease-out);
+    color var(--t-hover) var(--ease-out),
+    background-color var(--t-hover) var(--ease-out),
+    border-color var(--t-hover) var(--ease-out);
 }
 
 .stream-key:hover {
-  color: var(--color-fg);
-  box-shadow: var(--shadow-border-hover);
+  color: var(--color-ink);
+  border-color: rgba(102, 224, 230, 0.42);
+}
+
+.stream-key:disabled {
+  opacity: 0.45;
 }
 
 .stream-key-live {
   color: var(--color-primary-foreground);
   background: var(--color-primary);
-  border-color: transparent;
+  border-color: var(--color-primary);
 }
 
 .stream-key-live:hover {
   color: var(--color-primary-foreground);
-  background: color-mix(in oklab, var(--color-primary) 92%, #fff);
+  background: var(--color-aqua-hi);
 }
 
 .stream-key-clip {
-  color: var(--color-primary);
-  border-color: color-mix(in oklab, var(--color-primary) 40%, transparent);
-  background: var(--color-subtle);
+  color: var(--color-aqua);
+  border-color: rgba(102, 224, 230, 0.4);
+  background: rgba(8, 19, 26, 0.85);
 }
 
 .stream-key-clip:hover {
-  color: var(--color-primary);
-  background: color-mix(in oklab, var(--color-primary) 12%, var(--color-subtle));
+  color: var(--color-aqua-hi);
+  background: rgba(102, 224, 230, 0.1);
 }
 
-/* Tally lamp — AIR aperture, STANDBY iron, STALL veto. */
+/* Program keys: the selected mode is an aqua outline, not a fill — the only
+ * solid aqua LIVE on the bar is the tally, and that one is the backend's word. */
+.deck-keys .stream-key-live {
+  color: var(--color-aqua);
+  background: rgba(102, 224, 230, 0.1);
+  border-color: rgba(102, 224, 230, 0.6);
+}
+
+.deck-keys .stream-key-live:hover {
+  color: var(--color-aqua-hi);
+  background: rgba(102, 224, 230, 0.16);
+}
+
+/* Tally lamp — LIVE aqua (backend says painting), HOLD slate ring,
+ * STALL fault, DARK a blank cell. Steady: a tally does not blink. */
 .holo-tally {
-  letter-spacing: 0.12em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--color-line-hi);
+  border-radius: var(--radius-sm);
+  background: rgba(1, 4, 9, 0.6);
+  font: 600 11px/1 var(--font-mono);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-mute);
+  transition:
+    color var(--t-hover) var(--ease-out),
+    border-color var(--t-hover) var(--ease-out),
+    background-color var(--t-hover) var(--ease-out);
 }
 
 .holo-tally-lamp {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 9px;
+  height: 9px;
   border-radius: 999px;
-  background: currentColor;
-  box-shadow: 0 0 8px currentColor;
+  background: var(--color-blank);
+  box-shadow: inset 0 0 0 1px var(--color-line-hi);
 }
 
-.holo-tally-air {
-  color: var(--color-live);
-  background: color-mix(in oklab, var(--color-live) 12%, transparent);
+.holo-tally-live {
+  color: var(--color-void);
+  border-color: var(--color-aqua);
+  background: var(--color-aqua);
 }
 
-.holo-tally-standby {
-  color: var(--color-muted-foreground);
-  background: color-mix(in oklab, var(--color-muted-foreground) 8%, transparent);
+.holo-tally-live .holo-tally-lamp {
+  background: var(--color-aqua-hi);
+  box-shadow:
+    0 0 0 2px rgba(1, 2, 6, 0.85),
+    0 0 10px var(--color-aqua-hi);
+}
+
+.holo-tally-hold .holo-tally-lamp {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--color-mute);
 }
 
 .holo-tally-stall {
   color: var(--color-veto);
-  background: color-mix(in oklab, var(--color-veto) 10%, transparent);
+  border-color: rgba(232, 135, 124, 0.5);
 }
 
-/* Signal bar under the HDMI bezel — iris freshness, iron on HOLD. */
-.signal-prism {
-  height: 4px;
-  overflow: hidden;
-  background: color-mix(in oklab, var(--color-sync) 8%, var(--color-bg));
-}
-
-.signal-prism-fill {
-  height: 100%;
-  transition: width 180ms var(--ease-out);
-  background: linear-gradient(90deg, var(--color-bg), var(--color-sync));
-}
-
-.signal-prism-fill.is-hold {
-  background: linear-gradient(90deg, var(--color-subtle-foreground), var(--color-muted-foreground));
-}
-
-.signal-prism-fill.is-stall {
+.holo-tally-stall .holo-tally-lamp {
   background: var(--color-veto);
+  box-shadow: none;
 }
 
-/* Wordmark tile. */
+.holo-tally-dark {
+  color: var(--color-subtle-foreground);
+}
+
+/* Wordmark tile (retired on Sight Glass; kept for stale imports). */
 .holo-mark {
   background: var(--color-primary);
   color: var(--color-primary-foreground);
-  box-shadow: var(--shadow-border);
 }
 
 /* HDMI Q — same Aperture Ident as GitHub Pages. */
 .hdmi-mark {
   display: block;
-  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--color-live) 45%, transparent));
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(102, 224, 230, 0.25), 0 0 14px rgba(102, 224, 230, 0.18);
 }
 
 /* ---------------------------------------------------------------------------
- * Qoreglass motion law — licensed-moment animation. CHROME ONLY, one-shot.
- *
- * Fires ONLY when a licensed clutch/climax lands (widgetsOk + board lock). The
- * trigger gate lives in the glass (store token + component `licensed`), never
- * in CSS — a `data-land` attribute is added for one animation, then removed.
- *
- * Painted surfaces are chrome: the Clutch Feed row (.clutch-row) and the
- * Lockbug (.lockbug-lock). No rule here touches .hdmi-picture or the plinth
- * well — the picture is the star and never glows, blooms, or scales.
- *
- * Path tint: brass (--color-fast #D7B36A) = fast, aperture (--color-live
- * #9BE7FF) = confirm. Enter 80ms, settle 150ms (--ease-out). One shot — no
- * loop, no scale, no bounce. Bloom ≤ 12px (aperture / lockbug law).
- * prefers-reduced-motion: static brass/aperture hairline, no glow animation.
+ * Small screens: picture first, rail below; meters scroll sideways.
+ * ------------------------------------------------------------------------- */
+@media (max-width: 1099px) {
+  .glass-nav {
+    order: 5;
+    flex-basis: 100%;
+    border-radius: var(--radius-lg);
+  }
+  .glass-nav a {
+    flex: 1 1 auto;
+  }
+  .deck-bar-sub {
+    flex-direction: column;
+  }
+  .deck-board {
+    border-left: 0;
+    border-top: 1px solid rgba(169, 251, 253, 0.06);
+  }
+}
+
+@media (max-width: 760px) {
+  /* Short picture: keep only the honest line, drop the corner captions. */
+  .aperture-ident-corner {
+    display: none;
+  }
+  .aperture-ident-iris {
+    width: 48px;
+    height: 48px;
+  }
+  .deck-bar-row {
+    gap: 8px 10px;
+    padding: 8px 12px 8px;
+  }
+  .deck-wordmark {
+    font-size: 18px;
+  }
+  .deck-take {
+    display: none;
+  }
+  .deck-keys {
+    order: 6;
+    flex: 1 1 100%;
+  }
+  .deck-keys > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .deck-key-clip {
+    min-width: 0;
+  }
+  .meter-strip {
+    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent);
+    mask-image: linear-gradient(90deg, #000 85%, transparent);
+  }
+  .meter {
+    min-width: 4.2rem;
+    padding: 5px 10px 6px 11px;
+  }
+  .deck-votes {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .deck-floor {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .deck-floor > div:first-child {
+    flex: 0 0 auto;
+    aspect-ratio: 16 / 10;
+  }
+  .deck-rail {
+    max-width: none;
+    min-width: 0;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .deck-rail .clutch-feed {
+    min-height: 14rem;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion law — CHROME ONLY, transform / opacity keyframes only (a test reads
+ * every @keyframes block). One-shot on a licensed clutch/climax land; the
+ * trigger gate lives in the glass (store token + `licensed`), never in CSS.
+ * No rule here touches .hdmi-picture or the plinth well.
+ * prefers-reduced-motion: static hairline, no animation.
  * ------------------------------------------------------------------------- */
 @keyframes clutch-row-land {
   0% {
     transform: translateY(3px);
-    box-shadow:
-      var(--shadow-border),
-      0 0 0 1px color-mix(in oklab, var(--clutch-tint) 55%, transparent);
+    opacity: 0.55;
   }
-  /* ~80ms enter to peak (35% of the 230ms one-shot), then 150ms settle out. */
   35% {
     transform: translateY(0);
-    box-shadow:
-      var(--shadow-border),
-      0 0 12px color-mix(in oklab, var(--clutch-tint) 38%, transparent);
+    opacity: 1;
   }
   100% {
     transform: translateY(0);
-    box-shadow: var(--shadow-border);
+    opacity: 1;
   }
 }
 
 @keyframes lockbug-lock {
   0% {
-    text-shadow: none;
+    opacity: 0.4;
   }
   35% {
-    text-shadow: 0 0 12px color-mix(in oklab, var(--clutch-tint) 55%, transparent);
+    opacity: 1;
   }
   100% {
-    text-shadow: none;
+    opacity: 1;
   }
 }
 
-/* Row settled / reduced-motion state = the tinted hairline it already carries
- * (border-fast / border-live). The one-shot only adds transient glow + slide. */
+@keyframes tick-in {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
 .clutch-row[data-land="fast"] {
-  --clutch-tint: var(--color-fast); /* brass — path=fast */
+  --clutch-tint: var(--color-fast); /* aqua-hi — path=fast */
   animation: clutch-row-land 230ms var(--ease-out) 1;
 }
 
 .clutch-row[data-land="confirm"] {
-  --clutch-tint: var(--color-live); /* aperture — path=confirm */
+  --clutch-tint: var(--color-live); /* aqua — path=confirm */
   animation: clutch-row-land 230ms var(--ease-out) 1;
 }
 
 .lockbug-lock[data-land="fast"] {
-  --clutch-tint: var(--color-fast); /* brass — path=fast */
+  --clutch-tint: var(--color-fast);
   animation: lockbug-lock 230ms var(--ease-out) 1;
 }
 
 .lockbug-lock[data-land="confirm"] {
-  --clutch-tint: var(--color-live); /* aperture — path=confirm */
+  --clutch-tint: var(--color-live);
   animation: lockbug-lock 230ms var(--ease-out) 1;
 }
 
-/* prefers-reduced-motion is already law (motion → 0 / instant fill). State it
- * explicitly for moment-motion: no glow animation, static hairline remains. */
 @media (prefers-reduced-motion: reduce) {
   .clutch-row[data-land],
-  .lockbug-lock[data-land] {
+  .lockbug-lock[data-land],
+  .q-reads i.on {
     animation: none !important;
+  }
+  .q-iris .blades,
+  .q-iris .blade {
+    transition: none !important;
   }
 }
