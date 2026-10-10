@@ -104,7 +104,7 @@ def test_home_opens_with_a_plain_language_opener_above_the_hero():
     assert buttons == [("./install.html", "Install"), (FEEDBACK, "Tell me what broke")], buttons
     # the opener is the page's h1; the hero keeps its line below it
     assert re.search(r"<h1 [^>]*>", opener) and html.count("<h1") == 1
-    assert "Goes dark instead of lying." in html and 'data-hold-stage' in html
+    assert "Goes dark instead of lying." in re.sub(r"<[^>]+>", "", html) and "data-read-stage" in html
     # no internal jargon in the opener
     for term in INTERNAL_TERMS:
         assert term.lower() not in text.lower(), term
@@ -112,15 +112,15 @@ def test_home_opens_with_a_plain_language_opener_above_the_hero():
 
 def test_hero_glosses_internal_terms():
     html = (DOCS / "index.html").read_text(encoding="utf-8")
-    hero = re.search(r'<section class="wrap q-hero"[^>]*>(.*?)</section>', html, re.S).group(1)
+    hero = re.search(r'<section class="section" id="watch">(.*?)</section>', html, re.S).group(1)
     lede = re.search(r'<p class="lede">(.*?)</p>', hero, re.S).group(1)
     assert "ConfirmTicket" not in lede or "confirm check" in lede
     for term in ("FrameHub", "InputRing", "DShow", "score_vlm_locked"):
         assert term not in hero, term
     js = (DOCS / "site.js").read_text(encoding="utf-8")
-    hold = js[js.index("Hold loop (home)"):js.index("var TONE_VAR")]
+    stage = js[js.index("Read stage (home)"):js.index("function beatAt")]
     for term in ("FrameHub", "InputRing", "DShow", "ConfirmTicket"):
-        assert term not in hold, term
+        assert term not in stage, term
 
 
 @pytest.mark.parametrize("page", QORESENCE_PAGES, ids=lambda p: p.name)
