@@ -1465,9 +1465,128 @@ html.obs-lens {
 }
 
 /* ---------------------------------------------------------------------------
+ * Side rail: its own scrollport (never the page). Play-by-play keeps a floor
+ * height, so when the rail is short the rail scrolls instead of cropping it.
+ * ------------------------------------------------------------------------- */
+.deck-rail {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-hi) transparent;
+}
+
+.deck-rail > * {
+  flex-shrink: 0;
+}
+
+.deck-rail > .deck-rail-feed {
+  flex: 1 1 auto;
+  min-height: 7.5rem;
+}
+
+@media (max-width: 1179px) {
+  .deck-take {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Short screens (laptop with browser chrome: ~440-650 CSS px tall). The header
+ * gives height back to the picture and the rail: the dim honesty/instrument row
+ * folds away, meters and plates tighten. The picture itself is never cropped:
+ * it is object-contain inside the flex well.
+ * ------------------------------------------------------------------------- */
+@media (max-height: 700px) and (min-width: 761px) {
+  .deck-bar-row {
+    gap: 6px 14px;
+    padding: 6px 14px 5px;
+  }
+  .deck-kicker {
+    display: none;
+  }
+  .deck-wordmark {
+    font-size: 18px;
+  }
+  .deck-key {
+    height: 30px;
+  }
+  .glass-nav a {
+    height: 28px;
+  }
+  .meter {
+    gap: 2px;
+    padding: 4px 10px 5px 11px;
+  }
+  .meter::before {
+    top: 6px;
+    bottom: 6px;
+  }
+  .deck-board {
+    padding: 4px 14px;
+  }
+  .deck-floor {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    gap: 8px;
+  }
+  .deck-rail {
+    gap: 8px;
+  }
+  .read-board {
+    gap: 7px;
+    padding: 9px 12px 9px 14px;
+  }
+  .read-board-iris {
+    width: 52px;
+  }
+  .read-board-score {
+    margin: 4px 0 2px;
+    font-size: 28px;
+  }
+  .read-board-local {
+    gap: 4px 10px;
+    padding-top: 6px;
+  }
+  .read-board-foot {
+    display: none;
+  }
+  .foundry-plate {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .foundry-plate .plate-title {
+    display: none;
+  }
+}
+
+@media (max-height: 600px) and (min-width: 761px) {
+  /* The dim BOARD/HEAT/CUT/PAD/LAG row and the instrument chips fold away; the
+   * same facts stay in the meter strip and the read board. */
+  .deck-votes {
+    display: none;
+  }
+  .deck-sit {
+    display: none;
+  }
+  .read-board-local {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .read-board-local > .col-span-3 {
+    grid-column: auto;
+  }
+}
+
+/* ---------------------------------------------------------------------------
  * Small screens: picture first, rail below; meters scroll sideways.
  * ------------------------------------------------------------------------- */
 @media (max-width: 1099px) {
+  .deck-board {
+    flex: 0 0 13rem;
+  }
+}
+
+@media (max-width: 760px) {
   .glass-nav {
     order: 5;
     flex-basis: 100%;
@@ -1480,12 +1599,10 @@ html.obs-lens {
     flex-direction: column;
   }
   .deck-board {
+    flex: 1 1 auto;
     border-left: 0;
     border-top: 1px solid rgba(169, 251, 253, 0.06);
   }
-}
-
-@media (max-width: 760px) {
   /* Short picture: keep only the honest line, drop the corner captions. */
   .aperture-ident-corner {
     display: none;

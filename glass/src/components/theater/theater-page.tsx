@@ -27,7 +27,8 @@ export function TheaterPage() {
           </div>
         </div>
 
-        <aside className="deck-rail flex min-h-0 w-full min-w-[17rem] max-w-[21rem] flex-col gap-2.5 overflow-hidden">
+        {/* deck-rail scrolls on its own (styles.css) so Play-by-play is always reachable on short screens. */}
+        <aside className="deck-rail flex min-h-0 w-full min-w-[17rem] max-w-[21rem] flex-col gap-2.5">
           <div className="shrink-0">
             <SituationCard />
           </div>
@@ -46,7 +47,7 @@ export function TheaterPage() {
               </a>
             </section>
           )}
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="deck-rail-feed flex min-h-0 flex-1 flex-col overflow-hidden">
             <ClutchFeed />
           </div>
         </aside>
