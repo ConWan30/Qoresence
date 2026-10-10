@@ -13,6 +13,7 @@ OpenCV KLT/Farneback algorithms that MediaPipe uses internally.
 from __future__ import annotations
 
 import logging
+import os
 from collections import deque
 from dataclasses import dataclass
 from typing import Any
@@ -21,6 +22,17 @@ import cv2
 import numpy as np
 
 log = logging.getLogger(__name__)
+
+MODEL_FILENAME = "efficientdet_lite0.tflite"
+MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-tasks/object_detector/efficientdet_lite0_uint8.tflite"
+)
+ALLOW_MODEL_DOWNLOAD_ENV = "QORESENCE_ALLOW_MODEL_DOWNLOAD"
+
+
+class ModelDownloadNotAllowed(RuntimeError):
+    """The model file is missing and the user has not opted in to downloading it."""
+
 
 MEDIAPIPE_AVAILABLE = False
 try:
@@ -96,19 +108,29 @@ class MotionTracker:
 
     @staticmethod
     def _ensure_mediapipe_model() -> str:
-        """Download EfficientDet-Lite0 tflite model if not present."""
+        """Return the EfficientDet-Lite0 model path.
+
+        The model is only downloaded when ``QORESENCE_ALLOW_MODEL_DOWNLOAD=1``.
+        Otherwise a missing model raises ``ModelDownloadNotAllowed`` (no network).
+        """
         import urllib.request
         from pathlib import Path
 
         model_dir = Path("models")
-        model_dir.mkdir(parents=True, exist_ok=True)
-        model_path = model_dir / "efficientdet_lite0.tflite"
+        model_path = model_dir / MODEL_FILENAME
         if model_path.exists():
             return str(model_path)
 
-        url = "https://storage.googleapis.com/mediapipe-tasks/object_detector/efficientdet_lite0_uint8.tflite"
+        if os.environ.get(ALLOW_MODEL_DOWNLOAD_ENV, "").strip() != "1":
+            raise ModelDownloadNotAllowed(
+                f"model {model_path} is missing and downloading is not enabled. "
+                f"Set {ALLOW_MODEL_DOWNLOAD_ENV}=1 to allow a one-time download from "
+                f"{MODEL_URL}, or place the file at {model_path} yourself."
+            )
+
+        model_dir.mkdir(parents=True, exist_ok=True)
         log.info(f"Downloading MediaPipe object-detection model to {model_path}...")
-        urllib.request.urlretrieve(url, model_path)
+        urllib.request.urlretrieve(MODEL_URL, model_path)
         return str(model_path)
 
     def _get_roi_mask(self, frame: np.ndarray) -> np.ndarray | None:
