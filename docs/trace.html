@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#05060a">
+  <meta name="theme-color" content="#010206">
   <meta name="description" content="Qoresence trace viewer — read Jaeger causal traces in the same UI language as Retina Deck.">
   <meta name="color-scheme" content="dark">
   <title>Qoresence Trace Viewer</title>
@@ -14,33 +14,29 @@
 <body>
   <a class="skip" href="#trace-top">Skip to content</a>
   <header class="holo-header">
-    <div class="command">
-      <div class="command-row">
-        <a class="wordmark" href="./index.html">
-          <img class="holo-mark" src="./assets/qoresence-logo.png" alt="" width="40" height="40">
-          <span><b>Qoresence</b><small>pages · hold</small></span>
-        </a>
-        <div class="holo-tally holo-tally-hold"><span class="holo-tally-lamp" aria-hidden="true"></span>Site · Hold</div>
-        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="trace-nav">Menu</button>
-        <nav id="trace-nav" class="glass-nav" data-nav aria-label="Site">
-          <a href="./index.html">Home</a>
-          <a href="./watch.html">Watch</a>
-          <a href="./install.html">Install</a>
-          <a href="./limits.html">Limits</a>
-          <a href="https://vibegate-production.up.railway.app/">Rivalatch</a>
-        </nav>
-      </div>
-      <div class="site-hold">
-        <span>trace viewer · local Jaeger</span>
-        <span class="board-why">Board not licensed — this is a page</span>
-      </div>
+    <div class="site-hold" role="status">
+      <span>trace viewer · local Jaeger</span>
+      <span class="board-why">Board not licensed — this is a page</span>
+    </div>
+    <div class="wrap top">
+      <a class="wordmark" href="./index.html">
+        <img class="holo-mark" src="./assets/qoresence-logo.png" alt="" width="40" height="40">
+        <span><b>Qoresence</b><small>pages · hold</small></span>
+      </a>
+      <nav id="trace-nav" class="glass-nav" data-nav aria-label="Site">
+        <a href="./index.html">Home</a>
+        <a href="./watch.html">Watch</a>
+        <a href="./install.html">Install</a>
+        <a href="./limits.html">Limits</a>
+        <a href="https://vibegate-production.up.railway.app/">Rivalatch</a>
+      </nav>
     </div>
   </header>
 
   <main id="trace-top" class="trace-main">
     <div class="wrap">
       <div class="kicker"><i></i> Causal bus trace</div>
-      <h1>Trace Viewer</h1>
+      <h1>Trace <em>Viewer</em></h1>
       <p class="lede">A Qoresence-styled reader for Jaeger traces. Open any trace ID from an <code>.otel.json</code> sidecar and browse the spans by clock, lobe, and event type.</p>
 
       <section class="card">
