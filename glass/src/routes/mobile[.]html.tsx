@@ -13,8 +13,12 @@ function MobilePage() {
     <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-bg text-fg">
       <CommandBar />
       <HonestyStrip compact />
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain p-3">
-        <HdmiStage variant="lens" />
+      {/* Picture first and clean: chrome sits around the frame, never on it.
+          pb-24 keeps the last card clear of the Knock Rivalatch pill. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain p-3 pb-24">
+        <div className="mobile-stage w-full shrink-0">
+          <HdmiStage variant="observatory" />
+        </div>
         <ConnectCard />
       </div>
     </main>

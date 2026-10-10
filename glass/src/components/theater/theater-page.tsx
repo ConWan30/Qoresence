@@ -13,19 +13,21 @@ export function TheaterPage() {
   const clipArmed = useTheater((s) => s.companion.armed);
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-bg text-fg">
+    <main className="deck-shell flex h-dvh flex-col overflow-hidden bg-bg text-fg">
       <CommandBar />
-      <HonestyStrip />
-      <GamerDock />
+      <div className="deck-votes">
+        <HonestyStrip />
+        <GamerDock />
+      </div>
 
-      <div className="mx-auto flex w-full max-w-[88rem] min-h-0 flex-1 flex-row gap-4 overflow-hidden px-4 pb-3 sm:px-5 sm:pb-4">
+      <div className="deck-floor mx-auto flex w-full max-w-[100rem] min-h-0 flex-1 flex-row gap-3 overflow-hidden px-3 pt-3 pb-3 sm:px-4 sm:pb-4">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="relative h-full w-full">
             <HdmiStage variant="observatory" />
           </div>
         </div>
 
-        <aside className="flex min-h-0 w-full min-w-[18rem] max-w-[22rem] flex-col gap-2 overflow-hidden sm:gap-3">
+        <aside className="deck-rail flex min-h-0 w-full min-w-[17rem] max-w-[21rem] flex-col gap-2.5 overflow-hidden">
           <div className="shrink-0">
             <SituationCard />
           </div>
@@ -34,15 +36,12 @@ export function TheaterPage() {
               <HighlightDirector />
             </div>
           ) : (
-            <section className="holo-plate shrink-0 rounded-xl p-3.5">
-              <h2 className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                Foundry
-              </h2>
-              <p className="mt-2 font-display text-sm font-extrabold text-fg">Clips and highlights</p>
-              <a
-                href="/studio.html"
-                className="mt-3 inline-flex font-mono text-[10px] tracking-[0.14em] text-live uppercase"
-              >
+            <section className="holo-plate foundry-plate shrink-0">
+              <h2 className="plate-label">Foundry</h2>
+              <p className="plate-title">
+                Clips <em>&amp; highlights</em>
+              </p>
+              <a href="/studio.html" className="plate-link">
                 Open Foundry →
               </a>
             </section>
