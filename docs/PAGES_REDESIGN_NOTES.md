@@ -1,5 +1,9 @@
 # Pages redesign notes — 2026 instrument site
 
+> **Superseded 2026-10-09** by [PAGES_MOTION_NOTES.md](PAGES_MOTION_NOTES.md): logo palette
+> (aqua `#66e0e6`, gold `#fcde74` for locked only, void `#010206`), the read stage on the
+> home page, and no menu button. The tokens and loops below are kept for history.
+
 Live today: https://conwan30.github.io/Qoresence/
 
 ## One design system (2026-10-07)

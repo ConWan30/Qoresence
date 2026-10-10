@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#05060a">
+  <meta name="theme-color" content="#010206">
   <meta name="description" content="For PS5 streamers playing Madden or College Football with a capture card and a Windows laptop. Qoresence reads your capture card and shows the score on your OBS overlay only when it can confirm it; otherwise the overlay stays blank instead of showing a wrong score.">
   <meta name="color-scheme" content="dark">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
@@ -26,26 +26,22 @@
 <body>
   <a class="skip" href="#top">Skip to content</a>
   <header class="holo-header">
-    <div class="command">
-      <div class="command-row">
-        <a class="wordmark" href="./index.html">
-          <img class="holo-mark" src="./assets/qoresence-logo.png" alt="" width="40" height="40">
-          <span><b>Qoresence</b><small>pages · hold</small></span>
-        </a>
-        <div class="holo-tally holo-tally-hold"><span class="holo-tally-lamp" aria-hidden="true"></span>Site · Hold</div>
-        <button class="menu-toggle" type="button" data-menu aria-expanded="false" aria-controls="site-nav">Menu</button>
-        <nav id="site-nav" class="glass-nav" data-nav aria-label="Site">
-          <a href="./index.html" aria-current="page">Home</a>
-          <a href="./watch.html">Watch</a>
-          <a href="./install.html">Install</a>
-          <a href="./limits.html">Limits</a>
-          <a href="https://vibegate-production.up.railway.app/">Rivalatch</a>
-        </nav>
-      </div>
-      <div class="site-hold">
-        <span>this page is HOLD — not a live session</span>
-        <span class="board-why">Board not licensed — this is a page</span>
-      </div>
+    <div class="site-hold" role="status">
+      <span>this page is HOLD — not a live session</span>
+      <span class="board-why">Board not licensed — this is a page</span>
+    </div>
+    <div class="wrap top">
+      <a class="wordmark" href="./index.html">
+        <img class="holo-mark" src="./assets/qoresence-logo.png" alt="" width="40" height="40">
+        <span><b>Qoresence</b><small>pages · hold</small></span>
+      </a>
+      <nav id="site-nav" class="glass-nav" data-nav aria-label="Site">
+        <a href="./index.html" aria-current="page">Home</a>
+        <a href="./watch.html">Watch</a>
+        <a href="./install.html">Install</a>
+        <a href="./limits.html">Limits</a>
+        <a href="https://vibegate-production.up.railway.app/">Rivalatch</a>
+      </nav>
     </div>
   </header>
 
@@ -53,88 +49,127 @@
     <section class="wrap q-opener" id="start" aria-labelledby="start-title">
       <div class="q-opener-panel">
         <div class="q-opener-lead">
-          <div class="kicker">Start here · the plain version</div>
-          <h1 id="start-title" class="q-opener-title">A score overlay that would rather stay blank than be wrong.</h1>
+          <div class="kicker">Score overlay · PS5 football streams</div>
+          <h1 id="start-title" class="q-opener-title">Goes dark <em>instead of lying.</em></h1>
           <p class="q-opener-what">Qoresence reads your capture card and shows the score on your stream overlay only when it can confirm it; otherwise the overlay stays blank instead of showing a wrong score.</p>
           <div class="actions">
             <a class="button primary" href="./install.html">Install</a>
             <a class="button" href="https://github.com/ConWan30/Qoresence/discussions/269">Tell me what broke</a>
           </div>
+          <ul class="q-chips" aria-label="At a glance">
+            <li>Runs<b>locally</b></li>
+            <li>Madden 27 reader<b>no key</b></li>
+            <li>Madden 27 lock<b>3 matching reads</b></li>
+          </ul>
         </div>
-        <div class="q-opener-facts">
-          <div class="q-opener-fact">
-            <span class="idx">Who it's for</span>
-            <p>PS5 streamers playing <b>Madden NFL 27</b> or <b>College Football 27</b> with a capture card and a Windows laptop.</p>
+
+        <div class="q-stage" data-read-stage data-state="locked" role="img" aria-label="Demo with fixture frames, not live. A capture frame shows a Madden-style scorebug. Qoresence reads the score, quarter and clock glyphs three times; after three matching reads the aperture opens and the board locks in gold at 14 to 10, 2nd quarter, 3:10. A replay banner then covers the scorebug, so the board goes dark instead of guessing. A suspicious jump to 14 to 14 needs nine reads; a blank read resets the run and the board stays dark.">
+          <div class="q-stage-glow" aria-hidden="true"></div>
+          <div class="q-stage-head" aria-hidden="true">
+            <span class="label-sm">The capture frame</span>
+            <span class="q-demo-tag">Demo · fixture frames · not live</span>
           </div>
-          <div class="q-opener-fact">
-            <span class="idx">What you need</span>
-            <ul>
-              <li>An HDMI capture card between the PS5 and the laptop</li>
-              <li>A Windows 10 or 11 laptop with Python 3.11 or newer</li>
-              <li>OBS, to show the overlay as a Browser Source (Qoresence keeps the capture card; OBS never opens it)</li>
-              <li>Optional: a DualSense the laptop can see (USB), so your button presses line up with the video</li>
-            </ul>
+          <div class="q-frame" aria-hidden="true">
+            <div class="q-frame-chip"><span class="mark signal">HDMI in</span><code>fixture frame</code></div>
+            <div class="q-frame-seq" data-seq>f 0412</div>
+            <div class="q-bug" data-bug>
+              <span class="q-bug-team">Away</span>
+              <span class="q-bug-score roi" data-bug-l>14</span>
+              <span class="q-bug-team">Home</span>
+              <span class="q-bug-score roi" data-bug-r>10</span>
+              <span class="q-bug-qtr roi" data-bug-q>2nd</span>
+              <span class="q-bug-clock roi" data-bug-c>3:10</span>
+              <span class="q-cover" data-cover>Replay</span>
+            </div>
+            <div class="q-scan" data-scan></div>
           </div>
+          <div class="q-readline" aria-hidden="true">
+            <span class="q-lead"><i data-pulse></i></span>
+            <span data-readline>read 3/3 → <b>14 · 10 · 2nd · 3:10</b></span>
+          </div>
+          <div class="q-out-label" aria-hidden="true">
+            <span class="label-sm">OBS overlay · what viewers see</span>
+          </div>
+          <div class="q-out" aria-hidden="true">
+            <div class="q-iris is-open" data-iris>
+              <svg viewBox="0 0 120 120" focusable="false"><defs><clipPath id="q-iris-clip"><circle cx="60" cy="60" r="45"/></clipPath></defs><g clip-path="url(#q-iris-clip)"><rect width="120" height="120" fill="#020a10"/><path class="port" d="M39.5 51.5h41v8.5l-6.5 7h-28l-6.5-7z"/><path class="port-line" d="M45 56h30"/><rect class="pin" x="46.2" y="60.2" width="1.7" height="2.6"/><rect class="pin" x="49.4" y="60.2" width="1.7" height="2.6"/><rect class="pin" x="52.6" y="60.2" width="1.7" height="2.6"/><rect class="pin" x="55.8" y="60.2" width="1.7" height="2.6"/><rect class="pin" x="59.0" y="60.2" width="1.7" height="2.6"/><rect class="pin" x="62.2" y="60.2" width="1.7" height="2.6"/><rect class="pin" x="65.4" y="60.2" width="1.7" height="2.6"/><rect class="pin" x="68.6" y="60.2" width="1.7" height="2.6"/><rect class="pin" x="71.8" y="60.2" width="1.7" height="2.6"/><g class="blades"><g transform="rotate(0 60 60)"><path class="blade" d="M76 70 L4 6 L80 -24 Z"/></g><g transform="rotate(60 60 60)"><path class="blade" d="M76 70 L4 6 L80 -24 Z"/></g><g transform="rotate(120 60 60)"><path class="blade" d="M76 70 L4 6 L80 -24 Z"/></g><g transform="rotate(180 60 60)"><path class="blade" d="M76 70 L4 6 L80 -24 Z"/></g><g transform="rotate(240 60 60)"><path class="blade" d="M76 70 L4 6 L80 -24 Z"/></g><g transform="rotate(300 60 60)"><path class="blade" d="M76 70 L4 6 L80 -24 Z"/></g><g transform="rotate(0 60 60)"><path class="blade blade-edge" d="M71 49 L16 9"/></g><g transform="rotate(60 60 60)"><path class="blade blade-edge" d="M71 49 L16 9"/></g><g transform="rotate(120 60 60)"><path class="blade blade-edge" d="M71 49 L16 9"/></g><g transform="rotate(180 60 60)"><path class="blade blade-edge" d="M71 49 L16 9"/></g><g transform="rotate(240 60 60)"><path class="blade blade-edge" d="M71 49 L16 9"/></g><g transform="rotate(300 60 60)"><path class="blade blade-edge" d="M71 49 L16 9"/></g></g></g><circle class="ring-glow" cx="60" cy="60" r="47"/><circle class="ring" cx="60" cy="60" r="47"/><path class="tick" d="M60 3v12"/></svg>
+            </div>
+            <div class="q-board is-locked" data-board>
+              <div class="q-board-row">
+                <span class="mark locked" data-mark>locked</span>
+                <span class="q-stamp" data-stamp>3/3</span>
+              </div>
+              <div class="q-board-score" data-score>14<i>–</i>10</div>
+              <div class="q-board-meta" data-meta>2nd · 3:10</div>
+              <div class="q-reads" data-reads><i class="on"></i><i class="on"></i><i class="on"></i><span data-reads-n>3 of 3 match</span></div>
+              <span class="q-seal"></span>
+            </div>
+          </div>
+          <div class="q-step" aria-hidden="true">
+            <div class="q-dots" data-dots><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+            <span data-step>Three matching reads. The aperture opens; the board locks.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="q-opener-facts">
+        <div class="q-opener-fact">
+          <span class="idx">Who it's for</span>
+          <p>PS5 streamers playing <b>Madden NFL 27</b> or <b>College Football 27</b> with a capture card and a Windows laptop.</p>
+        </div>
+        <div class="q-opener-fact">
+          <span class="idx">What you need</span>
+          <ul>
+            <li>An HDMI capture card between the PS5 and the laptop</li>
+            <li>A Windows 10 or 11 laptop with Python 3.11 or newer</li>
+            <li>OBS, to show the overlay as a Browser Source (Qoresence keeps the capture card; OBS never opens it)</li>
+            <li>Optional: a DualSense the laptop can see (USB), so your button presses line up with the video</li>
+          </ul>
         </div>
       </div>
     </section>
 
-    <section class="wrap q-hero" id="watch">
-      <div class="q-hero-copy">
-        <div class="kicker">Local observatory</div>
-        <h2 class="display">Goes dark instead of lying.</h2>
-        <p class="lede">One capture card. The video and your DualSense presses share one clock. The score stays blank until a confirm check (a ConfirmTicket) matches it to the picture. Button icons follow the picture — they do not invent it.</p>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Get Windows package</a>
-          <a class="button" href="./watch.html">Watch this session</a>
-          <a class="button" href="https://vibegate-production.up.railway.app/">Rivalatch door</a>
-          <a class="button" href="https://github.com/ConWan30/Qoresence">Source</a>
+    <section class="section" id="states" aria-labelledby="states-title">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Board states</div><h2 id="states-title">One glyph per state.</h2></div>
+          <p>Each state has one shape and one color, so the legend still reads in grayscale. Gold only ever means locked. Read counts are the keyless Madden 27 reader's.</p>
         </div>
-        <p class="hero-note">Windows-first pilot · optional features (“lobes”) start OFF · never a fake live feed</p>
-        <figure class="q-wire" style="--tone: var(--st-held)" aria-label="Board readout on this page: empty glyphs, board not licensed.">
-          <div class="q-wire-head"><span>board</span><span class="q-wire-tag">HOLD · this is a page</span></div>
-          <div class="q-wire-line"><span class="q-wire-verb">□ – □</span> <span class="q-wire-arrow">→</span> <b>not licensed</b></div>
-          <p class="q-wire-cap board-speech"><b>Board not licensed — this is a page.</b> Empty glyphs stay empty. A live Now pair waits on the laptop with the card.</p>
-        </figure>
+        <div class="q-legend">
+          <article class="q-plate signal"><span class="mark signal">Signal</span><h3>HDMI frame in</h3><p>Qoresence opens the capture card once and reads each frame. OBS never opens the card.</p></article>
+          <article class="q-plate read"><span class="mark read">Reading</span><h3>1/3 · 2/3 · 3/3</h3><p>Score, clock and quarter glyphs must match on three frames before anything shows.</p></article>
+          <article class="q-plate locked"><span class="mark locked">Locked</span><h3>Aperture open</h3><p>Three matching reads. The board shows score, clock and quarter.</p></article>
+          <article class="q-plate dark"><span class="mark dark">Dark</span><h3>□ – □</h3><p>A banner, a replay, a menu or a doubtful frame: the board goes blank, not last-good.</p></article>
+          <article class="q-plate recheck"><span class="mark recheck">Recheck</span><h3>Nine reads</h3><p>A suspicious jump from the last locked score needs 9 reads over 2 seconds.</p></article>
+        </div>
       </div>
+    </section>
 
-      <div class="q-stage" data-hold-stage role="img" aria-label="Hold loop demo, not a live session. Open card; the card opens once and every view reads the same frames; HOLD shows the ident, not a game image; the board stays not licensed with empty glyphs; the pad is idle, which is presence evidence, not a fail; no confirm check, so the score stays blank; not play, so the theater goes dark; then the loop returns. No score.">
-        <div class="q-projection" aria-hidden="true"></div>
-        <div class="q-tape" aria-hidden="true"><div class="q-reel" data-reel><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>shared feed</em><span>picture</span></div><div class="q-frame held" style="--tone: var(--st-held)"><b>HID</b><code>edge</code><em>button log</em><span>pad</span></div><div class="q-frame idle"><b>·</b><code>—</code><span>idle</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>shared feed</em><span>picture</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>shared feed</em><span>picture</span></div><div class="q-frame idle"><b>·</b><code>—</code><span>idle</span></div><div class="q-frame held" style="--tone: var(--st-held)"><b>HID</b><code>edge</code><em>button log</em><span>pad</span></div><div class="q-frame lodged" style="--tone: var(--st-lodged)"><b>HDMI</b><code>frame</code><em>shared feed</em><span>picture</span></div></div></div>
-        <div class="q-gate" data-gate data-tone="hold" aria-hidden="true"></div>
-        <div class="q-stage-head">
-          <div class="q-gate-readout" data-gate-readout data-tone="hold" aria-hidden="true">window<b data-gate-b>no confirm check</b></div>
-          <div class="q-demo-tag">Demo · HOLD · not a live session</div>
+    <section class="section" id="watch">
+      <div class="wrap q-hero">
+        <div class="q-hero-copy">
+          <div class="kicker">Local observatory</div>
+          <h2 class="display">Sure, <em>or blank.</em></h2>
+          <p class="lede">One capture card. The video and your DualSense presses share one clock. The score stays blank until a confirm check (a ConfirmTicket) matches it to the picture. Button icons follow the picture — they do not invent it.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/ConWan30/Qoresence/releases/latest/download/Qoresence-Windows.zip">Get Windows package</a>
+            <a class="button" href="./watch.html">Watch this session</a>
+            <a class="button" href="https://vibegate-production.up.railway.app/">Rivalatch door</a>
+            <a class="button" href="https://github.com/ConWan30/Qoresence">Source</a>
+          </div>
+          <figure class="q-wire" aria-label="Board readout on this page: empty glyphs, board not licensed.">
+            <span class="mark dark">this page · □ – □</span>
+            <p class="board-speech"><b>Board not licensed — this is a page.</b> Empty glyphs stay empty. The demo above uses fixture frames; a live Now pair waits on the laptop with the card.</p>
+          </figure>
+          <p class="hero-note">Windows-first pilot · optional features (“lobes”) start OFF · never a fake live feed</p>
         </div>
-        <div class="q-margin" aria-hidden="true">
-          <div class="q-slotwrap">
-            <article class="q-card card" data-plate="card">
-              <div class="q-mark card" data-mark>card</div>
-              <div class="q-label" data-label>Card · opened once</div>
-              <div class="q-meta"><span data-meta>every view reads the same frames</span><span class="q-code" data-code>1 owner</span></div>
-            </article>
-            <div class="q-slot">vacant</div>
-          </div>
-          <div class="q-slotwrap">
-            <article class="q-card hold" data-plate="board">
-              <div class="q-mark hold" data-mark>hold</div>
-              <div class="q-label" data-label>Board not licensed</div>
-              <div class="q-meta"><span data-meta>no confirm check · score stays blank</span><span class="q-code" data-code>□ – □</span></div>
-            </article>
-            <div class="q-slot">vacant</div>
-          </div>
-          <div class="q-slotwrap">
-            <article class="q-card idle" data-plate="pad">
-              <div class="q-mark idle" data-mark>idle</div>
-              <div class="q-label" data-label>Pad · Idle</div>
-              <div class="q-meta"><span data-meta>a still pad is presence evidence, not a fail</span><span class="q-code" data-code>idle</span></div>
-            </article>
-            <div class="q-slot">vacant</div>
-          </div>
-        </div>
-        <div class="q-step">
-          <div class="q-dots" data-dots><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
-          <span data-step>No confirmed score. The board stays blank — no invented digits.</span>
+        <div class="q-rules">
+          <article class="q-plate read"><span class="q-rule-n">01 · Agree</span><h3>Three matching reads</h3><p>The same score and quarter on 3 sampled frames, at least 200 ms apart, spanning at least 400 ms. A blank, a different read, or a clock running backwards resets the run.</p></article>
+          <article class="q-plate locked"><span class="q-rule-n">02 · Lock</span><h3>Then the board shows</h3><p>A sure read goes through the same confirm check as any other read before the overlay paints a digit.</p></article>
+          <article class="q-plate dark"><span class="q-rule-n">03 · Doubt</span><h3>Banners and replays go dark</h3><p>Banners, TOUCHDOWN and stat overlays over the score, the red final-seconds clock, overtime: blank, never a guess.</p></article>
+          <article class="q-plate recheck"><span class="q-rule-n">04 · Recheck</span><h3>Suspicious jumps wait</h3><p>A score that cannot follow the last locked one (a drop, both sides moving, a non-football step) needs 9 reads over 2 s.</p></article>
+          <article class="q-plate signal"><span class="q-rule-n">05 · Keyless</span><h3>Madden 27 reads locally</h3><p>A built-in reader reads score, clock and quarter from the standard Madden 27 scorebug on your PC. No account, no key, no upload.</p></article>
+          <article class="q-plate dark"><span class="q-rule-n">06 · Gaps</span><h3>Blank where it has not learned</h3><p>The dark primetime scorebug and the digit 8 are not learned yet, so they stay blank. College Football 27 uses the cloud reader with a key for now.</p></article>
         </div>
       </div>
     </section>
@@ -202,6 +237,39 @@
           </article>
         </div>
         <p class="hero-note">The capture card is the brain. Everything else is a glass.</p>
+      </div>
+    </section>
+
+    <section class="section is-joined" id="receipt">
+      <div class="wrap">
+        <div class="q-plate q-band">
+          <div>
+            <span class="label-sm">Ship receipt</span>
+            <h3>Every push to main gets a Rivalatch ship receipt.</h3>
+            <p>Pass or fail, with a repro, from the Rivalatch ship receipt workflow. Rivalatch is a separate site: the shared ship door for AI agents.</p>
+          </div>
+          <div class="actions">
+            <a class="button" href="./rivalatch.html">About the receipt</a>
+            <a class="button" href="https://vibegate-production.up.railway.app/">Open Rivalatch</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="next">
+      <div class="wrap">
+        <div class="q-plate q-cta">
+          <div class="q-cta-mark" aria-hidden="true">
+            <img src="./assets/qoresence-logo.png" alt="" width="60" height="60">
+            <span class="q-rings"><i></i><i></i><i></i></span>
+          </div>
+          <h2>Try it on your own stream.</h2>
+          <p>Windows package with source included. Runs locally. If the overlay ever shows a score your TV does not, that is a bug: tell me.</p>
+          <div class="actions">
+            <a class="button primary" href="./install.html">Install guide</a>
+            <a class="button" href="./limits.html">What it is not</a>
+          </div>
+        </div>
       </div>
     </section>
   </main>
