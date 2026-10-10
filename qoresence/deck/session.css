@@ -6,19 +6,19 @@
 @font-face { font-family: "IBM Plex Mono"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/ibm-plex-mono-600.woff2") format("woff2"); }
 
 :root {
-  --bg: #05060a; /* void */
-  --surface: #0b0d14; /* well */
-  --subtle: #12151e; /* plate */
-  --fg: #e8eaf2; /* star */
-  --muted: #8b90a0; /* iron */
-  --subtle-fg: #5b6070; /* iron dim */
-  --live: #9be7ff; /* aperture */
-  --sync: #9be7ff; /* iris */
-  --fast: #d7b36a; /* brass */
-  --veto: #e07a7a;
-  --photon: #8b90a0;
-  --line: color-mix(in oklab, #8b90a0 22%, transparent); /* iron hairline */
-  --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --bg: #010206; /* void */
+  --surface: #08131a; /* plate */
+  --subtle: #0b1a22; /* plate */
+  --fg: #e4f1f3; /* star */
+  --muted: #8a9ea6; /* iron */
+  --subtle-fg: #6f858d; /* iron dim */
+  --live: #66e0e6; /* aperture */
+  --sync: #66e0e6; /* iris */
+  --fast: #b9cdd2; /* ink-2 (gold is reserved for locked) */
+  --veto: #e8877c;
+  --photon: #8a9ea6;
+  --line: rgba(169, 251, 253, 0.1); /* hairline */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -165,9 +165,9 @@ h2 {
   overflow-y: visible;
   scrollbar-width: none;
   padding: 3px;
-  border-radius: 8px;
-  background: color-mix(in oklab, var(--subtle) 72%, transparent);
-  box-shadow: 0 0 0 1px var(--line);
+  border-radius: 6px;
+  background: rgba(1, 4, 9, 0.55);
+  box-shadow: 0 0 0 1px rgba(169, 251, 253, 0.1);
 }
 
 .glass-nav::-webkit-scrollbar {
@@ -176,30 +176,32 @@ h2 {
   height: 0;
 }
 
+/* Same tab look as the glass SPA (glass/src/styles.css .glass-nav). */
 .glass-nav a {
   display: inline-flex;
   min-width: 4rem;
-  height: 34px;
+  height: 30px;
   align-items: center;
   justify-content: center;
   padding: 0 12px;
-  border-radius: 4px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   color: var(--muted);
   text-decoration: none;
   font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   transition:
     color 150ms var(--ease-out),
-    background 150ms var(--ease-out),
-    box-shadow 150ms var(--ease-out);
+    background-color 150ms var(--ease-out),
+    border-color 150ms var(--ease-out);
 }
 
 .glass-nav a:hover {
   color: var(--fg);
-  background: color-mix(in oklab, var(--live) 10%, transparent);
+  background: rgba(102, 224, 230, 0.07);
 }
 
 .glass-nav a:active {
@@ -207,20 +209,21 @@ h2 {
 }
 
 .glass-nav a:focus-visible {
-  outline: 2px solid var(--live);
+  outline: 1px solid var(--live);
   outline-offset: 2px;
 }
 
 .glass-nav a[aria-current="page"],
 .glass-nav a.stream-key-live {
-  color: var(--bg);
-  background: var(--live);
+  color: var(--live);
+  border-color: rgba(102, 224, 230, 0.45);
+  background: rgba(102, 224, 230, 0.08);
 }
 
 .glass-nav a[aria-current="page"]:hover,
 .glass-nav a.stream-key-live:hover {
-  color: var(--bg);
-  background: color-mix(in oklab, var(--live) 92%, #fff);
+  color: #a9fbfd;
+  background: rgba(102, 224, 230, 0.12);
 }
 
 .ModeSwitcher {
