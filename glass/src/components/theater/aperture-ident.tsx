@@ -1,25 +1,22 @@
-import { APERTURE_IDENT_SRC } from "@/lib/coupling/aperture-ident";
+import { useTheater } from "@/lib/coupling/store";
+import { ApertureIris } from "./aperture-iris";
 
-/** HDMI Q on void. HOLD chrome only. No digits, no pad, no last frame. */
+/** Honest empty frame: the iris closed on a blank well. No digits, no pad, no
+ *  last frame, no spinner. Says why it is dark when /health says so. */
 export function ApertureIdent() {
+  const reason = useTheater((s) => s.meter.paintReason);
+  const at = useTheater((s) => s.meter.at);
+  const why = reason && reason !== "ok" ? reason.replace(/_/g, " ") : at ? "picture not licensed" : "waiting for deck";
   return (
-    <div
-      data-aperture-ident="on"
-      className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-bg"
-    >
-      <img
-        src={APERTURE_IDENT_SRC}
-        alt=""
-        width={320}
-        height={320}
-        className="max-h-[42%] w-auto object-contain"
-      />
-      <span className="absolute bottom-3 left-3 font-mono text-[10px] tracking-[0.2em] text-live uppercase">
-        Aperture Ident
-      </span>
-      <span className="absolute right-3 bottom-3 font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-        HOLD · board not licensed
-      </span>
+    <div data-aperture-ident="on" className="aperture-ident pointer-events-none absolute inset-0 z-10">
+      <span className="aperture-ident-safe" aria-hidden />
+      <div className="aperture-ident-core">
+        <ApertureIris open={false} className="aperture-ident-iris" />
+        <p className="aperture-ident-title">Dark</p>
+        <p className="aperture-ident-why">No picture shown · {why}</p>
+      </div>
+      <span className="aperture-ident-corner is-left">HDMI in · blank frame</span>
+      <span className="aperture-ident-corner is-right">Goes dark instead of lying</span>
     </div>
   );
 }
