@@ -1157,6 +1157,18 @@ def create_app():  # type: ignore[no-untyped-def]
                 "clip_dock": True,
             },
         }
+        # Keyless local scorebug reader: the deck reads state.local_scorebug and
+        # falls back to this top-level copy (same stats, never cached separately).
+        _st_snap = body.get("state")
+        if isinstance(_st_snap, dict) and isinstance(_st_snap.get("local_scorebug"), dict):
+            body["local_scorebug"] = _st_snap["local_scorebug"]
+        else:
+            try:
+                from qoresence.vision.local_scorebug import get_local_scorebug
+
+                body["local_scorebug"] = get_local_scorebug().stats()
+            except Exception:
+                body["local_scorebug"] = {"enabled": False}
         try:
             from qoresence.observability.otel import get_otel_exporter
 

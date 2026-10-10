@@ -24,6 +24,9 @@ log = logging.getLogger(__name__)
 
 LOCAL_SOURCE = "local_scorebug"
 ENV_FLAG = "QORESENCE_LOCAL_SCOREBUG"
+# Live sessions get one INFO summary per interval (reads, agreed, why blank),
+# so a session log shows what the local reader did without DEBUG.
+SUMMARY_INTERVAL_NS = 30_000_000_000
 _ON = {"1", "true", "yes", "on"}
 _OFF = {"0", "false", "no", "off"}
 
@@ -127,6 +130,19 @@ class LocalScorebugService:
         self._last_reason = "idle"
         self._last_choice = ""
         self._disagree = 0
+        # Summary/health bookkeeping (why the reader was blank, skipped or failed).
+        self._blank_reasons: dict[str, int] = {}
+        self._skips: dict[str, int] = {}
+        self._last_skip = ""
+        self._errors = 0
+        self._last_error = ""
+        self._last_detail: dict[str, Any] = {}
+        self._last_frame_shape: tuple[int, ...] | None = None
+        self._summary_ns = 0
+        self._summary_reads = 0
+        self._summary_agreed = 0
+        self._summary_blanks: dict[str, int] = {}
+        self._summary_skips: dict[str, int] = {}
 
     # ---- reader -------------------------------------------------------------
     def reader(self) -> ScorebugReader | None:
@@ -151,11 +167,15 @@ class LocalScorebugService:
         now_ns: int | None = None,
     ) -> dict[str, Any] | None:
         """Read one frame (rate-limited) and return the current sure board or None."""
+        now = int(now_ns or time.monotonic_ns())
         rd = self.reader()
-        if rd is None or frame is None or getattr(frame, "size", 0) == 0:
+        if rd is None:
+            self.note_skip("reader_unavailable", now_ns=now)
+            return None
+        if frame is None or getattr(frame, "size", 0) == 0:
+            self.note_skip("no_frame", now_ns=now)
             return None
         st = dict(stamp or {})
-        now = int(now_ns or time.monotonic_ns())
         clock_ns = int(st.get("clock_ns") or 0) or now
         seq = st.get("seq")
         with self._lock:
@@ -168,7 +188,11 @@ class LocalScorebugService:
                 return self._current_locked(now, session_id)
             self._last_sample_ns = clock_ns
             self._last_seq = seq
-        read = rd.read(frame)
+        try:
+            read = rd.read(frame)
+        except Exception as e:  # a reader bug must never take the lock worker down
+            self.note_error(e, now_ns=now)
+            return None
         crop_hash = str(st.get("crop_hash") or "")
         if not crop_hash:
             try:
@@ -179,7 +203,14 @@ class LocalScorebugService:
                 crop_hash = ""
         with self._lock:
             self._reads += 1
+            self._summary_reads += 1
             self._last_read = read
+            self._last_frame_shape = tuple(int(x) for x in frame.shape)
+            self._last_detail = dict(read.detail or {})
+            if not read.ok:
+                why = read.reason or "blank"
+                self._blank_reasons[why] = self._blank_reasons.get(why, 0) + 1
+                self._summary_blanks[why] = self._summary_blanks.get(why, 0) + 1
             if read.ok and read.pair is not None:
                 if read.pair != self._pair_seen:
                     self._pair_seen = read.pair
@@ -190,8 +221,10 @@ class LocalScorebugService:
             self._last_reason = res.reason
             if not res.agreed or res.read is None:
                 self._sure = None
+                self._maybe_summary_locked(now)
                 return None
             self._agreed += 1
+            self._summary_agreed += 1
             r = res.read
             left, right = int(r.left_score or 0), int(r.right_score or 0)
             home, away = (left, right) if home_left else (right, left)
@@ -228,6 +261,7 @@ class LocalScorebugService:
                     "quarter_conf": r.quarter_conf,
                 },
             }
+            self._maybe_summary_locked(now)
             return dict(self._sure)
 
     def _current_locked(self, now_ns: int, session_id: str) -> dict[str, Any] | None:
@@ -241,6 +275,61 @@ class LocalScorebugService:
         if not 0 <= now_ns - int(obs.get("clock_ns") or 0) <= CONFIRM_DIGIT_MAX_AGE_NS:
             return None
         return dict(sure)
+
+    def note_skip(self, why: str, *, now_ns: int | None = None) -> None:
+        """The extractor did not offer a frame (flag off, College Football, no frame)."""
+        now = int(now_ns or time.monotonic_ns())
+        with self._lock:
+            self._last_skip = why
+            self._skips[why] = self._skips.get(why, 0) + 1
+            self._summary_skips[why] = self._summary_skips.get(why, 0) + 1
+            self._maybe_summary_locked(now)
+
+    def note_error(self, err: BaseException | str, *, now_ns: int | None = None) -> None:
+        """An exception on the local path (was DEBUG-only before; now in health + summary)."""
+        now = int(now_ns or time.monotonic_ns())
+        text = err if isinstance(err, str) else f"{type(err).__name__}: {err}"
+        with self._lock:
+            self._errors += 1
+            self._last_error = str(text)[:200]
+            self._summary_blanks["error"] = self._summary_blanks.get("error", 0) + 1
+            self._maybe_summary_locked(now)
+
+    def _maybe_summary_locked(self, now_ns: int) -> None:
+        """One INFO line per SUMMARY_INTERVAL_NS while the reader is being driven."""
+        if self._summary_ns == 0:
+            self._summary_ns = now_ns
+            return
+        if now_ns - self._summary_ns < SUMMARY_INTERVAL_NS:
+            return
+        secs = (now_ns - self._summary_ns) / 1e9
+        self._summary_ns = now_ns
+        top = sorted(self._summary_blanks.items(), key=lambda kv: -kv[1])[:4]
+        blanks = ",".join(f"{k}={v}" for k, v in top) or "-"
+        skips = ",".join(f"{k}={v}" for k, v in sorted(self._summary_skips.items())) or "-"
+        last = self._last_read
+        detail = {k: v for k, v in (self._last_detail or {}).items() if k != "partial_pair"}
+        log.info(
+            "local scorebug %.0fs: reads=%d agreed=%d state=%s reason=%s last_blank=%s "
+            "blanks=[%s] skips=[%s] frame=%s detail=%s errors=%d%s%s",
+            secs,
+            self._summary_reads,
+            self._summary_agreed,
+            "sure" if self._sure else "blank",
+            self._last_reason,
+            (last.reason if last is not None and not last.ok else "-"),
+            blanks,
+            skips,
+            "x".join(str(x) for x in (self._last_frame_shape or ())) or "-",
+            detail or "-",
+            self._errors,
+            f" last_error={self._last_error}" if self._last_error else "",
+            f" reader_error={self._reader_error}" if self._reader_error else "",
+        )
+        self._summary_reads = 0
+        self._summary_agreed = 0
+        self._summary_blanks = {}
+        self._summary_skips = {}
 
     def note_choice(self, why: str) -> None:
         with self._lock:
@@ -266,6 +355,15 @@ class LocalScorebugService:
                 "last_frame_reason": last.reason if last else None,
                 "last_choice": self._last_choice or None,
                 "cross_check_disagree": self._disagree,
+                "blank_reasons": dict(self._blank_reasons),
+                "last_detail": dict(self._last_detail) or None,
+                "last_frame_shape": list(self._last_frame_shape)
+                if self._last_frame_shape
+                else None,
+                "skips": dict(self._skips),
+                "last_skip": self._last_skip or None,
+                "errors": self._errors,
+                "last_error": self._last_error or None,
             }
 
 

@@ -353,14 +353,18 @@ def _local_scorebug_board(
     uses) so the ticket can be bound to the exact frame that was read. Phase 1
     is Madden only: an explicit College Football profile skips the reader.
     """
+    svc = None
     try:
         from qoresence.vision.local_scorebug import get_local_scorebug, local_scorebug_enabled
 
+        svc = get_local_scorebug()
         if not local_scorebug_enabled():
+            svc.note_skip("flag_off")
             return None
         prof = str(getattr(ctx, "game_profile", "") or "").lower()
         title = str(getattr(ctx, "game_title", "") or "").lower()
         if any(k in prof or k in title for k in ("cfb", "college", "ncaa")):
+            svc.note_skip("college_profile")
             return None
         src, stamp = None, {}
         try:
@@ -373,7 +377,7 @@ def _local_scorebug_board(
             src, stamp = frame, {}
         from qoresence.vision.confirm_ticket import resolve_session_id
 
-        return get_local_scorebug().observe(
+        return svc.observe(
             src,
             stamp=stamp,
             session_id=resolve_session_id(),
@@ -382,7 +386,13 @@ def _local_scorebug_board(
             home_left=bool(home_left),
         )
     except Exception as e:
-        log.debug("local scorebug: %s", e)
+        # Surfaced in /health and the throttled INFO summary (was DEBUG only).
+        log.debug("local scorebug: %s", e, exc_info=True)
+        try:
+            if svc is not None:
+                svc.note_error(e)
+        except Exception:
+            pass
         return None
 
 
