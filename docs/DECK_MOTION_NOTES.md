@@ -81,6 +81,8 @@ picture.
 | LIVE | `paint` true, `same_seq` not false, plane not dim, `age_s ≤ 1 s` |
 | HOLD | anything else (and always while REPLAY is on stage) |
 
+The Lens overlay's big centre word uses the same rule (`lensWord()`): "LIVE" renders only when the tally is LIVE. With no capture, a stale or held picture, the slot is empty. Throw, replay and licensed clutch labels keep their wording.
+
 The old tally used the front-end capture status and could read "ON AIR" with no
 capture. LIVE now only lights when the backend says the picture is painting.
 

@@ -197,3 +197,21 @@ export function fmtCount(n: number | null): string {
   if (n == null) return "—";
   return n.toLocaleString("en-US");
 }
+
+/**
+ * Big centre word on the Lens overlay. "LIVE" only when the /health-driven tally is
+ * live (same rule as the tally lamp); with no capture / stale / held picture the slot
+ * stays empty — never a LIVE over nothing. Throw, replay and licensed clutch labels
+ * keep their existing wording.
+ */
+export function lensWord(o: {
+  tally: TallyState;
+  replay: boolean;
+  throwAttempt: boolean;
+  clutchLabel: string | null;
+}): string | null {
+  if (o.throwAttempt) return "—";
+  if (o.replay) return "REPLAY";
+  if (o.clutchLabel) return o.clutchLabel;
+  return o.tally === "live" ? "LIVE" : null;
+}

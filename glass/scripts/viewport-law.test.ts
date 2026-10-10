@@ -257,3 +257,10 @@ test("play-eye first: ObservatoryHUD is null and Theater does not mount it", () 
   );
 });
 
+
+test("lens overlay never paints LIVE without a live /health tally", () => {
+  const src = readFileSync(join(GLASS_ROOT, "src/components/theater/lens-overlay.tsx"), "utf-8");
+  assert.match(src, /tallyState\(meter/);
+  assert.match(src, /lensWord\(/);
+  assert.doesNotMatch(src, /:\s*"LIVE"\}/);
+});

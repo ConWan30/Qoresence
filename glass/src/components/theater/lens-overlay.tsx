@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { lensWord, tallyState } from "@/lib/coupling/signal-meter";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
 import { DualSensePad } from "./dualsense-pad";
@@ -33,6 +34,17 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
   const planeDim = useTheater((s) => s.planeDim);
 
   const widgetsOk = livePaint && sameSeq && !planeDim;
+  const meter = useTheater((s) => s.meter);
+  const meterRate = useTheater((s) => s.meterRate);
+  // Same /health rule as the tally lamp: no capture / stale / held → no "LIVE" word.
+  const tally = tallyState(meter, { advancing: meterRate == null ? null : meterRate > 0 });
+  const word = lensWord({
+    tally,
+    replay: stageMode === "replay",
+    throwAttempt,
+    clutchLabel:
+      clutch.kind === "climax" || clutch.kind === "score_play" || clutch.kind === "window" ? clutch.label : null,
+  });
   const hdmiLabel =
     captureStatus === "live"
       ? `HDMI ${captureLabel || "LIVE"}`
@@ -88,23 +100,20 @@ export function LensOverlay({ variant }: { variant: "deck" | "lens" }) {
 
       {variant === "lens" ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4">
-          <p
-            key={throwAttempt ? "throw" : clutch.kind}
-            data-phrase="off"
-            className={cn(
-              "font-display text-6xl font-extrabold leading-none tracking-tight text-live sm:text-8xl",
-              "transition-opacity duration-(--motion-fast) ease-(--ease-smooth-out)",
-              phrase.live && ticketLive ? "opacity-100" : "opacity-50",
-            )}
-          >
-            {throwAttempt
-              ? "—"
-              : stageMode === "replay"
-                ? "REPLAY"
-                : clutch.kind === "climax" || clutch.kind === "score_play" || clutch.kind === "window"
-                  ? clutch.label
-                  : "LIVE"}
-          </p>
+          {word ? (
+            <p
+              key={throwAttempt ? "throw" : clutch.kind}
+              data-phrase="off"
+              data-lens-word={tally}
+              className={cn(
+                "font-display text-6xl font-extrabold leading-none tracking-tight text-live sm:text-8xl",
+                "transition-opacity duration-(--motion-fast) ease-(--ease-smooth-out)",
+                phrase.live && ticketLive ? "opacity-100" : "opacity-50",
+              )}
+            >
+              {word}
+            </p>
+          ) : null}
           {throwAttempt ? (
             <p className="font-mono text-xs tracking-wide text-veto">
               THROW forbidden · authorship

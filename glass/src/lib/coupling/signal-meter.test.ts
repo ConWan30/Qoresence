@@ -68,3 +68,16 @@ test("frames++ follows pushes, not the ClipBuffer fill that plateaus", () => {
   assert.equal(framesDelta(a, b), 60);
   assert.equal(framesDelta(EMPTY_METER as SignalMeter, b), null);
 });
+
+test("lens word: LIVE hidden without capture; shown only when the tally is live", async () => {
+  const { lensWord } = await import("./signal-meter.ts");
+  const base = { replay: false, throwAttempt: false, clutchLabel: null };
+  const dark = parseSignalMeter(health({ frames: 0, has_frame: false, age_s: null, paint: false, same_seq: false, plane_dim: true, paint_reason: "no_frame" }), NOW)!;
+  assert.equal(lensWord({ ...base, tally: tallyState(dark, { now: NOW }) }), null);
+  assert.equal(lensWord({ ...base, tally: tallyState(EMPTY_METER, { now: NOW }) }), null);
+  for (const t of ["dark", "hold", "stall"] as const) assert.equal(lensWord({ ...base, tally: t }), null);
+  const live = parseSignalMeter(health(LIVE_VIDEO), NOW)!;
+  assert.equal(lensWord({ ...base, tally: tallyState(live, { now: NOW }) }), "LIVE");
+  assert.equal(lensWord({ ...base, tally: "dark", replay: true }), "REPLAY");
+  assert.equal(lensWord({ ...base, tally: "dark", throwAttempt: true }), "—");
+});
