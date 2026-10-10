@@ -1,17 +1,22 @@
 /* Qoresence Pages — one script for every page in docs/.
  *
- * - Site chrome: legacy hash redirects (home), mobile menu, copy buttons.
- * - Motion: one-shot shutter on video plinths, scroll settle for plates,
- *   and two beat stages that share one engine:
- *     · Hold loop (home):      Open card → Card → HOLD → Board □–□ → Idle → No ticket → not play → return
- *     · Door loop (Rivalatch): Knock → Lodged 202 → held → Replay → Recalled 200 → Rival → Contested 409 → return
- * - Both stages are demos with example labels. Nothing here calls a server,
- *   holds a key, paints a score, or claims LIVE.
- * - prefers-reduced-motion: no reveal, no loop; stages show one settled
- *   frame. Hidden tabs stop the timers. Without JS the markup already shows
- *   the settled frame and every plate is visible.
+ * - Site chrome: legacy hash redirects (home), copy buttons, code wrapping,
+ *   anchor padding under the sticky header.
+ * - Motion: one-shot shutter on video plinths, scroll settle for plates, and
+ *   the home read stage ([data-read-stage]):
+ *     dark → read 1/3 → 2/3 → 3/3 → LOCKED (aperture opens, gold board)
+ *     → replay banner: DARK → suspicious jump: recheck 0/9…4/9 → blank read
+ *     resets: still DARK → loop.
+ * - The stage is a demo on fixture frames ("Demo · fixture frames · not
+ *   live"). Nothing here calls a server, holds a key, or claims LIVE. Digits
+ *   reach the board only on the locked beat; every doubtful beat is □ – □.
+ * - Only classes and text change; CSS animates transform / opacity only.
+ * - prefers-reduced-motion: no reveal, no loop; the stage keeps the settled
+ *   LOCKED frame that the markup already shows (also the no-JS view).
+ * - Hidden tab: timers stop, html.is-tab-hidden pauses CSS loops; the loop
+ *   restarts from the top when the tab is visible again.
  *
- * Exports (Node): { door, hold, beatAt, PERIOD, BEAT } for tests.
+ * Exports (Node): { read, LOOP, beatAt } for tests.
  */
 (function (factory) {
   "use strict";
@@ -24,122 +29,64 @@
 })(function () {
   "use strict";
 
-  var PERIOD = 16;
-  var BEAT = 2;
+  /* ── Read stage (home). Fixture frames, not live. ─────────────────────
+     A Madden-style scorebug on a capture frame. Scores avoid the digit 8
+     and clocks stay under 10:00 (the reader does not know those yet). */
+  var LOOP = 16000;
+  var BUG = { l: "14", r: "10", q: "2nd" };
+  var DARK_BOARD = { state: "dark", mark: "dark", word: "dark", score: null, meta: "— · —:—" };
+  var BEATS = [
+    { key: "dark", t: 0, dot: 0, seq: 412, bug: { c: "3:12" }, cover: false, iris: false, scan: false,
+      board: DARK_BOARD, reads: [0, 3], stamp: "0/3",
+      line: "waiting for a sure read",
+      step: "Capture frame in. Nothing confirmed yet, so the board stays dark." },
+    { key: "read-1", t: 1000, dot: 1, seq: 418, bug: { c: "3:12" }, scan: true,
+      board: { state: "reading", mark: "read", word: "reading", score: null, meta: "— · —:—" }, reads: [1, 3], stamp: "1/3",
+      line: "read 1/3 → <b>14 · 10 · 2nd · 3:12</b>",
+      step: "Read 1/3: score, quarter and clock glyphs off the scorebug." },
+    { key: "read-2", t: 2000, dot: 1, seq: 425, bug: { c: "3:11" }, scan: true,
+      board: { state: "reading", mark: "read", word: "reading", score: null, meta: "— · —:—" }, reads: [2, 3], stamp: "2/3",
+      line: "read 2/3 → <b>14 · 10 · 2nd · 3:11</b>",
+      step: "Read 2/3: same score, same quarter, a few hundred ms later." },
+    { key: "read-3", t: 3000, dot: 1, seq: 431, bug: { c: "3:10" }, scan: true,
+      board: { state: "reading", mark: "read", word: "reading", score: null, meta: "— · —:—" }, reads: [3, 3], stamp: "3/3",
+      line: "read 3/3 → <b>14 · 10 · 2nd · 3:10</b>",
+      step: "Read 3/3: all three match." },
+    { key: "locked", t: 3700, dot: 2, seq: 433, bug: { c: "3:10" }, iris: true,
+      board: { state: "locked", mark: "locked", word: "locked", score: ["14", "10"], meta: "2nd · 3:10" }, reads: [3, 3], stamp: "3/3",
+      line: "read 3/3 → <b>14 · 10 · 2nd · 3:10</b>",
+      step: "Three matching reads. The aperture opens; the board locks." },
+    { key: "doubt", t: 7600, dot: 3, seq: 512, bug: { c: "3:02" }, cover: true, iris: false,
+      board: DARK_BOARD, reads: [0, 3], stamp: "—",
+      line: "replay banner over the score → <b>no read</b>",
+      step: "A replay banner covers the score. Unsure, so the board goes dark, not last-good." },
+    { key: "recheck", t: 10400, dot: 4, seq: 590, bug: { r: "14", c: "2:57" }, cover: false, scan: true,
+      board: { state: "recheck", mark: "recheck", word: "recheck", score: null, meta: "— · —:—" }, reads: [0, 9], stamp: "0/9",
+      line: "14 – 10 → <b>14 – 14</b> · not a football step",
+      step: "14–10 to 14–14 is a suspicious jump. It needs 9 reads over 2 s." },
+    { key: "recheck-1", bug: { c: "2:57" }, t: 10900, dot: 4, seq: 594, scan: true, reads: [1, 9], stamp: "1/9", line: "recheck 1/9 → <b>14 · 14 · 2nd · 2:57</b>" },
+    { key: "recheck-2", bug: { c: "2:56" }, t: 11300, dot: 4, seq: 598, scan: true, reads: [2, 9], stamp: "2/9", line: "recheck 2/9 → <b>14 · 14 · 2nd · 2:56</b>" },
+    { key: "recheck-3", bug: { c: "2:56" }, t: 11700, dot: 4, seq: 602, scan: true, reads: [3, 9], stamp: "3/9", line: "recheck 3/9 → <b>14 · 14 · 2nd · 2:56</b>" },
+    { key: "recheck-4", bug: { c: "2:55" }, t: 12100, dot: 4, seq: 606, scan: true, reads: [4, 9], stamp: "4/9", line: "recheck 4/9 → <b>14 · 14 · 2nd · 2:55</b>" },
+    { key: "reset", t: 12700, dot: 5, seq: 611, bug: { r: "", c: "" }, scan: false,
+      board: DARK_BOARD, reads: [0, 9], stamp: "0/9",
+      line: "blank read → <b>run resets</b>",
+      step: "A blank read resets the run. The board stays dark instead of guessing." },
+    { key: "fade", t: 14900, fade: true }
+  ];
+  var SETTLED = 4; /* locked */
 
-  function norm(t) {
-    var x = t % PERIOD;
-    return x < 0 ? x + PERIOD : x;
+  function beatAt(ms) {
+    var x = ms % LOOP;
+    if (x < 0) x += LOOP;
+    var idx = 0;
+    for (var i = 0; i < BEATS.length; i++) if (BEATS[i].t <= x) idx = i;
+    return idx;
   }
-  function beatAt(t) {
-    return Math.floor(norm(t) / BEAT) % 8;
+
+  function reduceQuery() {
+    return typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
   }
-
-  /* ── Door loop (Rivalatch). Example callers A/B, key k-01. ─────────── */
-  var KEY = "k-01";
-  var A_HELD = ["held", "first caller · the held story", "202"];
-  var R_DONE = ["recalled", "same job_id · no second ship", "200"];
-  var DOOR = {
-    key: "door",
-    settled: 6,
-    readout: "door",
-    beats: [
-      { key: "knock", gate: [null, KEY + " · new key"], tone: "knock",
-        wire: ["POST", "/v1/gate/run", "…", "{ idempotency_key }"],
-        step: "Caller A knocks with a new key.",
-        plates: { a: null, r: null, b: null } },
-      { key: "lodged", gate: ["lodged", KEY + " · lodged"], tone: "lodged",
-        wire: ["POST", "/v1/gate/run", "202", "{ job_id, state }"],
-        step: "Lodged. First caller gets in.",
-        plates: { a: ["lodged", "new key · first caller gets in", "202"], r: null, b: null } },
-      { key: "held", gate: ["held", KEY + " · held"], tone: "held",
-        wire: ["GET", "/v1/gate/status/{job_id}", "", "{ state }"],
-        step: "The first story is held on the door.",
-        plates: { a: A_HELD, r: null, b: null } },
-      { key: "replay", gate: [null, KEY + " · seen"], tone: "knock",
-        wire: ["POST", "/v1/gate/run", "…", "same key · same payload"],
-        step: "Caller A knocks again. Same key, same payload.",
-        plates: { a: A_HELD, r: ["knock", "same key · same payload", "…"], b: null } },
-      { key: "recalled", gate: ["recalled", KEY + " · recalled"], tone: "recalled",
-        wire: ["POST", "/v1/gate/run", "200", "{ job_id, state }"],
-        step: "Recalled. Idempotent return — no second ship.",
-        plates: { a: A_HELD, r: R_DONE, b: null } },
-      { key: "rival", gate: [null, KEY + " · seen"], tone: "knock",
-        wire: ["POST", "/v1/gate/run", "…", "same key · different payload"],
-        step: "Caller B knocks the same key with a different payload.",
-        plates: { a: A_HELD, r: R_DONE, b: ["knock", "same key · different payload", "…"] } },
-      { key: "contested", gate: ["contested", KEY + " · held | incoming"], tone: "contested",
-        wire: ["POST", "/v1/gate/run", "409", "held | incoming"],
-        step: "409. Public held | incoming. Neither story is crowned.",
-        plates: { a: A_HELD, r: R_DONE, b: ["contested", "same key · different payload", "409"] } },
-      { key: "return", gate: [null, KEY + " · door clear"], tone: "knock",
-        wire: ["POST", "/v1/gate/run", "…", "{ idempotency_key }"],
-        step: "The loop returns to Knock. Example knocks, not live.",
-        plates: { a: "off", r: "off", b: "off" } }
-    ],
-    frames: [
-      { who: "A", small: "caller", code: KEY, em: "story A", note: "knock", tone: "lodged" },
-      { who: "A", small: "caller", code: KEY, em: "story A", note: "replay", tone: "recalled" },
-      { who: "B", small: "caller", code: KEY, em: "story B", note: "rival", tone: "contested" },
-      { idle: true },
-      { who: "A", small: "caller", code: KEY, em: "story A", note: "knock", tone: "lodged" },
-      { idle: true },
-      { who: "A", small: "caller", code: KEY, em: "story A", note: "replay", tone: "recalled" },
-      { who: "B", small: "caller", code: KEY, em: "story B", note: "rival", tone: "contested" }
-    ]
-  };
-
-  /* ── Hold loop (home). Not a live session; no score, no clock value. ── */
-  var CARD_ON = ["card", "every view reads the same frames", "1 owner", "Card · opened once"];
-  var BOARD_HOLD = ["hold", "empty glyphs stay empty", "□ – □", "Board not licensed"];
-  var BOARD_NOTICKET = ["hold", "no confirm check · score stays blank", "□ – □", "Board not licensed"];
-  var PAD_IDLE = ["idle", "a still pad is presence evidence, not a fail", "idle", "Pad · Idle"];
-  var HOLD = {
-    key: "hold",
-    settled: 5,
-    readout: "window",
-    beats: [
-      { key: "open", gate: [null, "one clock · card not open"], tone: "knock",
-        step: "Open card. One owner opens it once.",
-        plates: { card: ["open", "one owner: Qoresence", "—", "Open card"], board: null, pad: null } },
-      { key: "capture", gate: ["card", "card · opened once"], tone: "lodged",
-        step: "Card. Every view reads the same frames; nothing else opens it.",
-        plates: { card: CARD_ON, board: null, pad: null } },
-      { key: "frame", gate: ["hold", "HOLD · this is a page"], tone: "held",
-        step: "HOLD. The well shows the ident, not a game image.",
-        plates: { card: CARD_ON, board: ["hold", "Aperture ident, not a game image", "HOLD", "Picture well"], pad: null } },
-      { key: "board", gate: ["hold", "board □ – □"], tone: "held",
-        step: "Board not licensed. Empty glyphs stay empty.",
-        plates: { card: CARD_ON, board: BOARD_HOLD, pad: null } },
-      { key: "pad", gate: ["hold", "pad · idle"], tone: "held",
-        step: "Pad at rest. Idle is presence evidence, not a fail.",
-        plates: { card: CARD_ON, board: BOARD_HOLD, pad: PAD_IDLE } },
-      { key: "ticket", gate: ["hold", "no confirm check"], tone: "held",
-        step: "No confirmed score. The board stays blank — no invented digits.",
-        plates: { card: CARD_ON, board: BOARD_NOTICKET, pad: PAD_IDLE } },
-      { key: "dark", gate: ["dark", "not play · goes dark"], tone: "knock", dark: true,
-        step: "Not play. The theater goes dark instead of lying.",
-        plates: { card: CARD_ON, board: BOARD_NOTICKET, pad: PAD_IDLE } },
-      { key: "return", gate: [null, "one clock · card not open"], tone: "knock",
-        step: "The loop returns. Not a live session. No score.",
-        plates: { card: "off", board: "off", pad: "off" } }
-    ],
-    frames: [
-      { who: "HDMI", code: "frame", em: "shared feed", note: "picture", tone: "lodged" },
-      { who: "HID", code: "edge", em: "button log", note: "pad", tone: "held" },
-      { idle: true },
-      { who: "HDMI", code: "frame", em: "shared feed", note: "picture", tone: "lodged" },
-      { who: "HDMI", code: "frame", em: "shared feed", note: "picture", tone: "lodged" },
-      { idle: true },
-      { who: "HID", code: "edge", em: "button log", note: "pad", tone: "held" },
-      { who: "HDMI", code: "frame", em: "shared feed", note: "picture", tone: "lodged" }
-    ]
-  };
-
-  var TONE_VAR = {
-    knock: "var(--st-knock)", lodged: "var(--st-lodged)", held: "var(--st-held)",
-    recalled: "var(--st-recalled)", contested: "var(--st-contested)"
-  };
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -148,161 +95,114 @@
     return n;
   }
 
-  function reduceQuery() {
-    return window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  function restart(node, cls) {
+    if (!node) return;
+    node.classList.remove(cls);
+    void node.offsetWidth;
+    node.classList.add(cls);
   }
 
-  /* ── Beat stage engine ─────────────────────────────────────────────── */
-  function buildReel(reel, frames) {
-    var frag = document.createDocumentFragment();
-    var copy, i, f, node, b;
-    for (copy = 0; copy < 2; copy++) { /* two copies: -50% loops seamlessly */
-      for (i = 0; i < frames.length; i++) {
-        f = frames[i];
-        node = el("div", "q-frame " + (f.idle ? "idle" : f.tone));
-        if (!f.idle) node.style.setProperty("--tone", TONE_VAR[f.tone] || "var(--st-knock)");
-        b = el("b", null, f.idle ? "·" : f.who);
-        if (f.small) b.appendChild(el("small", null, f.small));
-        node.appendChild(b);
-        node.appendChild(el("code", null, f.idle ? "—" : f.code));
-        if (f.em) node.appendChild(el("em", null, f.em));
-        node.appendChild(el("span", null, f.idle ? "idle" : f.note));
-        frag.appendChild(node);
-      }
-    }
-    reel.textContent = "";
-    reel.appendChild(frag);
-  }
-
-  function mountStage(stage, spec, reduce) {
-    var reel = stage.querySelector("[data-reel]");
-    var gate = stage.querySelector("[data-gate]");
-    var readout = stage.querySelector("[data-gate-readout]");
-    var readB = stage.querySelector("[data-gate-b]");
-    var stepEl = stage.querySelector("[data-step]");
-    var dots = stage.querySelectorAll("[data-dots] i");
-    var wire = document.querySelector("[data-wire]");
-    var wireBox = wire ? wire.closest(".q-wire") : null;
-    var plates = {};
-    var nodes = stage.querySelectorAll("[data-plate]");
-    var i;
-    for (i = 0; i < nodes.length; i++) {
-      plates[nodes[i].getAttribute("data-plate")] = {
-        card: nodes[i],
-        mark: nodes[i].querySelector("[data-mark]"),
-        label: nodes[i].querySelector("[data-label]"),
-        meta: nodes[i].querySelector("[data-meta]"),
-        code: nodes[i].querySelector("[data-code]"),
-        sig: null
-      };
-    }
-    if (reel) buildReel(reel, spec.frames);
-
+  function mountReadStage(stage, reduce) {
+    function q(sel) { return stage.querySelector(sel); }
+    var n = {
+      seq: q("[data-seq]"), l: q("[data-bug-l]"), r: q("[data-bug-r]"), qtr: q("[data-bug-q]"), c: q("[data-bug-c]"),
+      cover: q("[data-cover]"), scan: q("[data-scan]"), bug: q("[data-bug]"), pulse: q("[data-pulse]"),
+      line: q("[data-readline]"), iris: q("[data-iris]"), board: q("[data-board]"), mark: q("[data-mark]"),
+      stamp: q("[data-stamp]"), score: q("[data-score]"), meta: q("[data-meta]"), reads: q("[data-reads]"),
+      step: q("[data-step]"), dots: stage.querySelectorAll("[data-dots] i")
+    };
     var timers = [];
-    var lastWire = "";
+    var state = { bug: { l: BUG.l, r: BUG.r, q: BUG.q, c: "" }, reads: [-1, -1], board: null };
 
-    function setWire(w, tone, animate) {
-      if (!wire || !w) return;
-      if (wireBox) wireBox.style.setProperty("--tone", TONE_VAR[tone] || "var(--st-knock)");
-      var sig = w.join("|");
-      if (sig === lastWire) return;
-      lastWire = sig;
-      wire.textContent = "";
-      wire.appendChild(el("span", "q-wire-verb", w[0]));
-      wire.appendChild(document.createTextNode(" " + w[1] + " "));
-      wire.appendChild(el("span", "q-wire-arrow", "→"));
-      wire.appendChild(document.createTextNode(" "));
-      if (w[2]) {
-        wire.appendChild(el("b", null, w[2]));
-        wire.appendChild(document.createTextNode(" "));
+    function setReads(on, of, animate) {
+      if (!n.reads) return;
+      var cells = n.reads.querySelectorAll("i");
+      if (cells.length !== of) {
+        var label = n.reads.querySelector("span");
+        n.reads.textContent = "";
+        for (var i = 0; i < of; i++) n.reads.appendChild(el("i"));
+        if (label) n.reads.appendChild(label);
+        cells = n.reads.querySelectorAll("i");
+        state.reads = [0, of];
       }
-      wire.appendChild(document.createTextNode(w[3]));
-      if (animate) {
-        wire.classList.remove("is-new");
-        void wire.offsetWidth;
-        wire.classList.add("is-new");
+      n.reads.classList.toggle("is-nine", of === 9);
+      for (var k = 0; k < cells.length; k++) {
+        var was = cells[k].classList.contains("on");
+        cells[k].classList.toggle("on", k < on);
+        cells[k].classList.remove("is-new");
+        if (animate && !was && k < on) { void cells[k].offsetWidth; cells[k].classList.add("is-new"); }
+      }
+      var label2 = n.reads.querySelector("span");
+      if (label2) label2.textContent = on + " of " + of + (of === 9 ? " (recheck)" : " match");
+      state.reads = [on, of];
+    }
+
+    function setBoard(b, animate) {
+      if (!b || !n.board) return;
+      var was = state.board;
+      n.board.className = "q-board is-" + b.state;
+      if (animate && b.state === "locked" && was !== "locked") { void n.board.offsetWidth; n.board.classList.add("is-new"); }
+      n.mark.className = "mark " + b.mark;
+      n.mark.textContent = b.word;
+      n.score.innerHTML = b.score ? b.score[0] + "<i>–</i>" + b.score[1] : "□<i>–</i>□";
+      n.meta.textContent = b.meta;
+      state.board = b.state;
+    }
+
+    function apply(beat, animate) {
+      stage.setAttribute("data-state", beat.key);
+      if (beat.fade) { stage.classList.add("is-fading"); return; }
+      stage.classList.remove("is-fading");
+      if (beat.bug) {
+        for (var k in beat.bug) if (Object.prototype.hasOwnProperty.call(beat.bug, k)) state.bug[k] = beat.bug[k];
+        if (beat.key === "dark") { state.bug.l = BUG.l; state.bug.r = BUG.r; state.bug.q = BUG.q; }
+        if (beat.key === "reset") { state.bug.l = ""; state.bug.q = ""; }
+        n.l.textContent = state.bug.l; n.r.textContent = state.bug.r; n.qtr.textContent = state.bug.q; n.c.textContent = state.bug.c;
+      }
+      if (n.seq && beat.seq) n.seq.textContent = "f " + ("0000" + beat.seq).slice(-4);
+      if (typeof beat.cover === "boolean") stage.classList.toggle("is-doubt", beat.cover);
+      if (beat.board) setBoard(beat.board, animate);
+      var st = state.board;
+      stage.classList.toggle("is-reading", st === "reading");
+      stage.classList.toggle("is-recheck", st === "recheck");
+      stage.classList.toggle("is-locked", st === "locked");
+      if (typeof beat.iris === "boolean" && n.iris) n.iris.classList.toggle("is-open", beat.iris);
+      if (beat.reads) setReads(beat.reads[0], beat.reads[1], animate);
+      if (beat.stamp != null && n.stamp) {
+        var changed = n.stamp.textContent !== beat.stamp;
+        n.stamp.textContent = beat.stamp;
+        if (animate && changed) restart(n.stamp, "is-new");
+      }
+      if (beat.line != null && n.line) n.line.innerHTML = beat.line;
+      if (beat.step && n.step) n.step.textContent = beat.step;
+      if (beat.dot != null) for (var d = 0; d < n.dots.length; d++) n.dots[d].classList.toggle("on", d <= beat.dot);
+      if (animate && beat.scan) {
+        if (n.scan && n.bug) n.scan.style.setProperty("--scan-x", Math.round(n.bug.getBoundingClientRect().width - 3) + "px");
+        restart(n.scan, "is-sweep");
+        restart(n.pulse, "is-pulse");
       }
     }
 
-    function setPlate(p, s, animate) {
-      if (!p) return;
-      var card = p.card;
-      if (s === null) {
-        card.className = "q-card knock is-off";
-        p.sig = null;
-        return;
-      }
-      if (s === "off") {
-        card.classList.add("is-off");
-        return;
-      }
-      var tag = s[0];
-      var wasOff = p.sig === null || card.classList.contains("is-off");
-      var sig = s.join("|");
-      var changed = p.sig !== sig;
-      p.mark.className = "q-mark " + tag;
-      p.mark.textContent = tag;
-      if (p.meta) p.meta.textContent = s[1];
-      if (p.code) p.code.textContent = s[2];
-      if (p.label && s[3]) p.label.textContent = s[3];
-      card.className = "q-card " + tag;
-      if (animate && wasOff) {
-        void card.offsetWidth;
-        card.classList.add("is-new");
-      } else if (animate && changed) {
-        void card.offsetWidth;
-        card.classList.add("is-remarked");
-      }
-      p.sig = sig;
-    }
-
-    function apply(index, animate) {
-      var beat = spec.beats[index];
-      var tone = beat.gate[0];
-      [gate, readout].forEach(function (n) {
-        if (!n) return;
-        if (tone) n.setAttribute("data-tone", tone);
-        else n.removeAttribute("data-tone");
-      });
-      if (readB) readB.textContent = beat.gate[1];
-      if (animate && tone && gate) {
-        gate.classList.remove("tap");
-        void gate.offsetWidth;
-        gate.classList.add("tap");
-      }
-      stage.classList.toggle("is-dark", !!beat.dark);
-      for (var k in beat.plates) {
-        if (Object.prototype.hasOwnProperty.call(beat.plates, k)) setPlate(plates[k], beat.plates[k], animate);
-      }
-      if (stepEl) stepEl.textContent = beat.step;
-      for (var d = 0; d < dots.length; d++) dots[d].classList.toggle("on", d <= index);
-      setWire(beat.wire, beat.tone, animate);
-    }
-
-    function clear() {
-      while (timers.length) clearTimeout(timers.pop());
-    }
+    function clear() { while (timers.length) clearTimeout(timers.pop()); }
     function run() {
       clear();
-      spec.beats.forEach(function (beat, idx) {
-        timers.push(setTimeout(function () { apply(idx, true); }, idx * BEAT * 1000));
+      BEATS.forEach(function (beat) {
+        timers.push(setTimeout(function () { apply(beat, true); }, beat.t));
       });
-      timers.push(setTimeout(run, PERIOD * 1000));
+      timers.push(setTimeout(run, LOOP));
     }
     function still() {
       clear();
-      apply(spec.settled, false);
-      for (var k in plates) {
-        if (Object.prototype.hasOwnProperty.call(plates, k)) plates[k].card.classList.remove("is-new", "is-remarked");
-      }
-      if (gate) gate.classList.remove("tap");
-      if (wire) wire.classList.remove("is-new");
+      /* Rebuild the settled LOCKED frame from the top so state is consistent. */
+      for (var i = 0; i <= SETTLED; i++) apply(BEATS[i], false);
+      if (n.scan) n.scan.classList.remove("is-sweep");
+      if (n.pulse) n.pulse.classList.remove("is-pulse");
+      if (n.board) n.board.classList.remove("is-new");
     }
     function start() {
       if (reduce && reduce.matches) still();
       else run();
     }
-
     document.addEventListener("visibilitychange", function () {
       if (document.hidden) clear();
       else start();
@@ -313,33 +213,27 @@
 
   /* ── Scroll settle ─────────────────────────────────────────────────── */
   var REVEAL_GROUPS = [
-    ".contrast-pair", ".glasses", ".sidecar-row", ".steps", ".package", ".split-two",
-    ".community", ".checklist", ".q-legend", ".q-rules", ".q-surfaces", ".q-viz"
+    ".contrast-pair", ".q-legend", ".q-rules", ".sidecar-row", ".steps", ".package", ".split-two",
+    ".glasses", ".community", ".checklist", ".q-opener-facts"
   ];
   var REVEAL_SINGLES = [
-    ".section-head", ".section .holo-plinth", ".faq", ".notice", ".q-different",
-    ".essay article > h2", ".trace-main > .wrap > .card"
+    ".section-head", ".section .holo-plinth", ".faq", ".notice", ".q-band", ".q-cta",
+    ".essay article", ".trace-main > .wrap > .card"
   ];
 
   function mountReveal(reduce) {
     if ((reduce && reduce.matches) || typeof IntersectionObserver === "undefined") return;
-    var g, gi, kids, k;
+    var g, k, kids;
     var groups = document.querySelectorAll(REVEAL_GROUPS.join(","));
     for (g = 0; g < groups.length; g++) {
       kids = groups[g].children;
       for (k = 0; k < kids.length; k++) {
-        if (!kids[k].hasAttribute("data-reveal")) kids[k].setAttribute("data-reveal", "");
+        kids[k].setAttribute("data-reveal", "");
         kids[k].style.setProperty("--d", (k * 70) + "ms");
       }
     }
     var singles = document.querySelectorAll(REVEAL_SINGLES.join(","));
-    for (gi = 0; gi < singles.length; gi++) singles[gi].setAttribute("data-reveal", "");
-    /* Explicit [data-reveal-group] children (Rivalatch markup). */
-    var explicit = document.querySelectorAll("[data-reveal-group]");
-    for (g = 0; g < explicit.length; g++) {
-      kids = explicit[g].querySelectorAll("[data-reveal]");
-      for (k = 0; k < kids.length; k++) kids[k].style.setProperty("--d", (k * 70) + "ms");
-    }
+    for (g = 0; g < singles.length; g++) singles[g].setAttribute("data-reveal", "");
 
     var items = document.querySelectorAll("[data-reveal]");
     if (!items.length) return;
@@ -349,19 +243,19 @@
         var t = entry.target;
         io.unobserve(t);
         t.classList.add("is-in");
-        /* Hand the element back to its normal styles (hover lift, etc.). */
+        /* Hand the element back to its normal styles afterwards. */
         t.addEventListener("animationend", function done(ev) {
           if (ev.target !== t) return;
           t.removeEventListener("animationend", done);
           t.removeAttribute("data-reveal");
+          t.classList.remove("is-in");
         });
       });
     }, { rootMargin: "0px 0px -6% 0px", threshold: 0.08 });
     for (var i = 0; i < items.length; i++) io.observe(items[i]);
     if (reduce && typeof reduce.addEventListener === "function") {
       reduce.addEventListener("change", function () {
-        if (!reduce.matches) return;
-        document.documentElement.classList.remove("q-motion");
+        if (reduce.matches) document.documentElement.classList.remove("q-motion");
       });
     }
   }
@@ -392,17 +286,14 @@
     return false;
   }
 
-  function mountMenu() {
-    var menu = document.querySelector("[data-menu]");
+  /* Phones: the nav is one swipeable row; keep the current page in view. */
+  function mountNav() {
     var nav = document.querySelector("[data-nav]");
-    if (!menu || !nav) return;
-    function set(open) {
-      nav.classList.toggle("open", open);
-      menu.setAttribute("aria-expanded", String(open));
+    if (!nav) return;
+    var cur = nav.querySelector('[aria-current="page"]');
+    if (cur && nav.scrollWidth > nav.clientWidth) {
+      nav.scrollLeft = Math.max(0, cur.offsetLeft - (nav.clientWidth - cur.offsetWidth) / 2);
     }
-    menu.addEventListener("click", function () { set(!nav.classList.contains("open")); });
-    nav.querySelectorAll("a").forEach(function (a) { a.addEventListener("click", function () { set(false); }); });
-    document.addEventListener("keydown", function (e) { if (e.key === "Escape") set(false); });
   }
 
   function mountCopy() {
@@ -426,7 +317,7 @@
     if (!leaves.length || !document.documentElement.classList.contains("q-motion")) return;
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
-        leaves.forEach(function (n) { n.classList.add("is-open"); });
+        leaves.forEach(function (node) { node.classList.add("is-open"); });
       });
     });
   }
@@ -448,49 +339,51 @@
     });
   }
 
-  /* Anchor jumps land below the sticky mast, whatever height it wraps to. */
+  /* Anchor jumps land below the sticky header, whatever height it wraps to
+     (on phones the header scrolls away, so only a small gap is kept). */
   function mountScrollPadding() {
     var header = document.querySelector(".holo-header");
     if (!header) return;
     function set() {
-      document.documentElement.style.scrollPaddingTop = Math.ceil(header.getBoundingClientRect().height + 16) + "px";
+      var sticky = getComputedStyle(header).position === "sticky";
+      document.documentElement.style.scrollPaddingTop = (sticky ? Math.ceil(header.getBoundingClientRect().height + 16) : 16) + "px";
     }
     set();
     if (typeof ResizeObserver !== "undefined") new ResizeObserver(set).observe(header);
     else window.addEventListener("resize", set);
   }
 
+  /* Page-wide: every CSS loop holds still while the tab is hidden. */
+  function mountHiddenFlag() {
+    var root = document.documentElement;
+    function flag() { root.classList.toggle("is-tab-hidden", !!document.hidden); }
+    document.addEventListener("visibilitychange", flag);
+    flag();
+  }
+
   function boot() {
     if (redirectLegacyHash()) return;
+    mountHiddenFlag();
     mountScrollPadding();
     var reduce = reduceQuery();
-    var motion = !(reduce && reduce.matches);
-    if (motion) document.documentElement.classList.add("q-motion");
-    mountMenu();
+    if (!(reduce && reduce.matches)) document.documentElement.classList.add("q-motion");
+    mountNav();
     mountCopy();
     mountCodeWrap();
     mountShutter();
-    var door = document.querySelector("[data-door-stage]");
-    if (door) mountStage(door, DOOR, reduce);
-    var hold = document.querySelector("[data-hold-stage]");
-    if (hold) mountStage(hold, HOLD, reduce);
+    var stage = document.querySelector("[data-read-stage]");
+    if (stage) mountReadStage(stage, reduce);
     mountReveal(reduce);
   }
 
-  function pub(spec) {
-    return {
-      BEATS: spec.beats.map(function (b, i) { return { key: b.key, t: i * BEAT }; }),
-      SETTLED: spec.settled,
-      raw: spec
-    };
-  }
-
   return {
-    PERIOD: PERIOD,
-    BEAT: BEAT,
+    LOOP: LOOP,
     beatAt: beatAt,
-    door: pub(DOOR),
-    hold: pub(HOLD),
+    read: {
+      BEATS: BEATS.map(function (b) { return { key: b.key, t: b.t }; }),
+      SETTLED: SETTLED,
+      raw: BEATS
+    },
     boot: boot
   };
 });
