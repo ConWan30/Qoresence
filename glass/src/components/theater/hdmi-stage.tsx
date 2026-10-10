@@ -327,7 +327,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
         variant === "lens"
           ? "h-full min-h-0 w-full"
           : variant === "observatory"
-            ? "holo-plinth h-full w-full overflow-hidden rounded-xl"
+            ? "holo-plinth flex h-full w-full flex-col overflow-hidden rounded-xl"
             : "holo-plinth overflow-hidden rounded-xl",
       )}
       data-holo-tone={variant === "deck" || variant === "observatory" ? health.tone : undefined}
@@ -339,7 +339,7 @@ export function HdmiStage({ variant }: { variant: "deck" | "lens" | "observatory
           variant === "lens"
             ? "h-full w-full"
             : variant === "observatory"
-              ? "h-full w-full rounded-[calc(var(--radius-xl)-1px)]"
+              ? "min-h-0 w-full flex-1 rounded-[calc(var(--radius-xl)-3px)]"
               : "mx-auto aspect-video max-h-[calc(100dvh-13.5rem)] w-full max-w-[min(100%,calc((100dvh-13.5rem)*16/9))] rounded-[calc(var(--radius-xl)-1px)] md:max-h-[calc(100dvh-11.5rem)] md:max-w-[min(100%,calc((100dvh-11.5rem)*16/9))]",
         )}
       >

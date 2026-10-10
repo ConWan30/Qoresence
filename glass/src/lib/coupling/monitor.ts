@@ -5,6 +5,7 @@ import { parseDeckMessage, type DeckIngest } from "./board";
 import { parseHdmiClipList } from "./clip";
 import { parseFeedMoment, parseSnapshotMoments, type FeedMoment } from "./clutch";
 import { parseHonestyHealth } from "./honesty-health";
+import { parseSignalMeter } from "./signal-meter";
 import { parseMatchAgentNote } from "./match-agent";
 import { parseStemProgram, type StemProgram } from "./stem";
 import { getDeckOrigin, probeDeck } from "./qoresence-deck";
@@ -101,6 +102,7 @@ export function startDeckMonitor(
     // Honesty votes live on /health. Never JPEG / video / WS decode.
     const health = await readJson(`${probe.origin}/health`);
     useTheater.getState().ingestHonesty(parseHonestyHealth(health));
+    useTheater.getState().ingestMeter(parseSignalMeter(health));
     // match_agent lives on /api/situation (and /health), not /retina WS.
     // Harvest even while WS is fresh — do not ingest optics/board from this poll.
     if (wsFresh) {

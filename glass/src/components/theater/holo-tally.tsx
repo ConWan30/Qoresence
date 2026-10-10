@@ -1,21 +1,19 @@
+import { TALLY_LABEL, type TallyState } from "@/lib/coupling/signal-meter";
 import { cn } from "@/lib/utils";
 
-export type TallyMode = "air" | "standby" | "stall";
-
-/** Broadcast tally lamp — ON AIR when HDMI is painting, STALL when the hub ages out. */
-export function HoloTally({ mode }: { mode: TallyMode }) {
+/** Broadcast tally lamp. LIVE only when Deck /health says the picture is
+ *  painting (see tallyState). HOLD / STALL / DARK otherwise — never a fake LIVE. */
+export function HoloTally({ state, title }: { state: TallyState; title?: string }) {
   return (
     <div
-      data-tally={mode}
-      className={cn(
-        "holo-tally inline-flex items-center gap-2 rounded-sm px-2.5 py-1 font-mono text-[10px] font-bold tracking-[0.2em] uppercase",
-        mode === "air" && "holo-tally-air",
-        mode === "standby" && "holo-tally-standby",
-        mode === "stall" && "holo-tally-stall",
-      )}
+      data-tally={state}
+      role="status"
+      aria-live="polite"
+      title={title}
+      className={cn("holo-tally", `holo-tally-${state}`)}
     >
       <span className="holo-tally-lamp" aria-hidden />
-      {mode === "air" ? "On air" : mode === "stall" ? "Stall" : "Standby"}
+      <span className="holo-tally-label">{TALLY_LABEL[state]}</span>
     </div>
   );
 }

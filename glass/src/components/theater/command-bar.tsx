@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { pictureLagMs, syncChipText } from "@/lib/coupling/pad-sync";
 import { useTheater } from "@/lib/coupling/store";
 import { cn } from "@/lib/utils";
-import { BroadcastClock } from "./broadcast-clock";
 import { HdmiMark } from "./hdmi-mark";
 import { HoloTally } from "./holo-tally";
 import { LockbugStrip } from "./lockbug-strip";
-import { TheaterModeChip } from "@/components/session/theater-mode-chip";
+import { tallyState } from "@/lib/coupling/signal-meter";
+import { SignalMeters } from "./signal-meters";
 
 const GLASSES = [
   { href: "/", label: "Home" },
@@ -66,15 +66,10 @@ export function CommandBar() {
   const isGamerRoute = pathname === "/deck.html" || pathname === "/session.html";
   const hdmi = useTheater((s) => s.hdmi);
   const pllLock = useTheater((s) => s.pllLock);
-  const ticketLive = useTheater((s) => s.ticketLive);
   const boardLine = useTheater((s) => s.boardLine);
   const situation = useTheater((s) => s.situation);
   const gameTitle = useTheater((s) => s.gameTitle);
-  const heatVetoed = useTheater((s) => s.heatVetoed);
-  const padConnected = useTheater((s) => s.padConnected);
-  const padName = useTheater((s) => s.padName);
   const captureStatus = useTheater((s) => s.captureStatus);
-  const captureLabel = useTheater((s) => s.captureLabel);
   const captureError = useTheater((s) => s.captureError);
   const deckLive = useTheater((s) => s.deckLive);
   const syncLagMs = useTheater((s) => s.syncLagMs);
@@ -110,14 +105,6 @@ export function CommandBar() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const status = heatVetoed
-    ? "heat veto"
-    : ticketLive
-      ? "pad on picture"
-      : padConnected
-        ? "pad quiet"
-        : "pad off";
-
   const livePaint = useTheater((s) => s.livePaint);
   const sameSeq = useTheater((s) => s.sameSeq);
   const planeDim = useTheater((s) => s.planeDim);
@@ -125,6 +112,8 @@ export function CommandBar() {
   const homeScore = useTheater((s) => s.homeScore);
   const awayScore = useTheater((s) => s.awayScore);
   const confirm = useTheater((s) => s.confirm);
+  const meter = useTheater((s) => s.meter);
+  const meterRate = useTheater((s) => s.meterRate);
   const widgetsOk = livePaint && sameSeq && !planeDim;
   // Same gate as LockbugStrip: widgetsOk AND boardLocked AND scores present
   const licensed = widgetsOk && boardLocked && homeScore != null && awayScore != null && (confirm != null || boardLocked);
@@ -135,164 +124,121 @@ export function CommandBar() {
       ? "menu"
       : "";
 
-  const dot = heatVetoed ? "bg-veto" : ticketLive ? "bg-live" : pllLock ? "bg-sync" : "bg-muted-foreground";
-
   const syncLabel = syncChipText(pictureLagMs(videoAgeS, 0, pllLock && deckLive ? syncLagMs : 0));
-  const hdmiText =
-    captureStatus === "live"
-      ? `HDMI ${captureLabel}`
-      : captureStatus === "arming"
-        ? "HDMI arming"
-        : captureStatus === "blocked"
-          ? "HDMI blocked"
-          : captureStatus === "busy"
-            ? "HDMI busy"
-            : captureStatus === "framed"
-              ? "HDMI framed"
-              : "HDMI wait";
+  const joinLabel = licensed && bindKind && syncLabel !== "UNBOUND" ? `${syncLabel} · ${bindKind}` : syncLabel;
 
   const active = pathname;
-  const tallyMode =
-    stageMode === "replay"
-      ? "standby"
-      : captureStatus === "live" && deckLive
-        ? "air"
-        : captureStatus === "blocked" || captureStatus === "busy"
-          ? "stall"
-          : "standby";
+  // Tally is the backend's word, not the browser's: /health video paint +
+  // same_seq + fresh age + frames advancing. Replay is never LIVE.
+  const tally =
+    stageMode === "replay" ? "hold" : tallyState(meter, { advancing: meterRate == null ? null : meterRate > 0 });
+  const tallyWhy =
+    tally === "live"
+      ? "Deck /health: frames advancing, paint on, same seq"
+      : meter.paintReason
+        ? `Deck /health: ${meter.paintReason}`
+        : captureError || "Deck /health: no frame";
+  const routeLabel =
+    pathname === "/session.html"
+      ? "Session"
+      : pathname === "/studio.html"
+        ? "Foundry"
+        : pathname === "/mobile.html"
+          ? "Mobile"
+          : "Theater";
 
   return (
-    <header className="holo-header sticky top-0 z-50 isolate">
+    <header className="holo-header deck-bar sticky top-0 z-50 isolate" data-route={routeLabel.toLowerCase()}>
       <a
         href="#hdmi-stage"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[60] focus:bg-surface focus:px-3 focus:py-2 focus:text-live"
       >
         Skip to picture
       </a>
-      <div className="flex flex-col gap-1.5 px-4 py-2 sm:px-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex shrink-0 items-center gap-2.5">
-            <HdmiMark size={36} className="size-9" />
-            <div>
-              <p className="font-display text-[18px] font-extrabold leading-none tracking-tight text-fg">
-                Sight Glass
-              </p>
-              <p className="mt-1 font-mono text-[10px] tracking-[0.2em] text-subtle-foreground uppercase">
-                HDMI observatory
-              </p>
-            </div>
+      <div className="deck-bar-row">
+        <div className="deck-brand">
+          <HdmiMark size={30} className="size-[30px]" />
+          <div className="min-w-0">
+            <p className="deck-wordmark">Qoresence</p>
+            <p className="deck-kicker">Sight Glass · {routeLabel}</p>
           </div>
-          {!isSessionRoute && <HoloTally mode={tallyMode} />}
-          {!isSessionRoute && (
-            <span
-              className="hidden font-mono text-[10px] tracking-[0.18em] text-subtle-foreground uppercase sm:inline"
-              data-take={takeCount}
-            >
-              Take {String(takeCount).padStart(3, "0")}
-            </span>
-          )}
-          {!isSessionRoute && (
-            <span className="hidden font-mono text-[10px] tracking-[0.16em] text-photon uppercase lg:inline">
-              {stageMode === "replay" ? "PVW clip" : "PGM hdmi"}
-            </span>
-          )}
-          <BroadcastClock />
-          <TheaterModeChip />
-
-          <nav className="glass-nav min-w-0" aria-label="Glasses">
-            {(isGamerRoute ? GAMER_GLASSES : GLASSES).map((g) => (
-              <GlassNavLink
-                key={g.href}
-                href={g.href}
-                label={g.label}
-                pathname={active}
-                offApp={"offApp" in g && g.offApp}
-              />
-            ))}
-          </nav>
-
-          {!isSessionRoute && (
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              <div className="flex gap-1" data-mode-bar="hdmi">
-                <button
-                  type="button"
-                  data-action="stage-live"
-                  aria-pressed={stageMode === "live"}
-                  className={cn(
-                    "stream-key inline-flex h-10 min-w-16 items-center justify-center px-3 font-mono text-[11px] font-extrabold tracking-[0.14em]",
-                    stageMode === "live" ? "stream-key-live" : "text-muted-foreground",
-                  )}
-                  onClick={() => goLive()}
-                >
-                  <span className="mr-1 text-[9px] opacity-50">01</span>
-                  LIVE
-                </button>
-                <button
-                  type="button"
-                  data-action="stage-replay"
-                  aria-pressed={stageMode === "replay"}
-                  disabled={!lastClipUrl}
-                  className={cn(
-                    "stream-key inline-flex h-10 min-w-16 items-center justify-center px-3 font-mono text-[11px] font-extrabold tracking-[0.14em]",
-                    stageMode === "replay" ? "stream-key-live" : "text-muted-foreground",
-                  )}
-                  onClick={() => goReplay()}
-                >
-                  <span className="mr-1 text-[9px] opacity-50">02</span>
-                  REPLAY
-                </button>
-              </div>
-              <Button
-                size="sm"
-                data-action="make-hdmi-clip"
-                className="stream-key stream-key-clip min-w-[11rem] font-mono text-[11px] font-extrabold tracking-[0.08em]"
-                disabled={clipBusy}
-                onClick={() => void requestHdmiClip()}
-              >
-                {clipBusy ? "Encoding…" : <><span className="mr-1 text-[9px] opacity-60">03</span>Clip 30s</>}
-              </Button>
-              {captureStatus !== "live" ? (
-                <Button
-                  size="sm"
-                  data-action="arm-hdmi"
-                  className="stream-key font-mono text-[11px] font-extrabold tracking-[0.08em]"
-                  onClick={() => void armCapture()}
-                  disabled={captureStatus === "arming"}
-                >
-                  {captureStatus === "arming" ? "Arming…" : "Arm HDMI"}
-                </Button>
-              ) : null}
-            </div>
-          )}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex items-center gap-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
-            <span className={cn("size-1.5 shrink-0 rounded-full", dot)} />
-            <span className="truncate" data-pll={pllLock ? "lock" : "open"}>
-              {pllLock ? "picture lock" : "picture open"} · {status}
+        <nav className="glass-nav min-w-0" aria-label="Glasses">
+          {(isGamerRoute ? GAMER_GLASSES : GLASSES).map((g) => (
+            <GlassNavLink
+              key={g.href}
+              href={g.href}
+              label={g.label}
+              pathname={active}
+              offApp={"offApp" in g && g.offApp}
+            />
+          ))}
+        </nav>
+
+        {!isSessionRoute && (
+          <div className="deck-tally">
+            <HoloTally state={tally} title={tallyWhy} />
+            <span className="deck-take" data-take={takeCount}>
+              Take {String(takeCount).padStart(3, "0")}
             </span>
-            <span className="hidden min-w-0 items-center gap-2 sm:inline-flex">
-              {sit ? <span className="truncate text-subtle-foreground">· {sit}</span> : null}
-              <LockbugStrip className="truncate" pulse />
-            </span>
+            <span className="deck-take hidden min-[1440px]:inline">{stageMode === "replay" ? "PVW clip" : "PGM hdmi"}</span>
           </div>
-          <div className="flex flex-wrap gap-x-3 font-mono text-[10px] tracking-wide text-subtle-foreground uppercase">
-            {padConnected ? (
-              <span data-pad="live" className="text-live">
-                {`PAD ${padName}`}
-              </span>
+        )}
+
+        {!isSessionRoute && (
+          <div className="deck-keys" data-mode-bar="hdmi">
+            <button
+              type="button"
+              data-action="stage-live"
+              aria-pressed={stageMode === "live"}
+              className={cn("stream-key deck-key", stageMode === "live" && "stream-key-live")}
+              onClick={() => goLive()}
+            >
+              <span className="deck-key-n">01</span>
+              Live
+            </button>
+            <button
+              type="button"
+              data-action="stage-replay"
+              aria-pressed={stageMode === "replay"}
+              disabled={!lastClipUrl}
+              className={cn("stream-key deck-key", stageMode === "replay" && "stream-key-live")}
+              onClick={() => goReplay()}
+            >
+              <span className="deck-key-n">02</span>
+              Replay
+            </button>
+            <Button
+              size="sm"
+              data-action="make-hdmi-clip"
+              className="stream-key stream-key-clip deck-key deck-key-clip"
+              disabled={clipBusy}
+              onClick={() => void requestHdmiClip()}
+            >
+              {clipBusy ? "Encoding…" : <><span className="deck-key-n">03</span>Clip 30s</>}
+            </Button>
+            {captureStatus !== "live" ? (
+              <Button
+                size="sm"
+                data-action="arm-hdmi"
+                className="stream-key deck-key"
+                onClick={() => void armCapture()}
+                disabled={captureStatus === "arming"}
+              >
+                {captureStatus === "arming" ? "Arming…" : "Arm HDMI"}
+              </Button>
             ) : null}
-            <span data-capture={captureStatus} className={captureStatus === "live" ? "text-live" : captureError ? "text-veto" : ""}>
-              {hdmiText}
-            </span>
-            <span data-monitor={deckLive ? "live" : "wait"} className={deckLive ? "text-live" : ""}>
-              {deckLive ? "deck live" : "deck wait"}
-            </span>
-            <span data-sync={syncLabel === "UNBOUND" ? "unbound" : "lock"} className={syncLabel === "UNBOUND" ? "" : "text-sync"}>
-              join {syncLabel}{licensed && bindKind && syncLabel !== "UNBOUND" ? ` · ${bindKind}` : ""}
-            </span>
           </div>
+        )}
+      </div>
+
+      <div className="deck-bar-sub">
+        <SignalMeters syncLabel={joinLabel} compact={isSessionRoute} />
+        <div className="deck-board" data-hdmi={hdmi}>
+          <span className="meter-label">Board</span>
+          <LockbugStrip className="truncate" pulse />
+          {sit ? <span className="deck-sit truncate">{sit}</span> : null}
         </div>
       </div>
     </header>

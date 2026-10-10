@@ -38,6 +38,7 @@ import { CLIP_HOLD_MS, autoClipAllowed } from "./director";
 import type { StemProgram } from "./stem";
 import { buildEnhanceSituation } from "./enhance-situation";
 import { getDeckOrigin } from "./qoresence-deck";
+import { EMPTY_METER, framesDelta, type SignalMeter } from "./signal-meter";
 import { EMPTY_HONESTY, type HonestyHealth } from "./honesty-health";
 
 function mergeClipFile(clips: HdmiClipFile[], href: string, name: string): HdmiClipFile[] {
@@ -194,6 +195,11 @@ export type TheaterState = {
   ghostStick: GhostStick;
   honesty: HonestyHealth;
   ingestHonesty: (h: HonestyHealth) => void;
+  /** Broadcast meter from /health (observation only). */
+  meter: SignalMeter;
+  /** frames++ per second between the last two /health reads (null = unknown). */
+  meterRate: number | null;
+  ingestMeter: (m: SignalMeter | null) => void;
   ingestAgentPlane: (plane: AgentPlane) => void;
   ingestMatchAgent: (note: MatchAgentNote | null) => void;
   ingestMoment: (m: FeedMoment) => void;
@@ -370,6 +376,8 @@ export const useTheater = create<TheaterState>((set, get) => ({
   opticsFromWs: false,
   ghostStick: EMPTY_GHOST,
   honesty: EMPTY_HONESTY,
+  meter: EMPTY_METER,
+  meterRate: null,
 
   setR2: (v) => set({ r2: Math.max(0, Math.min(1, v)), throwAttempt: false }),
   setLeft: (v) => set({ left: Math.max(0, Math.min(1, v)) }),
@@ -982,6 +990,13 @@ export const useTheater = create<TheaterState>((set, get) => ({
       url: out.url,
       name: out.name,
     });
+  },
+  ingestMeter: (m) => {
+    if (!m) return;
+    const prev = get().meter;
+    const d = framesDelta(prev, m);
+    const dt = prev.at ? (m.at - prev.at) / 1000 : 0;
+    set({ meter: m, meterRate: d != null && dt > 0.2 ? Math.max(0, d / dt) : null });
   },
   ingestHonesty: (h) => {
     const s = get();

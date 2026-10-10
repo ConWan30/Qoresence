@@ -110,13 +110,14 @@ export function LockbugStrip({ className, pulse = false }: { className?: string;
       data-void-reason={voidReason}
       data-land={licensed ? (land ?? undefined) : undefined}
       className={cn(
-        "lockbug-lock font-mono text-[11px] tracking-wide tabular-nums border-b-[3px] border-solid",
-        licensed ? "text-fg" : "text-subtle-foreground/70",
+        "lockbug-lock font-mono text-[11px] tracking-wide tabular-nums border-b-2 border-solid pb-0.5",
+        licensed ? "text-gold" : "text-subtle-foreground/80",
         className,
       )}
       style={{
         borderBottomColor:
-          band === "ok" ? "#9BE7FF" : band === "amber" ? "#D7B36A" : "#E07A7A",
+          // Aperture Glass: aqua fresh, slate aging, blank rule when dark (gold is the lit text).
+          band === "ok" ? "#66E0E6" : band === "amber" ? "#8A9EA6" : "#24414A",
       }}
     >
       {text}
