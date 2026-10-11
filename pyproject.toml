@@ -90,6 +90,9 @@ deck = [
     "uvicorn[standard]>=0.29",
     "httpx2>=2.0",
 ]
+obs = [
+    "obsws-python>=1.7",
+]
 windows = [
     "pygrabber>=0.2",
 ]
