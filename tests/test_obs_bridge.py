@@ -355,3 +355,22 @@ def test_both_deck_health_handlers_attach_bridge():
     src = Path(server.__file__).read_text(encoding="utf-8")
     assert src.count("_obs_attach_health(body)") == 1
     assert src.count("_obs_attach_health(health)") == 1
+
+
+def test_obs_bridge_config_survives_dataclasses_replace():
+    """--play wiring rebuilds the config with dataclasses.replace(); --obs must survive.
+
+    Live regression: before ``obs_bridge`` was a declared field, the --play path's
+    ``replace(config, enable_ws=True)`` dropped the dynamic attribute and the
+    bridge silently never started.
+    """
+    from dataclasses import replace
+
+    from qoresence.core.unified_config import RetinaUnifiedConfig
+
+    cfg = RetinaUnifiedConfig()
+    assert cfg.obs_bridge is None
+    cfg.obs_bridge = ObsBridgeConfig(enabled=True, scene="Qoresence Flash")
+    out = replace(cfg, enable_ws=True)
+    assert out.obs_bridge is cfg.obs_bridge
+    assert out.obs_bridge.enabled is True

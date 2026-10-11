@@ -10,6 +10,10 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from qoresence.obs.bridge import ObsBridgeConfig
 
 
 class GameProfileId(StrEnum):
@@ -931,6 +935,11 @@ class RetinaUnifiedConfig:
 
     # ── Private haptic probe (default OFF; observation only) ────────────────
     haptic_probe: HapticProbeConfig = field(default_factory=HapticProbeConfig)
+
+    # ── OBS bridge spike (default OFF; --obs / QORESENCE_OBS=1) ─────────────
+    # Declared field (not a dynamic attribute) so dataclasses.replace() in the
+    # --play wiring keeps it. None = fall back to ObsBridgeConfig.from_env().
+    obs_bridge: ObsBridgeConfig | None = None
 
     # ── Fusion Engine ────────────────────────────────────────────────────────
     fusion_weights: FusionWeights = field(default_factory=FusionWeights)

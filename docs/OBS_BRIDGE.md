@@ -1,6 +1,6 @@
 # OBS bridge (spike) — locked score → OBS
 
-**Status:** opt-in spike. Default **OFF**. Not yet tested against a real OBS install.
+**Status:** opt-in spike. Default **OFF**. Live-verified against OBS 32.2.2 (obs-websocket 5.7.4) on Windows.
 
 The OBS bridge lets Qoresence drive OBS Studio from its **locked** scorebug reads.
 It talks to OBS through **obs-websocket v5** (built into OBS 28+). It never opens the
@@ -11,7 +11,7 @@ capture card and never draws pixels into OBS itself.
 When a **locked** score changes (`score_vlm_locked` = ConfirmTicket minted), the bridge:
 
 1. **Saves the replay buffer** (`SaveReplayBuffer`). Saves are rate-limited (at most one per 20 s by default).
-2. Optionally **flashes a scene** (e.g. `Qoresence Score`) for N seconds and then switches back to the scene you were on. If you switch scenes yourself during the hold, it does not switch back.
+2. Optionally **flashes a scene** (e.g. `Qoresence Flash`) for N seconds and then switches back to the scene you were on. If you switch scenes yourself during the hold, it does not switch back.
 3. **Sets a text source** (default `Qoresence Score`) to the locked score, e.g. `KC 14 - 7 BUF`.
 4. Optionally adds a **record chapter marker** (`CreateRecordChapter`, OBS 30.2+, Hybrid MP4 only). If OBS refuses the request, the bridge ignores it.
 
@@ -34,7 +34,8 @@ When a **locked** score changes (`score_vlm_locked` = ConfirmTicket minted), the
 1. **Tools → WebSocket Server Settings**: check **Enable WebSocket server**. Keep port **4455**, enable authentication, and click **Show Connect Info** to copy the password.
 2. **Settings → Output → Replay Buffer**: check **Enable Replay Buffer** and set a max replay time (e.g. 20–30 s). Click **Start Replay Buffer** in the Controls dock before you play. `SaveReplayBuffer` fails if the buffer isn't running. The bridge records that as `last_error` and keeps going.
 3. Create a **Text (GDI+)** source named **`Qoresence Score`**. Style it with the deck look: aqua glow on a near-black navy plate, and **gold** text, because it only ever shows locked scores.
-4. *(Optional)* Create a scene named **`Qoresence Score`** to flash on score changes, e.g. a full-screen version of the scorebug text or the Lens browser source.
+4. *(Optional)* Create a scene named **`Qoresence Flash`** to flash on score changes, e.g. a full-screen version of the scorebug text or the Lens browser source.
+   OBS scenes and sources share **one** name namespace: a scene and the text source can't both be called `Qoresence Score` (OBS refuses with code 601). If your scene is already `Qoresence Score`, name the text source something else and pass `--obs-text-source`.
 5. *(Optional, OBS 30.2+)* For chapter markers, set the recording format to **Hybrid MP4** and start recording.
 
 ## Install & launch (Windows laptop)
@@ -47,7 +48,7 @@ pip install -e ".[obs]"
 $env:QORESENCE_OBS_PASSWORD = "<from OBS Show Connect Info>"
 # optional: $env:QORESENCE_OBS_HOST = "localhost"; $env:QORESENCE_OBS_PORT = "4455"
 
-.\qoresence.bat --play --deck --monitor --tray --a2a --controller --streamer-fps 60 --obs --obs-scene "Qoresence Score" --obs-scene-hold 4
+.\qoresence.bat --play --deck --monitor --tray --a2a --controller --streamer-fps 60 --obs --obs-scene "Qoresence Flash" --obs-scene-hold 4
 ```
 
 That's the `qoresence.bat` default line with `--obs` added. `qoresence.bat` forwards its arguments to `python -m qoresence.cli`. Leave out `--obs-scene` if you don't want scene flashes.
