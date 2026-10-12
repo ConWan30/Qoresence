@@ -444,6 +444,20 @@ class QoresenceApp:
         except Exception as e:
             log.debug("haptic probe not started: %s", e)
 
+        # Truth feed (default OFF; --truth-feed or QORESENCE_TRUTH_FEED=1).
+        # Enqueue-only bus subscriber + own worker; writes hash-chained facts
+        # from licensed score locks only. Never emits bus events.
+        self.truth_feed = None
+        try:
+            from qoresence.truth.feed import TruthFeedConfig, make_truth_feed_from_config
+
+            _truth_cfg = getattr(config, "truth_feed", None) or TruthFeedConfig.from_env()
+            self.truth_feed = make_truth_feed_from_config(
+                _truth_cfg, bus=self.bus, session_id=str(self.identity.session_id or "")
+            )
+        except Exception as e:
+            log.warning("Truth feed not started: %s", type(e).__name__)
+
         # DECK_BRIDGE_MARKER: RetinaEventBus -> Deck ws live (LIVE FEED ONLY - no mock)
         try:
             from qoresence.core import EventType as _ET  # local import to avoid cycle
@@ -1288,6 +1302,15 @@ class QoresenceApp:
                 pass
             self.otel_exporter = None
 
+        if getattr(self, "truth_feed", None) is not None:
+            try:
+                from qoresence.truth.feed import stop_truth_feed
+
+                stop_truth_feed()
+            except Exception:
+                pass
+            self.truth_feed = None
+
         if getattr(self, "haptic_probe", None):
             try:
                 from qoresence.sync.haptic_probe import stop_haptic_probe
@@ -1581,6 +1604,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             config.otel,
             enabled=True,
             endpoint=getattr(args, "otel_endpoint", None) or config.otel.endpoint,
+        )
+    if getattr(args, "truth_feed", False):
+        from qoresence.truth.feed import TruthFeedConfig
+
+        config.truth_feed = TruthFeedConfig.from_env(
+            enabled=True,
+            out_dir=getattr(args, "truth_feed_dir", None),
+            sign=False if getattr(args, "truth_feed_unsigned", False) else None,
         )
     if getattr(args, "clip_excise", False):
         from qoresence.vision.clip_excise import set_enabled as _set_clip_excise
@@ -2049,6 +2080,26 @@ def main():
         "this. Observation only — never licenses score digits; never applies "
         "lag_center recenter or capture fps. DualSense USB=laptop observe, "
         "BT=PS5 play.",
+    )
+    parser.add_argument(
+        "--truth-feed",
+        action="store_true",
+        help="Truth feed: append-only, hash-chained JSONL of locked score facts "
+        "(logs/truth/), signed with a local Ed25519 key (~/.qoresence/truth_key) "
+        "when the [truth] extra is installed, else an unsigned chain "
+        "(signed=false). Read-only Deck endpoints /api/truth/*. Default OFF. "
+        "Also QORESENCE_TRUTH_FEED=1. --play does not enable this. Never emits "
+        "a score that is not a licensed lock. See docs/TRUTH_FEED.md.",
+    )
+    parser.add_argument(
+        "--truth-feed-dir",
+        default=None,
+        help="Directory for truth feed JSONL (default logs/truth; env QORESENCE_TRUTH_DIR).",
+    )
+    parser.add_argument(
+        "--truth-feed-unsigned",
+        action="store_true",
+        help="Write the truth feed as an unsigned hash chain (no key file created).",
     )
     parser.add_argument(
         "--jev-ledger",

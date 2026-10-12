@@ -503,6 +503,13 @@ class HdmiClipBuffer:
         except Exception as e:
             log.debug("chapters sidecar skipped: %s", e)
         try:
+            # Truth feed clip_ref (no-op unless --truth-feed; enqueue only).
+            from qoresence.truth.feed import note_clip_exported
+
+            note_clip_exported(final_path, duration_s=dur)
+        except Exception as e:
+            log.debug("truth feed clip hook skipped: %s", e)
+        try:
             _write_otel_sidecar(final_path, snapshot=snapshot)
         except Exception as e:
             log.debug("otel sidecar skipped: %s", e)

@@ -1068,6 +1068,13 @@ def create_app():  # type: ignore[no-untyped-def]
 
     app = FastAPI(title="Sight Glass", version="0.1.0")
 
+    try:  # read-only truth feed endpoints (/api/truth/*); 503 when the feed is off
+        from qoresence.truth.deck_routes import register_fastapi as _truth_routes
+
+        _truth_routes(app)
+    except Exception as e:
+        log.debug("truth feed routes not registered: %s", e)
+
     @app.get("/api/observations")
     async def api_observations(request: Request):
         if not _agent_check_token(request):
@@ -1207,6 +1214,12 @@ def create_app():  # type: ignore[no-untyped-def]
             body["jev"] = _jx.stats() if _jx is not None else {"enabled": False}
         except Exception:
             body["jev"] = {"enabled": False}
+        try:  # truth_feed key present only when --truth-feed is on
+            from qoresence.truth.feed import attach_health as _truth_attach_health
+
+            _truth_attach_health(body)
+        except Exception:
+            pass
         try:
             from qoresence.observability.press_labeler import get_press_labeler
 
@@ -3033,6 +3046,14 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
     class H(http.server.SimpleHTTPRequestHandler):
         def do_GET(self):  # type: ignore[no-untyped-def]
             path_only = self.path.split("?", 1)[0]
+            if path_only.startswith("/api/truth/"):
+                try:
+                    from qoresence.truth.deck_routes import handle_stdlib as _truth_stdlib
+
+                    if _truth_stdlib(self):
+                        return
+                except Exception as e:
+                    log.debug("truth feed stdlib route failed: %s", e)
             if path_only.startswith("/assets/"):
                 rel = path_only[len("/assets/") :].replace("\\", "/")
                 parts = [p for p in rel.split("/") if p and p not in (".", "..")]
@@ -3324,6 +3345,12 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                     )
                 except Exception:
                     health["jev"] = {"enabled": False}
+                try:
+                    from qoresence.truth.feed import attach_health as _truth_attach_health
+
+                    _truth_attach_health(health)
+                except Exception:
+                    pass
                 try:
                     from qoresence.observability.press_labeler import (
                         get_press_labeler,

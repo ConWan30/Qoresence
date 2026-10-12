@@ -90,6 +90,9 @@ deck = [
     "uvicorn[standard]>=0.29",
     "httpx2>=2.0",
 ]
+truth = [
+    "cryptography>=42",
+]
 obs = [
     "obsws-python>=1.7",
 ]
@@ -133,6 +136,7 @@ test = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
     "httpx2>=2.0",
+    "cryptography>=42",
 ]
 dev = [
     "pytest>=7.4",
