@@ -420,6 +420,18 @@ class QoresenceApp:
         except Exception as e:
             log.debug("SyncGlass sentinel not started: %s", e)
 
+        # OBS bridge spike (default OFF; --obs or QORESENCE_OBS=1). Enqueue-only
+        # bus subscriber + own worker; drives OBS via obs-websocket from locked
+        # scores only. Never opens capture, never emits bus events.
+        self.obs_bridge = None
+        try:
+            from qoresence.obs.bridge import ObsBridgeConfig, make_obs_bridge_from_config
+
+            _obs_cfg = getattr(config, "obs_bridge", None) or ObsBridgeConfig.from_env()
+            self.obs_bridge = make_obs_bridge_from_config(_obs_cfg, bus=self.bus)
+        except Exception as e:
+            log.warning("OBS bridge not started: %s", type(e).__name__)
+
         # Private haptic probe (default OFF; env QORESENCE_HAPTIC_PROBE=1)
         self.haptic_probe = None
         try:
@@ -1170,6 +1182,13 @@ class QoresenceApp:
 
     def stop(self) -> None:
         """Stop all lobes gracefully."""
+        if getattr(self, "obs_bridge", None) is not None:
+            try:
+                from qoresence.obs.bridge import stop_obs_bridge
+
+                stop_obs_bridge()
+            except Exception:
+                pass
         try:
             from qoresence.foundry.recap_store import (
                 persist_recap_at_stop,
@@ -1614,6 +1633,17 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             prev if prev is not None else JevConfig(),
             enabled=True,
         )
+    if getattr(args, "obs", False):
+        from qoresence.obs.bridge import ObsBridgeConfig
+
+        config.obs_bridge = ObsBridgeConfig.from_env(
+            enabled=True,
+            text_source=getattr(args, "obs_text_source", None),
+            scene=getattr(args, "obs_scene", None),
+            scene_hold_s=getattr(args, "obs_scene_hold", None),
+            chapters=True if getattr(args, "obs_chapters", False) else None,
+            replay=False if getattr(args, "obs_no_replay", False) else None,
+        )
     if getattr(args, "jev_ticket_stale", False):
         from qoresence.core.unified_config import TicketStaleConfig
 
@@ -1966,6 +1996,45 @@ def main():
         "mint verifier, and join picker. Default OFF. Also "
         "QORESENCE_JEV=1. --play does not enable this. Never licenses "
         "score digits. Key: TYPESAFE_API_KEY or .secrets/typesafe.key.",
+    )
+    parser.add_argument(
+        "--obs",
+        action="store_true",
+        help="OBS bridge spike (obs-websocket v5): on a locked score change, save "
+        "the OBS replay buffer, set a text source to the locked score, and "
+        "optionally flash a scene / add a record chapter. Default OFF. Also "
+        "QORESENCE_OBS=1. Needs the [obs] extra. Host/port via "
+        "QORESENCE_OBS_HOST / QORESENCE_OBS_PORT; password via "
+        "QORESENCE_OBS_PASSWORD (env only). See docs/OBS_BRIDGE.md.",
+    )
+    parser.add_argument(
+        "--obs-text-source",
+        default=None,
+        help="OBS text source set to the locked score (blank when unlocked). "
+        "Default 'Qoresence Score' (env QORESENCE_OBS_TEXT_SOURCE).",
+    )
+    parser.add_argument(
+        "--obs-scene",
+        default=None,
+        help="OBS scene to flash on a locked score change, then switch back. "
+        "Default: none (env QORESENCE_OBS_SCENE).",
+    )
+    parser.add_argument(
+        "--obs-scene-hold",
+        type=float,
+        default=None,
+        help="Seconds to hold --obs-scene before switching back (default 4).",
+    )
+    parser.add_argument(
+        "--obs-chapters",
+        action="store_true",
+        help="Also add an OBS record chapter marker on score changes "
+        "(OBS 30.2+, Hybrid MP4 recording; ignored if unsupported).",
+    )
+    parser.add_argument(
+        "--obs-no-replay",
+        action="store_true",
+        help="Do not call SaveReplayBuffer on score changes.",
     )
     parser.add_argument(
         "--jev-ticket-stale",

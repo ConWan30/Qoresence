@@ -93,6 +93,9 @@ deck = [
 truth = [
     "cryptography>=42",
 ]
+obs = [
+    "obsws-python>=1.7",
+]
 windows = [
     "pygrabber>=0.2",
 ]
