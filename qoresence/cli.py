@@ -420,6 +420,18 @@ class QoresenceApp:
         except Exception as e:
             log.debug("SyncGlass sentinel not started: %s", e)
 
+        # OBS bridge spike (default OFF; --obs or QORESENCE_OBS=1). Enqueue-only
+        # bus subscriber + own worker; drives OBS via obs-websocket from locked
+        # scores only. Never opens capture, never emits bus events.
+        self.obs_bridge = None
+        try:
+            from qoresence.obs.bridge import ObsBridgeConfig, make_obs_bridge_from_config
+
+            _obs_cfg = getattr(config, "obs_bridge", None) or ObsBridgeConfig.from_env()
+            self.obs_bridge = make_obs_bridge_from_config(_obs_cfg, bus=self.bus)
+        except Exception as e:
+            log.warning("OBS bridge not started: %s", type(e).__name__)
+
         # Private haptic probe (default OFF; env QORESENCE_HAPTIC_PROBE=1)
         self.haptic_probe = None
         try:
@@ -431,6 +443,20 @@ class QoresenceApp:
             )
         except Exception as e:
             log.debug("haptic probe not started: %s", e)
+
+        # Truth feed (default OFF; --truth-feed or QORESENCE_TRUTH_FEED=1).
+        # Enqueue-only bus subscriber + own worker; writes hash-chained facts
+        # from licensed score locks only. Never emits bus events.
+        self.truth_feed = None
+        try:
+            from qoresence.truth.feed import TruthFeedConfig, make_truth_feed_from_config
+
+            _truth_cfg = getattr(config, "truth_feed", None) or TruthFeedConfig.from_env()
+            self.truth_feed = make_truth_feed_from_config(
+                _truth_cfg, bus=self.bus, session_id=str(self.identity.session_id or "")
+            )
+        except Exception as e:
+            log.warning("Truth feed not started: %s", type(e).__name__)
 
         # DECK_BRIDGE_MARKER: RetinaEventBus -> Deck ws live (LIVE FEED ONLY - no mock)
         try:
@@ -1156,6 +1182,13 @@ class QoresenceApp:
 
     def stop(self) -> None:
         """Stop all lobes gracefully."""
+        if getattr(self, "obs_bridge", None) is not None:
+            try:
+                from qoresence.obs.bridge import stop_obs_bridge
+
+                stop_obs_bridge()
+            except Exception:
+                pass
         try:
             from qoresence.foundry.recap_store import (
                 persist_recap_at_stop,
@@ -1268,6 +1301,15 @@ class QoresenceApp:
             except Exception:
                 pass
             self.otel_exporter = None
+
+        if getattr(self, "truth_feed", None) is not None:
+            try:
+                from qoresence.truth.feed import stop_truth_feed
+
+                stop_truth_feed()
+            except Exception:
+                pass
+            self.truth_feed = None
 
         if getattr(self, "haptic_probe", None):
             try:
@@ -1563,6 +1605,14 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
             enabled=True,
             endpoint=getattr(args, "otel_endpoint", None) or config.otel.endpoint,
         )
+    if getattr(args, "truth_feed", False):
+        from qoresence.truth.feed import TruthFeedConfig
+
+        config.truth_feed = TruthFeedConfig.from_env(
+            enabled=True,
+            out_dir=getattr(args, "truth_feed_dir", None),
+            sign=False if getattr(args, "truth_feed_unsigned", False) else None,
+        )
     if getattr(args, "clip_excise", False):
         from qoresence.vision.clip_excise import set_enabled as _set_clip_excise
 
@@ -1582,6 +1632,17 @@ def create_config_from_args(args) -> RetinaUnifiedConfig:
         config.jev = replace(
             prev if prev is not None else JevConfig(),
             enabled=True,
+        )
+    if getattr(args, "obs", False):
+        from qoresence.obs.bridge import ObsBridgeConfig
+
+        config.obs_bridge = ObsBridgeConfig.from_env(
+            enabled=True,
+            text_source=getattr(args, "obs_text_source", None),
+            scene=getattr(args, "obs_scene", None),
+            scene_hold_s=getattr(args, "obs_scene_hold", None),
+            chapters=True if getattr(args, "obs_chapters", False) else None,
+            replay=False if getattr(args, "obs_no_replay", False) else None,
         )
     if getattr(args, "jev_ticket_stale", False):
         from qoresence.core.unified_config import TicketStaleConfig
@@ -1937,6 +1998,45 @@ def main():
         "score digits. Key: TYPESAFE_API_KEY or .secrets/typesafe.key.",
     )
     parser.add_argument(
+        "--obs",
+        action="store_true",
+        help="OBS bridge spike (obs-websocket v5): on a locked score change, save "
+        "the OBS replay buffer, set a text source to the locked score, and "
+        "optionally flash a scene / add a record chapter. Default OFF. Also "
+        "QORESENCE_OBS=1. Needs the [obs] extra. Host/port via "
+        "QORESENCE_OBS_HOST / QORESENCE_OBS_PORT; password via "
+        "QORESENCE_OBS_PASSWORD (env only). See docs/OBS_BRIDGE.md.",
+    )
+    parser.add_argument(
+        "--obs-text-source",
+        default=None,
+        help="OBS text source set to the locked score (blank when unlocked). "
+        "Default 'Qoresence Score' (env QORESENCE_OBS_TEXT_SOURCE).",
+    )
+    parser.add_argument(
+        "--obs-scene",
+        default=None,
+        help="OBS scene to flash on a locked score change, then switch back. "
+        "Default: none (env QORESENCE_OBS_SCENE).",
+    )
+    parser.add_argument(
+        "--obs-scene-hold",
+        type=float,
+        default=None,
+        help="Seconds to hold --obs-scene before switching back (default 4).",
+    )
+    parser.add_argument(
+        "--obs-chapters",
+        action="store_true",
+        help="Also add an OBS record chapter marker on score changes "
+        "(OBS 30.2+, Hybrid MP4 recording; ignored if unsupported).",
+    )
+    parser.add_argument(
+        "--obs-no-replay",
+        action="store_true",
+        help="Do not call SaveReplayBuffer on score changes.",
+    )
+    parser.add_argument(
         "--jev-ticket-stale",
         action="store_true",
         help="TypeSafe ticket-stale sentinel: judges live-board stuck locks "
@@ -1980,6 +2080,26 @@ def main():
         "this. Observation only — never licenses score digits; never applies "
         "lag_center recenter or capture fps. DualSense USB=laptop observe, "
         "BT=PS5 play.",
+    )
+    parser.add_argument(
+        "--truth-feed",
+        action="store_true",
+        help="Truth feed: append-only, hash-chained JSONL of locked score facts "
+        "(logs/truth/), signed with a local Ed25519 key (~/.qoresence/truth_key) "
+        "when the [truth] extra is installed, else an unsigned chain "
+        "(signed=false). Read-only Deck endpoints /api/truth/*. Default OFF. "
+        "Also QORESENCE_TRUTH_FEED=1. --play does not enable this. Never emits "
+        "a score that is not a licensed lock. See docs/TRUTH_FEED.md.",
+    )
+    parser.add_argument(
+        "--truth-feed-dir",
+        default=None,
+        help="Directory for truth feed JSONL (default logs/truth; env QORESENCE_TRUTH_DIR).",
+    )
+    parser.add_argument(
+        "--truth-feed-unsigned",
+        action="store_true",
+        help="Write the truth feed as an unsigned hash chain (no key file created).",
     )
     parser.add_argument(
         "--jev-ledger",
