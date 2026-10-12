@@ -1187,6 +1187,12 @@ def create_app():  # type: ignore[no-untyped-def]
                 body["otel"] = {"enabled": False}
         except Exception:
             body["otel"] = {"enabled": False}
+        try:  # obs_bridge key present only when --obs is on
+            from qoresence.obs.bridge import attach_health as _obs_attach_health
+
+            _obs_attach_health(body)
+        except Exception:
+            pass
         try:
             from qoresence.observability.noul_observatory import get_noul_observatory
 
@@ -3292,6 +3298,12 @@ def _run_stdlib(host: str = DECK_HOST, port: int = DECK_PORT) -> None:
                         health["otel"] = {"enabled": False}
                 except Exception:
                     health["otel"] = {"enabled": False}
+                try:
+                    from qoresence.obs.bridge import attach_health as _obs_attach_health
+
+                    _obs_attach_health(health)
+                except Exception:
+                    pass
                 try:
                     from qoresence.observability.noul_observatory import (
                         get_noul_observatory,
