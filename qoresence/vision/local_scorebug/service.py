@@ -230,6 +230,32 @@ class LocalScorebugService:
             }
             return dict(self._sure)
 
+    def wants_sample(self, stamp: dict[str, Any] | None) -> bool:
+        """Cheap pre-check (no pixels): would ``observe`` read a frame with this stamp?
+
+        Lets the caller skip copying a full 1280x720 FrameHub frame on ticks the
+        agreement window would ignore anyway (same seq, or < min_interval).
+        """
+        st = dict(stamp or {})
+        clock_ns = int(st.get("clock_ns") or 0)
+        seq = st.get("seq")
+        with self._lock:
+            if seq is not None and seq == self._last_seq:
+                return False
+            if (
+                clock_ns
+                and self._last_sample_ns
+                and 0 <= clock_ns - self._last_sample_ns < self._window.config.min_interval_ns
+            ):
+                return False
+            return True
+
+    def current(self, session_id: str, now_ns: int | None = None) -> dict[str, Any] | None:
+        """The last agreed board without reading a new frame."""
+        now = int(now_ns or time.monotonic_ns())
+        with self._lock:
+            return self._current_locked(now, session_id)
+
     def _current_locked(self, now_ns: int, session_id: str) -> dict[str, Any] | None:
         """The last agreed board, if same session and its frame is under 8 s old."""
         sure = self._sure

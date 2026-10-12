@@ -56,6 +56,114 @@ def apply_low_latency_capture(cap: Any) -> None:
         pass
 
 
+def _native_release(cap: Any) -> None:
+    try:
+        cap.release()
+    except Exception:
+        pass
+
+
+class GuardedCapture:
+    """``cv2.VideoCapture`` wrapper: never release or reconfigure under a read.
+
+    Native DShow/MSMF capture is not thread-safe. Releasing a VideoCapture
+    while another thread is inside ``read()`` (or reading it from two threads)
+    is a use-after-free in the filter graph; on Windows it surfaces as
+    ``python.exe`` 0xc0000005 in ntdll (Madden pilot crashes 2026-10-11).
+
+    * ``read()`` is serialized; a second concurrent reader gets ``(False, None)``
+      instead of entering native code.
+    * ``release()`` during an in-flight read is *deferred*: the reading thread
+      releases the native handle when its ``read()`` returns. The caller just
+      drops its reference. Returns ``True`` when released now.
+    * ``set()`` waits briefly for the read mutex and is skipped if a read is hung.
+    """
+
+    def __init__(self, cap: Any) -> None:
+        self._raw = cap
+        self._mu = threading.Lock()
+        self._read_mu = threading.Lock()
+        self._reading = False
+        self._released = False
+        self._pending_release = False
+
+    @property
+    def raw(self) -> Any:
+        return self._raw
+
+    @property
+    def read_in_flight(self) -> bool:
+        with self._mu:
+            return self._reading
+
+    @property
+    def released(self) -> bool:
+        with self._mu:
+            return self._released or self._pending_release
+
+    def read(self, *args: Any, **kwargs: Any) -> tuple[bool, Any]:
+        if not self._read_mu.acquire(blocking=False):
+            return False, None
+        try:
+            with self._mu:
+                if self._released or self._pending_release:
+                    return False, None
+                self._reading = True
+            try:
+                return self._raw.read(*args, **kwargs)
+            finally:
+                with self._mu:
+                    self._reading = False
+                    do_release = self._pending_release and not self._released
+                    if do_release:
+                        self._released = True
+                if do_release:
+                    _native_release(self._raw)
+                    log.info("capture: deferred release completed after in-flight read returned")
+        finally:
+            self._read_mu.release()
+
+    def release(self) -> bool:
+        with self._mu:
+            if self._released:
+                return True
+            if self._reading:
+                self._pending_release = True
+                return False
+            self._released = True
+        _native_release(self._raw)
+        return True
+
+    def isOpened(self) -> bool:  # noqa: N802 — mirrors cv2 API
+        with self._mu:
+            if self._released or self._pending_release:
+                return False
+        try:
+            return bool(self._raw.isOpened())
+        except Exception:
+            return False
+
+    def set(self, prop: int, value: Any) -> bool:
+        if not self._read_mu.acquire(timeout=0.5):
+            return False
+        try:
+            with self._mu:
+                if self._released or self._pending_release:
+                    return False
+            return bool(self._raw.set(prop, value))
+        finally:
+            self._read_mu.release()
+
+    def get(self, prop: int) -> Any:
+        with self._mu:
+            if self._released or self._pending_release:
+                return 0.0
+        return self._raw.get(prop)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._raw, name)
+
+
 def _is_obs_virtual_camera_name(name: str | None) -> bool:
     """True if device name looks like OBS Virtual Camera (Pattern A source)."""
     if not name:
@@ -302,6 +410,11 @@ class StreamerRuntime:
         self._preferred_device_name: str | None = getattr(config, "device_name", None)
         self._bound_device_name: str | None = None
         self._last_rebind_attempt = 0.0
+        # Single-flight: the run loop (30 failed grabs ≈ 7.5 s) and the watchdog
+        # (8 s stall) both ask for a rebind at almost the same moment. Two
+        # concurrent opens of one DShow device = "device busy" + native crash.
+        self._rebind_lock = threading.Lock()
+        self._rebinds_skipped_inflight = 0
         # Dedicated grabber — DShow read never blocks the process/LIVE path
         self._grab_thread: threading.Thread | None = None
         self._grab_stop = threading.Event()
@@ -422,12 +535,12 @@ class StreamerRuntime:
             self._watchdog_thread.join(timeout=1.0)
         if self._thread:
             self._thread.join(timeout=2.0)
-        if self._cap:
-            try:
-                self._cap.release()
-            except Exception:
-                pass
-            self._cap = None
+        got = self._rebind_lock.acquire(timeout=3.0)
+        try:
+            self._detach_capture()
+        finally:
+            if got:
+                self._rebind_lock.release()
         try:
             from qoresence.capture.lease import release_capture_lease
 
@@ -502,7 +615,7 @@ class StreamerRuntime:
         try:
             if is_network:
                 log.info(f"Opening network stream: {self.config.url}")
-                self._cap = cv2.VideoCapture(self.config.url)
+                self._cap = GuardedCapture(cv2.VideoCapture(self.config.url))
                 device_name = None
             else:
                 resolved = self._resolve_device()
@@ -535,7 +648,8 @@ class StreamerRuntime:
                             device_name,
                         )
                         return False
-                if idx != int(getattr(self.config, "device_index", -1) or -1):
+                _prev_idx = getattr(self.config, "device_index", None)
+                if _prev_idx is None or int(_prev_idx) != int(idx):
                     log.info(
                         "Capture device rebound: idx %s → %s (%r)",
                         getattr(self.config, "device_index", None),
@@ -551,9 +665,9 @@ class StreamerRuntime:
                 if _is_physical_card_name(device_name):
                     self._preferred_device_name = device_name
                 if backend_flag is not None:
-                    self._cap = cv2.VideoCapture(idx, backend_flag)
+                    self._cap = GuardedCapture(cv2.VideoCapture(idx, backend_flag))
                 else:
-                    self._cap = cv2.VideoCapture(idx)
+                    self._cap = GuardedCapture(cv2.VideoCapture(idx))
                 # TOCTOU: unplug between resolve and open can put a webcam at idx.
                 opened_name = _get_dshow_device_name(idx) or device_name
                 allow_vcam = os.environ.get("QORESENCE_ALLOW_OBS_VCAM", "0").strip() in {
@@ -681,30 +795,33 @@ class StreamerRuntime:
                     "Replug capture card or free it from OBS. "
                     "List: python -m qoresence.cli --streamer-list"
                 )
-            self._stop_grabber()
-            if self._cap:
-                try:
-                    self._cap.release()
-                except Exception:
-                    pass
-                self._cap = None
+            self._detach_capture()
             return False
 
     def _start_grabber(self) -> None:
-        """Background thread: only job is cap.read() → latest slot."""
+        """Background thread: only job is cap.read() → latest slot.
+
+        Each grabber owns a fresh stop Event. The old code re-armed one shared
+        Event with ``clear()``, so a previous grabber still stuck in a hung
+        ``read()`` past the join timeout woke up and read the *new* capture
+        concurrently with the new grabber (two native readers → crash).
+        """
         self._stop_grabber()
-        self._grab_stop.clear()
+        stop = threading.Event()
+        self._grab_stop = stop
         self._grab_alive = True
 
         def _loop() -> None:
             fail = 0
-            while not self._grab_stop.is_set():
+            while not stop.is_set():
                 cap = self._cap
                 if cap is None:
                     time.sleep(0.05)
                     continue
                 try:
                     ok, frame = cap.read()
+                    if stop.is_set():
+                        break  # stale session: never publish into the new slot
                     if ok and frame is not None:
                         with self._grab_lock:
                             # no copy here — consumer copies
@@ -721,55 +838,92 @@ class StreamerRuntime:
                     fail += 1
                     log.debug("grabber read: %s", e)
                     time.sleep(0.02)
-            self._grab_alive = False
+            if self._grab_stop is stop:
+                self._grab_alive = False
 
         self._grab_thread = threading.Thread(target=_loop, name="qoresence-dshow-grab", daemon=True)
         self._grab_thread.start()
         log.info("Capture grabber thread started (non-blocking LIVE path)")
 
-    def _stop_grabber(self) -> None:
+    def _stop_grabber(self) -> bool:
+        """Stop the grabber. True when it exited (no read in flight)."""
         self._grab_stop.set()
         t = self._grab_thread
-        if t is not None and t.is_alive():
+        clean = True
+        if t is not None and t.is_alive() and t is not threading.current_thread():
             t.join(timeout=1.5)
+            clean = not t.is_alive()
+            if not clean:
+                log.warning(
+                    "capture grabber still inside cap.read() after 1.5s — "
+                    "abandoning it; release is deferred until read returns"
+                )
         self._grab_thread = None
         with self._grab_lock:
             self._grab_latest = None
             self._grab_ts = 0.0
         self._grab_alive = False
         self._last_consumed_grab_ts = 0.0
+        return clean
+
+    def _detach_capture(self) -> None:
+        """Stop the grabber, then drop the VideoCapture without racing a read.
+
+        GuardedCapture defers the native release to the reading thread when a
+        read is still in flight. A raw capture (tests) is only released when
+        the grabber exited cleanly.
+        """
+        clean = self._stop_grabber()
+        cap = self._cap
+        self._cap = None
+        if cap is None:
+            return
+        if isinstance(cap, GuardedCapture):
+            if not cap.release():
+                log.warning("capture release deferred: read() still in flight on old handle")
+        elif clean:
+            _native_release(cap)
 
     def _try_rebind_capture(self) -> bool:
-        """Hotplug: re-enumerate DShow and reopen preferred physical card."""
-        now = time.time()
-        if now - self._last_rebind_attempt < 3.0:
+        """Hotplug: re-enumerate DShow and reopen preferred physical card.
+
+        Single-flight. The run loop and the watchdog both call this; a second
+        caller while a rebind is in flight returns False immediately instead
+        of releasing the handle the first one is opening/reading.
+        """
+        if not self._rebind_lock.acquire(blocking=False):
+            self._rebinds_skipped_inflight += 1
+            log.debug("Capture rebind already in flight — skipped duplicate")
             return False
-        self._last_rebind_attempt = now
-        if self.config.source_kind == "network" and self.config.url:
-            return False
-        resolved = self._resolve_device()
-        if resolved is None:
-            log.warning(
-                "Capture rebind: no physical card yet (unplugged). Waiting for USB3.0 Video…"
-            )
-            return False
-        idx, name = resolved
-        log.info("Capture rebind attempting idx=%s name=%r", idx, name)
-        self._stop_grabber()
         try:
-            if self._cap is not None:
-                self._cap.release()
-                self._cap = None
-        except Exception:
-            self._cap = None
-        try:
-            object.__setattr__(self.config, "device_index", idx)
-        except Exception:
-            pass
-        ok = self._open_capture()
-        if ok:
-            log.info("Capture rebind OK — idx=%s name=%r", idx, name)
-        return ok
+            now = time.time()
+            if now - self._last_rebind_attempt < 3.0:
+                return False
+            self._last_rebind_attempt = now
+            if self.config.source_kind == "network" and self.config.url:
+                return False
+            resolved = self._resolve_device()
+            if resolved is None:
+                log.warning(
+                    "Capture rebind: no physical card yet (unplugged). Waiting for USB3.0 Video…"
+                )
+                return False
+            idx, name = resolved
+            log.info("Capture rebind attempting idx=%s name=%r", idx, name)
+            self._detach_capture()
+            try:
+                object.__setattr__(self.config, "device_index", idx)
+            except Exception:
+                pass
+            ok = self._open_capture()
+            if ok:
+                log.info("Capture rebind OK — idx=%s name=%r", idx, name)
+            return ok
+        finally:
+            # Throttle from the END of an attempt: a slow open (join 1.5 s +
+            # enumerate + 2 s first frame) must not let the next start at once.
+            self._last_rebind_attempt = max(self._last_rebind_attempt, time.time())
+            self._rebind_lock.release()
 
     def _save_eye_check_snapshot(self, frame: np.ndarray) -> None:
         """Save first frame for mandatory eye-check."""
@@ -968,12 +1122,13 @@ class StreamerRuntime:
         t.join(timeout=timeout)
         if t.is_alive():
             log.warning("cap.read() timed out (>%.2fs) — forcing rebind", timeout)
-            try:
+            # Never release under a live read: GuardedCapture defers the native
+            # release to the stuck read thread. Raw handles are just dropped.
+            if isinstance(cap, GuardedCapture):
                 cap.release()
-            except Exception:
-                pass
             with self._lock:
-                self._cap = None
+                if self._cap is cap:
+                    self._cap = None
                 self._consecutive_failures = 99
             return False, None
         if not box:
