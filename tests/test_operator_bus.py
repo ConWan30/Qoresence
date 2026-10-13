@@ -89,9 +89,11 @@ def test_outbox_roundtrip(tmp_path):
 
 
 def test_prompt_mentions_localhost_and_hold():
-    from qoresence.operator_bus.prompt import QOECTOR_BUS_PROMPT
+    from qoresence.operator_bus.prompt import QOECTOR_BUS_PROMPT, QOREDEV_BUS_PROMPT
 
     assert "127.0.0.1:8765/api/operator/bus" in QOECTOR_BUS_PROMPT
     assert "HOLD" in QOECTOR_BUS_PROMPT
     assert "vlm_last_crop" in QOECTOR_BUS_PROMPT
     assert "RetinaEventBus" in QOECTOR_BUS_PROMPT
+    assert "from\": \"qoredev\"" in QOREDEV_BUS_PROMPT or '"from": "qoredev"' in QOREDEV_BUS_PROMPT
+    assert "Do not merge" in QOREDEV_BUS_PROMPT
