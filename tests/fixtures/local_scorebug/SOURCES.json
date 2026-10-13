@@ -33,6 +33,21 @@
   },
   "no_scorebug": {
    "source_frame": "hdmi_clip_20260912_015442_010.jpg"
+  },
+  "live_9_0_2nd_4-53": {
+   "source_frame": "live 2026-10-13 PR #281 Madden 27 session (NO at NYG), deck /api/agent/frame 640x360: live281_frame.jpg"
+  },
+  "live_10_0_2nd_3-46": {
+   "source_frame": "live 2026-10-13 PR #281 Madden 27 session (NO at NYG), deck /api/agent/frame 640x360: f_130847_0-10_L1_layout_unknown_gameplay.jpg"
+  },
+  "live_10_0_2nd_1-55": {
+   "source_frame": "live 2026-10-13 PR #281 Madden 27 session (NO at NYG), deck /api/agent/frame 640x360: f_131131_0-10_L1_layout_unknown_gameplay.jpg"
+  },
+  "live_no_strip_gameplay": {
+   "source_frame": "live 2026-10-13 PR #281 Madden 27 session (NO at NYG), deck /api/agent/frame 640x360: f_130205_0-10_L0_layout_unknown_gameplay.jpg"
+  },
+  "live_no_strip_paused": {
+   "source_frame": "live 2026-10-13 PR #281 Madden 27 session (NO at NYG), deck /api/agent/frame 640x360: f_130228_0-10_L0_layout_unknown_paused.jpg"
   }
  }
 }

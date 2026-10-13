@@ -155,6 +155,19 @@ def test_college_football_profile_skips_local_reader(clean, monkeypatch):
     assert get_local_scorebug().stats()["reads"] == 0
 
 
+def test_madden_pin_reads_through_cfb_classifier(clean, monkeypatch):
+    """Live 2026-10-13: the title classifier said cfb_27 on Madden frames."""
+    monkeypatch.setenv("QORESENCE_GAME_PROFILE", "madden_27")
+    results = _run(monkeypatch, "live_10_0_2nd_3-46", profile="cfb_27")
+    assert results[-1].score_vlm_locked is True
+
+
+def test_madden_pin_still_blanks_a_cfb_strip(clean, monkeypatch):
+    monkeypatch.setenv("QORESENCE_GAME_PROFILE", "madden_27")
+    for r in _run(monkeypatch, "cfb", profile="cfb_27"):
+        assert not r.score_vlm_locked
+
+
 def test_cloud_cross_check_disagreement_blanks(clean, monkeypatch):
     cloud = _Vlm(
         {

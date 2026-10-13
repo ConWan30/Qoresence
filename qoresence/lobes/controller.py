@@ -146,6 +146,16 @@ class BufferEntry:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _analog_hz() -> float:
+    """Full-processing rate for unchanged analog reports (QORESENCE_HID_ANALOG_HZ, default 125)."""
+    import os
+
+    try:
+        return float(os.environ.get("QORESENCE_HID_ANALOG_HZ", "125") or 125)
+    except ValueError:
+        return 125.0
+
+
 class ControllerRuntime:
     """
     HID capture loop for DualShock Edge / generic controllers.
@@ -233,6 +243,19 @@ class ControllerRuntime:
         self._last_telemetry_flush_mono = 0.0
         self._telemetry_emitted = 0
 
+        # Analog decimation. A USB DualSense Edge sends ~250-1000 reports/s;
+        # running the full decode + IMU/haptic/telemetry/buffer path on each
+        # one holds the GIL often enough to starve the capture grab thread
+        # (live 2026-10-13: 30 -> 4-8 fps "shedding" with the pad on USB).
+        # Reports whose button/trigger bytes are unchanged are only fully
+        # processed at analog_hz; any button or trigger byte change (and any
+        # trigger debounce in progress) is processed immediately, so button
+        # and trigger edges stay exact.
+        self._analog_period_ns = int(1e9 / max(1.0, _analog_hz()))
+        self._last_full_ns = 0
+        self._last_edge_key: bytes | None = None
+        self._reports_decimated = 0
+
     # ──────────────────────────────────────────────────────────────────────────
     # PUBLIC API
     # ──────────────────────────────────────────────────────────────────────────
@@ -303,6 +326,8 @@ class ControllerRuntime:
             "causal_density": self._causal_density if hasattr(self, "_causal_density") else 0,
             "last_event_ns": self._last_event_ns if hasattr(self, "_last_event_ns") else 0,
             "telemetry_emitted": self._telemetry_emitted,
+            "reports_decimated": self._reports_decimated,
+            "analog_hz": round(1e9 / self._analog_period_ns, 1) if self._analog_period_ns else None,
         }
 
     def ingest_report(self, report: bytes, *, host_ts_ns: int | None = None) -> ControllerState:
@@ -586,6 +611,11 @@ class ControllerRuntime:
             self._hid_stale = False
             self._reports_read += 1
 
+            if self._decimate(report):
+                # Cheap path: drain the HID queue without sleeping or parsing.
+                self._reports_decimated += 1
+                continue
+
             state = self._decode_report(report)
             state.host_ts_ns = clock_ns()
 
@@ -741,6 +771,29 @@ class ControllerRuntime:
         self._push_hold(state, now_ns)
         self._prev_state = state
 
+    def _decimate(self, report: bytes, now_ns: int | None = None) -> bool:
+        """True when this report may be skipped (no button/trigger/deadzone change, analog not due)."""
+        if self._analog_period_ns <= 0:
+            return False
+        off = 1 if (len(report) >= 78 and report[0] == 0x31) else 0
+        # l2, r2 and the three button bytes (byte 7 is a rolling counter).
+        # Plus each stick's in/out-of-deadzone state so stick enter/exit edges
+        # stay exact too (only motion *within* a state is thinned).
+        sticks = bytes(1 if abs(int(b) - 128) > 20 else 0 for b in report[1 + off : 5 + off])
+        key = bytes(report[5 + off : 7 + off]) + bytes(report[8 + off : 11 + off]) + sticks
+        now = int(now_ns if now_ns is not None else clock_ns())
+        if key != self._last_edge_key:
+            self._last_edge_key = key
+            self._last_full_ns = now
+            return False
+        debouncing = (0 < self._l2_above_count < self._trigger_debounce) or (
+            0 < self._r2_above_count < self._trigger_debounce
+        )
+        if debouncing or now - self._last_full_ns >= self._analog_period_ns:
+            self._last_full_ns = now
+            return False
+        return True
+
     def _note_empty_read(self) -> bool:
         """Count empty HID reads. True → drop handle. Controller thread only."""
         self._empty_reads += 1
@@ -779,8 +832,12 @@ class ControllerRuntime:
         except Exception:
             pass
         try:
+            from qoresence.sync.haptic_probe import get_haptic_probe
             from qoresence.sync.haptic_probe import observe_imu as _haptic_imu
 
+            probe = get_haptic_probe()
+            if probe is None or not probe.enabled:
+                return
             prev = self._prev_state
             analog_slew = (
                 abs(int(state.r2) - int(prev.r2)) / 255.0

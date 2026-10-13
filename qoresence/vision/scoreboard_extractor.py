@@ -360,12 +360,23 @@ def _local_scorebug_board(
             return None
         prof = str(getattr(ctx, "game_profile", "") or "").lower()
         title = str(getattr(ctx, "game_title", "") or "").lower()
-        if any(k in prof or k in title for k in ("cfb", "college", "ncaa")):
+        if any(k in prof or k in title for k in ("cfb", "college", "ncaa")) and not _operator_pinned_madden():
+            # The title classifier can say CFB on Madden frames; an operator
+            # madden pin wins. The reader stays fail-closed either way: a CFB
+            # strip fails the MADDEN wordmark anchor and blanks.
             return None
         from qoresence.vision.confirm_ticket import resolve_session_id
+        from qoresence.vision.local_scorebug.service import get_local_scorebug_pump
 
         svc = get_local_scorebug()
-        src, stamp = None, {}
+        # The pump samples the FrameHub at the agreement rate on its own thread:
+        # this extractor runs only after each cloud classify call (seconds
+        # apart), too sparse for the 2 s agreement gap on its own.
+        get_local_scorebug_pump().renew(
+            game_state=_game_state_token(ctx),
+            game_profile=getattr(ctx, "game_profile", None),
+        )
+        session = resolve_session_id()
         try:
             from qoresence.monitor.frame_hub import get_frame_hub
 
@@ -375,24 +386,31 @@ def _local_scorebug_board(
             # on ticks the agreement window would not sample anyway.
             peek = hub.get_latest_stamp()
             if peek.get("has_frame") and not svc.wants_sample(peek):
-                return svc.current(resolve_session_id())
+                return svc.current_for(session, home_left=bool(home_left))
             src, stamp = hub.get_latest_observation()
         except Exception:
             src, stamp = None, {}
         if src is None:
             src, stamp = frame, {}
-
-        return svc.observe(
+        svc.observe(
             src,
             stamp=stamp,
-            session_id=resolve_session_id(),
+            session_id=session,
             game_state=_game_state_token(ctx),
             game_profile=getattr(ctx, "game_profile", None),
-            home_left=bool(home_left),
+            home_left=False,
         )
+        return svc.current_for(session, home_left=bool(home_left))
     except Exception as e:
         log.debug("local scorebug: %s", e)
         return None
+
+
+def _operator_pinned_madden() -> bool:
+    """True when the operator pinned a Madden profile (CLI / env / last session)."""
+    from qoresence.core.operator_profile import madden_pinned
+
+    return madden_pinned()
 
 
 def _vlm_board_grounded(vlm: dict[str, Any] | None) -> bool:
@@ -1016,11 +1034,19 @@ class FootballScoreboardExtractor:
                     try:
                         from qoresence.vision.scoreboard_vlm import ScoreboardVlmReferee
 
+                        crop_profile = str(getattr(ctx, "game_profile", "") or "")
+                        crop_title = str(getattr(ctx, "game_title", "") or "")
+                        if local_read or _operator_pinned_madden():
+                            # The local reader already anchored on the Madden
+                            # strip, and an operator Madden pin outranks the
+                            # title classifier (it said cfb_27 on Madden frames
+                            # live and cut the CFB region -> no_scorebug_sides).
+                            crop_profile, crop_title = "madden_27", ""
                         confirm_crop = ScoreboardVlmReferee._crop(
                             frame,
                             game_state=_game_state_token(ctx),
-                            game_profile=str(getattr(ctx, "game_profile", "") or ""),
-                            game_title=str(getattr(ctx, "game_title", "") or ""),
+                            game_profile=crop_profile,
+                            game_title=crop_title,
                         )
                     except Exception:
                         confirm_crop = None

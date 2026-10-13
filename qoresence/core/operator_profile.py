@@ -135,3 +135,30 @@ def resolve_operator_profile(cli_value: str | None = None) -> tuple[str, bool]:
                 pid, pinned = _FALLBACK, False
     _last_resolve_pinned = pinned
     return pid, pinned
+
+
+# Explicit operator pin for this process (CLI / env / last session), set once
+# by the CLI after resolve. Read by vision code that must not let a title
+# classifier flip a pinned Madden session to the CFB scorebug band.
+_active_pin: str | None = None
+
+
+def set_active_pin(profile_id: str | object | None, *, pinned: bool) -> None:
+    global _active_pin
+    if not pinned or profile_id is None:
+        _active_pin = None
+        return
+    _active_pin = _canonical_profile_id(profile_id)
+
+
+def active_pin() -> str | None:
+    """Pinned profile id for this process, else the env pin, else None."""
+    if _active_pin:
+        return _active_pin
+    env = (os.environ.get(_ENV) or "").strip()
+    return _canonical_profile_id(env) if env else None
+
+
+def madden_pinned() -> bool:
+    """True when the operator explicitly pinned a Madden profile."""
+    return str(active_pin() or "").lower().startswith("madden")
