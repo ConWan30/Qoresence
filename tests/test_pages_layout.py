@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 CSS = (DOCS / "aperture.css").read_text(encoding="utf-8")
 PAGES = ["index.html", "watch.html", "install.html", "limits.html", "trace.html",
-         "trace.html?demo=1", "dark.html", "rivalatch.html"]
+         "trace.html?demo=1", "dark.html", "rivalatch.html", "streamer-kit.html"]
 WIDTHS = [390, 768, 1024, 1280]
 OVERFLOW_WIDTHS = [375, 768, 1024, 1440]
 FEEDBACK = "https://github.com/ConWan30/Qoresence/discussions/269"

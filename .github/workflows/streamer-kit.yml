@@ -1,0 +1,28 @@
+# Build the Streamer Kit zip as a workflow artifact. Does not publish a release.
+name: Streamer Kit bundle
+
+on:
+  pull_request:
+    paths: ["streamer-kit/**", "scripts/build_streamer_kit.py", ".github/workflows/streamer-kit.yml"]
+  push:
+    branches: [main]
+    paths: ["streamer-kit/**", "scripts/build_streamer_kit.py"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build zip
+        run: python scripts/build_streamer_kit.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qoresence-streamer-kit
+          path: dist/qoresence-streamer-kit.zip
