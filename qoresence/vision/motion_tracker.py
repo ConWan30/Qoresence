@@ -166,7 +166,9 @@ class MotionTracker:
         small = cv2.resize(frame, None, fx=self._flow_scale, fy=self._flow_scale)
         gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
 
-        if self._prev_gray is None:
+        if self._prev_gray is None or self._prev_gray.shape != gray.shape:
+            # First frame, or the capture changed size (rebind / new mode):
+            # Farneback asserts equal sizes, so rebaseline instead of raising.
             self._prev_gray = gray
             self._prev_frame = small
             return MotionEvidence(
