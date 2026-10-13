@@ -1,0 +1,127 @@
+{
+  "label": "FIXTURE",
+  "kind": "NON-CLAIM",
+  "name": "observatory_not_notary",
+  "north_star": "Sell the observatory. Do not sell the notary.",
+  "plane": "qoresence-observation",
+  "out_of_scope": [
+    "--play",
+    "merge",
+    "PR #185 Clock Notary",
+    "QorTroller PoAC *-truth wrap",
+    "invented scores",
+    "DualSense topology rewrite"
+  ],
+  "refs": [
+    "docs/X_LIVE_STUDIO.md",
+    "glass/src/lib/coupling/board.ts",
+    "lab/x_live_01_crop_move/",
+    "https://github.com/ConWan30/Qoresence/pull/154",
+    "https://github.com/ConWan30/Qoresence/pull/185"
+  ],
+  "cases": [
+    {
+      "id": "live_obs_glass_ok",
+      "intent": "HDMI+pad+board jointly licensed by one clock may show digits only under ConfirmTicket + score_vlm_locked + ticket-fresh",
+      "snapshot": {
+        "type": "snapshot",
+        "situation": {
+          "game_state": "gameplay",
+          "home_score": 14,
+          "away_score": 7,
+          "score_vlm_locked": true,
+          "confirm_ticket_id": "fixture-obs",
+          "crop_hash": "crop-ok",
+          "frame_seq": 10
+        },
+        "confirm": {
+          "last_confirm": {
+            "ticket_id": "fixture-obs",
+            "crop_hash": "crop-ok",
+            "home_score": 14,
+            "away_score": 7,
+            "score_vlm_locked": true,
+            "clock_ns": 1000000000
+          }
+        },
+        "video": {
+          "has_frame": true,
+          "live_seq": 10,
+          "same_seq": true,
+          "paint": true,
+          "crop_hash": "crop-ok"
+        },
+        "controller": {
+          "connected": true,
+          "transport": "usb",
+          "hid_domain": "observe",
+          "reports": 100
+        }
+      },
+      "expect": {
+        "digits_licensed": true,
+        "home": 14,
+        "away": 7,
+        "truth_glyph": "dark",
+        "surface": "observatory"
+      }
+    },
+    {
+      "id": "live_truth_glyph_dark",
+      "intent": "During LIVE, TRUTH / notary glyph stays dark — observation UI cue only",
+      "snapshot": {
+        "type": "snapshot",
+        "situation": { "game_state": "gameplay", "frame_seq": 11 },
+        "video": { "has_frame": true, "live_seq": 11, "same_seq": true, "paint": true },
+        "clock_notary": { "mounted": false, "glyph": "off" }
+      },
+      "expect": {
+        "truth_glyph": "dark",
+        "notary_routes_on_live": false,
+        "surface": "observatory"
+      }
+    },
+    {
+      "id": "unlocked_scores_blank",
+      "intent": "Unlocked OCR is not digit permission — blank beats hold",
+      "snapshot": {
+        "type": "snapshot",
+        "situation": {
+          "game_state": "gameplay",
+          "home_score": 21,
+          "away_score": 14,
+          "scoreboard_locked": true,
+          "board_locked": true
+        },
+        "video": { "has_frame": true, "same_seq": true, "paint": true }
+      },
+      "expect": {
+        "digits_licensed": false,
+        "home": null,
+        "away": null,
+        "scorebug": ""
+      }
+    },
+    {
+      "id": "empty_hid_console_healthy",
+      "intent": "Empty laptop HID while DualSense BT plays on PS5 is healthy topology, not an error",
+      "snapshot": {
+        "type": "snapshot",
+        "situation": { "game_state": "gameplay" },
+        "video": { "has_frame": true, "same_seq": true },
+        "controller": {
+          "connected": false,
+          "waiting": true,
+          "reports": 0,
+          "hid_domain": null,
+          "note": "USB unplugged on laptop; play pad is BT on PS5"
+        }
+      },
+      "expect": {
+        "health": "ok",
+        "empty_hid_is_error": false,
+        "topology": "usb_observe_optional_bt_play_on_ps5"
+      }
+    }
+  ]
+}
