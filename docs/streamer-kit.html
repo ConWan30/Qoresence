@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#010206">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <meta name="description" content="Qoresence Streamer Kit: a free OBS setup for Madden streamers. Score overlay that only shows locked scores, auto replay on score lock, scene switch, optional signed truth feed.">
+  <title>Streamer Kit — Qoresence</title>
+  <link rel="canonical" href="https://conwan30.github.io/Qoresence/streamer-kit.html">
+  <link rel="stylesheet" href="./aperture.css">
+</head>
+<body>
+  <a class="skip" href="#kit-top">Skip to content</a>
+  <header class="holo-header">
+    <div class="site-hold" role="status">
+      <span>this page is HOLD — not a live session</span>
+      <span class="board-why">Board not licensed — this is a page</span>
+    </div>
+    <div class="wrap top">
+      <a class="wordmark" href="./index.html">
+        <img class="holo-mark" src="./assets/qoresence-logo.png" alt="" width="40" height="40">
+        <span><b>Qoresence</b><small>pages · hold</small></span>
+      </a>
+      <nav id="kit-nav" class="glass-nav" data-nav aria-label="Site">
+        <a href="./index.html">Home</a>
+        <a href="./watch.html">Watch</a>
+        <a href="./install.html">Install</a>
+        <a href="./limits.html">Limits</a>
+        <a href="./streamer-kit.html" aria-current="page">Streamer Kit</a>
+        <a href="https://vibegate-production.up.railway.app/">Rivalatch</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="kit-top">
+    <section class="wrap hallway">
+      <div class="kicker"><i></i> Streamer Kit · free · beta</div>
+      <h1>Madden on OBS. <em>Only scores it locked.</em></h1>
+      <p class="lede">A free setup bundle for Madden 27 streamers who use OBS. Qoresence reads the scorebug from your HDMI capture card and drives OBS: it shows the score only once it is sure, saves a replay when the score goes up, and can flip a scene. When it is unsure, nothing happens.</p>
+      <p class="kit-cta">
+        <a class="kit-btn" href="https://github.com/ConWan30/Qoresence/tree/main/streamer-kit">Get the bundle</a>
+        <a class="kit-btn kit-btn-ghost" href="https://github.com/ConWan30/Qoresence/issues/new?template=streamer_kit_interest.md">I want to try it</a>
+      </p>
+      <div class="kit-board" aria-label="Example of the overlay text after a score is locked">
+        <span class="kit-board-tag">example · locked</span>
+        <b>KC 14 - 7 BUF</b>
+        <small>Gold only appears after a lock. Unsure reads leave it blank.</small>
+      </div>
+    </section>
+
+    <section class="section" id="does">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">What it does</div><h2>Four things, all opt-in.</h2></div>
+          <p>Everything here already ships in Qoresence on main. The kit just packages the OBS side.</p>
+        </div>
+        <div class="glasses glasses-quad">
+          <article class="glass"><span class="idx">Overlay</span><h3>Verified score text</h3><p>Sets an OBS text source to the score only while it is locked and the capture is live. No lock, blank read or stale frame: the text goes empty.</p></article>
+          <article class="glass"><span class="idx">Replay</span><h3>Auto replay on score lock</h3><p>A locked score increase saves your OBS replay buffer (at most once every 20 s). Turn off with <code>--obs-no-replay</code>.</p></article>
+          <article class="glass"><span class="idx">Scene</span><h3>Scene switch</h3><p>Optionally flashes a scene for a few seconds and switches back. If you change scenes yourself, it leaves you alone.</p></article>
+          <article class="glass"><span class="idx">Feed</span><h3>Signed truth feed</h3><p>Optional <code>--truth-feed</code>: an append-only, hash-chained log of locked scores, signed with a local key, that anyone can check with <code>scripts/verify_truth_feed.py</code>.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="needs">
+      <div class="wrap">
+        <div class="split-two">
+          <article class="split-panel">
+            <h3>You need</h3>
+            <ul>
+              <li>Windows PC</li>
+              <li>OBS Studio 28 or newer (WebSocket server built in, port 4455)</li>
+              <li>An HDMI capture card, used by Qoresence (not added to OBS)</li>
+              <li>Madden 27</li>
+            </ul>
+          </article>
+          <article class="split-panel">
+            <h3>It never</h3>
+            <ul>
+              <li>Shows a guessed score</li>
+              <li>Saves a replay on an unsure read or an unlock</li>
+              <li>Stores your OBS password in a file it ships</li>
+              <li>Loads into OBS as a plugin (it talks over the local WebSocket)</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="setup">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Setup</div><h2>Five steps.</h2></div>
+          <p>Full details in the bundle <a href="https://github.com/ConWan30/Qoresence/blob/main/streamer-kit/README.md">README</a> and the <a href="https://github.com/ConWan30/Qoresence/blob/main/docs/OBS_BRIDGE.md">OBS bridge doc</a>.</p>
+        </div>
+        <div class="steps">
+          <article class="step"><span class="number">01</span><h3>Turn on WebSocket</h3><p>OBS → Tools → WebSocket Server Settings. Enable it, keep port 4455, copy the password from Show Connect Info.</p></article>
+          <article class="step"><span class="number">02</span><h3>Import the scene</h3><p>Scene Collection → Import → <code>Qoresence_Streamer_Kit.scene.json</code>. You get scene <code>Qoresence Score</code> with text <code>Qoresence Score Text</code>.</p></article>
+          <article class="step"><span class="number">03</span><h3>Start the replay buffer</h3><p>Settings → Output → Replay Buffer: enable (20–30 s). Click Start Replay Buffer before you play.</p></article>
+          <article class="step"><span class="number">04</span><h3>Save the password</h3><p>Set <code>QORESENCE_OBS_PASSWORD</code>, or put it on one line in <code>%USERPROFILE%\.qoresence\obs_password.txt</code>.</p></article>
+          <article class="step"><span class="number">05</span><h3>Launch</h3><p>Install with <code>pip install -e ".[obs]"</code>, copy <code>qoresence-stream.cmd</code> next to <code>qoresence.bat</code>, double-click.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="beta">
+      <div class="wrap">
+        <article class="split-panel kit-beta">
+          <h3>Beta, honestly</h3>
+          <ul>
+            <li>A capture-freeze fix is still waiting on a live test.</li>
+            <li>Unsure reads trigger nothing: no text, no replay, no scene switch.</li>
+            <li>The scene file is checked in CI but has not been import-tested on every OBS version yet.</li>
+            <li>The truth feed has not been tested live yet; it is off unless you add <code>--truth-feed</code>.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="wrap">
+        <div class="section-head"><div><div class="kicker">FAQ</div><h2>Short answers.</h2></div></div>
+        <div class="faq">
+          <details><summary>Is it free?</summary><p>Yes. The kit and Qoresence are open source on GitHub.</p></details>
+          <details><summary>Do I add my capture card to OBS?</summary><p>No. Qoresence uses the card. In OBS, capture your display or game window instead. Adding the same card twice will fight over it.</p></details>
+          <details><summary>Why is the text source not called "Qoresence Score"?</summary><p>OBS does not allow a scene and a source with the same name. The scene is <code>Qoresence Score</code>, so the text is <code>Qoresence Score Text</code>, and the launcher tells Qoresence that with <code>--obs-text-source</code>.</p></details>
+          <details><summary>What if OBS is closed?</summary><p>Qoresence keeps running, logs one warning and retries in the background.</p></details>
+          <details><summary>What does the truth feed prove?</summary><p>That the listed scores are the ones Qoresence locked, in order, unedited. It is not anti-cheat and makes no claim about who was playing.</p></details>
+          <details><summary>Mac or Linux?</summary><p>Not supported for the kit. It is Windows-first.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="sponsor">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="kicker">Sponsor this kit</div><h2>Keep it free.</h2></div>
+          <p>Make capture cards, controllers or streaming gear? We are open to sponsors who help keep the kit free for streamers.</p>
+        </div>
+        <div class="community">
+          <a href="mailto:qoresence@mail.grokbot.com?subject=Sponsor%20the%20Qoresence%20Streamer%20Kit"><b>Email us</b><span>qoresence@mail.grokbot.com</span></a>
+          <a href="https://github.com/ConWan30/Qoresence/issues/new?template=streamer_kit_interest.md"><b>Streamer signup</b><span>Open a GitHub issue to say you want in. No trackers.</span></a>
+          <a href="https://github.com/ConWan30/Qoresence/discussions"><b>Discussions</b><span>Questions and setups.</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-row">
+      <div>Qoresence / local-first observatory / observation plane only<br>The capture card is the brain. Everything else is a glass.</div>
+      <div>
+        <a class="footer-feedback" href="https://github.com/ConWan30/Qoresence/discussions/269">Tell me what broke</a> ·
+        <a href="./index.html">Home</a> ·
+        <a href="./watch.html">Watch</a> ·
+        <a href="./install.html">Install</a> ·
+        <a href="./streamer-kit.html">Streamer Kit</a> ·
+        <a href="./trace.html">Trace</a> ·
+        <a href="./dark.html">Dark</a> ·
+        <a href="https://github.com/ConWan30/Qoresence">Source</a>
+      </div>
+    </div>
+  </footer>
+  <script src="./site.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+{
+  "name": "Qoresence Streamer Kit",
+  "current_scene": "Qoresence Score",
+  "current_program_scene": "Qoresence Score",
+  "scene_order": [
+    {
+      "name": "Qoresence Score"
+    }
+  ],
+  "groups": [],
+  "quick_transitions": [],
+  "transitions": [],
+  "saved_projectors": [],
+  "current_transition": "Fade",
+  "transition_duration": 300,
+  "preview_locked": false,
+  "scaling_enabled": false,
+  "modules": {},
+  "sources": [
+    {
+      "id": "scene",
+      "versioned_id": "scene",
+      "name": "Qoresence Score",
+      "uuid": "a8b084a4-9508-5b73-bd5d-463ff998b8e3",
+      "enabled": true,
+      "flags": 0,
+      "mixers": 0,
+      "volume": 1.0,
+      "muted": false,
+      "settings": {
+        "id_counter": 1,
+        "custom_size": false,
+        "items": [
+          {
+            "name": "Qoresence Score Text",
+            "source_uuid": "cba9ed92-081d-510d-9706-0944dbef07a7",
+            "visible": true,
+            "locked": false,
+            "id": 1,
+            "pos": {
+              "x": 40.0,
+              "y": 40.0
+            },
+            "rot": 0.0,
+            "scale": {
+              "x": 1.0,
+              "y": 1.0
+            },
+            "align": 5,
+            "bounds_type": 0,
+            "bounds_align": 0,
+            "bounds": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "crop_left": 0,
+            "crop_top": 0,
+            "crop_right": 0,
+            "crop_bottom": 0,
+            "private_settings": {}
+          }
+        ]
+      },
+      "hotkeys": {},
+      "private_settings": {}
+    },
+    {
+      "id": "text_gdiplus",
+      "versioned_id": "text_gdiplus_v2",
+      "name": "Qoresence Score Text",
+      "uuid": "cba9ed92-081d-510d-9706-0944dbef07a7",
+      "enabled": true,
+      "flags": 0,
+      "mixers": 0,
+      "volume": 1.0,
+      "muted": false,
+      "settings": {
+        "text": "",
+        "font": {
+          "face": "Segoe UI",
+          "size": 64,
+          "style": "Bold",
+          "flags": 1
+        },
+        "color": 4285849340,
+        "opacity": 100,
+        "bk_color": 4278583809,
+        "bk_opacity": 80,
+        "outline": true,
+        "outline_color": 4293320806,
+        "outline_size": 3,
+        "outline_opacity": 100
+      },
+      "hotkeys": {},
+      "private_settings": {}
+    }
+  ]
+}
