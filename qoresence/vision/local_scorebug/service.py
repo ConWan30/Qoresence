@@ -1,9 +1,15 @@
 """Extractor-facing service: flag, sampling, agreement, cross-check, health.
 
-Runs inline on the scoreboard lock worker (``FootballScoreboardExtractor``),
-never on the capture/HID/bus threads. A read costs well under a millisecond,
-and reads are rate-limited to the agreement sampling interval anyway. No bus
-events are emitted and no lobe locks are taken here.
+Reads come from a small dedicated sampler thread (``LocalScorebugPump``) that
+pulls the FrameHub latest frame every ``min_interval_ns``, never from the
+capture/HID/bus threads. The extractor only asks for the current agreed board.
+
+Why a pump: the extractor runs after each cloud classify call on the visual
+lobe, which is seconds apart (and 14 s when the cloud times out). The agreement
+window needs ``need`` reads with gaps under ``max_gap_ns`` (2 s), so reads tied
+to that cadence could never agree (live Madden 27 run 2026-10-13: 50 reads in
+25 min, 0 agreed). A read costs well under a millisecond. No bus events are
+emitted and no lobe locks are taken here.
 """
 
 from __future__ import annotations
@@ -268,6 +274,16 @@ class LocalScorebugService:
             return None
         return dict(sure)
 
+    def current_for(self, session_id: str, *, home_left: bool) -> dict[str, Any] | None:
+        """Current agreed board with home/away mapped for the caller's ``home_left``."""
+        sure = self.current(session_id)
+        if sure is None:
+            return None
+        left, right = int(sure["left_score"]), int(sure["right_score"])
+        sure["home_left"] = bool(home_left)
+        sure["home_score"], sure["away_score"] = (left, right) if home_left else (right, left)
+        return sure
+
     def note_choice(self, why: str) -> None:
         with self._lock:
             self._last_choice = why
@@ -292,6 +308,7 @@ class LocalScorebugService:
                 "last_frame_reason": last.reason if last else None,
                 "last_choice": self._last_choice or None,
                 "cross_check_disagree": self._disagree,
+                "pump": _PUMP.stats() if _PUMP is not None else None,
             }
 
 
@@ -308,7 +325,137 @@ def get_local_scorebug() -> LocalScorebugService:
 
 
 def reset_local_scorebug(service: LocalScorebugService | None = None) -> None:
-    """Tests: drop the singleton (or install a prepared one)."""
+    """Tests: drop the singleton (or install a prepared one) and its pump."""
     global _SERVICE
     with _SERVICE_LOCK:
         _SERVICE = service
+    reset_local_scorebug_pump()
+
+
+class LocalScorebugPump:
+    """Daemon sampler: FrameHub latest frame -> service.observe at the agreement rate.
+
+    Runs only while the extractor keeps renewing its lease (football context,
+    reader not skipped), so it costs nothing outside Madden. It never touches
+    the capture or HID threads; the only shared lock is the FrameHub copy.
+    """
+
+    def __init__(
+        self,
+        service: LocalScorebugService,
+        *,
+        lease_s: float = 20.0,
+        source: Any = None,
+        session_fn: Any = None,
+    ) -> None:
+        self._svc = service
+        self._lease_ns = int(lease_s * 1e9)
+        self._lease_until = 0
+        self._ctx: dict[str, Any] = {}
+        self._source = source
+        self._session_fn = session_fn
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._lk = threading.Lock()
+        self.ticks = 0
+        self.samples = 0
+
+    def renew(self, *, game_state: str = "", game_profile: str | None = None) -> None:
+        with self._lk:
+            self._lease_until = time.monotonic_ns() + self._lease_ns
+            self._ctx = {"game_state": game_state, "game_profile": game_profile}
+            alive = self._thread is not None and self._thread.is_alive()
+            if not alive:
+                self._stop.clear()
+                self._thread = threading.Thread(
+                    target=self._loop, name="local-scorebug-pump", daemon=True
+                )
+                self._thread.start()
+
+    def active(self) -> bool:
+        with self._lk:
+            t = self._thread
+            return bool(t and t.is_alive() and time.monotonic_ns() < self._lease_until)
+
+    def stop(self) -> None:
+        self._stop.set()
+        t = self._thread
+        if t is not None and t.is_alive():
+            t.join(timeout=1.5)
+        self._thread = None
+
+    def _frame(self) -> tuple[Any, dict[str, Any]]:
+        if self._source is not None:
+            return self._source()
+        from qoresence.monitor.frame_hub import get_frame_hub
+
+        hub = get_frame_hub()
+        peek = hub.get_latest_stamp()
+        if not peek.get("has_frame") or not self._svc.wants_sample(peek):
+            return None, {}
+        return hub.get_latest_observation()
+
+    def _session(self) -> str:
+        if self._session_fn is not None:
+            return str(self._session_fn() or "")
+        from qoresence.vision.confirm_ticket import resolve_session_id
+
+        return resolve_session_id()
+
+    def step(self) -> bool:
+        """One sample; True when a frame was offered to the reader."""
+        self.ticks += 1
+        frame, stamp = self._frame()
+        if frame is None:
+            return False
+        with self._lk:
+            ctx = dict(self._ctx)
+        self._svc.observe(
+            frame,
+            stamp=stamp,
+            session_id=self._session(),
+            game_state=str(ctx.get("game_state") or ""),
+            game_profile=ctx.get("game_profile"),
+            home_left=False,
+        )
+        self.samples += 1
+        return True
+
+    def _loop(self) -> None:
+        period = max(0.05, self._svc._window.config.min_interval_ns / 1e9)
+        while not self._stop.is_set():
+            if time.monotonic_ns() >= self._lease_until:
+                return  # lease lapsed: next renew() restarts the thread
+            try:
+                self.step()
+            except Exception as e:  # never let a bad frame kill the sampler
+                log.debug("local scorebug pump: %s", e)
+            self._stop.wait(period)
+
+    def stats(self) -> dict[str, Any]:
+        return {"active": self.active(), "ticks": self.ticks, "samples": self.samples}
+
+
+_PUMP: LocalScorebugPump | None = None
+
+
+def get_local_scorebug_pump() -> LocalScorebugPump:
+    global _PUMP
+    with _SERVICE_LOCK:
+        svc = _SERVICE
+    if svc is None:
+        svc = get_local_scorebug()
+    with _SERVICE_LOCK:
+        if _PUMP is None or _PUMP._svc is not svc:
+            if _PUMP is not None:
+                _PUMP._stop.set()
+            _PUMP = LocalScorebugPump(svc)
+        return _PUMP
+
+
+def reset_local_scorebug_pump(pump: LocalScorebugPump | None = None) -> None:
+    global _PUMP
+    with _SERVICE_LOCK:
+        old, _PUMP = _PUMP, pump
+    if old is not None and old is not pump:
+        old.stop()

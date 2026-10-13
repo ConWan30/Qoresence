@@ -2568,11 +2568,16 @@ def main():
     )
 
     args = parser.parse_args()
-    from qoresence.core.operator_profile import resolve_operator_profile, save_last_profile
+    from qoresence.core.operator_profile import (
+        resolve_operator_profile,
+        save_last_profile,
+        set_active_pin,
+    )
 
     _gp, _gp_pinned = resolve_operator_profile(getattr(args, "game_profile", None))
     args.game_profile = _gp
     args.game_profile_pinned = _gp_pinned
+    set_active_pin(_gp, pinned=_gp_pinned)
     save_last_profile(_gp)
     _bind = (getattr(args, "deck_bind", None) or os.environ.get("QORESENCE_DECK_BIND") or "").strip()
     if _bind:

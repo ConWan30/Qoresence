@@ -707,6 +707,9 @@ class VisualRuntime:
                 stamp_confirm_context,
             )
 
+            def mapped_title_is_cfb(t: str | None) -> bool:
+                return bool(t) and profile_from_title(t) == GameProfileId.CFB_27
+
             hint_profile, hint_title = football_confirm_hint()
             if not title_lower and hint_title:
                 title_lower = str(hint_title).lower()
@@ -726,6 +729,22 @@ class VisualRuntime:
                 profile = "cfb_27"
             elif "madden" in title_lower or "madden" in config_lower:
                 profile = "madden_27"
+            from qoresence.core.operator_profile import madden_pinned
+
+            if madden_pinned() and (optical_cfb or profile == "cfb_27"):
+                # Operator pinned Madden. A classifier title ("College Football
+                # 27") or a sticky CFB hint must not flip the profile unless the
+                # pixels show CFB markers (ticker OCR, title ignored). Live
+                # 2026-10-13 it flipped, and both scorebug crops were cut for the
+                # CFB band, above Madden's bottom strip (cloud read empty boards,
+                # local mint refused no_scorebug_sides).
+                if not frame_has_cfb_optical_markers(frame, game_profile=None, game_title=None):
+                    optical_cfb = False
+                    profile = "madden_27"
+                    if context is not None and (not ctx_title or mapped_title_is_cfb(ctx_title)):
+                        # A Madden title also stops stamp_confirm_context from
+                        # re-applying a sticky CFB title/hint below.
+                        context.game_title = "Madden NFL 27"
             if optical_cfb:
                 profile = "cfb_27"
                 set_football_confirm_hint("cfb_27", hint_title or ctx_title)
