@@ -2186,40 +2186,15 @@ def create_app():  # type: ignore[no-untyped-def]
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
     @app.get("/api/clips")
-    async def api_clips():  # type: ignore[no-untyped-def]
+    async def api_clips(offset: int = 0, limit: int = 40):  # type: ignore[no-untyped-def]
         try:
+            from qoresence.deck.clips_index import get_clips_index
+            from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
 
-            def _list_clips() -> list[dict[str, Any]]:
-                from qoresence.vision.clip_buffer import DEFAULT_OUT_DIR
-
-                root = pathlib.Path(DEFAULT_OUT_DIR)
-                items: list[dict[str, Any]] = []
-                if not root.exists():
-                    return items
-                from qoresence.vision.clip_excise import cut_summary, is_cut_render
-
-                videos = [
-                    p for p in root.glob("hdmi_clip_*.mp4") if not is_cut_render(p)
-                ] + list(root.glob("hdmi_clip_*.avi"))
-                videos.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-                for p in videos[:40]:
-                    st = p.stat()
-                    item = {
-                        "name": p.name,
-                        "path": str(p.resolve()),
-                        "url": f"/media/clips/{p.name}",
-                        "size_bytes": st.st_size,
-                        "mtime": st.st_mtime,
-                    }
-                    cut = cut_summary(p)
-                    if cut is not None:
-                        item["cut"] = cut
-                    items.append(item)
-                return items
-
-            items = await asyncio.to_thread(_list_clips)
+            idx = get_clips_index(DEFAULT_OUT_DIR)
+            items, total = await asyncio.to_thread(idx.items, offset, limit)
             return JSONResponse(
-                {"ok": True, "clips": items},
+                {"ok": True, "clips": items, "total": total, "offset": max(0, offset)},
                 headers={"Access-Control-Allow-Origin": "*"},
             )
         except Exception as e:
@@ -2660,12 +2635,12 @@ def create_app():  # type: ignore[no-untyped-def]
         safe = pathlib.Path(name).name
         if not re.fullmatch(r"reel_[\w\-]+(\.(mp4|receipt\.json))", safe, flags=re.I):
             return JSONResponse({"ok": False, "error": "invalid name"}, status_code=400)
-        root = pathlib.Path(DEFAULT_OUT_DIR)
-        # Search recursively under clips/*_cut/ for the highlight.
-        candidates = list(root.rglob(safe))
-        if not candidates:
+        from qoresence.deck.clips_index import find_reel
+
+        # Search recursively under clips/*_cut/ (cached by name, off the event loop).
+        path = await asyncio.to_thread(find_reel, DEFAULT_OUT_DIR, safe)
+        if path is None:
             return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
-        path = candidates[0]
         media = "video/mp4" if path.suffix == ".mp4" else "application/json"
         return FileResponse(
             path,
