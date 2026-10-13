@@ -6,12 +6,13 @@ from qoresence.operator_bus.mailbox import (
     get_operator_mailbox,
     reset_operator_mailbox,
 )
-from qoresence.operator_bus.prompt import QOECTOR_BUS_PROMPT
+from qoresence.operator_bus.prompt import QOECTOR_BUS_PROMPT, QOREDEV_BUS_PROMPT
 
 __all__ = [
     "OperatorEnvelope",
     "OperatorMailbox",
     "QOECTOR_BUS_PROMPT",
+    "QOREDEV_BUS_PROMPT",
     "get_operator_mailbox",
     "parse_envelope",
     "reset_operator_mailbox",
