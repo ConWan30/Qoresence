@@ -427,6 +427,7 @@ class StreamerRuntime:
 
         # Metrics state
         self._prev_gray: np.ndarray | None = None
+        self._loop_errors = 0
         self._activity = "idle"
         self._activity_since = 0.0
         self._zone_emas: dict[str, float] = {}
@@ -918,6 +919,9 @@ class StreamerRuntime:
             ok = self._open_capture()
             if ok:
                 log.info("Capture rebind OK — idx=%s name=%r", idx, name)
+                # A re-opened device may deliver a different frame size; the
+                # motion baseline from the old handle must not be diffed.
+                self._prev_gray = None
             return ok
         finally:
             # Throttle from the END of an attempt: a slow open (join 1.5 s +
@@ -942,12 +946,35 @@ class StreamerRuntime:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _run_loop(self) -> None:
+        """Supervise the capture loop: one bad frame must never kill the video thread.
+
+        Live 2026-10-13 (live-285): after a capture rebind, ``_process_frame``
+        raised a cv2 size mismatch and the uncaught exception ended the
+        ``qoresence-streamer`` thread; the deck froze while the grabber kept
+        running. Any exception now logs (rate-limited), drops the motion
+        baseline and resumes the loop.
+        """
+        self._emit_session_start()
+        errors = 0
+        last_log = 0.0
+        while self._running:
+            try:
+                self._run_loop_body()
+                return
+            except Exception as e:
+                errors += 1
+                self._loop_errors = errors
+                self._prev_gray = None
+                now = time.time()
+                if now - last_log >= 5.0:
+                    last_log = now
+                    log.exception("streamer loop error #%d (continuing): %s", errors, e)
+                time.sleep(0.01)
+
+    def _run_loop_body(self) -> None:
         """Background capture loop with retry and FPS fallback."""
         last_stats = 0.0
         last_heartbeat = 0.0
-
-        # Emit session_start
-        self._emit_session_start()
 
         while self._running:
             loop_start = time.time()
@@ -1237,8 +1264,10 @@ class StreamerRuntime:
         # Motion (mean absolute difference). cv2 releases the GIL — the old
         # numpy float32 path starved Deck HTTP so /live.jpg took 300–800ms.
         motion = 0.0
-        if self._prev_gray is not None:
-            motion = float(cv2.mean(cv2.absdiff(gray, self._prev_gray))[0])
+        prev = self._prev_gray
+        if prev is not None and prev.shape == gray.shape and prev.dtype == gray.dtype:
+            motion = float(cv2.mean(cv2.absdiff(gray, prev))[0])
+        # Shape change (rebind, new mode, process_scale change): rebaseline.
         self._prev_gray = gray.copy()
         self._last_motion = motion
 
