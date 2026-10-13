@@ -1017,7 +1017,7 @@ html.is-tab-hidden *, html.is-tab-hidden *::before, html.is-tab-hidden *::after 
 .kit-btn:hover { background: rgba(102, 224, 230, 0.18); box-shadow: 0 0 26px rgba(102, 224, 230, 0.3); }
 .kit-btn-ghost { background: transparent; color: var(--ink-2); border-color: var(--glass-edge); box-shadow: none; }
 .kit-board { position: relative; max-width: 460px; padding: 18px 22px; border: 1px solid var(--glass-edge); border-radius: 14px; background: var(--glass); backdrop-filter: blur(12px); box-shadow: 0 0 0 1px rgba(102, 224, 230, 0.08), 0 0 32px rgba(102, 224, 230, 0.12); }
-.kit-board b { display: block; color: var(--gold); font: 600 clamp(28px, 6vw, 40px)/1.1 var(--mono); letter-spacing: 0.04em; text-shadow: 0 0 14px rgba(252, 222, 116, 0.25); }
+.kit-board.is-locked b { display: block; color: var(--gold); font: 600 clamp(28px, 6vw, 40px)/1.1 var(--mono); letter-spacing: 0.04em; text-shadow: 0 0 14px rgba(252, 222, 116, 0.25); }
 .kit-board-tag { display: inline-block; margin-bottom: 8px; color: var(--mute); font: 500 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
 .kit-board small { display: block; margin-top: 8px; color: var(--mute); font-size: 13px; }
 .kit-beta { --tone: var(--aqua-hi); }
