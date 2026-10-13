@@ -22,7 +22,7 @@ if it is not already set and never stores it.
 - `streamer-kit/Qoresence_Streamer_Kit.scene.json`: scene `Qoresence Score` + Text (GDI+) source `Qoresence Score Text`.
 - `streamer-kit/qoresence-stream.cmd`: launcher; passes `--obs --obs-text-source "Qoresence Score Text"` (the bridge default `Qoresence Score` would collide with the scene name: OBS error 601).
 - `streamer-kit/README.md`: 5-step setup.
-- Zip: `python scripts/build_streamer_kit.py` → `dist/qoresence-streamer-kit.zip`. The `Streamer Kit bundle` workflow uploads it as an Actions artifact. No release is published.
+- Zip: `python scripts/build_streamer_kit.py` → `dist/qoresence-streamer-kit.zip`. A ready workflow (`docs/streamer-kit-workflow.yml.example`) uploads it as an Actions artifact once the owner copies it to `.github/workflows/` (the bot token lacks `workflow` scope). No release is published.
 - Interest signups: GitHub issue template `streamer_kit_interest.md`. No third-party trackers.
 
 ## Honest gaps
