@@ -362,18 +362,27 @@ def _local_scorebug_board(
         title = str(getattr(ctx, "game_title", "") or "").lower()
         if any(k in prof or k in title for k in ("cfb", "college", "ncaa")):
             return None
+        from qoresence.vision.confirm_ticket import resolve_session_id
+
+        svc = get_local_scorebug()
         src, stamp = None, {}
         try:
             from qoresence.monitor.frame_hub import get_frame_hub
 
-            src, stamp = get_frame_hub().get_latest_observation()
+            hub = get_frame_hub()
+            # Stamp first (no pixels). Skip the full-frame copy under the
+            # FrameHub lock — which the capture thread's publish() also needs —
+            # on ticks the agreement window would not sample anyway.
+            peek = hub.get_latest_stamp()
+            if peek.get("has_frame") and not svc.wants_sample(peek):
+                return svc.current(resolve_session_id())
+            src, stamp = hub.get_latest_observation()
         except Exception:
             src, stamp = None, {}
         if src is None:
             src, stamp = frame, {}
-        from qoresence.vision.confirm_ticket import resolve_session_id
 
-        return get_local_scorebug().observe(
+        return svc.observe(
             src,
             stamp=stamp,
             session_id=resolve_session_id(),
